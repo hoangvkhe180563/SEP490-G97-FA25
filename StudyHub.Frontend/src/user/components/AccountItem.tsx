@@ -12,8 +12,8 @@ import {
   SelectItem,
 } from "@/common/components/ui/select";
 import { Eye, Edit2, Trash2 } from "lucide-react";
-import type { AccountItemProps as Props } from "@/ui/interfaces/props";
-import type { User } from "@/ui/interfaces/user";
+import type { AccountItemProps as Props } from "@/user/interfaces/props";
+import type { User } from "@/user/interfaces/user";
 import { Link } from "react-router-dom";
 
 const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {

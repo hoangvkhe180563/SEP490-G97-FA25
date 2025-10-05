@@ -30,7 +30,7 @@ import {
   PaginationPrevious,
 } from "@/common/components/ui/pagination";
 import { Link } from "react-router-dom";
-import type { User } from "@/ui/interfaces/user";
+import type { User } from "@/user/interfaces/user";
 
 const initialUsers: User[] = [
   {
