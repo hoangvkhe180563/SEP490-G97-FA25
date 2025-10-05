@@ -52,7 +52,7 @@ const schema = z
 
 type FormValues = z.infer<typeof schema> & { photo?: File | null };
 
-export default function TeacherProfile() {
+export default function ManagerProfile() {
   const [preview, setPreview] = useState<string | undefined>(
     "/avatars/user1.png"
   );
