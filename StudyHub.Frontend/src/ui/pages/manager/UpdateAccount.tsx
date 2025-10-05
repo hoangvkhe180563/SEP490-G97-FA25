@@ -25,7 +25,7 @@ import {
   FormMessage,
 } from "@/common/components/ui/form";
 import { Textarea } from "@/common/components/ui/textarea";
-import { Ban, Calendar as CalendarIcon, Wrench } from "lucide-react";
+import { Ban, Calendar as CalendarIcon, Camera } from "lucide-react";
 import {
   Popover,
   PopoverTrigger,
@@ -102,21 +102,14 @@ const UpdateAccount: React.FC = () => {
           <div className="relative">
             <Avatar className="w-20 h-20">
               <AvatarImage src={preview} />
-              <AvatarFallback>JD</AvatarFallback>
+              <AvatarFallback>JS</AvatarFallback>
             </Avatar>
             <div className="absolute bottom-0 right-0">
-              <Button
-                variant="default"
-                className="rounded-full bg-zinc-600 size-7"
-              >
-                <Wrench />
-              </Button>
-            </div>
-          </div>
-          <div>
-            <div className="font-medium text-lg">John Smith</div>
-            <div className="text-sm text-gray-500">Role: Student</div>
-            <div className="mt-3">
+              <label htmlFor="photo" className="cursor-pointer">
+                <div className="bg-white border rounded-full p-1 shadow">
+                  <Camera className="size-4" />
+                </div>
+              </label>
               <input
                 id="photo"
                 type="file"
@@ -124,10 +117,11 @@ const UpdateAccount: React.FC = () => {
                 onChange={onFileChange}
                 className="hidden"
               />
-              <label htmlFor="photo">
-                <Button variant="default">Change Photo</Button>
-              </label>
             </div>
+          </div>
+          <div>
+            <div className="font-medium text-lg">John Smith</div>
+            <div className="text-sm text-gray-500">Role: Student</div>
           </div>
         </div>
 
