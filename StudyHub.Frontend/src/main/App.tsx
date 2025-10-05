@@ -11,6 +11,9 @@ import ParentLayout from "@/ui/components/layouts/ParentLayout";
 import ManagerProfile from "@/ui/pages/manager/ManagerProfile";
 import TeacherProfile from "@/ui/pages/teacher/TeacherProfile";
 import ParentProfile from "@/ui/pages/parent/ParentProfile";
+import ClassList from "@/ui/pages/ClassList";
+import DetailedClassStudent from "@/ui/pages/student/DetailedClassStudent";
+import DetailedClassTeacher from "@/ui/pages/teacher/DetailedClassTeacher";
 
 function App() {
   return (
@@ -18,6 +21,8 @@ function App() {
       <Route element={<TeacherLayout />} path="/teacher">
         <Route index element={<div>Dashboard</div>} />
         <Route path="profile" element={<TeacherProfile />} />
+        <Route path="classes" element={<ClassList />} />
+        <Route path="classes/:id" element={<DetailedClassTeacher />} />
       </Route>
       <Route element={<ManagerLayout />} path="/manager">
         <Route index element={<div>Dashboard</div>} />
@@ -28,6 +33,9 @@ function App() {
       </Route>
       <Route element={<StudentLayout />} path="/">
         <Route path="profile" element={<StudentProfile />} />
+        <Route path="classes" element={<ClassList />} />
+         <Route path="classes/:id" element={<DetailedClassStudent />} />
+        
       </Route>
       <Route element={<ParentLayout />} path="/parent">
         <Route path="profile" element={<ParentProfile />} />
