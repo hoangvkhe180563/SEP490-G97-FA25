@@ -1,8 +1,11 @@
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
+
+import { useNavigate } from "react-router-dom";
+import { Edit, Play, Plus } from "lucide-react";
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
@@ -32,7 +35,7 @@ const buttonVariants = cva(
       size: "default",
     },
   }
-)
+);
 
 function Button({
   className,
@@ -42,9 +45,9 @@ function Button({
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
+    asChild?: boolean;
   }) {
-  const Comp = asChild ? Slot : "button"
+  const Comp = asChild ? Slot : "button";
 
   return (
     <Comp
@@ -52,7 +55,55 @@ function Button({
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
-  )
+  );
 }
 
-export { Button, buttonVariants }
+function ViewLessonButton({ className }: { className?: string }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      onClick={() => navigate("/teacher/lecture/:id")}
+      className={`${
+        className ?? ""
+      } flex items-center gap-2 text-sm text-[#525252] hover:bg-gray-50 p-1 rounded`}
+    >
+      <Play className="w-3.5 h-3.5" /> View
+    </button>
+  );
+}
+
+function AddLessonButton({ className }: { className?: string }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      onClick={() => navigate("/teacher/add-lecture?type=video")}
+      className={`${
+        className ?? ""
+      } w-full h-[38px] border border-dashed border-[#D4D4D4] rounded flex items-center justify-center gap-2 text-sm text-[#525252] hover:bg-gray-50`}
+    >
+      <Plus className="w-3 h-3.5" /> Add Lesson
+    </button>
+  );
+}
+
+function EditLessonButton({ className }: { className?: string }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      onClick={() => navigate("/teacher/edit-lecture")}
+      className={`${
+        className ?? ""
+      } flex items-center gap-2 text-sm text-[#525252] hover:bg-gray-50 p-1 rounded`}
+    >
+      <Edit className="w-3.5 h-3.5" /> Edit
+    </button>
+  );
+}
+
+export {
+  Button,
+  buttonVariants,
+  ViewLessonButton,
+  AddLessonButton,
+  EditLessonButton,
+};
