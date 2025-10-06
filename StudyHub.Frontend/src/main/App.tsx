@@ -11,9 +11,9 @@ import ParentLayout from "@/ui/components/layouts/ParentLayout";
 import ManagerProfile from "@/ui/pages/manager/ManagerProfile";
 import TeacherProfile from "@/ui/pages/teacher/TeacherProfile";
 import ParentProfile from "@/ui/pages/parent/ParentProfile";
-import ClassList from "@/ui/pages/ClassList";
-import DetailedClassStudent from "@/ui/pages/student/DetailedClassStudent";
-import DetailedClassTeacher from "@/ui/pages/teacher/DetailedClassTeacher";
+import ClassList from "@/classManagement/pages/ClassList";
+import DetailedClassStudent from "@/classManagement/pages/student/DetailedClassStudent";
+import DetailedClassTeacher from "@/classManagement/pages/teacher/DetailedClassTeacher";
 
 function App() {
   return (

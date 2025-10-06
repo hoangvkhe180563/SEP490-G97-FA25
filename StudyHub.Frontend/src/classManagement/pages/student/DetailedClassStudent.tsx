@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import PostComposer from "@/common/components/ui/postcomposer";
-import PostCard from "@/common/components/ui/postcard";
-import type { Post } from "@/common/components/ui/postcard";
-import AssignmentCard from "@/common/components/ui/assignmentcard";
-import EveryoneList from "@/common/components/ui/listeveryone";
-import type { Person } from "@/common/components/ui/listeveryone";
+import PostComposer from "@/classManagement/components/ui/postcomposer";
+import PostCard from "@/classManagement/components/ui/postcard";
+import type { Post } from "@/classManagement/components/ui/postcard";
+import AssignmentCard from "@/classManagement/components/ui/assignmentcard";
+import EveryoneList from "@/classManagement/components/ui/listeveryone";
+import type { Person } from "@/classManagement/components/ui/listeveryone";
 import {
   Breadcrumb,
   BreadcrumbList,

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import CommentComposer from "@/common/components/ui/commentcomposer";
+import CommentComposer from "@/classManagement/components/ui/commentcomposer";
 export type Post = {
   id: number | string;
   author: string;

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import ClassCard from "@/common/components/ui/classcard";
-import CreateClassModal from "@/common/components/ui/createclassmodal";
-import EditClassModal from "@/common/components/ui/editclassmodal";
+import ClassCard from "@/classManagement/components/ui/classcard";
+import CreateClassModal from "@/classManagement/components/ui/createclassmodal";
+import EditClassModal from "@/classManagement/components/ui/editclassmodal";
 
 type ClassItem = {
   id: number;

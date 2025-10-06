@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import PostComposer from "@/common/components/ui/postcomposer";
-import PostCard from "@/common/components/ui/postcard";
-import type { Post } from "@/common/components/ui/postcard";
-import AssignmentCard from "@/common/components/ui/assignmentcard";
-import EveryoneListTC from "@/common/components/ui/listeveryoneteacher";
-import type { Person } from "@/common/components/ui/listeveryoneteacher"; // ✅ import type Person
+import PostComposer from "@/classManagement/components/ui/postcomposer";
+import PostCard from "@/classManagement/components/ui/postcard";
+import type { Post } from "@/classManagement/components/ui/postcard";
+import AssignmentCard from "@/classManagement/components/ui/assignmentcard";
+import EveryoneListTC from "@/classManagement/components/ui/listeveryoneteacher";
+import type { Person } from "@/classManagement/components/ui/listeveryoneteacher"; // ✅ import type Person
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -14,7 +14,7 @@ import {
   BreadcrumbPage,
 } from "@/common/components/ui/breadcrumb";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/common/components/ui/tabs";
-import MemberDetailModal from "@/common/components/ui/memberdetailmodal"; // ✅ để hiển thị thông tin người được click
+import MemberDetailModal from "@/classManagement/components/ui/memberdetailmodal"; // ✅ để hiển thị thông tin người được click
 
 // ===== Class Info Card =====
 const ClassInfoCard: React.FC<{ info: { id?: string; students?: number; schedule?: string } }> = ({ info }) => {

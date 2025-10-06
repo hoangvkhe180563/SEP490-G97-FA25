@@ -1,5 +1,5 @@
 import React from "react";
-import type { Person } from "@/common/components/ui/listeveryone";
+import type { Person } from "@/classManagement/components/ui/listeveryone";
 
 type Props = {
   open: boolean;

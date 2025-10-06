@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import MemberDetailModal from "@/common/components/ui/memberdetailmodal";
+import MemberDetailModal from "@/classManagement/components/ui/memberdetailmodal";
 export type Person = {
   id: number | string;
   name: string;
