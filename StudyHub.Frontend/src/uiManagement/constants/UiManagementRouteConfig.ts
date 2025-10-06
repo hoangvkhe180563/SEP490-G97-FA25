@@ -1,10 +1,10 @@
 const UiManagementRouteConfig = {
   LANDING_PAGE: {
-    CONFIGURATION: "/landing-page"
+    CONFIGURATION: "landing-page"
   },
   PAYMENT_PAGE: {
-    INDEX: "/payment",
-    CONFIGURATION: "/payment/config"
+    INDEX: "payment",
+    CONFIGURATION: "payment/config"
   }
 }
 

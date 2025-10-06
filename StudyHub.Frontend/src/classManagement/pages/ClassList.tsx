@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom"; // Import useLocation
 import ClassCard from "@/classManagement/components/ui/classcard";
+import type { UserRole } from "@/classManagement/components/ui/classcard";
 import CreateClassModal from "@/classManagement/components/ui/createclassmodal";
 import EditClassModal from "@/classManagement/components/ui/editclassmodal";
 
@@ -14,6 +15,7 @@ type ClassItem = {
 
 export const ClassList: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation(); // Get the current URL information
 
   const [query, setQuery] = useState("");
   const [subject, setSubject] = useState("");
@@ -40,6 +42,14 @@ export const ClassList: React.FC = () => {
     { id: 11, title: "Mathematics 101", teacher: "Dr. Sarah Johnson", subject: "Toán" },
     { id: 12, title: "Mathematics 101", teacher: "Dr. Sarah Johnson", subject: "Toán" },
   ]);
+
+  // Determine the user's role from the URL path
+  const userRole: UserRole = useMemo(() => {
+    // location.pathname might be "/class/teacher" or "/class/student"
+    if (location.pathname.includes("/student")) return "student";
+    // Default to teacher if not explicitly student (assuming you're inside a /class route)
+    return "teacher"; 
+  }, [location.pathname]);
 
   const filtered = useMemo(() => {
     return classes.filter((c) => {
@@ -72,8 +82,10 @@ export const ClassList: React.FC = () => {
   }, [filtered, currentPage, pageSize]);
 
   // navigate to class details page
-  const handleView = (id: number | string) => {
-    navigate(`/classes/${id}`);
+  // MODIFIED: This function now accepts the role from ClassCard
+  const handleView = (id: number | string, role: UserRole) => {
+    // Navigate to the correct nested path: /class/teacher/:id or /class/student/:id
+    navigate(`/class/${role}/${id}`);
   };
 
   const handleMenu = (action: "viewClassworks" | "viewStudents" | "edit", id: number | string) => {
@@ -129,6 +141,7 @@ export const ClassList: React.FC = () => {
             <option value="all">All Subject</option>
             <option value="Toán">Toán</option>
             <option value="Văn">Văn</option>
+            <option value="Anh">Anh</option> 
           </select>
 
           <select
@@ -143,7 +156,10 @@ export const ClassList: React.FC = () => {
         </div>
 
         <div className="mt-3 sm:mt-0 ml-auto">
-          <button onClick={() => setShowCreate(true)} className="bg-black text-white px-4 py-2 rounded-md">+ Add Class</button>
+          {/* Only show Add Class button for teachers */}
+          {userRole === "teacher" && (
+            <button onClick={() => setShowCreate(true)} className="bg-black text-white px-4 py-2 rounded-md">+ Add Class</button>
+          )}
         </div>
       </div>
 
@@ -177,6 +193,7 @@ export const ClassList: React.FC = () => {
               title={c.title}
               teacher={c.teacher}
               subject={c.subject}
+              userRole={userRole} // PASS THE ROLE TO CLASS CARD
               onView={handleView}
               onMenu={handleMenu}
             />

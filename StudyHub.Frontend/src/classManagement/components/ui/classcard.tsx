@@ -1,12 +1,21 @@
 import React, { useState } from "react";
 
+// Add a Role type to make the props cleaner
+export type UserRole = "teacher" | "student";
+
 export type ClassCardProps = {
   id: string | number;
   title: string;
   teacher: string;
   subject?: string;
-  onView?: (id: string | number) => void;
-  onMenu?: (action: "viewClassworks" | "viewStudents"| "edit", id: string | number) => void;
+  // MODIFIED: onView now includes the role, or you can add a separate 'role' prop
+  onView: (id: string | number, role: UserRole) => void;
+  onMenu?: (
+    action: "viewClassworks" | "viewStudents" | "edit",
+    id: string | number
+  ) => void;
+  // NEW: Prop to specify the role of the user viewing the card
+  userRole: UserRole;
 };
 
 export const ClassCard: React.FC<ClassCardProps> = ({
@@ -14,8 +23,9 @@ export const ClassCard: React.FC<ClassCardProps> = ({
   title,
   teacher,
   subject,
-  onView,
+  onView, // Note: No longer optional based on the requirement
   onMenu,
+  userRole, // Destructure the new prop
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -36,7 +46,8 @@ export const ClassCard: React.FC<ClassCardProps> = ({
       <div className="mt-4 flex items-center justify-between">
         <button
           className="bg-slate-900 text-white px-6 py-2 rounded-md text-sm hover:opacity-95"
-          onClick={() => onView && onView(id)}
+          // MODIFIED: Call onView with both id and userRole
+          onClick={() => onView(id, userRole)}
         >
           View details...
         </button>
