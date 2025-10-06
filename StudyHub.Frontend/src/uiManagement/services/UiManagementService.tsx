@@ -1,3 +1,5 @@
+import type { ICourseItem } from "../interfaces/ICourseItem";
+import type { IDocumentItem } from "../interfaces/IDocumentItem";
 import type { ILandingPageService } from "../interfaces/ILandingPageService";
 
 export class UiManagementService {
@@ -217,5 +219,105 @@ export class UiManagementService {
         }
       ]
     }
+  }
+
+  getAllDocuments(): IDocumentItem[] {
+    return [
+      {
+        id: 1,
+        name: "Toán 1",
+        subject: "Toán",
+        grade: 1
+      },
+      {
+        id: 2,
+        name: "Toán 2",
+        subject: "Toán",
+        grade: 2
+      },
+      {
+        id: 3,
+        name: "Toán 3",
+        subject: "Toán",
+        grade: 3
+      },
+      {
+        id: 4,
+        name: "Toán 4",
+        subject: "Toán",
+        grade: 1
+      },
+      {
+        id: 5,
+        name: "Toán 5",
+        subject: "Toán",
+        grade: 2
+      },
+      {
+        id: 6,
+        name: "Toán 6",
+        subject: "Toán",
+        grade: 3
+      }
+    ]
+  }
+
+  getAllCourses(): ICourseItem[] {
+    return [
+      {
+        id: 1,
+        name: "Khoá học Tin học lớp 3",
+        subject: "Tin",
+        grade: 3
+      },
+      {
+        id: 2,
+        name: "Khoá học Tin học lớp 4",
+        subject: "Tin",
+        grade: 4
+      },
+      {
+        id: 3,
+        name: "Khoá học Tin học lớp 5",
+        subject: "Tin",
+        grade: 5
+      },
+      {
+        id: 4,
+        name: "Khoá học Tin học lớp 3",
+        subject: "Tin",
+        grade: 3
+      },
+      {
+        id: 5,
+        name: "Khoá học Tin học lớp 4",
+        subject: "Tin",
+        grade: 4
+      },
+      {
+        id: 6,
+        name: "Khoá học Tin học lớp 5",
+        subject: "Tin",
+        grade: 5
+      },
+      {
+        id: 7,
+        name: "Khoá học Tin học lớp 3",
+        subject: "Tin",
+        grade: 3,
+      },
+      {
+        id: 8,
+        name: "Khoá học Tin học lớp 4",
+        subject: "Tin",
+        grade: 4
+      },
+      {
+        id: 9,
+        name: "Khoá học Tin học lớp 5",
+        subject: "Tin",
+        grade: 5
+      }
+    ]
   }
 }
