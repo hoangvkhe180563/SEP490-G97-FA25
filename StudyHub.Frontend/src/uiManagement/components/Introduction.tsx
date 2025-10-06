@@ -29,7 +29,7 @@ const Introduction = (props: IIntroductionProps) => {
     <div className='w-full flex flex-col items-center'>
       <div className='w-4/5'>
         <h1 className='text-2xl py-2 font-bold text-center'>GIỚI THIỆU TRANG WEB</h1>
-        <div className='flex gap-8 h-[300px]'>
+        <div className='flex gap-8'>
           <div className='w-1/2 flex flex-col items-center leading-8'>
             <div className='text-justify mb-3'>
               {props.description}

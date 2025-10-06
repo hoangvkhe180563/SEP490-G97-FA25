@@ -6,12 +6,12 @@ import Introduction from "../components/Introduction";
 import FeaturedDocuments from "../components/FeaturedDocuments";
 import FeaturedCourses from "../components/FeaturedCourses";
 import FeaturedTeachers from "../components/FeaturedTeachers";
-import { useParams } from "react-router-dom";
+import useLocalStorage from "@/common/hooks/useLocalStorage";
 
 const Homepage = () => {
+  const [school] = useLocalStorage('school', '');
   const [data, setData] = useState<ILandingPageService>(); //chỉnh sau
   const uiManagementService = new UiManagementService();
-  const { school } = useParams();
 
   useEffect(() => {
     if (!school) {

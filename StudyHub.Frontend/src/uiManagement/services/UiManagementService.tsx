@@ -116,19 +116,25 @@ export class UiManagementService {
           id: 2,
           image: "/src/uiManagement/assets/daotua1j.png",
           name: "Nguyễn Văn B",
-          role: "Giáo viên bộ môn"
+          role: "Trưởng bộ môn"
         },
         {
           id: 3,
           image: "/src/uiManagement/assets/orange.png",
           name: "Nguyễn Văn C",
-          role: "Giáo viên bộ môn"
+          role: "Giáo viên hỏi đáp"
         },
         {
           id: 4,
           image: "/src/uiManagement/assets/phuongmychi.png",
           name: "Nguyễn Văn D",
           role: "Giáo viên bộ môn"
+        },
+        {
+          id: 5,
+          image: "/src/uiManagement/assets/anhsangaza.png",
+          name: "Nguyễn Văn E",
+          role: "Giáo viên chủ nhiệm"
         }
       ],
       featuredDocuments: [

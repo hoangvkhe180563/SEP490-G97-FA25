@@ -11,10 +11,6 @@ const AppRouter = () => {
       element: <Homepage />
     },
     {
-      path: "/:school",
-      element: <Homepage />
-    },
-    {
       path: RouteConfig.USER,
       element: <Outlet />,
       children: userRoutes
