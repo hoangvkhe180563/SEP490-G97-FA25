@@ -1,4 +1,6 @@
 import classRoutes from "@/classManagement/routes/ClassRoutes";
+import documentRoutes from "@/documentManagement/routes/DocumentRoutes";
+
 import RouteConfig from "@/common/constants/RouteConfig";
 import Homepage from "@/uiManagement/pages/Homepage";
 import uiManagementRoutes from "@/uiManagement/routes/UiManagementRoutes";
@@ -29,6 +31,11 @@ const AppRouter = () => {
       path: RouteConfig.CLASS_MANAGEMENT,
       element: <Outlet />,
       children: classRoutes
+    },
+     {
+      path: RouteConfig.DOCUMENT_MANAGEMENT,
+      element: <Outlet />,
+      children: documentRoutes
     }
   ];
 
