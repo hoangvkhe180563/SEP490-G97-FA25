@@ -1,18 +1,14 @@
 import { Outlet } from "react-router-dom";
-import { AppSidebar } from "../AppSidebar";
-import {
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/common/components/ui/sidebar";
-import Header from "../AppHeader";
+import { SidebarProvider } from "@/common/components/ui/sidebar";
+import TeacherHeader from "../../../courseManagement/components/TeacherHeader";
+import TeacherSidebar from "../../../courseManagement/components/TeacherSidebar";
 
 const TeacherLayout = () => {
   return (
     <SidebarProvider>
-      <AppSidebar />
-      <SidebarTrigger />
+      <TeacherSidebar />
       <main className="w-full">
-        <Header />
+        <TeacherHeader />
         <Outlet />
       </main>
     </SidebarProvider>
