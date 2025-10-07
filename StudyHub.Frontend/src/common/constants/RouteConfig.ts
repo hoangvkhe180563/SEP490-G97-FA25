@@ -1,7 +1,7 @@
 const RouteConfig = {
   HOME: '/',
   USER: '/user',
-  DOCUMENT: '/document',
+  DOCUMENT_MANAGEMENT: '/document',
   UI_MANAGEMENT: '/ui',
   CLASS_MANAGEMENT: '/class'
 };
