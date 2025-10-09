@@ -1,6 +1,7 @@
 import type { ICourseItem } from "../interfaces/ICourseItem";
 import type { IDocumentItem } from "../interfaces/IDocumentItem";
 import type { ILandingPageService } from "../interfaces/ILandingPageService";
+import type { IPaymentPageService } from "../interfaces/IPaymentPageService";
 
 export class UiManagementService {
   getLandingPageGeneralInformation(): ILandingPageService {
@@ -319,5 +320,15 @@ export class UiManagementService {
         grade: 5
       }
     ]
+  }
+
+  getPaymentInformation(): IPaymentPageService {
+    return {
+      accountName: "ABC DEF GHI",
+      accountNumber: "123412345678",
+      accountBank: "ABC BANK",
+      exchangeRate: "1000",
+      qrCode: "/src/uiManagement/assets/qr-mock.png"
+    }
   }
 }

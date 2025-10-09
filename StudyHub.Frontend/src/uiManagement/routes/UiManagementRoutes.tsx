@@ -1,6 +1,8 @@
 import type { RouteObject } from "react-router-dom";
 import UiManagementRouteConfig from "../constants/UiManagementRouteConfig";
 import LandingPageEdit from "../pages/LandingPageEdit";
+import PaymentPage from "../pages/PaymentPage";
+import PaymentPageEdit from "../pages/PaymentPageEdit";
 
 const uiManagementRoutes: RouteObject[] = [
   {
@@ -9,11 +11,11 @@ const uiManagementRoutes: RouteObject[] = [
   },
   {
     path: UiManagementRouteConfig.PAYMENT_PAGE.INDEX,
-    // element: <PaymentPage />
+    element: <PaymentPage />
   },
   {
     path: UiManagementRouteConfig.PAYMENT_PAGE.CONFIGURATION,
-    // element: <PaymentPageEdit />
+    element: <PaymentPageEdit />
   },
 ];
 

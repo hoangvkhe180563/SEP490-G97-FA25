@@ -22,11 +22,13 @@ const Homepage = () => {
   }, [])
 
   return <div className="w-full overflow-hidden">
-    <Banner background={data?.primaryColor} logo={data?.logoImage} image={data?.bannerImage} />
-    <Introduction background={data?.primaryColor} description={data?.description} introductionImage={data?.introductionImage} />
-    {school && <FeaturedTeachers data={data?.featuredTeachers ?? []} />}
-    <FeaturedDocuments data={data?.featuredDocuments ?? []} />
-    <FeaturedCourses data={data?.featuredCourses ?? []} />
+    {data && <div>
+      <Banner background={data.primaryColor} logo={data.logoImage} image={data.bannerImage} />
+      <Introduction background={data.primaryColor} description={data.description} introductionImage={data.introductionImage} />
+      {school && data.featuredTeachers && <FeaturedTeachers data={data.featuredTeachers} />}
+      <FeaturedDocuments data={data.featuredDocuments} />
+      <FeaturedCourses data={data.featuredCourses} />
+    </div>}
   </div>
 }
 
