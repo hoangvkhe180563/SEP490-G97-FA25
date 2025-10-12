@@ -5,49 +5,20 @@ namespace StudyHub.Backend.Infrastructure.Exceptions
     public class InfrastructureException : Exception
     {
         //khi throw exception thì throw nó vào đây.
-        //vd cách dùng: throw new InfrastructureException("không kết nối được DB");
-        public InfrastructureException(string message) : base(message)
+        //vd cách dùng: new InfrastructureException("AppUserRepository", "không kết nối được DB").LogError();
+        public string ErrorLocation { get; set; }
+        public string ErrorMessage { get; set; }
+        public InfrastructureException(string location, string message) : base(message)
         {
-            LogError(message);
+            ErrorLocation = location;
+            ErrorMessage = message;
         }
 
-        private void LogError(string message)
+        public void LogError()
         {
-            string location = GetErrorLocation();
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Error in project {Source}!\nError message: {message}\nError location: {location}");
+            Console.WriteLine($"Error in project Infrastructure!\nError in {ErrorLocation}!\nError message: {ErrorMessage}");
             Console.ResetColor();
-        }
-
-        private string GetErrorLocation()
-        {
-            var stackTrace = new StackTrace(true);
-            StackFrame? frame = stackTrace.GetFrame(0);
-            if (frame == null)
-            {
-                return "Unknown location";
-            }
-            int frameIndex = 1;
-            while (true)
-            {
-                StackFrame? nextFrame = stackTrace.GetFrame(frameIndex);
-                if (nextFrame != null)
-                {
-                    frame = nextFrame;
-                }
-                else
-                {
-                    break;
-                }
-                frameIndex++;
-            }
-
-            var fileName = frame.GetFileName();
-            var lineNumber = frame.GetFileLineNumber();
-
-            return string.IsNullOrEmpty(fileName)
-                ? $"[Unknown file name]: Line {lineNumber}"
-                : $"[{fileName}]: Line {lineNumber}";
         }
     }
 }
