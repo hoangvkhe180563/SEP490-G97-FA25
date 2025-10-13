@@ -1,7 +1,7 @@
 import type React from "react"
 import { Card } from "@/common/components/ui/card"
 import { Badge } from "@/common/components/ui/badge"
-import type { Document } from "@/ui/interfaces/document"
+import type { Document } from "@/documentManagement/interfaces/document"
 
 interface DocumentItemProps {
   document: Document
