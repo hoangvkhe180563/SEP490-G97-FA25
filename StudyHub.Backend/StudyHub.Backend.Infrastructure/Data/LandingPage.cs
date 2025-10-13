@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace StudyHub.Backend.Infrastructure.Data;
+﻿namespace StudyHub.Backend.Infrastructure.Data;
 
 public partial class LandingPage
 {

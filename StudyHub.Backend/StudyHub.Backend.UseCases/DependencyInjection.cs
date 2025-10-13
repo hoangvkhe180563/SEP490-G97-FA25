@@ -10,6 +10,7 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<AppUserService>();
             services.AddScoped<CourseService>();
             services.AddScoped<LectureService>();
+            services.AddScoped<LandingPageService>();
             return services;
         }
     }
