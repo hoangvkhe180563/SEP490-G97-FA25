@@ -10,6 +10,10 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<AppUserService>();
             services.AddScoped<CourseService>();
             services.AddScoped<LectureService>();
+            services.AddScoped<DocumentService>();
+            //services.AddScoped<CloudFileStorageService>();
+            services.AddScoped<LocalFileStorageService>();
+
             services.AddScoped<LandingPageService>();
             return services;
         }

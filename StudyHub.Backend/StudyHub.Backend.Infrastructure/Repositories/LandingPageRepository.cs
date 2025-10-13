@@ -23,7 +23,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         Id = d.Id,
                         Thumbnail = d.Thumbnail,
                         GradeName = d.Grade.Name,
-                        Subject = d.Subject.Name
+                        SubjectName = d.Subject.Name
                     })
                     .ToList();
 
@@ -76,7 +76,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         Id = d.Id,
                         Thumbnail = d.Thumbnail,
                         GradeName = d.Grade.Name,
-                        Subject = d.Subject.Name
+                        SubjectName = d.Subject.Name
                     })
                     .ToList();
 
