@@ -564,11 +564,17 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("payment_info");
 
+            entity.Property(e => e.SchoolId).ValueGeneratedNever();
             entity.Property(e => e.AccountBank).HasMaxLength(20);
             entity.Property(e => e.AccountName).HasMaxLength(100);
             entity.Property(e => e.AccountNumber).HasMaxLength(20);
             entity.Property(e => e.ExchangeRate).HasColumnType("mediumint");
             entity.Property(e => e.QrcodeUrl).HasColumnName("QRCodeUrl");
+
+            entity.HasOne(d => d.School).WithOne(p => p.PaymentInfo)
+                .HasForeignKey<PaymentInfo>(d => d.SchoolId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("payment_info_ibfk_1");
         });
 
         modelBuilder.Entity<Province>(entity =>
@@ -595,7 +601,6 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.CommuneId, "CommuneId");
 
-            entity.Property(e => e.Id).ValueGeneratedOnAdd();
             entity.Property(e => e.Address).HasMaxLength(1000);
             entity.Property(e => e.Name).HasMaxLength(200);
 
@@ -603,11 +608,6 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.CommuneId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("schools_ibfk_1");
-
-            entity.HasOne(d => d.IdNavigation).WithOne(p => p.School)
-                .HasForeignKey<School>(d => d.Id)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("schools_ibfk_2");
         });
 
         modelBuilder.Entity<Student>(entity =>

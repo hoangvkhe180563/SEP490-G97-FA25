@@ -31,6 +31,8 @@ public partial class Course
 
     public DateTime? DeletedAt { get; set; }
 
+    public int? SchoolId { get; set; }
+
     public bool IsFeatured { get; set; }
 
     public virtual ICollection<Chapter> Chapters { get; set; } = new List<Chapter>();

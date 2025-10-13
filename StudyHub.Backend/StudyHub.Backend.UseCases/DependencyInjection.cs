@@ -8,6 +8,9 @@ namespace StudyHub.Backend.UseCases
         public static IServiceCollection AddUseCasesDependency(this IServiceCollection services)
         {
             services.AddScoped<AppUserService>();
+            services.AddScoped<CourseService>();
+            services.AddScoped<LectureService>();
+            services.AddScoped<LandingPageService>();
             return services;
         }
     }
