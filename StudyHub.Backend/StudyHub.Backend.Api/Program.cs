@@ -1,17 +1,18 @@
+﻿using StudyHub.Backend.Domain;
+using StudyHub.Backend.Infrastructure;
+using StudyHub.Backend.UseCases;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
 builder.Services.AddControllers();
+builder.Services.AddUseCasesDependency()
+                .AddInfrastructureDependency(builder.Configuration.GetConnectionString("value") ?? "");
+//Để chỉnh cái connection string, chuột phải project chọn Manage user secrets.
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-
 app.UseHttpsRedirection();
-
+app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();
