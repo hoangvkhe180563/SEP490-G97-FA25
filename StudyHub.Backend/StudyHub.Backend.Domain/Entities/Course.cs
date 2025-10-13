@@ -12,6 +12,7 @@ namespace StudyHub.Backend.Domain.Entities
         public uint Price { get; set; }
         public short SubjectId { get; set; }
         public sbyte GradeId { get; set; }
+        public string Grade { get; set; } = string.Empty;
         public bool? Status { get; set; }
         public DateTime CreatedAt { get; set; }
         public Guid CreatedBy { get; set; }
@@ -19,7 +20,6 @@ namespace StudyHub.Backend.Domain.Entities
         public Guid? UpdatedBy { get; set; }
         public DateTime? DeletedAt { get; set; }
         public bool IsFeatured { get; set; }
-
         public List<Chapter> Chapters { get; set; } = new();
     }
 }

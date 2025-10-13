@@ -1,8 +1,6 @@
 using StudyHub.Backend.Domain.Entities;
-using Data = StudyHub.Backend.Infrastructure.Data;
-using StudyHub.Backend.UseCases.Repositories;
-using System.Linq;
 using StudyHub.Backend.Infrastructure.Exceptions;
+using StudyHub.Backend.UseCases.Repositories;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
@@ -25,7 +23,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Information = c.Information,
                     ImageUrl = c.ImageUrl,
                     Price = c.Price,
-                    GradeId = c.GradeId,
+                    Grade = c.Grade.Name,
                     SubjectId = c.SubjectId,
                     Status = c.Status,
                     CreatedAt = c.CreatedAt,
@@ -37,7 +35,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 new InfrastructureException("CourseRepository", "GetAllCourses failed. Inner error: " + ex.Message).LogError();
                 return new List<Course>();
             }
-          
+
         }
 
         public Course? GetCourseById(int id)
@@ -53,7 +51,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Information = c.Information,
                     ImageUrl = c.ImageUrl,
                     Price = c.Price,
-                    GradeId = c.GradeId,
+                    Grade = c.Grade.Name,
                     SubjectId = c.SubjectId,
                     Status = c.Status,
                     CreatedAt = c.CreatedAt,
@@ -65,7 +63,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 new InfrastructureException("CourseRepository", "GetCourseById failed. Inner error: " + ex.Message).LogError();
                 return new Course { };
             }
-           
+
         }
 
         public Course CreateCourse(Course course)
@@ -94,7 +92,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 new InfrastructureException("CourseRepository", "CreateCourse failed. Inner error: " + ex.Message).LogError();
                 return new Course { };
             }
-           
+
         }
 
         public Course UpdateCourse(Course course)
@@ -120,7 +118,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 new InfrastructureException("CourseRepository", "UpdateCourse failed. Inner error: " + ex.Message).LogError();
                 return new Course { };
             }
-          
+
         }
 
         public bool DeleteCourse(int id)
@@ -138,7 +136,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 new InfrastructureException("CourseRepository", "DeleteCourse failed. Inner error: " + ex.Message).LogError();
                 return false;
             }
-           
         }
     }
 }

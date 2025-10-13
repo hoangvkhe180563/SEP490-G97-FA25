@@ -10,13 +10,13 @@ namespace StudyHub.Backend.Infrastructure
     {
         public static IServiceCollection AddInfrastructureDependency(this IServiceCollection services, string connectionString)
         {
-            Console.WriteLine(connectionString);
             services.AddDbContext<AppDbContext>(options => options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
             services.AddScoped<IAppUserRepository, AppUserRepository>();
-            services.AddScoped<StudyHub.Backend.UseCases.Repositories.ICourseRepository, StudyHub.Backend.Infrastructure.Repositories.CourseRepository>();
-            services.AddScoped<StudyHub.Backend.UseCases.Repositories.IChapterRepository, StudyHub.Backend.Infrastructure.Repositories.ChapterRepository>();
-            services.AddScoped<StudyHub.Backend.UseCases.Repositories.ILessonRepository, StudyHub.Backend.Infrastructure.Repositories.LessonRepository>();
+            services.AddScoped<ICourseRepository, CourseRepository>();
+            services.AddScoped<IChapterRepository, ChapterRepository>();
+            services.AddScoped<ILessonRepository, LessonRepository>();
+            services.AddScoped<ILandingPageRepository, LandingPageRepository>();
             return services;
         }
     }

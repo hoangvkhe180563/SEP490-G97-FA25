@@ -17,7 +17,7 @@ public partial class School
 
     public virtual ICollection<Document> Documents { get; set; } = new List<Document>();
 
-    public virtual PaymentInfo IdNavigation { get; set; } = null!;
-
     public virtual ICollection<LandingPage> LandingPages { get; set; } = new List<LandingPage>();
+
+    public virtual PaymentInfo? PaymentInfo { get; set; }
 }
