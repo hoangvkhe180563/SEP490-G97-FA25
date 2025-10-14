@@ -6,6 +6,7 @@ using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Utils;
 using System;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -23,11 +24,22 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpGet]
-        public IActionResult Get()
+        public IActionResult Get([FromQuery] string? status, [FromQuery] string? role, [FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int limit = 10)
         {
-            var list = _userService.GetAppUsers();
-            // map UseCases DTO to API DTO if necessary - they have same shape, so return as-is
-            return Ok(list);
+            var result = _userService.GetAppUsers(status, role, search, page, limit);
+            var response = new
+            {
+                success = true,
+                users = result.Items,
+                meta = new
+                {
+                    total = result.Total,
+                    page = result.Page,
+                    limit = result.Limit,
+                    totalPages = result.TotalPages
+                }
+            };
+            return Ok(response);
         }
 
         // Admin: get account detail
@@ -36,7 +48,12 @@ namespace StudyHub.Backend.Api.Controllers
         {
             var user = _userService.GetUserById(id);
             if (user == null) return NotFound();
-            return Ok(user);
+            var response = new
+            {
+                success = true,
+                user,
+            };
+            return Ok(response);
         }
 
         // Admin: create account

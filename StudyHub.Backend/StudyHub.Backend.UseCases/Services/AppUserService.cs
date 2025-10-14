@@ -23,18 +23,52 @@ namespace StudyHub.Backend.UseCases.Services
             _configuration = configuration;
         }
 
-        public List<UserListDto> GetAppUsers()
+        public StudyHub.Backend.UseCases.Dtos.PagedResult<UserListDto> GetAppUsers(string? status = null, string? role = null, string? search = null, int page = 1, int limit = 10)
         {
-            //có thể cho điều kiện lọc, sort, phân trang... ở đây
+            // get all users (small to medium datasets). For large datasets implement DB-side filters/paging.
             var users = _userRepository.GetAllUsers();
-            var list = new List<UserListDto>();
-            foreach (var u in users)
+
+            // apply status filter
+            if (!string.IsNullOrEmpty(status))
+            {
+                if (status.Equals("active", StringComparison.OrdinalIgnoreCase))
+                    users = users.Where(u => u.Status == true).ToList();
+                else if (status.Equals("inactive", StringComparison.OrdinalIgnoreCase))
+                    users = users.Where(u => u.Status == false).ToList();
+            }
+
+            // apply role filter (role name)
+            if (!string.IsNullOrEmpty(role))
+            {
+                users = users.Where(u =>
+                {
+                    var roles = _userRepository.GetRolesForUser(u.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!.ToLower()).ToList();
+                    return roles.Contains(role.ToLower());
+                }).ToList();
+            }
+
+            // apply search (email, username, fullname)
+            if (!string.IsNullOrEmpty(search))
+            {
+                var q = search.ToLower();
+                users = users.Where(u => (u.Email ?? "").ToLower().Contains(q) || (u.Username ?? "").ToLower().Contains(q) || (u.Fullname ?? "").ToLower().Contains(q)).ToList();
+            }
+
+            var total = users.Count;
+            var totalPages = (int)Math.Ceiling(total / (double)limit);
+            if (page < 1) page = 1;
+            if (limit < 1) limit = 10;
+
+            var paged = users.Skip((page - 1) * limit).Take(limit).ToList();
+
+            var items = new List<UserListDto>();
+            foreach (var u in paged)
             {
                 var roles = _userRepository.GetRolesForUser(u.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
                 var schoolName = _userRepository.GetSchoolName(u.SchoolId);
                 var communeName = _userRepository.GetCommuneName(u.CommuneId);
 
-                list.Add(new UserListDto
+                items.Add(new UserListDto
                 {
                     Id = u.Id,
                     Email = u.Email,
@@ -50,7 +84,14 @@ namespace StudyHub.Backend.UseCases.Services
                 });
             }
 
-            return list;
+            return new StudyHub.Backend.UseCases.Dtos.PagedResult<UserListDto>
+            {
+                Items = items,
+                Total = total,
+                Page = page,
+                Limit = limit,
+                TotalPages = totalPages
+            };
         }
 
         /// <summary>
