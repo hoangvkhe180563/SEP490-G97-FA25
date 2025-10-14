@@ -15,5 +15,8 @@ namespace StudyHub.Backend.UseCases.Repositories
         public List<AppRole> GetRolesForUser(Guid userId);
         // get user-specific claims/assignments (classes, subjects)
         public List<AppClaim> GetClaimsForUser(Guid userId);
+        // helper to get related names
+        public string? GetSchoolName(int? schoolId);
+        public string? GetCommuneName(int? communeId);
     }
 }

@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using StudyHub.Backend.Domain.Entities;
+using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Utils;
 
@@ -22,10 +23,34 @@ namespace StudyHub.Backend.UseCases.Services
             _configuration = configuration;
         }
 
-        public List<AppUser> GetAppUsers()
+        public List<UserListDto> GetAppUsers()
         {
             //có thể cho điều kiện lọc, sort, phân trang... ở đây
-            return _userRepository.GetAllUsers();
+            var users = _userRepository.GetAllUsers();
+            var list = new List<UserListDto>();
+            foreach (var u in users)
+            {
+                var roles = _userRepository.GetRolesForUser(u.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+                var schoolName = _userRepository.GetSchoolName(u.SchoolId);
+                var communeName = _userRepository.GetCommuneName(u.CommuneId);
+
+                list.Add(new UserListDto
+                {
+                    Id = u.Id,
+                    Email = u.Email,
+                    Username = u.Username,
+                    Fullname = u.Fullname,
+                    Address = u.Address,
+                    Status = (u.Status == true) ? "Active" : "Inactive",
+                    CreatedAt = u.CreatedAt.ToString("yyyy/MM/dd"),
+                    UpdatedAt = u.UpdatedAt.ToString("yyyy/MM/dd"),
+                    SchoolName = schoolName,
+                    Roles = roles,
+                    CommuneName = communeName
+                });
+            }
+
+            return list;
         }
 
         /// <summary>
@@ -63,13 +88,89 @@ namespace StudyHub.Backend.UseCases.Services
             return user;
         }
 
+        // Admin / management methods
+        public UserDetailsDto? GetUserById(Guid id)
+        {
+            var user = _userRepository.GetById(id);
+            if (user == null) return null;
+            var roles = _userRepository.GetRolesForUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+            var schoolName = _userRepository.GetSchoolName(user.SchoolId);
+            var communeName = _userRepository.GetCommuneName(user.CommuneId);
+            return new UserDetailsDto
+            {
+                Id = user.Id,
+                Email = user.Email,
+                Username = user.Username,
+                Fullname = user.Fullname,
+                Address = user.Address,
+                Status = (user.Status == true) ? "Active" : "Inactive",
+                CreatedAt = user.CreatedAt.ToString("yyyy/MM/dd"),
+                UpdatedAt = user.UpdatedAt.ToString("yyyy/MM/dd"),
+                SchoolName = schoolName,
+                Roles = roles,
+                CommuneName = communeName
+            };
+        }
+
+        public AppUser CreateAccount(string email, string password, string username, Guid roleId, int communeId, string? fullname = null)
+        {
+            var existing = _userRepository.GetByEmail(email);
+            if (existing != null) throw new InvalidOperationException("Email already exists");
+
+            string hash = BCrypt.Net.BCrypt.HashPassword(password);
+            var user = new AppUser
+            {
+                Id = Guid.NewGuid(),
+                Email = email,
+                PasswordHash = hash,
+                Username = username,
+                Fullname = fullname,
+                RoleId = roleId,
+                CommuneId = communeId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                EmailConfirmed = false,
+                Status = true
+            };
+
+            _userRepository.CreateUser(user);
+            return user;
+        }
+
+        public AppUser? EditAccount(Guid id, string? email = null, string? username = null, string? fullname = null, Guid? roleId = null, int? communeId = null, bool? status = null)
+        {
+            var user = _userRepository.GetById(id);
+            if (user == null) return null;
+
+            if (!string.IsNullOrEmpty(email)) user.Email = email;
+            if (!string.IsNullOrEmpty(username)) user.Username = username;
+            if (!string.IsNullOrEmpty(fullname)) user.Fullname = fullname;
+            if (roleId.HasValue) user.RoleId = roleId.Value;
+            if (communeId.HasValue) user.CommuneId = communeId.Value;
+            if (status.HasValue) user.Status = status.Value;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            _userRepository.UpdateUser(user);
+            return user;
+        }
+
+        public bool DeactivateAccount(Guid id)
+        {
+            var user = _userRepository.GetById(id);
+            if (user == null) return false;
+            user.Status = false;
+            user.UpdatedAt = DateTime.UtcNow;
+            _userRepository.UpdateUser(user);
+            return true;
+        }
+
         /// <summary>
         /// Attempts to log in a user with the given email and password.
         /// </summary>
         /// <param name="email">The email address of the user to log in.</param>
         /// <param name="password">The password of the user to log in.</param>
         /// <returns>A <see cref="TokenPair"/> containing the access token and refresh token if the login is successful, otherwise null.</returns>
-    public LoginResult? Login(string email, string password)
+        public LoginResult? Login(string email, string password)
         {
             // Get the user by email
             var user = _userRepository.GetByEmail(email);
@@ -132,7 +233,7 @@ namespace StudyHub.Backend.UseCases.Services
             _userRepository.UpdateUser(user);
         }
     }
-    
+
     // Result returned by Login: includes tokens (kept in cookies), plus user info to send in response body
     public class LoginResult
     {

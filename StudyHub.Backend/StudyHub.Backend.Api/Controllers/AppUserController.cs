@@ -25,7 +25,51 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet]
         public IActionResult Get()
         {
-            return Ok(_userService.GetAppUsers());
+            var list = _userService.GetAppUsers();
+            // map UseCases DTO to API DTO if necessary - they have same shape, so return as-is
+            return Ok(list);
+        }
+
+        // Admin: get account detail
+        [HttpGet("{id}")]
+        public IActionResult GetById(Guid id)
+        {
+            var user = _userService.GetUserById(id);
+            if (user == null) return NotFound();
+            return Ok(user);
+        }
+
+        // Admin: create account
+        [HttpPost("create")]
+        public IActionResult Create([FromBody] CreateAccountRequest req)
+        {
+            try
+            {
+                var user = _userService.CreateAccount(req.Email, req.Password, req.Username, req.RoleId, req.CommuneId, req.Fullname);
+                return Ok(user);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        // Admin: edit account
+        [HttpPut("{id}")]
+        public IActionResult Edit(Guid id, [FromBody] EditAccountRequest req)
+        {
+            var user = _userService.EditAccount(id, req.Email, req.Username, req.Fullname, req.RoleId, req.CommuneId, req.Status);
+            if (user == null) return NotFound();
+            return Ok(user);
+        }
+
+        // Admin: deactivate account (set status to false)
+        [HttpPatch("{id}/deactivate")]
+        public IActionResult Deactivate(Guid id)
+        {
+            var ok = _userService.DeactivateAccount(id);
+            if (!ok) return NotFound();
+            return Ok(new { message = "Account deactivated" });
         }
 
         [HttpPost("signup")]
@@ -83,7 +127,7 @@ namespace StudyHub.Backend.Api.Controllers
                 SubjectIds = result.Claims?.Where(c => c.SubjectId > 0).Select(c => c.SubjectId).Distinct().ToList() ?? new List<short>()
             };
 
-            return Ok(new LoginResponse { Success = false, Message = "Đăng nhập thành công", Data = userInfo});
+            return Ok(new GenericResponse { Success = true, Message = "Đăng nhập thành công", Data = userInfo });
         }
 
         [HttpPost("logout")]

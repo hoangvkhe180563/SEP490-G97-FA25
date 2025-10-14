@@ -53,4 +53,47 @@ namespace StudyHub.Backend.Api.Dtos
         public List<int> ClassIds { get; set; } = new();
         public List<short> SubjectIds { get; set; } = new();
     }
+
+    // DTOs for admin account management
+    public class CreateAccountRequest
+    {
+        public string Email { get; set; } = null!;
+        public string Password { get; set; } = null!;
+        public string Username { get; set; } = null!;
+        public Guid RoleId { get; set; }
+        public int CommuneId { get; set; }
+        public string? Fullname { get; set; }
+    }
+
+    public class EditAccountRequest
+    {
+        public string? Email { get; set; }
+        public string? Username { get; set; }
+        public string? Fullname { get; set; }
+        public Guid? RoleId { get; set; }
+        public int? CommuneId { get; set; }
+        public bool? Status { get; set; }
+    }
+
+    public class GenericResponse
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = null!;
+        public UserInfoResponse? Data { get; set; }
+    }
+
+    public class UserListDto
+    {
+        public Guid Id { get; set; }
+        public string Email { get; set; } = null!;
+        public string Username { get; set; } = null!;
+        public string? Fullname { get; set; }
+        public string? Address { get; set; }
+        public string Status { get; set; } = null!; // Active/Inactive
+        public string CreatedAt { get; set; } = null!; // yyyy/MM/dd
+        public string UpdatedAt { get; set; } = null!; // yyyy/MM/dd
+        public string? SchoolName { get; set; }
+        public List<string> Roles { get; set; } = new();
+        public string? CommuneName { get; set; }
+    }
 }

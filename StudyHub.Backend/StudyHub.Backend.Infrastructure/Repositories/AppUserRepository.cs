@@ -102,9 +102,15 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             existing.PasswordHash = user.PasswordHash;
             existing.Username = user.Username;
             existing.Fullname = user.Fullname;
+            existing.SchoolId = user.SchoolId;
+            existing.Status = user.Status;
+            existing.RoleId = user.RoleId;
             existing.UpdatedAt = user.UpdatedAt;
             existing.RefreshToken = user.RefreshToken;
             existing.RefreshTokenExpire = user.RefreshTokenExpire;
+            existing.EmailConfirmed = user.EmailConfirmed;
+            existing.Address = user.Address;
+            existing.CommuneId = user.CommuneId;
             _context.AppUsers.Update(existing);
             _context.SaveChanges();
         }
@@ -179,6 +185,20 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 });
             }
             return result;
+        }
+
+        public string? GetSchoolName(int? schoolId)
+        {
+            if (!schoolId.HasValue) return null;
+            var s = _context.Schools.Find(schoolId.Value);
+            return s?.Name;
+        }
+
+        public string? GetCommuneName(int? communeId)
+        {
+            if (!communeId.HasValue) return null;
+            var c = _context.Communes.Find(communeId.Value);
+            return c?.Name;
         }
     }
 }
