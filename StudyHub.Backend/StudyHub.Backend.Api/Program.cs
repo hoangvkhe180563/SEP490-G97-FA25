@@ -27,8 +27,8 @@ builder.Services.AddCors(options =>
               .AllowCredentials();
     });
 });
-
 var app = builder.Build();
+app.UseCors("AllowReactApp");
 
 app.UseHttpsRedirection();
 app.UseAuthentication();

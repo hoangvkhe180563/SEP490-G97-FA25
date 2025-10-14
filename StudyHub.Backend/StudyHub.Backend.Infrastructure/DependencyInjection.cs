@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Repositories;
 using StudyHub.Backend.UseCases.Repositories;
+using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.Infrastructure
 {
@@ -17,6 +18,13 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<IChapterRepository, ChapterRepository>();
             services.AddScoped<ILessonRepository, LessonRepository>();
             services.AddScoped<ILandingPageRepository, LandingPageRepository>();
+            services.AddScoped<IDocumentRepository, DocumentRepository>();
+            services.AddScoped<IFileStorageRepository, LocalFileStorageService>();
+            //services.AddScoped<IFileStorageRepository, CloudFileStorageService>();
+            services.AddScoped<IGradeRepository, GradeRepository>();
+            services.AddScoped<ISubjectRepository, SubjectRepository>();
+            services.AddScoped<IDocumentCategoryRepository, DocumentCategoryRepository>();
+
             return services;
         }
     }
