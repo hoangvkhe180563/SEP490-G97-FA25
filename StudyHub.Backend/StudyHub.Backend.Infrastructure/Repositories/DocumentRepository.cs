@@ -14,27 +14,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             _context = context;
         }
 
-        public List<Document> GetAllDocuments()
-        {
-            try
-            {
-                return _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.Grade)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.Accessibility)
-                    .Include(d => d.School)
-                    .Where(d => d.DeletedAt == null)
-                    .Select(d => MapToEntity(d))
-                    .ToList();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetAllDocuments failed. Inner error: " + ex.Message).LogError();
-                return new List<Document>();
-            }
-        }
-
         public Document? GetDocumentById(int id)
         {
             try
@@ -47,9 +26,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.School)
                     .FirstOrDefault(d => d.Id == id && d.DeletedAt == null);
 
-                if (d == null) return null;
-
-                return MapToEntity(d);
+                return d == null ? null : MapToEntity(d);
             }
             catch (Exception ex)
             {
@@ -58,356 +35,84 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
-        public List<Document> GetFeaturedDocumentsBySchool(int schoolId)
+        public (List<Document> documents, int totalCount) SearchDocuments(
+            string? query = null,
+            int? categoryId = null,
+            int? gradeId = null,
+            int? schoolId = null,
+            string? subject = null,
+            string? uploaderId = null,
+            string? accessibility = null,
+            bool? isFeatured = null,
+            bool? isPendingApproval = null,
+            bool includeUnapproved = false,
+            int? pageNumber = null,
+            int? pageSize = null)
         {
             try
             {
-                return _context.Documents
+                var dbQuery = _context.Documents
                     .Include(d => d.Subject)
                     .Include(d => d.Grade)
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.Accessibility)
                     .Include(d => d.School)
-                    .Where(d => d.SchoolId == schoolId && d.IsFeatured && d.DeletedAt == null && d.IsApproved == true)
-                    .Select(d => MapToEntity(d))
-                    .ToList();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetFeaturedDocumentsBySchool failed. Inner error: " + ex.Message).LogError();
-                return new List<Document>();
-            }
-        }
+                    .Where(d => d.DeletedAt == null);
 
-        public List<Document> GetDocumentsByCategory(int categoryId)
-        {
-            try
-            {
-                return _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.Grade)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.Accessibility)
-                    .Include(d => d.School)
-                    .Where(d => d.DocumentCategoryId == categoryId && d.DeletedAt == null && d.IsApproved == true)
-                    .Select(d => MapToEntity(d))
-                    .ToList();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetDocumentsByCategory failed. Inner error: " + ex.Message).LogError();
-                return new List<Document>();
-            }
-        }
-
-        public List<Document> GetDocumentsByGrade(int gradeId)
-        {
-            try
-            {
-                return _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.Grade)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.Accessibility)
-                    .Include(d => d.School)
-                    .Where(d => d.GradeId == gradeId && d.DeletedAt == null && d.IsApproved == true)
-                    .Select(d => MapToEntity(d))
-                    .ToList();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetDocumentsByGrade failed. Inner error: " + ex.Message).LogError();
-                return new List<Document>();
-            }
-        }
-
-        public List<Document> GetDocumentsBySchool(int schoolId)
-        {
-            try
-            {
-                return _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.Grade)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.Accessibility)
-                    .Include(d => d.School)
-                    .Where(d => d.SchoolId == schoolId && d.DeletedAt == null && d.IsApproved == true)
-                    .Select(d => MapToEntity(d))
-                    .ToList();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetDocumentsBySchool failed. Inner error: " + ex.Message).LogError();
-                return new List<Document>();
-            }
-        }
-
-        public List<Document> GetDocumentsBySubject(string subject)
-        {
-            try
-            {
-                return _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.Grade)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.Accessibility)
-                    .Include(d => d.School)
-                    .Where(d => d.Subject.Name.Contains(subject) && d.DeletedAt == null && d.IsApproved == true)
-                    .Select(d => MapToEntity(d))
-                    .ToList();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetDocumentsBySubject failed. Inner error: " + ex.Message).LogError();
-                return new List<Document>();
-            }
-        }
-
-        public List<Document> GetDocumentsByAccessibility(string accessibility)
-        {
-            try
-            {
-                return _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.Grade)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.Accessibility)
-                    .Include(d => d.School)
-                    .Where(d => d.Accessibility.Name.Contains(accessibility) && d.DeletedAt == null && d.IsApproved == true)
-                    .Select(d => MapToEntity(d))
-                    .ToList();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetDocumentsByAccessibility failed. Inner error: " + ex.Message).LogError();
-                return new List<Document>();
-            }
-        }
-
-        public List<Document> GetDocumentsByCreatedBy(string userId)
-        {
-            try
-            {
-                if (!Guid.TryParse(userId, out var userGuid))
+                if (!includeUnapproved)
                 {
-                    return new List<Document>();
+                    dbQuery = dbQuery.Where(d => d.IsApproved == true);
                 }
 
-                return _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.Grade)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.Accessibility)
-                    .Include(d => d.School)
-                    .Where(d => d.CreatedBy == userGuid && d.DeletedAt == null)
-                    .Select(d => MapToEntity(d))
-                    .ToList();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetDocumentsByCreatedBy failed. Inner error: " + ex.Message).LogError();
-                return new List<Document>();
-            }
-        }
+                if (!string.IsNullOrWhiteSpace(query))
+                {
+                    dbQuery = dbQuery.Where(d =>
+                        d.Name.Contains(query) ||
+                        d.Description.Contains(query) ||
+                        _context.AppUsers.Any(u => u.Id == d.CreatedBy && u.Username.Contains(query)));
+                }
 
-        public List<Document> GetPendingApprovalDocuments()
-        {
-            try
-            {
-                return _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.Grade)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.Accessibility)
-                    .Include(d => d.School)
-                    .Where(d => d.AccessibilityId == 1 && d.IsApproved == null && d.DeletedAt == null)
-                    .Select(d => MapToEntity(d))
-                    .ToList();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetPendingApprovalDocuments failed. Inner error: " + ex.Message).LogError();
-                return new List<Document>();
-            }
-        }
+                if (categoryId.HasValue)
+                    dbQuery = dbQuery.Where(d => d.DocumentCategoryId == categoryId.Value);
 
-        public List<Document> SearchDocuments(string query)
-        {
-            try
-            {
-                return _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.Grade)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.Accessibility)
-                    .Include(d => d.School)
-                    .Where(d => (d.Name.Contains(query) || d.Description.Contains(query))
-                        && d.DeletedAt == null && d.IsApproved == true)
-                    .Select(d => MapToEntity(d))
-                    .ToList();
+                if (gradeId.HasValue)
+                    dbQuery = dbQuery.Where(d => d.GradeId == gradeId.Value);
+
+                if (schoolId.HasValue)
+                    dbQuery = dbQuery.Where(d => d.SchoolId == schoolId.Value);
+
+                if (!string.IsNullOrEmpty(subject))
+                    dbQuery = dbQuery.Where(d => d.Subject.Name.Contains(subject));
+
+                if (!string.IsNullOrEmpty(accessibility))
+                    dbQuery = dbQuery.Where(d => d.Accessibility.Name.Contains(accessibility));
+
+                if (!string.IsNullOrEmpty(uploaderId) && Guid.TryParse(uploaderId, out var userGuid))
+                    dbQuery = dbQuery.Where(d => d.CreatedBy == userGuid);
+
+                if (isFeatured.HasValue)
+                    dbQuery = dbQuery.Where(d => d.IsFeatured == isFeatured.Value);
+
+                if (isPendingApproval.HasValue && isPendingApproval.Value)
+                    dbQuery = dbQuery.Where(d => d.AccessibilityId == 1 && d.IsApproved == null);
+
+                var totalCount = dbQuery.Count();
+
+                if (pageNumber.HasValue && pageSize.HasValue)
+                {
+                    dbQuery = dbQuery
+                        .Skip((pageNumber.Value - 1) * pageSize.Value)
+                        .Take(pageSize.Value);
+                }
+
+                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
+
+                return (documents, totalCount);
             }
             catch (Exception ex)
             {
                 new InfrastructureException("DocumentRepository", "SearchDocuments failed. Inner error: " + ex.Message).LogError();
-                return new List<Document>();
-            }
-        }
-
-        public List<Document> GetDocumentsByFilters(int? categoryId, int? gradeId, int? schoolId, string? subject, string? accessibility)
-        {
-            try
-            {
-                var query = _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.Grade)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.Accessibility)
-                    .Include(d => d.School)
-                    .Where(d => d.DeletedAt == null && d.IsApproved == true);
-
-                if (categoryId.HasValue)
-                    query = query.Where(d => d.DocumentCategoryId == categoryId.Value);
-
-                if (gradeId.HasValue)
-                    query = query.Where(d => d.GradeId == gradeId.Value);
-
-                if (schoolId.HasValue)
-                    query = query.Where(d => d.SchoolId == schoolId.Value);
-
-                if (!string.IsNullOrEmpty(subject))
-                    query = query.Where(d => d.Subject.Name.Contains(subject));
-
-                if (!string.IsNullOrEmpty(accessibility))
-                    query = query.Where(d => d.Accessibility.Name.Contains(accessibility));
-
-                return query.Select(d => MapToEntity(d)).ToList();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetDocumentsByFilters failed. Inner error: " + ex.Message).LogError();
-                return new List<Document>();
-            }
-        }
-
-        public List<Document> SearchDocuments(string query, int? categoryId, int? gradeId, int? schoolId, string? subject, string? accessibility)
-        {
-            try
-            {
-                var dbQuery = _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.Grade)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.Accessibility)
-                    .Include(d => d.School)
-                    .Where(d => (d.Name.Contains(query) || d.Description.Contains(query))
-                        && d.DeletedAt == null && d.IsApproved == true);
-
-                if (categoryId.HasValue)
-                    dbQuery = dbQuery.Where(d => d.DocumentCategoryId == categoryId.Value);
-
-                if (gradeId.HasValue)
-                    dbQuery = dbQuery.Where(d => d.GradeId == gradeId.Value);
-
-                if (schoolId.HasValue)
-                    dbQuery = dbQuery.Where(d => d.SchoolId == schoolId.Value);
-
-                if (!string.IsNullOrEmpty(subject))
-                    dbQuery = dbQuery.Where(d => d.Subject.Name.Contains(subject));
-
-                if (!string.IsNullOrEmpty(accessibility))
-                    dbQuery = dbQuery.Where(d => d.Accessibility.Name.Contains(accessibility));
-
-                return dbQuery.Select(d => MapToEntity(d)).ToList();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "SearchDocuments with filters failed. Inner error: " + ex.Message).LogError();
-                return new List<Document>();
-            }
-        }
-
-        public List<Document> SearchDocuments(string query, int? categoryId, int? gradeId, int? schoolId, string? subject, string? accessibility, int pageNumber, int pageSize)
-        {
-            try
-            {
-                var dbQuery = _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.Grade)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.Accessibility)
-                    .Include(d => d.School)
-                    .Where(d => (d.Name.Contains(query) || d.Description.Contains(query))
-                        && d.DeletedAt == null && d.IsApproved == true);
-
-                if (categoryId.HasValue)
-                    dbQuery = dbQuery.Where(d => d.DocumentCategoryId == categoryId.Value);
-
-                if (gradeId.HasValue)
-                    dbQuery = dbQuery.Where(d => d.GradeId == gradeId.Value);
-
-                if (schoolId.HasValue)
-                    dbQuery = dbQuery.Where(d => d.SchoolId == schoolId.Value);
-
-                if (!string.IsNullOrEmpty(subject))
-                    dbQuery = dbQuery.Where(d => d.Subject.Name.Contains(subject));
-
-                if (!string.IsNullOrEmpty(accessibility))
-                    dbQuery = dbQuery.Where(d => d.Accessibility.Name.Contains(accessibility));
-
-                return dbQuery
-                    .Skip((pageNumber - 1) * pageSize)
-                    .Take(pageSize)
-                    .Select(d => MapToEntity(d))
-                    .ToList();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "SearchDocuments with pagination failed. Inner error: " + ex.Message).LogError();
-                return new List<Document>();
-            }
-        }
-
-        public int GetTotalDocumentCount()
-        {
-            try
-            {
-                return _context.Documents.Count(d => d.DeletedAt == null && d.IsApproved == true);
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetTotalDocumentCount failed. Inner error: " + ex.Message).LogError();
-                return 0;
-            }
-        }
-
-        public int GetFilteredDocumentCount(int? categoryId, int? gradeId, int? schoolId, string? subject, string? accessibility)
-        {
-            try
-            {
-                var query = _context.Documents
-                    .Where(d => d.DeletedAt == null && d.IsApproved == true);
-
-                if (categoryId.HasValue)
-                    query = query.Where(d => d.DocumentCategoryId == categoryId.Value);
-
-                if (gradeId.HasValue)
-                    query = query.Where(d => d.GradeId == gradeId.Value);
-
-                if (schoolId.HasValue)
-                    query = query.Where(d => d.SchoolId == schoolId.Value);
-
-                if (!string.IsNullOrEmpty(subject))
-                    query = query.Where(d => d.Subject.Name.Contains(subject));
-
-                if (!string.IsNullOrEmpty(accessibility))
-                    query = query.Where(d => d.Accessibility.Name.Contains(accessibility));
-
-                return query.Count();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetFilteredDocumentCount failed. Inner error: " + ex.Message).LogError();
-                return 0;
+                return (new List<Document>(), 0);
             }
         }
 
@@ -418,7 +123,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 var entity = new Data.Document
                 {
                     Name = doc.Name,
-                    SubjectId = doc.SubjectId,
+                    SubjectId = (byte)doc.SubjectId,
                     GradeId = (sbyte)doc.GradeId,
                     DocumentCategoryId = (sbyte)doc.DocumentCategoryId,
                     AccessibilityId = (sbyte)doc.AccessibilityId,
@@ -441,7 +146,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             catch (Exception ex)
             {
                 new InfrastructureException("DocumentRepository", "CreateDocument failed. Inner error: " + ex.Message).LogError();
-                return new Document();
+                throw new InvalidOperationException($"Failed to create document: {ex.Message}", ex);
             }
         }
 
@@ -453,7 +158,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (entity == null) return doc;
 
                 entity.Name = doc.Name;
-                entity.SubjectId = doc.SubjectId;
+                entity.SubjectId = (byte)doc.SubjectId;
                 entity.GradeId = (sbyte)doc.GradeId;
                 entity.DocumentCategoryId = (sbyte)doc.DocumentCategoryId;
                 entity.AccessibilityId = (sbyte)doc.AccessibilityId;
@@ -496,7 +201,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
-        // Changed from instance method to static method
         private static Document MapToEntity(Data.Document d)
         {
             return new Document

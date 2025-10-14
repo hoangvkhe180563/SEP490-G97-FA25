@@ -21,30 +21,7 @@ namespace StudyHub.Backend.UseCases.Services
             _fileStorage = fileStorage;
         }
 
-        public List<Document> GetAllDocuments() => _repo.GetAllDocuments();
-
         public Document? GetDocumentById(int id) => _repo.GetDocumentById(id);
-
-        public List<Document> GetFeaturedDocumentsBySchool(int schoolId) =>
-            _repo.GetFeaturedDocumentsBySchool(schoolId);
-
-        public List<Document> GetDocumentsByCategory(int categoryId) =>
-            _repo.GetDocumentsByCategory(categoryId);
-
-        public List<Document> GetDocumentsByGrade(int gradeId) =>
-            _repo.GetDocumentsByGrade(gradeId);
-
-        public List<Document> GetDocumentsBySchool(int schoolId) =>
-            _repo.GetDocumentsBySchool(schoolId);
-
-        public List<Document> GetDocumentsBySubject(string subject) =>
-            _repo.GetDocumentsBySubject(subject);
-
-        public List<Document> GetDocumentsByCreatedBy(string userId) =>
-            _repo.GetDocumentsByCreatedBy(userId);
-
-        public List<Document> GetPendingApprovalDocuments() =>
-            _repo.GetPendingApprovalDocuments();
 
         public (List<Document> documents, int totalCount) SearchDocuments(
             string? query = null,
@@ -52,37 +29,52 @@ namespace StudyHub.Backend.UseCases.Services
             int? gradeId = null,
             int? schoolId = null,
             string? subject = null,
+            string? uploaderId = null,
             string? accessibility = null,
+            bool? isFeatured = null,
+            bool? isPendingApproval = null,
+            bool includeUnapproved = false,
             int pageNumber = 1,
             int pageSize = 10)
         {
-            var documents = string.IsNullOrWhiteSpace(query)
-                ? _repo.GetDocumentsByFilters(categoryId, gradeId, schoolId, subject, accessibility)
-                : _repo.SearchDocuments(query, categoryId, gradeId, schoolId, subject, accessibility, pageNumber, pageSize);
-
-            var totalCount = _repo.GetFilteredDocumentCount(categoryId, gradeId, schoolId, subject, accessibility);
-
-            return (documents, totalCount);
+            return _repo.SearchDocuments(
+                query, categoryId, gradeId, schoolId, subject,
+                uploaderId, accessibility, isFeatured, isPendingApproval,
+                includeUnapproved, pageNumber, pageSize);
         }
 
         public async Task<Document> CreateDocumentAsync(
-            Document document,
-            IFormFile documentFile,
-            IFormFile? thumbnailFile = null)
+     Document document,
+     IFormFile documentFile,
+     IFormFile? thumbnailFile = null)
         {
             ValidateDocumentFile(documentFile);
 
             if (thumbnailFile != null)
-            {
                 ValidateThumbnailFile(thumbnailFile);
-            }
+
+            if (string.IsNullOrWhiteSpace(document.Name))
+                throw new ArgumentException("Document name is required");
+
+            if (document.SubjectId <= 0)
+                throw new ArgumentException("Valid SubjectId is required");
+
+            if (document.GradeId <= 0)
+                throw new ArgumentException("Valid GradeId is required");
+
+            if (document.DocumentCategoryId <= 0)
+                throw new ArgumentException("Valid DocumentCategoryId is required");
+
+            if (document.AccessibilityId <= 0)
+                throw new ArgumentException("Valid AccessibilityId is required");
+
+            if (document.CreatedBy == Guid.Empty)
+                throw new ArgumentException("Valid CreatedBy is required");
 
             document.DocumentUrl = await _fileStorage.UploadFileAsync(documentFile, FileConstants.DocumentUploadPath);
 
             if (thumbnailFile != null)
-            {
                 document.Thumbnail = await _fileStorage.UploadFileAsync(thumbnailFile, FileConstants.ThumbnailUploadPath);
-            }
 
             document.IsApproved = document.AccessibilityId == 1 ? null : true;
             document.CreatedAt = DateTime.Now;
@@ -114,9 +106,7 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 ValidateThumbnailFile(thumbnailFile);
                 if (!string.IsNullOrEmpty(existingDocument.Thumbnail))
-                {
                     _fileStorage.DeleteFile(existingDocument.Thumbnail);
-                }
                 document.Thumbnail = await _fileStorage.UploadFileAsync(thumbnailFile, FileConstants.ThumbnailUploadPath);
             }
             else
@@ -125,9 +115,7 @@ namespace StudyHub.Backend.UseCases.Services
             }
 
             if (document.AccessibilityId == 1 && existingDocument.AccessibilityId != 1)
-            {
                 document.IsApproved = null;
-            }
 
             document.UpdatedAt = DateTime.Now;
 
@@ -142,9 +130,7 @@ namespace StudyHub.Backend.UseCases.Services
             _fileStorage.DeleteFile(document.DocumentUrl);
 
             if (!string.IsNullOrEmpty(document.Thumbnail))
-            {
                 _fileStorage.DeleteFile(document.Thumbnail);
-            }
 
             return _repo.DeleteDocument(id);
         }
@@ -168,9 +154,7 @@ namespace StudyHub.Backend.UseCases.Services
                 ?? throw new InvalidOperationException($"Document with ID {id} not found");
 
             if (document.AccessibilityId != 1)
-            {
                 throw new InvalidOperationException("Only public documents require approval");
-            }
 
             document.IsApproved = true;
             document.UpdatedAt = DateTime.Now;
@@ -185,9 +169,7 @@ namespace StudyHub.Backend.UseCases.Services
                 ?? throw new InvalidOperationException($"Document with ID {id} not found");
 
             if (document.AccessibilityId != 1)
-            {
                 throw new InvalidOperationException("Only public documents require approval");
-            }
 
             document.IsApproved = false;
             document.UpdatedAt = DateTime.Now;
@@ -211,46 +193,33 @@ namespace StudyHub.Backend.UseCases.Services
         private void ValidateDocumentFile(IFormFile file)
         {
             if (file == null || file.Length == 0)
-            {
                 throw new ArgumentException("Document file is required");
-            }
 
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
             if (!FileConstants.AllowedDocumentExtensions.Contains(extension))
-            {
                 throw new ArgumentException($"File type {extension} is not allowed. Allowed types: {string.Join(", ", FileConstants.AllowedDocumentExtensions)}");
-            }
 
             if (file.Length > FileConstants.MaxDocumentSize)
-            {
                 throw new ArgumentException($"File size exceeds maximum allowed size of {FileConstants.MaxDocumentSize / (1024 * 1024)}MB");
-            }
         }
 
         private void ValidateThumbnailFile(IFormFile file)
         {
             if (file == null || file.Length == 0)
-            {
                 throw new ArgumentException("Thumbnail file is required");
-            }
 
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
             if (!FileConstants.AllowedImageExtensions.Contains(extension))
-            {
                 throw new ArgumentException($"Image type {extension} is not allowed. Allowed types: {string.Join(", ", FileConstants.AllowedImageExtensions)}");
-            }
 
             if (file.Length > FileConstants.MaxImageSize)
-            {
                 throw new ArgumentException($"Image size exceeds maximum allowed size of {FileConstants.MaxImageSize / (1024 * 1024)}MB");
-            }
         }
+
         public async Task<(byte[] fileBytes, string contentType, string fileName)> DownloadDocumentAsync(Document document)
         {
             if (string.IsNullOrEmpty(document.DocumentUrl))
-            {
                 throw new InvalidOperationException("Document URL is not available");
-            }
 
             var fileBytes = await _fileStorage.ReadFileAsync(document.DocumentUrl);
             var contentType = GetContentType(document.DocumentUrl);

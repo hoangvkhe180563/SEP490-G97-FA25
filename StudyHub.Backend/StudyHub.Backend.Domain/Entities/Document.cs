@@ -6,10 +6,10 @@ namespace StudyHub.Backend.Domain.Entities
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public short SubjectId { get; set; }
-        public byte GradeId { get; set; }
-        public byte DocumentCategoryId { get; set; }
-        public byte AccessibilityId { get; set; }
+        public int SubjectId { get; set; }
+        public int GradeId { get; set; }
+        public int DocumentCategoryId { get; set; }
+        public int AccessibilityId { get; set; }
         public string DocumentUrl { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public Guid CreatedBy { get; set; }
@@ -30,5 +30,6 @@ namespace StudyHub.Backend.Domain.Entities
         public DocumentCategory? DocumentCategory { get; set; }
         public Accessibility? Accessibility { get; set; }
         public School? School { get; set; }
+        public AppUser? Username { get; set; }
     }
 }

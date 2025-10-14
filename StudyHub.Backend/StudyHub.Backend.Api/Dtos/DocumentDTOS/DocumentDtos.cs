@@ -34,11 +34,11 @@ namespace StudyHub.Backend.Api.Dtos
         public string? Thumbnail { get; set; }
         public int SubjectId { get; set; }
         public string? SubjectName { get; set; }
-        public byte GradeId { get; set; }
+        public int GradeId { get; set; }
         public string? GradeName { get; set; }
         public byte DocumentCategoryId { get; set; }
         public string? CategoryName { get; set; }
-        public byte AccessibilityId { get; set; }
+        public int AccessibilityId { get; set; }
         public string? AccessibilityName { get; set; }
         public int? SchoolId { get; set; }
         public string? SchoolName { get; set; }
@@ -58,16 +58,16 @@ namespace StudyHub.Backend.Api.Dtos
         public string Name { get; set; } = string.Empty;
 
         [Required]
-        public short SubjectId { get; set; }
+        public int SubjectId { get; set; }
 
         [Required]
-        public byte GradeId { get; set; }
+        public int GradeId { get; set; }
 
         [Required]
-        public byte DocumentCategoryId { get; set; }
+        public int DocumentCategoryId { get; set; }
 
         [Required]
-        public byte AccessibilityId { get; set; }
+        public int AccessibilityId { get; set; }
 
         public string? Description { get; set; }
 
@@ -93,16 +93,16 @@ namespace StudyHub.Backend.Api.Dtos
         public string Name { get; set; } = string.Empty;
 
         [Required]
-        public short SubjectId { get; set; }
+        public int SubjectId { get; set; }
 
         [Required]
-        public byte GradeId { get; set; }
+        public int GradeId { get; set; }
 
         [Required]
-        public byte DocumentCategoryId { get; set; }
+        public int DocumentCategoryId { get; set; }
 
         [Required]
-        public byte AccessibilityId { get; set; }
+        public int AccessibilityId { get; set; }
 
         public string? Description { get; set; }
 
@@ -125,7 +125,16 @@ namespace StudyHub.Backend.Api.Dtos
         public int? GradeId { get; set; }
         public int? SchoolId { get; set; }
         public string? Subject { get; set; }
+        public string? Description { get; set; }
+        public string? UploaderId { get; set; }
         public string? Accessibility { get; set; }
+        public bool? IsFeatured { get; set; }
+        public bool? IsApproved { get; set; }
+        public bool? Status { get; set; } = true;
+        public bool? IsPendingApproval { get; set; }
+
+        public bool IncludeUnapproved { get; set; }
+
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
     }

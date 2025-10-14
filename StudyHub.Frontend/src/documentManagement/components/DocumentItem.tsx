@@ -7,16 +7,16 @@ interface DocumentItemProps {
   document: Document
 }
 
-const getSubjectName = (subjectId: number): string => {
-  const subjects: Record<number, string> = {
-    1: "Toán",
-    2: "Văn",
-    3: "Tiếng Anh",
-    4: "Vật lý",
-    5: "Hóa học",
-  }
-  return subjects[subjectId] || "Khác"
-}
+// const getSubjectName = (subjectId: number): string => {
+//   const subjects: Record<number, string> = {
+//     1: "Toán",
+//     2: "Văn",
+//     3: "Tiếng Anh",
+//     4: "Vật lý",
+//     5: "Hóa học",
+//   }
+//   return subjects[subjectId] || "Khác"
+// }
 
 const DocumentItem: React.FC<DocumentItemProps> = ({ document }) => {
   return (
@@ -31,7 +31,7 @@ const DocumentItem: React.FC<DocumentItemProps> = ({ document }) => {
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-400">
             <span className="text-sm">
-              {getSubjectName(document.subjectId)} lớp {document.gradeId}
+              {/* {getSubjectName(document.subjectId)} lớp {document.gradeId} */}
             </span>
           </div>
         )}
@@ -42,7 +42,7 @@ const DocumentItem: React.FC<DocumentItemProps> = ({ document }) => {
             Lớp {document.gradeId}
           </Badge>
           <Badge variant="outline" className="text-xs">
-            {getSubjectName(document.subjectId)}
+            {/* {getSubjectName(document.subjectId)} */}
           </Badge>
           {document.isSchoolDocument && <Badge className="text-xs bg-emerald-500 text-white">Tài liệu trường</Badge>}
         </div>

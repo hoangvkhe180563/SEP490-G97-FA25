@@ -1,6 +1,6 @@
-namespace StudyHub.Backend.Domain.Entities
+﻿namespace StudyHub.Backend.Api.Dtos
 {
-    public class Subject
+    public class DocumentCategoryDto
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;

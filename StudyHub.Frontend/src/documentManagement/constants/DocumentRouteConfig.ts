@@ -4,9 +4,10 @@ const DocumentRouteConfig = {
     INDEX: "teacher",
     INFO: "doc-info",
     DETAILS: "doc-details",
-    DOCUMENTS: "my-documents",
+    MYDOCUMENTS: "my-documents",
     ADD: "create-document",
     EDIT: "update-document",
+    DOCUMENTS: "documents",
   },
   MANAGER: {
     INDEX: "manager",
