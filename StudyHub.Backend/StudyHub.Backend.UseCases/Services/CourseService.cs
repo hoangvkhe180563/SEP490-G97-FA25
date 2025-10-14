@@ -16,6 +16,11 @@ namespace StudyHub.Backend.UseCases.Services
             return _repo.GetAllCourses();
         }
 
+        public UseCases.Models.PagedResult<Course> SearchCourses(UseCases.Models.CourseQueryParams query)
+        {
+            return _repo.SearchCourses(query);
+        }
+
         public Course? GetCourse(int id)
         {
             return _repo.GetCourseById(id);

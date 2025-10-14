@@ -16,10 +16,30 @@ public class CourseController : ControllerBase
     }
 
     [HttpGet]
-    public IActionResult GetAll()
+    public IActionResult GetAll([FromQuery] string? q, [FromQuery] short? subjectId, [FromQuery] sbyte? gradeId,
+        [FromQuery] bool? status, [FromQuery] bool? isFeatured, [FromQuery] string? sortBy, [FromQuery] int page = 1, [FromQuery] int pageSize = 12)
     {
-        var courses = _service.GetCourses();
-        return Ok(courses.Select(c => c.ToListDto()));
+        var query = new StudyHub.Backend.UseCases.Models.CourseQueryParams
+        {
+            Q = q,
+            SubjectId = subjectId,
+            GradeId = gradeId,
+            Status = status,
+            IsFeatured = isFeatured,
+            SortBy = sortBy,
+            Page = page,
+            PageSize = pageSize
+        };
+
+        var result = _service.SearchCourses(query);
+        var dto = new PagedCoursesDto
+        {
+            Items = result.Items.Select(i => i.ToListDto()).ToList(),
+            Total = result.Total,
+            Page = result.Page,
+            PageSize = result.PageSize
+        };
+        return Ok(dto);
     }
 
     [HttpGet("{id}")]

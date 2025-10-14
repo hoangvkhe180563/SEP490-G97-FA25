@@ -25,6 +25,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Price = c.Price,
                     Grade = c.Grade.Name,
                     SubjectId = c.SubjectId,
+                    SchoolId = c.SchoolId,
                     Status = c.Status,
                     CreatedAt = c.CreatedAt,
                     UpdatedAt = c.UpdatedAt
@@ -53,6 +54,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Price = c.Price,
                     Grade = c.Grade.Name,
                     SubjectId = c.SubjectId,
+                    SchoolId = c.SchoolId,
                     Status = c.Status,
                     CreatedAt = c.CreatedAt,
                     UpdatedAt = c.UpdatedAt
@@ -78,6 +80,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Price = course.Price,
                     GradeId = course.GradeId,
                     SubjectId = course.SubjectId,
+                    SchoolId = course.SchoolId,
                     Status = course.Status ?? true,
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = course.CreatedBy
@@ -107,6 +110,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.Price = course.Price;
                 entity.GradeId = course.GradeId;
                 entity.SubjectId = course.SubjectId;
+                entity.SchoolId = course.SchoolId;
                 entity.Status = course.Status;
                 entity.UpdatedAt = DateTime.UtcNow;
                 entity.UpdatedBy = course.UpdatedBy;
@@ -135,6 +139,75 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 new InfrastructureException("CourseRepository", "DeleteCourse failed. Inner error: " + ex.Message).LogError();
                 return false;
+            }
+        }
+
+        public UseCases.Models.PagedResult<Domain.Entities.Course> SearchCourses(UseCases.Models.CourseQueryParams query)
+        {
+            try
+            {
+                var q = _context.Courses.AsQueryable();
+
+                if (!string.IsNullOrWhiteSpace(query.Q))
+                {
+                    var t = query.Q.Trim().ToLower();
+                    q = q.Where(c => c.Name.ToLower().Contains(t) || (c.Information != null && c.Information.ToLower().Contains(t)));
+                }
+
+                if (query.SubjectId.HasValue)
+                    q = q.Where(c => c.SubjectId == query.SubjectId.Value);
+
+                if (query.GradeId.HasValue)
+                    q = q.Where(c => c.GradeId == query.GradeId.Value);
+
+                if (query.Status.HasValue)
+                    q = q.Where(c => c.Status == query.Status.Value);
+
+                if (query.IsFeatured.HasValue)
+                    q = q.Where(c => c.IsFeatured == query.IsFeatured.Value);
+
+                // sort
+                q = query.SortBy switch
+                {
+                    "newest" => q.OrderByDescending(c => c.CreatedAt),
+                    "price_asc" => q.OrderBy(c => c.Price),
+                    "price_desc" => q.OrderByDescending(c => c.Price),
+                    _ => q.OrderByDescending(c => c.Id)
+                };
+
+                var total = q.Count();
+                var page = Math.Max(1, query.Page);
+                var pageSize = Math.Max(1, query.PageSize);
+
+                var items = q.Skip((page - 1) * pageSize).Take(pageSize)
+                    .Select(c => new Domain.Entities.Course
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        Information = c.Information,
+                        ImageUrl = c.ImageUrl,
+                        Price = c.Price,
+                        Grade = c.Grade != null ? c.Grade.Name : string.Empty,
+                        SubjectId = c.SubjectId,
+                        SchoolId = c.SchoolId,
+                        Status = c.Status,
+                        CreatedAt = c.CreatedAt,
+                        UpdatedAt = c.UpdatedAt,
+                        IsFeatured = c.IsFeatured
+                    }).ToList();
+
+                return new UseCases.Models.PagedResult<Domain.Entities.Course>
+                {
+                    Items = items,
+                    Total = total,
+                    Page = page,
+                    PageSize = pageSize
+                };
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("CourseRepository", "SearchCourses failed. Inner error: " + ex.Message).LogError();
+                return new UseCases.Models.PagedResult<Domain.Entities.Course>();
             }
         }
     }
