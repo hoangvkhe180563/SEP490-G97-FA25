@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { Input } from "@/common/components/ui/input";
 import {
@@ -19,79 +19,91 @@ import {
   TableRow,
 } from "@/common/components/ui/table";
 import AccountItem from "../../components/AccountItem";
+import { useAppUserStore } from "@/user/stores/useAppUserStore";
+import type { AppUser } from "@/user/interfaces/app-user";
+import type { User } from "@/user/interfaces/user";
 
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
 } from "@/common/components/ui/pagination";
 import { Link } from "react-router-dom";
-import type { User } from "@/user/interfaces/user";
-
-const initialUsers: User[] = [
-  {
-    id: "1",
-    avatar: "/avatars/user1.png",
-    name: "John Smith",
-    email: "john.smith@email.com",
-    role: "UI Manager",
-    createdAt: "2025-01-10",
-    status: "Active",
-  },
-  {
-    id: "2",
-    avatar: "/avatars/user2.png",
-    name: "Sarah Johnson",
-    email: "sarah.johnson@email.com",
-    role: "Teacher",
-    createdAt: "2025-01-08",
-    status: "Active",
-  },
-  {
-    id: "3",
-    avatar: "/avatars/user3.png",
-    name: "Mike Davis",
-    email: "mike.davis@email.com",
-    role: "Student",
-    createdAt: "2025-01-12",
-    status: "Active",
-  },
-  {
-    id: "4",
-    avatar: "/avatars/user4.png",
-    name: "Lisa Wilson",
-    email: "lisa.wilson@email.com",
-    role: "Question Manager",
-    createdAt: "2025-01-05",
-    status: "Inactive",
-  },
-  {
-    id: "5",
-    avatar: "/avatars/user1.png",
-    name: "John Smith",
-    email: "john.smith3@email.com",
-    role: "Parent",
-    createdAt: "2025-01-10",
-    status: "Active",
-  },
-];
-
 const AccountList = () => {
-  const [users, setUsers] = useState(initialUsers);
-  const shownUsers = users.slice(0, 5); // Show only first 4 users for demo
-  const statusColor: Record<User["status"], string> = {
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<string | "all">("all");
+  const [page, setPage] = useState(1);
+
+  const { appUsers, meta, isLoading, filterAppUsers } = useAppUserStore();
+  const [localUsers, setLocalUsers] = useState<User[]>([]);
+
+  // Map frontend status to backend expected values (Active/Inactive)
+  const statusColor: Record<AppUser["status"], string> = {
     Active: "bg-emerald-100 text-emerald-800",
     Inactive: "bg-rose-100 text-rose-800",
   };
+
+  // Debounce search input
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Build query string for API call
+  const query = useMemo(() => {
+    const params = new URLSearchParams();
+    // role is expected as an int by the backend requirement; if 'all' skip
+    if (roleFilter && roleFilter !== "all") params.set("role", roleFilter);
+    if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
+    if (debouncedSearch) params.set("search", debouncedSearch);
+    params.set("page", String(page));
+    params.set("limit", "6");
+    return params.toString();
+  }, [roleFilter, statusFilter, debouncedSearch, page]);
+
+  useEffect(() => {
+    // Fetch when query changes
+    filterAppUsers(query).catch((err) => console.error(err));
+  }, [query, filterAppUsers]);
+
+  // keep a local copy for UI edits (status toggle etc.)
+  useEffect(() => {
+    // Map AppUser (new shape) to old User shape used by AccountItem component
+    const mapped: User[] = (appUsers ?? []).map((u) => ({
+      id: u.id,
+      name: u.fullName ?? (u.username as string) ?? u.email,
+      email: u.email,
+      role: u.roles && u.roles.length > 0 ? u.roles[0] : "",
+      avatar: undefined,
+      createdAt: u.createdAt,
+      status: u.status,
+    }));
+    setLocalUsers(mapped);
+  }, [appUsers]);
+  const total = meta?.total ?? 0;
+  const currentPage = meta?.page ?? page;
+  const limit = meta?.limit ?? 6;
+  const start = total === 0 ? 0 : (currentPage - 1) * limit + 1;
+  const end = Math.min(currentPage * limit, total);
+
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
       <div className="flex items-center gap-4 mb-6">
-        <Input placeholder="Search accounts..." className="max-w-xs" />
-        <Select>
+        <Input
+          placeholder="Search accounts..."
+          className="max-w-xs"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+        />
+        <Select onValueChange={(v) => { setRoleFilter(v as string); setPage(1); }}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Select role" />
           </SelectTrigger>
@@ -103,17 +115,17 @@ const AccountList = () => {
             </SelectGroup>
           </SelectContent>
         </Select>
-        <Select>
+        <Select onValueChange={(v) => { setStatusFilter(v as string); setPage(1); }}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Select status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="Active">Active</SelectItem>
+            <SelectItem value="Inactive">Inactive</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" className="ml-auto flex items-center gap-2">
+        <Button variant="outline" className="ml-auto flex items-center gap-2" disabled={isLoading}>
           <Download className="w-4 h-4" /> Export
         </Button>
         <Button className="bg-black text-white flex items-center gap-2">
@@ -145,16 +157,17 @@ const AccountList = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {shownUsers.map((user, idx) => (
-              <AccountItem
-                key={idx}
-                user={user}
-                idx={idx}
-                setUsers={setUsers}
-                statusColor={statusColor}
-              />
-            ))}
-            {shownUsers.length < 4 && (
+            {localUsers.length > 0 ? (
+              localUsers.map((user, idx) => (
+                <AccountItem
+                  key={user.id}
+                  user={user}
+                  idx={idx}
+                  setUsers={setLocalUsers}
+                  statusColor={statusColor}
+                />
+              ))
+            ) : (
               <TableRow>
                 <TableCell colSpan={6} className="h-20" />
               </TableRow>
@@ -164,30 +177,43 @@ const AccountList = () => {
       </div>
       <div className="flex items-center justify-between mt-4 px-2">
         <span className="text-sm text-gray-600">
-          Showing 1 to 4 of 97 results
+          Showing {start} to {end} of {total} results
         </span>
         <div>
           <Pagination>
             <PaginationContent>
               <PaginationItem>
-                <PaginationPrevious href="#" />
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage > 1) setPage(currentPage - 1);
+                  }}
+                />
               </PaginationItem>
+              {Array.from({ length: meta?.totalPages ?? 0 }).map((_, i) => (
+                <PaginationItem key={i}>
+                  <PaginationLink
+                    href="#"
+                    isActive={i + 1 === currentPage}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setPage(i + 1);
+                    }}
+                  >
+                    {i + 1}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
               <PaginationItem>
-                <PaginationLink href="#">1</PaginationLink>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationLink href="#" isActive>
-                  2
-                </PaginationLink>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationLink href="#">3</PaginationLink>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationEllipsis />
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext href="#" />
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if ((meta?.page ?? currentPage) < (meta?.totalPages ?? 1))
+                      setPage((meta?.page ?? currentPage) + 1);
+                  }}
+                />
               </PaginationItem>
             </PaginationContent>
           </Pagination>

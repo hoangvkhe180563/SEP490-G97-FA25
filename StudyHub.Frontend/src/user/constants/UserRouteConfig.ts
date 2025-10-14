@@ -1,22 +1,23 @@
 const UserRouteConfig = {
   TEACHER: {
     INDEX: "teacher",
-    PROFILE: "profile"
+    PROFILE: "profile",
   },
   MANAGER: {
     INDEX: "manager",
     PROFILE: "profile",
+    ACCOUNT_LIST: "accounts",
     ADD_ACCOUNT: "add-account",
     UPDATE_ACCOUNT: "update-account",
   },
   STUDENT: {
     INDEX: "student",
-    PROFILE: "profile"
+    PROFILE: "profile",
   },
   PARENT: {
     INDEX: "parent",
-    PROFILE: "profile"
-  }
-}
+    PROFILE: "profile",
+  },
+};
 
 export default UserRouteConfig;
