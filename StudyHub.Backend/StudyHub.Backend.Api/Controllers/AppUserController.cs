@@ -75,7 +75,7 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpPut("{id}")]
         public IActionResult Edit(Guid id, [FromBody] EditAccountRequest req)
         {
-            var user = _userService.EditAccount(id, req.Email, req.Username, req.Fullname, req.RoleId, req.CommuneId, req.Status);
+            var user = _userService.EditAccount(id, req.Email, req.Username, req.Fullname, req.CommuneId, req.Status);
             if (user == null) return NotFound();
             return Ok(user);
         }

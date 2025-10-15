@@ -1,17 +1,20 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 
-namespace StudyHub.Backend.Domain.Entities
+namespace StudyHub.Backend.Domain.Entities;
+
+public class AppClaim
 {
-    public class AppClaim
-    {
-        public Guid UserId { get; set; }
-        public Guid RoleId { get; set; }
-        public short SubjectId { get; set; }
-        public int ClassId { get; set; }
+    public Guid UserId { get; set; }
 
-        public Class? Class { get; set; }
-        public AppRole? Role { get; set; }
-        public Subject? Subject { get; set; }
-        public AppUser? User { get; set; }
-    }
+    public Guid RoleId { get; set; }
+
+    public short SubjectId { get; set; }
+
+    public int ClassId { get; set; }
+
+    public Class? Class { get; set; }
+    public AppRole? Role { get; set; }
+    public Subject? Subject { get; set; }
+    public AppUser? User { get; set; }
 }

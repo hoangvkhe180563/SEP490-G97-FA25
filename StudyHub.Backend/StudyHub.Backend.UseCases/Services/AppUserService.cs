@@ -77,7 +77,7 @@ namespace StudyHub.Backend.UseCases.Services
                     Address = u.Address,
                     Status = (u.Status == true) ? "Active" : "Inactive",
                     CreatedAt = u.CreatedAt.ToString("yyyy/MM/dd"),
-                    UpdatedAt = u.UpdatedAt.ToString("yyyy/MM/dd"),
+                    UpdatedAt = u.UpdatedAt?.ToString("yyyy/MM/dd"),
                     SchoolName = schoolName,
                     Roles = roles,
                     CommuneName = communeName
@@ -121,7 +121,6 @@ namespace StudyHub.Backend.UseCases.Services
                 Fullname = fullname,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
-                EmailConfirmed = false,
                 CommuneId = communeId
             };
 
@@ -146,7 +145,7 @@ namespace StudyHub.Backend.UseCases.Services
                 Address = user.Address,
                 Status = (user.Status == true) ? "Active" : "Inactive",
                 CreatedAt = user.CreatedAt.ToString("yyyy/MM/dd"),
-                UpdatedAt = user.UpdatedAt.ToString("yyyy/MM/dd"),
+                UpdatedAt = user.UpdatedAt?.ToString("yyyy/MM/dd"),
                 SchoolName = schoolName,
                 Roles = roles,
                 CommuneName = communeName
@@ -166,11 +165,9 @@ namespace StudyHub.Backend.UseCases.Services
                 PasswordHash = hash,
                 Username = username,
                 Fullname = fullname,
-                RoleId = roleId,
                 CommuneId = communeId,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
-                EmailConfirmed = false,
                 Status = true
             };
 
@@ -178,7 +175,7 @@ namespace StudyHub.Backend.UseCases.Services
             return user;
         }
 
-        public AppUser? EditAccount(Guid id, string? email = null, string? username = null, string? fullname = null, Guid? roleId = null, int? communeId = null, bool? status = null)
+        public AppUser? EditAccount(Guid id, string? email = null, string? username = null, string? fullname = null, int? communeId = null, bool? status = null)
         {
             var user = _userRepository.GetById(id);
             if (user == null) return null;
@@ -186,7 +183,6 @@ namespace StudyHub.Backend.UseCases.Services
             if (!string.IsNullOrEmpty(email)) user.Email = email;
             if (!string.IsNullOrEmpty(username)) user.Username = username;
             if (!string.IsNullOrEmpty(fullname)) user.Fullname = fullname;
-            if (roleId.HasValue) user.RoleId = roleId.Value;
             if (communeId.HasValue) user.CommuneId = communeId.Value;
             if (status.HasValue) user.Status = status.Value;
             user.UpdatedAt = DateTime.UtcNow;

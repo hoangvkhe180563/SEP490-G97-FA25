@@ -12,11 +12,10 @@ namespace StudyHub.Backend.UseCases.Repositories
         (List<Document> documents, int totalCount) SearchDocuments(
             string? query = null,
             int? categoryId = null,
-            int? gradeId = null,
+            int? grade = null,
             int? schoolId = null,
             string? subject = null,
             string? uploaderId = null,
-            string? accessibility = null,
             bool? isFeatured = null,
             bool? isPendingApproval = null,
             bool includeUnapproved = false,

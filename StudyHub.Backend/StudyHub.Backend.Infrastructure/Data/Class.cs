@@ -13,8 +13,6 @@ public partial class Class
 
     public string? Description { get; set; }
 
-    public bool Status { get; set; }
-
     public DateTime CreatedAt { get; set; }
 
     public Guid CreatedBy { get; set; }
@@ -28,6 +26,8 @@ public partial class Class
     public virtual ICollection<AppClaim> AppClaims { get; set; } = new List<AppClaim>();
 
     public virtual ICollection<ClassMember> ClassMembers { get; set; } = new List<ClassMember>();
+
+    public virtual ICollection<ClassNotification> ClassNotifications { get; set; } = new List<ClassNotification>();
 
     public virtual ICollection<Classwork> Classworks { get; set; } = new List<Classwork>();
 

@@ -14,9 +14,7 @@ public static class LectureMapper
         {
             Id = l.Id,
             Name = l.Name,
-            IsPreview = l.IsPreview,
             Type = l.Type,
-            Content = l.Content
         }).ToList() ?? new List<LessonDto>()
     };
 
@@ -24,8 +22,6 @@ public static class LectureMapper
     {
         Id = l.Id,
         Name = l.Name,
-        IsPreview = l.IsPreview,
         Type = l.Type,
-        Content = l.Content
     };
 }

@@ -1,9 +1,12 @@
-namespace StudyHub.Backend.Domain.Entities
+﻿namespace StudyHub.Backend.Domain.Entities;
+
+public class SubmissionFile
 {
-    public class SubmissionFile
-    {
-        public int Id { get; set; }
-        public int SubmissionId { get; set; }
-        public string? FileName { get; set; }
-    }
+    public int Id { get; set; }
+
+    public int SubmissionId { get; set; }
+
+    public string FileName { get; set; } = null!;
+
+    public string FileUrl { get; set; } = null!;
 }

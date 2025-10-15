@@ -1,37 +1,36 @@
-﻿namespace StudyHub.Backend.Domain.Entities
+﻿namespace StudyHub.Backend.Domain.Entities;
+
+public class AppUser : IAuditTrail
 {
-    public class AppUser
-    {
-        public Guid Id { get; set; }
+    public Guid Id { get; set; }
 
-        public string Email { get; set; } = null!;
+    public string Email { get; set; } = null!;
 
-        public string? PasswordHash { get; set; }
+    public string? PasswordHash { get; set; }
 
-        public string Username { get; set; } = null!;
+    public string Username { get; set; } = null!;
 
-        public string? Fullname { get; set; }
+    public string? Fullname { get; set; }
 
-        public int? SchoolId { get; set; }
+    public DateOnly? Dob { get; set; }
 
-        public bool? Status { get; set; }
+    public int? SchoolId { get; set; }
 
-        public Guid RoleId { get; set; }
+    public string? Address { get; set; }
 
-        public DateTime CreatedAt { get; set; }
+    public int? CommuneId { get; set; }
 
-        public DateTime UpdatedAt { get; set; }
+    public string? PhoneNumber { get; set; }
 
-        public bool EmailConfirmed { get; set; }
+    public long Wallet { get; set; }
 
-        public string? RefreshToken { get; set; }
+    public bool IsVerified { get; set; }
 
-        public DateTime? RefreshTokenExpire { get; set; }
+    public string? RefreshToken { get; set; }
 
-        public bool? IsLoginWithGoogle { get; set; }
+    public DateTime? RefreshTokenExpire { get; set; }
 
-        public string? Address { get; set; }
+    public bool IsLoginWithGoogle { get; set; }
 
-        public int CommuneId { get; set; }
-    }
+    public bool? Status { get; set; }
 }

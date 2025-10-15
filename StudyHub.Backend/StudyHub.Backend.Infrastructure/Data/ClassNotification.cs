@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace StudyHub.Backend.Infrastructure.Data;
 
-public partial class Classwork
+public partial class ClassNotification
 {
     public int Id { get; set; }
 
@@ -11,11 +11,7 @@ public partial class Classwork
 
     public string Title { get; set; } = null!;
 
-    public string? Description { get; set; }
-
-    public DateTime? Deadline { get; set; }
+    public string Description { get; set; } = null!;
 
     public virtual Class Class { get; set; } = null!;
-
-    public virtual ICollection<ClassworkSubmission> ClassworkSubmissions { get; set; } = new List<ClassworkSubmission>();
 }

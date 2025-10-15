@@ -78,14 +78,12 @@ public class LectureController : ControllerBase
     }
 
     [HttpPut("lesson/{id}")]
-    public IActionResult UpdateLesson(int id, [FromBody] StudyHub.Backend.Domain.Entities.Lesson l)
+    public IActionResult UpdateLesson(int id, [FromBody] Domain.Entities.Lesson l)
     {
         var existing = _service.GetLesson(id);
         if (existing == null) return NotFound();
         existing.Name = l.Name;
-        existing.IsPreview = l.IsPreview;
         existing.Type = l.Type;
-        existing.Content = l.Content;
         var updated = _service.UpdateLesson(existing);
         return Ok(updated.ToDto());
     }

@@ -22,11 +22,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     Id = l.Id,
                     Name = l.Name,
-                    IsPreview = l.IsPreview,
                     ChapterId = l.ChapterId,
                     Status = l.Status,
                     Type = l.Type,
-                    Content = l.Content
                 }).ToList();
             }
             catch (Exception ex)
@@ -46,11 +44,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     Id = l.Id,
                     Name = l.Name,
-                    IsPreview = l.IsPreview,
                     ChapterId = l.ChapterId,
                     Status = l.Status,
                     Type = l.Type,
-                    Content = l.Content
                 };
             }
             catch (Exception ex)
@@ -67,11 +63,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 var entity = new Data.Lesson
                 {
                     Name = lesson.Name,
-                    IsPreview = lesson.IsPreview,
                     ChapterId = lesson.ChapterId,
                     Status = lesson.Status ?? true,
                     Type = lesson.Type,
-                    Content = lesson.Content
                 };
                 _context.Lessons.Add(entity);
                 _context.SaveChanges();
@@ -92,10 +86,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 var entity = _context.Lessons.Find(lesson.Id);
                 if (entity == null) return lesson;
                 entity.Name = lesson.Name;
-                entity.IsPreview = lesson.IsPreview;
                 entity.Status = lesson.Status;
                 entity.Type = lesson.Type;
-                entity.Content = lesson.Content;
                 _context.SaveChanges();
                 return lesson;
             }
