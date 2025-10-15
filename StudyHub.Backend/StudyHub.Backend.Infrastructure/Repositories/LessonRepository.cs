@@ -25,6 +25,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     ChapterId = l.ChapterId,
                     Status = l.Status,
                     Type = l.Type,
+                    LessonVideo = l.LessonVideo == null ? null : new LessonVideo { LessonId = l.LessonVideo.LessonId, Url = l.LessonVideo.Url },
+                    LessonReading = l.LessonReading == null ? null : new LessonReading { LessonId = l.LessonReading.LessonId, Content = l.LessonReading.Content }
                 }).ToList();
             }
             catch (Exception ex)
@@ -38,15 +40,23 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var l = _context.Lessons.Find(id);
-                if (l == null) return null;
+                var l = _context.Lessons.Where(x => x.Id == id).Select(x => new
+                {
+                    Lesson = x,
+                    Reading = x.LessonReading,
+                    Video = x.LessonVideo
+                }).FirstOrDefault();
+                if (l == null || l.Lesson == null) return null;
+
                 return new Lesson
                 {
-                    Id = l.Id,
-                    Name = l.Name,
-                    ChapterId = l.ChapterId,
-                    Status = l.Status,
-                    Type = l.Type,
+                    Id = l.Lesson.Id,
+                    Name = l.Lesson.Name,
+                    ChapterId = l.Lesson.ChapterId,
+                    Status = l.Lesson.Status,
+                    Type = l.Lesson.Type,
+                    LessonReading = l.Reading == null ? null : new LessonReading { LessonId = l.Reading.LessonId, Content = l.Reading.Content },
+                    LessonVideo = l.Video == null ? null : new LessonVideo { LessonId = l.Video.LessonId, Url = l.Video.Url }
                 };
             }
             catch (Exception ex)

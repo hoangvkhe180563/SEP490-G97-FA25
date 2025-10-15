@@ -1,6 +1,6 @@
 using StudyHub.Backend.Domain.Entities;
-using StudyHub.Backend.Api.Dtos;
 using System.Linq;
+using StudyHub.Backend.Api.Dtos.CourseDTOS;
 
 namespace StudyHub.Backend.Api.Mappers;
 
@@ -15,6 +15,8 @@ public static class LectureMapper
             Id = l.Id,
             Name = l.Name,
             Type = l.Type,
+            VideoUrl = l.LessonVideo?.Url,
+            ReadingContent = l.LessonReading?.Content,
         }).ToList() ?? new List<LessonDto>()
     };
 
@@ -23,5 +25,7 @@ public static class LectureMapper
         Id = l.Id,
         Name = l.Name,
         Type = l.Type,
+        VideoUrl = l.LessonVideo?.Url,
+        ReadingContent = l.LessonReading?.Content,
     };
 }

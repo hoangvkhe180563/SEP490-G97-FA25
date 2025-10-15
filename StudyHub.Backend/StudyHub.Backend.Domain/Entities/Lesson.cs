@@ -11,4 +11,8 @@ public class Lesson
     public bool? Status { get; set; }
 
     public string Type { get; set; } = null!;
+
+    // Optional related content
+    public LessonVideo? LessonVideo { get; set; }
+    public LessonReading? LessonReading { get; set; }
 }

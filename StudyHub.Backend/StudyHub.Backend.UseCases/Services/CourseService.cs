@@ -1,4 +1,5 @@
 using StudyHub.Backend.Domain.Entities;
+using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Repositories;
 
 namespace StudyHub.Backend.UseCases.Services
@@ -16,7 +17,7 @@ namespace StudyHub.Backend.UseCases.Services
             return _repo.GetAllCourses();
         }
 
-        public UseCases.Models.PagedResult<Course> SearchCourses(UseCases.Models.CourseQueryParams query)
+        public PagedResult<Course> SearchCourses(CourseQueryParams query)
         {
             return _repo.SearchCourses(query);
         }

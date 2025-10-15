@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.UseCases.Services;
 using StudyHub.Backend.Api.Mappers;
+using StudyHub.Backend.Domain.Entities;
 
 namespace StudyHub.Backend.Api.Controllers;
 
@@ -30,14 +31,14 @@ public class LectureController : ControllerBase
     }
 
     [HttpPost("chapter")]
-    public IActionResult CreateChapter([FromBody] StudyHub.Backend.Domain.Entities.Chapter ch)
+    public IActionResult CreateChapter([FromBody] Chapter ch)
     {
         var created = _service.CreateChapter(ch);
         return CreatedAtAction(nameof(GetChapter), new { id = created.Id }, created.ToDto());
     }
 
     [HttpPut("chapter/{id}")]
-    public IActionResult UpdateChapter(int id, [FromBody] StudyHub.Backend.Domain.Entities.Chapter ch)
+    public IActionResult UpdateChapter(int id, [FromBody] Chapter ch)
     {
         var existing = _service.GetChapter(id);
         if (existing == null) return NotFound();
@@ -71,14 +72,14 @@ public class LectureController : ControllerBase
     }
 
     [HttpPost("lesson")]
-    public IActionResult CreateLesson([FromBody] StudyHub.Backend.Domain.Entities.Lesson l)
+    public IActionResult CreateLesson([FromBody] Lesson l)
     {
         var created = _service.CreateLesson(l);
         return CreatedAtAction(nameof(GetLesson), new { id = created.Id }, created.ToDto());
     }
 
     [HttpPut("lesson/{id}")]
-    public IActionResult UpdateLesson(int id, [FromBody] Domain.Entities.Lesson l)
+    public IActionResult UpdateLesson(int id, [FromBody] Lesson l)
     {
         var existing = _service.GetLesson(id);
         if (existing == null) return NotFound();

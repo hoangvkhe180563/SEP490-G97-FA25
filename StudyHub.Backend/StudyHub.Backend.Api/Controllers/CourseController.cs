@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.UseCases.Services;
 using StudyHub.Backend.Api.Mappers;
-using StudyHub.Backend.Api.Dtos;
+using StudyHub.Backend.Api.Dtos.CourseDTOS;
+using StudyHub.Backend.UseCases.Dtos;
 
 namespace StudyHub.Backend.Api.Controllers;
 
@@ -16,28 +17,28 @@ public class CourseController : ControllerBase
     }
 
     [HttpGet]
-    public IActionResult GetAll([FromQuery] string? q, [FromQuery] short? subjectId, [FromQuery] sbyte? gradeId,
-        [FromQuery] bool? status, [FromQuery] bool? isFeatured, [FromQuery] string? sortBy, [FromQuery] int page = 1, [FromQuery] int pageSize = 12)
+    public IActionResult GetAll([FromBody] CourseQueryParams courseQueryParams)
     {
-        var query = new StudyHub.Backend.UseCases.Models.CourseQueryParams
+        var query = new CourseQueryParams
         {
-            Q = q,
-            SubjectId = subjectId,
-            GradeId = gradeId,
-            Status = status,
-            IsFeatured = isFeatured,
-            SortBy = sortBy,
-            Page = page,
-            PageSize = pageSize
+            Q = courseQueryParams.Q,
+            SubjectId = courseQueryParams.SubjectId,
+            Grade = courseQueryParams.Grade,
+            Status = courseQueryParams.Status,
+            IsFeatured = courseQueryParams.Status,
+            SortBy = courseQueryParams.SortBy,
+            Page = courseQueryParams.Page,
+            PageSize = courseQueryParams.PageSize
         };
 
         var result = _service.SearchCourses(query);
-        var dto = new PagedCoursesDto
+        var dto = new PagedResult<CourseListDto>
         {
             Items = result.Items.Select(i => i.ToListDto()).ToList(),
             Total = result.Total,
             Page = result.Page,
-            PageSize = result.PageSize
+            Limit = result.Limit,
+            TotalPages = result.TotalPages
         };
         return Ok(dto);
     }
@@ -53,7 +54,6 @@ public class CourseController : ControllerBase
     [HttpPost]
     public IActionResult Create([FromBody] CourseDetailDto dto)
     {
-        // map dto to domain minimal for create
         var domain = new Domain.Entities.Course
         {
             Name = dto.Name,
@@ -62,7 +62,7 @@ public class CourseController : ControllerBase
             Price = dto.Price,
             SubjectId = dto.SubjectId,
             Grade = dto.Grade,
-            CreatedAt = System.DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow
         };
         var created = _service.CreateCourse(domain);
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created.ToDetailDto());

@@ -1,4 +1,5 @@
 using StudyHub.Backend.Domain.Entities;
+using StudyHub.Backend.UseCases.Dtos;
 
 namespace StudyHub.Backend.UseCases.Repositories
 {
@@ -9,6 +10,6 @@ namespace StudyHub.Backend.UseCases.Repositories
         Course CreateCourse(Course course);
         Course UpdateCourse(Course course);
         bool DeleteCourse(int id);
-        StudyHub.Backend.UseCases.Models.PagedResult<Course> SearchCourses(StudyHub.Backend.UseCases.Models.CourseQueryParams query);
+        PagedResult<Course> SearchCourses(CourseQueryParams query);
     }
 }

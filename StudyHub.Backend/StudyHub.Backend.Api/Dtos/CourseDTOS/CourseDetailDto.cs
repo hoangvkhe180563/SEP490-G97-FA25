@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace StudyHub.Backend.Api.Dtos;
+namespace StudyHub.Backend.Api.Dtos.CourseDTOS;
 
 public class CourseDetailDto
 {
@@ -26,4 +26,6 @@ public class LessonDto
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
+    public string? VideoUrl { get; set; }
+    public string? ReadingContent { get; set; }
 }

@@ -1,5 +1,6 @@
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Exceptions;
+using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Repositories;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
@@ -16,7 +17,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                return _context.Courses.Select(c => new Domain.Entities.Course
+                return _context.Courses.Select(c => new Course
                 {
                     Id = c.Id,
                     Name = c.Name,
@@ -45,7 +46,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 var c = _context.Courses.Find(id);
                 if (c == null) return null;
-                return new Domain.Entities.Course
+                return new Course
                 {
                     Id = c.Id,
                     Name = c.Name,
@@ -142,7 +143,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
-        public UseCases.Models.PagedResult<Domain.Entities.Course> SearchCourses(UseCases.Models.CourseQueryParams query)
+        public PagedResult<Course> SearchCourses(CourseQueryParams query)
         {
             try
             {
@@ -157,8 +158,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (query.SubjectId.HasValue)
                     q = q.Where(c => c.SubjectId == query.SubjectId.Value);
 
-                if (query.GradeId.HasValue)
-                    q = q.Where(c => c.GradeId == query.GradeId.Value);
+                if (query.Grade.HasValue)
+                    q = q.Where(c => c.Grade == query.Grade.Value);
 
                 if (query.Status.HasValue)
                     q = q.Where(c => c.Status == query.Status.Value);
@@ -179,15 +180,19 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 var page = Math.Max(1, query.Page);
                 var pageSize = Math.Max(1, query.PageSize);
 
+                // Tính toán TotalPages
+                var totalPages = (int)Math.Ceiling((double)total / pageSize);
+                // -----------------------------------------
+
                 var items = q.Skip((page - 1) * pageSize).Take(pageSize)
-                    .Select(c => new Domain.Entities.Course
+                    .Select(c => new Course
                     {
                         Id = c.Id,
                         Name = c.Name,
                         Information = c.Information,
                         ImageUrl = c.ImageUrl,
                         Price = c.Price,
-                        Grade = c.Grade != null ? c.Grade.Name : string.Empty,
+                        Grade = c.Grade,
                         SubjectId = c.SubjectId,
                         SchoolId = c.SchoolId,
                         Status = c.Status,
@@ -196,18 +201,19 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         IsFeatured = c.IsFeatured
                     }).ToList();
 
-                return new UseCases.Models.PagedResult<Domain.Entities.Course>
+                return new PagedResult<Course>
                 {
                     Items = items,
                     Total = total,
                     Page = page,
-                    PageSize = pageSize
+                    Limit = pageSize,
+                    TotalPages = totalPages
                 };
             }
             catch (Exception ex)
             {
                 new InfrastructureException("CourseRepository", "SearchCourses failed. Inner error: " + ex.Message).LogError();
-                return new UseCases.Models.PagedResult<Domain.Entities.Course>();
+                return new PagedResult<Course>();
             }
         }
     }

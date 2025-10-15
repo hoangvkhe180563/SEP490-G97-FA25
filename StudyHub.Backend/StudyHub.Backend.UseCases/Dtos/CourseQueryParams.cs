@@ -1,10 +1,10 @@
-namespace StudyHub.Backend.UseCases.Models;
+namespace StudyHub.Backend.UseCases.Dtos;
 
 public class CourseQueryParams
 {
     public string? Q { get; set; }
     public short? SubjectId { get; set; }
-    public sbyte? GradeId { get; set; }
+    public sbyte? Grade { get; set; }
     public bool? Status { get; set; }
     public bool? IsFeatured { get; set; }
     public string? SortBy { get; set; }

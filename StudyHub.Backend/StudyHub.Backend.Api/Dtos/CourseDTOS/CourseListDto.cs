@@ -1,4 +1,4 @@
-namespace StudyHub.Backend.Api.Dtos;
+namespace StudyHub.Backend.Api.Dtos.CourseDTOS;
 
 public class CourseListDto
 {
