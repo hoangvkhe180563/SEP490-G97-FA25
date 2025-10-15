@@ -14,6 +14,8 @@ public class AppUser : IAuditTrail
 
     public DateOnly? Dob { get; set; }
 
+    public bool Gender { get; set; }
+
     public int? SchoolId { get; set; }
 
     public string? Address { get; set; }
