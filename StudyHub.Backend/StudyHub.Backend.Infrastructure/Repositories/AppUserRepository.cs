@@ -20,6 +20,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 Id = d.Id,
                 Email = d.Email,
+                Gender = d.Gender,
                 PasswordHash = d.PasswordHash,
                 Username = d.Username,
                 Fullname = d.Fullname,
@@ -41,6 +42,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 Id = d.Id,
                 Email = d.Email,
+                Gender = d.Gender,
                 PasswordHash = d.PasswordHash,
                 Username = d.Username,
                 Fullname = d.Fullname,
@@ -99,6 +101,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             existing.PasswordHash = user.PasswordHash;
             existing.Username = user.Username;
             existing.Fullname = user.Fullname;
+            existing.Gender = user.Gender;
             existing.SchoolId = user.SchoolId;
             existing.Status = user.Status;
             existing.UpdatedAt = user.UpdatedAt;

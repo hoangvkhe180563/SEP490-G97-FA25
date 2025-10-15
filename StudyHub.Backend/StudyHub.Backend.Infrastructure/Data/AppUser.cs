@@ -16,6 +16,7 @@ public partial class AppUser
     public string? Fullname { get; set; }
 
     public DateOnly? Dob { get; set; }
+    public bool Gender { get; set; }
 
     public int? SchoolId { get; set; }
 

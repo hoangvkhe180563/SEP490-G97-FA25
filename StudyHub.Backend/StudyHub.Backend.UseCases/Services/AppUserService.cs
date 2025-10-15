@@ -269,6 +269,16 @@ namespace StudyHub.Backend.UseCases.Services
             // Update the user in the database.
             _userRepository.UpdateUser(user);
         }
+
+        public bool ActivateAccount(Guid id)
+        {
+            var user = _userRepository.GetById(id);
+            if (user == null) return false;
+            user.Status = true;
+            user.UpdatedAt = DateTime.UtcNow;
+            _userRepository.UpdateUser(user);
+            return true;
+        }
     }
 
     // Result returned by Login: includes tokens (kept in cookies), plus user info to send in response body
