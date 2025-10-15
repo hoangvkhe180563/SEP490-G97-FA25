@@ -13,7 +13,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             _documentcategoryservice = service;
         }
-        [HttpGet("alldoccate")]
+        [HttpGet]
         public IActionResult GetDocumentCategories()
         {
             var documentcategoryService = _documentcategoryservice.GetDocumentCategories();

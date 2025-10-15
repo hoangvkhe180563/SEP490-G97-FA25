@@ -15,41 +15,46 @@ public partial class AppUser
 
     public string? Fullname { get; set; }
 
+    public DateOnly? Dob { get; set; }
+    public bool Gender { get; set; }
+
     public int? SchoolId { get; set; }
 
-    public bool? Status { get; set; }
+    public string? Address { get; set; }
 
-    public Guid RoleId { get; set; }
+    public int? CommuneId { get; set; }
 
-    public DateTime CreatedAt { get; set; }
+    public string? PhoneNumber { get; set; }
 
-    public DateTime UpdatedAt { get; set; }
+    public long Wallet { get; set; }
 
-    public bool EmailConfirmed { get; set; }
+    public bool IsVerified { get; set; }
 
     public string? RefreshToken { get; set; }
 
     public DateTime? RefreshTokenExpire { get; set; }
 
-    public bool? IsLoginWithGoogle { get; set; }
+    public bool IsLoginWithGoogle { get; set; }
 
-    public string? Address { get; set; }
+    public bool? Status { get; set; }
 
-    public int CommuneId { get; set; }
+    public DateTime CreatedAt { get; set; }
+
+    public Guid CreatedBy { get; set; }
+
+    public DateTime? UpdatedAt { get; set; }
+
+    public Guid? UpdatedBy { get; set; }
+
+    public DateTime? DeletedAt { get; set; }
 
     public virtual ICollection<AppClaim> AppClaims { get; set; } = new List<AppClaim>();
 
     public virtual ICollection<ClassMember> ClassMembers { get; set; } = new List<ClassMember>();
 
-    public virtual Commune Commune { get; set; } = null!;
+    public virtual ICollection<ClassworkSubmission> ClassworkSubmissions { get; set; } = new List<ClassworkSubmission>();
 
-    public virtual ICollection<Manager> Managers { get; set; } = new List<Manager>();
-
-    public virtual ICollection<Parent> Parents { get; set; } = new List<Parent>();
-
-    public virtual ICollection<Student> Students { get; set; } = new List<Student>();
-
-    public virtual ICollection<Teacher> Teachers { get; set; } = new List<Teacher>();
+    public virtual Commune? Commune { get; set; }
 
     public virtual ICollection<AppRole> Roles { get; set; } = new List<AppRole>();
 }

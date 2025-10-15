@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -17,12 +16,13 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet]
         public IActionResult GetLandingPage([FromQuery] int id)
         {
-            var landingPage = _service.GetLandingPageBySchool(id);
-            if (landingPage == null)
-            {
-                return NotFound();
-            }
-            return Ok(landingPage);
+            return Ok();
+            //var landingPage = _service.GetLandingPageBySchool(id);
+            //if (landingPage == null)
+            //{
+            //    return NotFound();
+            //}
+            //return Ok(landingPage);
         }
     }
 }

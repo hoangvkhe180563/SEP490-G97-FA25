@@ -23,7 +23,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Information = c.Information,
                     ImageUrl = c.ImageUrl,
                     Price = c.Price,
-                    Grade = c.Grade.Name,
+                    Grade = c.Grade,
                     SubjectId = c.SubjectId,
                     Status = c.Status,
                     CreatedAt = c.CreatedAt,
@@ -51,7 +51,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Information = c.Information,
                     ImageUrl = c.ImageUrl,
                     Price = c.Price,
-                    Grade = c.Grade.Name,
+                    Grade = c.Grade,
                     SubjectId = c.SubjectId,
                     Status = c.Status,
                     CreatedAt = c.CreatedAt,
@@ -76,7 +76,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Information = course.Information,
                     ImageUrl = course.ImageUrl,
                     Price = course.Price,
-                    GradeId = course.GradeId,
+                    Grade = course.Grade,
                     SubjectId = course.SubjectId,
                     Status = course.Status ?? true,
                     CreatedAt = DateTime.UtcNow,
@@ -105,7 +105,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.Information = course.Information;
                 entity.ImageUrl = course.ImageUrl;
                 entity.Price = course.Price;
-                entity.GradeId = course.GradeId;
+                entity.Grade = course.Grade;
                 entity.SubjectId = course.SubjectId;
                 entity.Status = course.Status;
                 entity.UpdatedAt = DateTime.UtcNow;

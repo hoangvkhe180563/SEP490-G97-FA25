@@ -26,11 +26,10 @@ namespace StudyHub.Backend.UseCases.Services
         public (List<Document> documents, int totalCount) SearchDocuments(
             string? query = null,
             int? categoryId = null,
-            int? gradeId = null,
+            int? grade = null,
             int? schoolId = null,
             string? subject = null,
             string? uploaderId = null,
-            string? accessibility = null,
             bool? isFeatured = null,
             bool? isPendingApproval = null,
             bool includeUnapproved = false,
@@ -38,8 +37,8 @@ namespace StudyHub.Backend.UseCases.Services
             int pageSize = 10)
         {
             return _repo.SearchDocuments(
-                query, categoryId, gradeId, schoolId, subject,
-                uploaderId, accessibility, isFeatured, isPendingApproval,
+                query, categoryId, grade, schoolId, subject,
+                uploaderId, isFeatured, isPendingApproval,
                 includeUnapproved, pageNumber, pageSize);
         }
 
@@ -59,14 +58,8 @@ namespace StudyHub.Backend.UseCases.Services
             if (document.SubjectId <= 0)
                 throw new ArgumentException("Valid SubjectId is required");
 
-            if (document.GradeId <= 0)
-                throw new ArgumentException("Valid GradeId is required");
-
             if (document.DocumentCategoryId <= 0)
                 throw new ArgumentException("Valid DocumentCategoryId is required");
-
-            if (document.AccessibilityId <= 0)
-                throw new ArgumentException("Valid AccessibilityId is required");
 
             if (document.CreatedBy == Guid.Empty)
                 throw new ArgumentException("Valid CreatedBy is required");
@@ -76,7 +69,11 @@ namespace StudyHub.Backend.UseCases.Services
             if (thumbnailFile != null)
                 document.Thumbnail = await _fileStorage.UploadFileAsync(thumbnailFile, FileConstants.ThumbnailUploadPath);
 
-            document.IsApproved = document.AccessibilityId == 1 ? null : true;
+            if (document.SchoolId == null)
+                document.IsApproved = false;
+            else document.IsApproved = null;
+
+            document.IsApproved = document.ClassId != null;
             document.CreatedAt = DateTime.Now;
             document.Status = true;
 
@@ -114,8 +111,9 @@ namespace StudyHub.Backend.UseCases.Services
                 document.Thumbnail = existingDocument.Thumbnail;
             }
 
-            if (document.AccessibilityId == 1 && existingDocument.AccessibilityId != 1)
-                document.IsApproved = null;
+            if (document.SchoolId == null)
+                document.IsApproved = false;
+            else document.IsApproved = null;
 
             document.UpdatedAt = DateTime.Now;
 
@@ -153,7 +151,7 @@ namespace StudyHub.Backend.UseCases.Services
             var document = _repo.GetDocumentById(id)
                 ?? throw new InvalidOperationException($"Document with ID {id} not found");
 
-            if (document.AccessibilityId != 1)
+            if (document.SchoolId == null)
                 throw new InvalidOperationException("Only public documents require approval");
 
             document.IsApproved = true;
@@ -168,7 +166,7 @@ namespace StudyHub.Backend.UseCases.Services
             var document = _repo.GetDocumentById(id)
                 ?? throw new InvalidOperationException($"Document with ID {id} not found");
 
-            if (document.AccessibilityId != 1)
+            if (document.SchoolId != null)
                 throw new InvalidOperationException("Only public documents require approval");
 
             document.IsApproved = false;

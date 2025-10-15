@@ -40,7 +40,7 @@ namespace StudyHub.Backend.UseCases.Utils
                 new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
                 new Claim(ClaimTypes.Name, user.Username ?? string.Empty),
                 // include user's primary RoleId for compatibility
-                new Claim("role_id", user.RoleId.ToString())
+                new Claim("role_id", roles?.First().Id.ToString() ?? string.Empty)
             };
 
             var expires = DateTime.UtcNow.AddMinutes(expiresMinutes);
@@ -70,7 +70,7 @@ namespace StudyHub.Backend.UseCases.Utils
                 new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
                 new Claim(ClaimTypes.Name, user.Username ?? string.Empty),
                 // include user's primary RoleId for compatibility
-                new Claim("role_id", user.RoleId.ToString())
+                new Claim("role_ids", roles != null ? string.Join(",", roles.Select(r => r.ToString())) : string.Empty)
             };
             // include role names (many roles) if provided
             if (roles != null)

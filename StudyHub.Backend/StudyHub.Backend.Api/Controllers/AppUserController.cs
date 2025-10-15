@@ -1,12 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
-using StudyHub.Backend.UseCases.Services;
 using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Domain.Entities;
-using StudyHub.Backend.UseCases.Utils;
-using System;
-using Microsoft.AspNetCore.Http.HttpResults;
+using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -75,7 +70,7 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpPut("{id}")]
         public IActionResult Edit(Guid id, [FromBody] EditAccountRequest req)
         {
-            var user = _userService.EditAccount(id, req.Email, req.Username, req.Fullname, req.RoleId, req.CommuneId, req.Status);
+            var user = _userService.EditAccount(id, req.Email, req.Username, req.Fullname, req.CommuneId, req.Status);
             if (user == null) return NotFound();
             return Ok(user);
         }
@@ -87,6 +82,14 @@ namespace StudyHub.Backend.Api.Controllers
             var ok = _userService.DeactivateAccount(id);
             if (!ok) return NotFound();
             return Ok(new { message = "Account deactivated" });
+        }
+
+        [HttpPatch("{id}/activate")]
+        public IActionResult Activate(Guid id)
+        {
+            var ok = _userService.ActivateAccount(id);
+            if (!ok) return NotFound();
+            return Ok(new { message = "Account activated" });
         }
 
         [HttpPost("signup")]

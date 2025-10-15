@@ -1,4 +1,5 @@
-﻿using StudyHub.Backend.Domain.Entities;
+﻿using Microsoft.EntityFrameworkCore;
+using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories;
@@ -19,15 +20,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 Id = d.Id,
                 Email = d.Email,
+                Gender = d.Gender,
                 PasswordHash = d.PasswordHash,
                 Username = d.Username,
                 Fullname = d.Fullname,
                 SchoolId = d.SchoolId,
                 Status = d.Status,
-                RoleId = d.RoleId,
                 CreatedAt = d.CreatedAt,
                 UpdatedAt = d.UpdatedAt,
-                EmailConfirmed = d.EmailConfirmed,
                 RefreshToken = d.RefreshToken,
                 RefreshTokenExpire = d.RefreshTokenExpire,
                 IsLoginWithGoogle = d.IsLoginWithGoogle,
@@ -42,15 +42,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 Id = d.Id,
                 Email = d.Email,
+                Gender = d.Gender,
                 PasswordHash = d.PasswordHash,
                 Username = d.Username,
                 Fullname = d.Fullname,
                 SchoolId = d.SchoolId,
                 Status = d.Status,
-                RoleId = d.RoleId,
                 CreatedAt = d.CreatedAt,
                 UpdatedAt = d.UpdatedAt,
-                EmailConfirmed = d.EmailConfirmed,
                 RefreshToken = d.RefreshToken,
                 RefreshTokenExpire = d.RefreshTokenExpire,
                 IsLoginWithGoogle = d.IsLoginWithGoogle,
@@ -102,13 +101,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             existing.PasswordHash = user.PasswordHash;
             existing.Username = user.Username;
             existing.Fullname = user.Fullname;
+            existing.Gender = user.Gender;
             existing.SchoolId = user.SchoolId;
             existing.Status = user.Status;
-            existing.RoleId = user.RoleId;
             existing.UpdatedAt = user.UpdatedAt;
             existing.RefreshToken = user.RefreshToken;
             existing.RefreshTokenExpire = user.RefreshTokenExpire;
-            existing.EmailConfirmed = user.EmailConfirmed;
             existing.Address = user.Address;
             existing.CommuneId = user.CommuneId;
             _context.AppUsers.Update(existing);
@@ -122,7 +120,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             var roles = new List<Domain.Entities.AppRole>();
 
             // try primary role
-            var primaryRole = _context.AppRoles.FirstOrDefault(r => r.Id == _context.AppUsers.Where(u => u.Id == userId).Select(u => u.RoleId).FirstOrDefault());
+            var primaryRole = _context.AppRoles.Include(r => r.Users).FirstOrDefault(r => r.Users.Any(u => u.Id == userId));
             if (primaryRole != null)
             {
                 roles.Add(new Domain.Entities.AppRole

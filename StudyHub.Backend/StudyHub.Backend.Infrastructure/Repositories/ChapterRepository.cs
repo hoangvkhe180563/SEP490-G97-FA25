@@ -3,6 +3,7 @@ using Data = StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
@@ -28,11 +29,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     {
                         Id = l.Id,
                         Name = l.Name,
-                        IsPreview = l.IsPreview,
                         ChapterId = l.ChapterId,
                         Status = l.Status,
                         Type = l.Type,
-                        Content = l.Content
                     }).ToList()
                 }).ToList();
             }
@@ -47,7 +46,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var ch = _context.Chapters.Find(id);
+                var ch = _context.Chapters.Include(c => c.Lessons).FirstOrDefault(c => c.Id == id);
                 if (ch == null) return null;
                 return new Chapter
                 {
@@ -59,11 +58,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     {
                         Id = l.Id,
                         Name = l.Name,
-                        IsPreview = l.IsPreview,
                         ChapterId = l.ChapterId,
                         Status = l.Status,
                         Type = l.Type,
-                        Content = l.Content
                     }).ToList()
                 };
             }
