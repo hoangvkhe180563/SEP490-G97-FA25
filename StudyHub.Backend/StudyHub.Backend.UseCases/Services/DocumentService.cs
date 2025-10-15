@@ -221,7 +221,19 @@ namespace StudyHub.Backend.UseCases.Services
             if (string.IsNullOrEmpty(document.DocumentUrl))
                 throw new InvalidOperationException("Document URL is not available");
 
-            var fileBytes = await _fileStorage.ReadFileAsync(document.DocumentUrl);
+            byte[] fileBytes;
+
+            if (document.DocumentUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                document.DocumentUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                using var httpClient = new HttpClient();
+                fileBytes = await httpClient.GetByteArrayAsync(document.DocumentUrl);
+            }
+            else
+            {
+                fileBytes = await _fileStorage.ReadFileAsync(document.DocumentUrl);
+            }
+
             var contentType = GetContentType(document.DocumentUrl);
             var fileName = document.Name + Path.GetExtension(document.DocumentUrl);
 
