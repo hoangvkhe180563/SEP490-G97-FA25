@@ -23,6 +23,7 @@ namespace StudyHub.Backend.Infrastructure
             //services.AddScoped<IFileStorageRepository, CloudFileStorageService>();
             services.AddScoped<ISubjectRepository, SubjectRepository>();
             services.AddScoped<IDocumentCategoryRepository, DocumentCategoryRepository>();
+            services.AddScoped<IClassRepository, ClassRepository>();
 
             return services;
         }

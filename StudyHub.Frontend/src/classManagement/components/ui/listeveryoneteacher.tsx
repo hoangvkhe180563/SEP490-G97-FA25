@@ -1,25 +1,22 @@
 import React, { useState } from "react";
 import MemberDetailModal from "@/classManagement/components/ui/memberdetailmodal";
-export type Person = {
-  id: number | string;
-  name: string;
-  subtitle?: string;
-  avatarUrl?: string;
-  role?: "teacher" | "student" | "parent";
-  hasParent?: boolean; // optional flag to indicate if student already has parent
-};
+import type { ClassMemberDto } from "@/classManagement/interfaces/class";
 
 type Props = {
-  teacher?: Person | null;
-  students?: Person[];
-  parents?: Person[];
-  onMail?: (p: Person) => void;
-  onAddPerson?: (role: Person["role"]) => void; // add new person to section
-  onAddParent?: (student: Person) => void; // add parent for a student
-  onSelect?: (person: Person) => void;
+  teacher?: ClassMemberDto | null;
+  students?: ClassMemberDto[];
+  parents?: ClassMemberDto[];
+  onMail?: (member: ClassMemberDto) => void;
+  onAddPerson?: (role: "teacher" | "student" | "parent") => void;
+  onAddParent?: (student: ClassMemberDto) => void;
+  onSelect?: (member: ClassMemberDto) => void;
 };
 
-const SectionHeader: React.FC<{ label: string; icon?: React.ReactNode; onAdd?: () => void }> = ({ label, icon, onAdd }) => (
+const SectionHeader: React.FC<{ label: string; icon?: React.ReactNode; onAdd?: () => void }> = ({
+  label,
+  icon,
+  onAdd,
+}) => (
   <div className="flex items-center justify-between mb-3">
     <div className="flex items-center gap-3">
       <div className="text-gray-600">{icon}</div>
@@ -31,7 +28,6 @@ const SectionHeader: React.FC<{ label: string; icon?: React.ReactNode; onAdd?: (
         className="flex items-center gap-2 text-sm text-gray-600 bg-white border rounded px-2 py-1 hover:shadow-sm"
         aria-label={`Add ${label}`}
       >
-        {/* user-plus icon (fixed aspect, no distortion) */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="w-5 h-5"
@@ -48,48 +44,36 @@ const SectionHeader: React.FC<{ label: string; icon?: React.ReactNode; onAdd?: (
           <path d="M20 8v6" />
           <path d="M23 11h-6" />
         </svg>
-        <span className="sr-only">Invite</span>
       </button>
     )}
   </div>
 );
 
 const PersonRow: React.FC<{
-  p: Person;
+  m: ClassMemberDto;
   onClick: () => void;
-  onMail?: (p: Person) => void;
-  onAddParent?: (p: Person) => void;
-}> = ({ p, onClick, onMail, onAddParent }) => (
+  onMail?: (m: ClassMemberDto) => void;
+  onAddParent?: (m: ClassMemberDto) => void;
+}> = ({ m, onClick, onMail }) => (
   <div
     className="py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50 px-2 rounded-lg"
     onClick={onClick}
   >
     <div className="flex items-center gap-3">
-      <img src={p.avatarUrl ?? "/vite.svg"} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
+      <img src={"/vite.svg"} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
       <div>
-        <div className="font-medium">{p.name}</div>
-        {p.subtitle && <div className="text-xs text-gray-400">{p.subtitle}</div>}
+        <div className="font-medium">{m.fullname}</div>
+        <div className="text-xs text-gray-400">
+          {`Tham gia: ${new Date(m.joinDate).toLocaleDateString()}`}
+        </div>
       </div>
     </div>
 
     <div className="flex items-center gap-2">
-      {/* Add Parent button for student without parent */}
-      {p.role === "student" && !p.hasParent && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onAddParent?.(p);
-          }}
-          className="bg-white border rounded px-3 py-1 text-sm hover:shadow-sm"
-        >
-          + Add Parent
-        </button>
-      )}
-
       <button
         onClick={(e) => {
-          e.stopPropagation(); // tránh click mở modal khi nhấn Mail
-          onMail?.(p);
+          e.stopPropagation();
+          onMail?.(m);
         }}
         className="flex items-center gap-2 bg-white border rounded px-3 py-1 text-sm hover:shadow-sm"
       >
@@ -107,13 +91,21 @@ const SectionCard: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="bg-gray-50 border rounded-lg p-4 mb-4">{children}</div>
 );
 
-const EveryoneListTC: React.FC<Props> = ({ teacher, students = [], parents = [], onMail, onAddPerson, onAddParent }) => {
-  const [selectedMember, setSelectedMember] = useState<Person | null>(null);
+const EveryoneListTC: React.FC<Props> = ({
+  teacher,
+  students = [],
+  parents = [],
+  onMail,
+  onAddPerson,
+  onSelect,
+}) => {
+  const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(null);
   const [open, setOpen] = useState(false);
 
-  const handleClick = (person: Person) => {
-    setSelectedMember(person);
+  const handleClick = (m: ClassMemberDto) => {
+    setSelectedMember(m);
     setOpen(true);
+    onSelect?.(m);
   };
 
   return (
@@ -132,7 +124,7 @@ const EveryoneListTC: React.FC<Props> = ({ teacher, students = [], parents = [],
             onAdd={() => onAddPerson?.("teacher")}
           />
           <SectionCard>
-            <PersonRow p={{ ...teacher, role: "teacher" }} onClick={() => handleClick({ ...teacher, role: "teacher" })} onMail={onMail} onAddParent={onAddParent} />
+            <PersonRow m={teacher} onClick={() => handleClick(teacher)} onMail={onMail} />
           </SectionCard>
         </>
       )}
@@ -153,13 +145,7 @@ const EveryoneListTC: React.FC<Props> = ({ teacher, students = [], parents = [],
           <SectionCard>
             <div className="space-y-3">
               {students.map((s) => (
-                <PersonRow
-                  key={s.id}
-                  p={{ ...s, role: "student" }}
-                  onClick={() => handleClick({ ...s, role: "student" })}
-                  onMail={onMail}
-                  onAddParent={onAddParent}
-                />
+                <PersonRow key={s.userId} m={s} onClick={() => handleClick(s)} onMail={onMail} />
               ))}
             </div>
           </SectionCard>
@@ -173,8 +159,16 @@ const EveryoneListTC: React.FC<Props> = ({ teacher, students = [], parents = [],
             label="Parents"
             icon={
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-                <path d="M7 12a4 4 0 100-8 4 4 0 000 8zM17 12a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M3 20v-1a4 4 0 014-4h10a4 4 0 014 4v1" stroke="currentColor" strokeWidth="1.5" />
+                <path
+                  d="M7 12a4 4 0 100-8 4 4 0 000 8zM17 12a4 4 0 100-8 4 4 0 000 8z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+                <path
+                  d="M3 20v-1a4 4 0 014-4h10a4 4 0 014 4v1"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
               </svg>
             }
             onAdd={() => onAddPerson?.("parent")}
@@ -182,14 +176,14 @@ const EveryoneListTC: React.FC<Props> = ({ teacher, students = [], parents = [],
           <SectionCard>
             <div className="space-y-3">
               {parents.map((p) => (
-                <PersonRow key={p.id} p={{ ...p, role: "parent" }} onClick={() => handleClick({ ...p, role: "parent" })} onMail={onMail} onAddParent={onAddParent} />
+                <PersonRow key={p.userId} m={p} onClick={() => handleClick(p)} onMail={onMail} />
               ))}
             </div>
           </SectionCard>
         </>
       )}
 
-      {/* ✅ Modal hiển thị chi tiết */}
+      {/* Modal */}
       <MemberDetailModal open={open} member={selectedMember} onClose={() => setOpen(false)} />
     </div>
   );
