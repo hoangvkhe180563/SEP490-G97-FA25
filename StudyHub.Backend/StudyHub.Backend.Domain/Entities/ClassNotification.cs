@@ -1,6 +1,6 @@
 ﻿namespace StudyHub.Backend.Domain.Entities;
 
-public class Classwork
+public class ClassNotification
 {
     public int Id { get; set; }
 
@@ -8,7 +8,5 @@ public class Classwork
 
     public string Title { get; set; } = null!;
 
-    public string? Description { get; set; }
-
-    public DateTime? Deadline { get; set; }
+    public string Description { get; set; } = null!;
 }

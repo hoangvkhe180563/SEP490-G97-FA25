@@ -1,9 +1,8 @@
-namespace StudyHub.Backend.Domain.Entities
+﻿namespace StudyHub.Backend.Domain.Entities;
+
+public class Subject
 {
-    public class Subject
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string? Description { get; set; }
-    }
+    public short Id { get; set; }
+
+    public string Name { get; set; } = null!;
 }

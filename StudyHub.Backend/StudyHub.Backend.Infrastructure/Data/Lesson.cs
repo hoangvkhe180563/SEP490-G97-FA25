@@ -9,15 +9,15 @@ public partial class Lesson
 
     public string Name { get; set; } = null!;
 
-    public bool IsPreview { get; set; }
-
     public int ChapterId { get; set; }
 
     public bool? Status { get; set; }
 
     public string Type { get; set; } = null!;
 
-    public string Content { get; set; } = null!;
-
     public virtual Chapter Chapter { get; set; } = null!;
+
+    public virtual LessonReading? LessonReading { get; set; }
+
+    public virtual LessonVideo? LessonVideo { get; set; }
 }

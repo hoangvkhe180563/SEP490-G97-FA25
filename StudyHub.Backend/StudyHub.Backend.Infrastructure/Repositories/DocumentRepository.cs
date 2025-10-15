@@ -20,9 +20,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 var d = _context.Documents
                     .Include(d => d.Subject)
-                    .Include(d => d.Grade)
                     .Include(d => d.DocumentCategory)
-                    .Include(d => d.Accessibility)
                     .Include(d => d.School)
                     .FirstOrDefault(d => d.Id == id && d.DeletedAt == null);
 
@@ -38,11 +36,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public (List<Document> documents, int totalCount) SearchDocuments(
             string? query = null,
             int? categoryId = null,
-            int? gradeId = null,
+            int? grade = null,
             int? schoolId = null,
             string? subject = null,
             string? uploaderId = null,
-            string? accessibility = null,
             bool? isFeatured = null,
             bool? isPendingApproval = null,
             bool includeUnapproved = false,
@@ -53,9 +50,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 var dbQuery = _context.Documents
                     .Include(d => d.Subject)
-                    .Include(d => d.Grade)
                     .Include(d => d.DocumentCategory)
-                    .Include(d => d.Accessibility)
                     .Include(d => d.School)
                     .Where(d => d.DeletedAt == null);
 
@@ -75,17 +70,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (categoryId.HasValue)
                     dbQuery = dbQuery.Where(d => d.DocumentCategoryId == categoryId.Value);
 
-                if (gradeId.HasValue)
-                    dbQuery = dbQuery.Where(d => d.GradeId == gradeId.Value);
+                if (grade.HasValue)
+                    dbQuery = dbQuery.Where(d => d.Grade == grade);
 
                 if (schoolId.HasValue)
                     dbQuery = dbQuery.Where(d => d.SchoolId == schoolId.Value);
 
                 if (!string.IsNullOrEmpty(subject))
                     dbQuery = dbQuery.Where(d => d.Subject.Name.Contains(subject));
-
-                if (!string.IsNullOrEmpty(accessibility))
-                    dbQuery = dbQuery.Where(d => d.Accessibility.Name.Contains(accessibility));
 
                 if (!string.IsNullOrEmpty(uploaderId) && Guid.TryParse(uploaderId, out var userGuid))
                     dbQuery = dbQuery.Where(d => d.CreatedBy == userGuid);
@@ -94,7 +86,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     dbQuery = dbQuery.Where(d => d.IsFeatured == isFeatured.Value);
 
                 if (isPendingApproval.HasValue && isPendingApproval.Value)
-                    dbQuery = dbQuery.Where(d => d.AccessibilityId == 1 && d.IsApproved == null);
+                    dbQuery = dbQuery.Where(d => d.IsApproved == isPendingApproval);
 
                 var totalCount = dbQuery.Count();
 
@@ -124,9 +116,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     Name = doc.Name,
                     SubjectId = (byte)doc.SubjectId,
-                    GradeId = (sbyte)doc.GradeId,
                     DocumentCategoryId = (sbyte)doc.DocumentCategoryId,
-                    AccessibilityId = (sbyte)doc.AccessibilityId,
                     DocumentUrl = doc.DocumentUrl,
                     Thumbnail = doc.Thumbnail,
                     Description = doc.Description,
@@ -159,9 +149,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 entity.Name = doc.Name;
                 entity.SubjectId = (byte)doc.SubjectId;
-                entity.GradeId = (sbyte)doc.GradeId;
                 entity.DocumentCategoryId = (sbyte)doc.DocumentCategoryId;
-                entity.AccessibilityId = (sbyte)doc.AccessibilityId;
                 entity.DocumentUrl = doc.DocumentUrl;
                 entity.Thumbnail = doc.Thumbnail;
                 entity.Description = doc.Description;
@@ -208,9 +196,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Id = d.Id,
                 Name = d.Name,
                 SubjectId = d.SubjectId,
-                GradeId = (byte)d.GradeId,
-                DocumentCategoryId = (byte)d.DocumentCategoryId,
-                AccessibilityId = (byte)d.AccessibilityId,
+                DocumentCategoryId = d.DocumentCategoryId,
                 DocumentUrl = d.DocumentUrl,
                 Thumbnail = d.Thumbnail,
                 Description = d.Description,
@@ -223,10 +209,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 UpdatedAt = d.UpdatedAt,
                 UpdatedBy = d.UpdatedBy,
                 DeletedAt = d.DeletedAt,
-                Subject = d.Subject != null ? new Subject { Id = d.Subject.Id, Name = d.Subject.Name, Description = d.Subject.Description ?? string.Empty } : null,
-                Grade = d.Grade != null ? new Grade { Id = (byte)d.Grade.Id, Name = d.Grade.Name } : null,
+                Subject = d.Subject != null ? new Subject { Id = d.Subject.Id, Name = d.Subject.Name } : null,
+                Grade = d.Grade,
                 DocumentCategory = d.DocumentCategory != null ? new DocumentCategory { Id = d.DocumentCategory.Id, Name = d.DocumentCategory.Name, Description = d.DocumentCategory.Description } : null,
-                Accessibility = d.Accessibility != null ? new Accessibility { Id = d.Accessibility.Id, Name = d.Accessibility.Name, Description = d.Accessibility.Description } : null,
                 School = d.School != null ? new School { Id = d.School.Id, Name = d.School.Name } : null
             };
         }

@@ -22,7 +22,7 @@ public static class CourseMapper
         ImageUrl = c.ImageUrl,
         Price = c.Price,
         SubjectId = c.SubjectId,
-        GradeId = c.GradeId,
+        Grade = c.Grade,
         Chapters = c.Chapters?.Select(ch => new ChapterDto
         {
             Id = ch.Id,
@@ -31,7 +31,6 @@ public static class CourseMapper
             {
                 Id = l.Id,
                 Name = l.Name,
-                IsPreview = l.IsPreview,
                 Type = l.Type
             }).ToList() ?? new List<LessonDto>()
         }).ToList() ?? new List<ChapterDto>()

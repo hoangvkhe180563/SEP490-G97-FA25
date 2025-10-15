@@ -11,13 +11,25 @@ public partial class Document
 
     public short SubjectId { get; set; }
 
-    public sbyte GradeId { get; set; }
+    public sbyte Grade { get; set; }
 
     public sbyte DocumentCategoryId { get; set; }
 
-    public sbyte AccessibilityId { get; set; }
-
     public string DocumentUrl { get; set; } = null!;
+
+    public bool? IsApproved { get; set; }
+
+    public string? Description { get; set; }
+
+    public string? Thumbnail { get; set; }
+
+    public int? SchoolId { get; set; }
+
+    public int? ClassId { get; set; }
+
+    public bool IsFeatured { get; set; }
+
+    public bool? Status { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
@@ -29,23 +41,7 @@ public partial class Document
 
     public DateTime? DeletedAt { get; set; }
 
-    public bool? IsApproved { get; set; }
-
-    public bool? Status { get; set; }
-
-    public string? Description { get; set; }
-
-    public string? Thumbnail { get; set; }
-
-    public int? SchoolId { get; set; }
-
-    public bool IsFeatured { get; set; }
-
-    public virtual Accessibility Accessibility { get; set; } = null!;
-
     public virtual DocumentCategory DocumentCategory { get; set; } = null!;
-
-    public virtual Grade Grade { get; set; } = null!;
 
     public virtual School? School { get; set; }
 

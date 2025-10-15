@@ -1,14 +1,10 @@
-using System;
-using System.Collections.Generic;
+﻿namespace StudyHub.Backend.Domain.Entities;
 
-namespace StudyHub.Backend.Domain.Entities
+public class AppRole
 {
-    public class AppRole
-    {
-        public Guid Id { get; set; }
-        public string? Name { get; set; }
-        public List<AppClaim> AppClaims { get; set; } = new();
-        public List<AppPermission> AppPermissions { get; set; } = new();
-        public List<AppUser> Users { get; set; } = new();
-    }
+    public Guid Id { get; set; }
+    public string? Name { get; set; }
+    public List<AppClaim> AppClaims { get; set; } = new();
+    public List<AppPermission> AppPermissions { get; set; } = new();
+    public List<AppUser> Users { get; set; } = new();
 }

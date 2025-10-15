@@ -54,14 +54,14 @@ public class CourseController : ControllerBase
     public IActionResult Create([FromBody] CourseDetailDto dto)
     {
         // map dto to domain minimal for create
-        var domain = new StudyHub.Backend.Domain.Entities.Course
+        var domain = new Domain.Entities.Course
         {
             Name = dto.Name,
             Information = dto.Information,
             ImageUrl = dto.ImageUrl,
             Price = dto.Price,
             SubjectId = dto.SubjectId,
-            GradeId = dto.GradeId,
+            Grade = dto.Grade,
             CreatedAt = System.DateTime.UtcNow
         };
         var created = _service.CreateCourse(domain);
@@ -78,7 +78,7 @@ public class CourseController : ControllerBase
         existing.ImageUrl = dto.ImageUrl;
         existing.Price = dto.Price;
         existing.SubjectId = dto.SubjectId;
-        existing.GradeId = dto.GradeId;
+        existing.Grade = dto.Grade;
         var updated = _service.UpdateCourse(existing);
         return Ok(updated.ToDetailDto());
     }

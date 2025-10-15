@@ -28,11 +28,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     {
                         Id = l.Id,
                         Name = l.Name,
-                        IsPreview = l.IsPreview,
                         ChapterId = l.ChapterId,
                         Status = l.Status,
                         Type = l.Type,
-                        Content = l.Content
                     }).ToList()
                 }).ToList();
             }
@@ -59,11 +57,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     {
                         Id = l.Id,
                         Name = l.Name,
-                        IsPreview = l.IsPreview,
                         ChapterId = l.ChapterId,
                         Status = l.Status,
                         Type = l.Type,
-                        Content = l.Content
                     }).ToList()
                 };
             }

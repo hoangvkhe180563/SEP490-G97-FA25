@@ -23,7 +23,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Information = c.Information,
                     ImageUrl = c.ImageUrl,
                     Price = c.Price,
-                    Grade = c.Grade.Name,
+                    Grade = c.Grade,
                     SubjectId = c.SubjectId,
                     SchoolId = c.SchoolId,
                     Status = c.Status,
@@ -52,7 +52,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Information = c.Information,
                     ImageUrl = c.ImageUrl,
                     Price = c.Price,
-                    Grade = c.Grade.Name,
+                    Grade = c.Grade,
                     SubjectId = c.SubjectId,
                     SchoolId = c.SchoolId,
                     Status = c.Status,
@@ -78,7 +78,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Information = course.Information,
                     ImageUrl = course.ImageUrl,
                     Price = course.Price,
-                    GradeId = course.GradeId,
+                    Grade = course.Grade,
                     SubjectId = course.SubjectId,
                     SchoolId = course.SchoolId,
                     Status = course.Status ?? true,
@@ -108,7 +108,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.Information = course.Information;
                 entity.ImageUrl = course.ImageUrl;
                 entity.Price = course.Price;
-                entity.GradeId = course.GradeId;
+                entity.Grade = course.Grade;
                 entity.SubjectId = course.SubjectId;
                 entity.SchoolId = course.SchoolId;
                 entity.Status = course.Status;

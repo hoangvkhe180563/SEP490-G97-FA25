@@ -42,11 +42,10 @@ namespace StudyHub.Backend.Api.Controllers
                 var (documents, totalCount) = _documentService.SearchDocuments(
                     filter.Query,
                     filter.CategoryId,
-                    filter.GradeId,
+                    filter.Grade,
                     filter.SchoolId,
                     filter.Subject,
                     filter.UploaderId,
-                    filter.Accessibility,
                     filter.IsFeatured,
                     filter.IsPendingApproval,
                     filter.IncludeUnapproved,

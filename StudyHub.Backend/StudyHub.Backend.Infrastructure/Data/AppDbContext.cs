@@ -16,8 +16,6 @@ public partial class AppDbContext : DbContext
     {
     }
 
-    public virtual DbSet<Accessibility> Accessibilities { get; set; }
-
     public virtual DbSet<AppAction> AppActions { get; set; }
 
     public virtual DbSet<AppClaim> AppClaims { get; set; }
@@ -38,6 +36,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<ClassMember> ClassMembers { get; set; }
 
+    public virtual DbSet<ClassNotification> ClassNotifications { get; set; }
+
     public virtual DbSet<Classwork> Classworks { get; set; }
 
     public virtual DbSet<ClassworkSubmission> ClassworkSubmissions { get; set; }
@@ -50,15 +50,13 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<DocumentCategory> DocumentCategories { get; set; }
 
-    public virtual DbSet<Grade> Grades { get; set; }
-
     public virtual DbSet<LandingPage> LandingPages { get; set; }
 
     public virtual DbSet<Lesson> Lessons { get; set; }
 
-    public virtual DbSet<Manager> Managers { get; set; }
+    public virtual DbSet<LessonReading> LessonReadings { get; set; }
 
-    public virtual DbSet<Parent> Parents { get; set; }
+    public virtual DbSet<LessonVideo> LessonVideos { get; set; }
 
     public virtual DbSet<PaymentInfo> PaymentInfos { get; set; }
 
@@ -66,35 +64,19 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<School> Schools { get; set; }
 
-    public virtual DbSet<Student> Students { get; set; }
-
     public virtual DbSet<Subject> Subjects { get; set; }
 
     public virtual DbSet<SubmissionFile> SubmissionFiles { get; set; }
 
-    public virtual DbSet<Teacher> Teachers { get; set; }
-
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseMySql("server=localhost;database=studyhub;user=root;password=1234", Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.0.43-mysql"));
+        => optionsBuilder.UseMySql("server=localhost;database=studyhub;user=root;password=123456", ServerVersion.Parse("8.0.43-mysql"));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
             .UseCollation("utf8mb4_0900_ai_ci")
             .HasCharSet("utf8mb4");
-
-        modelBuilder.Entity<Accessibility>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("accessibilities");
-
-            entity.HasIndex(e => e.Id, "Id").IsUnique();
-
-            entity.Property(e => e.Description).HasMaxLength(200);
-            entity.Property(e => e.Name).HasMaxLength(200);
-        });
 
         modelBuilder.Entity<AppAction>(entity =>
         {
@@ -196,14 +178,21 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.Email, "Email").IsUnique();
 
+            entity.HasIndex(e => e.PhoneNumber, "PhoneNumber").IsUnique();
+
+            entity.HasIndex(e => e.Username, "Username").IsUnique();
+
             entity.Property(e => e.Address).HasMaxLength(1000);
-            entity.Property(e => e.CreatedAt).HasColumnType("datetime");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Email).HasMaxLength(100);
             entity.Property(e => e.Fullname).HasMaxLength(100);
-            entity.Property(e => e.IsLoginWithGoogle).HasDefaultValueSql("'0'");
             entity.Property(e => e.PasswordHash)
                 .HasMaxLength(64)
                 .IsFixedLength();
+            entity.Property(e => e.PhoneNumber).HasMaxLength(11);
             entity.Property(e => e.RefreshTokenExpire).HasColumnType("datetime");
             entity.Property(e => e.Status)
                 .IsRequired()
@@ -213,7 +202,6 @@ public partial class AppDbContext : DbContext
 
             entity.HasOne(d => d.Commune).WithMany(p => p.AppUsers)
                 .HasForeignKey(d => d.CommuneId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("app_users_ibfk_1");
 
             entity.HasMany(d => d.Roles).WithMany(p => p.Users)
@@ -311,6 +299,23 @@ public partial class AppDbContext : DbContext
                 .HasConstraintName("class_members_ibfk_1");
         });
 
+        modelBuilder.Entity<ClassNotification>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("class_notifications");
+
+            entity.HasIndex(e => e.ClassId, "ClassId");
+
+            entity.Property(e => e.Description).HasMaxLength(5000);
+            entity.Property(e => e.Title).HasMaxLength(200);
+
+            entity.HasOne(d => d.Class).WithMany(p => p.ClassNotifications)
+                .HasForeignKey(d => d.ClassId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("class_notifications_ibfk_1");
+        });
+
         modelBuilder.Entity<Classwork>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
@@ -319,9 +324,6 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.ClassId, "ClassId");
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("datetime");
             entity.Property(e => e.Deadline).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(5000);
             entity.Property(e => e.Title).HasMaxLength(200);
@@ -338,9 +340,9 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("classwork_submissions");
 
-            entity.HasIndex(e => e.ClassworkId, "ClassworkId");
+            entity.HasIndex(e => e.AppUserId, "AppUserId");
 
-            entity.HasIndex(e => e.StudentId, "StudentId");
+            entity.HasIndex(e => e.ClassworkId, "ClassworkId");
 
             entity.Property(e => e.FirstSubmissionTime)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
@@ -348,19 +350,16 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.LatestSubmissionTime)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime");
-            entity.Property(e => e.Status)
-                .IsRequired()
-                .HasDefaultValueSql("'1'");
+
+            entity.HasOne(d => d.AppUser).WithMany(p => p.ClassworkSubmissions)
+                .HasForeignKey(d => d.AppUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("classwork_submissions_ibfk_2");
 
             entity.HasOne(d => d.Classwork).WithMany(p => p.ClassworkSubmissions)
                 .HasForeignKey(d => d.ClassworkId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("classwork_submissions_ibfk_1");
-
-            entity.HasOne(d => d.Student).WithMany(p => p.ClassworkSubmissions)
-                .HasForeignKey(d => d.StudentId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("classwork_submissions_ibfk_2");
         });
 
         modelBuilder.Entity<Commune>(entity =>
@@ -385,30 +384,23 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("courses");
 
-            entity.HasIndex(e => e.GradeId, "GradeId");
-
             entity.HasIndex(e => e.SubjectId, "SubjectId");
 
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
-            entity.Property(e => e.Information).HasMaxLength(5000);
+            entity.Property(e => e.Information).HasMaxLength(1000);
             entity.Property(e => e.Name).HasMaxLength(200);
             entity.Property(e => e.Status)
                 .IsRequired()
                 .HasDefaultValueSql("'1'");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
-            entity.HasOne(d => d.Grade).WithMany(p => p.Courses)
-                .HasForeignKey(d => d.GradeId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("courses_ibfk_1");
-
             entity.HasOne(d => d.Subject).WithMany(p => p.Courses)
                 .HasForeignKey(d => d.SubjectId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("courses_ibfk_2");
+                .HasConstraintName("courses_ibfk_1");
         });
 
         modelBuilder.Entity<Document>(entity =>
@@ -417,11 +409,7 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("documents");
 
-            entity.HasIndex(e => e.AccessibilityId, "AccessibilityId");
-
             entity.HasIndex(e => e.DocumentCategoryId, "DocumentCategoryId");
-
-            entity.HasIndex(e => e.GradeId, "GradeId");
 
             entity.HasIndex(e => e.SchoolId, "SchoolId");
 
@@ -438,24 +426,14 @@ public partial class AppDbContext : DbContext
                 .HasDefaultValueSql("'1'");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
-            entity.HasOne(d => d.Accessibility).WithMany(p => p.Documents)
-                .HasForeignKey(d => d.AccessibilityId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("documents_ibfk_3");
-
             entity.HasOne(d => d.DocumentCategory).WithMany(p => p.Documents)
                 .HasForeignKey(d => d.DocumentCategoryId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("documents_ibfk_4");
-
-            entity.HasOne(d => d.Grade).WithMany(p => p.Documents)
-                .HasForeignKey(d => d.GradeId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("documents_ibfk_2");
 
             entity.HasOne(d => d.School).WithMany(p => p.Documents)
                 .HasForeignKey(d => d.SchoolId)
-                .HasConstraintName("documents_ibfk_5");
+                .HasConstraintName("documents_ibfk_3");
 
             entity.HasOne(d => d.Subject).WithMany(p => p.Documents)
                 .HasForeignKey(d => d.SubjectId)
@@ -469,31 +447,20 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("document_categories");
 
-            entity.HasIndex(e => e.Id, "Id").IsUnique();
-
             entity.Property(e => e.Description).HasMaxLength(200);
             entity.Property(e => e.Name).HasMaxLength(200);
         });
 
-        modelBuilder.Entity<Grade>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("grades");
-
-            entity.Property(e => e.Name).HasMaxLength(50);
-        });
-
         modelBuilder.Entity<LandingPage>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.HasKey(e => e.SchoolId).HasName("PRIMARY");
 
             entity.ToTable("landing_pages");
 
-            entity.HasIndex(e => e.SchoolId, "SchoolId");
+            entity.Property(e => e.SchoolId).ValueGeneratedNever();
 
-            entity.HasOne(d => d.School).WithMany(p => p.LandingPages)
-                .HasForeignKey(d => d.SchoolId)
+            entity.HasOne(d => d.School).WithOne(p => p.LandingPage)
+                .HasForeignKey<LandingPage>(d => d.SchoolId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("landing_pages_ibfk_1");
         });
@@ -512,7 +479,7 @@ public partial class AppDbContext : DbContext
                 .HasDefaultValueSql("'1'");
             entity.Property(e => e.Type)
                 .HasDefaultValueSql("'Đọc'")
-                .HasColumnType("enum('Đọc','Video','Luyện tập','Kiểm tra')");
+                .HasColumnType("enum('Đọc','Video','Luyện tập')");
 
             entity.HasOne(d => d.Chapter).WithMany(p => p.Lessons)
                 .HasForeignKey(d => d.ChapterId)
@@ -520,42 +487,30 @@ public partial class AppDbContext : DbContext
                 .HasConstraintName("lessons_ibfk_1");
         });
 
-        modelBuilder.Entity<Manager>(entity =>
+        modelBuilder.Entity<LessonReading>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.HasKey(e => e.LessonId).HasName("PRIMARY");
 
-            entity.ToTable("managers");
+            entity.ToTable("lesson_reading");
 
-            entity.HasIndex(e => e.AppUserId, "AppUserId");
+            entity.Property(e => e.LessonId).ValueGeneratedNever();
 
-            entity.HasIndex(e => e.PhoneNumber, "PhoneNumber").IsUnique();
-
-            entity.Property(e => e.PhoneNumber).HasMaxLength(11);
-
-            entity.HasOne(d => d.AppUser).WithMany(p => p.Managers)
-                .HasForeignKey(d => d.AppUserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("managers_ibfk_1");
+            entity.HasOne(d => d.Lesson).WithOne(p => p.LessonReading)
+                .HasForeignKey<LessonReading>(d => d.LessonId)
+                .HasConstraintName("lesson_reading_ibfk_1");
         });
 
-        modelBuilder.Entity<Parent>(entity =>
+        modelBuilder.Entity<LessonVideo>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
+            entity.HasKey(e => e.LessonId).HasName("PRIMARY");
 
-            entity.ToTable("parents");
+            entity.ToTable("lesson_video");
 
-            entity.HasIndex(e => e.AppUserId, "AppUserId");
+            entity.Property(e => e.LessonId).ValueGeneratedNever();
 
-            entity.HasIndex(e => e.PhoneNumber, "PhoneNumber").IsUnique();
-
-            entity.Property(e => e.Address).HasMaxLength(1000);
-            entity.Property(e => e.PhoneNumber).HasMaxLength(11);
-            entity.Property(e => e.StudentRelation).HasMaxLength(200);
-
-            entity.HasOne(d => d.AppUser).WithMany(p => p.Parents)
-                .HasForeignKey(d => d.AppUserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("parents_ibfk_1");
+            entity.HasOne(d => d.Lesson).WithOne(p => p.LessonVideo)
+                .HasForeignKey<LessonVideo>(d => d.LessonId)
+                .HasConstraintName("lesson_video_ibfk_1");
         });
 
         modelBuilder.Entity<PaymentInfo>(entity =>
@@ -610,32 +565,12 @@ public partial class AppDbContext : DbContext
                 .HasConstraintName("schools_ibfk_1");
         });
 
-        modelBuilder.Entity<Student>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("students");
-
-            entity.HasIndex(e => e.AppUserId, "AppUserId");
-
-            entity.HasIndex(e => e.PhoneNumber, "PhoneNumber").IsUnique();
-
-            entity.Property(e => e.Address).HasMaxLength(1000);
-            entity.Property(e => e.PhoneNumber).HasMaxLength(11);
-
-            entity.HasOne(d => d.AppUser).WithMany(p => p.Students)
-                .HasForeignKey(d => d.AppUserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("students_ibfk_1");
-        });
-
         modelBuilder.Entity<Subject>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
 
             entity.ToTable("subjects");
 
-            entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.Name).HasMaxLength(200);
         });
 
@@ -653,24 +588,6 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.SubmissionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("submission_files_ibfk_1");
-        });
-
-        modelBuilder.Entity<Teacher>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("teachers");
-
-            entity.HasIndex(e => e.AppUserId, "AppUserId");
-
-            entity.HasIndex(e => e.PhoneNumber, "PhoneNumber").IsUnique();
-
-            entity.Property(e => e.PhoneNumber).HasMaxLength(11);
-
-            entity.HasOne(d => d.AppUser).WithMany(p => p.Teachers)
-                .HasForeignKey(d => d.AppUserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("teachers_ibfk_1");
         });
 
         OnModelCreatingPartial(modelBuilder);
