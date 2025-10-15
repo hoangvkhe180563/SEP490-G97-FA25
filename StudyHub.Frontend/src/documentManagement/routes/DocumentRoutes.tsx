@@ -44,7 +44,7 @@ const teacherRoutes = [
     element: <DocumentDetails />
   },
   {
-    path: DocumentRouteConfig.TEACHER.DOCUMENTS,
+    path: DocumentRouteConfig.TEACHER.MYDOCUMENTS,
     element: <OwnedDocument />
   },
   {
@@ -54,7 +54,11 @@ const teacherRoutes = [
   { 
     path: DocumentRouteConfig.TEACHER.EDIT,
     element: <UpdateDocument />
-  }
+  },
+  { 
+    path: DocumentRouteConfig.TEACHER.DOCUMENTS,
+    element: <DocumentList />
+  },
 ]
 
 const studentRoutes = [

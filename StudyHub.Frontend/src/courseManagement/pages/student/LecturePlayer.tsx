@@ -1,11 +1,30 @@
-import React from "react";
-import LectureResources from "../../components/LectureResources";
-import LectureDiscussion from "../../components/LectureDiscussion";
-import LectureNextUp from "../../components/LectureNextUp";
+import React, { useEffect } from "react";
+import LectureResources from "@/courseManagement/components/LectureResources";
+import LectureDiscussion from "@/courseManagement/components/LectureDiscussion";
+import LectureNextUp from "@/courseManagement/components/LectureNextUp";
 import { Button } from "@/common/components/ui/button";
 import LectureFilters from "@/courseManagement/components/LectureFilters";
+import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
+import { useParams } from "react-router-dom";
 
 const LecturePlayer: React.FC = () => {
+  const { lessonId, courseId } = useParams();
+  const lid = Number(lessonId || 0);
+  const cid = Number(courseId || 0);
+
+  const { selectedLesson, fetchChapters, fetchLesson } = useLectureStore(
+    (s: any) => ({
+      selectedLesson: s.selectedLesson,
+      fetchChapters: s.fetchChapters,
+      fetchLesson: s.fetchLesson,
+    })
+  );
+
+  useEffect(() => {
+    if (cid) fetchChapters(cid);
+    if (lid) fetchLesson(lid);
+  }, [cid, lid, fetchChapters, fetchLesson]);
+
   return (
     <div className="w-full bg-white">
       <div className="max-w-screen-xl mx-auto">
@@ -18,11 +37,13 @@ const LecturePlayer: React.FC = () => {
             <div className="flex items-center justify-between mb-2">
               <div>
                 <div className="text-sm text-gray-500 mb-2">
-                  My Courses / Web Development / JavaScript Fundamentals
+                  My Courses / Course
                 </div>
-                <div className="text-lg font-medium">Matrix Operations</div>
+                <div className="text-lg font-medium">
+                  {selectedLesson?.name ?? "Lecture"}
+                </div>
                 <div className="text-sm text-gray-500 mt-1">
-                  18:45 minutes • Dr. Sarah Johnson • Updated Jan 15, 2025
+                  {selectedLesson?.type ?? ""}
                 </div>
               </div>
 
@@ -49,14 +70,7 @@ const LecturePlayer: React.FC = () => {
             <div className="bg-white border rounded p-4">
               <h4 className="font-medium mb-2">Lecture Transcript</h4>
               <div className="max-h-48 overflow-auto text-sm text-gray-700">
-                <p>
-                  In this comprehensive lecture, you'll learn the fundamental
-                  concepts of HTML (HyperText Markup Language), the backbone of
-                  web development. We'll cover the basic structure of HTML
-                  documents, essential tags, and how to create your first
-                  webpage from scratch.
-                </p>
-                <p className="mt-2">(transcript repeated for demo)</p>
+                <p>{selectedLesson?.content ?? "No transcript available."}</p>
               </div>
             </div>
           </main>

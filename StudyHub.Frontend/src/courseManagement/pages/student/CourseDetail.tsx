@@ -1,50 +1,38 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/common/components/ui/button";
 import CourseNavSidebar from "@/courseManagement/components/CourseDetailFiltersStudent";
 import CourseContentItem from "@/courseManagement/components/CourseContentItem";
+import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
+import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
+import type { ChapterDto, LessonDto } from "@/courseManagement/types/api";
 
 const CourseDetail: React.FC = () => {
   const navigate = useNavigate();
-  const content = [
-    {
-      id: "l1",
-      title: "Introduction to JavaScript",
-      subtitle: "Understanding the basics and setting up your environment",
-      duration: "25 min",
-    },
-    {
-      id: "l2",
-      title: "Variables and Data Types",
-      subtitle: "Learn about different data types and variable declarations",
-      duration: "32 min",
-    },
-    {
-      id: "l3",
-      title: "Functions and Scope",
-      subtitle: "Understanding function declarations and variable scope",
-      duration: "45 min",
-    },
-    {
-      id: "l4",
-      title: "Assignment: Basic Calculator",
-      subtitle: "Build a simple calculator using JavaScript functions",
-      duration: "2 hours",
-    },
-    {
-      id: "l5",
-      title: "Objects and Arrays",
-      subtitle: "Working with complex data structures in JavaScript",
-      duration: "38 min",
-    },
-  ];
+  const { id } = useParams();
+  const courseId = Number(id || 0);
+
+  const { selectedCourse, fetchCourseById } = useCourseStore((s: any) => ({
+    selectedCourse: s.selectedCourse,
+    fetchCourseById: s.fetchCourseById,
+  }));
+
+  const { chapters, fetchChapters } = useLectureStore((s: any) => ({
+    chapters: s.chapters,
+    fetchChapters: s.fetchChapters,
+  }));
+
+  useEffect(() => {
+    if (courseId) {
+      fetchCourseById(courseId);
+      fetchChapters(courseId);
+    }
+  }, [courseId, fetchCourseById, fetchChapters]);
 
   return (
     <div className="w-full bg-white">
       <div className="max-w-screen-xl mx-auto">
-        <div className="text-sm text-gray-500 mb-4">
-          My Courses / Web Development / JavaScript Fundamentals
-        </div>
+        <div className="text-sm text-gray-500 mb-4">My Courses / Course</div>
 
         <div className="flex items-center gap-4 mb-4">
           <button
@@ -54,7 +42,9 @@ const CourseDetail: React.FC = () => {
           >
             ←
           </button>
-          <div className="text-lg font-medium">JavaScript Fundamentals</div>
+          <div className="text-lg font-medium">
+            {selectedCourse?.name ?? "Course Detail"}
+          </div>
         </div>
 
         <div className="grid grid-cols-12 gap-6">
@@ -66,22 +56,21 @@ const CourseDetail: React.FC = () => {
             <div className="bg-white rounded-md border p-4 mb-6 flex items-start justify-between">
               <div>
                 <div className="text-lg font-medium">
-                  JavaScript Fundamentals
+                  {selectedCourse?.name}
                 </div>
                 <div className="text-sm text-gray-500 mt-1">
-                  Master the core concepts of JavaScript programming language
-                  including variables, functions, objects, and DOM manipulation.
+                  {selectedCourse?.description}
                 </div>
 
                 <div className="flex items-center gap-4 text-sm text-gray-600 mt-3">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs">
-                      JS
+                      C
                     </div>
-                    <span>Dr. Sarah Johnson</span>
+                    <span>{selectedCourse?.ownerName ?? "Instructor"}</span>
                   </div>
-                  <div>8 weeks</div>
-                  <div>★ 4.8 (342 reviews)</div>
+                  <div>{selectedCourse?.duration ?? "-"}</div>
+                  <div>★ {selectedCourse?.rating ?? "-"}</div>
                 </div>
               </div>
 
@@ -105,13 +94,20 @@ const CourseDetail: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                {content.map((c) => (
-                  <CourseContentItem
-                    key={c.id}
-                    title={c.title}
-                    subtitle={c.subtitle}
-                    duration={c.duration}
-                  />
+                {chapters.map((ch: ChapterDto) => (
+                  <div key={ch.id}>
+                    <div className="font-medium">{ch.name}</div>
+                    <div className="pl-4 mt-2 space-y-1">
+                      {ch.lessons?.map((ls: LessonDto) => (
+                        <CourseContentItem
+                          key={ls.id}
+                          title={ls.name}
+                          subtitle={ls.content ?? ""}
+                          duration={""}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

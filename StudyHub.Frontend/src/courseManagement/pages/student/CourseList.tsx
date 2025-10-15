@@ -1,38 +1,24 @@
 import CourseCard from "@/courseManagement/components/CourseCard";
 import CourseFilters from "@/courseManagement/components/CourseListFiltersStudent";
+import { useEffect } from "react";
+import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
+import type { CourseListItemDto } from "@/courseManagement/types/api";
 import type { Course } from "@/courseManagement/interfaces/types";
 
-const sampleCourses: Course[] = [
-  {
-    id: "c1",
-    title: "Introduction to Python Programming",
-    description: "Learn the fundamentals of Python programming",
-    instructor: "Dr. Sarah Wilson",
-    duration: "12 hours",
-    students: "1,234",
-    updatedAt: "Jan 15, 2025",
-  },
-  {
-    id: "c2",
-    title: "Calculus I: Limits and Derivatives",
-    description: "Master the fundamentals of differential calculus",
-    instructor: "Prof. Michael Chen",
-    duration: "18 hours",
-    students: "856",
-    updatedAt: "Jan 10, 2025",
-  },
-  {
-    id: "c3",
-    title: "UI/UX Design Fundamentals",
-    description: "Learn the principles of user interface and experience design",
-    instructor: "Emma Rodriguez",
-    duration: "15 hours",
-    students: "482",
-    updatedAt: "Jan 8, 2025",
-  },
-];
-
 const CourseList: React.FC = () => {
+  const { courses, total, loading, fetchCourses } = useCourseStore(
+    (s: any) => ({
+      courses: s.courses,
+      total: s.total,
+      loading: s.loading,
+      fetchCourses: s.fetchCourses,
+    })
+  );
+
+  useEffect(() => {
+    fetchCourses({ page: 1, pageSize: 12 });
+  }, [fetchCourses]);
+
   return (
     <div>
       <main className="max-w-screen-xl mx-auto w-full">
@@ -49,7 +35,7 @@ const CourseList: React.FC = () => {
           <div className="col-span-12 lg:col-span-9 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="text-sm text-gray-600">
-                Showing 1-12 of 64 courses
+                Showing 1-12 of {total}
               </div>
 
               <div className="flex items-center gap-2">
@@ -79,9 +65,28 @@ const CourseList: React.FC = () => {
 
           <section className="col-span-12 lg:col-span-9">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sampleCourses.map((c) => (
-                <CourseCard key={c.id} course={c} />
-              ))}
+              {loading
+                ? Array.from({ length: 6 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-40 bg-gray-100 animate-pulse rounded"
+                    />
+                  ))
+                : courses.map((c: CourseListItemDto) => {
+                    const uiCourse: Course = {
+                      id: String(c.id),
+                      title: c.name,
+                      description: c.information ?? undefined,
+                      instructor: undefined,
+                      category: undefined,
+                      duration: undefined,
+                      students: undefined,
+                      image: c.imageUrl ?? undefined,
+                      price: c.price,
+                    };
+
+                    return <CourseCard key={c.id} course={uiCourse} />;
+                  })}
             </div>
 
             <div className="flex items-center justify-center mt-8">
