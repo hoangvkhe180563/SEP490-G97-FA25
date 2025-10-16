@@ -7,13 +7,16 @@ import userRoutes from "@/user/routes/UserRoutes";
 import { Outlet, useRoutes } from "react-router-dom";
 import MainLayout from "@/common/pages/MainLayout";
 import Homepage from "@/uiManagement/pages/Homepage";
-import { guestSidebarItems } from "@/common/constants/SidebarItems";
+import { guestSidebarItems, uiManagerSidebarItems } from "@/common/constants/SidebarItems";
+import useLocalStorage from "@/common/hooks/useLocalStorage";
 
 const AppRouter = () => {
+  const [isLoggedIn] = useLocalStorage("isLoggedIn", false);
+
   const appRoutes = [
     {
       path: "/",
-      element: <MainLayout isLoggedIn={false} sidebarItems={guestSidebarItems} />,
+      element: <MainLayout isLoggedIn={isLoggedIn} sidebarItems={guestSidebarItems} />,
       children: [
         {
           index: true,
@@ -28,7 +31,7 @@ const AppRouter = () => {
     },
     {
       path: RouteConfig.UI_MANAGEMENT,
-      element: <Outlet />,
+      element: <MainLayout isLoggedIn={isLoggedIn} sidebarItems={uiManagerSidebarItems} />,
       children: uiManagementRoutes
     },
     {

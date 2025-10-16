@@ -9,7 +9,7 @@ const Header = (props: {isLoggedIn: boolean}) => {
     <header className="h-[65px] flex items-center justify-between px-3 bg-sky-300 text-white">
       {/* Logo */}
       <div className="flex items-center">
-        <a href="#"><img src="src/common/assets/StudyHubLogo.png" className="w-32" /></a>
+        <a href="/"><img src="/src/common/assets/StudyHubLogo.png" className="w-32" /></a>
       </div>
       {/* Search */}
       <div className="flex-1 mx-6 flex justify-center relative">

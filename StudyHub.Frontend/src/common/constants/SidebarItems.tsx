@@ -35,3 +35,23 @@ export const guestSidebarItems: ISidebarItem[] = [
     link: '/classes'
   }
 ]
+
+export const uiManagerSidebarItems: ISidebarItem[] = [
+  {
+    icon: <LayoutDashboard size={20} />,
+    text: 'Trang chủ',
+    link: '',
+    children: [
+      {
+        icon: <LayoutDashboard size={20} />,
+        text: 'Giao diện',
+        link: '/'
+      },
+      {
+        icon: <Users size={20} />,
+        text: 'Tùy chỉnh giao diện',
+        link: '/ui/landing-page'
+      }
+    ]
+  }
+]
