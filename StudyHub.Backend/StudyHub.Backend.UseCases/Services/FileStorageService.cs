@@ -24,7 +24,7 @@ namespace StudyHub.Backend.UseCases.Services
                 {
                     await file.CopyToAsync(stream);
                 }
-                return await _cloudinaryRepository.UploadImageAsync(tempFilePath, uploadPath);
+                return await _cloudinaryRepository.UploadImageAsync(file, uploadPath);
             }
             finally
             {
