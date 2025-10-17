@@ -1,118 +1,131 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom"; // Import useLocation
+import { useNavigate, useLocation } from "react-router-dom";
 import ClassCard from "@/classManagement/components/ui/classcard";
 import type { UserRole } from "@/classManagement/components/ui/classcard";
 import CreateClassModal from "@/classManagement/components/ui/createclassmodal";
 import EditClassModal from "@/classManagement/components/ui/editclassmodal";
 
-type ClassItem = {
-  id: number;
+import { useClassStore } from "@/classManagement/stores/useClassStore";
+import type { ClassListDto } from "@/classManagement/interfaces/class";
+
+type ClassItem = ClassListDto & {
   title: string;
   teacher: string;
-  subject: string;
+  subject: number;
   description?: string;
 };
 
 export const ClassList: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation(); // Get the current URL information
+  const location = useLocation();
 
+  // Zustand store
+  const {
+    classes: apiClasses,
+    isLoading,
+    getClasses,
+    addClass,
+    meta,
+    getAllSubjects,
+    subjects,
+  } = useClassStore();
+
+  // Filter states
   const [query, setQuery] = useState("");
-  const [subject, setSubject] = useState("");
-  const [status, setStatus] = useState("");
+  const [subject, setSubject] = useState("all");
+
+  // Modal states
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editing, setEditing] = useState<ClassItem | undefined>(undefined);
 
-  // pagination
+  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
 
-  const [classes, setClasses] = useState<ClassItem[]>([
-    { id: 1, title: "Mathematics 101", teacher: "Dr. Sarah Johnson", subject: "Toán" },
-    { id: 2, title: "Literial 101", teacher: "Dr. Sarah Johnson", subject: "Văn" },
-    { id: 3, title: "English 101", teacher: "Dr. Sarah Johnson", subject: "Anh" },
-    { id: 4, title: "Mathematics 101", teacher: "Dr. Sarah Johnson", subject: "Toán" },
-    { id: 5, title: "Mathematics 101", teacher: "Dr. Sarah Johnson", subject: "Toán" },
-    { id: 6, title: "Mathematics 101", teacher: "Dr. Sarah Johnson", subject: "Toán" },
-    { id: 7, title: "Mathematics 101", teacher: "Dr. Sarah Johnson", subject: "Toán" },
-    { id: 8, title: "Mathematics 101", teacher: "Dr. Sarah Johnson", subject: "Toán" },
-    { id: 9, title: "Mathematics 101", teacher: "Dr. Sarah Johnson", subject: "Toán" },
-    { id: 10, title: "Mathematics 101", teacher: "Dr. Sarah Johnson", subject: "Toán" },
-    { id: 11, title: "Mathematics 101", teacher: "Dr. Sarah Johnson", subject: "Toán" },
-    { id: 12, title: "Mathematics 101", teacher: "Dr. Sarah Johnson", subject: "Toán" },
-  ]);
-
-  // Determine the user's role from the URL path
+  // Lấy vai trò người dùng từ URL
   const userRole: UserRole = useMemo(() => {
-    // location.pathname might be "/class/teacher" or "/class/student"
     if (location.pathname.includes("/student")) return "student";
-    // Default to teacher if not explicitly student (assuming you're inside a /class route)
-    return "teacher"; 
+    return "teacher";
   }, [location.pathname]);
 
-  const filtered = useMemo(() => {
-    return classes.filter((c) => {
-      const q = query.trim().toLowerCase();
-      if (q && !c.title.toLowerCase().includes(q)) return false;
-      if (subject && subject !== "all" && c.subject !== subject) return false;
-      if (status && status !== "all") {
-        // placeholder: if you have status on items, filter here
-      }
-      return true;
-    });
-  }, [classes, query, subject, status]);
+  // Hàm build query string
+  const buildQuery = () => {
+    const params = new URLSearchParams();
+    if (query.trim()) params.append("query", query.trim());
+    if (subject && subject !== "all") params.append("subject", subject);
+    params.append("page", currentPage.toString());
+    params.append("limit", pageSize.toString());
+    return params.toString();
+  };
 
-  // reset current page when filters change
+  // Gọi API mỗi khi filter hoặc pagination thay đổi
   useEffect(() => {
-    setCurrentPage(1);
-  }, [query, subject, status, pageSize]);
+    getClasses(buildQuery());
+  }, [query, subject, currentPage, pageSize, getClasses]);
 
-  const total = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  // Map dữ liệu DTO sang UI model
+  const classItems: ClassItem[] = useMemo(
+    () =>
+      apiClasses.map((c) => ({
+        ...c,
+        title: c.name,
+        teacher: c.instructorName,
+        subject: c.subjectId,
+      })),
+    [apiClasses]
+  );
 
-  // clamp currentPage
+  // Total pages
+  const total = meta?.total ?? 0;
+  const totalPages = meta?.totalPages ?? 1;
+
+  // Reset trang nếu totalPages nhỏ hơn currentPage
   useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(totalPages);
-  }, [currentPage, totalPages]);
-
-  const paginated = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, currentPage, pageSize]);
-
-  // navigate to class details page
-  // MODIFIED: This function now accepts the role from ClassCard
+    if (currentPage > totalPages && currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
+  useEffect(() => {
+    getAllSubjects(); // ✅ load danh sách subject khi vào trang
+  }, [getAllSubjects]);
+  // Handlers
   const handleView = (id: number | string, role: UserRole) => {
-    // Navigate to the correct nested path: /class/teacher/:id or /class/student/:id
     navigate(`/class/${role}/${id}`);
   };
 
-  const handleMenu = (action: "viewClassworks" | "viewStudents" | "edit", id: number | string) => {
+  const handleMenu = (
+    action: "viewClassworks" | "viewStudents" | "edit",
+    id: number | string
+  ) => {
     if (action === "edit") {
-      const item = classes.find((c) => c.id === id);
+      const item = classItems.find((c) => c.id === id);
       if (item) {
-        setEditing(item);
+        setEditing({ ...item, subject: Number(item.subject) });
         setShowEdit(true);
       }
       return;
     }
-    console.log(action, id);
+
+    if (action === "viewClassworks") {
+      navigate(`/class/${userRole}/${id}/classworks`);
+    } else if (action === "viewStudents") {
+      navigate(`/class/${userRole}/${id}/members`);
+    }
   };
 
-  const handleCreate = (payload: { title: string; subject: string; description?: string }) => {
-    const nextId = classes.length ? Math.max(...classes.map((c) => c.id)) + 1 : 1;
-    setClasses((prev) => [
-      { id: nextId, title: payload.title, teacher: "Dr. Sarah Johnson", subject: payload.subject, description: payload.description },
-      ...prev,
-    ]);
-    setCurrentPage(1);
-  };
-
-  const handleSaveEdit = (payload: { id: number | string; title: string; subject: string; description?: string }) => {
-    setClasses((prev) =>
-      prev.map((c) => (c.id === payload.id ? { ...c, title: payload.title, subject: payload.subject, description: payload.description } : c))
-    );
+  const handleCreate = async (payload: {
+    title: string;
+    subject: number;
+    description?: string;
+  }) => {
+    console.log("Tạo lớp", payload);
+    const created = await addClass(payload);
+    if (created) {
+      setShowCreate(false);
+      setCurrentPage(1);
+      getClasses(buildQuery());
+    }
   };
 
   const gotoPage = (p: number) => {
@@ -121,6 +134,7 @@ export const ClassList: React.FC = () => {
     setCurrentPage(p);
   };
 
+  // RENDER
   return (
     <div className="p-6">
       {/* Header controls */}
@@ -128,42 +142,43 @@ export const ClassList: React.FC = () => {
         <div className="flex-1 flex gap-3 items-center">
           <input
             type="text"
-            placeholder="Search class name..."
+            placeholder="Tìm tên lớp..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             className="flex-1 border rounded-md px-3 py-2 focus:outline-none"
           />
           <select
             value={subject}
-            onChange={(e) => setSubject(e.target.value)}
+            onChange={(e) => {
+              setSubject(e.target.value);
+            }}
             className="border rounded-md px-3 py-2"
           >
             <option value="all">All Subject</option>
-            <option value="Toán">Toán</option>
-            <option value="Văn">Văn</option>
-            <option value="Anh">Anh</option> 
-          </select>
-
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="border rounded-md px-3 py-2"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            {subjects.map((s) => (
+              <option key={s.id} value={s.name}>
+                {s.name}
+              </option>
+            ))}
           </select>
         </div>
 
         <div className="mt-3 sm:mt-0 ml-auto">
-          {/* Only show Add Class button for teachers */}
           {userRole === "teacher" && (
-            <button onClick={() => setShowCreate(true)} className="bg-black text-white px-4 py-2 rounded-md">+ Add Class</button>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="bg-black text-white px-4 py-2 rounded-md"
+            >
+              + Tạo Lớp
+            </button>
           )}
         </div>
       </div>
 
-      {/* Cards container with blue outline like hình */}
+      {/* Cards container */}
       <div className="border-2 border-blue-400 rounded-md p-4 min-h-[260px]">
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm text-gray-600">
@@ -175,7 +190,10 @@ export const ClassList: React.FC = () => {
             <label className="text-sm text-gray-600">Per page</label>
             <select
               value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
               className="border rounded-md px-2 py-1"
             >
               <option value={3}>3</option>
@@ -185,24 +203,32 @@ export const ClassList: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {paginated.map((c) => (
-            <ClassCard
-              key={c.id}
-              id={c.id}
-              title={c.title}
-              teacher={c.teacher}
-              subject={c.subject}
-              userRole={userRole} // PASS THE ROLE TO CLASS CARD
-              onView={handleView}
-              onMenu={handleMenu}
-            />
-          ))}
+        {isLoading ? (
+          <div className="col-span-full text-center py-8 text-blue-500">
+            Đang tải danh sách lớp...
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {classItems.map((c) => (
+              <ClassCard
+                key={c.id}
+                id={c.id}
+                title={c.title}
+                teacher={c.teacher}
+                subject={c.subjectName}
+                userRole={userRole}
+                onView={handleView}
+                onMenu={handleMenu}
+              />
+            ))}
 
-          {paginated.length === 0 && (
-            <div className="col-span-full text-center py-8 text-gray-500">No classes found</div>
-          )}
-        </div>
+            {classItems.length === 0 && (
+              <div className="col-span-full text-center py-8 text-gray-500">
+                Không tìm thấy lớp học nào
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Pagination controls */}
         <div className="mt-4 flex items-center justify-center gap-2">
@@ -218,7 +244,9 @@ export const ClassList: React.FC = () => {
             <button
               key={p}
               onClick={() => gotoPage(p)}
-              className={`px-3 py-1 border rounded ${p === currentPage ? "bg-slate-900 text-white" : ""}`}
+              className={`px-3 py-1 border rounded ${
+                p === currentPage ? "bg-slate-900 text-white" : ""
+              }`}
             >
               {p}
             </button>
@@ -234,8 +262,20 @@ export const ClassList: React.FC = () => {
         </div>
       </div>
 
-      <CreateClassModal open={showCreate} onClose={() => setShowCreate(false)} onCreate={handleCreate} />
-      <EditClassModal open={showEdit} classItem={editing} onClose={() => setShowEdit(false)} onSave={handleSaveEdit} />
+      {/* Modals */}
+      <CreateClassModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreate={handleCreate}
+      />
+      <EditClassModal
+        open={showEdit}
+        classItem={editing}
+        onClose={() => {
+          getClasses(buildQuery());
+          setShowEdit(false);
+        }}
+      />
     </div>
   );
 };

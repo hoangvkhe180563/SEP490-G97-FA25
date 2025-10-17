@@ -15,7 +15,7 @@ namespace StudyHub.Backend.UseCases
             //services.AddScoped<LocalFileStorageService>();
             services.AddScoped<SubjectService>();
             services.AddScoped<DocumentCategoryService>();
-
+            services.AddScoped<ClassService>();
             services.AddScoped<LandingPageService>();
             return services;
         }

@@ -24,6 +24,7 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<IFileStorageRepository, LocalFileStorageService>();
             services.AddScoped<ISubjectRepository, SubjectRepository>();
             services.AddScoped<IDocumentCategoryRepository, DocumentCategoryRepository>();
+            services.AddScoped<IClassRepository, ClassRepository>();
 
             var cloudName = configuration["Cloudinary:CloudName"];
             var apiKey = configuration["Cloudinary:ApiKey"];
