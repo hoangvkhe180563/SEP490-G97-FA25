@@ -1,16 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore;
-using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
+﻿using Microsoft.EntityFrameworkCore;
 
 namespace StudyHub.Backend.Infrastructure.Data;
 
 public partial class AppDbContext : DbContext
 {
-    public AppDbContext()
-    {
-    }
-
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
     {
@@ -185,6 +178,9 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Email).HasMaxLength(100);
             entity.Property(e => e.Fullname).HasMaxLength(100);
+            entity.Property(e => e.Gender)
+                .IsRequired()
+                .HasDefaultValueSql("'1'");
             entity.Property(e => e.PasswordHash)
                 .HasMaxLength(64)
                 .IsFixedLength();
@@ -435,6 +431,26 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.SubjectId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("documents_ibfk_1");
+
+            entity.HasMany(d => d.Classes).WithMany(p => p.Documents)
+                .UsingEntity<Dictionary<string, object>>(
+                    "DocumentClass",
+                    r => r.HasOne<Class>().WithMany()
+                        .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("document_classes_ibfk_2"),
+                    l => l.HasOne<Document>().WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("document_classes_ibfk_1"),
+                    j =>
+                    {
+                        j.HasKey("DocumentId", "ClassId")
+                            .HasName("PRIMARY")
+                            .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+                        j.ToTable("document_classes");
+                        j.HasIndex(new[] { "ClassId" }, "ClassId");
+                    });
         });
 
         modelBuilder.Entity<DocumentCategory>(entity =>
