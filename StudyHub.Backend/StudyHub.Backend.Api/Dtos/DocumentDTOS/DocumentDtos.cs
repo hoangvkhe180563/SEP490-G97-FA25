@@ -27,7 +27,7 @@ namespace StudyHub.Backend.Api.Dtos
         public string? FileType { get; set; }
         public string? UploaderName { get; set; }
         public string? UploaderUrl { get; set; }
-            
+        public string? UploaderFullname { get; set; }
         public List<ClassListDto> classes { get; set; } = new();
     }
 

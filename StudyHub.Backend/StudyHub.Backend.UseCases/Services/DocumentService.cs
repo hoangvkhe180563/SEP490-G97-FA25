@@ -115,7 +115,24 @@ namespace StudyHub.Backend.UseCases.Services
             if (document.IsInClass && document.SchoolId == null)
                 throw new ArgumentException("If IsInClass is true, SchoolId must be provided");
 
-            document.DocumentUrl = await _fileStorage.UploadFileAsync(documentFile, FileConstants.DocumentUploadPath);
+            var extension = Path.GetExtension(documentFile.FileName).ToLowerInvariant();
+            var imageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg" };
+
+            if (imageExtensions.Contains(extension))
+            {
+                document.DocumentUrl = await _fileStorage.UploadFileAsync(documentFile, FileConstants.DocumentUploadPath);
+            }
+            else
+            {
+                if (_fileStorage is CloudFileStorageService cloudService)
+                {
+                    document.DocumentUrl = await cloudService.UploadDocumentAsync(documentFile, FileConstants.DocumentUploadPath);
+                }
+                else
+                {
+                    document.DocumentUrl = await _fileStorage.UploadFileAsync(documentFile, FileConstants.DocumentUploadPath);
+                }
+            }
 
             if (thumbnailFile != null)
                 document.Thumbnail = await _fileStorage.UploadFileAsync(thumbnailFile, FileConstants.ThumbnailUploadPath);
@@ -150,8 +167,42 @@ namespace StudyHub.Backend.UseCases.Services
             if (documentFile != null)
             {
                 ValidateDocumentFile(documentFile);
-                _fileStorage.DeleteFile(existingDocument.DocumentUrl);
-                document.DocumentUrl = await _fileStorage.UploadFileAsync(documentFile, FileConstants.DocumentUploadPath);
+
+                var extension = Path.GetExtension(existingDocument.DocumentUrl).ToLowerInvariant();
+                var imageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg" };
+
+                if (imageExtensions.Contains(extension))
+                {
+                    _fileStorage.DeleteFile(existingDocument.DocumentUrl);
+                }
+                else
+                {
+                    if (_fileStorage is CloudFileStorageService cloudService)
+                    {
+                        cloudService.DeleteDocumentFile(existingDocument.DocumentUrl);
+                    }
+                    else
+                    {
+                        _fileStorage.DeleteFile(existingDocument.DocumentUrl);
+                    }
+                }
+
+                var newExtension = Path.GetExtension(documentFile.FileName).ToLowerInvariant();
+                if (imageExtensions.Contains(newExtension))
+                {
+                    document.DocumentUrl = await _fileStorage.UploadFileAsync(documentFile, FileConstants.DocumentUploadPath);
+                }
+                else
+                {
+                    if (_fileStorage is CloudFileStorageService cloudService)
+                    {
+                        document.DocumentUrl = await cloudService.UploadDocumentAsync(documentFile, FileConstants.DocumentUploadPath);
+                    }
+                    else
+                    {
+                        document.DocumentUrl = await _fileStorage.UploadFileAsync(documentFile, FileConstants.DocumentUploadPath);
+                    }
+                }
             }
             else
             {
@@ -171,6 +222,7 @@ namespace StudyHub.Backend.UseCases.Services
             }
 
             document.IsApproved = existingDocument.IsApproved;
+            document.Status = existingDocument.Status;
             document.UpdatedAt = DateTime.Now;
 
             return _repo.UpdateDocument(document);
@@ -181,7 +233,24 @@ namespace StudyHub.Backend.UseCases.Services
             var document = _repo.GetDocumentById(id);
             if (document == null) return false;
 
-            _fileStorage.DeleteFile(document.DocumentUrl);
+            var extension = Path.GetExtension(document.DocumentUrl).ToLowerInvariant();
+            var imageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg" };
+
+            if (imageExtensions.Contains(extension))
+            {
+                _fileStorage.DeleteFile(document.DocumentUrl);
+            }
+            else
+            {
+                if (_fileStorage is CloudFileStorageService cloudService)
+                {
+                    cloudService.DeleteDocumentFile(document.DocumentUrl);
+                }
+                else
+                {
+                    _fileStorage.DeleteFile(document.DocumentUrl);
+                }
+            }
 
             if (!string.IsNullOrEmpty(document.Thumbnail))
                 _fileStorage.DeleteFile(document.Thumbnail);

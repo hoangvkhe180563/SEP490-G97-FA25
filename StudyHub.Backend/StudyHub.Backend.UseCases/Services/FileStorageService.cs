@@ -17,22 +17,18 @@ namespace StudyHub.Backend.UseCases.Services
 
         public async Task<string> UploadFileAsync(IFormFile file, string uploadPath)
         {
-            var tempFilePath = Path.GetTempFileName();
-            try
-            {
-                using (var stream = new FileStream(tempFilePath, FileMode.Create))
-                {
-                    await file.CopyToAsync(stream);
-                }
-                return await _cloudinaryRepository.UploadImageAsync(file, uploadPath);
-            }
-            finally
-            {
-                if (File.Exists(tempFilePath))
-                {
-                    File.Delete(tempFilePath);
-                }
-            }
+            return await _cloudinaryRepository.UploadImageAsync(file, uploadPath);
+        }
+
+        public async Task<string> UploadDocumentAsync(IFormFile file, string uploadPath)
+        {
+            return await _cloudinaryRepository.UploadFileAsync(file, uploadPath);
+        }
+
+        public void DeleteDocumentFile(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath)) return;
+            _cloudinaryRepository.DeleteFileAsync(filePath).GetAwaiter().GetResult();
         }
 
         public void DeleteFile(string filePath)
@@ -43,8 +39,16 @@ namespace StudyHub.Backend.UseCases.Services
 
         public async Task<byte[]> ReadFileAsync(string filePath)
         {
-            using var httpClient = new HttpClient();
-            return await httpClient.GetByteArrayAsync(filePath);
+            try
+            {
+                using var httpClient = new HttpClient();
+                httpClient.Timeout = TimeSpan.FromMinutes(5);
+                return await httpClient.GetByteArrayAsync(filePath);
+            }
+            catch
+            {
+                throw;
+            }
         }
     }
 }

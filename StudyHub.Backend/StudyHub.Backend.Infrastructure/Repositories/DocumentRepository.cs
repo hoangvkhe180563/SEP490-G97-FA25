@@ -24,10 +24,17 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    //.Include(d => d.Username)
                     .FirstOrDefault(d => d.Id == id && d.DeletedAt == null);
 
-                return d == null ? null : MapToEntity(d);
+                if (d == null) return null;
+
+                var user = _context.AppUsers.FirstOrDefault(u => u.Id == d.CreatedBy);
+                var doc = MapToEntity(d);
+                if (user != null)
+                {
+                    doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
+                }
+                return doc;
             }
             catch (Exception ex)
             {
@@ -52,11 +59,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    //.Include(d => d.Username)
                     .Where(d => d.DeletedAt == null &&
                                d.SchoolId == null &&
-                               d.IsApproved == true &&
-                               d.Status == true);
+                               d.IsApproved == true);
 
                 dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId);
 
@@ -72,8 +77,24 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         .Take(pageSize.Value);
                 }
 
-                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
-                return (documents, totalCount);
+                var documents = dbQuery.ToList();
+                var creatorIds = documents.Select(d => d.CreatedBy).Distinct().ToList();
+                var users = _context.AppUsers.Where(u => creatorIds.Contains(u.Id))
+                    .Select(u => new { u.Id, u.Username, u.Fullname, u.Avatar })
+                    .ToList();
+
+                var result = documents.Select(d =>
+                {
+                    var doc = MapToEntity(d);
+                    var user = users.FirstOrDefault(u => u.Id == d.CreatedBy);
+                    if (user != null)
+                    {
+                        doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
+                    }
+                    return doc;
+                }).ToList();
+
+                return (result, totalCount);
             }
             catch (Exception ex)
             {
@@ -99,11 +120,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    //.Include(d => d.Username)
                     .Where(d => d.DeletedAt == null &&
-                               d.Status == true &&
-                               ((d.SchoolId == null && d.IsApproved == true) ||
-                                (d.SchoolId == schoolId && d.IsApproved == true)));
+                               d.SchoolId == schoolId &&
+                               d.IsApproved == true);
 
                 dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId);
 
@@ -119,8 +138,24 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         .Take(pageSize.Value);
                 }
 
-                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
-                return (documents, totalCount);
+                var documents = dbQuery.ToList();
+                var creatorIds = documents.Select(d => d.CreatedBy).Distinct().ToList();
+                var users = _context.AppUsers.Where(u => creatorIds.Contains(u.Id))
+                    .Select(u => new { u.Id, u.Username, u.Fullname, u.Avatar })
+                    .ToList();
+
+                var result = documents.Select(d =>
+                {
+                    var doc = MapToEntity(d);
+                    var user = users.FirstOrDefault(u => u.Id == d.CreatedBy);
+                    if (user != null)
+                    {
+                        doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
+                    }
+                    return doc;
+                }).ToList();
+
+                return (result, totalCount);
             }
             catch (Exception ex)
             {
@@ -146,8 +181,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    //.Include(d => d.Username)
-                    .Where(d => d.DeletedAt == null && d.CreatedBy == creatorId);
+                    .Where(d => d.DeletedAt == null &&
+                               d.CreatedBy == creatorId);
 
                 dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId);
 
@@ -162,8 +197,24 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         .Take(pageSize.Value);
                 }
 
-                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
-                return (documents, totalCount);
+                var documents = dbQuery.ToList();
+                var creatorIds = documents.Select(d => d.CreatedBy).Distinct().ToList();
+                var users = _context.AppUsers.Where(u => creatorIds.Contains(u.Id))
+                    .Select(u => new { u.Id, u.Username, u.Fullname, u.Avatar })
+                    .ToList();
+
+                var result = documents.Select(d =>
+                {
+                    var doc = MapToEntity(d);
+                    var user = users.FirstOrDefault(u => u.Id == d.CreatedBy);
+                    if (user != null)
+                    {
+                        doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
+                    }
+                    return doc;
+                }).ToList();
+
+                return (result, totalCount);
             }
             catch (Exception ex)
             {
@@ -190,8 +241,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    //.Include(d => d.Username)
-                    .Where(d => d.DeletedAt == null && d.SchoolId == null);
+                    .Where(d => d.DeletedAt == null &&
+                               d.SchoolId == null);
 
                 dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId, isApproved, status);
 
@@ -206,8 +257,24 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         .Take(pageSize.Value);
                 }
 
-                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
-                return (documents, totalCount);
+                var documents = dbQuery.ToList();
+                var creatorIds = documents.Select(d => d.CreatedBy).Distinct().ToList();
+                var users = _context.AppUsers.Where(u => creatorIds.Contains(u.Id))
+                    .Select(u => new { u.Id, u.Username, u.Fullname, u.Avatar })
+                    .ToList();
+
+                var result = documents.Select(d =>
+                {
+                    var doc = MapToEntity(d);
+                    var user = users.FirstOrDefault(u => u.Id == d.CreatedBy);
+                    if (user != null)
+                    {
+                        doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
+                    }
+                    return doc;
+                }).ToList();
+
+                return (result, totalCount);
             }
             catch (Exception ex)
             {
@@ -235,10 +302,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    //.Include(d => d.Username)
                     .Where(d => d.DeletedAt == null &&
-                               d.SchoolId == schoolId &&
-                               !d.IsInClass);
+                               d.SchoolId == schoolId);
 
                 dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId, isApproved, status);
 
@@ -253,8 +318,24 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         .Take(pageSize.Value);
                 }
 
-                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
-                return (documents, totalCount);
+                var documents = dbQuery.ToList();
+                var creatorIds = documents.Select(d => d.CreatedBy).Distinct().ToList();
+                var users = _context.AppUsers.Where(u => creatorIds.Contains(u.Id))
+                    .Select(u => new { u.Id, u.Username, u.Fullname, u.Avatar })
+                    .ToList();
+
+                var result = documents.Select(d =>
+                {
+                    var doc = MapToEntity(d);
+                    var user = users.FirstOrDefault(u => u.Id == d.CreatedBy);
+                    if (user != null)
+                    {
+                        doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
+                    }
+                    return doc;
+                }).ToList();
+
+                return (result, totalCount);
             }
             catch (Exception ex)
             {
@@ -278,7 +359,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 query = query.Where(d =>
                     d.Name.Contains(searchQuery) ||
                     (d.Description != null && d.Description.Contains(searchQuery)) ||
-                    _context.AppUsers.Any(u => u.Id == d.CreatedBy && u.Username.Contains(searchQuery)));
+                    _context.AppUsers.Any(u => u.Id == d.CreatedBy &&
+                        (u.Username.Contains(searchQuery) ||
+                         (u.Fullname != null && u.Fullname.Contains(searchQuery)))));
             }
 
             if (categoryId.HasValue)
@@ -440,7 +523,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Subject = d.Subject != null ? new Subject { Id = d.Subject.Id, Name = d.Subject.Name } : null,
                 DocumentCategory = d.DocumentCategory != null ? new DocumentCategory { Id = d.DocumentCategory.Id, Name = d.DocumentCategory.Name, Description = d.DocumentCategory.Description } : null,
                 School = d.School != null ? new School { Id = d.School.Id, Name = d.School.Name } : null,
-                //Username = d.Username != null ? new AppUser { Id = d.Username.Id, Username = d.Username.Username, Avatar = d.Username.Avatar } : null,
                 Classes = d.Classes?.Select(c => new Class { Id = c.Id, Name = c.Name }).ToList() ?? new List<Class>()
             };
         }

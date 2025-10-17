@@ -395,10 +395,6 @@ namespace StudyHub.Backend.Api.Controllers
                 var (fileBytes, contentType, fileName) = await _documentService.DownloadDocumentAsync(document);
                 return File(fileBytes, contentType, fileName);
             }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid();
-            }
             catch (Exception ex)
             {
                 return StatusCode(500, new { success = false, message = "Failed to download document", error = ex.Message });
@@ -407,24 +403,14 @@ namespace StudyHub.Backend.Api.Controllers
 
         [HttpGet("preview/{id:int}")]
         public async Task<IActionResult> PreviewDocument(int id)
-        {
-            try
-            {
+        {          
                 var document = _documentService.GetDocumentById(id);
                 if (document == null)
                     return NotFound(new { success = false, message = $"Document with ID {id} not found" });
 
                 var (fileBytes, contentType, _) = await _documentService.DownloadDocumentAsync(document);
-                return File(fileBytes, contentType);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Failed to preview document", error = ex.Message });
-            }
+                return File(fileBytes, contentType, "inline");       
         }
+
     }
 }

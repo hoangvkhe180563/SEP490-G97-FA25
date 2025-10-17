@@ -27,8 +27,7 @@ namespace StudyHub.Backend.Api.Mappers
             IsApproved = d.IsApproved,
             Status = d.Status ?? true,
             FileType = GetFileType(d.DocumentUrl),
-            UploaderName = d.Username?.Username,
-            //UploaderUrl = d.Username?.Avatar,
+            UploaderName = d.Username?.Fullname ?? d.Username?.Username,
             classes = d.Classes?.Select(c => new ClassListDto
             {
                 Id = c.Id,
