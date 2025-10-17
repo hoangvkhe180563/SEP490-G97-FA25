@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Repositories;
@@ -9,8 +10,9 @@ namespace StudyHub.Backend.Infrastructure
 {
     public static class DependencyInjection
     {
-        public static IServiceCollection AddInfrastructureDependency(this IServiceCollection services, string connectionString)
+        public static IServiceCollection AddInfrastructureDependency(this IServiceCollection services, IConfiguration configuration)
         {
+            string connectionString = configuration.GetConnectionString("value") ?? "";
             services.AddDbContext<AppDbContext>(options => options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
             services.AddScoped<IAppUserRepository, AppUserRepository>();
@@ -20,9 +22,20 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<ILandingPageRepository, LandingPageRepository>();
             services.AddScoped<IDocumentRepository, DocumentRepository>();
             services.AddScoped<IFileStorageRepository, LocalFileStorageService>();
-            //services.AddScoped<IFileStorageRepository, CloudFileStorageService>();
             services.AddScoped<ISubjectRepository, SubjectRepository>();
             services.AddScoped<IDocumentCategoryRepository, DocumentCategoryRepository>();
+
+            var cloudName = configuration["Cloudinary:CloudName"];
+            var apiKey = configuration["Cloudinary:ApiKey"];
+            var apiSecret = configuration["Cloudinary:ApiSecret"];
+            services.AddScoped<ICloudinaryRepository>(provider =>
+            {
+                var cloudName = configuration["CloudinarySettings:CloudName"] ?? "";
+                var apiKey = configuration["CloudinarySettings:ApiKey"] ?? "";
+                var apiSecret = configuration["CloudinarySettings:ApiSecret"] ?? "";
+
+                return new CloudinaryRepository(cloudName, apiKey, apiSecret);
+            });
 
             return services;
         }
