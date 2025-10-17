@@ -6,7 +6,7 @@ using StudyHub.Backend.UseCases.Repositories;
 
 namespace StudyHub.Backend.UseCases.Services
 {
-    public class CloudFileStorageService : IFileStorageRepository
+    public class CloudFileStorageService 
     {
         private readonly ICloudinaryRepository _cloudinaryRepository;
 
@@ -28,7 +28,7 @@ namespace StudyHub.Backend.UseCases.Services
         public void DeleteDocumentFile(string filePath)
         {
             if (string.IsNullOrEmpty(filePath)) return;
-            _cloudinaryRepository.DeleteFileAsync(filePath).GetAwaiter().GetResult();
+            _cloudinaryRepository.DeleteImageAsync(filePath).GetAwaiter().GetResult();
         }
 
         public void DeleteFile(string filePath)

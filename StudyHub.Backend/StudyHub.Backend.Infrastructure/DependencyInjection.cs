@@ -25,6 +25,7 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<ISubjectRepository, SubjectRepository>();
             services.AddScoped<IDocumentCategoryRepository, DocumentCategoryRepository>();
             services.AddScoped<IClassRepository, ClassRepository>();
+
             services.AddScoped<ICloudinaryRepository>(provider =>
             {
                 var cloudName = configuration["Cloudinary:CloudName"] ?? "";
@@ -33,8 +34,6 @@ namespace StudyHub.Backend.Infrastructure
 
                 return new CloudinaryRepository(cloudName, apiKey, apiSecret);
             });
-            services.AddScoped<IFileStorageRepository, CloudFileStorageService>();
-
             return services;
         }
     }

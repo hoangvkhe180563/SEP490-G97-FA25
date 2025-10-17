@@ -145,6 +145,20 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 return false;
             }
         }
+        public async Task<byte[]> ReadFileAsync(string filePath)
+        {
+            try
+            {
+                using var httpClient = new HttpClient();
+                httpClient.Timeout = TimeSpan.FromMinutes(5);
+                return await httpClient.GetByteArrayAsync(filePath);
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("CloudinaryRepository", "ReadFileAsync exception. Inner error: " + ex.Message).LogError();
+                throw;
+            }
+        }
         static string GetPublicIdFromUrl(string url)
         {
             if (string.IsNullOrEmpty(url))

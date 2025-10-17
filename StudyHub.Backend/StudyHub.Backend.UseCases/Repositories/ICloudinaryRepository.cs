@@ -8,5 +8,6 @@ namespace StudyHub.Backend.UseCases.Repositories
         Task<bool> DeleteImageAsync(string url);
         Task<string> UploadFileAsync(IFormFile file, string folderName);
         Task<bool> DeleteFileAsync(string url);
+        Task<byte[]> ReadFileAsync(string filePath);
     }
 }

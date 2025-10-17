@@ -28,331 +28,164 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 if (d == null) return null;
 
-                var user = _context.AppUsers.FirstOrDefault(u => u.Id == d.CreatedBy);
                 var doc = MapToEntity(d);
+                var user = _context.AppUsers.FirstOrDefault(u => u.Id == d.CreatedBy);
                 if (user != null)
-                {
                     doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
-                }
+
                 return doc;
             }
             catch (Exception ex)
             {
-                new InfrastructureException("DocumentRepository", "GetDocumentById failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("DocumentRepository", "GetDocumentById failed: " + ex.Message).LogError();
                 return null;
             }
         }
 
         public (List<Document> documents, int totalCount) GetPublicDocuments(
-            string? query = null,
-            int? categoryId = null,
-            int? grade = null,
-            string? subject = null,
-            int? classId = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+            string? query = null, int? categoryId = null, int? grade = null,
+            string? subject = null, int? classId = null, int? pageNumber = null, int? pageSize = null)
         {
             try
             {
-                IQueryable<Data.Document> dbQuery = _context.Documents
+                var dbQuery = _context.Documents
                     .Include(d => d.Subject)
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    .Where(d => d.DeletedAt == null &&
-                               d.SchoolId == null &&
-                               d.IsApproved == true);
+                    .Where(d => d.DeletedAt == null && d.SchoolId == null && d.IsApproved == true);
 
-                dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId);
-
-                var totalCount = dbQuery.Count();
-
-                dbQuery = dbQuery.OrderByDescending(d => d.IsFeatured)
-                                .ThenByDescending(d => d.CreatedAt);
-
-                if (pageNumber.HasValue && pageSize.HasValue)
-                {
-                    dbQuery = dbQuery
-                        .Skip((pageNumber.Value - 1) * pageSize.Value)
-                        .Take(pageSize.Value);
-                }
-
-                var documents = dbQuery.ToList();
-                var creatorIds = documents.Select(d => d.CreatedBy).Distinct().ToList();
-                var users = _context.AppUsers.Where(u => creatorIds.Contains(u.Id))
-                    .Select(u => new { u.Id, u.Username, u.Fullname, u.Avatar })
-                    .ToList();
-
-                var result = documents.Select(d =>
-                {
-                    var doc = MapToEntity(d);
-                    var user = users.FirstOrDefault(u => u.Id == d.CreatedBy);
-                    if (user != null)
-                    {
-                        doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
-                    }
-                    return doc;
-                }).ToList();
-
-                return (result, totalCount);
+                return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, null, null, pageNumber, pageSize, true);
             }
             catch (Exception ex)
             {
-                new InfrastructureException("DocumentRepository", "GetPublicDocuments failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("DocumentRepository", "GetPublicDocuments failed: " + ex.Message).LogError();
                 return (new List<Document>(), 0);
             }
         }
 
         public (List<Document> documents, int totalCount) GetSchoolDocuments(
-            int schoolId,
-            string? query = null,
-            int? categoryId = null,
-            int? grade = null,
-            string? subject = null,
-            int? classId = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+            int schoolId, string? query = null, int? categoryId = null, int? grade = null,
+            string? subject = null, int? classId = null, int? pageNumber = null, int? pageSize = null)
         {
             try
             {
-                IQueryable<Data.Document> dbQuery = _context.Documents
+                var dbQuery = _context.Documents
                     .Include(d => d.Subject)
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    .Where(d => d.DeletedAt == null &&
-                               d.SchoolId == schoolId &&
-                               d.IsApproved == true);
+                    .Where(d => d.DeletedAt == null && d.SchoolId == schoolId && d.IsApproved == true);
 
-                dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId);
-
-                var totalCount = dbQuery.Count();
-
-                dbQuery = dbQuery.OrderByDescending(d => d.IsFeatured)
-                                .ThenByDescending(d => d.CreatedAt);
-
-                if (pageNumber.HasValue && pageSize.HasValue)
-                {
-                    dbQuery = dbQuery
-                        .Skip((pageNumber.Value - 1) * pageSize.Value)
-                        .Take(pageSize.Value);
-                }
-
-                var documents = dbQuery.ToList();
-                var creatorIds = documents.Select(d => d.CreatedBy).Distinct().ToList();
-                var users = _context.AppUsers.Where(u => creatorIds.Contains(u.Id))
-                    .Select(u => new { u.Id, u.Username, u.Fullname, u.Avatar })
-                    .ToList();
-
-                var result = documents.Select(d =>
-                {
-                    var doc = MapToEntity(d);
-                    var user = users.FirstOrDefault(u => u.Id == d.CreatedBy);
-                    if (user != null)
-                    {
-                        doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
-                    }
-                    return doc;
-                }).ToList();
-
-                return (result, totalCount);
+                return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, null, null, pageNumber, pageSize, true);
             }
             catch (Exception ex)
             {
-                new InfrastructureException("DocumentRepository", "GetSchoolDocuments failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("DocumentRepository", "GetSchoolDocuments failed: " + ex.Message).LogError();
                 return (new List<Document>(), 0);
             }
         }
 
         public (List<Document> documents, int totalCount) GetOwnedDocuments(
-            Guid creatorId,
-            string? query = null,
-            int? categoryId = null,
-            int? grade = null,
-            string? subject = null,
-            int? classId = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+            Guid creatorId, string? query = null, int? categoryId = null, int? grade = null,
+            string? subject = null, int? classId = null, int? pageNumber = null, int? pageSize = null)
         {
             try
             {
-                IQueryable<Data.Document> dbQuery = _context.Documents
+                var dbQuery = _context.Documents
                     .Include(d => d.Subject)
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    .Where(d => d.DeletedAt == null &&
-                               d.CreatedBy == creatorId);
+                    .Where(d => d.DeletedAt == null && d.CreatedBy == creatorId);
 
-                dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId);
-
-                var totalCount = dbQuery.Count();
-
-                dbQuery = dbQuery.OrderByDescending(d => d.CreatedAt);
-
-                if (pageNumber.HasValue && pageSize.HasValue)
-                {
-                    dbQuery = dbQuery
-                        .Skip((pageNumber.Value - 1) * pageSize.Value)
-                        .Take(pageSize.Value);
-                }
-
-                var documents = dbQuery.ToList();
-                var creatorIds = documents.Select(d => d.CreatedBy).Distinct().ToList();
-                var users = _context.AppUsers.Where(u => creatorIds.Contains(u.Id))
-                    .Select(u => new { u.Id, u.Username, u.Fullname, u.Avatar })
-                    .ToList();
-
-                var result = documents.Select(d =>
-                {
-                    var doc = MapToEntity(d);
-                    var user = users.FirstOrDefault(u => u.Id == d.CreatedBy);
-                    if (user != null)
-                    {
-                        doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
-                    }
-                    return doc;
-                }).ToList();
-
-                return (result, totalCount);
+                return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, null, null, pageNumber, pageSize, false);
             }
             catch (Exception ex)
             {
-                new InfrastructureException("DocumentRepository", "GetOwnedDocuments failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("DocumentRepository", "GetOwnedDocuments failed: " + ex.Message).LogError();
                 return (new List<Document>(), 0);
             }
         }
 
         public (List<Document> documents, int totalCount) GetManagerPublicDocuments(
-            string? query = null,
-            int? categoryId = null,
-            int? grade = null,
-            string? subject = null,
-            int? classId = null,
-            bool? isApproved = null,
-            bool? status = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+            string? query = null, int? categoryId = null, int? grade = null, string? subject = null,
+            int? classId = null, bool? isApproved = null, bool? status = null, int? pageNumber = null, int? pageSize = null)
         {
             try
             {
-                IQueryable<Data.Document> dbQuery = _context.Documents
+                var dbQuery = _context.Documents
                     .Include(d => d.Subject)
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    .Where(d => d.DeletedAt == null &&
-                               d.SchoolId == null);
+                    .Where(d => d.DeletedAt == null && d.SchoolId == null);
 
-                dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId, isApproved, status);
-
-                var totalCount = dbQuery.Count();
-
-                dbQuery = dbQuery.OrderByDescending(d => d.CreatedAt);
-
-                if (pageNumber.HasValue && pageSize.HasValue)
-                {
-                    dbQuery = dbQuery
-                        .Skip((pageNumber.Value - 1) * pageSize.Value)
-                        .Take(pageSize.Value);
-                }
-
-                var documents = dbQuery.ToList();
-                var creatorIds = documents.Select(d => d.CreatedBy).Distinct().ToList();
-                var users = _context.AppUsers.Where(u => creatorIds.Contains(u.Id))
-                    .Select(u => new { u.Id, u.Username, u.Fullname, u.Avatar })
-                    .ToList();
-
-                var result = documents.Select(d =>
-                {
-                    var doc = MapToEntity(d);
-                    var user = users.FirstOrDefault(u => u.Id == d.CreatedBy);
-                    if (user != null)
-                    {
-                        doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
-                    }
-                    return doc;
-                }).ToList();
-
-                return (result, totalCount);
+                return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize, false);
             }
             catch (Exception ex)
             {
-                new InfrastructureException("DocumentRepository", "GetManagerPublicDocuments failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("DocumentRepository", "GetManagerPublicDocuments failed: " + ex.Message).LogError();
                 return (new List<Document>(), 0);
             }
         }
 
         public (List<Document> documents, int totalCount) GetManagerSchoolDocuments(
-            int schoolId,
-            string? query = null,
-            int? categoryId = null,
-            int? grade = null,
-            string? subject = null,
-            int? classId = null,
-            bool? isApproved = null,
-            bool? status = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+            int schoolId, string? query = null, int? categoryId = null, int? grade = null, string? subject = null,
+            int? classId = null, bool? isApproved = null, bool? status = null, int? pageNumber = null, int? pageSize = null)
         {
             try
             {
-                IQueryable<Data.Document> dbQuery = _context.Documents
+                var dbQuery = _context.Documents
                     .Include(d => d.Subject)
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    .Where(d => d.DeletedAt == null &&
-                               d.SchoolId == schoolId);
+                    .Where(d => d.DeletedAt == null && d.SchoolId == schoolId);
 
-                dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId, isApproved, status);
-
-                var totalCount = dbQuery.Count();
-
-                dbQuery = dbQuery.OrderByDescending(d => d.CreatedAt);
-
-                if (pageNumber.HasValue && pageSize.HasValue)
-                {
-                    dbQuery = dbQuery
-                        .Skip((pageNumber.Value - 1) * pageSize.Value)
-                        .Take(pageSize.Value);
-                }
-
-                var documents = dbQuery.ToList();
-                var creatorIds = documents.Select(d => d.CreatedBy).Distinct().ToList();
-                var users = _context.AppUsers.Where(u => creatorIds.Contains(u.Id))
-                    .Select(u => new { u.Id, u.Username, u.Fullname, u.Avatar })
-                    .ToList();
-
-                var result = documents.Select(d =>
-                {
-                    var doc = MapToEntity(d);
-                    var user = users.FirstOrDefault(u => u.Id == d.CreatedBy);
-                    if (user != null)
-                    {
-                        doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
-                    }
-                    return doc;
-                }).ToList();
-
-                return (result, totalCount);
+                return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize, false);
             }
             catch (Exception ex)
             {
-                new InfrastructureException("DocumentRepository", "GetManagerSchoolDocuments failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("DocumentRepository", "GetManagerSchoolDocuments failed: " + ex.Message).LogError();
                 return (new List<Document>(), 0);
             }
         }
 
+        private (List<Document>, int) ExecuteQuery(
+            IQueryable<Data.Document> dbQuery, string? query, int? categoryId, int? grade,
+            string? subject, int? classId, bool? isApproved, bool? status,
+            int? pageNumber, int? pageSize, bool orderByFeatured)
+        {
+            dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId, isApproved, status);
+            var totalCount = dbQuery.Count();
+
+            dbQuery = orderByFeatured
+                ? dbQuery.OrderByDescending(d => d.IsFeatured).ThenByDescending(d => d.CreatedAt)
+                : dbQuery.OrderByDescending(d => d.CreatedAt);
+
+            if (pageNumber.HasValue && pageSize.HasValue)
+                dbQuery = dbQuery.Skip((pageNumber.Value - 1) * pageSize.Value).Take(pageSize.Value);
+
+            var documents = dbQuery.ToList();
+            var creatorIds = documents.Select(d => d.CreatedBy).Distinct().ToList();
+            var users = _context.AppUsers.Where(u => creatorIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.Username, u.Fullname }).ToList();
+
+            var result = documents.Select(d =>
+            {
+                var doc = MapToEntity(d);
+                var user = users.FirstOrDefault(u => u.Id == d.CreatedBy);
+                if (user != null)
+                    doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
+                return doc;
+            }).ToList();
+
+            return (result, totalCount);
+        }
+
         private IQueryable<Data.Document> ApplyFilters(
-            IQueryable<Data.Document> query,
-            string? searchQuery = null,
-            int? categoryId = null,
-            int? grade = null,
-            string? subject = null,
-            int? classId = null,
-            bool? isApproved = null,
-            bool? status = null)
+            IQueryable<Data.Document> query, string? searchQuery, int? categoryId, int? grade, string? subject, int? classId, bool? isApproved, bool? status)
         {
             if (!string.IsNullOrWhiteSpace(searchQuery))
             {
@@ -426,8 +259,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             catch (DbUpdateException ex)
             {
                 var innerMessage = ex.InnerException?.Message ?? ex.Message;
-                new InfrastructureException("DocumentRepository", $"CreateDocument failed. Error: {innerMessage}").LogError();
-                throw new InvalidOperationException($"Failed to create document: {innerMessage}", ex);
+                new InfrastructureException("DocumentRepository", $"CreateDocument failed: {innerMessage}").LogError();
+                throw new InvalidOperationException("Failed to create document", ex);
             }
         }
 
@@ -454,8 +287,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.UpdatedBy = doc.UpdatedBy;
                 entity.DeletedAt = doc.DeletedAt;
 
-                _context.Database.ExecuteSqlRaw(
-                    "DELETE FROM Document_Classes WHERE DocumentId = {0}", doc.Id);
+                _context.Database.ExecuteSqlRaw("DELETE FROM Document_Classes WHERE DocumentId = {0}", doc.Id);
 
                 if (doc.Classes != null && doc.Classes.Any())
                 {
@@ -472,7 +304,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                new InfrastructureException("DocumentRepository", "UpdateDocument failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("DocumentRepository", "UpdateDocument failed: " + ex.Message).LogError();
                 return new Document();
             }
         }
@@ -484,16 +316,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 var entity = _context.Documents.Find(id);
                 if (entity == null) return false;
 
-                _context.Database.ExecuteSqlRaw(
-                    "DELETE FROM Document_Classes WHERE DocumentId = {0}", id);
-
+                _context.Database.ExecuteSqlRaw("DELETE FROM Document_Classes WHERE DocumentId = {0}", id);
                 _context.Documents.Remove(entity);
                 _context.SaveChanges();
                 return true;
             }
             catch (Exception ex)
             {
-                new InfrastructureException("DocumentRepository", "DeleteDocument failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("DocumentRepository", "DeleteDocument failed: " + ex.Message).LogError();
                 return false;
             }
         }
