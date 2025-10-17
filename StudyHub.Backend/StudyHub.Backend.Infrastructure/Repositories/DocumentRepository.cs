@@ -56,7 +56,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 if (!includeUnapproved)
                 {
-                    dbQuery = dbQuery.Where(d => d.IsApproved == true);
+                    dbQuery = dbQuery.Where(d => d.IsApproved == true );
                 }
 
                 if (!string.IsNullOrWhiteSpace(query))
@@ -86,7 +86,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     dbQuery = dbQuery.Where(d => d.IsFeatured == isFeatured.Value);
 
                 if (isPendingApproval.HasValue && isPendingApproval.Value)
-                    dbQuery = dbQuery.Where(d => d.IsApproved == isPendingApproval);
+                    dbQuery = dbQuery.Where(d => d.IsApproved == null);
 
                 var totalCount = dbQuery.Count();
 
@@ -115,8 +115,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 var entity = new Data.Document
                 {
                     Name = doc.Name,
-                    SubjectId = (byte)doc.SubjectId,
-                    DocumentCategoryId = (sbyte)doc.DocumentCategoryId,
+                    SubjectId = doc.SubjectId,
+                    Grade = doc.Grade,
+                    DocumentCategoryId = doc.DocumentCategoryId,
                     DocumentUrl = doc.DocumentUrl,
                     Thumbnail = doc.Thumbnail,
                     Description = doc.Description,
@@ -133,10 +134,20 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 doc.Id = entity.Id;
                 return doc;
             }
+            catch (DbUpdateException ex)
+            {
+                var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                Console.WriteLine($"CreateDocument DbUpdateException: {innerMessage}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                new InfrastructureException("DocumentRepository", $"CreateDocument failed. Error: {innerMessage}").LogError();
+                throw new InvalidOperationException($"Failed to create document: {innerMessage}", ex);
+            }
             catch (Exception ex)
             {
-                new InfrastructureException("DocumentRepository", "CreateDocument failed. Inner error: " + ex.Message).LogError();
-                throw new InvalidOperationException($"Failed to create document: {ex.Message}", ex);
+                var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                Console.WriteLine($"CreateDocument Exception: {innerMessage}");
+                new InfrastructureException("DocumentRepository", $"CreateDocument failed. Error: {innerMessage}").LogError();
+                throw new InvalidOperationException($"Failed to create document: {innerMessage}", ex);
             }
         }
 
@@ -148,8 +159,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (entity == null) return doc;
 
                 entity.Name = doc.Name;
-                entity.SubjectId = (byte)doc.SubjectId;
-                entity.DocumentCategoryId = (sbyte)doc.DocumentCategoryId;
+                entity.SubjectId = doc.SubjectId;
+                entity.Grade = doc.Grade;
+                entity.DocumentCategoryId = doc.DocumentCategoryId;
                 entity.DocumentUrl = doc.DocumentUrl;
                 entity.Thumbnail = doc.Thumbnail;
                 entity.Description = doc.Description;
@@ -196,6 +208,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Id = d.Id,
                 Name = d.Name,
                 SubjectId = d.SubjectId,
+                Grade = d.Grade,
                 DocumentCategoryId = d.DocumentCategoryId,
                 DocumentUrl = d.DocumentUrl,
                 Thumbnail = d.Thumbnail,
@@ -210,10 +223,154 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 UpdatedBy = d.UpdatedBy,
                 DeletedAt = d.DeletedAt,
                 Subject = d.Subject != null ? new Subject { Id = d.Subject.Id, Name = d.Subject.Name } : null,
-                Grade = d.Grade,
                 DocumentCategory = d.DocumentCategory != null ? new DocumentCategory { Id = d.DocumentCategory.Id, Name = d.DocumentCategory.Name, Description = d.DocumentCategory.Description } : null,
                 School = d.School != null ? new School { Id = d.School.Id, Name = d.School.Name } : null
             };
         }
+        public (List<Document> documents, int totalCount) GetAllDocuments(int? pageNumber = null, int? pageSize = null)
+        {
+            try
+            {
+                IQueryable<Data.Document> dbQuery = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Where(d => d.DeletedAt == null)
+                    .OrderByDescending(d => d.CreatedAt);
+
+                var totalCount = dbQuery.Count();
+
+                if (pageNumber.HasValue && pageSize.HasValue)
+                {
+                    dbQuery = dbQuery
+                        .Skip((pageNumber.Value - 1) * pageSize.Value)
+                        .Take(pageSize.Value);
+                }
+
+                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
+                return (documents, totalCount);
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetAllDocuments failed. Inner error: " + ex.Message).LogError();
+                return (new List<Document>(), 0);
+            }
+        }
+
+        public (List<Document> documents, int totalCount) GetPublicDocuments(int? pageNumber = null, int? pageSize = null)
+        {
+            try
+            {
+                IQueryable<Data.Document> dbQuery = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Where(d => d.DeletedAt == null && d.SchoolId == null)
+                    .OrderByDescending(d => d.CreatedAt);
+
+                var totalCount = dbQuery.Count();
+
+                if (pageNumber.HasValue && pageSize.HasValue)
+                {
+                    dbQuery = dbQuery
+                        .Skip((pageNumber.Value - 1) * pageSize.Value)
+                        .Take(pageSize.Value);
+                }
+
+                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
+                return (documents, totalCount);
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetPublicDocuments failed. Inner error: " + ex.Message).LogError();
+                return (new List<Document>(), 0);
+            }
+        }
+
+        public (List<Document> documents, int totalCount) GetDocumentsByCreator(Guid creatorId, int? pageNumber = null, int? pageSize = null)
+        {
+            try
+            {
+                IQueryable<Data.Document> dbQuery = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Where(d => d.DeletedAt == null && d.CreatedBy == creatorId)
+                    .OrderByDescending(d => d.CreatedAt);
+
+                var totalCount = dbQuery.Count();
+
+                if (pageNumber.HasValue && pageSize.HasValue)
+                {
+                    dbQuery = dbQuery
+                        .Skip((pageNumber.Value - 1) * pageSize.Value)
+                        .Take(pageSize.Value);
+                }
+
+                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
+                return (documents, totalCount);
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetDocumentsByCreator failed. Inner error: " + ex.Message).LogError();
+                return (new List<Document>(), 0);
+            }
+        }
+
+        public (List<Document> documents, int totalCount) GetDocumentsBySchool(int schoolId, int? pageNumber = null, int? pageSize = null)
+        {
+            try
+            {
+                IQueryable<Data.Document> dbQuery = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Where(d => d.DeletedAt == null &&
+                               (d.SchoolId == schoolId || (d.SchoolId == null )))
+                    .OrderByDescending(d => d.CreatedAt);
+
+                var totalCount = dbQuery.Count();
+
+                if (pageNumber.HasValue && pageSize.HasValue)
+                {
+                    dbQuery = dbQuery
+                        .Skip((pageNumber.Value - 1) * pageSize.Value)
+                        .Take(pageSize.Value);
+                }
+
+                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
+                return (documents, totalCount);
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetDocumentsBySchool failed. Inner error: " + ex.Message).LogError();
+                return (new List<Document>(), 0);
+            }
+        }
+        public List<Document> GetDocumentsBySubject(int subjectId)
+        {
+            try
+            {
+                var documents = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Where(d => d.SubjectId == subjectId
+                             && d.IsApproved == true
+                             && d.Status == true
+                             && d.DeletedAt == null)
+                    .OrderByDescending(d => d.CreatedAt)
+                    .Select(d => MapToEntity(d))
+                    .ToList();
+
+                return documents;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetDocumentsBySubject failed. Inner error: " + ex.Message).LogError();
+                return new List<Document>();
+            }
+        }
+
     }
 }

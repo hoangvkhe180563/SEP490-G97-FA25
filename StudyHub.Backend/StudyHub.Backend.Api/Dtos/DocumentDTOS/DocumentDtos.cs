@@ -17,10 +17,12 @@ namespace StudyHub.Backend.Api.Dtos
         public string? CategoryName { get; set; }
         public int? SchoolId { get; set; }
         public string? SchoolName { get; set; }
+        public bool? IsInClass { get; set; }
         public DateTime CreatedAt { get; set; }
         public bool IsFeatured { get; set; }
         public bool? IsApproved { get; set; }
         public bool Status { get; set; }
+        public string? FileType { get; set; }
     }
 
     public class DocumentDetailDto
@@ -34,10 +36,9 @@ namespace StudyHub.Backend.Api.Dtos
         public sbyte Grade { get; set; }
         public byte DocumentCategoryId { get; set; }
         public string? CategoryName { get; set; }
-        public int AccessibilityId { get; set; }
-        public string? AccessibilityName { get; set; }
         public int? SchoolId { get; set; }
         public string? SchoolName { get; set; }
+        public bool? IsInClass { get; set; }
         public string? Description { get; set; }
         public DateTime CreatedAt { get; set; }
         public Guid CreatedBy { get; set; }
@@ -46,6 +47,8 @@ namespace StudyHub.Backend.Api.Dtos
         public bool IsFeatured { get; set; }
         public bool? IsApproved { get; set; }
         public bool Status { get; set; }
+        public string? FileType { get; set; }
+
     }
 
     public class CreateDocumentDto
@@ -65,6 +68,8 @@ namespace StudyHub.Backend.Api.Dtos
         public string? Description { get; set; }
 
         public int? SchoolId { get; set; }
+
+        public bool? IsInClass { get; set; }
 
         public bool IsFeatured { get; set; }
 
@@ -98,6 +103,8 @@ namespace StudyHub.Backend.Api.Dtos
 
         public int? SchoolId { get; set; }
 
+        public bool? IsInClass { get; set; }
+
         public bool IsFeatured { get; set; }
 
         [Required]
@@ -114,6 +121,7 @@ namespace StudyHub.Backend.Api.Dtos
         public int? CategoryId { get; set; }
         public int? Grade { get; set; }
         public int? SchoolId { get; set; }
+        public bool? IsInClass { get; set; }
         public string? Subject { get; set; }
         public string? Description { get; set; }
         public string? UploaderId { get; set; }
@@ -121,9 +129,7 @@ namespace StudyHub.Backend.Api.Dtos
         public bool? IsApproved { get; set; }
         public bool? Status { get; set; } = true;
         public bool? IsPendingApproval { get; set; }
-
         public bool IncludeUnapproved { get; set; }
-
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
     }

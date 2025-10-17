@@ -43,9 +43,9 @@ namespace StudyHub.Backend.UseCases.Services
         }
 
         public async Task<Document> CreateDocumentAsync(
-     Document document,
-     IFormFile documentFile,
-     IFormFile? thumbnailFile = null)
+            Document document,
+            IFormFile documentFile,
+            IFormFile? thumbnailFile = null)
         {
             ValidateDocumentFile(documentFile);
 
@@ -64,16 +64,19 @@ namespace StudyHub.Backend.UseCases.Services
             if (document.CreatedBy == Guid.Empty)
                 throw new ArgumentException("Valid CreatedBy is required");
 
+            if (document.SchoolId.HasValue && !document.ClassId.HasValue)
+                throw new ArgumentException("If SchoolId is provided, ClassId must also be provided (database constraint)");
+
             document.DocumentUrl = await _fileStorage.UploadFileAsync(documentFile, FileConstants.DocumentUploadPath);
 
             if (thumbnailFile != null)
                 document.Thumbnail = await _fileStorage.UploadFileAsync(thumbnailFile, FileConstants.ThumbnailUploadPath);
 
-            if (document.SchoolId == null)
+            if (!document.SchoolId.HasValue && !document.ClassId.HasValue)
                 document.IsApproved = false;
-            else document.IsApproved = null;
+            else
+                document.IsApproved = null;
 
-            document.IsApproved = document.ClassId != null;
             document.CreatedAt = DateTime.Now;
             document.Status = true;
 
@@ -87,6 +90,9 @@ namespace StudyHub.Backend.UseCases.Services
         {
             var existingDocument = _repo.GetDocumentById(document.Id)
                 ?? throw new InvalidOperationException($"Document with ID {document.Id} not found");
+
+            if (document.SchoolId.HasValue && !document.ClassId.HasValue)
+                throw new ArgumentException("If SchoolId is provided, ClassId must also be provided (database constraint)");
 
             if (documentFile != null)
             {
@@ -110,10 +116,6 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 document.Thumbnail = existingDocument.Thumbnail;
             }
-
-            if (document.SchoolId == null)
-                document.IsApproved = false;
-            else document.IsApproved = null;
 
             document.UpdatedAt = DateTime.Now;
 
@@ -151,10 +153,18 @@ namespace StudyHub.Backend.UseCases.Services
             var document = _repo.GetDocumentById(id)
                 ?? throw new InvalidOperationException($"Document with ID {id} not found");
 
-            if (document.SchoolId == null)
-                throw new InvalidOperationException("Only public documents require approval");
+            if (document.ClassId.HasValue)
+                throw new InvalidOperationException("Class documents do not require approval");
 
-            document.IsApproved = true;
+            if (!document.SchoolId.HasValue && !document.ClassId.HasValue)
+            {
+                document.IsApproved = true;
+            }
+            else if (document.SchoolId.HasValue)
+            {
+                document.IsApproved = true;
+            }
+
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = approvedBy;
 
@@ -166,8 +176,8 @@ namespace StudyHub.Backend.UseCases.Services
             var document = _repo.GetDocumentById(id)
                 ?? throw new InvalidOperationException($"Document with ID {id} not found");
 
-            if (document.SchoolId != null)
-                throw new InvalidOperationException("Only public documents require approval");
+            if (document.ClassId.HasValue)
+                throw new InvalidOperationException("Class documents do not require approval");
 
             document.IsApproved = false;
             document.UpdatedAt = DateTime.Now;
@@ -258,6 +268,28 @@ namespace StudyHub.Backend.UseCases.Services
                 ".rar" => "application/x-rar-compressed",
                 _ => "application/octet-stream"
             };
+        }
+        public (List<Document> documents, int totalCount) GetAllDocuments(int pageNumber = 1, int pageSize = 10)
+        {
+            return _repo.GetAllDocuments(pageNumber, pageSize);
+        }
+
+        public (List<Document> documents, int totalCount) GetPublicDocuments(int pageNumber = 1, int pageSize = 10)
+        {
+            return _repo.GetPublicDocuments(pageNumber, pageSize);
+        }
+
+        public (List<Document> documents, int totalCount) GetDocumentsByCreator(Guid creatorId, int pageNumber = 1, int pageSize = 10)
+        {
+            return _repo.GetDocumentsByCreator(creatorId, pageNumber, pageSize);
+        }
+        public List<Document> GetDocumentsBySubject(int subjectId)
+        {
+            return _repo.GetDocumentsBySubject(subjectId);
+        }
+        public (List<Document> documents, int totalCount) GetDocumentsBySchool(int schoolId, int pageNumber = 1, int pageSize = 10)
+        {
+            return _repo.GetDocumentsBySchool(schoolId, pageNumber, pageSize);
         }
     }
 }

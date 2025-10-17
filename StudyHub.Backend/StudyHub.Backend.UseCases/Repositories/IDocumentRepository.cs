@@ -8,7 +8,6 @@ namespace StudyHub.Backend.UseCases.Repositories
         Document CreateDocument(Document doc);
         Document UpdateDocument(Document doc);
         bool DeleteDocument(int id);
-
         (List<Document> documents, int totalCount) SearchDocuments(
             string? query = null,
             int? categoryId = null,
@@ -21,5 +20,10 @@ namespace StudyHub.Backend.UseCases.Repositories
             bool includeUnapproved = false,
             int? pageNumber = null,
             int? pageSize = null);
+        List<Document> GetDocumentsBySubject(int subjectId);
+        (List<Document> documents, int totalCount) GetAllDocuments(int? pageNumber = null, int? pageSize = null);
+        (List<Document> documents, int totalCount) GetPublicDocuments(int? pageNumber = null, int? pageSize = null);
+        (List<Document> documents, int totalCount) GetDocumentsByCreator(Guid creatorId, int? pageNumber = null, int? pageSize = null);
+        (List<Document> documents, int totalCount) GetDocumentsBySchool(int schoolId, int? pageNumber = null, int? pageSize = null);
     }
 }

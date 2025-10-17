@@ -15,8 +15,106 @@ namespace StudyHub.Backend.Api.Controllers
         {
             _documentService = documentService;
         }
-        
 
+        [HttpGet("all")]
+        public IActionResult GetAllDocuments([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                var (documents, totalCount) = _documentService.GetAllDocuments(pageNumber, pageSize);
+                var dtos = documents.Select(d => d.ToListDto()).ToList();
+
+                var result = new StudyHub.Backend.UseCases.Dtos.PagedResult<DocumentListDto>
+                {
+                    Items = dtos,
+                    Total = totalCount,
+                    Page = pageNumber,
+                    Limit = pageSize,
+                    TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+                };
+
+                return Ok(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Failed to retrieve documents", error = ex.Message });
+            }
+        }
+
+        [HttpGet("public")]
+        public IActionResult GetPublicDocuments([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                var (documents, totalCount) = _documentService.GetPublicDocuments(pageNumber, pageSize);
+                var dtos = documents.Select(d => d.ToListDto()).ToList();
+
+                var result = new StudyHub.Backend.UseCases.Dtos.PagedResult<DocumentListDto>
+                {
+                    Items = dtos,
+                    Total = totalCount,
+                    Page = pageNumber,
+                    Limit = pageSize,
+                    TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+                };
+
+                return Ok(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Failed to retrieve public documents", error = ex.Message });
+            }
+        }
+
+        [HttpGet("by-creator/{creatorId}")]
+        public IActionResult GetDocumentsByCreator(Guid creatorId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                var (documents, totalCount) = _documentService.GetDocumentsByCreator(creatorId, pageNumber, pageSize);
+                var dtos = documents.Select(d => d.ToListDto()).ToList();
+
+                var result = new StudyHub.Backend.UseCases.Dtos.PagedResult<DocumentListDto>
+                {
+                    Items = dtos,
+                    Total = totalCount,
+                    Page = pageNumber,
+                    Limit = pageSize,
+                    TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+                };
+
+                return Ok(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Failed to retrieve documents by creator", error = ex.Message });
+            }
+        }
+
+        [HttpGet("by-school/{schoolId}")]
+        public IActionResult GetDocumentsBySchool(int schoolId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                var (documents, totalCount) = _documentService.GetDocumentsBySchool(schoolId, pageNumber, pageSize);
+                var dtos = documents.Select(d => d.ToListDto()).ToList();
+
+                var result = new StudyHub.Backend.UseCases.Dtos.PagedResult<DocumentListDto>
+                {
+                    Items = dtos,
+                    Total = totalCount,
+                    Page = pageNumber,
+                    Limit = pageSize,
+                    TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+                };
+
+                return Ok(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Failed to retrieve documents by school", error = ex.Message });
+            }
+        }
         [HttpGet("getbyid/{id:int}")]
         public IActionResult GetDocumentById(int id)
         {
@@ -262,6 +360,20 @@ namespace StudyHub.Backend.Api.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { success = false, message = "Failed to preview document", error = ex.Message });
+            }
+        }
+        [HttpGet("by-subject/{subjectId:int}")]
+        public IActionResult GetDocumentsBySubject(int subjectId)
+        {
+            try
+            {
+                var documents = _documentService.GetDocumentsBySubject(subjectId);
+                var dtos = documents.Select(d => d.ToListDto()).ToList();
+                return Ok(new { success = true, data = dtos });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Failed to retrieve documents by subject", error = ex.Message });
             }
         }
     }

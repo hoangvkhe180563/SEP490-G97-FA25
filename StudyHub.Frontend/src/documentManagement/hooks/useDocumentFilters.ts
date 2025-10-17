@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { documentService } from "@/documentManagement/services/documentService"
 import type { DocumentListDto, DocumentFilterParams } from "@/documentManagement/interfaces/documentApi"
-import type { Grade, Subject, DocumentCategory } from "@/documentManagement/interfaces/masterData"
+import type {  Subject, DocumentCategory } from "@/documentManagement/interfaces/masterData"
 
 interface FilterState {
   showSchoolDocs: boolean
@@ -12,8 +12,7 @@ interface FilterState {
 }
 
 export const useDocumentFilters = () => {
-  // const [documents, setDocuments] = useState<DocumentListDto[]>([])
-  const [grades, setGrades] = useState<Grade[]>([])
+  const [documents, setDocuments] = useState<DocumentListDto[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [categories, setCategories] = useState<DocumentCategory[]>([])
   const [loading, setLoading] = useState(false)
@@ -35,12 +34,10 @@ export const useDocumentFilters = () => {
   useEffect(() => {
     const fetchMasterData = async () => {
       try {
-        const [gradesData, subjectsData, categoriesData] = await Promise.all([
-          documentService.getGrades(),
+        const [ subjectsData, categoriesData] = await Promise.all([
           documentService.getSubjects(),
           documentService.getDocumentCategories(),
         ])
-        setGrades(gradesData)
         setSubjects(subjectsData)
         setCategories(categoriesData)
       } catch (err) {
@@ -98,7 +95,7 @@ export const useDocumentFilters = () => {
             filteredDocs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         }
 
-        // setDocuments(filteredDocs)
+        setDocuments(filteredDocs)
         setTotalPages(response.pagination.totalPages)
         setTotalCount(response.pagination.totalCount)
       }
@@ -116,7 +113,6 @@ export const useDocumentFilters = () => {
 
   return {
     documents,
-    grades,
     subjects,
     categories,
     loading,

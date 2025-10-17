@@ -19,10 +19,12 @@ namespace StudyHub.Backend.Api.Mappers
             CategoryName = d.DocumentCategory?.Name,
             SchoolId = d.SchoolId,
             SchoolName = d.School?.Name,
+            ClassId = d.ClassId,
             CreatedAt = d.CreatedAt,
             IsFeatured = d.IsFeatured,
             IsApproved = d.IsApproved,
-            Status = d.Status
+            Status = d.Status,
+            FileType = GetFileType(d.DocumentUrl)
         };
 
         public static DocumentDetailDto ToDetailDto(this Document d) => new DocumentDetailDto
@@ -38,6 +40,7 @@ namespace StudyHub.Backend.Api.Mappers
             CategoryName = d.DocumentCategory?.Name,
             SchoolId = d.SchoolId,
             SchoolName = d.School?.Name,
+            ClassId = d.ClassId,
             Description = d.Description,
             CreatedAt = d.CreatedAt,
             CreatedBy = d.CreatedBy,
@@ -45,7 +48,9 @@ namespace StudyHub.Backend.Api.Mappers
             UpdatedBy = d.UpdatedBy,
             IsFeatured = d.IsFeatured,
             IsApproved = d.IsApproved,
-            Status = d.Status
+            Status = d.Status,
+            FileType = GetFileType(d.DocumentUrl)
+
         };
 
         public static Document ToEntity(this CreateDocumentDto dto) => new Document
@@ -56,6 +61,7 @@ namespace StudyHub.Backend.Api.Mappers
             DocumentCategoryId = dto.DocumentCategoryId,
             Description = dto.Description,
             SchoolId = dto.SchoolId,
+            ClassId = dto.ClassId,
             IsFeatured = dto.IsFeatured,
             CreatedBy = dto.CreatedBy
         };
@@ -69,8 +75,18 @@ namespace StudyHub.Backend.Api.Mappers
             DocumentCategoryId = dto.DocumentCategoryId,
             Description = dto.Description,
             SchoolId = dto.SchoolId,
+            ClassId = dto.ClassId,
             IsFeatured = dto.IsFeatured,
             UpdatedBy = dto.UpdatedBy
         };
+
+        private static string? GetFileType(string? documentUrl)
+        {
+            if (string.IsNullOrEmpty(documentUrl))
+                return null;
+
+            var extension = System.IO.Path.GetExtension(documentUrl).ToLowerInvariant();
+            return extension.TrimStart('.');
+        }
     }
 }
