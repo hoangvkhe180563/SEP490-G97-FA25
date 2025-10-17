@@ -1,14 +1,10 @@
-﻿using System.Diagnostics;
-
-namespace StudyHub.Backend.UseCases.Exceptions
+﻿namespace StudyHub.Backend.UseCases.Exceptions
 {
-    public class UseCaseException : Exception
+    public class UseCaseException
     {
-        //khi throw exception thì throw nó vào đây.
-        //vd cách dùng: new UseCaseException("AppUserService", "không kết nối được DB").LogError();
         public string ErrorLocation { get; set; }
         public string ErrorMessage { get; set; }
-        public UseCaseException(string location, string message) : base(message)
+        public UseCaseException(string location, string message)
         {
             ErrorLocation = location;
             ErrorMessage = message;
