@@ -1,5 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
+using StudyHub.Backend.Api.Dtos.ClassDTOS;
+using System.ComponentModel.DataAnnotations;
+
 
 namespace StudyHub.Backend.Api.Dtos
 {
@@ -23,6 +25,10 @@ namespace StudyHub.Backend.Api.Dtos
         public bool? IsApproved { get; set; }
         public bool Status { get; set; }
         public string? FileType { get; set; }
+        public string? UploaderName { get; set; }
+        public string? UploaderUrl { get; set; }
+            
+        public List<ClassListDto> classes { get; set; } = new();
     }
 
     public class DocumentDetailDto
@@ -48,6 +54,7 @@ namespace StudyHub.Backend.Api.Dtos
         public bool? IsApproved { get; set; }
         public bool Status { get; set; }
         public string? FileType { get; set; }
+        public List<ClassListDto> classes { get; set; } = new();
 
     }
 
@@ -80,6 +87,8 @@ namespace StudyHub.Backend.Api.Dtos
         public IFormFile DocumentFile { get; set; } = null!;
 
         public IFormFile? ThumbnailFile { get; set; }
+        public List<ClassListDto> classes { get; set; } = new();
+
     }
 
     public class UpdateDocumentDto
@@ -113,6 +122,8 @@ namespace StudyHub.Backend.Api.Dtos
         public IFormFile? DocumentFile { get; set; }
 
         public IFormFile? ThumbnailFile { get; set; }
+        public List<ClassListDto> classes { get; set; } = new();
+
     }
 
     public class DocumentFilterDto
@@ -130,6 +141,8 @@ namespace StudyHub.Backend.Api.Dtos
         public bool? Status { get; set; } = true;
         public bool? IsPendingApproval { get; set; }
         public bool IncludeUnapproved { get; set; }
+        public List<ClassListDto> classes { get; set; } = new();
+
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
     }

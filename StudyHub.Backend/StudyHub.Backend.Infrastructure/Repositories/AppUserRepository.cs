@@ -20,7 +20,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 Id = d.Id,
                 Email = d.Email,
-                Gender = d.Gender,
+                Gender = (bool)d.Gender,
                 PasswordHash = d.PasswordHash,
                 Username = d.Username,
                 Fullname = d.Fullname,

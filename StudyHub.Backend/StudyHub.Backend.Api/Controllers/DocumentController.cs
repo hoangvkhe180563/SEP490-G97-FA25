@@ -2,6 +2,9 @@
 using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.UseCases.Services;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -16,37 +19,21 @@ namespace StudyHub.Backend.Api.Controllers
             _documentService = documentService;
         }
 
-        [HttpGet("all")]
-        public IActionResult GetAllDocuments([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
-        {
-            try
-            {
-                var (documents, totalCount) = _documentService.GetAllDocuments(pageNumber, pageSize);
-                var dtos = documents.Select(d => d.ToListDto()).ToList();
-
-                var result = new StudyHub.Backend.UseCases.Dtos.PagedResult<DocumentListDto>
-                {
-                    Items = dtos,
-                    Total = totalCount,
-                    Page = pageNumber,
-                    Limit = pageSize,
-                    TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
-                };
-
-                return Ok(new { success = true, data = result });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Failed to retrieve documents", error = ex.Message });
-            }
-        }
-
         [HttpGet("public")]
-        public IActionResult GetPublicDocuments([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        public IActionResult GetPublicDocuments(
+            [FromQuery] string? query = null,
+            [FromQuery] int? categoryId = null,
+            [FromQuery] int? grade = null,
+            [FromQuery] string? subject = null,
+            [FromQuery] int? classId = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
         {
             try
             {
-                var (documents, totalCount) = _documentService.GetPublicDocuments(pageNumber, pageSize);
+                var (documents, totalCount) = _documentService.GetPublicDocuments(
+                    query, categoryId, grade, subject, classId, pageNumber, pageSize);
+
                 var dtos = documents.Select(d => d.ToListDto()).ToList();
 
                 var result = new StudyHub.Backend.UseCases.Dtos.PagedResult<DocumentListDto>
@@ -66,12 +53,22 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        [HttpGet("by-creator/{creatorId}")]
-        public IActionResult GetDocumentsByCreator(Guid creatorId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        [HttpGet("school/{schoolId}")]
+        public IActionResult GetSchoolDocuments(
+            int schoolId,
+            [FromQuery] string? query = null,
+            [FromQuery] int? categoryId = null,
+            [FromQuery] int? grade = null,
+            [FromQuery] string? subject = null,
+            [FromQuery] int? classId = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
         {
             try
             {
-                var (documents, totalCount) = _documentService.GetDocumentsByCreator(creatorId, pageNumber, pageSize);
+                var (documents, totalCount) = _documentService.GetSchoolDocuments(
+                    schoolId, query, categoryId, grade, subject, classId, pageNumber, pageSize);
+
                 var dtos = documents.Select(d => d.ToListDto()).ToList();
 
                 var result = new StudyHub.Backend.UseCases.Dtos.PagedResult<DocumentListDto>
@@ -87,16 +84,26 @@ namespace StudyHub.Backend.Api.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { success = false, message = "Failed to retrieve documents by creator", error = ex.Message });
+                return StatusCode(500, new { success = false, message = "Failed to retrieve school documents", error = ex.Message });
             }
         }
 
-        [HttpGet("by-school/{schoolId}")]
-        public IActionResult GetDocumentsBySchool(int schoolId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        [HttpGet("owned/{creatorId}")]
+        public IActionResult GetOwnedDocuments(
+            Guid creatorId,
+            [FromQuery] string? query = null,
+            [FromQuery] int? categoryId = null,
+            [FromQuery] int? grade = null,
+            [FromQuery] string? subject = null,
+            [FromQuery] int? classId = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
         {
             try
             {
-                var (documents, totalCount) = _documentService.GetDocumentsBySchool(schoolId, pageNumber, pageSize);
+                var (documents, totalCount) = _documentService.GetOwnedDocuments(
+                    creatorId, query, categoryId, grade, subject, classId, pageNumber, pageSize);
+
                 var dtos = documents.Select(d => d.ToListDto()).ToList();
 
                 var result = new StudyHub.Backend.UseCases.Dtos.PagedResult<DocumentListDto>
@@ -112,10 +119,84 @@ namespace StudyHub.Backend.Api.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { success = false, message = "Failed to retrieve documents by school", error = ex.Message });
+                return StatusCode(500, new { success = false, message = "Failed to retrieve owned documents", error = ex.Message });
             }
         }
-        [HttpGet("getbyid/{id:int}")]
+
+        [HttpGet("manager/public")]
+        public IActionResult GetManagerPublicDocuments(
+            [FromQuery] string? query = null,
+            [FromQuery] int? categoryId = null,
+            [FromQuery] int? grade = null,
+            [FromQuery] string? subject = null,
+            [FromQuery] int? classId = null,
+            [FromQuery] bool? isApproved = null,
+            [FromQuery] bool? status = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                var (documents, totalCount) = _documentService.GetManagerPublicDocuments(
+                    query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
+
+                var dtos = documents.Select(d => d.ToListDto()).ToList();
+
+                var result = new StudyHub.Backend.UseCases.Dtos.PagedResult<DocumentListDto>
+                {
+                    Items = dtos,
+                    Total = totalCount,
+                    Page = pageNumber,
+                    Limit = pageSize,
+                    TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+                };
+
+                return Ok(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Failed to retrieve manager public documents", error = ex.Message });
+            }
+        }
+
+        [HttpGet("manager/school/{schoolId}")]
+        public IActionResult GetManagerSchoolDocuments(
+            int schoolId,
+            [FromQuery] string? query = null,
+            [FromQuery] int? categoryId = null,
+            [FromQuery] int? grade = null,
+            [FromQuery] string? subject = null,
+            [FromQuery] int? classId = null,
+            [FromQuery] bool? isApproved = null,
+            [FromQuery] bool? status = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                var (documents, totalCount) = _documentService.GetManagerSchoolDocuments(
+                    schoolId, query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
+
+                var dtos = documents.Select(d => d.ToListDto()).ToList();
+
+                var result = new StudyHub.Backend.UseCases.Dtos.PagedResult<DocumentListDto>
+                {
+                    Items = dtos,
+                    Total = totalCount,
+                    Page = pageNumber,
+                    Limit = pageSize,
+                    TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+                };
+
+                return Ok(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Failed to retrieve manager school documents", error = ex.Message });
+            }
+        }
+
+        [HttpGet("{id:int}")]
         public IActionResult GetDocumentById(int id)
         {
             try
@@ -132,45 +213,6 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        [HttpPost("search")]
-        public IActionResult SearchDocuments([FromBody] DocumentFilterDto filter)
-        {
-            try
-            {
-                var (documents, totalCount) = _documentService.SearchDocuments(
-                    filter.Query,
-                    filter.CategoryId,
-                    filter.Grade,
-                    filter.SchoolId,
-                    filter.Subject,
-                    filter.UploaderId,
-                    filter.IsFeatured,
-                    filter.IsPendingApproval,
-                    filter.IncludeUnapproved,
-                    filter.PageNumber,
-                    filter.PageSize
-                );
-
-                var dtos = documents.Select(d => d.ToListDto()).ToList();
-                return Ok(new
-                {
-                    success = true,
-                    data = dtos,
-                    pagination = new
-                    {
-                        currentPage = filter.PageNumber,
-                        pageSize = filter.PageSize,
-                        totalCount,
-                        totalPages = (int)Math.Ceiling(totalCount / (double)filter.PageSize)
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Failed to search documents", error = ex.Message });
-            }
-        }
-
         [HttpPost("create")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreateDocument([FromForm] CreateDocumentDto dto)
@@ -181,6 +223,8 @@ namespace StudyHub.Backend.Api.Controllers
                     return BadRequest(new { success = false, message = "Invalid data", errors = ModelState });
 
                 var document = dto.ToEntity();
+                document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList() ?? new List<Domain.Entities.Class>();
+
                 var createdDocument = await _documentService.CreateDocumentAsync(
                     document, dto.DocumentFile, dto.ThumbnailFile);
 
@@ -199,7 +243,7 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        [HttpPut("edit/{id:int}")]
+        [HttpPut("{id:int}")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateDocument(int id, [FromForm] UpdateDocumentDto dto)
         {
@@ -212,6 +256,8 @@ namespace StudyHub.Backend.Api.Controllers
                     return BadRequest(new { success = false, message = "Invalid data", errors = ModelState });
 
                 var document = dto.ToEntity();
+                document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList() ?? new List<Domain.Entities.Class>();
+
                 var updatedDocument = await _documentService.UpdateDocumentAsync(
                     document, dto.DocumentFile, dto.ThumbnailFile);
 
@@ -231,7 +277,7 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        [HttpDelete("delete/{id:int}")]
+        [HttpDelete("{id:int}")]
         public IActionResult DeleteDocument(int id)
         {
             try
@@ -301,6 +347,24 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
+        [HttpPost("revoke")]
+        public IActionResult RevokeApproval([FromBody] ApprovalDto dto)
+        {
+            try
+            {
+                var document = _documentService.RevokeApproval(dto.DocumentId, dto.ApprovedBy);
+                return Ok(new { success = true, message = "Document approval revoked successfully", data = document.ToDetailDto() });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Failed to revoke approval", error = ex.Message });
+            }
+        }
+
         [HttpPost("toggle-featured")]
         public IActionResult ToggleFeatured([FromBody] ToggleFeaturedDto dto)
         {
@@ -360,20 +424,6 @@ namespace StudyHub.Backend.Api.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { success = false, message = "Failed to preview document", error = ex.Message });
-            }
-        }
-        [HttpGet("by-subject/{subjectId:int}")]
-        public IActionResult GetDocumentsBySubject(int subjectId)
-        {
-            try
-            {
-                var documents = _documentService.GetDocumentsBySubject(subjectId);
-                var dtos = documents.Select(d => d.ToListDto()).ToList();
-                return Ok(new { success = true, data = dtos });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Failed to retrieve documents by subject", error = ex.Message });
             }
         }
     }

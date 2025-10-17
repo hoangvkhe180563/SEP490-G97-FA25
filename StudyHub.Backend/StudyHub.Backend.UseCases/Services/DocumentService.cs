@@ -23,23 +23,71 @@ namespace StudyHub.Backend.UseCases.Services
 
         public Document? GetDocumentById(int id) => _repo.GetDocumentById(id);
 
-        public (List<Document> documents, int totalCount) SearchDocuments(
+        public (List<Document> documents, int totalCount) GetPublicDocuments(
             string? query = null,
             int? categoryId = null,
             int? grade = null,
-            int? schoolId = null,
             string? subject = null,
-            string? uploaderId = null,
-            bool? isFeatured = null,
-            bool? isPendingApproval = null,
-            bool includeUnapproved = false,
+            int? classId = null,
             int pageNumber = 1,
             int pageSize = 10)
         {
-            return _repo.SearchDocuments(
-                query, categoryId, grade, schoolId, subject,
-                uploaderId, isFeatured, isPendingApproval,
-                includeUnapproved, pageNumber, pageSize);
+            return _repo.GetPublicDocuments(query, categoryId, grade, subject, classId, pageNumber, pageSize);
+        }
+
+        public (List<Document> documents, int totalCount) GetSchoolDocuments(
+            int schoolId,
+            string? query = null,
+            int? categoryId = null,
+            int? grade = null,
+            string? subject = null,
+            int? classId = null,
+            int pageNumber = 1,
+            int pageSize = 10)
+        {
+            return _repo.GetSchoolDocuments(schoolId, query, categoryId, grade, subject, classId, pageNumber, pageSize);
+        }
+
+        public (List<Document> documents, int totalCount) GetOwnedDocuments(
+            Guid creatorId,
+            string? query = null,
+            int? categoryId = null,
+            int? grade = null,
+            string? subject = null,
+            int? classId = null,
+            int pageNumber = 1,
+            int pageSize = 10)
+        {
+            return _repo.GetOwnedDocuments(creatorId, query, categoryId, grade, subject, classId, pageNumber, pageSize);
+        }
+
+        public (List<Document> documents, int totalCount) GetManagerPublicDocuments(
+            string? query = null,
+            int? categoryId = null,
+            int? grade = null,
+            string? subject = null,
+            int? classId = null,
+            bool? isApproved = null,
+            bool? status = null,
+            int pageNumber = 1,
+            int pageSize = 10)
+        {
+            return _repo.GetManagerPublicDocuments(query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
+        }
+
+        public (List<Document> documents, int totalCount) GetManagerSchoolDocuments(
+            int schoolId,
+            string? query = null,
+            int? categoryId = null,
+            int? grade = null,
+            string? subject = null,
+            int? classId = null,
+            bool? isApproved = null,
+            bool? status = null,
+            int pageNumber = 1,
+            int pageSize = 10)
+        {
+            return _repo.GetManagerSchoolDocuments(schoolId, query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
         }
 
         public async Task<Document> CreateDocumentAsync(
@@ -64,16 +112,18 @@ namespace StudyHub.Backend.UseCases.Services
             if (document.CreatedBy == Guid.Empty)
                 throw new ArgumentException("Valid CreatedBy is required");
 
-            if (document.SchoolId.HasValue && !document.ClassId.HasValue)
-                throw new ArgumentException("If SchoolId is provided, ClassId must also be provided (database constraint)");
+            if (document.IsInClass && document.SchoolId == null)
+                throw new ArgumentException("If IsInClass is true, SchoolId must be provided");
 
             document.DocumentUrl = await _fileStorage.UploadFileAsync(documentFile, FileConstants.DocumentUploadPath);
 
             if (thumbnailFile != null)
                 document.Thumbnail = await _fileStorage.UploadFileAsync(thumbnailFile, FileConstants.ThumbnailUploadPath);
 
-            if (!document.SchoolId.HasValue && !document.ClassId.HasValue)
-                document.IsApproved = false;
+            if (document.IsInClass)
+                document.IsApproved = null;
+            else if (document.SchoolId == null)
+                document.IsApproved = null;
             else
                 document.IsApproved = null;
 
@@ -91,8 +141,11 @@ namespace StudyHub.Backend.UseCases.Services
             var existingDocument = _repo.GetDocumentById(document.Id)
                 ?? throw new InvalidOperationException($"Document with ID {document.Id} not found");
 
-            if (document.SchoolId.HasValue && !document.ClassId.HasValue)
-                throw new ArgumentException("If SchoolId is provided, ClassId must also be provided (database constraint)");
+            if (existingDocument.IsApproved == true && !existingDocument.IsInClass)
+                throw new InvalidOperationException("Cannot edit approved documents. Please revoke approval first.");
+
+            if (document.IsInClass && document.SchoolId == null)
+                throw new ArgumentException("If IsInClass is true, SchoolId must be provided");
 
             if (documentFile != null)
             {
@@ -117,6 +170,7 @@ namespace StudyHub.Backend.UseCases.Services
                 document.Thumbnail = existingDocument.Thumbnail;
             }
 
+            document.IsApproved = existingDocument.IsApproved;
             document.UpdatedAt = DateTime.Now;
 
             return _repo.UpdateDocument(document);
@@ -153,18 +207,10 @@ namespace StudyHub.Backend.UseCases.Services
             var document = _repo.GetDocumentById(id)
                 ?? throw new InvalidOperationException($"Document with ID {id} not found");
 
-            if (document.ClassId.HasValue)
+            if (document.IsInClass)
                 throw new InvalidOperationException("Class documents do not require approval");
 
-            if (!document.SchoolId.HasValue && !document.ClassId.HasValue)
-            {
-                document.IsApproved = true;
-            }
-            else if (document.SchoolId.HasValue)
-            {
-                document.IsApproved = true;
-            }
-
+            document.IsApproved = true;
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = approvedBy;
 
@@ -176,12 +222,30 @@ namespace StudyHub.Backend.UseCases.Services
             var document = _repo.GetDocumentById(id)
                 ?? throw new InvalidOperationException($"Document with ID {id} not found");
 
-            if (document.ClassId.HasValue)
+            if (document.IsInClass)
                 throw new InvalidOperationException("Class documents do not require approval");
 
             document.IsApproved = false;
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = rejectedBy;
+
+            return _repo.UpdateDocument(document);
+        }
+
+        public Document RevokeApproval(int id, Guid updatedBy)
+        {
+            var document = _repo.GetDocumentById(id)
+                ?? throw new InvalidOperationException($"Document with ID {id} not found");
+
+            if (document.IsInClass)
+                throw new InvalidOperationException("Class documents do not have approval status");
+
+            if (document.IsApproved != true)
+                throw new InvalidOperationException("Only approved documents can be revoked");
+
+            document.IsApproved = null;
+            document.UpdatedAt = DateTime.Now;
+            document.UpdatedBy = updatedBy;
 
             return _repo.UpdateDocument(document);
         }
@@ -229,18 +293,7 @@ namespace StudyHub.Backend.UseCases.Services
             if (string.IsNullOrEmpty(document.DocumentUrl))
                 throw new InvalidOperationException("Document URL is not available");
 
-            byte[] fileBytes;
-
-            if (document.DocumentUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                document.DocumentUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            {
-                using var httpClient = new HttpClient();
-                fileBytes = await httpClient.GetByteArrayAsync(document.DocumentUrl);
-            }
-            else
-            {
-                fileBytes = await _fileStorage.ReadFileAsync(document.DocumentUrl);
-            }
+            byte[] fileBytes = await _fileStorage.ReadFileAsync(document.DocumentUrl);
 
             var contentType = GetContentType(document.DocumentUrl);
             var fileName = document.Name + Path.GetExtension(document.DocumentUrl);
@@ -268,28 +321,6 @@ namespace StudyHub.Backend.UseCases.Services
                 ".rar" => "application/x-rar-compressed",
                 _ => "application/octet-stream"
             };
-        }
-        public (List<Document> documents, int totalCount) GetAllDocuments(int pageNumber = 1, int pageSize = 10)
-        {
-            return _repo.GetAllDocuments(pageNumber, pageSize);
-        }
-
-        public (List<Document> documents, int totalCount) GetPublicDocuments(int pageNumber = 1, int pageSize = 10)
-        {
-            return _repo.GetPublicDocuments(pageNumber, pageSize);
-        }
-
-        public (List<Document> documents, int totalCount) GetDocumentsByCreator(Guid creatorId, int pageNumber = 1, int pageSize = 10)
-        {
-            return _repo.GetDocumentsByCreator(creatorId, pageNumber, pageSize);
-        }
-        public List<Document> GetDocumentsBySubject(int subjectId)
-        {
-            return _repo.GetDocumentsBySubject(subjectId);
-        }
-        public (List<Document> documents, int totalCount) GetDocumentsBySchool(int schoolId, int pageNumber = 1, int pageSize = 10)
-        {
-            return _repo.GetDocumentsBySchool(schoolId, pageNumber, pageSize);
         }
     }
 }

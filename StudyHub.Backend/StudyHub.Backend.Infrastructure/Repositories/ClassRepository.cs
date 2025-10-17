@@ -90,7 +90,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Username = infraUser.Username,
                     Fullname = infraUser.Fullname,
                     Dob = infraUser.Dob,
-                    Gender = infraUser.Gender,
+                    Gender = (bool)infraUser.Gender,
                     SchoolId = infraUser.SchoolId,
                     Address = infraUser.Address,
                     CommuneId = infraUser.CommuneId,

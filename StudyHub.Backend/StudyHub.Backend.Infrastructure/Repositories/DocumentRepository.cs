@@ -2,6 +2,7 @@
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories;
+using System.Linq;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
@@ -22,6 +23,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.Subject)
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
+                    .Include(d => d.Classes)
+                    //.Include(d => d.Username)
                     .FirstOrDefault(d => d.Id == id && d.DeletedAt == null);
 
                 return d == null ? null : MapToEntity(d);
@@ -33,62 +36,34 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
-        public (List<Document> documents, int totalCount) SearchDocuments(
+        public (List<Document> documents, int totalCount) GetPublicDocuments(
             string? query = null,
             int? categoryId = null,
             int? grade = null,
-            int? schoolId = null,
             string? subject = null,
-            string? uploaderId = null,
-            bool? isFeatured = null,
-            bool? isPendingApproval = null,
-            bool includeUnapproved = false,
+            int? classId = null,
             int? pageNumber = null,
             int? pageSize = null)
         {
             try
             {
-                var dbQuery = _context.Documents
+                IQueryable<Data.Document> dbQuery = _context.Documents
                     .Include(d => d.Subject)
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
-                    .Where(d => d.DeletedAt == null);
+                    .Include(d => d.Classes)
+                    //.Include(d => d.Username)
+                    .Where(d => d.DeletedAt == null &&
+                               d.SchoolId == null &&
+                               d.IsApproved == true &&
+                               d.Status == true);
 
-                if (!includeUnapproved)
-                {
-                    dbQuery = dbQuery.Where(d => d.IsApproved == true );
-                }
-
-                if (!string.IsNullOrWhiteSpace(query))
-                {
-                    dbQuery = dbQuery.Where(d =>
-                        d.Name.Contains(query) ||
-                        d.Description.Contains(query) ||
-                        _context.AppUsers.Any(u => u.Id == d.CreatedBy && u.Username.Contains(query)));
-                }
-
-                if (categoryId.HasValue)
-                    dbQuery = dbQuery.Where(d => d.DocumentCategoryId == categoryId.Value);
-
-                if (grade.HasValue)
-                    dbQuery = dbQuery.Where(d => d.Grade == grade);
-
-                if (schoolId.HasValue)
-                    dbQuery = dbQuery.Where(d => d.SchoolId == schoolId.Value);
-
-                if (!string.IsNullOrEmpty(subject))
-                    dbQuery = dbQuery.Where(d => d.Subject.Name.Contains(subject));
-
-                if (!string.IsNullOrEmpty(uploaderId) && Guid.TryParse(uploaderId, out var userGuid))
-                    dbQuery = dbQuery.Where(d => d.CreatedBy == userGuid);
-
-                if (isFeatured.HasValue)
-                    dbQuery = dbQuery.Where(d => d.IsFeatured == isFeatured.Value);
-
-                if (isPendingApproval.HasValue && isPendingApproval.Value)
-                    dbQuery = dbQuery.Where(d => d.IsApproved == null);
+                dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId);
 
                 var totalCount = dbQuery.Count();
+
+                dbQuery = dbQuery.OrderByDescending(d => d.IsFeatured)
+                                .ThenByDescending(d => d.CreatedAt);
 
                 if (pageNumber.HasValue && pageSize.HasValue)
                 {
@@ -98,14 +73,233 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 }
 
                 var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
-
                 return (documents, totalCount);
             }
             catch (Exception ex)
             {
-                new InfrastructureException("DocumentRepository", "SearchDocuments failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("DocumentRepository", "GetPublicDocuments failed. Inner error: " + ex.Message).LogError();
                 return (new List<Document>(), 0);
             }
+        }
+
+        public (List<Document> documents, int totalCount) GetSchoolDocuments(
+            int schoolId,
+            string? query = null,
+            int? categoryId = null,
+            int? grade = null,
+            string? subject = null,
+            int? classId = null,
+            int? pageNumber = null,
+            int? pageSize = null)
+        {
+            try
+            {
+                IQueryable<Data.Document> dbQuery = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Include(d => d.Classes)
+                    //.Include(d => d.Username)
+                    .Where(d => d.DeletedAt == null &&
+                               d.Status == true &&
+                               ((d.SchoolId == null && d.IsApproved == true) ||
+                                (d.SchoolId == schoolId && d.IsApproved == true)));
+
+                dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId);
+
+                var totalCount = dbQuery.Count();
+
+                dbQuery = dbQuery.OrderByDescending(d => d.IsFeatured)
+                                .ThenByDescending(d => d.CreatedAt);
+
+                if (pageNumber.HasValue && pageSize.HasValue)
+                {
+                    dbQuery = dbQuery
+                        .Skip((pageNumber.Value - 1) * pageSize.Value)
+                        .Take(pageSize.Value);
+                }
+
+                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
+                return (documents, totalCount);
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetSchoolDocuments failed. Inner error: " + ex.Message).LogError();
+                return (new List<Document>(), 0);
+            }
+        }
+
+        public (List<Document> documents, int totalCount) GetOwnedDocuments(
+            Guid creatorId,
+            string? query = null,
+            int? categoryId = null,
+            int? grade = null,
+            string? subject = null,
+            int? classId = null,
+            int? pageNumber = null,
+            int? pageSize = null)
+        {
+            try
+            {
+                IQueryable<Data.Document> dbQuery = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Include(d => d.Classes)
+                    //.Include(d => d.Username)
+                    .Where(d => d.DeletedAt == null && d.CreatedBy == creatorId);
+
+                dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId);
+
+                var totalCount = dbQuery.Count();
+
+                dbQuery = dbQuery.OrderByDescending(d => d.CreatedAt);
+
+                if (pageNumber.HasValue && pageSize.HasValue)
+                {
+                    dbQuery = dbQuery
+                        .Skip((pageNumber.Value - 1) * pageSize.Value)
+                        .Take(pageSize.Value);
+                }
+
+                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
+                return (documents, totalCount);
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetOwnedDocuments failed. Inner error: " + ex.Message).LogError();
+                return (new List<Document>(), 0);
+            }
+        }
+
+        public (List<Document> documents, int totalCount) GetManagerPublicDocuments(
+            string? query = null,
+            int? categoryId = null,
+            int? grade = null,
+            string? subject = null,
+            int? classId = null,
+            bool? isApproved = null,
+            bool? status = null,
+            int? pageNumber = null,
+            int? pageSize = null)
+        {
+            try
+            {
+                IQueryable<Data.Document> dbQuery = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Include(d => d.Classes)
+                    //.Include(d => d.Username)
+                    .Where(d => d.DeletedAt == null && d.SchoolId == null);
+
+                dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId, isApproved, status);
+
+                var totalCount = dbQuery.Count();
+
+                dbQuery = dbQuery.OrderByDescending(d => d.CreatedAt);
+
+                if (pageNumber.HasValue && pageSize.HasValue)
+                {
+                    dbQuery = dbQuery
+                        .Skip((pageNumber.Value - 1) * pageSize.Value)
+                        .Take(pageSize.Value);
+                }
+
+                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
+                return (documents, totalCount);
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetManagerPublicDocuments failed. Inner error: " + ex.Message).LogError();
+                return (new List<Document>(), 0);
+            }
+        }
+
+        public (List<Document> documents, int totalCount) GetManagerSchoolDocuments(
+            int schoolId,
+            string? query = null,
+            int? categoryId = null,
+            int? grade = null,
+            string? subject = null,
+            int? classId = null,
+            bool? isApproved = null,
+            bool? status = null,
+            int? pageNumber = null,
+            int? pageSize = null)
+        {
+            try
+            {
+                IQueryable<Data.Document> dbQuery = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Include(d => d.Classes)
+                    //.Include(d => d.Username)
+                    .Where(d => d.DeletedAt == null &&
+                               d.SchoolId == schoolId &&
+                               !d.IsInClass);
+
+                dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId, isApproved, status);
+
+                var totalCount = dbQuery.Count();
+
+                dbQuery = dbQuery.OrderByDescending(d => d.CreatedAt);
+
+                if (pageNumber.HasValue && pageSize.HasValue)
+                {
+                    dbQuery = dbQuery
+                        .Skip((pageNumber.Value - 1) * pageSize.Value)
+                        .Take(pageSize.Value);
+                }
+
+                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
+                return (documents, totalCount);
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetManagerSchoolDocuments failed. Inner error: " + ex.Message).LogError();
+                return (new List<Document>(), 0);
+            }
+        }
+
+        private IQueryable<Data.Document> ApplyFilters(
+            IQueryable<Data.Document> query,
+            string? searchQuery = null,
+            int? categoryId = null,
+            int? grade = null,
+            string? subject = null,
+            int? classId = null,
+            bool? isApproved = null,
+            bool? status = null)
+        {
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                query = query.Where(d =>
+                    d.Name.Contains(searchQuery) ||
+                    (d.Description != null && d.Description.Contains(searchQuery)) ||
+                    _context.AppUsers.Any(u => u.Id == d.CreatedBy && u.Username.Contains(searchQuery)));
+            }
+
+            if (categoryId.HasValue)
+                query = query.Where(d => d.DocumentCategoryId == categoryId.Value);
+
+            if (grade.HasValue)
+                query = query.Where(d => d.Grade == grade);
+
+            if (!string.IsNullOrEmpty(subject))
+                query = query.Where(d => d.Subject.Name.Contains(subject));
+
+            if (classId.HasValue)
+                query = query.Where(d => d.Classes.Any(c => c.Id == classId.Value));
+
+            if (isApproved.HasValue)
+                query = query.Where(d => d.IsApproved == isApproved.Value);
+
+            if (status.HasValue)
+                query = query.Where(d => d.Status == status.Value);
+
+            return query;
         }
 
         public Document CreateDocument(Document doc)
@@ -122,6 +316,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Thumbnail = doc.Thumbnail,
                     Description = doc.Description,
                     SchoolId = doc.SchoolId,
+                    IsInClass = doc.IsInClass,
                     IsFeatured = doc.IsFeatured,
                     IsApproved = doc.IsApproved,
                     Status = doc.Status,
@@ -131,21 +326,23 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 _context.Documents.Add(entity);
                 _context.SaveChanges();
+
+                if (doc.Classes != null && doc.Classes.Any())
+                {
+                    foreach (var classItem in doc.Classes)
+                    {
+                        _context.Database.ExecuteSqlRaw(
+                            "INSERT INTO Document_Classes (DocumentId, ClassId) VALUES ({0}, {1})",
+                            entity.Id, classItem.Id);
+                    }
+                }
+
                 doc.Id = entity.Id;
                 return doc;
             }
             catch (DbUpdateException ex)
             {
                 var innerMessage = ex.InnerException?.Message ?? ex.Message;
-                Console.WriteLine($"CreateDocument DbUpdateException: {innerMessage}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
-                new InfrastructureException("DocumentRepository", $"CreateDocument failed. Error: {innerMessage}").LogError();
-                throw new InvalidOperationException($"Failed to create document: {innerMessage}", ex);
-            }
-            catch (Exception ex)
-            {
-                var innerMessage = ex.InnerException?.Message ?? ex.Message;
-                Console.WriteLine($"CreateDocument Exception: {innerMessage}");
                 new InfrastructureException("DocumentRepository", $"CreateDocument failed. Error: {innerMessage}").LogError();
                 throw new InvalidOperationException($"Failed to create document: {innerMessage}", ex);
             }
@@ -166,12 +363,26 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.Thumbnail = doc.Thumbnail;
                 entity.Description = doc.Description;
                 entity.SchoolId = doc.SchoolId;
+                entity.IsInClass = doc.IsInClass;
                 entity.IsFeatured = doc.IsFeatured;
                 entity.IsApproved = doc.IsApproved;
                 entity.Status = doc.Status;
                 entity.UpdatedAt = doc.UpdatedAt;
                 entity.UpdatedBy = doc.UpdatedBy;
                 entity.DeletedAt = doc.DeletedAt;
+
+                _context.Database.ExecuteSqlRaw(
+                    "DELETE FROM Document_Classes WHERE DocumentId = {0}", doc.Id);
+
+                if (doc.Classes != null && doc.Classes.Any())
+                {
+                    foreach (var classItem in doc.Classes)
+                    {
+                        _context.Database.ExecuteSqlRaw(
+                            "INSERT INTO Document_Classes (DocumentId, ClassId) VALUES ({0}, {1})",
+                            doc.Id, classItem.Id);
+                    }
+                }
 
                 _context.SaveChanges();
                 return doc;
@@ -189,6 +400,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 var entity = _context.Documents.Find(id);
                 if (entity == null) return false;
+
+                _context.Database.ExecuteSqlRaw(
+                    "DELETE FROM Document_Classes WHERE DocumentId = {0}", id);
 
                 _context.Documents.Remove(entity);
                 _context.SaveChanges();
@@ -214,9 +428,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Thumbnail = d.Thumbnail,
                 Description = d.Description,
                 SchoolId = d.SchoolId,
+                IsInClass = d.IsInClass,
                 IsFeatured = d.IsFeatured,
                 IsApproved = d.IsApproved,
-                Status = d.Status ?? false,
+                Status = d.Status,
                 CreatedAt = d.CreatedAt,
                 CreatedBy = d.CreatedBy,
                 UpdatedAt = d.UpdatedAt,
@@ -224,153 +439,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 DeletedAt = d.DeletedAt,
                 Subject = d.Subject != null ? new Subject { Id = d.Subject.Id, Name = d.Subject.Name } : null,
                 DocumentCategory = d.DocumentCategory != null ? new DocumentCategory { Id = d.DocumentCategory.Id, Name = d.DocumentCategory.Name, Description = d.DocumentCategory.Description } : null,
-                School = d.School != null ? new School { Id = d.School.Id, Name = d.School.Name } : null
+                School = d.School != null ? new School { Id = d.School.Id, Name = d.School.Name } : null,
+                //Username = d.Username != null ? new AppUser { Id = d.Username.Id, Username = d.Username.Username, Avatar = d.Username.Avatar } : null,
+                Classes = d.Classes?.Select(c => new Class { Id = c.Id, Name = c.Name }).ToList() ?? new List<Class>()
             };
         }
-        public (List<Document> documents, int totalCount) GetAllDocuments(int? pageNumber = null, int? pageSize = null)
-        {
-            try
-            {
-                IQueryable<Data.Document> dbQuery = _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.School)
-                    .Where(d => d.DeletedAt == null)
-                    .OrderByDescending(d => d.CreatedAt);
-
-                var totalCount = dbQuery.Count();
-
-                if (pageNumber.HasValue && pageSize.HasValue)
-                {
-                    dbQuery = dbQuery
-                        .Skip((pageNumber.Value - 1) * pageSize.Value)
-                        .Take(pageSize.Value);
-                }
-
-                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
-                return (documents, totalCount);
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetAllDocuments failed. Inner error: " + ex.Message).LogError();
-                return (new List<Document>(), 0);
-            }
-        }
-
-        public (List<Document> documents, int totalCount) GetPublicDocuments(int? pageNumber = null, int? pageSize = null)
-        {
-            try
-            {
-                IQueryable<Data.Document> dbQuery = _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.School)
-                    .Where(d => d.DeletedAt == null && d.SchoolId == null)
-                    .OrderByDescending(d => d.CreatedAt);
-
-                var totalCount = dbQuery.Count();
-
-                if (pageNumber.HasValue && pageSize.HasValue)
-                {
-                    dbQuery = dbQuery
-                        .Skip((pageNumber.Value - 1) * pageSize.Value)
-                        .Take(pageSize.Value);
-                }
-
-                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
-                return (documents, totalCount);
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetPublicDocuments failed. Inner error: " + ex.Message).LogError();
-                return (new List<Document>(), 0);
-            }
-        }
-
-        public (List<Document> documents, int totalCount) GetDocumentsByCreator(Guid creatorId, int? pageNumber = null, int? pageSize = null)
-        {
-            try
-            {
-                IQueryable<Data.Document> dbQuery = _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.School)
-                    .Where(d => d.DeletedAt == null && d.CreatedBy == creatorId)
-                    .OrderByDescending(d => d.CreatedAt);
-
-                var totalCount = dbQuery.Count();
-
-                if (pageNumber.HasValue && pageSize.HasValue)
-                {
-                    dbQuery = dbQuery
-                        .Skip((pageNumber.Value - 1) * pageSize.Value)
-                        .Take(pageSize.Value);
-                }
-
-                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
-                return (documents, totalCount);
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetDocumentsByCreator failed. Inner error: " + ex.Message).LogError();
-                return (new List<Document>(), 0);
-            }
-        }
-
-        public (List<Document> documents, int totalCount) GetDocumentsBySchool(int schoolId, int? pageNumber = null, int? pageSize = null)
-        {
-            try
-            {
-                IQueryable<Data.Document> dbQuery = _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.School)
-                    .Where(d => d.DeletedAt == null &&
-                               (d.SchoolId == schoolId || (d.SchoolId == null )))
-                    .OrderByDescending(d => d.CreatedAt);
-
-                var totalCount = dbQuery.Count();
-
-                if (pageNumber.HasValue && pageSize.HasValue)
-                {
-                    dbQuery = dbQuery
-                        .Skip((pageNumber.Value - 1) * pageSize.Value)
-                        .Take(pageSize.Value);
-                }
-
-                var documents = dbQuery.Select(d => MapToEntity(d)).ToList();
-                return (documents, totalCount);
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetDocumentsBySchool failed. Inner error: " + ex.Message).LogError();
-                return (new List<Document>(), 0);
-            }
-        }
-        public List<Document> GetDocumentsBySubject(int subjectId)
-        {
-            try
-            {
-                var documents = _context.Documents
-                    .Include(d => d.Subject)
-                    .Include(d => d.DocumentCategory)
-                    .Include(d => d.School)
-                    .Where(d => d.SubjectId == subjectId
-                             && d.IsApproved == true
-                             && d.Status == true
-                             && d.DeletedAt == null)
-                    .OrderByDescending(d => d.CreatedAt)
-                    .Select(d => MapToEntity(d))
-                    .ToList();
-
-                return documents;
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("DocumentRepository", "GetDocumentsBySubject failed. Inner error: " + ex.Message).LogError();
-                return new List<Document>();
-            }
-        }
-
     }
 }

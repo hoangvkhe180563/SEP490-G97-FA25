@@ -1,5 +1,7 @@
 ﻿using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Api.Dtos;
+using StudyHub.Backend.Api.Dtos.ClassDTOS;
+using System.Linq;
 
 namespace StudyHub.Backend.Api.Mappers
 {
@@ -19,12 +21,19 @@ namespace StudyHub.Backend.Api.Mappers
             CategoryName = d.DocumentCategory?.Name,
             SchoolId = d.SchoolId,
             SchoolName = d.School?.Name,
-            ClassId = d.ClassId,
+            IsInClass = d.IsInClass,
             CreatedAt = d.CreatedAt,
             IsFeatured = d.IsFeatured,
             IsApproved = d.IsApproved,
-            Status = d.Status,
-            FileType = GetFileType(d.DocumentUrl)
+            Status = d.Status ?? true,
+            FileType = GetFileType(d.DocumentUrl),
+            UploaderName = d.Username?.Username,
+            //UploaderUrl = d.Username?.Avatar,
+            classes = d.Classes?.Select(c => new ClassListDto
+            {
+                Id = c.Id,
+                Name = c.Name
+            }).ToList() ?? new List<ClassListDto>()
         };
 
         public static DocumentDetailDto ToDetailDto(this Document d) => new DocumentDetailDto
@@ -40,7 +49,7 @@ namespace StudyHub.Backend.Api.Mappers
             CategoryName = d.DocumentCategory?.Name,
             SchoolId = d.SchoolId,
             SchoolName = d.School?.Name,
-            ClassId = d.ClassId,
+            IsInClass = d.IsInClass,
             Description = d.Description,
             CreatedAt = d.CreatedAt,
             CreatedBy = d.CreatedBy,
@@ -48,9 +57,13 @@ namespace StudyHub.Backend.Api.Mappers
             UpdatedBy = d.UpdatedBy,
             IsFeatured = d.IsFeatured,
             IsApproved = d.IsApproved,
-            Status = d.Status,
-            FileType = GetFileType(d.DocumentUrl)
-
+            Status = d.Status ?? true,
+            FileType = GetFileType(d.DocumentUrl),
+            classes = d.Classes?.Select(c => new ClassListDto
+            {
+                Id = c.Id,
+                Name = c.Name
+            }).ToList() ?? new List<ClassListDto>()
         };
 
         public static Document ToEntity(this CreateDocumentDto dto) => new Document
@@ -61,7 +74,7 @@ namespace StudyHub.Backend.Api.Mappers
             DocumentCategoryId = dto.DocumentCategoryId,
             Description = dto.Description,
             SchoolId = dto.SchoolId,
-            ClassId = dto.ClassId,
+            IsInClass = dto.IsInClass ?? false,
             IsFeatured = dto.IsFeatured,
             CreatedBy = dto.CreatedBy
         };
@@ -75,7 +88,7 @@ namespace StudyHub.Backend.Api.Mappers
             DocumentCategoryId = dto.DocumentCategoryId,
             Description = dto.Description,
             SchoolId = dto.SchoolId,
-            ClassId = dto.ClassId,
+            IsInClass = dto.IsInClass ?? false,
             IsFeatured = dto.IsFeatured,
             UpdatedBy = dto.UpdatedBy
         };
@@ -84,7 +97,6 @@ namespace StudyHub.Backend.Api.Mappers
         {
             if (string.IsNullOrEmpty(documentUrl))
                 return null;
-
             var extension = System.IO.Path.GetExtension(documentUrl).ToLowerInvariant();
             return extension.TrimStart('.');
         }
