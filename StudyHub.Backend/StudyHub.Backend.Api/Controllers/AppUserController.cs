@@ -1,7 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos;
+using StudyHub.Backend.Api.Dtos.AppUserDTOS;
+using StudyHub.Backend.Api.Dtos.AuthDTOS;
 using StudyHub.Backend.Domain.Entities;
+using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.UseCases.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -18,37 +22,55 @@ namespace StudyHub.Backend.Api.Controllers
             _configuration = configuration;
         }
 
+        [Authorize(Roles = "Student")]
         [HttpGet]
-        public IActionResult Get([FromQuery] string? status, [FromQuery] string? role, [FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int limit = 10)
+        public IActionResult Get([FromQuery] string? status, [FromQuery] string? role, [FromQuery] string? search, [FromQuery] int page, [FromQuery] int limit)
         {
-            var result = _userService.GetAppUsers(status, role, search, page, limit);
-            var response = new
+            try
             {
-                success = true,
-                users = result.Items,
-                meta = new
+                var result = _userService.GetAppUsers(status, role, search, page, limit);
+                var response = new
                 {
-                    total = result.Total,
-                    page = result.Page,
-                    limit = result.Limit,
-                    totalPages = result.TotalPages
-                }
-            };
-            return Ok(response);
+                    Success = "true",
+                    Data = result.Items,
+                    Meta = new
+                    {
+                        page,
+                        limit,
+                        total = result.Total,
+                        totalPages = result.TotalPages
+                    }
+                };
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = "false", Message = "Tải dữ liệu người dùng không thành công", Error = ex.Message });
+            }
         }
 
         // Admin: get account detail
         [HttpGet("{id}")]
         public IActionResult GetById(Guid id)
         {
-            var user = _userService.GetUserById(id);
-            if (user == null) return NotFound();
-            var response = new
+            try
             {
-                success = true,
-                user,
-            };
-            return Ok(response);
+                var user = _userService.GetUserById(id);
+                if (user == null) return NotFound(new { Success = "false", Message = "Người dùng không tìm thấy" });
+
+                // load roles and names for mapping
+                var roles = _userService._userRepository.GetRolesForUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+                var schoolName = _userService._userRepository.GetSchoolName(user.SchoolId);
+                var communeName = _userService._userRepository.GetCommuneName(user.CommuneId);
+                var (provinceName, cityName) = _userService._userRepository.GetProvinceAndCityNamesByCommuneId(user.CommuneId);
+
+                var dto = AppUserMapper.ToAppUserDetail(user, roles, schoolName, communeName, cityName, provinceName);
+                return Ok(new { Success = "true", Data = dto });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = "false", Message = "Tải dữ liệu người dùng không thành công", Error = ex.Message });
+            }
         }
 
         // Admin: create account
@@ -57,12 +79,24 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var user = _userService.CreateAccount(req.Email, req.Password, req.Username, req.RoleId, req.CommuneId, req.Fullname);
-                return Ok(user);
+                var user = _userService.CreateAccount(req.Email, req.Password, req.Username, req.RoleIds, req.CommuneId, req.Fullname, req.Avatar, req.Gender);
+
+                // map to dto
+                var roles = _userService._userRepository.GetRolesForUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+                var schoolName = _userService._userRepository.GetSchoolName(user.SchoolId);
+                var communeName = _userService._userRepository.GetCommuneName(user.CommuneId);
+                var (provinceNameCreate, cityNameCreate) = _userService._userRepository.GetProvinceAndCityNamesByCommuneId(user.CommuneId);
+                var dto = AppUserMapper.ToAppUserDetail(user, roles, schoolName, communeName, cityNameCreate, provinceNameCreate);
+
+                return Ok(new { Success = "true", Data = dto });
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { error = ex.Message });
+                return BadRequest(new { Success = "false", Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = "false", Message = "Tải dữ liệu người dùng không thành công", Error = ex.Message });
             }
         }
 
@@ -70,97 +104,55 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpPut("{id}")]
         public IActionResult Edit(Guid id, [FromBody] EditAccountRequest req)
         {
-            var user = _userService.EditAccount(id, req.Email, req.Username, req.Fullname, req.CommuneId, req.Status);
-            if (user == null) return NotFound();
-            return Ok(user);
+            try
+            {
+                var user = _userService.EditAccount(id, req.Email, req.Username, req.Fullname, req.CommuneId, req.Status, req.Avatar, req.Gender, req.RoleIds);
+                if (user == null) return NotFound(new { Success = "false", Message = "Người dùng không tìm thấy" });
+
+                var roles = _userService._userRepository.GetRolesForUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+                var schoolName = _userService._userRepository.GetSchoolName(user.SchoolId);
+                var communeName = _userService._userRepository.GetCommuneName(user.CommuneId);
+                (string? provinceNameEdit, string? cityNameEdit) = _userService._userRepository.GetProvinceAndCityNamesByCommuneId(user.CommuneId);
+                var dto = AppUserMapper.ToAppUserDetail(user, roles, schoolName, communeName, cityNameEdit, provinceNameEdit);
+
+                return Ok(new { Success = "true", Data = dto });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = "false", Message = "Tải dữ liệu người dùng không thành công", Error = ex.Message });
+            }
         }
 
         // Admin: deactivate account (set status to false)
         [HttpPatch("{id}/deactivate")]
         public IActionResult Deactivate(Guid id)
         {
-            var ok = _userService.DeactivateAccount(id);
-            if (!ok) return NotFound();
-            return Ok(new { message = "Account deactivated" });
+            try
+            {
+                var ok = _userService.DeactivateAccount(id);
+                if (!ok) return NotFound(new { Success = "false", Message = "Tài khoản người dùng không tìm thấy" });
+                return Ok(new { Success = "true", Message = "Tài khoản đã bị vô hiệu hoá" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = "false", Message = "Tải dữ liệu người dùng không thành công", Error = ex.Message });
+            }
         }
 
         [HttpPatch("{id}/activate")]
         public IActionResult Activate(Guid id)
         {
-            var ok = _userService.ActivateAccount(id);
-            if (!ok) return NotFound();
-            return Ok(new { message = "Account activated" });
-        }
-
-        [HttpPost("signup")]
-        public IActionResult Signup([FromBody] SignupRequest req)
-        {
-            var user = _userService.Signup(req.Email, req.Password, req.Username, req.CommuneId, req.Fullname);
-            if (user == null)
+            try
             {
-                return BadRequest(new SignupResponse { Success = false, Message = "Người dùng đã tồn tại" });
+                var ok = _userService.ActivateAccount(id);
+                if (!ok) return NotFound(new { Success = "false", Message = "Tài khoản người dùng không tìm thấy" });
+                return Ok(new { Success = "true", Message = "Tài khoản đã bị vô hiệu hoá" });
             }
-            return Ok(new SignupResponse { Success = true, Message = "Đăng kí thành công", Data = user });
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = "false", Message = "Failed to activate user", Error = ex.Message });
+            }
         }
 
-        [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginRequest req)
-        {
-            var result = _userService.Login(req.Email, req.Password);
-            if (result == null) return Unauthorized(new LoginResponse { Success = false, Message = "Thông tin đăng nhập không hợp lệ" });
-
-            var tokens = result.Tokens;
-
-            // Cookie options for access token (short-lived)
-            var jwtSection = _configuration.GetSection("JwtSettings");
-            var accessExpiresMinutes = jwtSection.GetValue<int?>("ExpiresMinutes") ?? 60;
-
-            var accessCookieOptions = new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddMinutes(accessExpiresMinutes)
-            };
-
-            // Cookie options for refresh token (longer-lived)
-            var refreshCookieOptions = new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Expires = tokens.RefreshTokenExpire.ToUniversalTime()
-            };
-
-            Response.Cookies.Append("access_token", tokens.AccessToken, accessCookieOptions);
-            Response.Cookies.Append("refresh_token", tokens.RefreshToken, refreshCookieOptions);
-
-            // Build user info response (do not return tokens in body)
-            var userInfo = new UserInfoResponse
-            {
-                Id = result.User.Id,
-                Email = result.User.Email,
-                Username = result.User.Username,
-                Roles = result.Roles?.Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList() ?? new List<string>(),
-                Permissions = (result.Roles != null) ? result.Roles.SelectMany(r => r.AppPermissions ?? new List<AppPermission>()).Select(p => (p.Resource?.Name ?? p.ResourceId.ToString()) + ":" + (p.Action?.Name ?? p.ActionId.ToString())).Distinct().ToList() : new List<string>(),
-                ClassIds = result.Claims?.Where(c => c.ClassId > 0).Select(c => c.ClassId).Distinct().ToList() ?? new List<int>(),
-                SubjectIds = result.Claims?.Where(c => c.SubjectId > 0).Select(c => c.SubjectId).Distinct().ToList() ?? new List<short>()
-            };
-
-            return Ok(new GenericResponse { Success = true, Message = "Đăng nhập thành công", Data = userInfo });
-        }
-
-        [HttpPost("logout")]
-        public IActionResult Logout([FromBody] Guid userId)
-        {
-            // server-side: clear refresh token stored for the user
-            _userService.Logout(userId);
-
-            // clear cookies on client
-            Response.Cookies.Delete("access_token");
-            Response.Cookies.Delete("refresh_token");
-
-            return Ok();
-        }
     }
 }

@@ -10,11 +10,15 @@ namespace StudyHub.Backend.Infrastructure.Repositories
     {
         //implement các thao tác database từ bên UseCases vào đây
         private readonly AppDbContext _context;
+
+        private const int DEFAULT_PAGE_SIZE = 10;
+        private const int DEFAULT_CURRENT_PAGE = 1;
+
         public AppUserRepository(AppDbContext context)
         {
             _context = context;
         }
-    private static Domain.Entities.AppUser ToDomain(StudyHub.Backend.Infrastructure.Data.AppUser d)
+        private static Domain.Entities.AppUser ToDomain(Data.AppUser d)
         {
             return new Domain.Entities.AppUser
             {
@@ -24,21 +28,27 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 PasswordHash = d.PasswordHash,
                 Username = d.Username,
                 Fullname = d.Fullname,
+                IsVerified = d.IsVerified,
                 SchoolId = d.SchoolId,
                 Status = d.Status,
                 CreatedAt = d.CreatedAt,
                 UpdatedAt = d.UpdatedAt,
                 RefreshToken = d.RefreshToken,
                 RefreshTokenExpire = d.RefreshTokenExpire,
+                //EmailVerificationToken = d.EmailVerificationToken,
+                //EmailVerificationExpire = d.EmailVerificationExpire,
+                //ResetPasswordToken = d.ResetPasswordToken,
+                //ResetPasswordExpire = d.ResetPasswordExpire,
                 IsLoginWithGoogle = d.IsLoginWithGoogle,
                 Address = d.Address,
-                CommuneId = d.CommuneId
+                CommuneId = d.CommuneId,
+                Avatar = d.Avatar
             };
         }
 
-    private static StudyHub.Backend.Infrastructure.Data.AppUser ToData(Domain.Entities.AppUser d)
+        private static Data.AppUser ToData(Domain.Entities.AppUser d)
         {
-            return new StudyHub.Backend.Infrastructure.Data.AppUser
+            return new Data.AppUser
             {
                 Id = d.Id,
                 Email = d.Email,
@@ -46,15 +56,21 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 PasswordHash = d.PasswordHash,
                 Username = d.Username,
                 Fullname = d.Fullname,
+                IsVerified = d.IsVerified,
                 SchoolId = d.SchoolId,
                 Status = d.Status,
                 CreatedAt = d.CreatedAt,
                 UpdatedAt = d.UpdatedAt,
                 RefreshToken = d.RefreshToken,
                 RefreshTokenExpire = d.RefreshTokenExpire,
+                //EmailVerificationToken = d.EmailVerificationToken,
+                //EmailVerificationExpire = d.EmailVerificationExpire,
+                //ResetPasswordToken = d.ResetPasswordToken,
+                //ResetPasswordExpire = d.ResetPasswordExpire,
                 IsLoginWithGoogle = d.IsLoginWithGoogle,
                 Address = d.Address,
-                CommuneId = d.CommuneId
+                CommuneId = d.CommuneId,
+                Avatar = d.Avatar
             };
         }
 
@@ -62,15 +78,54 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                Console.WriteLine(_context.Cities.Count());
+                return _context.AppUsers.Select(u => ToDomain(u)).ToList();
             }
             catch (Exception ex)
             {
-                new InfrastructureException("AppUserRepository", "Cannot connect db. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("AppUserRepository", "SearchDocuments failed. Inner error: " + ex.Message).LogError();
+                return new List<Domain.Entities.AppUser>();
             }
-            //return db.appuser.tolist()
-            Console.WriteLine("get all user");
-            return _context.AppUsers.Select(u => ToDomain(u)).ToList();
+
+        }
+
+        public (List<Domain.Entities.AppUser>, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page = DEFAULT_CURRENT_PAGE, int limit = DEFAULT_PAGE_SIZE)
+        {
+            try
+            {
+                var users = _context.AppUsers.AsQueryable();
+
+                if (!string.IsNullOrEmpty(status))
+                {
+                    if (status.Equals("active", StringComparison.OrdinalIgnoreCase))
+                        users = users.Where(u => u.Status == true);
+                    else if (status.Equals("inactive", StringComparison.OrdinalIgnoreCase))
+                        users = users.Where(u => u.Status == false);
+                }
+
+                if (!string.IsNullOrEmpty(roleId))
+                {
+                    users = users.Where(u => u.Roles.Any(r => r.Id.Equals(roleId)));
+                }
+
+                if (!string.IsNullOrEmpty(search))
+                {
+                    var q = search.ToLower();
+                    users = users.Where(u => (u.Email ?? "").ToLower().Contains(q) || (u.Username ?? "").ToLower().Contains(q) || (u.Fullname ?? "").ToLower().Contains(q));
+                }
+
+                var total = users.Count();
+                var totalPages = (int)Math.Ceiling(total / (double)limit);
+                if (page < 1) page = 1;
+                if (limit < 1) limit = 10;
+                var paged = users.Skip((page - 1) * limit).Take(limit).ToList();
+                var result = paged.Select(u => ToDomain(u)).ToList();
+                return (result, total, totalPages);
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("AppUserRepository", "GetAppUsersBySearchAndFilter failed. Inner error: " + ex.Message).LogError();
+                return (new List<Domain.Entities.AppUser>(), 0, 0);
+            }
         }
 
         public Domain.Entities.AppUser? GetByEmail(string email)
@@ -85,41 +140,94 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return d == null ? null : ToDomain(d);
         }
 
-        public void CreateUser(Domain.Entities.AppUser user)
+        public void CreateUser(Domain.Entities.AppUser user, IEnumerable<Guid>? roleIds = null)
         {
-            var d = ToData(user);
-            _context.AppUsers.Add(d);
-            _context.SaveChanges();
+            try
+            {
+                var d = ToData(user);
+
+                if (d.CreatedBy == Guid.Empty)
+                {
+                    d.CreatedBy = Guid.Empty;
+                }
+                if (d.CreatedAt == default)
+                {
+                    d.CreatedAt = DateTime.UtcNow;
+                }
+
+                _context.AppUsers.Add(d);
+                _context.SaveChanges();
+
+                if (roleIds != null)
+                {
+                    try
+                    {
+                        var existing = _context.AppUsers.Include(u => u.Roles).FirstOrDefault(u => u.Id == d.Id);
+                        if (existing != null)
+                        {
+                            var roles = _context.AppRoles.Where(r => roleIds.Contains(r.Id)).ToList();
+                            foreach (var r in roles)
+                            {
+                                if (!existing.Roles.Any(er => er.Id == r.Id)) existing.Roles.Add(r);
+                            }
+                            _context.SaveChanges();
+                        }
+                    }
+                    catch (Exception innerEx)
+                    {
+                        new InfrastructureException("AppUserRepository", "Attach roles failed after creating user. Inner error: " + innerEx.Message).LogError();
+                        throw;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("AppUserRepository", "CreateUser failed. Inner error: " + ex.Message).LogError();
+                throw; // let higher layers handle the exception
+            }
         }
 
-        public void UpdateUser(Domain.Entities.AppUser user)
+        public void UpdateUser(Domain.Entities.AppUser user, IEnumerable<Guid>? roleIds = null)
         {
-            var existing = _context.AppUsers.Find(user.Id);
-            if (existing == null) return;
-            // update properties we care about
-            existing.Email = user.Email;
-            existing.PasswordHash = user.PasswordHash;
-            existing.Username = user.Username;
-            existing.Fullname = user.Fullname;
-            existing.Gender = user.Gender;
-            existing.SchoolId = user.SchoolId;
-            existing.Status = user.Status;
-            existing.UpdatedAt = user.UpdatedAt;
-            existing.RefreshToken = user.RefreshToken;
-            existing.RefreshTokenExpire = user.RefreshTokenExpire;
-            existing.Address = user.Address;
-            existing.CommuneId = user.CommuneId;
-            _context.AppUsers.Update(existing);
-            _context.SaveChanges();
+            try
+            {
+                var existing = _context.AppUsers.Include(u => u.Roles).FirstOrDefault(u => u.Id == user.Id);
+                if (existing == null) return;
+                existing.Email = user.Email;
+                existing.PasswordHash = user.PasswordHash;
+                existing.Username = user.Username;
+                existing.Fullname = user.Fullname;
+                existing.Gender = user.Gender;
+                existing.SchoolId = user.SchoolId;
+                existing.Status = user.Status;
+                existing.UpdatedAt = user.UpdatedAt;
+                existing.RefreshToken = user.RefreshToken;
+                existing.RefreshTokenExpire = user.RefreshTokenExpire;
+                //existing.ResetPasswordToken = user.ResetPasswordToken;
+                //existing.ResetPasswordExpire = user.ResetPasswordExpire;
+                existing.Address = user.Address;
+                existing.CommuneId = user.CommuneId;
+                existing.Avatar = user.Avatar;
+                if (roleIds != null)
+                {
+                    existing.Roles.Clear();
+                    var roles = _context.AppRoles.Where(r => roleIds.Contains(r.Id)).ToList();
+                    foreach (var r in roles) existing.Roles.Add(r);
+                }
+                _context.AppUsers.Update(existing);
+                _context.SaveChanges();
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("AppUserRepository", "UpdateUser failed. Inner error: " + ex.Message).LogError();
+                throw;
+            }
         }
 
         public List<Domain.Entities.AppRole> GetRolesForUser(Guid userId)
         {
-            // Assuming there is a join table or a relation from users to roles.
-            // If AppUser.RoleId is the primary role, we still attempt to load that role and any additional roles
             var roles = new List<Domain.Entities.AppRole>();
 
-            // try primary role
             var primaryRole = _context.AppRoles.Include(r => r.Users).FirstOrDefault(r => r.Users.Any(u => u.Id == userId));
             if (primaryRole != null)
             {
@@ -130,8 +238,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 });
             }
 
-            // load any additional roles via AppClaims.RoleId where applicable (some schemas store role assignments as claims)
-            var extraRoleIds = _context.AppClaims.Where(c => c.UserId == userId).Select(c => c.RoleId).Distinct().ToList();
+            var extraRoleIds = _context.AppClaims
+                .Where(c => c.UserId == userId)
+                .Select(c => c.RoleId)
+                .Distinct()
+                .ToList();
             foreach (var rid in extraRoleIds)
             {
                 if (roles.Any(r => r.Id == rid)) continue;
@@ -144,7 +255,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 });
             }
 
-            // enrich permissions for each role if available
             foreach (var role in roles)
             {
                 var perms = _context.AppPermissions.Where(p => p.RoleId == role.Id).ToList();
@@ -185,6 +295,46 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return result;
         }
 
+        public Domain.Entities.AppUser? GetByRefreshToken(string refreshToken)
+        {
+            var d = _context.AppUsers.FirstOrDefault(u => u.RefreshToken == refreshToken);
+            return d == null ? null : ToDomain(d);
+        }
+
+        public Domain.Entities.AppUser? GetByResetToken(string resetToken)
+        {
+            //    var d = _context.AppUsers.FirstOrDefault(u => u.ResetPasswordToken == resetToken);
+            //    return d == null ? null : ToDomain(d);
+            return null;
+        }
+
+        public void UpdateResetToken(Guid userId, string? resetToken, DateTime? expire)
+        {
+            //    var existing = _context.AppUsers.Find(userId);
+            //    if (existing == null) return;
+            //    existing.ResetPasswordToken = resetToken;
+            //    existing.ResetPasswordExpire = expire;
+            //    _context.AppUsers.Update(existing);
+            //    _context.SaveChanges();
+        }
+
+        public Domain.Entities.AppUser? GetByEmailVerificationToken(string token)
+        {
+            //var d = _context.AppUsers.FirstOrDefault(u => u.EmailVerificationToken == token);
+            //return d == null ? null : ToDomain(d);
+            return null;
+        }
+
+        public void UpdateEmailVerificationToken(Guid userId, string? token, DateTime? expire)
+        {
+            var existing = _context.AppUsers.Find(userId);
+            if (existing == null) return;
+            //existing.EmailVerificationToken = token;
+            //existing.EmailVerificationExpire = expire;
+            _context.AppUsers.Update(existing);
+            _context.SaveChanges();
+        }
+
         public string? GetSchoolName(int? schoolId)
         {
             if (!schoolId.HasValue) return null;
@@ -197,6 +347,38 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             if (!communeId.HasValue) return null;
             var c = _context.Communes.Find(communeId.Value);
             return c?.Name;
+        }
+
+        public string? GetProvinceName(short? provinceId)
+        {
+            if (!provinceId.HasValue) return null;
+            var p = _context.Provinces.Find(provinceId.Value);
+            return p?.Name;
+        }
+
+        public string? GetCityName(sbyte? cityId)
+        {
+            if (!cityId.HasValue) return null;
+            var c = _context.Cities.Find(cityId.Value);
+            return c?.Name;
+        }
+
+        public (string? provinceName, string? cityName) GetProvinceAndCityNamesByCommuneId(int? communeId)
+        {
+            if (!communeId.HasValue) return (null, null);
+            var commune = _context.Communes.Include(c => c.Province).ThenInclude(p => p.City).FirstOrDefault(c => c.Id == communeId.Value);
+            if (commune == null) return (null, null);
+            var provinceName = commune.Province?.Name;
+            var cityName = commune.Province?.City?.Name;
+            return (provinceName, cityName);
+        }
+
+        public Domain.Entities.AppRole? GetRoleByName(string roleName)
+        {
+            if (string.IsNullOrEmpty(roleName)) return null;
+            var r = _context.AppRoles.FirstOrDefault(x => x.Name == roleName);
+            if (r == null) return null;
+            return new Domain.Entities.AppRole { Id = r.Id, Name = r.Name };
         }
     }
 }

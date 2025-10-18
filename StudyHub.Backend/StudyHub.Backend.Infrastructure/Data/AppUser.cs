@@ -17,6 +17,7 @@ public partial class AppUser
 
     public DateOnly? Dob { get; set; }
     public bool Gender { get; set; }
+    public string? Avatar { get; set; }
 
     public int? SchoolId { get; set; }
 
@@ -33,6 +34,14 @@ public partial class AppUser
     public string? RefreshToken { get; set; }
 
     public DateTime? RefreshTokenExpire { get; set; }
+
+    // public string? EmailVerificationToken { get; set; }
+
+    // public DateTime? EmailVerificationExpire { get; set; }
+
+    // public string? ResetPasswordToken { get; set; }
+
+    // public DateTime? ResetPasswordExpire { get; set; }
 
     public bool IsLoginWithGoogle { get; set; }
 

@@ -15,6 +15,7 @@ public class AppUser : IAuditTrail
     public DateOnly? Dob { get; set; }
 
     public bool Gender { get; set; }
+    public string? Avatar { get; set; }
 
     public int? SchoolId { get; set; }
 
@@ -27,10 +28,16 @@ public class AppUser : IAuditTrail
     public long Wallet { get; set; }
 
     public bool IsVerified { get; set; }
+    //public string? EmailVerificationToken { get; set; }
+    //public DateTime? EmailVerificationExpire { get; set; }
 
     public string? RefreshToken { get; set; }
 
     public DateTime? RefreshTokenExpire { get; set; }
+
+    //// Password reset
+    //public string? ResetPasswordToken { get; set; }
+    //public DateTime? ResetPasswordExpire { get; set; }
 
     public bool IsLoginWithGoogle { get; set; }
 

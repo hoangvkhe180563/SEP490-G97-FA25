@@ -1,4 +1,5 @@
-﻿using StudyHub.Backend.Domain;
+﻿using StudyHub.Backend.Api.Middleware;
+using StudyHub.Backend.Domain;
 using StudyHub.Backend.Infrastructure;
 using StudyHub.Backend.UseCases;
 using StudyHub.Backend.UseCases.Utils;
@@ -15,8 +16,8 @@ builder.Services.AddAuthentication("Bearer")
 
 builder.Services.AddUseCasesDependency()
                 .AddInfrastructureDependency(builder.Configuration.GetConnectionString("value") ?? "");
-//Để chỉnh cái connection string, chuột phải project chọn Manage user secrets.
 
+//Để chỉnh cái connection string, chuột phải project chọn Manage user secrets.
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -30,7 +31,23 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddSwaggerGen();
 var app = builder.Build();
-app.UseCors("AllowReactApp");
+app.UseCors();
+
+//For custom JWT middleware for handle token in cookie
+//app.UseWhen(
+//    ctx => ctx.Request.Path.StartsWithSegments("/api") &&
+//           !ctx.Request.Path.StartsWithSegments("/api/auth") &&
+//           !ctx.Request.Path.StartsWithSegments("/swagger"),
+//    branch =>
+//    {
+//        branch.UseMiddleware<JwtMiddleware>(); // chính middleware của bạn
+//    }
+//);
+
+//Use custom middleware to extract JWT from cookie and set in Authorization header
+//JWTBearerHandler automatically validates the token from Authorization header
+app.UseMiddleware<JwtCookieMiddleware>();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -39,6 +56,5 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseCors();
 app.MapControllers();
 app.Run();
