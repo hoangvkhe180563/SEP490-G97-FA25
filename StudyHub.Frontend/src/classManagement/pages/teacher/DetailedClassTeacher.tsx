@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+
 import PostComposer from "@/classManagement/components/ui/postcomposer";
 import PostCard from "@/classManagement/components/ui/postcard";
-import type { Post } from "@/classManagement/components/ui/postcard";
-import AssignmentCard from "@/classManagement/components/ui/assignmentcard";
 import EveryoneListTC from "@/classManagement/components/ui/listeveryoneteacher";
-import type { Person } from "@/classManagement/components/ui/listeveryoneteacher"; // ✅ import type Person
+import MemberDetailModal from "@/classManagement/components/ui/memberdetailmodal";
+
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -13,23 +14,37 @@ import {
   BreadcrumbSeparator,
   BreadcrumbPage,
 } from "@/common/components/ui/breadcrumb";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/common/components/ui/tabs";
-import MemberDetailModal from "@/classManagement/components/ui/memberdetailmodal"; // ✅ để hiển thị thông tin người được click
+
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/common/components/ui/tabs";
+import { useClassStore } from "@/classManagement/stores/useClassStore";
+import type {
+  ClassInfo,
+  ClassMemberDto,
+  ClassNotification,
+} from "@/classManagement/interfaces/class";
 
 // ===== Class Info Card =====
-const ClassInfoCard: React.FC<{ info: { id?: string; students?: number; schedule?: string } }> = ({ info }) => {
+const ClassInfoCard: React.FC<{ info: ClassInfo | null }> = ({ info }) => {
+  if (!info) return null;
   return (
     <div className="bg-white border rounded-lg p-4 mb-4">
       <div className="text-sm font-medium mb-3">Class Information</div>
       <div className="grid grid-cols-2 gap-3 text-sm text-gray-700">
         <div className="text-xs text-gray-400">Class ID:</div>
-        <div className="font-medium text-right">{info.id ?? "—"}</div>
+        <div className="font-medium text-right">{info.id}</div>
 
-        <div className="text-xs text-gray-400">Students:</div>
-        <div className="font-medium text-right">{info.students ?? "—"}</div>
+        <div className="text-xs text-gray-400">Subject ID:</div>
+        <div className="font-medium text-right">{info.subjectId}</div>
 
-        <div className="text-xs text-gray-400">Schedule:</div>
-        <div className="font-medium text-right">{info.schedule ?? "—"}</div>
+        <div className="text-xs text-gray-400">Created At:</div>
+        <div className="font-medium text-right">
+          {new Date(info.createdAt).toLocaleDateString()}
+        </div>
       </div>
     </div>
   );
@@ -37,65 +52,68 @@ const ClassInfoCard: React.FC<{ info: { id?: string; students?: number; schedule
 
 // ===== DetailedClassTeacher =====
 const DetailedClassTeacher: React.FC = () => {
-  const classTitle = "Mathematics 101";
+  const { id } = useParams<{ id: string }>();
+  const { getClassDetail, currentClass, isLoading } = useClassStore();
 
-  const [posts, setPosts] = useState<Post[]>([
-    {
-      id: 1,
-      author: "Dr. Sarah Johnson",
-      time: "2 hours ago",
-      avatarUrl: "/vite.svg",
-      content:
-        "Welcome to Advanced Mathematics! Please review the syllabus and prepare for our first lesson on differential equations.",
-      attachmentLabel: "Course_Syllabus_2025.pdf",
-      comments: [
-        { id: 1, author: "Student A", text: "Thanks, looking forward!", avatarUrl: "/vite.svg", time: "1h" },
-      ],
-    },
-  ]);
+  const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(
+    null
+  );
 
-  const [assignments] = useState([
-    { id: 1, title: "Assignment 3: Derivatives", due: "30/9/2025 00:00", submitted: 36, icon: "alert" as const },
-    { id: 2, title: "Assignment 4: Integrals", due: "10/10/2025 00:00", submitted: 25, icon: "calendar" as const },
-    { id: 3, title: "Midterm Exam", due: "20/10/2025 00:00", submitted: 0, icon: "calendar" as const },
-  ]);
+  // ✅ Gọi API lấy thông tin lớp khi mount
+  useEffect(() => {
+    if (id) {
+      getClassDetail(Number(id));
+    }
+  }, [id, getClassDetail]);
 
-  const classInfo = { id: "MATH-ADV-2025", students: 28, schedule: "MWF 10:00 AM" };
+  const teacher: ClassMemberDto | null = currentClass?.data?.teacher ?? null;
 
-  const teacher: Person = { id: "t1", name: "Dr. Sarah Johnson", subtitle: "Mathematics Professor", avatarUrl: "/vite.svg" };
-  const students: Person[] = [
-    { id: "s1", name: "John Smith", subtitle: "ID: STU001", avatarUrl: "/vite.svg" },
-    { id: "s2", name: "Emily Davis", subtitle: "ID: STU002", avatarUrl: "/vite.svg" },
-    { id: "s3", name: "Michael Brown", subtitle: "ID: STU003", avatarUrl: "/vite.svg" },
-  ];
-  const parents: Person[] = [
-    { id: "p1", name: "Robert Smith", subtitle: "Parent of John Smith", avatarUrl: "/vite.svg" },
-    { id: "p2", name: "Linda Davis", subtitle: "Parent of Emily Davis", avatarUrl: "/vite.svg" },
-  ];
+  const students: ClassMemberDto[] = currentClass?.data?.students ?? [];
+  const parents: ClassMemberDto[] = currentClass?.data?.parents ?? [];
 
-  const [selectedMember, setSelectedMember] = useState<Person | null>(null);
+  const [notifications, setNotifications] = useState<ClassNotification[]>([]);
+
+  useEffect(() => {
+    if (currentClass?.data?.notifications) {
+      setNotifications(currentClass.data.notifications);
+    }
+  }, [currentClass]);
+
+  const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
 
   const handlePost = (content: string) => {
-    const next: Post = {
+    const newNotification: ClassNotification = {
       id: Date.now(),
-      author: "You",
-      time: "just now",
-      content,
-      avatarUrl: "/vite.svg",
-      comments: [],
+      title: "Thông báo mới",
+      description: content,
     };
-    setPosts((p) => [next, ...p]);
+    setNotifications((prev) => [newNotification, ...prev]);
   };
 
-  const handleMail = (person: Person) => {
-    window.location.href = `mailto:${person.name.replace(/\s+/g, ".").toLowerCase()}@example.com`;
+  const handleMail = (person: ClassMemberDto) => {
+    window.location.href = `mailto:${person.fullname
+      .replace(/\s+/g, ".")
+      .toLowerCase()}@example.com`;
   };
 
-  const handleSelect = (p: Person) => {
-    setSelectedMember(p);
-  };
-
+  const handleSelect = (p: ClassMemberDto) => setSelectedMember(p);
   const handleCloseModal = () => setSelectedMember(null);
+
+  if (isLoading) {
+    return (
+      <div className="p-6 text-center text-gray-500">
+        Loading class details...
+      </div>
+    );
+  }
+
+  if (!currentClass?.success) {
+    return (
+      <div className="p-6 text-center text-red-500">
+        Failed to load class details.
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -107,15 +125,7 @@ const DetailedClassTeacher: React.FC = () => {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href="/classes">{classTitle}</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            {selectedMember ? (
-              <BreadcrumbPage>{selectedMember.name}</BreadcrumbPage>
-            ) : (
-              <BreadcrumbPage>Overview</BreadcrumbPage>
-            )}
+            <BreadcrumbPage>{classInfo?.name ?? "Class Detail"}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -123,69 +133,64 @@ const DetailedClassTeacher: React.FC = () => {
       {/* ===== Main Grid ===== */}
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-8">
-          <div className="mt-4">
-            <Tabs defaultValue="posts" className="w-full">
-              <div className="mb-4">
-                <TabsList>
-                  <TabsTrigger value="posts">Posts</TabsTrigger>
-                  <TabsTrigger value="exercise">Exercise</TabsTrigger>
-                  <TabsTrigger value="everyone">Everyone</TabsTrigger>
-                </TabsList>
-              </div>
+          <Tabs defaultValue="notifications" className="w-full mt-4">
+            <div className="mb-4">
+              <TabsList>
+                <TabsTrigger value="notifications">Notifications</TabsTrigger>
+                <TabsTrigger value="exercise">Exercise</TabsTrigger>
+                <TabsTrigger value="everyone">Everyone</TabsTrigger>
+              </TabsList>
+            </div>
 
-              {/* --- Posts --- */}
-              <TabsContent value="posts">
-                <div className="bg-white border rounded-lg p-6 mb-4">
-                  <div className="text-lg font-semibold">{classTitle}</div>
-                  <div className="text-sm text-gray-500 mt-1">Spring 2025 • 32 students enrolled</div>
-                </div>
-
-                <PostComposer onPost={handlePost} avatarUrl="/vite.svg" />
-                <div className="mt-4 space-y-4">
-                  {posts.map((p) => (
-                    <PostCard key={p.id} post={p} />
-                  ))}
-                </div>
-              </TabsContent>
-
-              {/* --- Exercise --- */}
-              <TabsContent value="exercise">
-                <div className="bg-white border rounded-lg p-4">
-                  <div className="text-sm font-medium mb-2">Exercises / Classworks</div>
-                  <div className="text-gray-500">
-                    No exercises yet. You can create assignments from the teacher dashboard.
+            {/* --- Posts --- */}
+            <TabsContent value="notifications">
+              <PostComposer onPost={handlePost} avatarUrl={"/vite.svg"} />
+              <div className="mt-4 space-y-4">
+                {notifications.length > 0 ? (
+                  notifications.map((n) => (
+                    <PostCard
+                      key={n.id}
+                      post={{
+                        id: n.id,
+                        author: teacher?.fullname ?? "Teacher",
+                        time: "recently",
+                        avatarUrl: "/vite.svg",
+                        content: `${n.title}\n${n.description}`,
+                        comments: [],
+                      }}
+                    />
+                  ))
+                ) : (
+                  <div className="text-gray-500 text-sm">
+                    No notifications yet.
                   </div>
-                </div>
-                <div className="mt-4 space-y-3">
-                  {assignments.map((a) => (
-                    <AssignmentCard key={a.id} a={a} />
-                  ))}
-                </div>
-              </TabsContent>
+                )}
+              </div>
+            </TabsContent>
 
-              {/* --- Everyone --- */}
-              <TabsContent value="everyone">
-                <EveryoneListTC
-                  teacher={teacher}
-                  students={students}
-                  parents={parents}
-                  onMail={handleMail}
-                  onSelect={handleSelect} // ✅ chọn người → hiển thị modal
-                />
-              </TabsContent>
-            </Tabs>
-          </div>
+            {/* --- Exercise --- */}
+            <TabsContent value="exercise">
+              <div className="text-gray-500 text-sm">No exercises yet.</div>
+            </TabsContent>
+
+            {/* --- Everyone --- */}
+            <TabsContent value="everyone">
+              <EveryoneListTC
+                teacher={teacher ?? undefined}
+                students={students}
+                parents={parents}
+                onMail={handleMail}
+                onSelect={handleSelect}
+              />
+            </TabsContent>
+
+            
+          </Tabs>
         </div>
 
         {/* ===== Sidebar ===== */}
         <aside className="col-span-12 lg:col-span-4">
           <ClassInfoCard info={classInfo} />
-          <div className="text-lg font-medium mb-3">Upcoming Deadlines</div>
-          <div className="space-y-3">
-            {assignments.map((a) => (
-              <AssignmentCard key={a.id} a={a} />
-            ))}
-          </div>
         </aside>
       </div>
 
