@@ -23,7 +23,7 @@ namespace StudyHub.Backend.UseCases.Services
             _configuration = configuration;
         }
 
-        public StudyHub.Backend.UseCases.Dtos.PagedResult<UserListDto> GetAppUsers(string? status = null, string? role = null, string? search = null, int page = 1, int limit = 10)
+        public PagedResult<UserListDto> GetAppUsers(string? status = null, string? role = null, string? search = null, int page = 1, int limit = 10)
         {
             // get all users (small to medium datasets). For large datasets implement DB-side filters/paging.
             var users = _userRepository.GetAllUsers();
@@ -84,7 +84,7 @@ namespace StudyHub.Backend.UseCases.Services
                 });
             }
 
-            return new StudyHub.Backend.UseCases.Dtos.PagedResult<UserListDto>
+            return new PagedResult<UserListDto>
             {
                 Items = items,
                 Total = total,

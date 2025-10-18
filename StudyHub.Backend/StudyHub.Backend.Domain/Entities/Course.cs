@@ -1,6 +1,6 @@
 ﻿namespace StudyHub.Backend.Domain.Entities;
 
-public class Course
+public class Course : IAuditTrail
 {
     public int Id { get; set; }
 
@@ -21,15 +21,5 @@ public class Course
     public bool IsFeatured { get; set; }
 
     public bool? Status { get; set; }
-
-    public DateTime CreatedAt { get; set; }
-
-    public Guid CreatedBy { get; set; }
-
-    public DateTime? UpdatedAt { get; set; }
-
-    public Guid? UpdatedBy { get; set; }
-
-    public DateTime? DeletedAt { get; set; }
     public List<Chapter> Chapters { get; set; } = new();
 }
