@@ -1,4 +1,5 @@
 ﻿using StudyHub.Backend.Api.Dtos;
+using StudyHub.Backend.Api.Dtos.AppUserDTOS;
 using StudyHub.Backend.Api.Dtos.ClassDTOS;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Dtos;
@@ -31,11 +32,12 @@ namespace StudyHub.Backend.Api.Mappers
         }
         public static Class ToEntity(this EditClassDto dto)
         {
-            return new Class { 
-            Name = dto.Name,
-            SubjectId= dto.SubjectId,
-            Description = dto.Description,
-            UpdatedAt= DateTime.UtcNow
+            return new Class
+            {
+                Name = dto.Name,
+                SubjectId = dto.SubjectId,
+                Description = dto.Description,
+                UpdatedAt = DateTime.UtcNow
             };
         }
         public static ClassDetailDto ToDetailDto(this Class c) => new ClassDetailDto
@@ -62,13 +64,13 @@ namespace StudyHub.Backend.Api.Mappers
                 SubjectId = c.SubjectId,
                 Description = c.Description,
                 CreatedAt = c.CreatedAt,
-                
+
                 Members = members,
                 Notifications = notifications
             };
         }
 
-        public static MemberDto ToMemberDto(this ClassMember member, UserDetailsDto? user)
+        public static MemberDto ToMemberDto(this ClassMember member, AppUserDetailDto? user)
         {
             return new MemberDto
             {
