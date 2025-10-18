@@ -1,3 +1,4 @@
+// src/documentManagement/components/DocumentItem.tsx
 import type React from "react"
 import { Card } from "@/common/components/ui/card"
 import { Badge } from "@/common/components/ui/badge"

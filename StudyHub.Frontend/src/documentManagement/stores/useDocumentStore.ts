@@ -1,3 +1,4 @@
+// src/documentManagement/stores/useDocumentStore.ts
 import { create } from "zustand";
 import { axiosInstance } from "@/lib/axios";
 import type { DocumentDetailDto } from "@/documentManagement/interfaces/documentApi";
