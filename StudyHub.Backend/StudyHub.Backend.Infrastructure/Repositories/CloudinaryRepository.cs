@@ -78,7 +78,87 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
+        public async Task<string> UploadFileAsync(IFormFile file, string folderName)
+        {
+            if (file == null || file.Length == 0) return string.Empty;
+            try
+            {
+                using var stream = file.OpenReadStream();
+                var uploadParams = new RawUploadParams()
+                {
+                    File = new FileDescription(file.FileName, stream),
+                    Folder = folderName,
+                    Type = "upload",
+                    AccessMode = "public"
+                };
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
 
+                if (uploadResult.StatusCode == HttpStatusCode.OK)
+                {
+                    return uploadResult.SecureUrl?.ToString() ?? string.Empty;
+                }
+                else
+                {
+                    var err = uploadResult?.Error?.Message ?? "Unknown error";
+                    new InfrastructureException("CloudinaryRepository", "UploadFileAsync failed. Inner error: " + err).LogError();
+                    return string.Empty;
+                }
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("CloudinaryRepository", "UploadFileAsync exception. Inner error: " + ex.Message).LogError();
+                return string.Empty;
+            }
+        }
+        public async Task<bool> DeleteFileAsync(string url)
+        {
+            if (url == string.Empty) return false;
+
+            try
+            {
+                string publicId = GetPublicIdFromUrl(url);
+                var extension = Path.GetExtension(url).ToLowerInvariant();
+                var imageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg" };
+
+                var resourceType = imageExtensions.Contains(extension) ? ResourceType.Image : ResourceType.Raw;
+
+                var deletionParams = new DeletionParams(publicId)
+                {
+                    Invalidate = true,
+                    ResourceType = resourceType
+                };
+                var deletionResult = await _cloudinary.DestroyAsync(deletionParams);
+
+                if (deletionResult.Result.Equals("ok"))
+                {
+                    return true;
+                }
+                else
+                {
+                    new InfrastructureException("CloudinaryRepository", "DeleteFileAsync failed. Inner error: " + deletionResult.Error.Message).LogError();
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("CloudinaryRepository", "DeleteFileAsync exception. Inner error: " + ex.Message).LogError();
+                return false;
+            }
+        }
+        public async Task<byte[]> ReadFileAsync(string filePath)
+        {
+            try
+            {
+                using var httpClient = new HttpClient();
+                httpClient.Timeout = TimeSpan.FromMinutes(5);
+                return await httpClient.GetByteArrayAsync(filePath);
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("CloudinaryRepository", "ReadFileAsync exception. Inner error: " + ex.Message).LogError();
+                throw;
+            }
+        }
         static string GetPublicIdFromUrl(string url)
         {
             if (string.IsNullOrEmpty(url))

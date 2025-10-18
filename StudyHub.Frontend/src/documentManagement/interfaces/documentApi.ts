@@ -1,26 +1,42 @@
+//src/documentManagement/interfaces/documentApi.ts
 export interface DocumentListDto {
   id: number
   name: string
   subjectId: number
+  subjectName?: string  // Thêm
   gradeId: number
+  grade: number  // Thêm (alias cho gradeId)
   documentCategoryId: number
+  categoryName?: string  // Thêm
   accessibilityId: number
-  thumbnail: string
-  description: string
+  documentUrl: string
   createdAt: string
   createdBy: string
-  isSchoolDocument: boolean
-  isFeatured: boolean
+  updatedAt: string | null
+  updatedBy: string | null
+  deletedAt: string | null
   isApproved: boolean
+  status: boolean
+  description: string
+  uploaderName: string
+  thumbnail: string
+  schoolId: number
+  schoolName?: string  // Thêm
+  isFeatured: boolean
+  price: number
+  isSchoolDocument: boolean
+  fileType?: string  // Thêm
+  classId?: number  // Thêm
 }
 
 export interface DocumentDetailDto {
   id: number
   name: string
   subjectId: number
-  gradeId: number
+  subjectName?: string
+  grade: number
   documentCategoryId: number
-  accessibilityId: number
+  categoryName?: string
   documentUrl: string
   thumbnail: string
   description: string
@@ -32,8 +48,10 @@ export interface DocumentDetailDto {
   isFeatured: boolean
   isApproved: boolean
   status: boolean
-  price: number
-  schoolId: number
+  schoolId?: number
+  schoolName?: string
+  classId?: number
+  fileType?: string
 }
 
 export interface DocumentCategoryDto {
@@ -50,6 +68,7 @@ export interface SubjectDto {
   id: number
   name: string
 }
+
 export interface DocumentFilterParams {
   query?: string
   categoryId?: number
@@ -59,4 +78,8 @@ export interface DocumentFilterParams {
   accessibility?: number
   pageNumber?: number
   pageSize?: number
+}
+export interface DocumentsBySubjectResponse {
+  success: boolean
+  data: DocumentListDto[]
 }

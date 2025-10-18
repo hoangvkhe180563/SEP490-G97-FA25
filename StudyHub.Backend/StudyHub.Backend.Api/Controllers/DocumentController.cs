@@ -2,6 +2,9 @@
 using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.UseCases.Services;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -15,254 +18,219 @@ namespace StudyHub.Backend.Api.Controllers
         {
             _documentService = documentService;
         }
-        
 
-        [HttpGet("getbyid/{id:int}")]
-        public IActionResult GetDocumentById(int id)
+        private IActionResult PagedResult<T>(List<T> items, int total, int page, int limit)
         {
-            try
+            return Ok(new
             {
-                var document = _documentService.GetDocumentById(id);
-                if (document == null)
-                    return NotFound(new { success = false, message = $"Document with ID {id} not found" });
-
-                return Ok(new { success = true, data = document.ToDetailDto() });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Failed to retrieve document", error = ex.Message });
-            }
+                success = true,
+                data = new StudyHub.Backend.UseCases.Dtos.PagedResult<T>
+                {
+                    Items = items,
+                    Total = total,
+                    Page = page,
+                    Limit = limit,
+                    TotalPages = (int)Math.Ceiling(total / (double)limit)
+                }
+            });
         }
 
-        [HttpPost("search")]
-        public IActionResult SearchDocuments([FromBody] DocumentFilterDto filter)
+        [HttpGet("public")]
+        public IActionResult GetPublicDocuments(
+            [FromQuery] string? query = null,
+            [FromQuery] int? categoryId = null,
+            [FromQuery] int? grade = null,
+            [FromQuery] string? subject = null,
+            [FromQuery] int? classId = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
         {
-            try
-            {
-                var (documents, totalCount) = _documentService.SearchDocuments(
-                    filter.Query,
-                    filter.CategoryId,
-                    filter.Grade,
-                    filter.SchoolId,
-                    filter.Subject,
-                    filter.UploaderId,
-                    filter.IsFeatured,
-                    filter.IsPendingApproval,
-                    filter.IncludeUnapproved,
-                    filter.PageNumber,
-                    filter.PageSize
-                );
+            var (documents, totalCount) = _documentService.GetPublicDocuments(
+                query, categoryId, grade, subject, classId, pageNumber, pageSize);
+            return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
+        }
 
-                var dtos = documents.Select(d => d.ToListDto()).ToList();
-                return Ok(new
-                {
-                    success = true,
-                    data = dtos,
-                    pagination = new
-                    {
-                        currentPage = filter.PageNumber,
-                        pageSize = filter.PageSize,
-                        totalCount,
-                        totalPages = (int)Math.Ceiling(totalCount / (double)filter.PageSize)
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Failed to search documents", error = ex.Message });
-            }
+        [HttpGet("school/{schoolId}")]
+        public IActionResult GetSchoolDocuments(
+            int schoolId,
+            [FromQuery] string? query = null,
+            [FromQuery] int? categoryId = null,
+            [FromQuery] int? grade = null,
+            [FromQuery] string? subject = null,
+            [FromQuery] int? classId = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var (documents, totalCount) = _documentService.GetSchoolDocuments(
+                schoolId, query, categoryId, grade, subject, classId, pageNumber, pageSize);
+            return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
+        }
+
+        [HttpGet("owned/{creatorId}")]
+        public IActionResult GetOwnedDocuments(
+            Guid creatorId,
+            [FromQuery] string? query = null,
+            [FromQuery] int? categoryId = null,
+            [FromQuery] int? grade = null,
+            [FromQuery] string? subject = null,
+            [FromQuery] int? classId = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var (documents, totalCount) = _documentService.GetOwnedDocuments(
+                creatorId, query, categoryId, grade, subject, classId, pageNumber, pageSize);
+            return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
+        }
+
+        [HttpGet("manager/public")]
+        public IActionResult GetManagerPublicDocuments(
+            [FromQuery] string? query = null,
+            [FromQuery] int? categoryId = null,
+            [FromQuery] int? grade = null,
+            [FromQuery] string? subject = null,
+            [FromQuery] int? classId = null,
+            [FromQuery] bool? isApproved = null,
+            [FromQuery] bool? status = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var (documents, totalCount) = _documentService.GetManagerPublicDocuments(
+                query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
+            return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
+        }
+
+        [HttpGet("manager/school/{schoolId}")]
+        public IActionResult GetManagerSchoolDocuments(
+            int schoolId,
+            [FromQuery] string? query = null,
+            [FromQuery] int? categoryId = null,
+            [FromQuery] int? grade = null,
+            [FromQuery] string? subject = null,
+            [FromQuery] int? classId = null,
+            [FromQuery] bool? isApproved = null,
+            [FromQuery] bool? status = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var (documents, totalCount) = _documentService.GetManagerSchoolDocuments(
+                schoolId, query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
+            return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
+        }
+
+        [HttpGet("{id:int}")]
+        public IActionResult GetDocumentById(int id)
+        {
+            var document = _documentService.GetDocumentById(id);
+            if (document == null)
+                return NotFound(new { success = false });
+
+            return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
         [HttpPost("create")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreateDocument([FromForm] CreateDocumentDto dto)
         {
-            try
-            {
-                if (!ModelState.IsValid)
-                    return BadRequest(new { success = false, message = "Invalid data", errors = ModelState });
+            if (!ModelState.IsValid)
+                return BadRequest(new { success = false, errors = ModelState });
 
-                var document = dto.ToEntity();
-                var createdDocument = await _documentService.CreateDocumentAsync(
-                    document, dto.DocumentFile, dto.ThumbnailFile);
+            var document = dto.ToEntity();
+            document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList() ?? new List<Domain.Entities.Class>();
 
-                return CreatedAtAction(
-                    nameof(GetDocumentById),
-                    new { id = createdDocument.Id },
-                    new { success = true, data = createdDocument.ToDetailDto() });
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { success = false, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Failed to create document", error = ex.Message });
-            }
+            var createdDocument = await _documentService.CreateDocumentAsync(
+                document, dto.DocumentFile, dto.ThumbnailFile);
+
+            return CreatedAtAction(nameof(GetDocumentById), new { id = createdDocument.Id },
+                new { success = true, data = createdDocument.ToDetailDto() });
         }
 
-        [HttpPut("edit/{id:int}")]
+        [HttpPut("{id:int}")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateDocument(int id, [FromForm] UpdateDocumentDto dto)
         {
-            try
-            {
-                if (id != dto.Id)
-                    return BadRequest(new { success = false, message = "ID mismatch" });
+            if (id != dto.Id)
+                return BadRequest(new { success = false });
 
-                if (!ModelState.IsValid)
-                    return BadRequest(new { success = false, message = "Invalid data", errors = ModelState });
+            if (!ModelState.IsValid)
+                return BadRequest(new { success = false, errors = ModelState });
 
-                var document = dto.ToEntity();
-                var updatedDocument = await _documentService.UpdateDocumentAsync(
-                    document, dto.DocumentFile, dto.ThumbnailFile);
+            var document = dto.ToEntity();
+            document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList() ?? new List<Domain.Entities.Class>();
 
-                return Ok(new { success = true, data = updatedDocument.ToDetailDto() });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return NotFound(new { success = false, message = ex.Message });
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { success = false, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Failed to update document", error = ex.Message });
-            }
+            var updatedDocument = await _documentService.UpdateDocumentAsync(
+                document, dto.DocumentFile, dto.ThumbnailFile);
+
+            return Ok(new { success = true, data = updatedDocument.ToDetailDto() });
         }
 
-        [HttpDelete("delete/{id:int}")]
+        [HttpDelete("{id:int}")]
         public IActionResult DeleteDocument(int id)
         {
-            try
-            {
-                var result = _documentService.DeleteDocument(id);
-                if (!result)
-                    return NotFound(new { success = false, message = $"Document with ID {id} not found" });
+            var result = _documentService.DeleteDocument(id);
+            if (!result)
+                return NotFound(new { success = false });
 
-                return Ok(new { success = true, message = "Document deleted successfully" });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Failed to delete document", error = ex.Message });
-            }
+            return Ok(new { success = true });
         }
 
         [HttpPatch("soft-delete/{id:int}")]
         public IActionResult SoftDeleteDocument(int id, [FromBody] Guid deletedBy)
         {
-            try
-            {
-                var result = _documentService.SoftDeleteDocument(id, deletedBy);
-                if (!result)
-                    return NotFound(new { success = false, message = $"Document with ID {id} not found" });
+            var result = _documentService.SoftDeleteDocument(id, deletedBy);
+            if (!result)
+                return NotFound(new { success = false });
 
-                return Ok(new { success = true, message = "Document soft deleted successfully" });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Failed to soft delete document", error = ex.Message });
-            }
+            return Ok(new { success = true });
         }
 
         [HttpPost("approve")]
         public IActionResult ApproveDocument([FromBody] ApprovalDto dto)
         {
-            try
-            {
-                var document = _documentService.ApproveDocument(dto.DocumentId, dto.ApprovedBy);
-                return Ok(new { success = true, message = "Document approved successfully", data = document.ToDetailDto() });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { success = false, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Failed to approve document", error = ex.Message });
-            }
+            var document = _documentService.ApproveDocument(dto.DocumentId, dto.ApprovedBy);
+            return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
         [HttpPost("reject")]
         public IActionResult RejectDocument([FromBody] ApprovalDto dto)
         {
-            try
-            {
-                var document = _documentService.RejectDocument(dto.DocumentId, dto.ApprovedBy);
-                return Ok(new { success = true, message = "Document rejected successfully", data = document.ToDetailDto() });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { success = false, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Failed to reject document", error = ex.Message });
-            }
+            var document = _documentService.RejectDocument(dto.DocumentId, dto.ApprovedBy);
+            return Ok(new { success = true, data = document.ToDetailDto() });
+        }
+
+        [HttpPost("revoke")]
+        public IActionResult RevokeApproval([FromBody] ApprovalDto dto)
+        {
+            var document = _documentService.RevokeApproval(dto.DocumentId, dto.ApprovedBy);
+            return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
         [HttpPost("toggle-featured")]
         public IActionResult ToggleFeatured([FromBody] ToggleFeaturedDto dto)
         {
-            try
-            {
-                var document = _documentService.ToggleFeatured(dto.DocumentId, dto.UpdatedBy);
-                return Ok(new { success = true, message = "Featured status toggled successfully", data = document.ToDetailDto() });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return NotFound(new { success = false, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Failed to toggle featured", error = ex.Message });
-            }
+            var document = _documentService.ToggleFeatured(dto.DocumentId, dto.UpdatedBy);
+            return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
         [HttpGet("download/{id:int}")]
         public async Task<IActionResult> DownloadDocument(int id)
         {
-            try
-            {
-                var document = _documentService.GetDocumentById(id);
-                if (document == null)
-                    return NotFound(new { success = false, message = $"Document with ID {id} not found" });
+            var document = _documentService.GetDocumentById(id);
+            if (document == null)
+                return NotFound(new { success = false });
 
-                var (fileBytes, contentType, fileName) = await _documentService.DownloadDocumentAsync(document);
-                return File(fileBytes, contentType, fileName);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Failed to download document", error = ex.Message });
-            }
+            var (fileBytes, contentType, fileName) = await _documentService.DownloadDocumentAsync(document);
+            return File(fileBytes, contentType, fileName);
         }
 
         [HttpGet("preview/{id:int}")]
         public async Task<IActionResult> PreviewDocument(int id)
         {
-            try
-            {
-                var document = _documentService.GetDocumentById(id);
-                if (document == null)
-                    return NotFound(new { success = false, message = $"Document with ID {id} not found" });
+            var document = _documentService.GetDocumentById(id);
+            if (document == null)
+                return NotFound(new { success = false });
 
-                var (fileBytes, contentType, _) = await _documentService.DownloadDocumentAsync(document);
-                return File(fileBytes, contentType);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Forbid();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Failed to preview document", error = ex.Message });
-            }
+            var (fileBytes, contentType, _) = await _documentService.DownloadDocumentAsync(document);
+            return File(fileBytes, contentType);
         }
     }
 }

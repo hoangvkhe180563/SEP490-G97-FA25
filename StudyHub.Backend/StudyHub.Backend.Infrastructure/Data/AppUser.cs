@@ -17,7 +17,7 @@ public partial class AppUser
 
     public DateOnly? Dob { get; set; }
 
-    public bool Gender { get; set; }
+    public bool? Gender { get; set; }
 
     public string? Avatar { get; set; }
 
