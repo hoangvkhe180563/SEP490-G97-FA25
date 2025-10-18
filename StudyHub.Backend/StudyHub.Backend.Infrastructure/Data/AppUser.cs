@@ -37,6 +37,14 @@ public partial class AppUser
 
     public DateTime? RefreshTokenExpire { get; set; }
 
+    public string? EmailVerificationToken { get; set; }
+
+    public DateTime? EmailVerificationExpire { get; set; }
+
+    public string? ResetPasswordToken { get; set; }
+
+    public DateTime? ResetPasswordExpire { get; set; }
+
     public bool IsLoginWithGoogle { get; set; }
 
     public bool? Status { get; set; }

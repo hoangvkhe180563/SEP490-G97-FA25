@@ -179,6 +179,7 @@ public partial class AppDbContext : DbContext
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Email).HasMaxLength(100);
+            entity.Property(e => e.EmailVerificationExpire).HasColumnType("datetime");
             entity.Property(e => e.Fullname).HasMaxLength(100);
             entity.Property(e => e.Gender)
                 .IsRequired()
@@ -188,6 +189,7 @@ public partial class AppDbContext : DbContext
                 .IsFixedLength();
             entity.Property(e => e.PhoneNumber).HasMaxLength(11);
             entity.Property(e => e.RefreshTokenExpire).HasColumnType("datetime");
+            entity.Property(e => e.ResetPasswordExpire).HasColumnType("datetime");
             entity.Property(e => e.Status)
                 .IsRequired()
                 .HasDefaultValueSql("'1'");

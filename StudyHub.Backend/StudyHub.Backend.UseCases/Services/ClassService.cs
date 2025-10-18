@@ -5,7 +5,7 @@ namespace StudyHub.Backend.UseCases.Services
 {
     public class ClassService
     {
-            private readonly IClassRepository _classRepository;
+        private readonly IClassRepository _classRepository;
         public ClassService(IClassRepository classRepository)
         {
             _classRepository = classRepository;
@@ -37,19 +37,19 @@ namespace StudyHub.Backend.UseCases.Services
         }
         public Class UpdateClass(Class dto)
         {
-           
+
             return _classRepository.UpdateClass(dto);
         }
         public Class GetClassById(int id)
         {
-            return _classRepository.GetClassById(id);   
+            return _classRepository.GetClassById(id);
         }
         public Class? GetClassDetail(int id)
         {
             return _classRepository.GetClassDetailById(id);
         }
-        public List<ClassMember> GetClassMembers(int id) 
-        { 
+        public List<ClassMember> GetClassMembers(int id)
+        {
             return _classRepository.GetClassMembers(id);
         }
         public List<ClassNotification> GetClassNotifications(int classId)
