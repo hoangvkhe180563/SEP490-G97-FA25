@@ -7,17 +7,6 @@ interface DocumentItemProps {
   document: Document
 }
 
-// const getSubjectName = (subjectId: number): string => {
-//   const subjects: Record<number, string> = {
-//     1: "Toán",
-//     2: "Văn",
-//     3: "Tiếng Anh",
-//     4: "Vật lý",
-//     5: "Hóa học",
-//   }
-//   return subjects[subjectId] || "Khác"
-// }
-
 const DocumentItem: React.FC<DocumentItemProps> = ({ document }) => {
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
@@ -31,8 +20,15 @@ const DocumentItem: React.FC<DocumentItemProps> = ({ document }) => {
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-400">
             <span className="text-sm">
-              {/* {getSubjectName(document.subjectId)} lớp {document.gradeId} */}
+              {document.subjectName} lớp {document.gradeId}
             </span>
+          </div>
+        )}
+        {document.isSchoolDocument && (
+          <div className="absolute top-2 right-2">
+            <Badge className="bg-emerald-500 text-white shadow-lg">
+              🏫 Tài liệu trường
+            </Badge>
           </div>
         )}
       </div>
@@ -41,10 +37,11 @@ const DocumentItem: React.FC<DocumentItemProps> = ({ document }) => {
           <Badge variant="secondary" className="text-xs">
             Lớp {document.gradeId}
           </Badge>
-          <Badge variant="outline" className="text-xs">
-            {/* {getSubjectName(document.subjectId)} */}
-          </Badge>
-          {document.isSchoolDocument && <Badge className="text-xs bg-emerald-500 text-white">Tài liệu trường</Badge>}
+          {document.subjectName && (
+            <Badge variant="outline" className="text-xs">
+              {document.subjectName}
+            </Badge>
+          )}
         </div>
         <h3 className="font-semibold text-gray-900 mb-2 line-clamp-1">{document.name}</h3>
         <p className="text-sm text-gray-600 mb-3 line-clamp-2">{document.description || "Không có mô tả"}</p>

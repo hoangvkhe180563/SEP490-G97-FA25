@@ -10,10 +10,11 @@ interface DocumentFilterSidebarProps {
   onSchoolDocsChange: (checked: boolean) => void
   selectedGrades: number[]
   onGradeChange: (gradeId: number) => void
-  selectedSubjects: number[]
-  onSubjectChange: (subjectId: number) => void
+  selectedSubjects: string[]
+  onSubjectChange: (subject: string) => void
   selectedCategories: number[]
   onCategoryChange: (categoryId: number) => void
+  hasSchoolAccess: boolean
 }
 
 const GRADES = Array.from({ length: 12 }, (_, i) => ({ id: i + 1, name: `${i + 1}` }))
@@ -27,6 +28,7 @@ const DocumentFilterSidebar = ({
   onSubjectChange,
   selectedCategories,
   onCategoryChange,
+  hasSchoolAccess,
 }: DocumentFilterSidebarProps) => {
   const [subjects, setSubjects] = useState<SubjectDto[]>([])
   const [categories, setCategories] = useState<DocumentCategoryDto[]>([])
@@ -57,19 +59,21 @@ const DocumentFilterSidebar = ({
           Bộ lọc
         </h3>
 
-        <div className="mb-6 p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
-          <div className="flex items-center space-x-3">
-            <Checkbox
-              id="school-docs"
-              checked={showSchoolDocs}
-              onCheckedChange={(checked) => onSchoolDocsChange(checked === true)}
-              className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-            />
-            <Label htmlFor="school-docs" className="text-sm font-medium cursor-pointer text-gray-700">
-              📚 Tài liệu của trường
-            </Label>
+        {hasSchoolAccess && (
+          <div className="mb-6 p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+            <div className="flex items-center space-x-3">
+              <Checkbox
+                id="school-docs"
+                checked={showSchoolDocs}
+                onCheckedChange={(checked) => onSchoolDocsChange(checked === true)}
+                className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+              />
+              <Label htmlFor="school-docs" className="text-sm font-medium cursor-pointer text-gray-700">
+                🏫 Tài liệu của trường
+              </Label>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="mb-6">
           <h4 className="font-semibold text-sm mb-3 text-gray-700 flex items-center gap-2">
@@ -108,8 +112,8 @@ const DocumentFilterSidebar = ({
               >
                 <Checkbox
                   id={`subject-${subject.id}`}
-                  checked={selectedSubjects.includes(subject.id)}
-                  onCheckedChange={() => onSubjectChange(subject.id)}
+                  checked={selectedSubjects.includes(subject.name)}
+                  onCheckedChange={() => onSubjectChange(subject.name)}
                   className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
                 />
                 <Label

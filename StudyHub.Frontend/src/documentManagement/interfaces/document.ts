@@ -3,11 +3,11 @@ export interface Document {
   id: number
   name: string
   subjectId: number
-  subjectName?: string  // Thêm
+  subjectName?: string 
   gradeId: number
-  grade: number  // Thêm (alias cho gradeId)
+  grade: number  
   documentCategoryId: number
-  categoryName?: string  // Thêm
+  categoryName?: string 
   accessibilityId: number
   documentUrl: string
   createdAt: string
@@ -21,12 +21,12 @@ export interface Document {
   uploaderName: string
   thumbnail: string
   schoolId: number
-  schoolName?: string  // Thêm
+  schoolName?: string  
   isFeatured: boolean
   price: number
   isSchoolDocument: boolean
-  fileType?: string  // Thêm
-  classId?: number  // Thêm
+  fileType?: string  
+  classId?: number  
 }
 
 export interface DocumentFilterParams {

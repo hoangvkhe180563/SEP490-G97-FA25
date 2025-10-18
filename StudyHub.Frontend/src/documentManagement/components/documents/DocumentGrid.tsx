@@ -1,3 +1,4 @@
+// StudyHub.Frontend/src/documentManagement/components/documents/DocumentGrid.tsx
 import DocumentItem from "@/documentManagement/components/DocumentItem"
 import type { Document } from "@/documentManagement/interfaces/document"
 

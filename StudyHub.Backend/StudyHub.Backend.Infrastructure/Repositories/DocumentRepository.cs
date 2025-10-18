@@ -151,7 +151,30 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 return (new List<Document>(), 0);
             }
         }
+        public List<Document> GetDocumentsBySubject(int subjectId)
+        {
+            try
+            {
+                var documents = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Where(d => d.SubjectId == subjectId
+                             && d.IsApproved == true
+                             && d.Status == true
+                             && d.DeletedAt == null)
+                    .OrderByDescending(d => d.CreatedAt)
+                    .Select(d => MapToEntity(d))
+                    .ToList();
 
+                return documents;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetDocumentsBySubject failed. Inner error: " + ex.Message).LogError();
+                return new List<Document>();
+            }
+        }
         private (List<Document>, int) ExecuteQuery(
             IQueryable<Data.Document> dbQuery, string? query, int? categoryId, int? grade,
             string? subject, int? classId, bool? isApproved, bool? status,

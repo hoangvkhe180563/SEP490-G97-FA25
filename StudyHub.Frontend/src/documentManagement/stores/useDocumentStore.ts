@@ -1,4 +1,3 @@
-//src/documentManagement/stores/useDocumentStore.ts
 import { create } from "zustand";
 import { axiosInstance } from "@/lib/axios";
 import type { DocumentDetailDto } from "@/documentManagement/interfaces/documentApi";
@@ -22,7 +21,7 @@ export const useDocumentStore = create<DocumentState>((set) => ({
   getDocumentById: async (id: number) => {
     set({ isLoading: true });
     try {
-      const response = await axiosInstance.get(`/Document/getbyid/${id}`);
+      const response = await axiosInstance.get(`/Document/${id}`);
       const { data } = response;
       set({
         document: data.data,

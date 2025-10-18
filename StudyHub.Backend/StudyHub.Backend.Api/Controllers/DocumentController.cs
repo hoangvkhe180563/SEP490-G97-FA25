@@ -232,5 +232,13 @@ namespace StudyHub.Backend.Api.Controllers
             var (fileBytes, contentType, _) = await _documentService.DownloadDocumentAsync(document);
             return File(fileBytes, contentType);
         }
+        [HttpGet("by-subject/{subjectId:int}")]
+        public IActionResult GetDocumentsBySubject(int subjectId)
+        {
+                var documents = _documentService.GetDocumentsBySubject(subjectId);
+                var dtos = documents.Select(d => d.ToListDto()).ToList();
+                return Ok(new { success = true, data = dtos });
+            
+        }
     }
 }

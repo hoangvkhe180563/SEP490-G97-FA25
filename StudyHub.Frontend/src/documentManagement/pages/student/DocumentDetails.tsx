@@ -11,9 +11,9 @@ import type { DocumentDetailDto, DocumentListDto } from "@/documentManagement/in
 
 function DocumentPreview({ thumbnail, fileType }: { thumbnail?: string; fileType?: string }) {
   return (
-    <Card className="w-40 h-48 flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 shadow-md hover:shadow-lg transition-shadow">
+    <Card className="w-40 h-48 flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 shadow-md hover:shadow-lg transition-shadow overflow-hidden">
       {thumbnail ? (
-        <img src={thumbnail} alt="Document preview" className="w-full h-full object-cover rounded" />
+        <img src={thumbnail} alt="Document preview" className="w-full h-full object-cover" />
       ) : (
         <>
           <div className="bg-blue-50 p-4 rounded-full mb-3">
@@ -113,7 +113,15 @@ function DocumentDetailsInfo({ document }: { document: DocumentDetailDto | null 
   );
 }
 
-function UserInfo({ createdBy }: { createdBy?: string }) {
+function UserInfo({ 
+  createdBy, 
+  schoolId,
+  onViewAuthorDocs 
+}: { 
+  createdBy?: string;
+  schoolId?: number;
+  onViewAuthorDocs: () => void;
+}) {
   return (
     <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
       <CardHeader className="bg-gradient-to-r from-gray-50 to-white">
@@ -130,7 +138,11 @@ function UserInfo({ createdBy }: { createdBy?: string }) {
           <p className="font-semibold text-base text-gray-800">{createdBy || "Người dùng"}</p>
           <p className="text-sm text-gray-600">Giáo viên</p>
         </div>
-        <Button variant="outline" className="w-full border-gray-300 hover:bg-gray-50">
+        <Button 
+          variant="outline" 
+          className="w-full border-gray-300 hover:bg-gray-50"
+          onClick={onViewAuthorDocs}
+        >
           Xem thêm tài liệu cùng tác giả
         </Button>
       </CardContent>
@@ -152,15 +164,19 @@ function RelatedDocumentCard({
     >
       <CardContent className="p-4">
         <div className="flex gap-3">
-          <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-            <FileText className="w-7 h-7 text-blue-600" />
+          <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {doc.thumbnail ? (
+              <img src={doc.thumbnail} alt={doc.name} className="w-full h-full object-cover" />
+            ) : (
+              <FileText className="w-7 h-7 text-blue-600" />
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <h4 className="font-semibold text-sm mb-1.5 line-clamp-2 text-gray-800 hover:text-blue-600 transition-colors">
               {doc.name}
             </h4>
             <p className="text-xs text-gray-500 flex items-center gap-1">
-              <span>{doc.createdBy || "N/A"}</span>
+              <span>{doc.uploaderName || "N/A"}</span>
               <span className="text-gray-300">•</span>
               <span>Lớp {doc.grade}</span>
             </p>
@@ -172,10 +188,12 @@ function RelatedDocumentCard({
 }
 
 function RelatedDocumentsSection({ 
-  subjectId, 
+  subjectName,
+  schoolId,
   currentDocId 
 }: { 
-  subjectId?: number;
+  subjectName?: string;
+  schoolId?: number;
   currentDocId: number;
 }) {
   const navigate = useNavigate();
@@ -184,39 +202,40 @@ function RelatedDocumentsSection({
 
   useEffect(() => {
     const fetchRelatedDocs = async () => {
-      if (!subjectId) return;
+      if (!subjectName) return;
       
       setIsLoading(true);
       try {
-        const response = await documentService.getDocumentsBySubject(subjectId);
-        
-        if (response.success && response.data) {
-          const filtered = response.data
-            .filter(doc => doc.id !== currentDocId)
-            .sort(() => Math.random() - 0.5)
-            .slice(0, 7)
-            .map(doc => ({
-              id: doc.id,
-              name: doc.name,
-              subjectId: doc.subjectId,
-              subjectName: doc.subjectName,
-              documentCategoryId: doc.documentCategoryId,
-              categoryName: doc.categoryName,
-              thumbnail: doc.thumbnail,
-              description: doc.description,
-              createdAt: doc.createdAt,
-              createdBy: doc.createdBy,
-              isSchoolDocument: doc.isSchoolDocument,
-              isFeatured: doc.isFeatured,
-              isApproved: doc.isApproved,
-              schoolId: doc.schoolId,
-              schoolName: doc.schoolName,
-              fileType: doc.fileType,
-              documentUrl: doc.documentUrl
-            } as DocumentListDto));
+        let allDocs: any[] = [];
+
+        if (schoolId) {
+          const [publicResponse, schoolResponse] = await Promise.all([
+            documentService.getPublicDocuments(undefined, undefined, undefined, subjectName, undefined, 1, 999),
+            documentService.getSchoolDocuments(schoolId, undefined, undefined, undefined, subjectName, undefined, 1, 999)
+          ]);
+
+          if (publicResponse.success) {
+            allDocs = [...allDocs, ...publicResponse.data.items];
+          }
+          if (schoolResponse.success) {
+            allDocs = [...allDocs, ...schoolResponse.data.items];
+          }
+        } else {
+          const publicResponse = await documentService.getPublicDocuments(
+            undefined, undefined, undefined, subjectName, undefined, 1, 999
+          );
           
-          setRelatedDocs(filtered);
+          if (publicResponse.success) {
+            allDocs = publicResponse.data.items;
+          }
         }
+
+        const filtered = allDocs
+          .filter(doc => doc.id !== currentDocId)
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 7);
+        
+        setRelatedDocs(filtered);
       } catch (error) {
         console.error('Error fetching related docs:', error);
       } finally {
@@ -225,10 +244,10 @@ function RelatedDocumentsSection({
     };
 
     fetchRelatedDocs();
-  }, [subjectId, currentDocId]);
+  }, [subjectName, schoolId, currentDocId]);
 
   const handleDocumentClick = (docId: number) => {
-    navigate(`/document/student/details/${docId}`);
+    window.location.href = `/document/student/details/${docId}`;
   };
 
   if (isLoading) {
@@ -315,6 +334,20 @@ export default function DocumentDetails() {
     }
   };
 
+  const handleViewAuthorDocs = () => {
+    if (document?.uploaderName) {
+      const basePath = location.pathname.split("/details")[0];
+      const documentsPath = basePath.replace(/\/(teacher|student|manager)$/, '/$1/documents');
+      
+      navigate(documentsPath, { 
+        state: { 
+          searchQuery: document.uploaderName,
+          showSchoolDocs: !!document.schoolId
+        } 
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center">
@@ -353,11 +386,16 @@ export default function DocumentDetails() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <DocumentDescription description={document.description} />
           <DocumentDetailsInfo document={document} />
-          <UserInfo createdBy={document.createdBy} />
+          <UserInfo 
+            createdBy={document.uploaderName} 
+            schoolId={document.schoolId}
+            onViewAuthorDocs={handleViewAuthorDocs}
+          />
         </div>
 
         <RelatedDocumentsSection 
-          subjectId={document.subjectId} 
+          subjectName={document.subjectName}
+          schoolId={document.schoolId}
           currentDocId={document.id}
         />
       </div>

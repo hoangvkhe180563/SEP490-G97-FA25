@@ -241,7 +241,10 @@ namespace StudyHub.Backend.UseCases.Services
             if (file.Length > FileConstants.MaxImageSize)
                 throw new ArgumentException($"Image size exceeds {FileConstants.MaxImageSize / (1024 * 1024)}MB");
         }
-
+        public List<Document> GetDocumentsBySubject(int subjectId)
+        {
+            return _repo.GetDocumentsBySubject(subjectId);
+        }
         private string GetContentType(string filePath)
         {
             var extension = Path.GetExtension(filePath).ToLowerInvariant();

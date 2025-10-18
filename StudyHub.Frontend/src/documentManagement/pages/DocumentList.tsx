@@ -11,13 +11,15 @@ const DocumentList = () => {
   const navigate = useNavigate()
   const location = useLocation()
   
+  const locationState = location.state as { searchQuery?: string; showSchoolDocs?: boolean } | null
+  
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchQuery, setSearchQuery] = useState(locationState?.searchQuery || "")
   const [sortBy, setSortBy] = useState("newest")
-  const [showSchoolDocs, setShowSchoolDocs] = useState(false)
+  const [showSchoolDocs, setShowSchoolDocs] = useState(locationState?.showSchoolDocs || false)
   const [selectedGrades, setSelectedGrades] = useState<number[]>([])
-  const [selectedSubjects, setSelectedSubjects] = useState<number[]>([])
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
   const [selectedCategories, setSelectedCategories] = useState<number[]>([])
   const [pagination, setPagination] = useState<PaginationInfo>({
     currentPage: 1,
@@ -26,73 +28,129 @@ const DocumentList = () => {
     totalPages: 0,
   })
 
+  const userSchoolId = 1
+
+  useEffect(() => {
+    if (locationState?.searchQuery || locationState?.showSchoolDocs !== undefined) {
+      window.history.replaceState({}, document.title)
+    }
+  }, [])
+
   const fetchDocuments = async () => {
     setLoading(true)
     try {
-      let allDocuments: Document[] = []
-      
-      if (showSchoolDocs) {
-        const [publicDocs, schoolDocs] = await Promise.all([
-          documentService.getPublicDocuments(pagination.currentPage, pagination.pageSize),
-          documentService.getSchoolDocuments(1, pagination.currentPage, pagination.pageSize)
-        ])
-        
-        allDocuments = [...publicDocs.data.items, ...schoolDocs.data.items]
-        
-        setPagination({
-          currentPage: pagination.currentPage,
-          pageSize: pagination.pageSize,
-          totalCount: publicDocs.data.total + schoolDocs.data.total,
-          totalPages: Math.ceil((publicDocs.data.total + schoolDocs.data.total) / pagination.pageSize)
-        })
-      } else {
-        const response = await documentService.getPublicDocuments(pagination.currentPage, pagination.pageSize)
-        allDocuments = response.data.items
-        setPagination({
-          currentPage: response.data.page,
-          pageSize: response.data.limit,
-          totalCount: response.data.total,
-          totalPages: response.data.totalPages
-        })
-      }
+      const gradeParam = selectedGrades.length === 1 ? selectedGrades[0] : undefined
+      const categoryParam = selectedCategories.length === 1 ? selectedCategories[0] : undefined
+      const subjectParam = selectedSubjects.length === 1 ? selectedSubjects[0] : undefined
 
-      let filteredDocs = allDocuments
-
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase()
-        filteredDocs = filteredDocs.filter(doc => 
-          doc.name.toLowerCase().includes(query) ||
-          doc.description?.toLowerCase().includes(query) ||
-          doc.uploaderName?.toLowerCase().includes(query)
+      if (showSchoolDocs && userSchoolId) {
+        const publicResponse = await documentService.getPublicDocuments(
+          searchQuery || undefined,
+          categoryParam,
+          gradeParam,
+          subjectParam,
+          undefined,
+          1,
+          999
         )
-      }
 
-      if (selectedGrades.length > 0) {
-        filteredDocs = filteredDocs.filter(doc => selectedGrades.includes(doc.gradeId))
-      }
+        const schoolResponse = await documentService.getSchoolDocuments(
+          userSchoolId,
+          searchQuery || undefined,
+          categoryParam,
+          gradeParam,
+          subjectParam,
+          undefined,
+          1,
+          999
+        )
 
-      if (selectedSubjects.length > 0) {
-        filteredDocs = filteredDocs.filter(doc => selectedSubjects.includes(doc.subjectId))
-      }
+        const publicDocs = publicResponse.data.items.map(doc => ({ ...doc, isSchoolDocument: false }))
+        const schoolDocs = schoolResponse.data.items.map(doc => ({ ...doc, isSchoolDocument: true }))
+        
+        let allDocs = [...publicDocs, ...schoolDocs]
 
-      if (selectedCategories.length > 0) {
-        filteredDocs = filteredDocs.filter(doc => selectedCategories.includes(doc.documentCategoryId))
-      }
+        if (selectedGrades.length > 1) {
+          allDocs = allDocs.filter(doc => selectedGrades.includes(doc.gradeId))
+        }
 
-      if (sortBy === "oldest") {
-        filteredDocs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-      } else if (sortBy === "name") {
-        filteredDocs.sort((a, b) => a.name.localeCompare(b.name))
+        if (selectedSubjects.length > 1) {
+          allDocs = allDocs.filter(doc => selectedSubjects.includes(doc.subjectName || ''))
+        }
+
+        if (selectedCategories.length > 1) {
+          allDocs = allDocs.filter(doc => selectedCategories.includes(doc.documentCategoryId))
+        }
+
+        applySorting(allDocs)
+
+        const totalCount = allDocs.length
+        const totalPages = Math.ceil(totalCount / pagination.pageSize)
+        const startIndex = (pagination.currentPage - 1) * pagination.pageSize
+        const endIndex = startIndex + pagination.pageSize
+        const paginatedDocs = allDocs.slice(startIndex, endIndex)
+
+        setDocuments(paginatedDocs)
+        setPagination(prev => ({
+          ...prev,
+          totalCount: totalCount,
+          totalPages: totalPages
+        }))
       } else {
-        filteredDocs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      }
+        const response = await documentService.getPublicDocuments(
+          searchQuery || undefined,
+          categoryParam,
+          gradeParam,
+          subjectParam,
+          undefined,
+          1,
+          999
+        )
 
-      setDocuments(filteredDocs)
+        let filteredDocs = response.data.items.map(doc => ({ ...doc, isSchoolDocument: false }))
+
+        if (selectedGrades.length > 1) {
+          filteredDocs = filteredDocs.filter(doc => selectedGrades.includes(doc.gradeId))
+        }
+
+        if (selectedSubjects.length > 1) {
+          filteredDocs = filteredDocs.filter(doc => selectedSubjects.includes(doc.subjectName || ''))
+        }
+
+        if (selectedCategories.length > 1) {
+          filteredDocs = filteredDocs.filter(doc => selectedCategories.includes(doc.documentCategoryId))
+        }
+
+        applySorting(filteredDocs)
+
+        const totalCount = filteredDocs.length
+        const totalPages = Math.ceil(totalCount / pagination.pageSize)
+        const startIndex = (pagination.currentPage - 1) * pagination.pageSize
+        const endIndex = startIndex + pagination.pageSize
+        const paginatedDocs = filteredDocs.slice(startIndex, endIndex)
+
+        setDocuments(paginatedDocs)
+        setPagination(prev => ({
+          ...prev,
+          totalCount: totalCount,
+          totalPages: totalPages
+        }))
+      }
     } catch (error) {
       console.error("Failed to fetch documents:", error)
       setDocuments([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const applySorting = (docs: Document[]) => {
+    if (sortBy === "oldest") {
+      docs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    } else if (sortBy === "name") {
+      docs.sort((a, b) => a.name.localeCompare(b.name))
+    } else {
+      docs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     }
   }
 
@@ -115,9 +173,9 @@ const DocumentList = () => {
     setPagination((prev) => ({ ...prev, currentPage: 1 }))
   }
 
-  const handleSubjectChange = (subjectId: number) => {
+  const handleSubjectChange = (subject: string) => {
     setSelectedSubjects((prev) =>
-      prev.includes(subjectId) ? prev.filter((id) => id !== subjectId) : [...prev, subjectId]
+      prev.includes(subject) ? prev.filter((s) => s !== subject) : [...prev, subject]
     )
     setPagination((prev) => ({ ...prev, currentPage: 1 }))
   }
@@ -164,6 +222,7 @@ const DocumentList = () => {
               onSubjectChange={handleSubjectChange}
               selectedCategories={selectedCategories}
               onCategoryChange={handleCategoryChange}
+              hasSchoolAccess={!!userSchoolId}
             />
 
             <div className="flex-1">
@@ -179,6 +238,11 @@ const DocumentList = () => {
                   <DocumentGrid documents={documents} onDocumentClick={handleDocumentClick} />
                   {documents.length > 0 && (
                     <DocumentPagination pagination={pagination} onPageChange={handlePageChange} />
+                  )}
+                  {documents.length === 0 && !loading && (
+                    <div className="flex items-center justify-center py-12">
+                      <p className="text-gray-500">Không tìm thấy tài liệu nào</p>
+                    </div>
                   )}
                 </>
               )}
