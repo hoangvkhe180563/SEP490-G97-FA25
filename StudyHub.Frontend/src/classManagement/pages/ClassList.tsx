@@ -95,24 +95,25 @@ export const ClassList: React.FC = () => {
   };
 
   const handleMenu = (
-    action: "viewClassworks" | "viewStudents" | "edit",
-    id: number | string
-  ) => {
-    if (action === "edit") {
-      const item = classItems.find((c) => c.id === id);
-      if (item) {
-        setEditing({ ...item, subject: Number(item.subject) });
-        setShowEdit(true);
-      }
-      return;
+  action: "viewClassworks" | "viewStudents" | "edit",
+  id: number | string
+) => {
+  if (action === "edit") {
+    const item = classItems.find((c) => c.id === id);
+    if (item) {
+      setEditing({ ...item, subject: Number(item.subject) });
+      setShowEdit(true);
     }
+    return;
+  }
 
-    if (action === "viewClassworks") {
-      navigate(`/class/${userRole}/${id}/classworks`);
-    } else if (action === "viewStudents") {
-      navigate(`/class/${userRole}/${id}/members`);
-    }
-  };
+  if (action === "viewClassworks") {
+    navigate(`/class/${userRole}/${id}?tab=exercise`);
+  } else if (action === "viewStudents") {
+    navigate(`/class/${userRole}/${id}?tab=everyone`);
+  }
+};
+
 
   const handleCreate = async (payload: {
     title: string;

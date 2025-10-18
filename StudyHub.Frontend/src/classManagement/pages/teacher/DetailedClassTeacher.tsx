@@ -5,6 +5,7 @@ import PostComposer from "@/classManagement/components/ui/postcomposer";
 import PostCard from "@/classManagement/components/ui/postcard";
 import EveryoneListTC from "@/classManagement/components/ui/listeveryoneteacher";
 import MemberDetailModal from "@/classManagement/components/ui/memberdetailmodal";
+import { useSearchParams } from "react-router-dom";
 
 import {
   Breadcrumb,
@@ -65,7 +66,15 @@ const DetailedClassTeacher: React.FC = () => {
       getClassDetail(Number(id));
     }
   }, [id, getClassDetail]);
+  const [activeTab, setActiveTab] = useState("notifications");
+  const [searchParams] = useSearchParams();
 
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
   const teacher: ClassMemberDto | null = currentClass?.data?.teacher ?? null;
 
   const students: ClassMemberDto[] = currentClass?.data?.students ?? [];
@@ -133,7 +142,11 @@ const DetailedClassTeacher: React.FC = () => {
       {/* ===== Main Grid ===== */}
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-8">
-          <Tabs defaultValue="notifications" className="w-full mt-4">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full mt-4"
+          >
             <div className="mb-4">
               <TabsList>
                 <TabsTrigger value="notifications">Notifications</TabsTrigger>
@@ -183,8 +196,6 @@ const DetailedClassTeacher: React.FC = () => {
                 onSelect={handleSelect}
               />
             </TabsContent>
-
-            
           </Tabs>
         </div>
 

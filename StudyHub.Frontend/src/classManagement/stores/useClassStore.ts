@@ -33,6 +33,7 @@ export const useClassStore = create<ClassState>((set) => ({
     try {
       const response = await axiosInstance.get<GetClassesResponse>(`/Class?${query}`);
       const data = response.data; 
+      console.log("API trả về số lớp:", data.classes.length);
 
       const mappedClasses: ClassListDto[] = data.classes.map(c => ({
         id: c.id,
