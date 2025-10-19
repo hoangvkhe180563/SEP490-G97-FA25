@@ -4,6 +4,7 @@ using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.UseCases.Services;
 using System;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -13,10 +14,24 @@ namespace StudyHub.Backend.Api.Controllers
     public class DocumentController : ControllerBase
     {
         private readonly DocumentService _documentService;
+        private readonly AppUserService _userService;
 
-        public DocumentController(DocumentService documentService)
+        public DocumentController(DocumentService documentService, AppUserService userService)
         {
             _documentService = documentService;
+            _userService = userService;
+        }
+
+        private Guid? GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                              ?? User.FindFirst("sub")?.Value
+                              ?? User.FindFirst("id")?.Value;
+
+            if (string.IsNullOrEmpty(userIdClaim))
+                return null;
+
+            return Guid.TryParse(userIdClaim, out var userId) ? userId : null;
         }
 
         private IActionResult PagedResult<T>(List<T> items, int total, int page, int limit)
@@ -77,6 +92,12 @@ namespace StudyHub.Backend.Api.Controllers
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
+            // var currentUserId = GetCurrentUserId();
+            // if (!currentUserId.HasValue)
+            //     return Unauthorized(new { success = false });
+            // var (documents, totalCount) = _documentService.GetOwnedDocuments(
+            //     currentUserId.Value, query, categoryId, grade, subject, classId, pageNumber, pageSize);
+
             var (documents, totalCount) = _documentService.GetOwnedDocuments(
                 creatorId, query, categoryId, grade, subject, classId, pageNumber, pageSize);
             return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
@@ -134,6 +155,28 @@ namespace StudyHub.Backend.Api.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(new { success = false, errors = ModelState });
 
+            // var currentUserId = GetCurrentUserId();
+            // if (!currentUserId.HasValue)
+            //     return Unauthorized(new { success = false });
+            // 
+            // var userInfo = _userService.GetUserById(currentUserId.Value);
+            // if (userInfo == null)
+            //     return Unauthorized(new { success = false });
+            // 
+            // var document = dto.ToEntity();
+            // document.CreatedBy = currentUserId.Value;
+            // 
+            // if (dto.IsInClass == true)
+            // {
+            //     if (userInfo.SchoolId == null)
+            //         return BadRequest(new { success = false });
+            //     document.SchoolId = userInfo.SchoolId;
+            // }
+            // else
+            // {
+            //     document.SchoolId = dto.SchoolId;
+            // }
+
             var document = dto.ToEntity();
             document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList() ?? new List<Domain.Entities.Class>();
 
@@ -154,6 +197,20 @@ namespace StudyHub.Backend.Api.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(new { success = false, errors = ModelState });
 
+            // var currentUserId = GetCurrentUserId();
+            // if (!currentUserId.HasValue)
+            //     return Unauthorized(new { success = false });
+            // 
+            // var existingDoc = _documentService.GetDocumentById(id);
+            // if (existingDoc == null)
+            //     return NotFound(new { success = false });
+            // 
+            // if (existingDoc.CreatedBy != currentUserId.Value)
+            //     return Forbid();
+            // 
+            // var document = dto.ToEntity();
+            // document.UpdatedBy = currentUserId.Value;
+
             var document = dto.ToEntity();
             document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList() ?? new List<Domain.Entities.Class>();
 
@@ -166,6 +223,17 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpDelete("{id:int}")]
         public IActionResult DeleteDocument(int id)
         {
+            // var currentUserId = GetCurrentUserId();
+            // if (!currentUserId.HasValue)
+            //     return Unauthorized(new { success = false });
+            // 
+            // var existingDoc = _documentService.GetDocumentById(id);
+            // if (existingDoc == null)
+            //     return NotFound(new { success = false });
+            // 
+            // if (existingDoc.CreatedBy != currentUserId.Value)
+            //     return Forbid();
+
             var result = _documentService.DeleteDocument(id);
             if (!result)
                 return NotFound(new { success = false });
@@ -176,6 +244,11 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpPatch("soft-delete/{id:int}")]
         public IActionResult SoftDeleteDocument(int id, [FromBody] Guid deletedBy)
         {
+            // var currentUserId = GetCurrentUserId();
+            // if (!currentUserId.HasValue)
+            //     return Unauthorized(new { success = false });
+            // var result = _documentService.SoftDeleteDocument(id, currentUserId.Value);
+
             var result = _documentService.SoftDeleteDocument(id, deletedBy);
             if (!result)
                 return NotFound(new { success = false });
@@ -186,6 +259,11 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpPost("approve")]
         public IActionResult ApproveDocument([FromBody] ApprovalDto dto)
         {
+            // var currentUserId = GetCurrentUserId();
+            // if (!currentUserId.HasValue)
+            //     return Unauthorized(new { success = false });
+            // var document = _documentService.ApproveDocument(dto.DocumentId, currentUserId.Value);
+
             var document = _documentService.ApproveDocument(dto.DocumentId, dto.ApprovedBy);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
@@ -193,6 +271,11 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpPost("reject")]
         public IActionResult RejectDocument([FromBody] ApprovalDto dto)
         {
+            // var currentUserId = GetCurrentUserId();
+            // if (!currentUserId.HasValue)
+            //     return Unauthorized(new { success = false });
+            // var document = _documentService.RejectDocument(dto.DocumentId, currentUserId.Value);
+
             var document = _documentService.RejectDocument(dto.DocumentId, dto.ApprovedBy);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
@@ -200,6 +283,11 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpPost("revoke")]
         public IActionResult RevokeApproval([FromBody] ApprovalDto dto)
         {
+            // var currentUserId = GetCurrentUserId();
+            // if (!currentUserId.HasValue)
+            //     return Unauthorized(new { success = false });
+            // var document = _documentService.RevokeApproval(dto.DocumentId, currentUserId.Value);
+
             var document = _documentService.RevokeApproval(dto.DocumentId, dto.ApprovedBy);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
@@ -207,6 +295,11 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpPost("toggle-featured")]
         public IActionResult ToggleFeatured([FromBody] ToggleFeaturedDto dto)
         {
+            // var currentUserId = GetCurrentUserId();
+            // if (!currentUserId.HasValue)
+            //     return Unauthorized(new { success = false });
+            // var document = _documentService.ToggleFeatured(dto.DocumentId, currentUserId.Value);
+
             var document = _documentService.ToggleFeatured(dto.DocumentId, dto.UpdatedBy);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
@@ -232,13 +325,13 @@ namespace StudyHub.Backend.Api.Controllers
             var (fileBytes, contentType, _) = await _documentService.DownloadDocumentAsync(document);
             return File(fileBytes, contentType);
         }
+
         [HttpGet("by-subject/{subjectId:int}")]
         public IActionResult GetDocumentsBySubject(int subjectId)
         {
-                var documents = _documentService.GetDocumentsBySubject(subjectId);
-                var dtos = documents.Select(d => d.ToListDto()).ToList();
-                return Ok(new { success = true, data = dtos });
-            
+            var documents = _documentService.GetDocumentsBySubject(subjectId);
+            var dtos = documents.Select(d => d.ToListDto()).ToList();
+            return Ok(new { success = true, data = dtos });
         }
     }
 }

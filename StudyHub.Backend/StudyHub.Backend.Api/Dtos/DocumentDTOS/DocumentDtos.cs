@@ -122,7 +122,8 @@ namespace StudyHub.Backend.Api.Dtos
 
         [Required]
         public Guid UpdatedBy { get; set; }
-
+        
+        [Required]
         public IFormFile? DocumentFile { get; set; }
 
         public IFormFile? ThumbnailFile { get; set; }
