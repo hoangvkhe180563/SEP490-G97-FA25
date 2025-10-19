@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import type { IIntroductionProps } from '../interfaces/IIntroductionProps'
-import { Button } from '@/common/components/ui/button'
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/common/components/ui/carousel'
 import { Card, CardContent } from '@/common/components/ui/card'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -34,9 +33,6 @@ const Introduction = (props: IIntroductionProps) => {
             <div className='text-justify mb-3'>
               {props.description}
             </div>
-            <Button className={`${props.background} hover:${props.background}`}>
-              Đọc thêm...
-            </Button>
           </div>
           <Carousel opts={{
             loop: true,
@@ -74,7 +70,7 @@ const Introduction = (props: IIntroductionProps) => {
               {props.introductionImage && Array.from(props.introductionImage).map((_, index) => (
                 <button
                   key={index}
-                  className={`h-2 w-2 rounded-full transition-all ${current === index ? `${props.background}` : "bg-gray-300"}`}
+                  className={`h-2 w-2 rounded-full transition-all ${current === index ? `bg-blue-300` : "bg-gray-300"}`}
                   onClick={() => scrollTo(index)}
                 />
               ))}

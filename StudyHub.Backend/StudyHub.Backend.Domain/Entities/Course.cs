@@ -1,6 +1,6 @@
 ﻿namespace StudyHub.Backend.Domain.Entities;
 
-public class Course
+public class Course : IAuditTrail
 {
     public int Id { get; set; }
 
@@ -33,4 +33,5 @@ public class Course
     public DateTime? DeletedAt { get; set; }
 
     public List<Chapter> Chapters { get; set; } = new();
+    public Subject? Subject { get; set; }
 }

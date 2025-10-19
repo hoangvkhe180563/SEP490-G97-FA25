@@ -1,9 +1,11 @@
 // hooks/useDocumentFilters.ts
 import { useState, useEffect, useCallback } from "react";
 import { documentService } from "@/documentManagement/services/documentService";
-import type { DocumentFilterParams } from "@/documentManagement/interfaces/documentApi";
 import type {
-  Grade,
+  DocumentListDto,
+  DocumentFilterParams,
+} from "@/documentManagement/interfaces/documentApi";
+import type {
   Subject,
   DocumentCategory,
 } from "@/documentManagement/interfaces/masterData";
@@ -16,8 +18,7 @@ interface FilterState {
 }
 
 export const useDocumentFilters = () => {
-  // const [documents, setDocuments] = useState<DocumentListDto[]>([])
-  const [grades, setGrades] = useState<Grade[]>([]);
+  const [documents, setDocuments] = useState<DocumentListDto[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [categories, setCategories] = useState<DocumentCategory[]>([]);
   const [loading, setLoading] = useState(false);
@@ -25,7 +26,6 @@ export const useDocumentFilters = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const documents: any[] = [];
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const pageSize = 9;
@@ -40,12 +40,10 @@ export const useDocumentFilters = () => {
   useEffect(() => {
     const fetchMasterData = async () => {
       try {
-        const [gradesData, subjectsData, categoriesData] = await Promise.all([
-          documentService.getGrades(),
+        const [subjectsData, categoriesData] = await Promise.all([
           documentService.getSubjects(),
           documentService.getDocumentCategories(),
         ]);
-        setGrades(gradesData);
         setSubjects(subjectsData);
         setCategories(categoriesData);
       } catch (err) {
@@ -123,7 +121,7 @@ export const useDocumentFilters = () => {
             );
         }
 
-        // setDocuments(filteredDocs)
+        setDocuments(filteredDocs);
         setTotalPages(response.pagination.totalPages);
         setTotalCount(response.pagination.totalCount);
       }
@@ -140,8 +138,7 @@ export const useDocumentFilters = () => {
   }, [fetchDocuments]);
 
   return {
-    document: documents,
-    grades,
+    documents,
     subjects,
     categories,
     loading,

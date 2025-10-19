@@ -1,61 +1,72 @@
 import React, { useEffect, useState } from "react";
+import { useClassStore } from "@/classManagement/stores/useClassStore";
 
-export type CreateClassPayload = {
-  title: string;
-  subject: string;
-  description?: string;
-  teacher?: string;
-};
-
-type Props = {
+export const CreateClassModal: React.FC<{
   open: boolean;
   onClose: () => void;
-  onCreate: (payload: CreateClassPayload) => void;
-};
-
-export const CreateClassModal: React.FC<Props> = ({ open, onClose, onCreate }) => {
+  onCreate: (payload: { title: string; subject: number; description?: string }) => Promise<void>;
+}> = ({ open, onClose, onCreate }) => {
   const [title, setTitle] = useState("");
-  const [subject, setSubject] = useState("");
-  const [description, setDescription] = useState("");
+const [subject, setSubject] = useState<number>(0);
 
+  const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const { subjects, getAllSubjects } = useClassStore();
+
+  // ✅ Khi modal mở thì load danh sách subject
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      getAllSubjects();
+    } else {
+      // reset form khi modal đóng
       setTitle("");
-      setSubject("");
+      setSubject(0);
       setDescription("");
     }
-  }, [open]);
+  }, [open, getAllSubjects]);
 
   if (!open) return null;
 
-  const valid = title.trim() !== "" && subject.trim() !== "";
+  const valid = title.trim() !== "" && subject !== 0;
 
-  const submit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valid) return;
-    onCreate({ title: title.trim(), subject: subject.trim(), description: description.trim() });
-    onClose();
+    if (!valid || submitting) return;
+
+    setSubmitting(true);
+    try {
+      await onCreate({
+        title: title.trim(),
+        subject: subject as unknown as number,
+        description: description.trim() || undefined,
+      });
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+
       <form
-        onSubmit={submit}
+        onSubmit={handleSubmit}
         className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 overflow-hidden"
-        aria-modal="true"
-        role="dialog"
       >
-        <div className="px-6 py-4 border-b">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium">Create class</h3>
-            <button type="button" onClick={onClose} className="text-gray-500">✕</button>
-          </div>
+        {/* Header */}
+        <div className="px-6 py-4 border-b flex justify-between items-center">
+          <h3 className="text-lg font-medium">Create class</h3>
+          <button type="button" onClick={onClose} className="text-gray-500 hover:text-black">✕</button>
         </div>
 
+        {/* Body */}
         <div className="px-6 py-4 space-y-4">
           <div>
-            <label className="text-sm block mb-1">Class name <span className="text-red-500">*</span></label>
+            <label className="text-sm block mb-1">
+              Class name <span className="text-red-500">*</span>
+            </label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -65,17 +76,21 @@ export const CreateClassModal: React.FC<Props> = ({ open, onClose, onCreate }) =
           </div>
 
           <div>
-            <label className="text-sm block mb-1">Subject <span className="text-red-500">*</span></label>
+            <label className="text-sm block mb-1">
+              Subject <span className="text-red-500">*</span>
+            </label>
             <select
               value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              className="w-full border rounded px-3 py-2"
+              onChange={(e) => setSubject(Number(e.target.value))}
             >
-              <option value="">Subject</option>
-              <option value="Toán">Toán</option>
-              <option value="Văn">Văn</option>
-              <option value="Anh">Anh</option>
+              <option value={0}>Select subject</option>
+              {subjects.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
             </select>
+
           </div>
 
           <div>
@@ -89,10 +104,21 @@ export const CreateClassModal: React.FC<Props> = ({ open, onClose, onCreate }) =
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
-          <button type="button" onClick={onClose} className="px-4 py-2">Cancel</button>
-          <button type="submit" disabled={!valid} className="px-4 py-2 bg-slate-900 text-white rounded disabled:opacity-50">
-            Create
+        {/* Footer */}
+        <div className="px-6 py-4 border-t flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-gray-600 hover:text-black"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={!valid || submitting}
+            className="px-4 py-2 bg-slate-900 text-white rounded disabled:opacity-50"
+          >
+            {submitting ? "Creating..." : "Create"}
           </button>
         </div>
       </form>

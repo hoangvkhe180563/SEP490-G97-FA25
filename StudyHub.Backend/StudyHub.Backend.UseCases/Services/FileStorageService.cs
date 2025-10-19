@@ -1,84 +1,54 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using System;
+using System.IO;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using StudyHub.Backend.UseCases.Repositories;
 
 namespace StudyHub.Backend.UseCases.Services
 {
-   
-
-    public class LocalFileStorageService : IFileStorageRepository
+    public class CloudFileStorageService 
     {
-        private readonly string _basePath;
+        private readonly ICloudinaryRepository _cloudinaryRepository;
 
-        public LocalFileStorageService(string basePath = "wwwroot")
+        public CloudFileStorageService(ICloudinaryRepository cloudinaryRepository)
         {
-            _basePath = basePath;
+            _cloudinaryRepository = cloudinaryRepository;
         }
 
         public async Task<string> UploadFileAsync(IFormFile file, string uploadPath)
         {
-            var uploadsFolder = Path.Combine(_basePath, uploadPath);
-            Directory.CreateDirectory(uploadsFolder);
+            return await _cloudinaryRepository.UploadImageAsync(file, uploadPath);
+        }
 
-            var uniqueFileName = $"{Guid.NewGuid()}_{Path.GetFileName(file.FileName)}";
-            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+        public async Task<string> UploadDocumentAsync(IFormFile file, string uploadPath)
+        {
+            return await _cloudinaryRepository.UploadFileAsync(file, uploadPath);
+        }
 
-            using (var fileStream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(fileStream);
-            }
-
-            return Path.Combine(uploadPath, uniqueFileName).Replace("\\", "/");
+        public void DeleteDocumentFile(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath)) return;
+            _cloudinaryRepository.DeleteImageAsync(filePath).GetAwaiter().GetResult();
         }
 
         public void DeleteFile(string filePath)
         {
             if (string.IsNullOrEmpty(filePath)) return;
-
-            var fullPath = Path.Combine(_basePath, filePath);
-            if (File.Exists(fullPath))
-            {
-                try
-                {
-                    File.Delete(fullPath);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Failed to delete file {fullPath}: {ex.Message}");
-                }
-            }
+            _cloudinaryRepository.DeleteImageAsync(filePath).GetAwaiter().GetResult();
         }
+
         public async Task<byte[]> ReadFileAsync(string filePath)
         {
-            if (string.IsNullOrEmpty(filePath))
+            try
             {
-                throw new ArgumentException("File path is required");
+                using var httpClient = new HttpClient();
+                httpClient.Timeout = TimeSpan.FromMinutes(5);
+                return await httpClient.GetByteArrayAsync(filePath);
             }
-
-            var fullPath = Path.Combine(_basePath, filePath);
-
-            if (!File.Exists(fullPath))
+            catch
             {
-                throw new FileNotFoundException($"File not found: {filePath}");
+                throw;
             }
-
-            return await File.ReadAllBytesAsync(fullPath);
         }
     }
-
-    //public class CloudFileStorageService : IFileStorageRepository
-    //{
-    //    public async Task<string> UploadFileAsync(IFormFile file, string uploadPath)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public void DeleteFile(string filePath)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-    //public async Task<byte[]> ReadFileAsync(string filePath)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-        //}
-    }
+}

@@ -1,16 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
-using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
 
 namespace StudyHub.Backend.Infrastructure.Data;
 
 public partial class AppDbContext : DbContext
 {
-    public AppDbContext()
-    {
-    }
-
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
     {
@@ -53,6 +48,8 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<Enrollment> Enrollments { get; set; }
 
     public virtual DbSet<LandingPage> LandingPages { get; set; }
+
+    public virtual DbSet<LandingPageImage> LandingPageImages { get; set; }
 
     public virtual DbSet<Lesson> Lessons { get; set; }
 
@@ -508,11 +505,28 @@ public partial class AppDbContext : DbContext
             entity.ToTable("landing_pages");
 
             entity.Property(e => e.SchoolId).ValueGeneratedNever();
+            entity.Property(e => e.Description).HasMaxLength(500);
 
             entity.HasOne(d => d.School).WithOne(p => p.LandingPage)
                 .HasForeignKey<LandingPage>(d => d.SchoolId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("landing_pages_ibfk_1");
+        });
+
+        modelBuilder.Entity<LandingPageImage>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("landing_page_images");
+
+            entity.HasIndex(e => e.LandingPageId, "LandingPageId");
+
+            entity.Property(e => e.Id).ValueGeneratedNever();
+
+            entity.HasOne(d => d.LandingPage).WithMany(p => p.LandingPageImages)
+                .HasForeignKey(d => d.LandingPageId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("landing_page_images_ibfk_1");
         });
 
         modelBuilder.Entity<Lesson>(entity =>

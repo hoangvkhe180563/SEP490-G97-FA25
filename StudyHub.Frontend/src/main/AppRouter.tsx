@@ -2,21 +2,33 @@ import classRoutes from "@/classManagement/routes/ClassRoutes";
 import documentRoutes from "@/documentManagement/routes/DocumentRoutes";
 
 import RouteConfig from "@/common/constants/RouteConfig";
-import Homepage from "@/uiManagement/pages/Homepage";
 import uiManagementRoutes from "@/uiManagement/routes/UiManagementRoutes";
 import userRoutes from "@/user/routes/UserRoutes";
 import { Outlet, useRoutes } from "react-router-dom";
 import courseRoutes from "@/courseManagement/routes/CourseRoute";
+import MainLayout from "@/common/pages/MainLayout";
+import Homepage from "@/uiManagement/pages/Homepage";
+import {
+  guestSidebarItems,
+  uiManagerSidebarItems,
+} from "@/common/constants/SidebarItems";
+import useLocalStorage from "@/common/hooks/useLocalStorage";
 
 const AppRouter = () => {
+  const [isLoggedIn] = useLocalStorage("isLoggedIn", false);
+
   const appRoutes = [
     {
       path: "/",
-      element: <Homepage />,
-    },
-    {
-      path: "/:school",
-      element: <Homepage />,
+      element: (
+        <MainLayout isLoggedIn={isLoggedIn} sidebarItems={guestSidebarItems} />
+      ),
+      children: [
+        {
+          index: true,
+          element: <Homepage />,
+        },
+      ],
     },
     {
       path: RouteConfig.USER,
@@ -25,7 +37,12 @@ const AppRouter = () => {
     },
     {
       path: RouteConfig.UI_MANAGEMENT,
-      element: <Outlet />,
+      element: (
+        <MainLayout
+          isLoggedIn={isLoggedIn}
+          sidebarItems={uiManagerSidebarItems}
+        />
+      ),
       children: uiManagementRoutes,
     },
     {

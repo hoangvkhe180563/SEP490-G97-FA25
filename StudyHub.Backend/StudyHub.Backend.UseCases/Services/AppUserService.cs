@@ -80,7 +80,7 @@ namespace StudyHub.Backend.UseCases.Services
                 });
             }
 
-            return new StudyHub.Backend.UseCases.Dtos.PagedResult<UserListDto>
+            return new PagedResult<UserListDto>
             {
                 Items = items,
                 Total = total,
