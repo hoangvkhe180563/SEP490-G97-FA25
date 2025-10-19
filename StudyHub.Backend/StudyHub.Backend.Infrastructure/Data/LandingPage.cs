@@ -7,9 +7,11 @@ public partial class LandingPage
 {
     public int SchoolId { get; set; }
 
-    public string SchoolLogoUrl { get; set; } = null!;
+    public string BannerUrl { get; set; } = null!;
 
-    public sbyte PrimaryColor { get; set; }
+    public string Description { get; set; } = null!;
+
+    public virtual ICollection<LandingPageImage> LandingPageImages { get; set; } = new List<LandingPageImage>();
 
     public virtual School School { get; set; } = null!;
 }

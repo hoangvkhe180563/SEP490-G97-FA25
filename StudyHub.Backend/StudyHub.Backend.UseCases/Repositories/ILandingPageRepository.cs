@@ -4,7 +4,10 @@ namespace StudyHub.Backend.UseCases.Repositories
 {
     public interface ILandingPageRepository
     {
-        public LandingPage? GetLandingPageGeneral();
-        public LandingPage? GetLandingPageBySchool(int schoolId);
+        public List<AppUser> GetFeaturedTeachers(int schoolId);
+        public List<Document> GetFeaturedDocuments(int schoolId);
+        public List<Course> GetFeaturedCourses(int schoolId);
+        public List<string> GetLandingPageImages(int schoolId);
+        public LandingPage GetLandingPage(int schoolId);
     }
 }
