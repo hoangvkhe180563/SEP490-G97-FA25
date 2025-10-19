@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
+﻿using Microsoft.AspNetCore.Cors;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Api.Dtos.ClassDTOS;
@@ -10,7 +11,7 @@ namespace StudyHub.Backend.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-
+    [EnableCors("AllowAll")]
     public class ClassController : ControllerBase
     {
         private readonly ClassService _service;
@@ -118,13 +119,23 @@ namespace StudyHub.Backend.Api.Controllers
             if (cls == null)
                 return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
 
-            // Lấy dữ liệu phụ trực tiếp từ repository
+            // Lấy danh sách thành viên
             var members = _service.GetClassMembers(id)
                 .Select(m => m.ToMemberDto(_aUserService.GetUserById(m.UserId)))
                 .ToList();
 
+            // Lấy notification + comment + file
             var notifications = _service.GetClassNotifications(id)
-                .Select(n => n.ToNotificationDto())
+                .Select(n =>
+                {
+                    var files = _service.GetFilesByNotificationId(n.Id);
+                    var comments = _service.GetCommentsByNotificationId(n.Id);
+
+                    return n.ToNotificationDto(
+                        files.Select(f => f.ToFileDto()).ToList(),
+                        comments.Select(c => c.ToCommentDto(_aUserService.GetUserById(c.UserId))).ToList()
+                    );
+                })
                 .ToList();
 
             var dto = cls.ToFullDetailDto(members, notifications);
@@ -136,5 +147,92 @@ namespace StudyHub.Backend.Api.Controllers
                 data = dto
             });
         }
+
+        [HttpGet("{classId}/notifications")]
+        public IActionResult GetNotificationsByClass(int classId)
+        {
+            var notifications = _service.GetClassNotifications(classId)
+                .Select(n => n.ToNotificationDto())
+                .ToList();
+
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy danh sách thông báo thành công.",
+                data = notifications
+            });
+        }
+
+        [HttpGet("notification/{notificationId}/comments")]
+        public IActionResult GetCommentsByNotification(int notificationId)
+        {
+            var comments = _service.GetCommentsByNotificationId(notificationId)
+                .Select(c => c.ToCommentDto(_aUserService.GetUserById(c.UserId))) // mapping dto (tạo mapper nếu chưa có)
+                .ToList();
+
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy danh sách bình luận thành công.",
+                data = comments
+            });
+        }
+
+        [HttpPost("notifications")]
+        public async Task<IActionResult> CreateNotification([FromForm] CreateNotificationDto dto)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(dto.Title))
+                    return BadRequest(new { success = false, message = "Tiêu đề không được để trống." });
+
+                if (dto.ClassId <= 0)
+                    return BadRequest(new { success = false, message = "ClassId không hợp lệ." });
+
+                var notificationEntity = new ClassNotification
+                {
+                    ClassId = dto.ClassId,
+                    Title = dto.Title.Trim(),
+                    Description = dto.Description?.Trim() ?? "",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = dto.CreatedBy
+                };
+
+                var createdNoti = _service.CreateNotification(notificationEntity);
+
+
+
+                if (dto.Files != null)
+                {
+                    var fileUrl = await _service.UploadFileToCloudinary(dto.Files);
+                    var newFile = _service.CreateSubmissionFile(new NotificationFile
+                    {
+                        FileName = dto.Files.FileName,
+                        FileUrl = fileUrl
+                    });
+                    _service.MapFileToNotification(createdNoti.Id, newFile.Id);
+                }
+
+
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Tạo thông báo thành công.",
+                    data = createdNoti
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = $"Lỗi server: {ex.Message}",
+                    error = ex.ToString()
+                });
+            }
+        }
+
+
     }
 }

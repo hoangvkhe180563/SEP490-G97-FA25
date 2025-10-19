@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace StudyHub.Backend.UseCases.Dtos
 {
     public class PagedResult<T>

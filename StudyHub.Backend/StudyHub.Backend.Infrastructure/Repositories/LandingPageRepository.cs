@@ -15,36 +15,37 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public Domain.Entities.LandingPage? GetLandingPageGeneral()
         {
-            try
-            {
-                var featuredDocuments = _context.Documents.Include(d => d.Grade).Include(d => d.Subject).Where(d => d.IsFeatured && d.SchoolId == null)
-                    .Select(d => new Domain.Entities.Document
-                    {
-                        Id = d.Id,
-                        Thumbnail = d.Thumbnail,
-                    })
-                    .ToList();
+            return null;
+            //try
+            //{
+            //    var featuredDocuments = _context.Documents.Include(d => d.Grade).Include(d => d.Subject).Where(d => d.IsFeatured && d.SchoolId == null)
+            //        .Select(d => new Domain.Entities.Document
+            //        {
+            //            Id = d.Id,
+            //            Thumbnail = d.Thumbnail,
+            //        })
+            //        .ToList();
 
-                var featuredCourses = _context.Courses.Include(c => c.Grade).Where(c => c.IsFeatured && c.SchoolId == null)
-                    .Select(c => new Domain.Entities.Course
-                    {
-                        Id = c.Id,
-                        ImageUrl = c.ImageUrl,
-                        Name = c.Name,
-                        Grade = c.Grade
-                    })
-                    .ToList();
+            //    var featuredCourses = _context.Courses.Include(c => c.Grade).Where(c => c.IsFeatured && c.SchoolId == null)
+            //        .Select(c => new Domain.Entities.Course
+            //        {
+            //            Id = c.Id,
+            //            ImageUrl = c.ImageUrl,
+            //            Name = c.Name,
+            //            Grade = c.Grade
+            //        })
+            //        .ToList();
 
-                return new Domain.Entities.LandingPage
-                {
-                    SchoolLogoUrl = "src/common/assets/StudyHubLogo.png"
-                };
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("LandingPageRepository", "Cannot connect db. Inner error: " + ex.Message).LogError();
-                return null;
-            }
+            //    return new Domain.Entities.LandingPage
+            //    {
+            //        SchoolLogoUrl = "src/common/assets/StudyHubLogo.png"
+            //    };
+            //}
+            //catch (Exception ex)
+            //{
+            //    new InfrastructureException("LandingPageRepository", "Cannot connect db. Inner error: " + ex.Message).LogError();
+            //    return null;
+            //}
         }
 
         public Domain.Entities.LandingPage? GetLandingPageBySchool(int schoolId)

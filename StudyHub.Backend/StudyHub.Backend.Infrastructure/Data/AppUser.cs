@@ -17,7 +17,7 @@ public partial class AppUser
 
     public DateOnly? Dob { get; set; }
 
-    public bool Gender { get; set; }
+    public bool? Gender { get; set; }
 
     public string? Avatar { get; set; }
 
@@ -37,6 +37,14 @@ public partial class AppUser
 
     public DateTime? RefreshTokenExpire { get; set; }
 
+    public string? EmailVerificationToken { get; set; }
+
+    public DateTime? EmailVerificationExpire { get; set; }
+
+    public string? ResetPasswordToken { get; set; }
+
+    public DateTime? ResetPasswordExpire { get; set; }
+
     public bool IsLoginWithGoogle { get; set; }
 
     public bool? Status { get; set; }
@@ -54,6 +62,8 @@ public partial class AppUser
     public virtual ICollection<AppClaim> AppClaims { get; set; } = new List<AppClaim>();
 
     public virtual ICollection<ClassMember> ClassMembers { get; set; } = new List<ClassMember>();
+
+    public virtual ICollection<ClassNotificationComment> ClassNotificationComments { get; set; } = new List<ClassNotificationComment>();
 
     public virtual ICollection<ClassworkSubmission> ClassworkSubmissions { get; set; } = new List<ClassworkSubmission>();
 

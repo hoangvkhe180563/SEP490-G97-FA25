@@ -21,23 +21,19 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<ILessonRepository, LessonRepository>();
             services.AddScoped<ILandingPageRepository, LandingPageRepository>();
             services.AddScoped<IDocumentRepository, DocumentRepository>();
-            services.AddScoped<IFileStorageRepository, LocalFileStorageService>();
+            //services.AddScoped<IFileStorageRepository, LocalFileStorageService>();
             services.AddScoped<ISubjectRepository, SubjectRepository>();
             services.AddScoped<IDocumentCategoryRepository, DocumentCategoryRepository>();
             services.AddScoped<IClassRepository, ClassRepository>();
 
-            var cloudName = configuration["Cloudinary:CloudName"];
-            var apiKey = configuration["Cloudinary:ApiKey"];
-            var apiSecret = configuration["Cloudinary:ApiSecret"];
             services.AddScoped<ICloudinaryRepository>(provider =>
             {
-                var cloudName = configuration["CloudinarySettings:CloudName"] ?? "";
-                var apiKey = configuration["CloudinarySettings:ApiKey"] ?? "";
-                var apiSecret = configuration["CloudinarySettings:ApiSecret"] ?? "";
+                var cloudName = configuration["Cloudinary:CloudName"] ?? "";
+                var apiKey = configuration["Cloudinary:ApiKey"] ?? "";
+                var apiSecret = configuration["Cloudinary:ApiSecret"] ?? "";
 
                 return new CloudinaryRepository(cloudName, apiKey, apiSecret);
             });
-
             return services;
         }
     }

@@ -1,7 +1,9 @@
 ﻿using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
+using Microsoft.AspNetCore.Http;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories;
+using System.Net;
 using System.Text.RegularExpressions;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
@@ -14,47 +16,149 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             var account = new Account(cloudName, apiKey, apiSecret);
             _cloudinary = new Cloudinary(account);
         }
-        public async Task<string> UploadImageAsync(string filePath, string folderName)
+        public async Task<string> UploadImageAsync(IFormFile file, string folderName)
         {
-            var uploadParams = new ImageUploadParams()
-            {
-                File = new FileDescription(filePath),
-                Folder = folderName
-            };
+            if (file == null || file.Length == 0) return string.Empty;
 
-            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
-            if (uploadResult.StatusCode == System.Net.HttpStatusCode.OK)
+            try
             {
-                return uploadResult.SecureUrl.ToString();
+                using var stream = file.OpenReadStream();
+                var uploadParams = new ImageUploadParams()
+                {
+                    File = new FileDescription(file.FileName, stream),
+                    Folder = folderName
+                };
+
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+                if (uploadResult.StatusCode == HttpStatusCode.OK)
+                {
+                    return uploadResult.SecureUrl?.ToString() ?? string.Empty;
+                }
+                else
+                {
+                    var err = uploadResult?.Error?.Message ?? "Unknown error";
+                    new InfrastructureException("CloudinaryRepository", "UploadImageAsync failed. Inner error: " + err).LogError();
+                    return string.Empty;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                new InfrastructureException("CloudinaryRepository", "UploadImageAsync failed. Inner error: " + uploadResult.Error.Message).LogError();
+                new InfrastructureException("CloudinaryRepository", "UploadImageAsync exception. Inner error: " + ex.Message).LogError();
                 return string.Empty;
             }
         }
 
         public async Task<bool> DeleteImageAsync(string url)
         {
-            string publicId = GetPublicIdFromUrl(url);
+            if (url == string.Empty) return false;
 
-            var deletionParams = new DeletionParams(publicId)
+            try
             {
-                Invalidate = true
-            };
-            var deletionResult = await _cloudinary.DestroyAsync(deletionParams);
-            if (deletionResult.Result.Equals("ok"))
-            {
-                return true;
+                string publicId = GetPublicIdFromUrl(url);
+
+                var deletionParams = new DeletionParams(publicId)
+                {
+                    Invalidate = true
+                };
+                var deletionResult = await _cloudinary.DestroyAsync(deletionParams);
+                if (deletionResult.Result.Equals("ok"))
+                {
+                    return true;
+                }
+                else
+                {
+                    new InfrastructureException("CloudinaryRepository", "DeleteImageAsync failed. Inner error: " + deletionResult.Error.Message).LogError();
+                    return false;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                new InfrastructureException("CloudinaryRepository", "UploadImageAsync failed. Inner error: " + deletionResult.Error.Message).LogError();
+                new InfrastructureException("CloudinaryRepository", "DeleteImageAsync exception. Inner error: " + ex.Message).LogError();
                 return false;
             }
         }
 
+        public async Task<string> UploadFileAsync(IFormFile file, string folderName)
+        {
+            if (file == null || file.Length == 0) return string.Empty;
+            try
+            {
+                using var stream = file.OpenReadStream();
+                var uploadParams = new RawUploadParams()
+                {
+                    File = new FileDescription(file.FileName, stream),
+                    Folder = folderName,
+                    Type = "upload",
+                    AccessMode = "public"
+                };
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
 
+                if (uploadResult.StatusCode == HttpStatusCode.OK)
+                {
+                    return uploadResult.SecureUrl?.ToString() ?? string.Empty;
+                }
+                else
+                {
+                    var err = uploadResult?.Error?.Message ?? "Unknown error";
+                    new InfrastructureException("CloudinaryRepository", "UploadFileAsync failed. Inner error: " + err).LogError();
+                    return string.Empty;
+                }
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("CloudinaryRepository", "UploadFileAsync exception. Inner error: " + ex.Message).LogError();
+                return string.Empty;
+            }
+        }
+        public async Task<bool> DeleteFileAsync(string url)
+        {
+            if (url == string.Empty) return false;
+
+            try
+            {
+                string publicId = GetPublicIdFromUrl(url);
+                var extension = Path.GetExtension(url).ToLowerInvariant();
+                var imageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg" };
+
+                var resourceType = imageExtensions.Contains(extension) ? ResourceType.Image : ResourceType.Raw;
+
+                var deletionParams = new DeletionParams(publicId)
+                {
+                    Invalidate = true,
+                    ResourceType = resourceType
+                };
+                var deletionResult = await _cloudinary.DestroyAsync(deletionParams);
+
+                if (deletionResult.Result.Equals("ok"))
+                {
+                    return true;
+                }
+                else
+                {
+                    new InfrastructureException("CloudinaryRepository", "DeleteFileAsync failed. Inner error: " + deletionResult.Error.Message).LogError();
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("CloudinaryRepository", "DeleteFileAsync exception. Inner error: " + ex.Message).LogError();
+                return false;
+            }
+        }
+        public async Task<byte[]> ReadFileAsync(string filePath)
+        {
+            try
+            {
+                using var httpClient = new HttpClient();
+                httpClient.Timeout = TimeSpan.FromMinutes(5);
+                return await httpClient.GetByteArrayAsync(filePath);
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("CloudinaryRepository", "ReadFileAsync exception. Inner error: " + ex.Message).LogError();
+                throw;
+            }
+        }
         static string GetPublicIdFromUrl(string url)
         {
             if (string.IsNullOrEmpty(url))

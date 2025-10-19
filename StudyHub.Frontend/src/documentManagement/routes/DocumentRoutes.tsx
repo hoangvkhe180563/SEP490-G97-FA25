@@ -1,13 +1,15 @@
+//src/documentManagement/routes/documentRoutes.tsx
 import DocumentRouteConfig from "@/documentManagement/constants/DocumentRouteConfig";
 import ManagerLayout from "@/user/components/layouts/ManagerLayout";
 import TeacherLayout from "@/user/components/layouts/TeacherLayout";
 import StudentLayout from "@/user/components/layouts/StudentLayout";
 import VerifyDocument from "@/documentManagement/pages/manager/VerifyDocument";
 import CreateDocument from "@/documentManagement/pages/teacher/CreateDocument";
-import DocumentInfo from "@/documentManagement/pages/teacher/DocumentInfo";
+import TeacherDocumentInfo from "@/documentManagement/pages/teacher/DocumentInfo";
 import OwnedDocument from "@/documentManagement/pages/teacher/OwnedDocument";
 import UpdateDocument from "@/documentManagement/pages/teacher/UpdateDocument";
 import DocumentDetails from "@/documentManagement/pages/student/DocumentDetails";
+import StudentDocumentInfo from "@/documentManagement/pages/DocumentInfo";
 import DocumentList from "@/documentManagement/pages/DocumentList";
 import type { RouteObject } from "react-router-dom";
 
@@ -26,7 +28,7 @@ const managerRoutes = [
   },
   {
     path: DocumentRouteConfig.MANAGER.INFO,
-    element: <DocumentInfo />
+    element: <StudentDocumentInfo />
   }
 ]
 
@@ -37,7 +39,7 @@ const teacherRoutes = [
   },
   {
     path: DocumentRouteConfig.TEACHER.INFO,
-    element: <DocumentInfo />
+    element: <TeacherDocumentInfo />
   },
   {
     path: DocumentRouteConfig.TEACHER.DETAILS,
@@ -72,7 +74,7 @@ const studentRoutes = [
   },
   {
     path: DocumentRouteConfig.STUDENT.INFO,
-    element: <DocumentInfo />
+    element: <StudentDocumentInfo />
   },
   {
     path: DocumentRouteConfig.STUDENT.DOCUMENTS,

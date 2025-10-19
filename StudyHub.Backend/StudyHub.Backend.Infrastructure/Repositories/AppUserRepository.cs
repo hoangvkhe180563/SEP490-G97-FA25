@@ -8,19 +8,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 {
     public class AppUserRepository : IAppUserRepository
     {
-        //implement các thao tác database từ bên UseCases vào đây
         private readonly AppDbContext _context;
         public AppUserRepository(AppDbContext context)
         {
             _context = context;
         }
-    private static Domain.Entities.AppUser ToDomain(StudyHub.Backend.Infrastructure.Data.AppUser d)
+        private static Domain.Entities.AppUser ToDomain(Data.AppUser d)
         {
             return new Domain.Entities.AppUser
             {
                 Id = d.Id,
                 Email = d.Email,
-                Gender = d.Gender,
+                Gender = (bool)d.Gender,
                 PasswordHash = d.PasswordHash,
                 Username = d.Username,
                 Fullname = d.Fullname,
@@ -36,9 +35,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             };
         }
 
-    private static StudyHub.Backend.Infrastructure.Data.AppUser ToData(Domain.Entities.AppUser d)
+        private static Data.AppUser ToData(Domain.Entities.AppUser d)
         {
-            return new StudyHub.Backend.Infrastructure.Data.AppUser
+            return new Data.AppUser
             {
                 Id = d.Id,
                 Email = d.Email,

@@ -1,45 +1,167 @@
-import { useState } from "react"
-import { Download, ZoomIn, ZoomOut, FileText, Maximize } from "lucide-react"
-import { Button } from "@/common/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/common/components/ui/tabs"
-import { Separator } from "@/common/components/ui/separator"
+import { useState, useEffect, useCallback } from "react";
+import { useParams } from "react-router-dom";
+import { Download, ZoomIn, ZoomOut, FileText, Maximize } from "lucide-react";
+import { Button } from "@/common/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/common/components/ui/tabs";
+import { Separator } from "@/common/components/ui/separator";
+import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
+import type { DocumentDetailDto } from "@/documentManagement/interfaces/documentApi";
 
-// COMPONENT: Document Viewer Page
+interface PdfOutlineItem {
+  title: string;
+  page: number;
+}
+
+interface PdfJs {
+  getDocument: (params: { data: ArrayBuffer }) => { promise: Promise<{ numPages: number; getOutline: () => Promise<Array<{ title: string }> | null> }> };
+  GlobalWorkerOptions: { workerSrc: string };
+}
+
 export default function DocumentViewer() {
-  const [zoom, setZoom] = useState(100)
+  const { id } = useParams<{ id: string }>();
+  const [zoom, setZoom] = useState(100);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [numPages, setNumPages] = useState(0);
+  const [outline, setOutline] = useState<PdfOutlineItem[]>([]);
+  const { document, isLoading, getDocumentById, previewDocument, downloadDocument } = useDocumentStore();
 
-  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 10, 200))
-  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 10, 50))
+  const loadPreview = useCallback(async () => {
+    if (id) {
+      const blob = await previewDocument(Number(id));
+      if (blob) {
+        const url = window.URL.createObjectURL(blob);
+        setPreviewUrl(url);
+        
+        if (blob.type === 'application/pdf') {
+          loadPdfMetadata(blob);
+        }
+      }
+    }
+  }, [id, previewDocument]);
+
+  const loadPdfMetadata = async (blob: Blob) => {
+    const pdfjsLib = (window as Window & { pdfjsLib?: PdfJs }).pdfjsLib;
+    if (pdfjsLib) {
+      try {
+        const arrayBuffer = await blob.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        setNumPages(pdf.numPages);
+        
+        const pdfOutline = await pdf.getOutline();
+        if (pdfOutline) {
+          const flatOutline = pdfOutline.map((item: { title: string }) => ({
+            title: item.title,
+            page: 1
+          }));
+          setOutline(flatOutline);
+        }
+      } catch {
+        console.log('PDF metadata not available');
+      }
+    }
+  };
+
+  useEffect(() => {
+    const script = window.document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.async = true;
+    script.onload = () => {
+      const win = window as Window & { pdfjsLib?: PdfJs };
+      if (win.pdfjsLib) {
+        win.pdfjsLib.GlobalWorkerOptions.workerSrc = 
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
+    };
+    window.document.body.appendChild(script);
+
+    return () => {
+      if (window.document.body.contains(script)) {
+        window.document.body.removeChild(script);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (id) {
+      getDocumentById(Number(id));
+      loadPreview();
+    }
+  }, [id, getDocumentById, loadPreview]);
+
+  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 10, 200));
+  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 10, 50));
+
+  const handleFullscreen = () => {
+    if (!window.document.fullscreenElement) {
+      window.document.documentElement.requestFullscreen();
+    } else {
+      window.document.exitFullscreen();
+    }
+  };
+
+  const handleDownload = async () => {
+    if (id && document) {
+      const blob = await downloadDocument(Number(id));
+      if (blob) {
+        const url = window.URL.createObjectURL(blob);
+        const anchor = window.document.createElement('a');
+        anchor.href = url;
+        anchor.download = document.name || 'document';
+        anchor.click();
+        window.URL.revokeObjectURL(url);
+      }
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600 font-medium">Đang tải tài liệu...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      {/* COMPONENT: Header with document info and actions */}
-      <DocumentHeader zoom={zoom} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
+      <DocumentHeader 
+        document={document} 
+        zoom={zoom} 
+        onZoomIn={handleZoomIn} 
+        onZoomOut={handleZoomOut}
+        onDownload={handleDownload}
+        onFullscreen={handleFullscreen}
+      />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* COMPONENT: Main document viewer area (scrollable) */}
-        <div className="flex-1 overflow-y-auto bg-gray-100 p-8">
-          <DocumentContent zoom={zoom} />
+        <div className="flex-1 overflow-y-auto bg-gray-100 flex justify-center p-4">
+          <DocumentContent zoom={zoom} previewUrl={previewUrl} />
         </div>
 
-        {/* COMPONENT: Fixed sidebar with tabs */}
-        <div className="w-64 bg-white border-l border-gray-200 flex flex-col">
-          <DocumentSidebar />
+        <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
+          <DocumentSidebar document={document} numPages={numPages} outline={outline} />
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-// COMPONENT: Header
-function DocumentHeader({
-  zoom,
-  onZoomIn,
-  onZoomOut,
-}: {
-  zoom: number
-  onZoomIn: () => void
-  onZoomOut: () => void
+function DocumentHeader({ 
+  document, 
+  zoom, 
+  onZoomIn, 
+  onZoomOut, 
+  onDownload,
+  onFullscreen 
+}: { 
+  document: DocumentDetailDto | null;
+  zoom: number;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onDownload: () => void;
+  onFullscreen: () => void;
 }) {
   return (
     <div className="bg-white border-b border-gray-200 px-6 py-3">
@@ -49,20 +171,22 @@ function DocumentHeader({
             <FileText className="w-5 h-5 text-gray-600" />
           </div>
           <div>
-            <h1 className="text-sm font-semibold text-gray-900">Tên Tài liệu</h1>
-            <p className="text-xs text-gray-500">Tài liệu Hóa học • Lớp 10 Nâu • 2.4 MB • 4 trang</p>
+            <h1 className="text-sm font-semibold text-gray-900">{document?.name || "Tên Tài liệu"}</h1>
+            <p className="text-xs text-gray-500">
+              {document?.subjectName || "Môn học"} • Lớp {document?.grade || ""} • {document?.fileType || "PDF"}
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={onDownload}>
             <Download className="w-4 h-4 mr-1" />
             Tải về
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={onFullscreen}>
             <Maximize className="w-4 h-4 mr-1" />
             Toàn màn hình
-            </Button>
+          </Button>
           <Separator orientation="vertical" className="h-6" />
           <Button variant="outline" size="sm" onClick={onZoomOut}>
             <ZoomOut className="w-4 h-4" />
@@ -74,160 +198,153 @@ function DocumentHeader({
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-// COMPONENT: Document content viewer
-function DocumentContent({ zoom }: { zoom: number }) {
-  const pages = [1, 2, 3, 4]
-
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {pages.map((pageNum) => (
-        <div
-          key={pageNum}
-            className="bg-white relative"
+function DocumentContent({ zoom, previewUrl }: { zoom: number; previewUrl: string }) {
+  if (previewUrl) {
+    return (
+      <div className="w-full max-w-6xl">
+        <iframe
+          src={previewUrl}
+          className="w-full bg-white shadow-lg rounded"
           style={{
+            height: 'calc(100vh - 100px)',
             transform: `scale(${zoom / 100})`,
             transformOrigin: "top center",
-            marginBottom: zoom !== 100 ? `${(zoom - 100) * 2}px` : undefined,
           }}
-        >
-          <div className="aspect-[8.5/11] p-12 flex flex-col">
-            {pageNum === 1 && (
-              <>
-                <h1 className="text-3xl font-bold text-center mb-8">Tài liệu</h1>
-                <Separator className="mb-8" />
-                <h2 className="text-2xl font-semibold text-center">Nội dung Tài liệu</h2>
-              </>
-            )}
-            {pageNum > 1 && (
-              <div className="flex-1 flex items-center justify-center text-gray-400">
-                <p>Nội dung trang {pageNum}</p>
-              </div>
-            )}
-          </div>
-          <div className="absolute bottom-4 right-4 text-xs text-gray-400">Trang {pageNum}</div>
-        </div>
-      ))}
+          title="Document Preview"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-6xl">
+      <div className="bg-white p-12 shadow-lg rounded">
+        <p className="text-center text-gray-400">Đang tải nội dung tài liệu...</p>
+      </div>
     </div>
-  )
+  );
 }
 
-// COMPONENT: Sidebar with tabs
-function DocumentSidebar() {
+function DocumentSidebar({ 
+  document, 
+  numPages, 
+  outline 
+}: { 
+  document: DocumentDetailDto | null;
+  numPages: number;
+  outline: PdfOutlineItem[];
+}) {
   return (
-    <Tabs defaultValue="info" className="flex flex-col h-full">
+    <Tabs defaultValue="pages" className="flex flex-col h-full">
       <TabsList className="w-full grid grid-cols-3 rounded-none border-b">
-        <TabsTrigger value="toc" className="text-xs">
-          Mục lục
-        </TabsTrigger>
-        <TabsTrigger value="pages" className="text-xs">
-          Trang
-        </TabsTrigger>
-        <TabsTrigger value="info" className="text-xs">
-          Thông tin
-        </TabsTrigger>
+        <TabsTrigger value="toc" className="text-xs">Mục lục</TabsTrigger>
+        <TabsTrigger value="pages" className="text-xs">Trang</TabsTrigger>
+        <TabsTrigger value="info" className="text-xs">Thông tin</TabsTrigger>
       </TabsList>
 
       <div className="flex-1 overflow-y-auto">
-        {/* COMPONENT: Table of Contents tab */}
         <TabsContent value="toc" className="p-4 mt-0">
-          <TableOfContents />
+          <TableOfContents outline={outline} />
         </TabsContent>
 
-        {/* COMPONENT: Pages thumbnail tab */}
         <TabsContent value="pages" className="p-4 mt-0">
-          <PageThumbnails />
+          <PageThumbnails numPages={numPages} />
         </TabsContent>
 
-        {/* COMPONENT: Document information tab */}
         <TabsContent value="info" className="p-4 mt-0">
-          <DocumentInfo />
+          <DocumentInfo document={document} />
         </TabsContent>
       </div>
     </Tabs>
-  )
+  );
 }
 
-// COMPONENT: Table of contents list
-function TableOfContents() {
-  const tocItems = [
-    "Mục lục 1",
-    "Mục lục 2",
-    "Mục lục 3",
-    "Phụ lục 1",
-    "Phụ lục 1",
-    "Mục lục 6",
-    "Mục lục 6",
-    "Mục lục 6",
-  ]
+function TableOfContents({ outline }: { outline: PdfOutlineItem[] }) {
+  if (!outline || outline.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-500 text-sm">
+        Tài liệu không có mục lục
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-2">
-      {tocItems.map((item, index) => (
+    <div className="space-y-1">
+      {outline.map((item, index) => (
         <button
           key={index}
           className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
         >
-          {item}
+          {item.title}
         </button>
       ))}
     </div>
-  )
+  );
 }
 
-// COMPONENT: Page thumbnails grid
-function PageThumbnails() {
-  const pages = [1, 2, 3, 4]
+function PageThumbnails({ numPages }: { numPages: number }) {
+  if (numPages === 0) {
+    return (
+      <div className="text-center py-8 text-gray-500 text-sm">
+        Đang tải danh sách trang...
+      </div>
+    );
+  }
+
+  const pages = Array.from({ length: numPages }, (_, i) => i + 1);
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-3">
       {pages.map((pageNum) => (
         <button
           key={pageNum}
-          className="aspect-[8.5/11] border-2 border-gray-200 rounded hover:border-blue-500 transition-colors bg-white flex items-center justify-center"
+          className="w-full aspect-[8.5/11] border-2 border-gray-200 rounded hover:border-blue-500 transition-colors bg-white flex flex-col items-center justify-center p-2"
         >
-          <span className="text-xs text-gray-500">Trang {pageNum}</span>
+          <div className="text-xs text-gray-500 mb-1">Trang {pageNum}</div>
+          <div className="w-full h-full bg-gray-50 rounded"></div>
         </button>
       ))}
     </div>
-  )
+  );
 }
 
-// COMPONENT: Document information panel
-function DocumentInfo() {
+function DocumentInfo({ document }: { document: DocumentDetailDto | null }) {
   return (
     <div className="space-y-6">
-      {/* Document icon and title */}
       <div className="flex flex-col items-center text-center">
         <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center mb-3">
           <FileText className="w-10 h-10 text-gray-600" />
         </div>
-        <h3 className="font-semibold text-sm">Tài liệu</h3>
-        <p className="text-xs text-gray-500 mt-1">PDF - Tài liệu - Lớp 12</p>
+        <h3 className="font-semibold text-sm">{document?.name || "Tài liệu"}</h3>
+        <p className="text-xs text-gray-500 mt-1">
+          {document?.fileType || "PDF"} - {document?.categoryName || "Tài liệu"} - Lớp {document?.grade || ""}
+        </p>
       </div>
 
       <Separator />
 
-      {/* Information details */}
       <div>
         <h4 className="font-semibold text-sm mb-3">Thông tin</h4>
         <div className="space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Ngày tạo</span>
-            <span className="font-medium">12/03/2024</span>
+            <span className="font-medium text-right">
+              {document?.createdAt ? new Date(document.createdAt).toLocaleDateString('vi-VN') : "N/A"}
+            </span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Người tạo</span>
-            <span className="font-medium">Nguyễn Văn A</span>
+            <span className="font-medium text-right">{document?.createdBy || "N/A"}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Quyền truy cập</span>
-            <span className="font-medium">Công khai</span>
+            <span className="font-medium text-right">{document?.schoolId ? "Trường học" : "Công khai"}</span>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

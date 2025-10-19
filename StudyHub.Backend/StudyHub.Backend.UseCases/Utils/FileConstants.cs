@@ -14,9 +14,9 @@ public static class FileConstants
         ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"
     };
 
-    public const long MaxDocumentSize = 50 * 1024 * 1024;
+    public const long MaxDocumentSize = 1000 * 1024 * 1024;
     public const long MaxImageSize = 5 * 1024 * 1024;
 
-    public const string DocumentUploadPath = "uploads/documents";
-    public const string ThumbnailUploadPath = "uploads/thumbnails";
+    public const string DocumentUploadPath = "Documents/Raw";
+    public const string ThumbnailUploadPath = "Documents/Thumbnails";
 }
