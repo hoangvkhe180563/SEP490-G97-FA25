@@ -50,6 +50,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<DocumentCategory> DocumentCategories { get; set; }
 
+    public virtual DbSet<Enrollment> Enrollments { get; set; }
+
     public virtual DbSet<LandingPage> LandingPages { get; set; }
 
     public virtual DbSet<Lesson> Lessons { get; set; }
@@ -60,6 +62,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<PaymentInfo> PaymentInfos { get; set; }
 
+    public virtual DbSet<Progress> Progresses { get; set; }
+
     public virtual DbSet<Province> Provinces { get; set; }
 
     public virtual DbSet<School> Schools { get; set; }
@@ -67,6 +71,10 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<Subject> Subjects { get; set; }
 
     public virtual DbSet<SubmissionFile> SubmissionFiles { get; set; }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+        => optionsBuilder.UseMySql("server=127.0.0.1;database=StudyHub;user=root;password=123456", ServerVersion.Parse("8.0.43-mysql"));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -184,12 +192,17 @@ public partial class AppDbContext : DbContext
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Email).HasMaxLength(100);
+            entity.Property(e => e.EmailVerificationExpire).HasColumnType("datetime");
             entity.Property(e => e.Fullname).HasMaxLength(100);
+            entity.Property(e => e.Gender)
+                .IsRequired()
+                .HasDefaultValueSql("'1'");
             entity.Property(e => e.PasswordHash)
                 .HasMaxLength(64)
                 .IsFixedLength();
             entity.Property(e => e.PhoneNumber).HasMaxLength(11);
             entity.Property(e => e.RefreshTokenExpire).HasColumnType("datetime");
+            entity.Property(e => e.ResetPasswordExpire).HasColumnType("datetime");
             entity.Property(e => e.Status)
                 .IsRequired()
                 .HasDefaultValueSql("'1'");
@@ -229,10 +242,10 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.CourseId, "CourseId");
 
-            entity.Property(e => e.Name).HasMaxLength(200);
-            entity.Property(e => e.Status)
-                .IsRequired()
-                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.Description).HasColumnType("text");
+            entity.Property(e => e.Name).HasMaxLength(255);
+            entity.Property(e => e.PostDate).HasColumnType("datetime");
+            entity.Property(e => e.Status).HasDefaultValueSql("'1'");
 
             entity.HasOne(d => d.Course).WithMany(p => p.Chapters)
                 .HasForeignKey(d => d.CourseId)
@@ -388,9 +401,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Information).HasMaxLength(1000);
             entity.Property(e => e.Name).HasMaxLength(200);
-            entity.Property(e => e.Status)
-                .IsRequired()
-                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.Status).HasDefaultValueSql("'1'");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.Subject).WithMany(p => p.Courses)
@@ -435,6 +446,26 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.SubjectId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("documents_ibfk_1");
+
+            entity.HasMany(d => d.Classes).WithMany(p => p.Documents)
+                .UsingEntity<Dictionary<string, object>>(
+                    "DocumentClass",
+                    r => r.HasOne<Class>().WithMany()
+                        .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("document_classes_ibfk_2"),
+                    l => l.HasOne<Document>().WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("document_classes_ibfk_1"),
+                    j =>
+                    {
+                        j.HasKey("DocumentId", "ClassId")
+                            .HasName("PRIMARY")
+                            .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+                        j.ToTable("document_classes");
+                        j.HasIndex(new[] { "ClassId" }, "ClassId");
+                    });
         });
 
         modelBuilder.Entity<DocumentCategory>(entity =>
@@ -445,6 +476,29 @@ public partial class AppDbContext : DbContext
 
             entity.Property(e => e.Description).HasMaxLength(200);
             entity.Property(e => e.Name).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<Enrollment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("enrollments");
+
+            entity.HasIndex(e => e.AppUserId, "AppUserId");
+
+            entity.HasIndex(e => e.CourseId, "CourseId");
+
+            entity.Property(e => e.EnrollmentDate)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.AppUser).WithMany(p => p.Enrollments)
+                .HasForeignKey(d => d.AppUserId)
+                .HasConstraintName("enrollments_ibfk_1");
+
+            entity.HasOne(d => d.Course).WithMany(p => p.Enrollments)
+                .HasForeignKey(d => d.CourseId)
+                .HasConstraintName("enrollments_ibfk_2");
         });
 
         modelBuilder.Entity<LandingPage>(entity =>
@@ -469,10 +523,12 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.ChapterId, "ChapterId");
 
-            entity.Property(e => e.Name).HasMaxLength(200);
-            entity.Property(e => e.Status)
-                .IsRequired()
-                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.Description).HasColumnType("text");
+            entity.Property(e => e.Duration).HasMaxLength(100);
+            entity.Property(e => e.IsPreview).HasDefaultValueSql("'0'");
+            entity.Property(e => e.Name).HasMaxLength(255);
+            entity.Property(e => e.PostDate).HasColumnType("datetime");
+            entity.Property(e => e.Status).HasDefaultValueSql("'1'");
             entity.Property(e => e.Type)
                 .HasDefaultValueSql("'Đọc'")
                 .HasColumnType("enum('Đọc','Video','Luyện tập')");
@@ -526,6 +582,29 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey<PaymentInfo>(d => d.SchoolId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("payment_info_ibfk_1");
+        });
+
+        modelBuilder.Entity<Progress>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("progress");
+
+            entity.HasIndex(e => e.EnrollmentId, "EnrollmentId");
+
+            entity.HasIndex(e => e.LessonId, "LessonId");
+
+            entity.Property(e => e.CompletionDate)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Enrollment).WithMany(p => p.Progresses)
+                .HasForeignKey(d => d.EnrollmentId)
+                .HasConstraintName("progress_ibfk_1");
+
+            entity.HasOne(d => d.Lesson).WithMany(p => p.Progresses)
+                .HasForeignKey(d => d.LessonId)
+                .HasConstraintName("progress_ibfk_2");
         });
 
         modelBuilder.Entity<Province>(entity =>

@@ -1,14 +1,15 @@
-using StudyHub.Backend.Domain.Entities;
+﻿using StudyHub.Backend.Domain.Entities;
 using Data = StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.Infrastructure.Exceptions;
-using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
     public class LessonRepository : ILessonRepository
     {
         private readonly Data.AppDbContext _context;
+
         public LessonRepository(Data.AppDbContext context)
         {
             _context = context;
@@ -18,16 +19,26 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                return _context.Lessons.Where(l => l.ChapterId == chapterId).Select(l => new Lesson
-                {
-                    Id = l.Id,
-                    Name = l.Name,
-                    ChapterId = l.ChapterId,
-                    Status = l.Status,
-                    Type = l.Type,
-                    LessonVideo = l.LessonVideo == null ? null : new LessonVideo { LessonId = l.LessonVideo.LessonId, Url = l.LessonVideo.Url },
-                    LessonReading = l.LessonReading == null ? null : new LessonReading { LessonId = l.LessonReading.LessonId, Content = l.LessonReading.Content }
-                }).ToList();
+                return _context.Lessons
+                    .Include(l => l.LessonVideo)
+                    .Include(l => l.LessonReading)
+                    .Where(l => l.ChapterId == chapterId)
+                    .Select(l => new Lesson
+                    {
+                        Id = l.Id,
+                        Name = l.Name,
+                        ChapterId = l.ChapterId,
+                        Status = l.Status,
+                        Type = l.Type,
+                        Description = l.Description,
+                        Duration = l.Duration,
+                        PostDate = l.PostDate,
+                        IsPreview = l.IsPreview,
+                        LessonVideo = l.LessonVideo == null ? null :
+                            new LessonVideo { LessonId = l.LessonVideo.LessonId, Url = l.LessonVideo.Url },
+                        LessonReading = l.LessonReading == null ? null :
+                            new LessonReading { LessonId = l.LessonReading.LessonId, Content = l.LessonReading.Content }
+                    }).ToList();
             }
             catch (Exception ex)
             {
@@ -40,23 +51,28 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var l = _context.Lessons.Where(x => x.Id == id).Select(x => new
-                {
-                    Lesson = x,
-                    Reading = x.LessonReading,
-                    Video = x.LessonVideo
-                }).FirstOrDefault();
-                if (l == null || l.Lesson == null) return null;
+                var l = _context.Lessons
+                    .Include(x => x.LessonReading)
+                    .Include(x => x.LessonVideo)
+                    .FirstOrDefault(x => x.Id == id);
+
+                if (l == null) return null;
 
                 return new Lesson
                 {
-                    Id = l.Lesson.Id,
-                    Name = l.Lesson.Name,
-                    ChapterId = l.Lesson.ChapterId,
-                    Status = l.Lesson.Status,
-                    Type = l.Lesson.Type,
-                    LessonReading = l.Reading == null ? null : new LessonReading { LessonId = l.Reading.LessonId, Content = l.Reading.Content },
-                    LessonVideo = l.Video == null ? null : new LessonVideo { LessonId = l.Video.LessonId, Url = l.Video.Url }
+                    Id = l.Id,
+                    Name = l.Name,
+                    ChapterId = l.ChapterId,
+                    Status = l.Status,
+                    Type = l.Type,
+                    Description = l.Description,
+                    Duration = l.Duration,
+                    PostDate = l.PostDate,
+                    IsPreview = l.IsPreview,
+                    LessonReading = l.LessonReading == null ? null :
+                        new LessonReading { LessonId = l.LessonReading.LessonId, Content = l.LessonReading.Content },
+                    LessonVideo = l.LessonVideo == null ? null :
+                        new LessonVideo { LessonId = l.LessonVideo.LessonId, Url = l.LessonVideo.Url }
                 };
             }
             catch (Exception ex)
@@ -76,9 +92,34 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     ChapterId = lesson.ChapterId,
                     Status = lesson.Status ?? true,
                     Type = lesson.Type,
+                    Description = lesson.Description,
+                    Duration = lesson.Duration,
+                    PostDate = lesson.PostDate,
+                    IsPreview = lesson.IsPreview
                 };
+
+                if (!string.IsNullOrEmpty(lesson.LessonVideo?.Url))
+                {
+                    entity.LessonVideo = new Data.LessonVideo
+                    {
+                        Url = lesson.LessonVideo.Url
+                    };
+                    _context.LessonVideos.Add(entity.LessonVideo);
+                }
+
+                if (!string.IsNullOrEmpty(lesson.LessonReading?.Content))
+                {
+                    entity.LessonReading = new Data.LessonReading
+                    {
+                        Content = lesson.LessonReading.Content
+                    };
+                    _context.LessonReadings.Add(entity.LessonReading);
+                }
+
+
                 _context.Lessons.Add(entity);
                 _context.SaveChanges();
+
                 lesson.Id = entity.Id;
                 return lesson;
             }
@@ -93,11 +134,39 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var entity = _context.Lessons.Find(lesson.Id);
+                var entity = _context.Lessons
+                    .Include(l => l.LessonReading)
+                    .Include(l => l.LessonVideo)
+                    .FirstOrDefault(l => l.Id == lesson.Id);
+
                 if (entity == null) return lesson;
+
                 entity.Name = lesson.Name;
                 entity.Status = lesson.Status;
                 entity.Type = lesson.Type;
+                entity.Description = lesson.Description;
+                entity.Duration = lesson.Duration;
+                entity.PostDate = lesson.PostDate;
+                entity.IsPreview = lesson.IsPreview;
+
+                // update video
+                if (!string.IsNullOrEmpty(lesson.LessonVideo?.Url))
+                {
+                    if (entity.LessonVideo == null)
+                        entity.LessonVideo = new Data.LessonVideo();
+
+                    entity.LessonVideo.Url = lesson.LessonVideo.Url;
+                }
+
+                // update reading
+                if (!string.IsNullOrEmpty(lesson.LessonReading?.Content))
+                {
+                    if (entity.LessonReading == null)
+                        entity.LessonReading = new Data.LessonReading();
+
+                    entity.LessonReading.Content = lesson.LessonReading.Content;
+                }
+
                 _context.SaveChanges();
                 return lesson;
             }
@@ -112,10 +181,22 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var entity = _context.Lessons.Find(id);
+                var entity = _context.Lessons
+                    .Include(l => l.LessonReading)
+                    .Include(l => l.LessonVideo)
+                    .FirstOrDefault(l => l.Id == id);
+
                 if (entity == null) return false;
+
+                if (entity.LessonReading != null)
+                    _context.LessonReadings.Remove(entity.LessonReading);
+
+                if (entity.LessonVideo != null)
+                    _context.LessonVideos.Remove(entity.LessonVideo);
+
                 _context.Lessons.Remove(entity);
                 _context.SaveChanges();
+
                 return true;
             }
             catch (Exception ex)

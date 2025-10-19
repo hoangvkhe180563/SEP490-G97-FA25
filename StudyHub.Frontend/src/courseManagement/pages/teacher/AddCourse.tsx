@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
+
 import {
   Card,
   CardContent,
@@ -19,36 +20,34 @@ import {
 } from "@/common/components/ui/select";
 import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
-import {
-  ArrowLeft,
-  Upload,
-  Video,
-  X,
-  Trash2,
-  GripVertical,
-} from "lucide-react";
-import {
-  AddLessonButton,
-  EditLessonButton,
-  ViewLessonButton,
-} from "@/courseManagement/components/CourseButton";
+import { ArrowLeft, Upload, Video } from "lucide-react";
+import { documentService } from "@/documentManagement/services/documentService";
 
 const AddCourse: React.FC = () => {
   const navigate = useNavigate();
-  const [tags, setTags] = useState<string[]>(["JavaScript", "React"]);
-  const [tagInput, setTagInput] = useState("");
   const [isPublished, setIsPublished] = useState(false);
+  const createCourse = useCourseStore((s) => s.createCourse);
 
-  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && tagInput.trim()) {
-      setTags((s) => [...s, tagInput.trim()]);
-      setTagInput("");
-    }
-  };
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [price, setPrice] = useState<number | "">("");
+  const [gradeId, setGradeId] = useState<number | "">("");
+  const [isFeatured, setIsFeatured] = useState<boolean>(false);
+  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
+  const [subjectId, setSubjectId] = useState<number | null>(null);
 
-  const removeTag = (indexToRemove: number) => {
-    setTags((s) => s.filter((_, i) => i !== indexToRemove));
-  };
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        const s = await documentService.getSubjects();
+        setSubjects(s || []);
+      } catch (err) {
+        console.error("Failed to load subjects", err);
+      }
+    };
+    load();
+  }, []);
 
   return (
     <div className="flex-1 overflow-auto bg-white">
@@ -77,8 +76,52 @@ const AddCourse: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button variant="outline">Cancel</Button>
-            <Button>Save Changes</Button>
+            <Button variant="outline" onClick={() => navigate(-1)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!title) return alert("Please provide a course title");
+                setSaving(true);
+                try {
+                  const dto: any = {
+                    name: title,
+                    information: description,
+                    imageUrl: "none",
+                    price: price,
+                    grade: gradeId ? Number(gradeId) : 0,
+                    category: subjectId ? Number(subjectId) : 0, // backend dùng "category" thay vì "subjectId"
+                    schoolId: 0,
+                    isFeatured: isFeatured,
+                    status: isPublished,
+                    createdAt: new Date().toISOString(),
+                    instructorName: "3fa85f64-5717-4562-b3fc-2c963f66afa6", // tạm thời hardcode để pass validation
+                    updatedAt: new Date().toISOString(),
+                    updatedBy: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                    deletedAt: new Date().toISOString(),
+                    chapters: [],
+                  };
+
+                  const created = createCourse
+                    ? await createCourse(dto)
+                    : undefined;
+
+                  if (created && created.id) {
+                    navigate(`/course/teacher/courses`);
+                  } else {
+                    alert("Failed to create course");
+                  }
+                } catch (err) {
+                  console.error("create course failed", err);
+                  alert("Create failed");
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              disabled={saving}
+            >
+              {saving ? "Creating..." : "Create Course"}
+            </Button>
           </div>
         </div>
 
@@ -89,53 +132,70 @@ const AddCourse: React.FC = () => {
               <CardHeader>
                 <CardTitle>Basic Information</CardTitle>
                 <CardDescription>
-                  Course title, description and meta
+                  Enter the core details of your course
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  <div className="space-y-4">
+                  {/* Course Title */}
+                  <div className="space-y-2">
                     <Label>Course Title</Label>
-                    <Input placeholder="Enter course title" />
+                    <Input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Enter course title"
+                    />
                   </div>
 
-                  <div className="space-y-4">
-                    <Label>Course Description</Label>
+                  {/* Description */}
+                  <div className="space-y-2">
+                    <Label>Short Description</Label>
                     <Textarea
-                      placeholder="Describe what students will learn in this course"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Describe what students will learn"
                       rows={4}
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 ">
-                    <div className="space-y-4">
-                      <Label>Category</Label>
-                      <Select>
+                  {/* Subject & Grade */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label>Subject</Label>
+                      <Select
+                        value={subjectId ? String(subjectId) : ""}
+                        onValueChange={(value) => setSubjectId(Number(value))}
+                      >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select category" />
+                          <SelectValue placeholder="Select subject" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="programming">
-                            Programming
-                          </SelectItem>
-                          <SelectItem value="design">Design</SelectItem>
-                          <SelectItem value="business">Business</SelectItem>
+                          {subjects.map((s) => (
+                            <SelectItem key={s.id} value={String(s.id)}>
+                              {s.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
 
-                    <div className="space-y-4">
-                      <Label>Difficulty Level</Label>
-                      <Select>
+                    <div className="space-y-2">
+                      <Label>Grade</Label>
+                      <Select
+                        value={String(gradeId)}
+                        onValueChange={(v) =>
+                          setGradeId(v === "" ? "" : Number(v))
+                        }
+                      >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select level" />
+                          <SelectValue placeholder="Select grade" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="beginner">Beginner</SelectItem>
-                          <SelectItem value="intermediate">
-                            Intermediate
-                          </SelectItem>
-                          <SelectItem value="advanced">Advanced</SelectItem>
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((g) => (
+                            <SelectItem key={g} value={String(g)}>
+                              {g}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -163,71 +223,6 @@ const AddCourse: React.FC = () => {
                       <Button variant="outline">Choose File</Button>
                     </div>
                   </div>
-
-                  <div>
-                    <Label>Course Preview Video (Optional)</Label>
-                    <div className="mt-2 border-2 border-dashed border-[#D4D4D4] rounded-lg h-[166px] flex flex-col items-center justify-center">
-                      <Video className="w-[27px] h-6 text-[#A3A3A3] mb-2" />
-                      <p className="text-sm text-[#525252] mb-1">
-                        Upload a preview video
-                      </p>
-                      <p className="text-xs text-[#737373] mb-3">
-                        Max file size: 100MB
-                      </p>
-                      <Button variant="outline">Upload Video</Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="mt-6">
-              <CardHeader>
-                <div className="flex items-center justify-between w-full">
-                  <div>
-                    <CardTitle>Course Content</CardTitle>
-                  </div>
-                  <div>
-                    <Button
-                      variant="outline"
-                      className="flex items-center gap-2"
-                    >
-                      <Plus className="w-3 h-3" /> Add Section
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="border border-[#E5E5E5] rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-base text-[#171717]">
-                        Section 1: Introduction
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <ViewLessonButton />
-                        <EditLessonButton />
-                        <button className="p-1 hover:bg-gray-100 rounded">
-                          <Trash2 className="w-3.5 h-4 text-[#A3A3A3]" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="bg-[#FAFAFA] rounded h-9 px-2 flex items-center justify-between">
-                        <span className="text-sm text-[#404040]">
-                          Lesson 1: Welcome to the Course
-                        </span>
-                        <GripVertical className="w-2.5 h-4 text-[#A3A3A3]" />
-                      </div>
-
-                      <AddLessonButton />
-                    </div>
-
-                    <AddLessonButton className="mt-2" />
-
-                    {/* Local helper component wired to navigation */}
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -248,18 +243,22 @@ const AddCourse: React.FC = () => {
                         <span className="absolute left-3 top-1 text-base text-[#737373]">
                           $
                         </span>
-                        <Input className="pl-8" placeholder="0.00" />
+                        <Input
+                          className="pl-8"
+                          placeholder="0.00"
+                          value={price}
+                          onChange={(e) => setPrice(Number(e.target.value))}
+                        />
                       </div>
                     </div>
-
-                    <div className="space-y-4">
-                      <Label>Duration</Label>
-                      <Input placeholder="e.g., 8 weeks" />
-                    </div>
-
-                    <div className="space-y-4">
-                      <Label>Max Students</Label>
-                      <Input placeholder="Unlimited" />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4"
+                        checked={isFeatured}
+                        onChange={(e) => setIsFeatured(e.target.checked)}
+                      />
+                      <Label>Featured Course</Label>
                     </div>
 
                     <div className="flex items-center justify-between pt-2">
@@ -314,41 +313,6 @@ const AddCourse: React.FC = () => {
                           Web Development Expert
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Tags</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <input
-                      type="text"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={handleAddTag}
-                      placeholder="Add tags (press Enter)"
-                      className="w-full h-[42px] px-3 border border-[#D4D4D4] rounded-md text-base placeholder:text-[#ADAEBC] focus:outline-none focus:ring-1 focus:ring-[#D4D4D4]"
-                    />
-
-                    <div className="flex flex-wrap gap-2">
-                      {tags.map((tag, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-1 px-2 h-6 bg-[#F5F5F5] rounded"
-                        >
-                          <span className="text-xs text-[#262626]">{tag}</span>
-                          <button
-                            onClick={() => removeTag(index)}
-                            className="hover:bg-gray-200 rounded"
-                          >
-                            <X className="w-3 h-3 text-[#262626]" />
-                          </button>
-                        </div>
-                      ))}
                     </div>
                   </div>
                 </CardContent>

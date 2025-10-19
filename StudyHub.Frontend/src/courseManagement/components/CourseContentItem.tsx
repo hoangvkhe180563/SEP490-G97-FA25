@@ -5,7 +5,25 @@ const CourseContentItem: React.FC<{
   title: string;
   subtitle?: string;
   duration?: string;
-}> = ({ title, subtitle, duration }) => {
+  variant?: "list" | "grid";
+}> = ({ title, subtitle, duration, variant = "list" }) => {
+  if (variant === "grid") {
+    return (
+      <div className="bg-white border rounded p-3 shadow-sm h-full flex flex-col">
+        <div className="flex-1">
+          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+            <Play className="w-5 h-5 text-gray-600" />
+          </div>
+          <div className="font-medium mb-1">{title}</div>
+          {subtitle && (
+            <div className="text-sm text-gray-500 line-clamp-3">{subtitle}</div>
+          )}
+        </div>
+        <div className="text-sm text-gray-500 mt-3">{duration}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center justify-between bg-white border rounded p-3 mb-3">
       <div className="flex items-center gap-3">

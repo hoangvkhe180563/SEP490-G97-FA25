@@ -15,9 +15,19 @@ public partial class Lesson
 
     public string Type { get; set; } = null!;
 
+    public string? Duration { get; set; }
+
+    public string? Description { get; set; }
+
+    public DateTime? PostDate { get; set; }
+
+    public bool? IsPreview { get; set; }
+
     public virtual Chapter Chapter { get; set; } = null!;
 
     public virtual LessonReading? LessonReading { get; set; }
 
     public virtual LessonVideo? LessonVideo { get; set; }
+
+    public virtual ICollection<Progress> Progresses { get; set; } = new List<Progress>();
 }

@@ -16,7 +16,10 @@ public partial class AppUser
     public string? Fullname { get; set; }
 
     public DateOnly? Dob { get; set; }
-    public bool Gender { get; set; }
+
+    public bool? Gender { get; set; }
+
+    public string? Avatar { get; set; }
 
     public int? SchoolId { get; set; }
 
@@ -33,6 +36,14 @@ public partial class AppUser
     public string? RefreshToken { get; set; }
 
     public DateTime? RefreshTokenExpire { get; set; }
+
+    public string? EmailVerificationToken { get; set; }
+
+    public DateTime? EmailVerificationExpire { get; set; }
+
+    public string? ResetPasswordToken { get; set; }
+
+    public DateTime? ResetPasswordExpire { get; set; }
 
     public bool IsLoginWithGoogle { get; set; }
 
@@ -55,6 +66,8 @@ public partial class AppUser
     public virtual ICollection<ClassworkSubmission> ClassworkSubmissions { get; set; } = new List<ClassworkSubmission>();
 
     public virtual Commune? Commune { get; set; }
+
+    public virtual ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
 
     public virtual ICollection<AppRole> Roles { get; set; } = new List<AppRole>();
 }

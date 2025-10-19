@@ -1,41 +1,84 @@
 import React from "react";
+import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { Button } from "@/common/components/ui/button";
 import { Link } from "react-router-dom";
-import type { Course } from "@/courseManagement/interfaces/types";
+import type { CourseListDto as Course } from "@/courseManagement/interfaces/types";
 
-const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
+const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
+  course,
+  categoryLabel,
+}) => {
+  const selectCourse = useCourseStore((s: any) => s.selectCourse);
+  const selectedCourseId = useCourseStore((s: any) => s.selectedCourseId);
+  const isSelected = selectedCourseId === course.id;
   return (
-    <div className="bg-white rounded-md shadow-sm overflow-hidden">
-      <div className="h-48 bg-gray-100 flex items-center justify-center text-gray-400">
-        Course Thumbnail
+    <div
+      onClick={() => selectCourse && selectCourse(course.id)}
+      className={`bg-white rounded-md shadow-sm overflow-hidden cursor-pointer transition-shadow ${
+        isSelected ? "ring-2 ring-black" : ""
+      }`}
+    >
+      <div className="h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
+        {course.imageUrl ? (
+          <img
+            src={course.imageUrl}
+            alt={course.name}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              // fallback nếu ảnh lỗi
+              e.currentTarget.src =
+                "https://placehold.co/600x400?text=No+Image";
+            }}
+          />
+        ) : (
+          <div className="text-gray-400 text-sm">No Image</div>
+        )}
       </div>
       <div className="p-4">
         <div className="inline-block bg-gray-100 text-xs text-gray-600 px-2 py-1 rounded mb-2">
-          Computer Science
+          {categoryLabel ?? ((course as any).category as string) ?? "Unknown"}
         </div>
         <h3 className="text-sm font-medium text-[#171717]">
-          <Link to={`/student/course/${course.id}`}>{course.title}</Link>
+          <Link to={`/student/course/${course.id}`}>{course.name}</Link>
         </h3>
-        {course.description && (
-          <p className="text-sm text-[#737373] mt-2">{course.description}</p>
+        {course.information && (
+          <p className="text-sm text-[#737373] mt-2">{course.information}</p>
         )}
 
         <div className="flex items-center justify-between mt-4">
           <div className="flex items-center gap-3">
             <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden text-xs">
-              {(course.instructor || "")
+              {(course.instructorName || "")
                 .split(" ")
-                .map((n) => n[0])
+                .map((n: string) => n[0])
                 .slice(0, 2)
                 .join("")}
             </div>
-            <div className="text-xs text-gray-600">{course.instructor}</div>
+            <div className="text-xs text-gray-600">{course.instructorName}</div>
           </div>
-          <div className="text-xs text-gray-600">{course.duration}</div>
+          <div className="text-xs text-gray-600">
+            {(course as any).duration}
+          </div>
         </div>
 
         <div className="mt-4">
-          <Button className="w-full bg-black text-white">Enroll Now</Button>
+          <div className="flex gap-3">
+            <Link
+              to={`/course/student/courses/${course.id}`}
+              className="flex-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Button
+                variant="outline"
+                className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-200 rounded-lg py-2"
+              >
+                View
+              </Button>
+            </Link>
+            <Button className="flex-[1.5] bg-black text-white hover:bg-gray-900 transition-colors duration-200 rounded-lg py-2 shadow-md">
+              Enroll Now
+            </Button>
+          </div>
         </div>
       </div>
     </div>

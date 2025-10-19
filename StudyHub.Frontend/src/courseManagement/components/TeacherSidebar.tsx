@@ -41,33 +41,41 @@ export default function TeacherSidebar({
     {
       section: "Main",
       items: [
-        { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+        {
+          icon: LayoutDashboard,
+          label: "Dashboard",
+          path: "/course/teacher",
+        },
       ],
     },
     {
       section: "Content",
       items: [
-        { icon: BookOpen, label: "Courses", path: "/teacher/courses" },
-        { icon: Play, label: "Lessons", path: "/teacher/lessons" },
-        { icon: FileText, label: "Assignments", path: "/teacher/assignments" },
+        { icon: BookOpen, label: "Courses", path: "/course/teacher/courses" },
+        { icon: Play, label: "Lessons", path: "/course/teacher/lessons" },
+        {
+          icon: FileText,
+          label: "Assignments",
+          path: "/course/teacher/assignments",
+        },
       ],
     },
     {
       section: "Users",
       items: [
-        { icon: Users, label: "Students", path: "/teacher/students" },
+        { icon: Users, label: "Students", path: "/course/teacher/students" },
         {
           icon: GraduationCap,
           label: "Instructors",
-          path: "/teacher/instructors",
+          path: "/course/teacher/instructors",
         },
       ],
     },
     {
       section: "Settings",
       items: [
-        { icon: Settings, label: "System", path: "/settings" },
-        { icon: BarChart3, label: "Analytics", path: "/analytics" },
+        { icon: Settings, label: "System", path: "/course/settings" },
+        { icon: BarChart3, label: "Analytics", path: "/course/analytics" },
       ],
     },
   ];
@@ -141,9 +149,7 @@ export default function TeacherSidebar({
                     {section.items.map((item) => {
                       const Icon = item.icon;
                       const pathname = location.pathname;
-                      const baseActive =
-                        pathname === item.path ||
-                        pathname.startsWith(item.path + "/");
+                      const baseActive = pathname === item.path;
                       const pattern = extraRoutePatterns[item.path];
                       const isActive =
                         baseActive ||

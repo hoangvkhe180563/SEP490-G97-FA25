@@ -293,82 +293,98 @@
 //   )
 // }
 
-import { useState, useEffect } from "react"
-import { useNavigate, useLocation } from "react-router-dom"
-import DocumentSearchHeader from "@/documentManagement/components/documents/DocumentSearchBar"
-import DocumentFilterSidebar from "@/documentManagement/components/documents/DocumentFilterSidebar"
-import DocumentGrid from "@/documentManagement/components/documents/DocumentGrid"
-import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination"
-import { documentService } from "@/documentManagement/services/documentService"
-import type { Document, PaginationInfo } from "@/documentManagement/interfaces/document"
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import DocumentSearchHeader from "@/documentManagement/components/documents/DocumentSearchBar";
+import DocumentFilterSidebar from "@/documentManagement/components/documents/DocumentFilterSidebar";
+import DocumentGrid from "@/documentManagement/components/documents/DocumentGrid";
+import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination";
+import { documentService } from "@/documentManagement/services/documentService";
+import type {
+  Document,
+  PaginationInfo,
+} from "@/documentManagement/interfaces/document";
 
 const DocumentList = () => {
-  const navigate = useNavigate()
-  const location = useLocation()
-  
-  const [documents, setDocuments] = useState<Document[]>([])
-  const [loading, setLoading] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [sortBy, setSortBy] = useState("newest")
-  const [showSchoolDocs, setShowSchoolDocs] = useState(false)
-  const [selectedGrades, setSelectedGrades] = useState<number[]>([])
-  const [selectedSubjects, setSelectedSubjects] = useState<number[]>([])
-  const [selectedCategories, setSelectedCategories] = useState<number[]>([])
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
+  const [showSchoolDocs, setShowSchoolDocs] = useState(false);
+  const [selectedGrades, setSelectedGrades] = useState<number[]>([]);
+  const [selectedSubjects, setSelectedSubjects] = useState<number[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo>({
     currentPage: 1,
     pageSize: 9,
     totalCount: 0,
     totalPages: 0,
-  })
+  });
 
-const fetchDocuments = async () => {
-  setLoading(true)
-  try {
-    // Bỏ accessibility filter tạm thời để test
-    const response = await documentService.searchDocuments({
-      query: searchQuery || undefined,
-      gradeId: selectedGrades.length === 1 ? selectedGrades[0] : undefined,
-      categoryId: selectedCategories.length === 1 ? selectedCategories[0] : undefined,
-      // accessibility, // Comment dòng này
-      pageNumber: pagination.currentPage,
-      pageSize: pagination.pageSize,
-    })
+  const fetchDocuments = async () => {
+    setLoading(true);
+    try {
+      // Bỏ accessibility filter tạm thời để test
+      const response = await documentService.searchDocuments({
+        query: searchQuery || undefined,
+        gradeId: selectedGrades.length === 1 ? selectedGrades[0] : undefined,
+        categoryId:
+          selectedCategories.length === 1 ? selectedCategories[0] : undefined,
+        // accessibility, // Comment dòng này
+        pageNumber: pagination.currentPage,
+        pageSize: pagination.pageSize,
+      });
 
-    console.log('API Response:', response)
-      let filteredDocs = response.data
+      console.log("API Response:", response);
+      let filteredDocs = response.data;
 
       if (selectedGrades.length > 1) {
-        filteredDocs = filteredDocs.filter(doc => selectedGrades.includes(doc.gradeId))
+        filteredDocs = filteredDocs.filter((doc) =>
+          selectedGrades.includes(doc.gradeId)
+        );
       }
 
       if (selectedSubjects.length > 0) {
-        filteredDocs = filteredDocs.filter(doc => selectedSubjects.includes(doc.subjectId))
+        filteredDocs = filteredDocs.filter((doc) =>
+          selectedSubjects.includes(doc.subjectId)
+        );
       }
 
       if (selectedCategories.length > 1) {
-        filteredDocs = filteredDocs.filter(doc => selectedCategories.includes(doc.documentCategoryId))
+        filteredDocs = filteredDocs.filter((doc) =>
+          selectedCategories.includes(doc.documentCategoryId)
+        );
       }
 
       if (sortBy === "oldest") {
-        filteredDocs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        filteredDocs.sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
       } else if (sortBy === "name") {
-        filteredDocs.sort((a, b) => a.name.localeCompare(b.name))
+        filteredDocs.sort((a, b) => a.name.localeCompare(b.name));
       } else {
-        filteredDocs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        filteredDocs.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
       }
 
-      setDocuments(filteredDocs)
-      setPagination(response.pagination)
+      setDocuments(filteredDocs);
+      setPagination(response.pagination);
     } catch (error) {
-      console.error("Failed to fetch documents:", error)
-      setDocuments([])
+      console.error("Failed to fetch documents:", error);
+      setDocuments([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchDocuments()
+    fetchDocuments();
   }, [
     searchQuery,
     sortBy,
@@ -377,37 +393,43 @@ const fetchDocuments = async () => {
     selectedSubjects,
     selectedCategories,
     pagination.currentPage,
-  ])
+  ]);
 
   const handleGradeChange = (gradeId: number) => {
     setSelectedGrades((prev) =>
-      prev.includes(gradeId) ? prev.filter((id) => id !== gradeId) : [...prev, gradeId]
-    )
-    setPagination((prev) => ({ ...prev, currentPage: 1 }))
-  }
+      prev.includes(gradeId)
+        ? prev.filter((id) => id !== gradeId)
+        : [...prev, gradeId]
+    );
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+  };
 
   const handleSubjectChange = (subjectId: number) => {
     setSelectedSubjects((prev) =>
-      prev.includes(subjectId) ? prev.filter((id) => id !== subjectId) : [...prev, subjectId]
-    )
-    setPagination((prev) => ({ ...prev, currentPage: 1 }))
-  }
+      prev.includes(subjectId)
+        ? prev.filter((id) => id !== subjectId)
+        : [...prev, subjectId]
+    );
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+  };
 
   const handleCategoryChange = (categoryId: number) => {
     setSelectedCategories((prev) =>
-      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId]
-    )
-    setPagination((prev) => ({ ...prev, currentPage: 1 }))
-  }
+      prev.includes(categoryId)
+        ? prev.filter((id) => id !== categoryId)
+        : [...prev, categoryId]
+    );
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+  };
 
-  const handleDocumentClick = (documentId: number) => {
-    const basePath = location.pathname.split("/documents")[0]
-    navigate(`${basePath}/details`)
-  }
+  const handleDocumentClick = (_documentId: number) => {
+    const basePath = location.pathname.split("/documents")[0];
+    navigate(`${basePath}/details`);
+  };
 
   const handlePageChange = (page: number) => {
-    setPagination((prev) => ({ ...prev, currentPage: page }))
-  }
+    setPagination((prev) => ({ ...prev, currentPage: page }));
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
@@ -437,16 +459,24 @@ const fetchDocuments = async () => {
             </div>
           ) : (
             <>
-              { <DocumentGrid documents={documents} onDocumentClick={handleDocumentClick} /> }
+              {
+                <DocumentGrid
+                  documents={documents}
+                  onDocumentClick={handleDocumentClick}
+                />
+              }
               {documents.length > 0 && (
-                <DocumentPagination pagination={pagination} onPageChange={handlePageChange} />
+                <DocumentPagination
+                  pagination={pagination}
+                  onPageChange={handlePageChange}
+                />
               )}
             </>
           )}
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default DocumentList
+export default DocumentList;

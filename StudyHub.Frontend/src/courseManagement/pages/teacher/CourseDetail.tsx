@@ -1,6 +1,12 @@
-import React from "react";
-import type { Course } from "@/courseManagement/interfaces/types";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
+import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
+import type {
+  ChapterListDto,
+  LessonListDto,
+  CourseListDto,
+} from "@/courseManagement/types/api";
 import {
   Card,
   CardContent,
@@ -12,27 +18,56 @@ import { Edit2, ArrowLeft } from "lucide-react";
 
 const CourseDetail: React.FC = () => {
   const navigate = useNavigate();
-  useParams();
+  const { id } = useParams();
+  const courseId = Number(id || 0);
 
-  // demo static data for layout
-  const course: Course = {
-    id: "demo-course",
-    title: "Advanced Web Development",
-    subtitle: "Master modern web technologies and frameworks",
-    instructor: "John Smith",
-    createdAt: "Jan 15, 2025",
-    duration: "12 weeks",
-    totalStudents: 247,
-    completionRate: "78%",
-    avgRating: 4.6,
-    totalLessons: 24,
-    description:
-      "This comprehensive course covers modern web development technologies including React, Node.js, and database management. Students will learn to build full-stack applications from scratch.",
+  const selectedCourse = useCourseStore(
+    (s) => s.selectedCourse as CourseListDto | undefined
+  );
+  const fetchCourseById = useCourseStore((s) => s.fetchCourseById);
+
+  const fetchChapters = useLectureStore((s) => s.fetchChapters);
+  const chaptersFromStore = useLectureStore((s) => s.chapters);
+  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
+
+  // === Load subjects for category label ===
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const { documentService } = await import(
+          "@/documentManagement/services/documentService"
+        );
+        const res = await documentService.getSubjects();
+        if (mounted && Array.isArray(res)) {
+          setSubjects(res.map((s: any) => ({ id: s.id, name: s.name })));
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const categoryLabel = (id?: number | null) => {
+    if (id === undefined || id === null) return "-";
+    const found = subjects.find((s) => s.id === Number(id));
+    return found ? found.name : String(id);
   };
+
+  useEffect(() => {
+    if (courseId) {
+      fetchCourseById(courseId);
+      fetchChapters(courseId);
+    }
+  }, [courseId, fetchCourseById, fetchChapters]);
 
   return (
     <div className="flex-1 overflow-auto bg-white">
       <div className="max-w-[1200px] mx-auto px-8 py-6">
+        {/* === Breadcrumb + back button === */}
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate(-1)}
@@ -45,126 +80,149 @@ const CourseDetail: React.FC = () => {
           </div>
         </div>
 
+        {/* === Course Header === */}
         <div className="flex items-start justify-between gap-4 mb-6">
           <div className="flex-1">
             <div className="flex items-center justify-between bg-white border rounded p-4 mb-4">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-[#D9D9D9] rounded flex items-center justify-center text-sm">
-                  Course Image
+                {/* === Course Image === */}
+                <div className="w-24 h-24 bg-gray-100 rounded overflow-hidden">
+                  {selectedCourse?.imageUrl ? (
+                    <img
+                      src={selectedCourse.imageUrl}
+                      alt="Course image"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
+                      No Image
+                    </div>
+                  )}
                 </div>
+
+                {/* === Course Info === */}
                 <div>
-                  <div className="text-lg font-medium">{course.title}</div>
+                  <div className="text-lg font-medium">
+                    {selectedCourse?.name ?? "Course"}
+                  </div>
                   <div className="text-sm text-[#737373] mt-1">
-                    {course.subtitle}
+                    {selectedCourse?.information ?? ""}
                   </div>
 
                   <div className="flex items-center gap-4 text-sm text-[#525252] mt-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full bg-[#171717]" />
-                      <span>{course.instructor}</span>
+                      <div className="w-6 h-6 rounded-full bg-[#171717]" />
+                      <span>
+                        {selectedCourse?.instructorName ?? "Instructor"}
+                      </span>
                     </div>
-                    <div>Created: {course.createdAt}</div>
-                    <div>Duration: {course.duration}</div>
+                    <div>
+                      Created:{" "}
+                      {selectedCourse?.createdAt
+                        ? new Date(selectedCourse.createdAt).toLocaleString()
+                        : "-"}
+                    </div>
                   </div>
                 </div>
               </div>
 
+              {/* === Buttons === */}
               <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
-                  onClick={() => navigate(`/teacher/edit-course`)}
+                  onClick={() =>
+                    navigate(`/course/teacher/edit-course/${courseId}`)
+                  }
                 >
                   <Edit2 className="mr-2" /> Edit Course
                 </Button>
-                <Button>Preview</Button>
+                <Button
+                  onClick={() =>
+                    navigate(`/course/teacher/preview/${courseId}`)
+                  }
+                >
+                  Preview
+                </Button>
               </div>
             </div>
 
+            {/* === Course Overview === */}
             <div className="grid grid-cols-12 gap-4">
               <div className="col-span-12 lg:col-span-8">
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <Card>
-                    <CardContent>
-                      <div className="text-sm text-[#8A8A8A]">
-                        Total Students
-                      </div>
-                      <div className="text-xl font-semibold">
-                        {course.totalStudents}
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent>
-                      <div className="text-sm text-[#8A8A8A]">
-                        Completion Rate
-                      </div>
-                      <div className="text-xl font-semibold">
-                        {course.completionRate}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
                 <Card>
                   <CardHeader>
                     <CardTitle>Course Description</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-[#404040]">
-                      {course.description}
+                      {selectedCourse?.information ?? ""}
                     </p>
-
-                    <div className="mt-4 text-sm text-[#404040]">
-                      <div className="font-medium mb-2">
-                        Learning Objectives:
-                      </div>
-                      <ul className="list-disc pl-5 text-sm">
-                        <li>Master React and component-based architecture</li>
-                        <li>Build RESTful APIs with Node.js and Express</li>
-                        <li>Implement database design and management</li>
-                        <li>Deploy applications to cloud platforms</li>
-                      </ul>
-                    </div>
                   </CardContent>
                 </Card>
 
+                {/* === Curriculum === */}
                 <Card className="mt-4">
                   <CardHeader>
                     <CardTitle>Curriculum</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      <details className="border rounded p-3">
-                        <summary className="cursor-pointer font-medium">
-                          Module 1: Introduction to React
-                        </summary>
-                        <div className="mt-2 text-sm text-[#404040]">
-                          5 lessons • 2 hours
+                      {(chaptersFromStore && chaptersFromStore.length > 0) ||
+                      (selectedCourse?.chapters &&
+                        selectedCourse.chapters.length > 0) ? (
+                        (chaptersFromStore && chaptersFromStore.length > 0
+                          ? chaptersFromStore
+                          : selectedCourse?.chapters ?? []
+                        ).map((ch: ChapterListDto, idx: number) => (
+                          <details
+                            className="border rounded p-3"
+                            key={ch.id ?? idx}
+                          >
+                            <summary className="cursor-pointer font-medium">
+                              {ch.name}
+                            </summary>
+                            <div className="mt-2">
+                              <ul className="list-disc pl-5 text-sm">
+                                {ch.lessons?.map(
+                                  (l: LessonListDto, liIdx: number) => (
+                                    <li key={l.id ?? liIdx} className="py-1">
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <div className="font-medium">
+                                            {l.name}
+                                          </div>
+                                          <div className="text-xs text-gray-500">
+                                            {l.type ?? ""}
+                                            {l.videoUrl ? " • Video" : ""}
+                                            {l.readingContent
+                                              ? " • Reading"
+                                              : ""}
+                                          </div>
+                                        </div>
+                                        {l.isPreview && (
+                                          <span className="text-xs px-2 py-1 border rounded">
+                                            Preview
+                                          </span>
+                                        )}
+                                      </div>
+                                    </li>
+                                  )
+                                )}
+                              </ul>
+                            </div>
+                          </details>
+                        ))
+                      ) : (
+                        <div className="text-sm text-gray-500">
+                          No curriculum available.
                         </div>
-                      </details>
-
-                      <details className="border rounded p-3">
-                        <summary className="cursor-pointer font-medium">
-                          Module 2: State Management
-                        </summary>
-                        <div className="mt-2 text-sm text-[#404040]">
-                          4 lessons • 1.5 hours
-                        </div>
-                      </details>
-
-                      <details className="border rounded p-3">
-                        <summary className="cursor-pointer font-medium">
-                          Module 3: Backend Development
-                        </summary>
-                        <div className="mt-2 text-sm text-[#404040]">
-                          6 lessons • 3 hours
-                        </div>
-                      </details>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
+              {/* === Right Sidebar === */}
               <aside className="col-span-12 lg:col-span-4">
                 <div className="space-y-4">
                   <Card>
@@ -172,22 +230,28 @@ const CourseDetail: React.FC = () => {
                       <CardTitle>Course Status</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-sm text-[#404040]">
+                      <div className="text-sm text-[#404040] space-y-1">
                         <div className="flex justify-between">
                           <span>Status</span>
-                          <span>Published</span>
+                          <span>
+                            {selectedCourse?.status ? "Published" : "Draft"}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span>Price</span>
-                          <span>$299</span>
+                          <span>
+                            {selectedCourse?.price
+                              ? `${selectedCourse.price}`
+                              : "Free"}
+                          </span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Category</span>
-                          <span>Web Development</span>
+                          <span>Subject</span>
+                          <span>{categoryLabel(selectedCourse?.category)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Level</span>
-                          <span>Intermediate</span>
+                          <span>Grade</span>
+                          <span>{selectedCourse?.grade ?? "-"}</span>
                         </div>
                       </div>
                     </CardContent>
@@ -201,9 +265,8 @@ const CourseDetail: React.FC = () => {
                       <div className="flex items-start gap-3">
                         <div className="w-12 h-12 rounded-full bg-[#D9D9D9]" />
                         <div>
-                          <div className="font-medium">John Smith</div>
                           <div className="text-sm text-[#737373]">
-                            Senior Developer
+                            {selectedCourse?.instructorName ? "Instructor" : ""}
                           </div>
                           <div className="mt-3 flex gap-2">
                             <Button variant="outline">View Profile</Button>
@@ -211,19 +274,6 @@ const CourseDetail: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Recent Activity</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ul className="text-sm text-[#404040] list-disc pl-5">
-                        <li>New student enrolled • 2 hours ago</li>
-                        <li>Assignment submitted • 5 hours ago</li>
-                        <li>Course updated • 1 day ago</li>
-                      </ul>
                     </CardContent>
                   </Card>
                 </div>

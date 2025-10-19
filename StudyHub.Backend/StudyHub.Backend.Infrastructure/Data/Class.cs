@@ -32,4 +32,6 @@ public partial class Class
     public virtual ICollection<Classwork> Classworks { get; set; } = new List<Classwork>();
 
     public virtual Subject? Subject { get; set; }
+
+    public virtual ICollection<Document> Documents { get; set; } = new List<Document>();
 }

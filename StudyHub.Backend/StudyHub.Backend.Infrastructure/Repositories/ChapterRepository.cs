@@ -2,14 +2,15 @@ using StudyHub.Backend.Domain.Entities;
 using Data = StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.Infrastructure.Exceptions;
-using System.Linq;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
     public class ChapterRepository : IChapterRepository
     {
         private readonly Data.AppDbContext _context;
+
         public ChapterRepository(Data.AppDbContext context)
         {
             _context = context;
@@ -19,21 +20,38 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                return _context.Chapters.Where(ch => ch.CourseId == courseId).Select(ch => new Chapter
-                {
-                    Id = ch.Id,
-                    Name = ch.Name,
-                    CourseId = ch.CourseId,
-                    Status = ch.Status,
-                    Lessons = ch.Lessons.Select(l => new Lesson
+                return _context.Chapters
+                    .Include(ch => ch.Lessons)
+                        .ThenInclude(l => l.LessonVideo)
+                    .Include(ch => ch.Lessons)
+                        .ThenInclude(l => l.LessonReading)
+                    .Where(ch => ch.CourseId == courseId)
+                    .Select(ch => new Chapter
                     {
-                        Id = l.Id,
-                        Name = l.Name,
-                        ChapterId = l.ChapterId,
-                        Status = l.Status,
-                        Type = l.Type,
-                    }).ToList()
-                }).ToList();
+                        Id = ch.Id,
+                        Name = ch.Name,
+                        CourseId = ch.CourseId,
+                        Status = ch.Status,
+                        Description = ch.Description,
+                        PostDate = ch.PostDate,
+                        Lessons = ch.Lessons.Select(l => new Lesson
+                        {
+                            Id = l.Id,
+                            Name = l.Name,
+                            ChapterId = l.ChapterId,
+                            Status = l.Status,
+                            Type = l.Type,
+                            Description = l.Description,
+                            Duration = l.Duration,
+                            PostDate = l.PostDate,
+                            IsPreview = l.IsPreview,
+                            LessonVideo = l.LessonVideo == null ? null :
+                                new LessonVideo { LessonId = l.LessonVideo.LessonId, Url = l.LessonVideo.Url },
+                            LessonReading = l.LessonReading == null ? null :
+                                new LessonReading { LessonId = l.LessonReading.LessonId, Content = l.LessonReading.Content }
+                        }).ToList()
+                    })
+                    .ToList();
             }
             catch (Exception ex)
             {
@@ -46,14 +64,23 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var ch = _context.Chapters.Include(c => c.Lessons).FirstOrDefault(c => c.Id == id);
+                var ch = _context.Chapters
+                    .Include(c => c.Lessons)
+                        .ThenInclude(l => l.LessonReading)
+                    .Include(c => c.Lessons)
+                        .ThenInclude(l => l.LessonVideo)
+                    .FirstOrDefault(c => c.Id == id);
+
                 if (ch == null) return null;
+
                 return new Chapter
                 {
                     Id = ch.Id,
                     Name = ch.Name,
                     CourseId = ch.CourseId,
                     Status = ch.Status,
+                    Description = ch.Description,
+                    PostDate = ch.PostDate,
                     Lessons = ch.Lessons.Select(l => new Lesson
                     {
                         Id = l.Id,
@@ -61,6 +88,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         ChapterId = l.ChapterId,
                         Status = l.Status,
                         Type = l.Type,
+                        Description = l.Description,
+                        Duration = l.Duration,
+                        PostDate = l.PostDate,
+                        IsPreview = l.IsPreview,
+                        LessonVideo = l.LessonVideo == null ? null :
+                            new LessonVideo { LessonId = l.LessonVideo.LessonId, Url = l.LessonVideo.Url },
+                        LessonReading = l.LessonReading == null ? null :
+                            new LessonReading { LessonId = l.LessonReading.LessonId, Content = l.LessonReading.Content }
                     }).ToList()
                 };
             }
@@ -79,10 +114,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     Name = chapter.Name,
                     CourseId = chapter.CourseId,
-                    Status = chapter.Status ?? true
+                    Status = chapter.Status ?? true,
+                    Description = chapter.Description,
+                    PostDate = chapter.PostDate,
                 };
+
                 _context.Chapters.Add(entity);
                 _context.SaveChanges();
+
                 chapter.Id = entity.Id;
                 return chapter;
             }
@@ -97,10 +136,17 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var entity = _context.Chapters.Find(chapter.Id);
+                var entity = _context.Chapters
+                    .Include(c => c.Lessons)
+                    .FirstOrDefault(c => c.Id == chapter.Id);
+
                 if (entity == null) return chapter;
+
                 entity.Name = chapter.Name;
                 entity.Status = chapter.Status;
+                entity.Description = chapter.Description;
+                entity.PostDate = chapter.PostDate;
+
                 _context.SaveChanges();
                 return chapter;
             }
@@ -115,9 +161,27 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var entity = _context.Chapters.Find(id);
+                var entity = _context.Chapters
+                    .Include(c => c.Lessons)
+                        .ThenInclude(l => l.LessonReading)
+                    .Include(c => c.Lessons)
+                        .ThenInclude(l => l.LessonVideo)
+                    .FirstOrDefault(c => c.Id == id);
+
                 if (entity == null) return false;
+
+                foreach (var lesson in entity.Lessons)
+                {
+                    if (lesson.LessonReading != null)
+                        _context.LessonReadings.Remove(lesson.LessonReading);
+
+                    if (lesson.LessonVideo != null)
+                        _context.LessonVideos.Remove(lesson.LessonVideo);
+                }
+
+                _context.Lessons.RemoveRange(entity.Lessons);
                 _context.Chapters.Remove(entity);
+
                 _context.SaveChanges();
                 return true;
             }

@@ -1,5 +1,6 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { Button } from "@/common/components/ui/button";
 import {
   Card,
@@ -11,12 +12,27 @@ import { ArrowLeft, Play, Download, Bookmark } from "lucide-react";
 
 const LectureDetails: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const lid = Number(id || 0);
+
+  const selectedLesson = useLectureStore((s: any) => s.selectedLesson);
+  const fetchLesson = useLectureStore((s: any) => s.fetchLesson);
+
+  useEffect(() => {
+    if (lid) fetchLesson(lid);
+  }, [lid, fetchLesson]);
+
+  const l = selectedLesson;
 
   return (
     <div className="flex-1 overflow-auto bg-white">
       <div className="max-w-[1100px] mx-auto px-6 py-6">
-        <div className="text-sm text-[#525252] mb-3">Courses / Lecture</div>
+        {/* === Breadcrumb === */}
+        <div className="text-sm text-[#525252] mb-3">
+          Courses / Lecture / {l?.name ?? "Loading..."}
+        </div>
 
+        {/* === Header === */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <button
@@ -27,90 +43,77 @@ const LectureDetails: React.FC = () => {
             </button>
 
             <div>
-              <h1 className="text-2xl font-normal text-[#171717]">
-                HTML Fundamentals
+              <h1 className="text-2xl font-semibold text-[#171717]">
+                {l?.name ?? "Lecture"}
               </h1>
               <p className="text-sm text-[#525252]">
-                45 minutes • 124 students • Updated Jan 15, 2025
+                {l?.type ?? ""} • {l?.teacherName ?? "Unknown Teacher"} •{" "}
+                {l?.postDate
+                  ? new Date(l.postDate).toLocaleDateString()
+                  : "No post date"}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <Button variant="outline">
-              <Play className="w-4 h-4 mr-2" /> Play
-            </Button>
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2" /> Download
-            </Button>
+            {l?.videoUrl && (
+              <Button variant="outline">
+                <Play className="w-4 h-4 mr-2" /> Play
+              </Button>
+            )}
+            {l?.fileUrl && (
+              <Button variant="outline" asChild>
+                <a href={l.fileUrl} download>
+                  <Download className="w-4 h-4 mr-2" /> Download File
+                </a>
+              </Button>
+            )}
             <Button variant="outline">
               <Bookmark className="w-4 h-4 mr-2" /> Bookmark
             </Button>
           </div>
         </div>
 
+        {/* === MAIN CONTENT === */}
         <div
-          className="bg-black rounded-lg overflow-hidden"
+          className="bg-black rounded-lg overflow-hidden flex justify-center items-center"
           style={{ aspectRatio: "16/9" }}
         >
-          <div className="w-full h-full flex items-center justify-center text-white">
-            <div className="text-2xl">Video Player Placeholder</div>
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <div className="flex items-center justify-between">
-            <div className="w-3/4">
-              <div className="h-3 bg-[#E5E5E5] rounded">
-                <div
-                  className="h-3 bg-[#171717] rounded"
-                  style={{ width: "75%" }}
-                />
-              </div>
-              <div className="text-xs text-[#8A8A8A] mt-2">
-                75% completed (34 min remaining)
+          {l?.type === "Video" && l?.videoUrl ? (
+            <iframe
+              src={l.videoUrl}
+              title={l.name}
+              className="w-full h-full"
+              allowFullScreen
+            />
+          ) : l?.type === "Đọc" && l?.readingContent ? (
+            <div className="bg-[#fafafa] w-full h-full flex justify-center items-start overflow-y-auto p-8">
+              <div className="bg-white shadow-lg rounded-lg w-full max-w-[800px] p-8 leading-relaxed text-[#1f1f1f] text-[15px] tracking-[0.015em] font-[400] prose prose-sm prose-slate overflow-y-auto max-h-full">
+                <div className="whitespace-pre-wrap">{l.readingContent}</div>
               </div>
             </div>
-            <div className="text-sm text-[#8A8A8A]">Speed: 1x</div>
-          </div>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-white text-2xl">
+              No content available for this lecture.
+            </div>
+          )}
         </div>
 
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Lecture Transcript</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="max-h-64 overflow-auto text-sm text-[#404040] leading-relaxed">
-              <p>
-                In this comprehensive lecture, you'll learn the fundamental
-                concepts of HTML (HyperText Markup Language), the backbone of
-                web development. We'll cover the basic structure of HTML
-                documents, essential tags, and how to create your first webpage
-                from scratch. In this comprehensive lecture, you'll learn the
-                fundamental concepts of HTML (HyperText Markup Language), the
-                backbone of web development. We'll cover the basic structure of
-                HTML documents, essential tags, and how to create your first
-                webpage from scratch.
-              </p>
-
-              <p className="mt-3">
-                In this comprehensive lecture, you'll learn the fundamental
-                concepts of HTML (HyperText Markup Language), the backbone of
-                web development. We'll cover the basic structure of HTML
-                documents, essential tags, and how to create your first webpage
-                from scratch.
-              </p>
-
-              <p className="mt-3">
-                In this comprehensive lecture, you'll learn the fundamental
-                concepts of HTML (HyperText Markup Language), the backbone of
-                web development. We'll cover the basic structure of HTML
-                documents, essential tags, and how to create your first webpage
-                from scratch.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        {/* === DESCRIPTION === */}
+        {l?.description && (
+          <div className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Description</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-[#404040] leading-relaxed whitespace-pre-line">
+                  {l.description}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );

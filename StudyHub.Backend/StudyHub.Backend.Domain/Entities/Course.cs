@@ -31,5 +31,6 @@ public class Course
     public Guid? UpdatedBy { get; set; }
 
     public DateTime? DeletedAt { get; set; }
+
     public List<Chapter> Chapters { get; set; } = new();
 }

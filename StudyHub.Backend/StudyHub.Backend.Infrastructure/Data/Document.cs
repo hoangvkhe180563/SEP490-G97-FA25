@@ -25,7 +25,7 @@ public partial class Document
 
     public int? SchoolId { get; set; }
 
-    public int? ClassId { get; set; }
+    public bool IsInClass { get; set; }
 
     public bool IsFeatured { get; set; }
 
@@ -46,4 +46,6 @@ public partial class Document
     public virtual School? School { get; set; }
 
     public virtual Subject Subject { get; set; } = null!;
+
+    public virtual ICollection<Class> Classes { get; set; } = new List<Class>();
 }

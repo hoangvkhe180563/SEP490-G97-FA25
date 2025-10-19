@@ -6,41 +6,47 @@ import Homepage from "@/uiManagement/pages/Homepage";
 import uiManagementRoutes from "@/uiManagement/routes/UiManagementRoutes";
 import userRoutes from "@/user/routes/UserRoutes";
 import { Outlet, useRoutes } from "react-router-dom";
+import courseRoutes from "@/courseManagement/routes/CourseRoute";
 
 const AppRouter = () => {
   const appRoutes = [
     {
       path: "/",
-      element: <Homepage />
+      element: <Homepage />,
     },
     {
       path: "/:school",
-      element: <Homepage />
+      element: <Homepage />,
     },
     {
       path: RouteConfig.USER,
       element: <Outlet />,
-      children: userRoutes
+      children: userRoutes,
     },
     {
       path: RouteConfig.UI_MANAGEMENT,
       element: <Outlet />,
-      children: uiManagementRoutes
+      children: uiManagementRoutes,
     },
     {
       path: RouteConfig.CLASS_MANAGEMENT,
       element: <Outlet />,
-      children: classRoutes
+      children: classRoutes,
     },
-     {
+    {
       path: RouteConfig.DOCUMENT_MANAGEMENT,
       element: <Outlet />,
-      children: documentRoutes
-    }
+      children: documentRoutes,
+    },
+    {
+      path: RouteConfig.COURSE_MANAGEMENT,
+      element: <Outlet />,
+      children: courseRoutes,
+    },
   ];
 
   const routesElement = useRoutes(appRoutes);
   return routesElement;
-}
+};
 
 export default AppRouter;

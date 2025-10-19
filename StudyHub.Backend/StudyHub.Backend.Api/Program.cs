@@ -15,7 +15,6 @@ builder.Services.AddAuthentication("Bearer")
 
 builder.Services.AddUseCasesDependency()
                 .AddInfrastructureDependency(builder.Configuration.GetConnectionString("value") ?? "");
-//Để chỉnh cái connection string, chuột phải project chọn Manage user secrets.
 
 builder.Services.AddCors(options =>
 {

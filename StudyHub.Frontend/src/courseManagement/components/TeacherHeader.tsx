@@ -2,22 +2,21 @@ import { useLocation } from "react-router-dom";
 import { User } from "lucide-react";
 
 const TITLE_MAP: Array<[string, string]> = [
-  ["/dashboard", "Dashboard"],
-  ["/teacher/courses", "Courses"],
-  ["/teacher/lessons", "Lessons"],
-  ["/teacher/assignments", "Assignments"],
-  ["/teacher/students", "Students"],
-  ["/teacher/instructors", "Instructors"],
-  ["/teacher/courses/:id", "Course Detail"],
-  ["/teacher/add-course", "Add New Course"],
-  ["/teacher/edit-course", "Edit Course"],
-  ["/teacher/add-lecture", "Add New Lecture"],
-  ["/teacher/edit-lecture", "Edit Lecture"],
-  ["/teacher/lecture/:id", "Lecture Detail"],
-  ["/teacher/profile", "Teacher Profile"],
-  ["/settings", "System"],
-  ["/analytics", "Analytics"],
-  ["/teacher", "Teacher Dashboard"],
+  ["/course/teacher/dashboard", "Dashboard"],
+  ["/course/teacher/courses", "Courses"],
+  ["/course/teacher/lessons", "Lessons"],
+  ["/course/teacher/assignments", "Assignments"],
+  ["/course/teacher/students", "Students"],
+  ["/course/teacher/instructors", "Instructors"],
+  ["/course/teacher/courses/:id", "Course Detail"],
+  ["/course/teacher/add-course", "Add New Course"],
+  ["/course/teacher/edit-course", "Edit Course"],
+  ["/course/teacher/add-lecture", "Add New Lecture"],
+  ["/course/teacher/edit-lecture", "Edit Lecture"],
+  ["/course/teacher/lecture", "Lecture Detail"],
+  ["/course/teacher/profile", "Teacher Profile"],
+  ["/course/settings", "System"],
+  ["/course/analytics", "Analytics"],
 ];
 
 function resolveTitle(pathname: string) {
