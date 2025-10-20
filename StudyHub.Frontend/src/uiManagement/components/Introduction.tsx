@@ -70,7 +70,7 @@ const Introduction = (props: IIntroductionProps) => {
               {props.introductionImage && Array.from(props.introductionImage).map((_, index) => (
                 <button
                   key={index}
-                  className={`h-2 w-2 rounded-full transition-all ${current === index ? `${props.background}` : "bg-gray-300"}`}
+                  className={`h-2 w-2 rounded-full transition-all ${current === index ? `bg-blue-300` : "bg-gray-300"}`}
                   onClick={() => scrollTo(index)}
                 />
               ))}

@@ -22,4 +22,5 @@ public class Course : IAuditTrail
 
     public bool? Status { get; set; }
     public List<Chapter> Chapters { get; set; } = new();
+    public Subject? Subject { get; set; }
 }

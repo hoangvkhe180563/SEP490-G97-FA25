@@ -45,7 +45,11 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<DocumentCategory> DocumentCategories { get; set; }
 
+    public virtual DbSet<Enrollment> Enrollments { get; set; }
+
     public virtual DbSet<LandingPage> LandingPages { get; set; }
+
+    public virtual DbSet<LandingPageImage> LandingPageImages { get; set; }
 
     public virtual DbSet<Lesson> Lessons { get; set; }
 
@@ -54,6 +58,8 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<LessonVideo> LessonVideos { get; set; }
 
     public virtual DbSet<PaymentInfo> PaymentInfos { get; set; }
+
+    public virtual DbSet<Progress> Progresses { get; set; }
 
     public virtual DbSet<Province> Provinces { get; set; }
 
@@ -229,10 +235,10 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.CourseId, "CourseId");
 
-            entity.Property(e => e.Name).HasMaxLength(200);
-            entity.Property(e => e.Status)
-                .IsRequired()
-                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.Description).HasColumnType("text");
+            entity.Property(e => e.Name).HasMaxLength(255);
+            entity.Property(e => e.PostDate).HasColumnType("datetime");
+            entity.Property(e => e.Status).HasDefaultValueSql("'1'");
 
             entity.HasOne(d => d.Course).WithMany(p => p.Chapters)
                 .HasForeignKey(d => d.CourseId)
@@ -388,9 +394,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Information).HasMaxLength(1000);
             entity.Property(e => e.Name).HasMaxLength(200);
-            entity.Property(e => e.Status)
-                .IsRequired()
-                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.Status).HasDefaultValueSql("'1'");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.Subject).WithMany(p => p.Courses)
@@ -467,6 +471,29 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(200);
         });
 
+        modelBuilder.Entity<Enrollment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("enrollments");
+
+            entity.HasIndex(e => e.AppUserId, "AppUserId");
+
+            entity.HasIndex(e => e.CourseId, "CourseId");
+
+            entity.Property(e => e.EnrollmentDate)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.AppUser).WithMany(p => p.Enrollments)
+                .HasForeignKey(d => d.AppUserId)
+                .HasConstraintName("enrollments_ibfk_1");
+
+            entity.HasOne(d => d.Course).WithMany(p => p.Enrollments)
+                .HasForeignKey(d => d.CourseId)
+                .HasConstraintName("enrollments_ibfk_2");
+        });
+
         modelBuilder.Entity<LandingPage>(entity =>
         {
             entity.HasKey(e => e.SchoolId).HasName("PRIMARY");
@@ -474,11 +501,28 @@ public partial class AppDbContext : DbContext
             entity.ToTable("landing_pages");
 
             entity.Property(e => e.SchoolId).ValueGeneratedNever();
+            entity.Property(e => e.Description).HasMaxLength(500);
 
             entity.HasOne(d => d.School).WithOne(p => p.LandingPage)
                 .HasForeignKey<LandingPage>(d => d.SchoolId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("landing_pages_ibfk_1");
+        });
+
+        modelBuilder.Entity<LandingPageImage>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("landing_page_images");
+
+            entity.HasIndex(e => e.LandingPageId, "LandingPageId");
+
+            entity.Property(e => e.Id).ValueGeneratedNever();
+
+            entity.HasOne(d => d.LandingPage).WithMany(p => p.LandingPageImages)
+                .HasForeignKey(d => d.LandingPageId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("landing_page_images_ibfk_1");
         });
 
         modelBuilder.Entity<Lesson>(entity =>
@@ -489,10 +533,12 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.ChapterId, "ChapterId");
 
-            entity.Property(e => e.Name).HasMaxLength(200);
-            entity.Property(e => e.Status)
-                .IsRequired()
-                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.Description).HasColumnType("text");
+            entity.Property(e => e.Duration).HasMaxLength(100);
+            entity.Property(e => e.IsPreview).HasDefaultValueSql("'0'");
+            entity.Property(e => e.Name).HasMaxLength(255);
+            entity.Property(e => e.PostDate).HasColumnType("datetime");
+            entity.Property(e => e.Status).HasDefaultValueSql("'1'");
             entity.Property(e => e.Type)
                 .HasDefaultValueSql("'Đọc'")
                 .HasColumnType("enum('Đọc','Video','Luyện tập')");
@@ -546,6 +592,29 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey<PaymentInfo>(d => d.SchoolId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("payment_info_ibfk_1");
+        });
+
+        modelBuilder.Entity<Progress>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("progress");
+
+            entity.HasIndex(e => e.EnrollmentId, "EnrollmentId");
+
+            entity.HasIndex(e => e.LessonId, "LessonId");
+
+            entity.Property(e => e.CompletionDate)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Enrollment).WithMany(p => p.Progresses)
+                .HasForeignKey(d => d.EnrollmentId)
+                .HasConstraintName("progress_ibfk_1");
+
+            entity.HasOne(d => d.Lesson).WithMany(p => p.Progresses)
+                .HasForeignKey(d => d.LessonId)
+                .HasConstraintName("progress_ibfk_2");
         });
 
         modelBuilder.Entity<Province>(entity =>

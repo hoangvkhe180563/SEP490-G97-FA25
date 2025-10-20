@@ -13,6 +13,10 @@ public partial class Chapter
 
     public bool? Status { get; set; }
 
+    public string? Description { get; set; }
+
+    public DateTime? PostDate { get; set; }
+
     public virtual Course Course { get; set; } = null!;
 
     public virtual ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
