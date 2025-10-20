@@ -1,364 +1,366 @@
-//documentManagement/pages/DocumentInfo.tsx
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams } from "react-router-dom";
-import { Download, ZoomIn, ZoomOut, FileText, Maximize, RotateCw, BookOpen, FileIcon, Minimize, ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/common/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/common/components/ui/tabs";
-import { Separator } from "@/common/components/ui/separator";
-import { Input } from "@/common/components/ui/input";
-import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
-import type { DocumentDetailDto } from "@/documentManagement/interfaces/documentApi";
-import HTMLFlipBook from "react-pageflip";
+import type React from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { useParams } from "react-router-dom"
+import {
+  Download,
+  ZoomIn,
+  ZoomOut,
+  FileText,
+  Maximize,
+  RotateCw,
+  BookOpen,
+  FileIcon,
+  Minimize,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react"
+import { Button } from "@/common/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/common/components/ui/tabs"
+import { Separator } from "@/common/components/ui/separator"
+import { Input } from "@/common/components/ui/input"
+import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore"
+import HTMLFlipBook from "react-pageflip"
 
 interface PdfOutlineItem {
-  title: string;
-  page: number;
+  title: string
+  page: number
 }
 
 interface PdfPage {
-  getViewport: (params: { scale: number; rotation?: number }) => { width: number; height: number };
-  render: (params: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => { promise: Promise<void> };
+  getViewport: (params: { scale: number; rotation?: number }) => { width: number; height: number }
+  render: (params: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => {
+    promise: Promise<void>
+  }
 }
 
 interface PdfDocument {
-  numPages: number;
-  getOutline: () => Promise<Array<{ title: string; dest: unknown }> | null>;
-  getPage: (num: number) => Promise<PdfPage>;
+  numPages: number
+  getOutline: () => Promise<Array<{ title: string; dest: unknown }> | null>
+  getPage: (num: number) => Promise<PdfPage>
 }
 
 interface PdfJs {
-  getDocument: (params: { data: ArrayBuffer }) => { promise: Promise<PdfDocument> };
-  GlobalWorkerOptions: { workerSrc: string };
+  getDocument: (params: { data: ArrayBuffer }) => { promise: Promise<PdfDocument> }
+  GlobalWorkerOptions: { workerSrc: string }
 }
 
-type ViewMode = 'normal' | 'flipbook';
+type ViewMode = "normal" | "flipbook"
 
 export default function DocumentViewer() {
-  const { id } = useParams<{ id: string }>();
-  const [zoom, setZoom] = useState(100);
-  const [rotation, setRotation] = useState(0);
-  const [previewUrl, setPreviewUrl] = useState<string>("");
-  const [numPages, setNumPages] = useState(0);
-  const [outline, setOutline] = useState<PdfOutlineItem[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [viewMode, setViewMode] = useState<ViewMode>('normal');
-  const [pageImages, setPageImages] = useState<string[]>([]);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [thumbnails, setThumbnails] = useState<string[]>([]);
-  const [pageInput, setPageInput] = useState("1");
-  
-  const { document, isLoading, getDocumentById, previewDocument, downloadDocument } = useDocumentStore();
-  const pdfDocRef = useRef<PdfDocument | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const flipBookRef = useRef<{ pageFlip: () => { flip: (page: number) => void; getCurrentPageIndex: () => number } }>(null);
-  const pageObserverRef = useRef<IntersectionObserver | null>(null);
+  const { id } = useParams<{ id: string }>()
+  const [zoom, setZoom] = useState(100)
+  const [rotation, setRotation] = useState(0)
+  const [previewUrl, setPreviewUrl] = useState<string>("")
+  const [numPages, setNumPages] = useState(0)
+  const [outline, setOutline] = useState<PdfOutlineItem[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [viewMode, setViewMode] = useState<ViewMode>("normal")
+  const [pageImages, setPageImages] = useState<string[]>([])
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [thumbnails, setThumbnails] = useState<string[]>([])
+  const [pageInput, setPageInput] = useState("1")
 
-  const isPdf = document?.fileType?.toLowerCase().includes('pdf');
-  const isOfficeFile = document?.fileType && 
-    (document.fileType.toLowerCase().includes('word') || 
-     document.fileType.toLowerCase().includes('presentation') ||
-     document.fileType.toLowerCase().includes('sheet') ||
-     document.fileType.toLowerCase().includes('doc') ||
-     document.fileType.toLowerCase().includes('ppt') ||
-     document.fileType.toLowerCase().includes('xls'));
+  const { document, isLoading, getDocumentById, previewDocument, downloadDocument } = useDocumentStore()
+  const pdfDocRef = useRef<PdfDocument | null>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const flipBookRef = useRef<any>(null)
+  const pageObserverRef = useRef<IntersectionObserver | null>(null)
+
+  const isPdf = document?.fileType?.toLowerCase().includes("pdf")
+  const isOfficeFile =
+    document?.fileType &&
+    (document.fileType.toLowerCase().includes("word") ||
+      document.fileType.toLowerCase().includes("presentation") ||
+      document.fileType.toLowerCase().includes("sheet") ||
+      document.fileType.toLowerCase().includes("doc") ||
+      document.fileType.toLowerCase().includes("ppt") ||
+      document.fileType.toLowerCase().includes("xls"))
 
   const loadPdfDocument = useCallback(async (blob: Blob) => {
-    const pdfjsLib = (window as Window & { pdfjsLib?: PdfJs }).pdfjsLib;
-    if (!pdfjsLib) return;
+    const pdfjsLib = (window as Window & { pdfjsLib?: PdfJs }).pdfjsLib
+    if (!pdfjsLib) return
 
     try {
-      const arrayBuffer = await blob.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      pdfDocRef.current = pdf;
-      setNumPages(pdf.numPages);
-      
-      const pdfOutline = await pdf.getOutline();
+      const arrayBuffer = await blob.arrayBuffer()
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+      pdfDocRef.current = pdf
+      setNumPages(pdf.numPages)
+
+      const pdfOutline = await pdf.getOutline()
       if (pdfOutline) {
         const flatOutline = pdfOutline.map((item: { title: string }, idx: number) => ({
           title: item.title,
-          page: idx + 1
-        }));
-        setOutline(flatOutline);
+          page: idx + 1,
+        }))
+        setOutline(flatOutline)
       }
     } catch (error) {
-      console.error('PDF load error:', error);
+      console.error("PDF load error:", error)
     }
-  }, []);
+  }, [])
 
-const renderPdfPageToCanvas = useCallback(async (pageNum: number, scale: number = 1.5, customRotation: number = 0): Promise<string> => {
-  if (!pdfDocRef.current) return '';
-  
-  try {
-    const page = await pdfDocRef.current.getPage(pageNum);
-    const viewport = page.getViewport({ scale, rotation: customRotation });
-    const canvas = window.document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    
-    if (!context) return '';
+  const renderPdfPageToCanvas = useCallback(
+    async (pageNum: number, scale = 1.5, customRotation = 0): Promise<string> => {
+      if (!pdfDocRef.current) return ""
 
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-    
-    await page.render({ canvasContext: context, viewport }).promise;
-    return canvas.toDataURL();
-  } catch (error) {
-    console.error(`Error rendering page ${pageNum}:`, error);
-    return '';
-  }
-}, []);
+      try {
+        const page = await pdfDocRef.current.getPage(pageNum)
+        const viewport = page.getViewport({ scale, rotation: customRotation })
+        const canvas = window.document.createElement("canvas")
+        const context = canvas.getContext("2d")
+
+        if (!context) return ""
+
+        canvas.height = viewport.height
+        canvas.width = viewport.width
+
+        await page.render({ canvasContext: context, viewport }).promise
+        return canvas.toDataURL()
+      } catch (error) {
+        console.error(`Error rendering page ${pageNum}:`, error)
+        return ""
+      }
+    },
+    [],
+  )
 
   const loadPreview = useCallback(async () => {
     if (id) {
-      const blob = await previewDocument(Number(id));
+      const blob = await previewDocument(Number(id))
       if (blob) {
-        const url = window.URL.createObjectURL(blob);
-        setPreviewUrl(url);
-        
-        if (blob.type === 'application/pdf') {
-          await loadPdfDocument(blob);
+        const url = window.URL.createObjectURL(blob)
+        setPreviewUrl(url)
+
+        if (blob.type === "application/pdf") {
+          await loadPdfDocument(blob)
         }
       }
     }
-  }, [id, previewDocument, loadPdfDocument]);
+  }, [id, previewDocument, loadPdfDocument])
 
   useEffect(() => {
-    const script = window.document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    script.async = true;
+    const script = window.document.createElement("script")
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+    script.async = true
     script.onload = () => {
-      const win = window as Window & { pdfjsLib?: PdfJs };
+      const win = window as Window & { pdfjsLib?: PdfJs }
       if (win.pdfjsLib) {
-        win.pdfjsLib.GlobalWorkerOptions.workerSrc = 
-          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        win.pdfjsLib.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"
       }
-    };
-    window.document.body.appendChild(script);
+    }
+    window.document.body.appendChild(script)
 
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!window.document.fullscreenElement);
-    };
-    window.document.addEventListener('fullscreenchange', handleFullscreenChange);
+      setIsFullscreen(!!window.document.fullscreenElement)
+    }
+    window.document.addEventListener("fullscreenchange", handleFullscreenChange)
 
     return () => {
       if (window.document.body.contains(script)) {
-        window.document.body.removeChild(script);
+        window.document.body.removeChild(script)
       }
-      window.document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
-  }, []);
+      window.document.removeEventListener("fullscreenchange", handleFullscreenChange)
+    }
+  }, [])
 
   useEffect(() => {
     if (id) {
-      getDocumentById(Number(id));
-      loadPreview();
+      getDocumentById(Number(id))
+      loadPreview()
     }
-  }, [id, getDocumentById, loadPreview]);
+  }, [id, getDocumentById, loadPreview])
 
   useEffect(() => {
     const loadInitialPages = async () => {
-      if (isPdf && pdfDocRef.current && numPages > 0) {
-        const pagesToLoad = Math.min(10, numPages);
-        const promises = [];
-        
+      if (isPdf && pdfDocRef.current && numPages > 0 && pageImages.length === 0) {
+        const pagesToLoad = Math.min(3, numPages)
+        const promises = []
+        const baseScale = viewMode === "normal" ? (zoom / 100) * 1.5 : 1.5
+
         for (let i = 1; i <= pagesToLoad; i++) {
-          promises.push(renderPdfPageToCanvas(i, zoom / 100 * 1.5));
+          promises.push(renderPdfPageToCanvas(i, baseScale))
         }
-        
-        const images = await Promise.all(promises);
-        setPageImages(images);
+
+        const images = await Promise.all(promises)
+        setPageImages(images)
       }
-    };
-    
-    loadInitialPages();
-  }, [isPdf, numPages, renderPdfPageToCanvas, zoom]);
+    }
+
+    loadInitialPages()
+  }, [isPdf, numPages, renderPdfPageToCanvas, viewMode])
 
   useEffect(() => {
-    if (!isPdf || !scrollContainerRef.current || viewMode !== 'normal') return;
+    if (!isPdf || !scrollContainerRef.current || viewMode !== "normal") return
 
     const options = {
       root: scrollContainerRef.current,
       threshold: 0.5,
-    };
+    }
 
     pageObserverRef.current = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          const pageNum = parseInt(entry.target.getAttribute('data-page') || '1');
-          setCurrentPage(pageNum);
+          const pageNum = Number.parseInt(entry.target.getAttribute("data-page") || "1")
+          setCurrentPage(pageNum)
         }
-      });
-    }, options);
+      })
+    }, options)
 
-    const pageElements = scrollContainerRef.current.querySelectorAll('[data-page]');
-    pageElements.forEach((el) => pageObserverRef.current?.observe(el));
+    const pageElements = scrollContainerRef.current.querySelectorAll("[data-page]")
+    pageElements.forEach((el) => pageObserverRef.current?.observe(el))
 
     return () => {
-      pageObserverRef.current?.disconnect();
-    };
-  }, [isPdf, viewMode, pageImages.length]);
+      pageObserverRef.current?.disconnect()
+    }
+  }, [isPdf, viewMode, pageImages.length])
 
   useEffect(() => {
     const loadMorePages = async () => {
-      if (isPdf && pdfDocRef.current && viewMode === 'normal') {
-        const start = Math.max(1, currentPage - 5);
-        const end = Math.min(numPages, currentPage + 5);
-        
+      if (isPdf && pdfDocRef.current && viewMode === "normal") {
+        const start = Math.max(1, currentPage - 2)
+        const end = Math.min(numPages, currentPage + 2)
+
         for (let i = start; i <= end; i++) {
           if (!pageImages[i - 1]) {
-            const img = await renderPdfPageToCanvas(i, zoom / 100 * 1.5);
-            setPageImages(prev => {
-              const newImages = [...prev];
-              newImages[i - 1] = img;
-              return newImages;
-            });
+            const img = await renderPdfPageToCanvas(i, (zoom / 100) * 1.5)
+            setPageImages((prev) => {
+              const newImages = [...prev]
+              newImages[i - 1] = img
+              return newImages
+            })
           }
         }
       }
-    };
-    loadMorePages();
-  }, [currentPage, viewMode, isPdf, numPages, pageImages, renderPdfPageToCanvas, zoom]);
+    }
+    loadMorePages()
+  }, [currentPage, viewMode, isPdf, numPages, pageImages, renderPdfPageToCanvas, zoom])
 
   useEffect(() => {
     const loadFlipbookPages = async () => {
-      if (isPdf && pdfDocRef.current && viewMode === 'flipbook') {
-        const start = Math.max(1, currentPage - 5);
-        const end = Math.min(numPages, currentPage + 5);
-        
+      if (isPdf && pdfDocRef.current && viewMode === "flipbook") {
+        const start = Math.max(1, currentPage - 5)
+        const end = Math.min(numPages, currentPage + 5)
+
         for (let i = start; i <= end; i++) {
           if (!pageImages[i - 1]) {
-            const img = await renderPdfPageToCanvas(i);
-            setPageImages(prev => {
-              const newImages = [...prev];
-              newImages[i - 1] = img;
-              return newImages;
-            });
+            const img = await renderPdfPageToCanvas(i, 1.5)
+            setPageImages((prev) => {
+              const newImages = [...prev]
+              newImages[i - 1] = img
+              return newImages
+            })
           }
         }
       }
-    };
-    loadFlipbookPages();
-  }, [currentPage, viewMode, isPdf, numPages, pageImages, renderPdfPageToCanvas]);
-
-useEffect(() => {
-  const loadThumbnails = async () => {
-    const start = Math.max(0, currentPage - 5);
-    const end = Math.min(numPages, currentPage + 5);
-    
-    for (let i = start; i < end; i++) {
-      if (!thumbnails[i] && pdfDocRef.current) {
-        const img = await renderPdfPageToCanvas(i + 1, 0.3, 0);
-        setThumbnails(prev => {
-          const newThumbs = [...prev];
-          newThumbs[i] = img;
-          return newThumbs;
-        });
-      }
     }
-  };
-  
-  if (isPdf && numPages > 0) {
-    loadThumbnails();
-  }
-}, [currentPage, numPages, thumbnails, isPdf, renderPdfPageToCanvas]);
+    loadFlipbookPages()
+  }, [currentPage, viewMode, isPdf, numPages, pageImages, renderPdfPageToCanvas])
 
   useEffect(() => {
-    setPageInput(currentPage.toString());
-  }, [currentPage]);
+    const loadThumbnails = async () => {
+      const start = Math.max(0, currentPage - 5)
+      const end = Math.min(numPages, currentPage + 5)
+
+      for (let i = start; i < end; i++) {
+        if (!thumbnails[i] && pdfDocRef.current) {
+          const img = await renderPdfPageToCanvas(i + 1, 0.3, 0)
+          setThumbnails((prev) => {
+            const newThumbs = [...prev]
+            newThumbs[i] = img
+            return newThumbs
+          })
+        }
+      }
+    }
+
+    if (isPdf && numPages > 0) {
+      loadThumbnails()
+    }
+  }, [currentPage, numPages, thumbnails, isPdf, renderPdfPageToCanvas])
+
+  useEffect(() => {
+    setPageInput(currentPage.toString())
+  }, [currentPage])
 
   const handleZoomIn = () => {
-    setZoom((prev) => {
-      const newZoom = Math.min(prev + 10, 200);
-      if (viewMode === 'normal') {
-        setPageImages([]);
-      }
-      return newZoom;
-    });
-  };
+    setZoom((prev) => Math.min(prev + 10, 200))
+  }
 
   const handleZoomOut = () => {
-    setZoom((prev) => {
-      const newZoom = Math.max(prev - 10, 50);
-      if (viewMode === 'normal') {
-        setPageImages([]);
-      }
-      return newZoom;
-    });
-  };
+    setZoom((prev) => Math.max(prev - 10, 50))
+  }
 
-  const handleRotate = () => setRotation((prev) => (prev + 90) % 360);
-  
+  const handleRotate = () => setRotation((prev) => (prev + 90) % 360)
+
   const handleAutoFit = () => {
-    setZoom(100);
-    if (viewMode === 'normal') {
-      setPageImages([]);
-    }
-  };
+    setZoom(100)
+  }
 
   const handleFullscreen = () => {
     if (!window.document.fullscreenElement) {
-      window.document.documentElement.requestFullscreen();
+      window.document.documentElement.requestFullscreen()
     } else {
-      window.document.exitFullscreen();
+      window.document.exitFullscreen()
     }
-  };
+  }
 
   const handleDownload = async () => {
     if (id && document) {
-      const blob = await downloadDocument(Number(id));
+      const blob = await downloadDocument(Number(id))
       if (blob) {
-        const url = window.URL.createObjectURL(blob);
-        const anchor = window.document.createElement('a');
-        anchor.href = url;
-        anchor.download = document.name || 'document';
-        anchor.click();
-        window.URL.revokeObjectURL(url);
+        const url = window.URL.createObjectURL(blob)
+        const anchor = window.document.createElement("a")
+        anchor.href = url
+        anchor.download = document.name || "document"
+        anchor.click()
+        window.URL.revokeObjectURL(url)
       }
     }
-  };
+  }
 
   const toggleViewMode = () => {
-    setViewMode(prev => prev === 'normal' ? 'flipbook' : 'normal');
-  };
+    setViewMode((prev) => (prev === "normal" ? "flipbook" : "normal"))
+  }
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= numPages) {
-      setCurrentPage(page);
-      
-      if (viewMode === 'flipbook' && flipBookRef.current) {
+      setCurrentPage(page)
+
+      if (viewMode === "flipbook" && flipBookRef.current) {
         try {
-          const pageFlip = (flipBookRef.current as unknown as { pageFlip: () => { flip: (page: number) => void } }).pageFlip();
-          pageFlip.flip(page - 1);
+          flipBookRef.current.pageFlip().flip(page - 1)
         } catch (error) {
-          console.error('Error flipping page:', error);
+          console.error("Error flipping page:", error)
         }
-      } else if (viewMode === 'normal' && scrollContainerRef.current) {
-        const pageElement = scrollContainerRef.current.querySelector(`[data-page="${page}"]`);
+      } else if (viewMode === "normal" && scrollContainerRef.current) {
+        const pageElement = scrollContainerRef.current.querySelector(`[data-page="${page}"]`)
         if (pageElement) {
-          pageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          pageElement.scrollIntoView({ behavior: "smooth", block: "start" })
         }
       }
     }
-  };
+  }
 
   const handlePageSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const page = parseInt(pageInput);
+    e.preventDefault()
+    const page = Number.parseInt(pageInput)
     if (!isNaN(page)) {
-      handlePageChange(page);
+      handlePageChange(page)
     }
-  };
+  }
 
   const handlePageInputBlur = () => {
-    const page = parseInt(pageInput);
+    const page = Number.parseInt(pageInput)
     if (isNaN(page) || page < 1 || page > numPages) {
-      setPageInput(currentPage.toString());
+      setPageInput(currentPage.toString())
     }
-  };
+  }
 
   const handleFlipbookFlip = (e: { data: number }) => {
-    setCurrentPage(e.data + 1);
-  };
+    setCurrentPage(e.data + 1)
+  }
 
   if (isLoading) {
     return (
@@ -368,10 +370,10 @@ useEffect(() => {
           <p className="text-gray-600 font-medium">Đang tải tài liệu...</p>
         </div>
       </div>
-    );
+    )
   }
 
-  const canFlipbook = isPdf && numPages > 0;
+  const canFlipbook = isPdf && numPages > 0
 
   return (
     <>
@@ -388,13 +390,8 @@ useEffect(() => {
           max-height: 100%;
           object-fit: contain;
         }
-        .stf__wrapper {
-          transform: scale(${zoom / 100});
-          transform-origin: center center;
-          transition: transform 0.3s ease;
-        }
       `}</style>
-      
+
       <div className="flex flex-col h-screen bg-gray-50">
         <div className="bg-white border-b border-gray-200 px-6 py-3">
           <div className="flex items-center justify-between">
@@ -413,8 +410,12 @@ useEffect(() => {
             <div className="flex items-center gap-2">
               {canFlipbook && (
                 <Button variant="outline" size="sm" onClick={toggleViewMode}>
-                  {viewMode === 'normal' ? <BookOpen className="w-4 h-4 mr-1" /> : <FileIcon className="w-4 h-4 mr-1" />}
-                  {viewMode === 'normal' ? 'Lật sách' : 'Thường'}
+                  {viewMode === "normal" ? (
+                    <BookOpen className="w-4 h-4 mr-1" />
+                  ) : (
+                    <FileIcon className="w-4 h-4 mr-1" />
+                  )}
+                  {viewMode === "normal" ? "Lật sách" : "Thường"}
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={handleDownload}>
@@ -423,9 +424,9 @@ useEffect(() => {
               </Button>
               <Button variant="outline" size="sm" onClick={handleFullscreen}>
                 {isFullscreen ? <Minimize className="w-4 h-4 mr-1" /> : <Maximize className="w-4 h-4 mr-1" />}
-                {isFullscreen ? 'Thu nhỏ' : 'Toàn màn'}
+                {isFullscreen ? "Thu nhỏ" : "Toàn màn"}
               </Button>
-              
+
               {isPdf && (
                 <>
                   <Separator orientation="vertical" className="h-6" />
@@ -444,11 +445,11 @@ useEffect(() => {
                   </Button>
                 </>
               )}
-              
+
               {numPages > 0 && (
                 <div className="flex items-center gap-2 ml-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage <= 1}
@@ -465,8 +466,8 @@ useEffect(() => {
                     />
                     <span className="text-sm text-gray-600">/ {numPages}</span>
                   </form>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage >= numPages}
@@ -475,7 +476,7 @@ useEffect(() => {
                   </Button>
                 </div>
               )}
-              
+
               {(isPdf || isOfficeFile) && (
                 <>
                   <Separator orientation="vertical" className="h-6" />
@@ -489,29 +490,27 @@ useEffect(() => {
         </div>
 
         <div className="flex flex-1 overflow-hidden">
-          <div 
-            ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto bg-gray-100 flex justify-center p-4"
-          >
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-gray-100 flex justify-center p-4">
             {isPdf ? (
-              viewMode === 'normal' ? (
+              viewMode === "normal" ? (
                 <div className="w-full max-w-6xl space-y-4">
                   {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
-                    <div 
-                      key={pageNum} 
+                    <div
+                      key={pageNum}
                       data-page={pageNum}
-                      className="bg-white shadow-lg mx-auto"
-                      style={{ minHeight: '800px' }}
+                      className="bg-white shadow-lg mx-auto relative"
+                      style={{
+                        minHeight: "800px",
+                        transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
+                        transformOrigin: "center center",
+                        marginBottom: `${Math.abs(zoom - 100) * 2}px`,
+                      }}
                     >
                       {pageImages[pageNum - 1] ? (
-                        <img 
-                          src={pageImages[pageNum - 1]} 
+                        <img
+                          src={pageImages[pageNum - 1] || "/placeholder.svg"}
                           alt={`Page ${pageNum}`}
                           className="w-full"
-                          style={{
-                            transform: `rotate(${rotation}deg)`,
-                            transformOrigin: 'center center'
-                          }}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
@@ -522,7 +521,13 @@ useEffect(() => {
                   ))}
                 </div>
               ) : (
-                <div className="w-full max-w-6xl flex items-center justify-center">
+                <div 
+                  className="w-full max-w-6xl flex items-center justify-center"
+                  style={{
+                    transform: `scale(${zoom / 100})`,
+                    transformOrigin: "center center",
+                  }}
+                >
                   {numPages === 0 ? (
                     <p className="text-gray-400">Đang tải chế độ lật sách...</p>
                   ) : (
@@ -540,12 +545,12 @@ useEffect(() => {
                       onFlip={handleFlipbookFlip}
                       className="shadow-2xl"
                       startPage={currentPage - 1}
-                      ref={flipBookRef as React.RefObject<HTMLFlipBook>}
+                      ref={flipBookRef}
                     >
                       {Array.from({ length: numPages }, (_, idx) => (
                         <div key={idx} className="page">
                           {pageImages[idx] ? (
-                            <img src={pageImages[idx]} alt={`Page ${idx + 1}`} />
+                            <img src={pageImages[idx] || "/placeholder.svg"} alt={`Page ${idx + 1}`} />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-gray-100">
                               <div className="text-gray-400">Đang tải trang {idx + 1}...</div>
@@ -560,14 +565,17 @@ useEffect(() => {
             ) : isOfficeFile ? (
               <div className="w-full max-w-6xl">
                 <iframe
-                  src={`https://docs.google.com/viewer?url=${encodeURIComponent(document?.documentUrl || '')}&embedded=true`}
+                  src={`https://docs.google.com/viewer?url=${encodeURIComponent(document?.documentUrl || "")}&embedded=true`}
                   className="w-full bg-white shadow-lg rounded"
-                  style={{ height: 'calc(100vh - 100px)' }}
+                  style={{ height: "calc(100vh - 100px)" }}
                   title="Office Document Preview"
                 />
                 <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
                   <p className="font-semibold mb-1">Lưu ý:</p>
-                  <p>File {document?.fileType} đang được xem qua Google Docs Viewer. Nếu không hiển thị, vui lòng tải về để xem.</p>
+                  <p>
+                    File {document?.fileType} đang được xem qua Google Docs Viewer. Nếu không hiển thị, vui lòng tải về
+                    để xem.
+                  </p>
                 </div>
               </div>
             ) : (
@@ -577,18 +585,17 @@ useEffect(() => {
                     <p className="text-center text-gray-400">Đang tải nội dung tài liệu...</p>
                   </div>
                 ) : (
-                  <div 
+                  <div
                     style={{
                       transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
                       transformOrigin: "center center",
-                      transition: 'transform 0.3s ease'
                     }}
                   >
-                    <img 
-                      src={previewUrl} 
+                    <img
+                      src={previewUrl || "/placeholder.svg"}
                       alt="Document preview"
                       className="w-full bg-white shadow-lg rounded"
-                      style={{ maxHeight: 'calc(100vh - 100px)', objectFit: 'contain' }}
+                      style={{ maxHeight: "calc(100vh - 100px)", objectFit: "contain" }}
                     />
                   </div>
                 )}
@@ -596,25 +603,29 @@ useEffect(() => {
             )}
           </div>
 
-          <div 
+          <div
             className={`bg-white border-l border-gray-200 flex flex-col transition-all duration-300 ${
-              isSidebarOpen ? 'w-64' : 'w-0 overflow-hidden'
+              isSidebarOpen ? "w-64" : "w-0 overflow-hidden"
             }`}
           >
             {isPdf && (
               <Tabs defaultValue="info" className="flex flex-col h-full">
                 <TabsList className="w-full grid grid-cols-3 rounded-none border-b">
-                  <TabsTrigger value="toc" className="text-xs">Mục lục</TabsTrigger>
-                  <TabsTrigger value="pages" className="text-xs">Trang</TabsTrigger>
-                  <TabsTrigger value="info" className="text-xs">Thông tin</TabsTrigger>
+                  <TabsTrigger value="toc" className="text-xs">
+                    Mục lục
+                  </TabsTrigger>
+                  <TabsTrigger value="pages" className="text-xs">
+                    Trang
+                  </TabsTrigger>
+                  <TabsTrigger value="info" className="text-xs">
+                    Thông tin
+                  </TabsTrigger>
                 </TabsList>
 
                 <div className="flex-1 overflow-y-auto">
                   <TabsContent value="toc" className="p-3 mt-0">
                     {!outline || outline.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500 text-sm">
-                        Tài liệu không có mục lục
-                      </div>
+                      <div className="text-center py-8 text-gray-500 text-sm">Tài liệu không có mục lục</div>
                     ) : (
                       <div className="space-y-1">
                         {outline.map((item, index) => (
@@ -632,9 +643,7 @@ useEffect(() => {
 
                   <TabsContent value="pages" className="p-3 mt-0">
                     {numPages === 0 ? (
-                      <div className="text-center py-8 text-gray-500 text-sm">
-                        Đang tải danh sách trang...
-                      </div>
+                      <div className="text-center py-8 text-gray-500 text-sm">Đang tải danh sách trang...</div>
                     ) : (
                       <div className="grid grid-cols-2 gap-2">
                         {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
@@ -642,12 +651,12 @@ useEffect(() => {
                             key={pageNum}
                             onClick={() => handlePageChange(pageNum)}
                             className={`border rounded hover:border-blue-500 transition-colors bg-white flex flex-col items-center p-2 ${
-                              currentPage === pageNum ? 'border-blue-500 ring-1 ring-blue-200' : 'border-gray-200'
+                              currentPage === pageNum ? "border-blue-500 ring-1 ring-blue-200" : "border-gray-200"
                             }`}
                           >
                             {thumbnails[pageNum - 1] ? (
-                              <img 
-                                src={thumbnails[pageNum - 1]} 
+                              <img
+                                src={thumbnails[pageNum - 1] || "/placeholder.svg"}
                                 alt={`Page ${pageNum}`}
                                 className="w-full h-24 object-contain rounded border border-gray-100 mb-1"
                               />
@@ -671,7 +680,8 @@ useEffect(() => {
                         </div>
                         <h3 className="font-semibold text-xs">{document?.name || "Tài liệu"}</h3>
                         <p className="text-xs text-gray-500 mt-1">
-                          {document?.fileType || "PDF"} - {document?.categoryName || "Tài liệu"} - Lớp {document?.grade || ""}
+                          {document?.fileType || "PDF"} - {document?.categoryName || "Tài liệu"} - Lớp{" "}
+                          {document?.grade || ""}
                         </p>
                       </div>
 
@@ -695,7 +705,7 @@ useEffect(() => {
                           <div className="flex justify-between text-xs">
                             <span className="text-gray-600">Ngày tạo</span>
                             <span className="font-medium text-right">
-                              {document?.createdAt ? new Date(document.createdAt).toLocaleDateString('vi-VN') : "N/A"}
+                              {document?.createdAt ? new Date(document.createdAt).toLocaleDateString("vi-VN") : "N/A"}
                             </span>
                           </div>
                           <div className="flex justify-between text-xs">
@@ -704,14 +714,17 @@ useEffect(() => {
                           </div>
                           <div className="flex justify-between text-xs">
                             <span className="text-gray-600">Quyền truy cập</span>
-                            <span className="font-medium text-right">{document?.schoolId ? "Trường học" : "Công khai"}</span>
+                            <span className="font-medium text-right">
+                              {document?.schoolId ? "Trường học" : "Công khai"}
+                            </span>
                           </div>
                         </div>
                       </div>
                     </div>
                   </TabsContent>
                 </div>
-              </Tabs>)}
+              </Tabs>
+            )}
             {isOfficeFile && isSidebarOpen && (
               <div className="p-4">
                 <div className="space-y-4">
@@ -721,7 +734,8 @@ useEffect(() => {
                     </div>
                     <h3 className="font-semibold text-xs">{document?.name || "Tài liệu"}</h3>
                     <p className="text-xs text-gray-500 mt-1">
-                      {document?.fileType || "Office"} - {document?.categoryName || "Tài liệu"} - Lớp {document?.grade || ""}
+                      {document?.fileType || "Office"} - {document?.categoryName || "Tài liệu"} - Lớp{" "}
+                      {document?.grade || ""}
                     </p>
                   </div>
 
@@ -745,7 +759,7 @@ useEffect(() => {
                       <div className="flex justify-between text-xs">
                         <span className="text-gray-600">Ngày tạo</span>
                         <span className="font-medium text-right">
-                          {document?.createdAt ? new Date(document.createdAt).toLocaleDateString('vi-VN') : "N/A"}
+                          {document?.createdAt ? new Date(document.createdAt).toLocaleDateString("vi-VN") : "N/A"}
                         </span>
                       </div>
                       <div className="flex justify-between text-xs">
@@ -754,7 +768,9 @@ useEffect(() => {
                       </div>
                       <div className="flex justify-between text-xs">
                         <span className="text-gray-600">Quyền truy cập</span>
-                        <span className="font-medium text-right">{document?.schoolId ? "Trường học" : "Công khai"}</span>
+                        <span className="font-medium text-right">
+                          {document?.schoolId ? "Trường học" : "Công khai"}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -765,5 +781,5 @@ useEffect(() => {
         </div>
       </div>
     </>
-  );
+  )
 }

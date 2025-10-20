@@ -7,6 +7,7 @@ import type {
 import type {
   DocumentCategoryDto,
   SubjectDto,
+  DocumentDetailDto,
 } from "@/documentManagement/interfaces/documentApi"
 
 const BASE_URL = "http://localhost:6789/api"
@@ -57,6 +58,125 @@ export const documentService = {
 
     const response = await axios.get<ApiResponse<PagedDocumentResponse>>(
       `${BASE_URL}/Document/school/${schoolId}?${params.toString()}`
+    )
+    return response.data
+  },
+
+  getOwnedDocuments: async (
+    creatorId: string,
+    query?: string,
+    categoryId?: number,
+    gradeId?: number,
+    subject?: string,
+    classId?: number,
+    pageNumber: number = 1,
+    pageSize: number = 9
+  ): Promise<ApiResponse<PagedDocumentResponse>> => {
+    const params = new URLSearchParams()
+    if (query) params.append('query', query)
+    if (categoryId) params.append('categoryId', categoryId.toString())
+    if (gradeId) params.append('grade', gradeId.toString())
+    if (subject) params.append('subject', subject)
+    if (classId) params.append('classId', classId.toString())
+    params.append('pageNumber', pageNumber.toString())
+    params.append('pageSize', pageSize.toString())
+
+    const response = await axios.get<ApiResponse<PagedDocumentResponse>>(
+      `${BASE_URL}/Document/owned/${creatorId}?${params.toString()}`
+    )
+    return response.data
+  },
+
+  getManagerPublicDocuments: async (
+    query?: string,
+    categoryId?: number,
+    gradeId?: number,
+    subject?: string,
+    classId?: number,
+    isApproved?: boolean,
+    status?: boolean,
+    pageNumber: number = 1,
+    pageSize: number = 10
+  ): Promise<ApiResponse<PagedDocumentResponse>> => {
+    const params = new URLSearchParams()
+    if (query) params.append('query', query)
+    if (categoryId) params.append('categoryId', categoryId.toString())
+    if (gradeId) params.append('grade', gradeId.toString())
+    if (subject) params.append('subject', subject)
+    if (classId) params.append('classId', classId.toString())
+    if (isApproved !== undefined) params.append('isApproved', isApproved.toString())
+    if (status !== undefined) params.append('status', status.toString())
+    params.append('pageNumber', pageNumber.toString())
+    params.append('pageSize', pageSize.toString())
+
+    const response = await axios.get<ApiResponse<PagedDocumentResponse>>(
+      `${BASE_URL}/Document/manager/public?${params.toString()}`
+    )
+    return response.data
+  },
+
+  getManagerSchoolDocuments: async (
+    schoolId: number,
+    query?: string,
+    categoryId?: number,
+    gradeId?: number,
+    subject?: string,
+    classId?: number,
+    isApproved?: boolean,
+    status?: boolean,
+    pageNumber: number = 1,
+    pageSize: number = 10
+  ): Promise<ApiResponse<PagedDocumentResponse>> => {
+    const params = new URLSearchParams()
+    if (query) params.append('query', query)
+    if (categoryId) params.append('categoryId', categoryId.toString())
+    if (gradeId) params.append('grade', gradeId.toString())
+    if (subject) params.append('subject', subject)
+    if (classId) params.append('classId', classId.toString())
+    if (isApproved !== undefined) params.append('isApproved', isApproved.toString())
+    if (status !== undefined) params.append('status', status.toString())
+    params.append('pageNumber', pageNumber.toString())
+    params.append('pageSize', pageSize.toString())
+
+    const response = await axios.get<ApiResponse<PagedDocumentResponse>>(
+      `${BASE_URL}/Document/manager/school/${schoolId}?${params.toString()}`
+    )
+    return response.data
+  },
+
+  approveDocument: async (documentId: number, approvedBy: string): Promise<ApiResponse<DocumentDetailDto>> => {
+    const response = await axios.post<ApiResponse<DocumentDetailDto>>(
+      `${BASE_URL}/Document/approve`,
+      { documentId, approvedBy }
+    )
+    return response.data
+  },
+
+  rejectDocument: async (documentId: number, approvedBy: string): Promise<ApiResponse<DocumentDetailDto>> => {
+    const response = await axios.post<ApiResponse<DocumentDetailDto>>(
+      `${BASE_URL}/Document/reject`,
+      { documentId, approvedBy }
+    )
+    return response.data
+  },
+
+  revokeApproval: async (documentId: number, approvedBy: string): Promise<ApiResponse<DocumentDetailDto>> => {
+    const response = await axios.post<ApiResponse<DocumentDetailDto>>(
+      `${BASE_URL}/Document/revoke`,
+      { documentId, approvedBy }
+    )
+    return response.data
+  },
+
+  softDeleteDocument: async (documentId: number, deletedBy: string): Promise<ApiResponse<DocumentDetailDto>> => {
+    const response = await axios.patch<ApiResponse<DocumentDetailDto>>(
+      `${BASE_URL}/Document/soft-delete/${documentId}`,
+      JSON.stringify(deletedBy),
+      {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
     )
     return response.data
   },

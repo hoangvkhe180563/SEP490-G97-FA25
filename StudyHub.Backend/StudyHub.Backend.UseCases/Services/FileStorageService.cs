@@ -1,8 +1,9 @@
-﻿using System;
-using System.IO;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 using StudyHub.Backend.UseCases.Repositories;
+using System;
+using System.IO;
+using System.Security.AccessControl;
+using System.Threading.Tasks;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -36,7 +37,17 @@ namespace StudyHub.Backend.UseCases.Services
             if (string.IsNullOrEmpty(filePath)) return;
             _cloudinaryRepository.DeleteImageAsync(filePath).GetAwaiter().GetResult();
         }
-
+        public async Task<Stream> ReadFileStreamAsync(string fileUrl)
+        {
+            try
+            {
+                return await _cloudinaryRepository.ReadFileStreamAsync(fileUrl);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Error streaming file: {ex.Message}", ex);
+            }
+        }
         public async Task<byte[]> ReadFileAsync(string filePath)
         {
             try

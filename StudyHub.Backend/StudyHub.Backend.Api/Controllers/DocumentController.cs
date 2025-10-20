@@ -112,6 +112,7 @@ namespace StudyHub.Backend.Api.Controllers
             [FromQuery] int? classId = null,
             [FromQuery] bool? isApproved = null,
             [FromQuery] bool? status = null,
+            [FromQuery] bool? isPending = null,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
@@ -123,15 +124,16 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("manager/school/{schoolId}")]
         public IActionResult GetManagerSchoolDocuments(
             int schoolId,
-            [FromQuery] string? query = null,
-            [FromQuery] int? categoryId = null,
-            [FromQuery] int? grade = null,
-            [FromQuery] string? subject = null,
-            [FromQuery] int? classId = null,
-            [FromQuery] bool? isApproved = null,
-            [FromQuery] bool? status = null,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10)
+                [FromQuery] string? query = null,
+                [FromQuery] int? categoryId = null,
+                [FromQuery] int? grade = null,
+                [FromQuery] string? subject = null,
+                [FromQuery] int? classId = null,
+                [FromQuery] bool? isApproved = null,
+                [FromQuery] bool? status = null,
+                [FromQuery] bool? isPending = null,
+                [FromQuery] int pageNumber = 1,
+                [FromQuery] int pageSize = 10)
         {
             var (documents, totalCount) = _documentService.GetManagerSchoolDocuments(
                 schoolId, query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
@@ -311,8 +313,11 @@ namespace StudyHub.Backend.Api.Controllers
             if (document == null)
                 return NotFound(new { success = false });
 
-            var (fileBytes, contentType, fileName) = await _documentService.DownloadDocumentAsync(document);
-            return File(fileBytes, contentType, fileName);
+            var stream = await _documentService.StreamDocumentAsync(document);
+            var contentType = GetContentType(document.DocumentUrl);
+            var fileName = document.Name + Path.GetExtension(document.DocumentUrl);
+
+            return File(stream, contentType, fileName);
         }
 
         [HttpGet("preview/{id:int}")]
@@ -322,8 +327,35 @@ namespace StudyHub.Backend.Api.Controllers
             if (document == null)
                 return NotFound(new { success = false });
 
-            var (fileBytes, contentType, _) = await _documentService.DownloadDocumentAsync(document);
-            return File(fileBytes, contentType);
+            var stream = await _documentService.StreamDocumentAsync(document);
+            var contentType = GetContentType(document.DocumentUrl);
+
+            Response.Headers.Add("Accept-Ranges", "bytes");
+            Response.Headers.Add("Cache-Control", "public, max-age=31536000");
+
+            return File(stream, contentType, enableRangeProcessing: true);
+        }
+
+        private string GetContentType(string filePath)
+        {
+            var extension = Path.GetExtension(filePath).ToLowerInvariant();
+            return extension switch
+            {
+                ".pdf" => "application/pdf",
+                ".doc" => "application/msword",
+                ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ".xls" => "application/vnd.ms-excel",
+                ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ".ppt" => "application/vnd.ms-powerpoint",
+                ".pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                ".txt" => "text/plain",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".zip" => "application/zip",
+                ".rar" => "application/x-rar-compressed",
+                _ => "application/octet-stream"
+            };
         }
 
         [HttpGet("by-subject/{subjectId:int}")]

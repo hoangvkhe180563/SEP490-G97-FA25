@@ -3,26 +3,34 @@ export interface DocumentDetailDto {
   id: number
   name: string
   subjectId: number
-  subjectName?: string
-  grade: number
+  subjectName?: string 
+  gradeId: number
+  grade: number  
   documentCategoryId: number
-  categoryName?: string
+  categoryName?: string 
+  accessibilityId?: number
   documentUrl: string
-  thumbnail: string
-  description: string
   createdAt: string
   createdBy: string
   updatedAt: string | null
   updatedBy: string | null
-  isSchoolDocument: boolean
-  isFeatured: boolean
-  isApproved: boolean
+  deletedAt: string | null
+  isApproved: boolean | null
   status: boolean
-  schoolId?: number
-  schoolName?: string
+  description: string
+  uploaderName: string
+  uploaderFullname?: string
+  uploaderUrl?: string
+  thumbnail: string
+  schoolId: number | null
+  schoolName?: string  
+  isFeatured: boolean
+  price?: number
+  isSchoolDocument?: boolean
+  fileType?: string  
   classId?: number
-  fileType?: string
-  uploaderName?: string
+  isInClass?: boolean
+  classes?: Array<{ id: number; name?: string }>
 }
 
 export interface DocumentListDto {

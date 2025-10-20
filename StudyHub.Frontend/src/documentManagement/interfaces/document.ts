@@ -1,4 +1,4 @@
-//src/documentManagement/interfaces/document.ts
+// src/documentManagement/interfaces/document.ts (cập nhật)
 export interface Document {
   id: number
   name: string
@@ -8,25 +8,29 @@ export interface Document {
   grade: number  
   documentCategoryId: number
   categoryName?: string 
-  accessibilityId: number
+  accessibilityId?: number
   documentUrl: string
   createdAt: string
   createdBy: string
   updatedAt: string | null
   updatedBy: string | null
   deletedAt: string | null
-  isApproved: boolean
+  isApproved: boolean | null
   status: boolean
   description: string
   uploaderName: string
+  uploaderFullname?: string
+  uploaderUrl?: string
   thumbnail: string
-  schoolId: number
+  schoolId: number | null
   schoolName?: string  
   isFeatured: boolean
-  price: number
-  isSchoolDocument: boolean
+  price?: number
+  isSchoolDocument?: boolean
   fileType?: string  
-  classId?: number  
+  classId?: number
+  isInClass?: boolean
+  classes?: Array<{ id: number; name?: string }>
 }
 
 export interface DocumentFilterParams {
@@ -46,6 +50,9 @@ export interface PaginationInfo {
   totalCount: number
   totalPages: number
 }
+export interface Any {
+ updatedBy: string 
+}
 export interface PagedDocumentResponse {
   items: Document[]
   total: number
@@ -53,6 +60,7 @@ export interface PagedDocumentResponse {
   limit: number
   totalPages: number
 }
+
 export interface DocumentSearchResponse {
   success: boolean
   data: Document[]
@@ -81,6 +89,7 @@ export interface ApiResponse<T> {
   data: T
   message?: string
 }
+
 export interface DocumentsBySubjectResponse {
   success: boolean
   data: Document[]

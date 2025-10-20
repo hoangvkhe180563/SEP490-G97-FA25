@@ -9,5 +9,6 @@ namespace StudyHub.Backend.UseCases.Repositories
         Task<string> UploadFileAsync(IFormFile file, string folderName);
         Task<bool> DeleteFileAsync(string url);
         Task<byte[]> ReadFileAsync(string filePath);
+        Task<Stream> ReadFileStreamAsync(string fileUrl);
     }
 }
