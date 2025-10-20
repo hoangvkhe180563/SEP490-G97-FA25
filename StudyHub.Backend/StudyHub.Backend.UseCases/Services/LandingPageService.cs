@@ -26,5 +26,11 @@ namespace StudyHub.Backend.UseCases.Services
 
             return landingPage;
         }
+
+        public string UpdateLandingPage(LandingPage landingPage)
+        {
+            bool success = _repo.UpdateLandingPage(landingPage);
+            return success ? string.Empty : "Có lỗi xảy ra!";
+        }
     }
 }
