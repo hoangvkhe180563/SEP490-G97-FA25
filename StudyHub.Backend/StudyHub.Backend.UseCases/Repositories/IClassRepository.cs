@@ -20,5 +20,14 @@ namespace StudyHub.Backend.UseCases.Repositories
         Class? GetClassDetailById(int id);
         List<ClassMember> GetClassMembers(int classId);
         List<ClassNotification> GetClassNotifications(int classId);
+        ClassNotification CreateNotification(ClassNotification notification);
+        List<ClassNotification> GetNotificationsByClassId(int classId);
+
+        ClassNotificationComment CreateComment(ClassNotificationComment comment);
+        List<ClassNotificationComment> GetCommentsByNotificationId(int notificationId);
+
+        NotificationFile CreateSubmissionFile(NotificationFile file);
+        void MapFileToNotification(int notificationId, int fileId);
+        List<SubmissionFile> GetFilesByNotificationId(int notificationId);
     }
 }

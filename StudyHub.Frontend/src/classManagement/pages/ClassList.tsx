@@ -30,16 +30,16 @@ export const ClassList: React.FC = () => {
     subjects,
   } = useClassStore();
 
-  // Filter states
+  // Trạng thái lọc dữ liệu
   const [query, setQuery] = useState("");
   const [subject, setSubject] = useState("all");
 
-  // Modal states
+  // Trạng thái modal
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editing, setEditing] = useState<ClassItem | undefined>(undefined);
 
-  // Pagination states
+  // Phân trang
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
 
@@ -49,7 +49,7 @@ export const ClassList: React.FC = () => {
     return "teacher";
   }, [location.pathname]);
 
-  // Hàm build query string
+  // Tạo query string khi filter hoặc phân trang
   const buildQuery = () => {
     const params = new URLSearchParams();
     if (query.trim()) params.append("query", query.trim());
@@ -59,12 +59,12 @@ export const ClassList: React.FC = () => {
     return params.toString();
   };
 
-  // Gọi API mỗi khi filter hoặc pagination thay đổi
+  // Gọi API khi filter hoặc phân trang thay đổi
   useEffect(() => {
     getClasses(buildQuery());
   }, [query, subject, currentPage, pageSize, getClasses]);
 
-  // Map dữ liệu DTO sang UI model
+  // Map dữ liệu từ API sang UI
   const classItems: ClassItem[] = useMemo(
     () =>
       apiClasses.map((c) => ({
@@ -76,24 +76,28 @@ export const ClassList: React.FC = () => {
     [apiClasses]
   );
 
-  // Total pages
+  // Tính tổng trang
   const total = meta?.total ?? 0;
   const totalPages = meta?.totalPages ?? 1;
 
-  // Reset trang nếu totalPages nhỏ hơn currentPage
+  // Reset về trang đầu nếu tổng trang nhỏ hơn currentPage
   useEffect(() => {
     if (currentPage > totalPages && currentPage !== 1) {
       setCurrentPage(1);
     }
   }, [totalPages, currentPage]);
+
+  // Load danh sách môn học
   useEffect(() => {
-    getAllSubjects(); // ✅ load danh sách subject khi vào trang
+    getAllSubjects();
   }, [getAllSubjects]);
-  // Handlers
+
+  // Xử lý xem chi tiết lớp
   const handleView = (id: number | string, role: UserRole) => {
     navigate(`/class/${role}/${id}`);
   };
 
+  // Xử lý menu 3 chấm
   const handleMenu = (
     action: "viewClassworks" | "viewStudents" | "edit",
     id: number | string
@@ -108,18 +112,19 @@ export const ClassList: React.FC = () => {
     }
 
     if (action === "viewClassworks") {
-      navigate(`/class/${userRole}/${id}/classworks`);
+      navigate(`/class/${userRole}/${id}?tab=exercise`);
     } else if (action === "viewStudents") {
-      navigate(`/class/${userRole}/${id}/members`);
+      navigate(`/class/${userRole}/${id}?tab=everyone`);
     }
   };
 
+  // Xử lý tạo lớp học
   const handleCreate = async (payload: {
     title: string;
     subject: number;
     description?: string;
   }) => {
-    console.log("Tạo lớp", payload);
+    console.log("Tạo lớp học:", payload);
     const created = await addClass(payload);
     if (created) {
       setShowCreate(false);
@@ -128,21 +133,22 @@ export const ClassList: React.FC = () => {
     }
   };
 
+  // Hàm chuyển trang
   const gotoPage = (p: number) => {
     if (p < 1) p = 1;
     if (p > totalPages) p = totalPages;
     setCurrentPage(p);
   };
 
-  // RENDER
+  // Giao diện
   return (
     <div className="p-6">
-      {/* Header controls */}
+      {/* Bộ lọc & nút tạo lớp */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 mb-4">
         <div className="flex-1 flex gap-3 items-center">
           <input
             type="text"
-            placeholder="Tìm tên lớp..."
+            placeholder="Tìm theo tên lớp..."
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -157,7 +163,7 @@ export const ClassList: React.FC = () => {
             }}
             className="border rounded-md px-3 py-2"
           >
-            <option value="all">All Subject</option>
+            <option value="all">Tất cả môn học</option>
             {subjects.map((s) => (
               <option key={s.id} value={s.name}>
                 {s.name}
@@ -172,22 +178,22 @@ export const ClassList: React.FC = () => {
               onClick={() => setShowCreate(true)}
               className="bg-black text-white px-4 py-2 rounded-md"
             >
-              + Tạo Lớp
+              + Tạo lớp học
             </button>
           )}
         </div>
       </div>
 
-      {/* Cards container */}
+      {/* Danh sách lớp học */}
       <div className="border-2 border-blue-400 rounded-md p-4 min-h-[260px]">
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm text-gray-600">
-            Showing {total === 0 ? 0 : (currentPage - 1) * pageSize + 1} -{" "}
-            {Math.min(currentPage * pageSize, total)} of {total}
+            Hiển thị {total === 0 ? 0 : (currentPage - 1) * pageSize + 1} -{" "}
+            {Math.min(currentPage * pageSize, total)} trên tổng số {total} lớp
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Per page</label>
+            <label className="text-sm text-gray-600">Số lớp / trang</label>
             <select
               value={pageSize}
               onChange={(e) => {
@@ -205,7 +211,7 @@ export const ClassList: React.FC = () => {
 
         {isLoading ? (
           <div className="col-span-full text-center py-8 text-blue-500">
-            Đang tải danh sách lớp...
+            Đang tải danh sách lớp học...
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -224,20 +230,20 @@ export const ClassList: React.FC = () => {
 
             {classItems.length === 0 && (
               <div className="col-span-full text-center py-8 text-gray-500">
-                Không tìm thấy lớp học nào
+                Không tìm thấy lớp học nào.
               </div>
             )}
           </div>
         )}
 
-        {/* Pagination controls */}
+        {/* Điều khiển phân trang */}
         <div className="mt-4 flex items-center justify-center gap-2">
           <button
             onClick={() => gotoPage(currentPage - 1)}
             disabled={currentPage === 1}
             className="px-3 py-1 border rounded disabled:opacity-50"
           >
-            Prev
+            Trước
           </button>
 
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
@@ -257,12 +263,12 @@ export const ClassList: React.FC = () => {
             disabled={currentPage === totalPages}
             className="px-3 py-1 border rounded disabled:opacity-50"
           >
-            Next
+            Sau
           </button>
         </div>
       </div>
 
-      {/* Modals */}
+      {/* Modal tạo & sửa lớp */}
       <CreateClassModal
         open={showCreate}
         onClose={() => setShowCreate(false)}

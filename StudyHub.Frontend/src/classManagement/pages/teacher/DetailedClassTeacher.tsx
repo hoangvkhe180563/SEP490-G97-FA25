@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import React, { useEffect, useState, useMemo } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import PostComposer from "@/classManagement/components/ui/postcomposer";
 import PostCard from "@/classManagement/components/ui/postcard";
 import EveryoneListTC from "@/classManagement/components/ui/listeveryoneteacher";
 import MemberDetailModal from "@/classManagement/components/ui/memberdetailmodal";
-
+import type { UserRole } from "@/classManagement/components/ui/classcard";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -28,20 +28,20 @@ import type {
   ClassNotification,
 } from "@/classManagement/interfaces/class";
 
-// ===== Class Info Card =====
+// ===== Thẻ thông tin lớp học =====
 const ClassInfoCard: React.FC<{ info: ClassInfo | null }> = ({ info }) => {
   if (!info) return null;
   return (
     <div className="bg-white border rounded-lg p-4 mb-4">
-      <div className="text-sm font-medium mb-3">Class Information</div>
+      <div className="text-sm font-medium mb-3">Thông tin lớp học</div>
       <div className="grid grid-cols-2 gap-3 text-sm text-gray-700">
-        <div className="text-xs text-gray-400">Class ID:</div>
+        <div className="text-xs text-gray-400">Mã lớp:</div>
         <div className="font-medium text-right">{info.id}</div>
 
-        <div className="text-xs text-gray-400">Subject ID:</div>
+        <div className="text-xs text-gray-400">Mã môn học:</div>
         <div className="font-medium text-right">{info.subjectId}</div>
 
-        <div className="text-xs text-gray-400">Created At:</div>
+        <div className="text-xs text-gray-400">Ngày tạo:</div>
         <div className="font-medium text-right">
           {new Date(info.createdAt).toLocaleDateString()}
         </div>
@@ -50,15 +50,17 @@ const ClassInfoCard: React.FC<{ info: ClassInfo | null }> = ({ info }) => {
   );
 };
 
-// ===== DetailedClassTeacher =====
+// ===== Trang chi tiết lớp học =====
 const DetailedClassTeacher: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { getClassDetail, currentClass, isLoading } = useClassStore();
-
   const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(
     null
   );
-
+  const userRole: UserRole = useMemo(() => {
+    if (location.pathname.includes("/student")) return "student";
+    return "teacher";
+  }, [location.pathname]);
   // ✅ Gọi API lấy thông tin lớp khi mount
   useEffect(() => {
     if (id) {
@@ -66,11 +68,20 @@ const DetailedClassTeacher: React.FC = () => {
     }
   }, [id, getClassDetail]);
 
-  const teacher: ClassMemberDto | null = currentClass?.data?.teacher ?? null;
+  // Tab đang hoạt động
+  const [activeTab, setActiveTab] = useState("notifications");
+  const [searchParams] = useSearchParams();
 
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
+  const teacher: ClassMemberDto | null = currentClass?.data?.teacher ?? null;
   const students: ClassMemberDto[] = currentClass?.data?.students ?? [];
   const parents: ClassMemberDto[] = currentClass?.data?.parents ?? [];
-
   const [notifications, setNotifications] = useState<ClassNotification[]>([]);
 
   useEffect(() => {
@@ -83,10 +94,16 @@ const DetailedClassTeacher: React.FC = () => {
 
   const handlePost = (content: string) => {
     const newNotification: ClassNotification = {
-      id: Date.now(),
-      title: "Thông báo mới",
-      description: content,
-    };
+  id: Date.now(),
+  classId: Number(id),
+  title: "Thông báo mới",
+  description: content,
+  createdAt: new Date().toISOString(),
+  createdBy: "currentUser", // có thể thay bằng user login
+  files: [],
+  comments: []
+};
+
     setNotifications((prev) => [newNotification, ...prev]);
   };
 
@@ -102,7 +119,7 @@ const DetailedClassTeacher: React.FC = () => {
   if (isLoading) {
     return (
       <div className="p-6 text-center text-gray-500">
-        Loading class details...
+        Đang tải thông tin lớp học...
       </div>
     );
   }
@@ -110,7 +127,7 @@ const DetailedClassTeacher: React.FC = () => {
   if (!currentClass?.success) {
     return (
       <div className="p-6 text-center text-red-500">
-        Failed to load class details.
+        Không thể tải thông tin lớp học.
       </div>
     );
   }
@@ -121,28 +138,34 @@ const DetailedClassTeacher: React.FC = () => {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href="/">Classroom</BreadcrumbLink>
+            <BreadcrumbLink href={"/class/" + userRole}>Lớp học</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{classInfo?.name ?? "Class Detail"}</BreadcrumbPage>
+            <BreadcrumbPage>
+              {classInfo?.name ?? "Chi tiết lớp học"}
+            </BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* ===== Main Grid ===== */}
+      {/* ===== Lưới bố cục chính ===== */}
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-8">
-          <Tabs defaultValue="notifications" className="w-full mt-4">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full mt-4"
+          >
             <div className="mb-4">
               <TabsList>
-                <TabsTrigger value="notifications">Notifications</TabsTrigger>
-                <TabsTrigger value="exercise">Exercise</TabsTrigger>
-                <TabsTrigger value="everyone">Everyone</TabsTrigger>
+                <TabsTrigger value="notifications">Thông báo</TabsTrigger>
+                <TabsTrigger value="exercise">Bài tập</TabsTrigger>
+                <TabsTrigger value="everyone">Mọi người</TabsTrigger>
               </TabsList>
             </div>
 
-            {/* --- Posts --- */}
+            {/* --- Thông báo --- */}
             <TabsContent value="notifications">
               <PostComposer onPost={handlePost} avatarUrl={"/vite.svg"} />
               <div className="mt-4 space-y-4">
@@ -152,28 +175,53 @@ const DetailedClassTeacher: React.FC = () => {
                       key={n.id}
                       post={{
                         id: n.id,
-                        author: teacher?.fullname ?? "Teacher",
-                        time: "recently",
+                        author: teacher?.fullname ?? "Giáo viên",
+                        time:
+                          n.createdAt && n.createdAt !== "0001-01-01T00:00:00"
+                            ? new Date(n.createdAt).toLocaleString("vi-VN")
+                            : "Chưa có thời gian",
                         avatarUrl: "/vite.svg",
-                        content: `${n.title}\n${n.description}`,
-                        comments: [],
+                        content: (
+                          <>
+                            <div className="font-semibold">{n.title}</div>
+                            <div className="whitespace-pre-line">
+                              {n.description}
+                            </div>
+                            {n.files?.length > 0 && (
+                              <div className="mt-2">
+                                {n.files.map((f) => (
+                                  <a
+                                    key={f.id}
+                                    href={f.fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 underline text-sm"
+                                  >
+                                    📎 {f.fileName}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        ),
+                        comments: n.comments ?? [],
                       }}
                     />
                   ))
                 ) : (
                   <div className="text-gray-500 text-sm">
-                    No notifications yet.
+                    Chưa có thông báo nào.
                   </div>
                 )}
               </div>
             </TabsContent>
 
-            {/* --- Exercise --- */}
+            {/* --- Bài tập --- */}
             <TabsContent value="exercise">
-              <div className="text-gray-500 text-sm">No exercises yet.</div>
+              <div className="text-gray-500 text-sm">Chưa có bài tập nào.</div>
             </TabsContent>
 
-            {/* --- Everyone --- */}
+            {/* --- Mọi người --- */}
             <TabsContent value="everyone">
               <EveryoneListTC
                 teacher={teacher ?? undefined}
@@ -183,18 +231,16 @@ const DetailedClassTeacher: React.FC = () => {
                 onSelect={handleSelect}
               />
             </TabsContent>
-
-            
           </Tabs>
         </div>
 
-        {/* ===== Sidebar ===== */}
+        {/* ===== Cột bên phải ===== */}
         <aside className="col-span-12 lg:col-span-4">
           <ClassInfoCard info={classInfo} />
         </aside>
       </div>
 
-      {/* ===== Member Detail Modal ===== */}
+      {/* ===== Modal chi tiết thành viên ===== */}
       <MemberDetailModal
         open={!!selectedMember}
         member={selectedMember}

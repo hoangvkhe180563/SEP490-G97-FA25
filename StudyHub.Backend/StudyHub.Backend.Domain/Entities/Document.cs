@@ -1,4 +1,4 @@
-﻿namespace StudyHub.Backend.Domain.Entities
+﻿    namespace StudyHub.Backend.Domain.Entities
 {
     public class Document : IAuditTrail
     {

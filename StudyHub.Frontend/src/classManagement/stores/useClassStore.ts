@@ -33,6 +33,7 @@ export const useClassStore = create<ClassState>((set) => ({
     try {
       const response = await axiosInstance.get<GetClassesResponse>(`/Class?${query}`);
       const data = response.data; 
+      console.log("API trả về số lớp:", data.classes.length);
 
       const mappedClasses: ClassListDto[] = data.classes.map(c => ({
         id: c.id,
@@ -178,26 +179,14 @@ addClass: async (payload: { title: string; subject: number; description?: string
 },
 getClassDetail: async (id: number): Promise<ClassDetailResponse | null> => {
   try {
-    const res = await axiosInstance.get(`/Class/${id}/detail`);
+    const res = await axiosInstance.get(`/Class/${id}/detail`); 
     const raw = res.data;
 
     if (!raw.success) return null;
 
     const data = raw.data;
 
-    const teacher = data.members.find(
-      (m: ClassMemberDto) =>
-        m.roles.some((r: string) => r.toLowerCase() === "teacher")
-    ) ?? null;
-
-    const students = data.members.filter((m: ClassMemberDto) =>
-      m.roles.some((r: string) => r.toLowerCase() === "student")
-    );
-
-    const parents = data.members.filter((m: ClassMemberDto) =>
-      m.roles.some((r: string) => r.toLowerCase() === "parent")
-    );
-
+    
     const mapped: ClassDetailResponse = {
       success: raw.success,
       message: raw.message,
@@ -209,14 +198,17 @@ getClassDetail: async (id: number): Promise<ClassDetailResponse | null> => {
           description: data.description,
           createdAt: data.createdAt,
         },
-        teacher,
-        students,
-        parents,
+        teacher: null, // API chưa có
+        students: data.members?.filter((m: ClassMemberDto) =>
+          m.roles?.includes("Student")
+        ) ?? [],
+        parents: data.members?.filter((m: ClassMemberDto) =>
+          m.roles?.includes("Parent")
+        ) ?? [],
         notifications: data.notifications ?? [],
       },
     };
 
-    // Cập nhật vào store
     useClassStore.setState({ currentClass: mapped });
 
     return mapped;
@@ -225,6 +217,7 @@ getClassDetail: async (id: number): Promise<ClassDetailResponse | null> => {
     return null;
   }
 }
+
 
 
 }));

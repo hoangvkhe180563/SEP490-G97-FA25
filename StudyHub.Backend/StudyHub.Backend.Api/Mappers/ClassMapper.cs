@@ -88,5 +88,45 @@ namespace StudyHub.Backend.Api.Mappers
                 Description = noti.Description
             };
         }
+        public static NotificationDto ToNotificationDto(
+             this ClassNotification entity,
+             List<FileDto>? files = null,
+             List<CommentDto>? comments = null)
+        {
+            return new NotificationDto
+            {
+                Id = entity.Id,
+                ClassId = entity.ClassId,
+                Title = entity.Title,
+                Description = entity.Description,
+                CreatedBy = entity.CreatedBy,
+                CreatedAt = entity.CreatedAt,
+                Files = files ?? new List<FileDto>(),
+                Comments = comments ?? new List<CommentDto>()
+            };
+        }
+
+        public static FileDto ToFileDto(this SubmissionFile file)
+        {
+            return new FileDto
+            {
+                Id = file.Id,
+                FileName = file.FileName,
+                FileUrl = file.FileUrl
+            };
+        }
+
+        public static CommentDto ToCommentDto(this ClassNotificationComment comment, UserDetailsDto user)
+        {
+            return new CommentDto
+            {
+                Id = comment.Id,
+                NotificationId = comment.NotificationId,
+                UserId = comment.UserId,
+                Content = comment.Content,
+                CreatedAt = comment.CreatedAt,
+                UserFullname = user?.Fullname ?? "Unknown"
+            };
+        }
     }
 }

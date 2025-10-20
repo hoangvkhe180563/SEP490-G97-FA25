@@ -7,19 +7,16 @@ export const CreateClassModal: React.FC<{
   onCreate: (payload: { title: string; subject: number; description?: string }) => Promise<void>;
 }> = ({ open, onClose, onCreate }) => {
   const [title, setTitle] = useState("");
-const [subject, setSubject] = useState<number>(0);
-
+  const [subject, setSubject] = useState<number>(0);
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const { subjects, getAllSubjects } = useClassStore();
 
-  // ✅ Khi modal mở thì load danh sách subject
   useEffect(() => {
     if (open) {
       getAllSubjects();
     } else {
-      // reset form khi modal đóng
       setTitle("");
       setSubject(0);
       setDescription("");
@@ -57,7 +54,7 @@ const [subject, setSubject] = useState<number>(0);
       >
         {/* Header */}
         <div className="px-6 py-4 border-b flex justify-between items-center">
-          <h3 className="text-lg font-medium">Create class</h3>
+          <h3 className="text-lg font-medium">Tạo lớp học</h3>
           <button type="button" onClick={onClose} className="text-gray-500 hover:text-black">✕</button>
         </div>
 
@@ -65,40 +62,40 @@ const [subject, setSubject] = useState<number>(0);
         <div className="px-6 py-4 space-y-4">
           <div>
             <label className="text-sm block mb-1">
-              Class name <span className="text-red-500">*</span>
+              Tên lớp học <span className="text-red-500">*</span>
             </label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Class name"
+              placeholder="Nhập tên lớp học"
               className="w-full border rounded px-3 py-2"
             />
           </div>
 
           <div>
             <label className="text-sm block mb-1">
-              Subject <span className="text-red-500">*</span>
+              Môn học <span className="text-red-500">*</span>
             </label>
             <select
               value={subject}
               onChange={(e) => setSubject(Number(e.target.value))}
+              className="w-full border rounded px-3 py-2"
             >
-              <option value={0}>Select subject</option>
+              <option value={0}>Chọn môn học</option>
               {subjects.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
               ))}
             </select>
-
           </div>
 
           <div>
-            <label className="text-sm block mb-1">Description</label>
+            <label className="text-sm block mb-1">Mô tả</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description"
+              placeholder="Nhập mô tả lớp học (nếu có)"
               className="w-full border rounded px-3 py-2 h-28"
             />
           </div>
@@ -111,14 +108,14 @@ const [subject, setSubject] = useState<number>(0);
             onClick={onClose}
             className="px-4 py-2 text-gray-600 hover:text-black"
           >
-            Cancel
+            Hủy
           </button>
           <button
             type="submit"
             disabled={!valid || submitting}
             className="px-4 py-2 bg-slate-900 text-white rounded disabled:opacity-50"
           >
-            {submitting ? "Creating..." : "Create"}
+            {submitting ? "Đang tạo..." : "Tạo"}
           </button>
         </div>
       </form>
