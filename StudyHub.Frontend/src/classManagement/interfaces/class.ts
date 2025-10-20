@@ -1,6 +1,7 @@
 // interfaces/class.ts (Tạo file mới)
 
 import type { Subject } from "@/classManagement/interfaces/subject";
+import type { PostComment } from "../components/ui/postcard";
 
 export interface ClassListDto {
   id: number;
@@ -24,11 +25,20 @@ export type ClassMemberDto = {
   roles: string[];
   joinDate: string;
 };
-
+export type NotificationFile = {
+  id: number;
+  fileName: string;
+  fileUrl: string;
+};
 export type ClassNotification = {
   id: number;
+  classId: number;
   title: string;
   description: string;
+  createdBy: string;
+  createdAt: string;
+  files: NotificationFile[];
+   comments: PostComment[]; // có thể mở rộng sau
 };
 
 export interface ClassDetailResponse {

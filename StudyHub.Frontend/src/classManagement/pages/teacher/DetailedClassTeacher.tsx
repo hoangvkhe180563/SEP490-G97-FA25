@@ -57,7 +57,7 @@ const DetailedClassTeacher: React.FC = () => {
   const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(
     null
   );
-const userRole: UserRole = useMemo(() => {
+  const userRole: UserRole = useMemo(() => {
     if (location.pathname.includes("/student")) return "student";
     return "teacher";
   }, [location.pathname]);
@@ -94,10 +94,16 @@ const userRole: UserRole = useMemo(() => {
 
   const handlePost = (content: string) => {
     const newNotification: ClassNotification = {
-      id: Date.now(),
-      title: "Thông báo mới",
-      description: content,
-    };
+  id: Date.now(),
+  classId: Number(id),
+  title: "Thông báo mới",
+  description: content,
+  createdAt: new Date().toISOString(),
+  createdBy: "currentUser", // có thể thay bằng user login
+  files: [],
+  comments: []
+};
+
     setNotifications((prev) => [newNotification, ...prev]);
   };
 
@@ -132,11 +138,13 @@ const userRole: UserRole = useMemo(() => {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href={"/class/"+userRole}>Lớp học</BreadcrumbLink>
+            <BreadcrumbLink href={"/class/" + userRole}>Lớp học</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{classInfo?.name ?? "Chi tiết lớp học"}</BreadcrumbPage>
+            <BreadcrumbPage>
+              {classInfo?.name ?? "Chi tiết lớp học"}
+            </BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -168,10 +176,35 @@ const userRole: UserRole = useMemo(() => {
                       post={{
                         id: n.id,
                         author: teacher?.fullname ?? "Giáo viên",
-                        time: "vừa xong",
+                        time:
+                          n.createdAt && n.createdAt !== "0001-01-01T00:00:00"
+                            ? new Date(n.createdAt).toLocaleString("vi-VN")
+                            : "Chưa có thời gian",
                         avatarUrl: "/vite.svg",
-                        content: `${n.title}\n${n.description}`,
-                        comments: [],
+                        content: (
+                          <>
+                            <div className="font-semibold">{n.title}</div>
+                            <div className="whitespace-pre-line">
+                              {n.description}
+                            </div>
+                            {n.files?.length > 0 && (
+                              <div className="mt-2">
+                                {n.files.map((f) => (
+                                  <a
+                                    key={f.id}
+                                    href={f.fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 underline text-sm"
+                                  >
+                                    📎 {f.fileName}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        ),
+                        comments: n.comments ?? [],
                       }}
                     />
                   ))
@@ -185,9 +218,7 @@ const userRole: UserRole = useMemo(() => {
 
             {/* --- Bài tập --- */}
             <TabsContent value="exercise">
-              <div className="text-gray-500 text-sm">
-                Chưa có bài tập nào.
-              </div>
+              <div className="text-gray-500 text-sm">Chưa có bài tập nào.</div>
             </TabsContent>
 
             {/* --- Mọi người --- */}
