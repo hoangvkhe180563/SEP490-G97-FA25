@@ -7,47 +7,69 @@ import userRoutes from "@/user/routes/UserRoutes";
 import { Outlet, useRoutes } from "react-router-dom";
 import MainLayout from "@/common/pages/MainLayout";
 import Homepage from "@/uiManagement/pages/Homepage";
-import { guestSidebarItems, uiManagerSidebarItems } from "@/common/constants/SidebarItems";
-import useLocalStorage from "@/common/hooks/useLocalStorage";
+import {
+  guestSidebarItems,
+  uiManagerSidebarItems,
+} from "@/common/constants/SidebarItems";
+import authRoutes from "@/auth/routes/AuthRoutes";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { useEffect } from "react";
 
 const AppRouter = () => {
-  const [isLoggedIn] = useLocalStorage("isLoggedIn", false);
+  const { isAuthenticated: isLoggedIn, checkAuth } = useAuthStore();
+
+  useEffect(() => {
+    // On app load, check if user is authenticated
+    checkAuth();
+  }, [checkAuth]);
 
   const appRoutes = [
     {
       path: "/",
-      element: <MainLayout isLoggedIn={isLoggedIn} sidebarItems={guestSidebarItems} />,
+      element: (
+        <MainLayout isLoggedIn={isLoggedIn} sidebarItems={guestSidebarItems} />
+      ),
       children: [
         {
           index: true,
-          element: <Homepage />
-        }
-      ]
+          element: <Homepage />,
+        },
+      ],
+    },
+    {
+      path: RouteConfig.AUTH,
+      element: <Outlet />,
+      children: authRoutes,
     },
     {
       path: RouteConfig.USER,
       element: <Outlet />,
-      children: userRoutes
+      children: userRoutes,
     },
     {
       path: RouteConfig.UI_MANAGEMENT,
-      element: <MainLayout isLoggedIn={isLoggedIn} sidebarItems={uiManagerSidebarItems} />,
-      children: uiManagementRoutes
+      element: (
+        <MainLayout
+          isLoggedIn={isLoggedIn}
+          sidebarItems={uiManagerSidebarItems}
+        />
+      ),
+      children: uiManagementRoutes,
     },
     {
       path: RouteConfig.CLASS_MANAGEMENT,
       element: <Outlet />,
-      children: classRoutes
+      children: classRoutes,
     },
     {
       path: RouteConfig.DOCUMENT_MANAGEMENT,
       element: <Outlet />,
-      children: documentRoutes
-    }
+      children: documentRoutes,
+    },
   ];
 
   const routesElement = useRoutes(appRoutes);
   return routesElement;
-}
+};
 
 export default AppRouter;
