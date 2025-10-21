@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using StudyHub.Backend.Api.Dtos;
+using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -13,16 +15,54 @@ namespace StudyHub.Backend.Api.Controllers
             _service = service;
         }
 
-        [HttpGet]
-        public IActionResult GetLandingPage([FromQuery] int id)
+        [HttpGet("{id:int}")]
+        public IActionResult GetLandingPage(int id)
         {
-            return Ok();
-            //var landingPage = _service.GetLandingPageBySchool(id);
-            //if (landingPage == null)
-            //{
-            //    return NotFound();
-            //}
-            //return Ok(landingPage);
+            var landingPage = _service.GetLandingPage(id);
+            if (landingPage == null)
+            {
+                return NotFound();
+            }
+
+            var landingPageDto = new LandingPageDisplayDto
+            {
+                BannerUrl = landingPage.BannerUrl,
+                Description = landingPage.Description,
+                LandingPageImages = landingPage.LandingPageImages,
+                FeaturedTeachers = [],
+                FeaturedDocuments = landingPage.FeaturedDocuments.Select(fd => new LandingPageDocumentDisplayDto
+                {
+                    Id = fd.Id,
+                    Name = fd.Name,
+                    Grade = fd.Grade,
+                    SubjectName = fd.Subject.Name,
+                    Thumbnail = fd.Thumbnail,
+                    DocumentCategory = fd.DocumentCategoryId
+                }).ToList(),
+                FeaturedCourses = landingPage.FeaturedCourses.Select(fc => new LandingPageCourseDisplayDto
+                {
+                    Id = fc.Id,
+                    Name = fc.Name,
+                    Grade = fc.Grade,
+                    SubjectName = fc.Subject.Name,
+                    Thumbnail = fc.ImageUrl
+                }).ToList()
+            };
+            return Ok(landingPageDto);
+        }
+
+        [HttpPut]
+        public IActionResult UpdateLandingPage([FromBody] LandingPageUpdateDto landingPageDto)
+        {
+            if (landingPageDto.SchoolId <= 0)
+            {
+                return NotFound();
+            }
+            var landingPage = landingPageDto.ToLandingPage();
+
+            string msg = _service.UpdateLandingPage(landingPage);
+
+            return msg == string.Empty ? Ok("Cập nhật thành công!") : BadRequest(msg);
         }
     }
 }

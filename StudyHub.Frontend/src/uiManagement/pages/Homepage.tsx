@@ -6,25 +6,42 @@ import Introduction from "../components/Introduction";
 import FeaturedDocuments from "../components/FeaturedDocuments";
 import FeaturedCourses from "../components/FeaturedCourses";
 import FeaturedTeachers from "../components/FeaturedTeachers";
-import { useParams } from "react-router-dom";
+import useLocalStorage from "@/common/hooks/useLocalStorage";
 
 const Homepage = () => {
   const [data, setData] = useState<ILandingPageService>(); //chỉnh sau
   const uiManagementService = new UiManagementService();
-  const { school } = useParams();
+  const [schoolId] = useLocalStorage("schoolId", 0);
 
   useEffect(() => {
-    if (!school) {
-      setData(uiManagementService.getLandingPageGeneralInformation());
-    } else {
-      setData(uiManagementService.getLandingPageSchoolInformation());
+    const fetchData = async () => {
+      try {
+        const landingPageData = await uiManagementService.getLandingPageInformation(schoolId);
+        setData(landingPageData);
+      } catch (error) {
+        console.log("error", error);
+        setData({
+          bannerImage: "/src/uiManagement/assets/banner-image.png",
+          description: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book.",
+          featuredCourses: [],
+          featuredDocuments: [],
+          featuredTeachers: [],
+          introductionImage: [
+            "/src/common/assets/StudyHubLogo.png",
+            "/src/common/assets/StudyHubLogo.png",
+            "/src/common/assets/StudyHubLogo.png"
+          ]
+        })
+      }
     }
+
+    fetchData().catch(console.error);
   }, [])
 
   return <div className="w-full overflow-hidden">
-    <Banner background={data?.primaryColor} logo={data?.logoImage} image={data?.bannerImage} />
-    <Introduction background={data?.primaryColor} description={data?.description} introductionImage={data?.introductionImage} />
-    {school && <FeaturedTeachers data={data?.featuredTeachers ?? []} />}
+    <Banner logo="/src/common/assets/StudyHubLogo.png" image={data?.bannerImage} />
+    <Introduction description={data?.description} introductionImage={data?.introductionImage} />
+    {schoolId !== 0 && <FeaturedTeachers data={data?.featuredTeachers ?? []} />}
     <FeaturedDocuments data={data?.featuredDocuments ?? []} />
     <FeaturedCourses data={data?.featuredCourses ?? []} />
   </div>

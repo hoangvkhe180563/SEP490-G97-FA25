@@ -3,8 +3,8 @@ import type { IFeaturedDocument } from "../interfaces/IFeaturedDocument"
 
 const FeaturedDocuments = (props: { data: IFeaturedDocument[] }) => {
 
-  const textbooks: IFeaturedDocument[] = props.data.filter(item => item.type === 'textbook');
-  const references: IFeaturedDocument[] = props.data.filter(item => item.type === 'reference');
+  const textbooks: IFeaturedDocument[] = props.data.filter(item => item.documentCategory === 1);
+  const references: IFeaturedDocument[] = props.data.filter(item => item.documentCategory === 2);
 
   return (
     <div className="w-full flex flex-col items-center">
@@ -21,10 +21,10 @@ const FeaturedDocuments = (props: { data: IFeaturedDocument[] }) => {
                   <div>
                     <p className="font-semibold text-lg">{book.name}</p>
                     <p className="text-gray-600 text-sm flex items-center gap-1">
-                      <BookOpen size={16} className="fill-blue-500 stroke-blue-500" /> {book.subject}
+                      <BookOpen size={16} className="fill-blue-500 stroke-blue-500" /> Môn <b>{book.subjectName}</b>
                     </p>
                     <p className="text-gray-600 text-sm flex items-center gap-1">
-                      <GraduationCap size={16} className="fill-orange-500 stroke-orange-500" /> {book.grade}
+                      <GraduationCap size={16} className="fill-orange-500 stroke-orange-500" /> Lớp <b>{book.grade}</b>
                     </p>
                   </div>
                 </div>
@@ -42,10 +42,10 @@ const FeaturedDocuments = (props: { data: IFeaturedDocument[] }) => {
                   <div>
                     <p className="font-semibold text-lg">{book.name}</p>
                     <p className="text-gray-600 text-sm flex items-center gap-1">
-                      <BookOpen size={16} className="fill-blue-500 stroke-blue-500" /> {book.subject}
+                      <BookOpen size={16} className="fill-blue-500 stroke-blue-500" /> Môn <b>{book.subjectName}</b>
                     </p>
                     <p className="text-gray-600 text-sm flex items-center gap-1">
-                      <GraduationCap size={16} className="fill-orange-500 stroke-orange-500" /> {book.grade}
+                      <GraduationCap size={16} className="fill-orange-500 stroke-orange-500" /> Lớp <b>{book.grade}</b>
                     </p>
                   </div>
                 </div>
