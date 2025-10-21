@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using System.IdentityModel.Tokens.Jwt;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos.AuthDTOS;
@@ -249,39 +250,27 @@ namespace StudyHub.Backend.Api.Controllers
                 return Unauthorized(new GenericResponse { Success = false, Message = "Access token không tìm thấy" });
             }
 
-            try
+            var userId = _authService.ValidateAccessToken(accessToken);
+
+            if (userId == null) return Unauthorized(new GenericResponse { Success = false, Message = "Token không hợp lệ hoặc đã hết hạn" });
+
+            var info = _authService.GetUserInfoById(userId.Value);
+            if (info == null) return Unauthorized(new GenericResponse { Success = false, Message = "Người dùng không tồn tại" });
+
+            var userInfo = new UserInfoResponse
             {
-                var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
-                var tvp = StudyHub.Backend.UseCases.Utils.JwtUtils.GetTokenValidationParameters(_configuration);
-                var principal = handler.ValidateToken(accessToken, tvp, out var validated);
-                if (principal == null) return Unauthorized(new GenericResponse { Success = false, Message = "Token không hợp lệ" });
+                Id = info.User.Id,
+                Email = info.User.Email,
+                Username = info.User.Username,
+                Roles = info.Roles ?? new List<string>(),
+                Permissions = info.Permissions ?? new List<string>(),
+                ClassIds = info.ClassIds ?? new List<int>(),
+                SubjectIds = info.SubjectIds ?? new List<short>(),
+                SchoolId = info.User.SchoolId
+            };
 
-                var sub = principal.Claims.FirstOrDefault(c => c.Type == System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
-                if (string.IsNullOrEmpty(sub)) return Unauthorized(new GenericResponse { Success = false, Message = "Token không hợp lệ" });
+            return Ok(new GenericResponse { Success = true, Message = "Người dùng đã xác thực", Data = userInfo });
 
-                if (!Guid.TryParse(sub, out var userId)) return Unauthorized(new GenericResponse { Success = false, Message = "Token không hợp lệ" });
-
-                var info = _authService.GetUserInfoById(userId);
-                if (info == null) return Unauthorized(new GenericResponse { Success = false, Message = "Người dùng không tồn tại" });
-
-                var userInfo = new UserInfoResponse
-                {
-                    Id = info.User.Id,
-                    Email = info.User.Email,
-                    Username = info.User.Username,
-                    Roles = info.Roles ?? new List<string>(),
-                    Permissions = info.Permissions ?? new List<string>(),
-                    ClassIds = info.ClassIds ?? new List<int>(),
-                    SubjectIds = info.SubjectIds ?? new List<short>(),
-                    SchoolId = info.User.SchoolId
-                };
-
-                return Ok(new GenericResponse { Success = true, Message = "Người dùng đã xác thực", Data = userInfo });
-            }
-            catch
-            {
-                return Unauthorized(new GenericResponse { Success = false, Message = "Token không hợp lệ hoặc đã hết hạn" });
-            }
         }
     }
 }
