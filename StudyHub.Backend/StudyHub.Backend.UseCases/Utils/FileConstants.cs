@@ -11,7 +11,7 @@ public static class FileConstants
 
     public static readonly string[] AllowedImageExtensions =
     {
-        ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"
+        ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg"
     };
 
     public const long MaxDocumentSize = 1000 * 1024 * 1024;
@@ -19,4 +19,6 @@ public static class FileConstants
 
     public const string DocumentUploadPath = "Documents/Raw";
     public const string ThumbnailUploadPath = "Documents/Thumbnails";
+    public const string LandingPageBannerUploadPath = "LandingPage/Banner";
+    public const string LandingPageImagesUploadPath = "LandingPage/Introduction";
 }

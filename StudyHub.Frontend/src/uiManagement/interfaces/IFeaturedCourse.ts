@@ -1,5 +1,5 @@
 export interface IFeaturedCourse {
-  image: string,
+  thumbnail: string,
   id: number,
   name: string,
   subjectName: string,

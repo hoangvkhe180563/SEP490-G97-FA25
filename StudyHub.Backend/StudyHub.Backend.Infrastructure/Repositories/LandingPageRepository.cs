@@ -1,9 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
@@ -174,7 +172,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 }
                 else
                 {
-                    return _context.LandingPageImages.Where(lp => lp.Id == schoolId).Select(lp => lp.ImageUrl).ToList();
+                    return _context.LandingPageImages.Where(lp => lp.LandingPageId == schoolId).Select(lp => lp.ImageUrl).ToList();
                 }
             }
             catch (Exception ex)
@@ -194,7 +192,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             try
             {
                 var landingPageToUpdate = _context.LandingPages
-                    .Include(lp => lp.LandingPageImages)
                     .FirstOrDefault(lp => lp.SchoolId == landingPage.SchoolId);
                 if (landingPageToUpdate == null)
                 {
@@ -202,15 +199,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     return false;
                 }
 
-                landingPageToUpdate.BannerUrl = landingPage.BannerUrl;
-                landingPageToUpdate.Description = landingPage.Description;
-
-                bool isImageUpdated = UpdateLandingPageImages(landingPage.SchoolId, landingPage.LandingPageImages);
-                if (!isImageUpdated)
+                if (!string.IsNullOrEmpty(landingPage.BannerUrl))
                 {
-                    new InfrastructureException("LandingPageRepository", "UpdateLandingPage failed. Images hasn't updated").LogError();
-                    return false;
+                    landingPageToUpdate.BannerUrl = landingPage.BannerUrl;
                 }
+                landingPageToUpdate.Description = landingPage.Description;
 
                 var documentIds = landingPage.FeaturedDocuments.Select(f => f.Id).ToList();
                 bool isDocumentsUpdated = UpdateFeaturedDocuments(landingPage.SchoolId, documentIds);
@@ -239,30 +232,31 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return false;
         }
 
-        public bool UpdateLandingPageImages(int schoolId, List<string> images)
+        public bool UpdateLandingPageImages(int schoolId, List<string> oldImages, List<string> newImages)
         {
             try
             {
-                var landingPageImages = _context.LandingPageImages.Where(img => img.LandingPageId == schoolId).ToList();
-                //remove existing image
-                foreach (var image in landingPageImages)
-                {
-                    if (images.Contains(image.ImageUrl))
-                    {
-                        landingPageImages.Remove(image);
-                    }
-                }
+                // Remove old images
+                var imagesToRemove = _context.LandingPageImages
+                    .Where(i => i.LandingPageId == schoolId && oldImages.Contains(i.ImageUrl))
+                    .ToList();
+                _context.LandingPageImages.RemoveRange(imagesToRemove);
 
-                //add new images
-                foreach (var image in images)
-                {
-                    landingPageImages.Add(new LandingPageImage
-                    {
-                        LandingPageId = schoolId,
-                        ImageUrl = image
-                    });
-                }
+                // Add new images (avoid duplicates)
+                var existingImages = _context.LandingPageImages
+                    .Where(i => i.LandingPageId == schoolId)
+                    .Select(i => i.ImageUrl)
+                    .ToList();
 
+                var imagesToAdd = newImages
+                    .Except(existingImages)
+                    .Select(image => new LandingPageImage
+                    {
+                        ImageUrl = image,
+                        LandingPageId = schoolId
+                    }).ToList();
+
+                _context.LandingPageImages.AddRange(imagesToAdd);
                 _context.SaveChanges();
 
                 return true;
@@ -273,6 +267,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
             return false;
         }
+
 
         public bool UpdateFeaturedDocuments(int schoolId, List<int> documentIds)
         {
