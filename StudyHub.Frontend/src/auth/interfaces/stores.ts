@@ -49,6 +49,7 @@ interface AuthState {
     error: string,
     handlerSuccess: () => void
   ) => Promise<void>;
+  checkAuth: () => Promise<void>;
   logout: () => void;
 }
 

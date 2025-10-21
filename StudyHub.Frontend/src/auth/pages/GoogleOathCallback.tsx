@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthStore } from "../stores/useAuthStore";
+import { Loader2 } from "lucide-react";
 
 const GoogleOathCallback: React.FC = () => {
   const navigate = useNavigate();
@@ -33,12 +34,12 @@ const GoogleOathCallback: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold">
-            Đang xử lý đăng nhập bằng Google
-          </h2>
           {isLoading && (
-            <p className="text-sm text-gray-600 mt-2">Vui lòng chờ...</p>
+            <Loader2 className="mx-auto mb-4 h-20 w-20 animate-spin text-gray-600" />
           )}
+          <h2 className="text-2xl font-semibold">
+            Đang xử lý đăng nhập bằng Google...
+          </h2>
           {handlerGoogleCallbackMessage && (
             <p className="text-sm text-green-700 mt-2">
               {handlerGoogleCallbackMessage}

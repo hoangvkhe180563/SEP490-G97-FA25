@@ -542,5 +542,55 @@ namespace StudyHub.Backend.UseCases.Services
             _userRepository.UpdateUser(user);
             return true;
         }
-    }
+
+        /// <summary>
+        /// Build minimal LoginResult (user + roles/permissions/claims) for an existing user id.
+        /// Returns null if user not found.
+        /// </summary>
+        public LoginResult? GetUserInfoById(Guid userId)
+        {
+            var user = _userRepository.GetById(userId);
+            if (user == null) return null;
+
+            var roles = _roleRepository.GetRolesForUser(user.Id);
+            var userClaims = _userRepository.GetClaimsForUser(user.Id);
+
+            List<string> permissions = new List<string>();
+            if (roles != null)
+            {
+                permissions = roles.SelectMany(r => r.AppPermissions ?? new List<AppPermission>())
+                                    .Select(p => (p.Resource?.Name ?? p.ResourceId.ToString()) + ":" + (p.Action?.Name ?? p.ActionId.ToString()))
+                                    .Distinct()
+                                    .ToList();
+            }
+
+            List<string> roleNames = new List<string>();
+            if (roles != null)
+            {
+                roleNames = roles.Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+            }
+
+            List<short> subjectIds = new List<short>();
+            if (userClaims != null)
+            {
+                subjectIds = userClaims.Where(c => c.SubjectId > 0).Select(c => c.SubjectId).Distinct().ToList();
+            }
+
+            List<int> classIds = new List<int>();
+            if (userClaims != null)
+            {
+                classIds = userClaims.Where(c => c.ClassId > 0).Select(c => c.ClassId).Distinct().ToList();
+            }
+
+            return new LoginResult
+            {
+                User = user,
+                Roles = roleNames,
+                Permissions = permissions,
+                SubjectIds = subjectIds,
+                ClassIds = classIds,
+                Tokens = new TokenPair() // not used here
+            };
+        }
+}
 }

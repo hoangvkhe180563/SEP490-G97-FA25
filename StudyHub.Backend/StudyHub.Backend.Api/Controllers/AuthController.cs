@@ -185,28 +185,6 @@ namespace StudyHub.Backend.Api.Controllers
         //    return Ok(new { success = true, message = "Email sent successfully!" });
         //}
 
-        [HttpPost("google")]
-        public IActionResult LoginWithGoogle([FromBody] GoogleLoginRequest req)
-        {
-            var result = _authService.LoginWithGoogle(req.IdToken);
-            if (result == null) return Unauthorized(new GenericResponse { Success = false, Message = "Đăng nhập với google thất bại!" });
-            SetTokenInCookie(result);
-
-            var userInfo = new UserInfoResponse
-            {
-                Id = result.User.Id,
-                Email = result.User.Email,
-                Username = result.User.Username,
-                Roles = result.Roles ?? new List<string>(),
-                Permissions = result.Permissions ?? new List<string>(),
-                ClassIds = result.ClassIds ?? new List<int>(),
-                SubjectIds = result.SubjectIds ?? new List<short>(),
-                SchoolId = result.User.SchoolId
-            };
-
-            return Ok(new GenericResponse { Success = true, Message = "Đăng nhập với google thành công!", Data = userInfo });
-        }
-
         [HttpGet("google/redirect")]
         public IActionResult GoogleRedirect()
         {
@@ -216,7 +194,7 @@ namespace StudyHub.Backend.Api.Controllers
 
                 // Prevent CSRF attacks
                 HttpContext.Session.SetString("google_oauth_state", state);
-                return Ok(new { Success = true, Message = "Gửi link điều hướng Google URL thành công", Url = url});
+                return Ok(new { Success = true, Message = "Gửi link điều hướng Google URL thành công", Url = url });
             }
             catch (InvalidOperationException ex)
             {
@@ -260,6 +238,50 @@ namespace StudyHub.Backend.Api.Controllers
                 SchoolId = loginResult.User.SchoolId
             };
             return Ok(new GenericResponse { Success = true, Message = "Đăng nhập với Google thành công!", Data = userInfo });
+        }
+
+        [HttpGet("check-auth")]
+        public IActionResult CheckAuth()
+        {
+            var accessToken = Request.Cookies["access_token"];
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                return Unauthorized(new GenericResponse { Success = false, Message = "Access token không tìm thấy" });
+            }
+
+            try
+            {
+                var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+                var tvp = StudyHub.Backend.UseCases.Utils.JwtUtils.GetTokenValidationParameters(_configuration);
+                var principal = handler.ValidateToken(accessToken, tvp, out var validated);
+                if (principal == null) return Unauthorized(new GenericResponse { Success = false, Message = "Token không hợp lệ" });
+
+                var sub = principal.Claims.FirstOrDefault(c => c.Type == System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+                if (string.IsNullOrEmpty(sub)) return Unauthorized(new GenericResponse { Success = false, Message = "Token không hợp lệ" });
+
+                if (!Guid.TryParse(sub, out var userId)) return Unauthorized(new GenericResponse { Success = false, Message = "Token không hợp lệ" });
+
+                var info = _authService.GetUserInfoById(userId);
+                if (info == null) return Unauthorized(new GenericResponse { Success = false, Message = "Người dùng không tồn tại" });
+
+                var userInfo = new UserInfoResponse
+                {
+                    Id = info.User.Id,
+                    Email = info.User.Email,
+                    Username = info.User.Username,
+                    Roles = info.Roles ?? new List<string>(),
+                    Permissions = info.Permissions ?? new List<string>(),
+                    ClassIds = info.ClassIds ?? new List<int>(),
+                    SubjectIds = info.SubjectIds ?? new List<short>(),
+                    SchoolId = info.User.SchoolId
+                };
+
+                return Ok(new GenericResponse { Success = true, Message = "Người dùng đã xác thực", Data = userInfo });
+            }
+            catch
+            {
+                return Unauthorized(new GenericResponse { Success = false, Message = "Token không hợp lệ hoặc đã hết hạn" });
+            }
         }
     }
 }

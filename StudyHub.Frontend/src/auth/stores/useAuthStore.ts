@@ -191,6 +191,23 @@ const useAuthStore = create<AuthState>((set) => ({
       set({ isLoading: false });
     }
   },
+
+  checkAuth: async () => {
+    set({ isLoading: true, loginError: null, loginMessage: "" });
+    try {
+      const res = await axiosInstance.get("/Auth/check-auth");
+      const { data } = res;
+      if (data.success) {
+        set({ isAuthenticated: true, user: data.data });
+      } else {
+        set({ isAuthenticated: false, user: null });
+      }
+    } catch {
+      set({ isAuthenticated: false, user: null });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
   getGoogleRedirectURL: async () => {
     set({
       isLoading: true,
