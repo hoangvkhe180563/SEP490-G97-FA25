@@ -1,9 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories;
-using System;
-using System.Runtime.InteropServices;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
@@ -186,6 +186,150 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     "/src/common/assets/StudyHubLogo.png"
                 ];
             }
+        }
+
+        public bool UpdateLandingPage(Domain.Entities.LandingPage landingPage)
+        {
+            using var transaction = _context.Database.BeginTransaction();
+            try
+            {
+                var landingPageToUpdate = _context.LandingPages
+                    .Include(lp => lp.LandingPageImages)
+                    .FirstOrDefault(lp => lp.SchoolId == landingPage.SchoolId);
+                if (landingPageToUpdate == null)
+                {
+                    new InfrastructureException("LandingPageRepository", "UpdateLandingPage failed. Landing Page is null").LogError();
+                    return false;
+                }
+
+                landingPageToUpdate.BannerUrl = landingPage.BannerUrl;
+                landingPageToUpdate.Description = landingPage.Description;
+
+                bool isImageUpdated = UpdateLandingPageImages(landingPage.SchoolId, landingPage.LandingPageImages);
+                if (!isImageUpdated)
+                {
+                    new InfrastructureException("LandingPageRepository", "UpdateLandingPage failed. Images hasn't updated").LogError();
+                    return false;
+                }
+
+                var documentIds = landingPage.FeaturedDocuments.Select(f => f.Id).ToList();
+                bool isDocumentsUpdated = UpdateFeaturedDocuments(landingPage.SchoolId, documentIds);
+                if (!isDocumentsUpdated)
+                {
+                    new InfrastructureException("LandingPageRepository", "UpdateLandingPage failed. Documents hasn't updated").LogError();
+                    return false;
+                }
+
+                var courseIds = landingPage.FeaturedCourses.Select(c => c.Id).ToList();
+                bool isCourseUpdated = UpdateFeaturedCourses(landingPage.SchoolId, courseIds);
+                if (!isCourseUpdated)
+                {
+                    new InfrastructureException("LandingPageRepository", "UpdateLandingPage failed. Courses hasn't updated").LogError();
+                    return false;
+                }
+
+                transaction.Commit();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                new InfrastructureException("LandingPageRepository", "UpdateLandingPage failed. Inner error: " + ex.Message).LogError();
+            }
+            return false;
+        }
+
+        public bool UpdateLandingPageImages(int schoolId, List<string> images)
+        {
+            try
+            {
+                var landingPageImages = _context.LandingPageImages.Where(img => img.LandingPageId == schoolId).ToList();
+                //remove existing image
+                foreach (var image in landingPageImages)
+                {
+                    if (images.Contains(image.ImageUrl))
+                    {
+                        landingPageImages.Remove(image);
+                    }
+                }
+
+                //add new images
+                foreach (var image in images)
+                {
+                    landingPageImages.Add(new LandingPageImage
+                    {
+                        LandingPageId = schoolId,
+                        ImageUrl = image
+                    });
+                }
+
+                _context.SaveChanges();
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("LandingPageRepository", "UpdateLandingPageImages failed. Inner error: " + ex.Message).LogError();
+            }
+            return false;
+        }
+
+        public bool UpdateFeaturedDocuments(int schoolId, List<int> documentIds)
+        {
+            try
+            {
+                var documents = _context.Documents.Where(doc => doc.SchoolId == schoolId && doc.IsInClass == false).ToList();
+                foreach (var doc in documents)
+                {
+                    if (documentIds.Contains(doc.Id))
+                    {
+                        doc.IsFeatured = true;
+                    }
+                    else
+                    {
+                        doc.IsFeatured = false;
+                    }
+                }
+
+                _context.Documents.UpdateRange(documents);
+                _context.SaveChanges();
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("LandingPageRepository", "UpdateFeaturedDocuments failed. Inner error: " + ex.Message).LogError();
+            }
+            return false;
+        }
+
+        public bool UpdateFeaturedCourses(int schoolId, List<int> courseIds)
+        {
+            try
+            {
+                var courses = _context.Courses.Where(c => c.SchoolId == schoolId).ToList();
+                foreach (var course in courses)
+                {
+                    if (courseIds.Contains(course.Id))
+                    {
+                        course.IsFeatured = true;
+                    }
+                    else
+                    {
+                        course.IsFeatured = false;
+                    }
+                }
+
+                _context.Courses.UpdateRange(courses);
+                _context.SaveChanges();
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("LandingPageRepository", "UpdateFeaturedCourses failed. Inner error: " + ex.Message).LogError();
+            }
+            return false;
         }
     }
 }
