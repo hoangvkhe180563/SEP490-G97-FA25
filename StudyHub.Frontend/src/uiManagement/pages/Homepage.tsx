@@ -9,7 +9,7 @@ import FeaturedTeachers from "../components/FeaturedTeachers";
 import useLocalStorage from "@/common/hooks/useLocalStorage";
 
 const Homepage = () => {
-  const [data, setData] = useState<ILandingPageService>(); //chỉnh sau
+  const [data, setData] = useState<ILandingPageService>();
   const uiManagementService = new UiManagementService();
   const [schoolId] = useLocalStorage("schoolId", 0);
 
