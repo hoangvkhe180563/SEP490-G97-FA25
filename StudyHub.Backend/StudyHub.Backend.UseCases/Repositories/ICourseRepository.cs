@@ -9,5 +9,6 @@ namespace StudyHub.Backend.UseCases.Repositories
         Course CreateCourse(Course course);
         Course UpdateCourse(Course course);
         bool DeleteCourse(int id);
+        List<Course> GetCourseBySchool(int schoolId);
     }
 }

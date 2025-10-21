@@ -52,15 +52,14 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpPut]
-        public IActionResult UpdateLandingPage([FromBody] LandingPageUpdateDto landingPageDto)
+        public async Task<IActionResult> UpdateLandingPage([FromForm] LandingPageUpdateDto landingPageDto)
         {
             if (landingPageDto.SchoolId <= 0)
             {
                 return NotFound();
             }
             var landingPage = landingPageDto.ToLandingPage();
-
-            string msg = _service.UpdateLandingPage(landingPage);
+            string msg = await _service.UpdateLandingPage(landingPage, landingPageDto.BannerFile, landingPageDto.LandingPageDeleteImages, landingPageDto.LandingPageNewImages);
 
             return msg == string.Empty ? Ok("Cập nhật thành công!") : BadRequest(msg);
         }

@@ -8,9 +8,7 @@ namespace StudyHub.Backend.Api.Mappers
         public static LandingPage ToLandingPage(this LandingPageUpdateDto dto) => new LandingPage
         {
             SchoolId = dto.SchoolId,
-            BannerUrl = dto.BannerUrl,
             Description = dto.Description,
-            LandingPageImages = dto.LandingPageImages,
             FeaturedDocuments = dto.FeaturedDocumentIds.Select(id => new Document
             {
                 Id = id

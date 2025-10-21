@@ -34,4 +34,22 @@
         public int Grade { get; set; }
         public string Thumbnail { get; set; } = string.Empty;
     }
+
+    public class LandingPageDocumentEditDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string SubjectName { get; set; } = string.Empty;
+        public int Grade { get; set; }
+        public bool IsFeatured { get; set; }
+    }
+
+    public class LandingPageCourseEditDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string SubjectName { get; set; } = string.Empty;
+        public int Grade { get; set; }
+        public bool IsFeatured { get; set; }
+    }
 }
