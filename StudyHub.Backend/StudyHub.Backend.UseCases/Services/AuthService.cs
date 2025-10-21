@@ -11,6 +11,8 @@ using StudyHub.Backend.UseCases.Utils;
 using System.Net.Http;
 using System.Text.Json;
 using StudyHub.Backend.Api.Services;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -592,5 +594,32 @@ namespace StudyHub.Backend.UseCases.Services
                 Tokens = new TokenPair() // not used here
             };
         }
-}
+        public Guid? ValidateAccessToken(string accessToken)
+        {
+            try
+            {
+                var handler = new JwtSecurityTokenHandler();
+                var tvp = JwtUtils.GetTokenValidationParameters(_configuration);
+                var principal = handler.ValidateToken(accessToken, tvp, out var validated);
+                if (principal == null) return null;
+
+
+                // tokens may store the subject under different claim types depending on JWT creation and mapping.
+                var sub = principal.Claims.FirstOrDefault(c =>
+                    c.Type == ClaimTypes.NameIdentifier
+                )?.Value;
+
+
+                if (string.IsNullOrEmpty(sub)) return null;
+
+                if (!Guid.TryParse(sub, out var userId)) return null;
+
+                return userId;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
 }
