@@ -1,22 +1,15 @@
-﻿using StudyHub.Backend.UseCases.Dtos;
+﻿using StudyHub.Backend.Api.Dtos.AppUserDTOS;
+using StudyHub.Backend.UseCases.Dtos;
 
 namespace StudyHub.Backend.Api.Mappers
 {
     public class AppUserMapper
     {
-        //map từ entity sang dto
-        public static Dtos.AppUserDTOS.AppUserListDto ToAppUserList(PagedResult<UseCases.Dtos.AppUserListDto> users)
-        {
-            return new Dtos.AppUserDTOS.AppUserListDto
-            {
-                PagedResult = users
-            };
-        }
 
         // Map a domain AppUser to API AppUserDetailDto. The caller should provide role names and school/commune names if available.
-        public static Dtos.AppUserDTOS.AppUserDetailDto ToAppUserDetail(StudyHub.Backend.Domain.Entities.AppUser user, IEnumerable<string>? roles = null, string? schoolName = null, string? communeName = null, string? cityName = null, string? provinceName = null)
+        public static AppUserDetailDto ToAppUserDetail(Domain.Entities.AppUser user, IEnumerable<string>? roles = null, string? schoolName = null, string? communeName = null, string? cityName = null, string? provinceName = null)
         {
-            return new Dtos.AppUserDTOS.AppUserDetailDto
+            return new AppUserDetailDto
             {
                 Id = user.Id,
                 Email = user.Email,
@@ -36,18 +29,21 @@ namespace StudyHub.Backend.Api.Mappers
             };
         }
 
+
         // Map a domain AppUser to a compact list item use-case DTO (keeps compatibility with UseCases.PagedResult<AppUserListDto>)
-        public static UseCases.Dtos.AppUserListDto ToAppUserListItem(StudyHub.Backend.Domain.Entities.AppUser user, IEnumerable<string>? roles = null)
+        public static Dtos.AppUserDTOS.AppUserListDto ToAppUserList(PagedResult<UseCases.Dtos.AppUserListDto> result)
         {
-            return new UseCases.Dtos.AppUserListDto
+            return new Dtos.AppUserDTOS.AppUserListDto
             {
-                Id = user.Id,
-                Email = user.Email,
-                Username = user.Username,
-                Fullname = user.Fullname,
-                Status = (user.Status == true) ? "Active" : "Inactive",
-                CreatedAt = user.CreatedAt.ToString("yyyy/MM/dd"),
-                Roles = roles?.ToList() ?? new List<string>()
+                Message = "Success",
+                Data = result.Items,
+                Meta = new Meta
+                {
+                    Page = result.Page,
+                    Limit = result.Limit,
+                    Total = result.Total,
+                    TotalPages = result.TotalPages
+                }
             };
         }
     }

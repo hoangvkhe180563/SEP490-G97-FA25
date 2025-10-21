@@ -15,10 +15,13 @@ namespace StudyHub.Backend.Api.Controllers
     {
         private readonly ClassService _service;
         private readonly AppUserService _aUserService;
-        public ClassController(ClassService service, AppUserService aUserService)
+        private readonly AppRoleService _aRoleService;
+
+        public ClassController(ClassService service, AppUserService aUserService, AppRoleService aRoleService)
         {
             _service = service;
             _aUserService = aUserService;
+            _aRoleService = aRoleService;
         }
 
         [HttpGet]
@@ -120,8 +123,12 @@ namespace StudyHub.Backend.Api.Controllers
 
             // Lấy dữ liệu phụ trực tiếp từ repository
             var members = _service.GetClassMembers(id)
-                .Select(m => m.ToMemberDto(_aUserService.GetUserById(m.UserId)))
-                .ToList();
+            .Select(m =>
+            {
+                var roles = _aRoleService.GetRolesByUser(m.UserId).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+                return m.ToMemberDto(_aUserService.GetUserById(m.UserId), roles);
+            })
+            .ToList();
 
             var notifications = _service.GetClassNotifications(id)
                 .Select(n => n.ToNotificationDto())

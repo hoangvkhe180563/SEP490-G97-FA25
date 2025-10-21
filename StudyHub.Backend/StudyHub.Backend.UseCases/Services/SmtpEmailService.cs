@@ -22,11 +22,11 @@ namespace StudyHub.Backend.Api.Services
             var pass = smtp.GetValue<string>("Password");
             var from = smtp.GetValue<string>("From") ?? "no-reply@example.com";
 
-                        var baseUrl = _configuration["App:BaseUrl"] ?? "http://localhost:5173";
-                        var appName = _configuration["App:Name"] ?? "StudyHub";
-                        var resetLink = $"{baseUrl.TrimEnd('/')}/reset-password?token={resetToken}";
+            var baseUrl = _configuration["App:BaseUrl"] ?? "http://localhost:5173";
+            var appName = _configuration["App:Name"] ?? "StudyHub";
+            var resetLink = $"{baseUrl.TrimEnd('/')}/auth/reset-password?token={resetToken}";
 
-                        var htmlBody = $@"
+            var htmlBody = $@"
                                 <html>
                                 <body style='font-family: Arial, sans-serif; color: #222;'>
                                     <h2 style='color:#333'>{appName} - Password reset</h2>
@@ -41,12 +41,12 @@ namespace StudyHub.Backend.Api.Services
                                 </html>
                         ";
 
-                        var message = new MailMessage(from, toEmail)
-                        {
-                                Subject = $"{appName} - Password reset",
-                                Body = htmlBody,
-                                IsBodyHtml = true
-                        };
+            var message = new MailMessage(from, toEmail)
+            {
+                Subject = $"{appName} - Password reset",
+                Body = htmlBody,
+                IsBodyHtml = true
+            };
 
             using var client = new SmtpClient(host, port);
             if (!string.IsNullOrEmpty(user)) client.Credentials = new System.Net.NetworkCredential(user, pass);
@@ -64,7 +64,7 @@ namespace StudyHub.Backend.Api.Services
 
             var baseUrl = _configuration["App:BaseUrl"] ?? "http://localhost:5173";
             var appName = _configuration["App:Name"] ?? "StudyHub";
-            var verifyLink = $"{baseUrl.TrimEnd('/')}/verify-email?token={Uri.EscapeDataString(verificationToken)}";
+            var verifyLink = $"{baseUrl.TrimEnd('/')}/auth/verify-email?token={Uri.EscapeDataString(verificationToken)}";
 
             var htmlBody = $@"
                     <html>

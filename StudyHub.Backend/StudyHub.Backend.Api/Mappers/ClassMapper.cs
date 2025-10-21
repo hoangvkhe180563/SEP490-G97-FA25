@@ -70,14 +70,14 @@ namespace StudyHub.Backend.Api.Mappers
             };
         }
 
-        public static MemberDto ToMemberDto(this ClassMember member, AppUserDetailDto? user)
+        public static MemberDto ToMemberDto(this ClassMember member, AppUser? user, List<string> roles)
         {
             return new MemberDto
             {
                 UserId = member.UserId,
                 Fullname = user?.Fullname ?? "Không rõ",
                 JoinDate = member.JoinDate,
-                Roles = user.Roles
+                Roles = roles
             };
         }
 

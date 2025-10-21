@@ -10,6 +10,7 @@ using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Utils;
 using System.Net.Http;
 using System.Text.Json;
+using StudyHub.Backend.Api.Services;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -17,14 +18,18 @@ namespace StudyHub.Backend.UseCases.Services
     {
 
         public IAppUserRepository _userRepository;
+        public IAppRoleRepository _roleRepository;
+        public IEmailService _emailService;
         private readonly IConfiguration _configuration;
         private const int SALT_ROUNDS = 12; // BCrypt salt rounds for hashing
         private const int DEFAULT_EXPIRES_MINUTES = 60; // default 60 minutes
         private const int DEFAULT_REFRESH_EXPIRES_MINUTES = 60 * 24 * 7; // default 7 days
 
-        public AuthService(IAppUserRepository userRepository, IConfiguration configuration)
+        public AuthService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, IEmailService emailService, IConfiguration configuration)
         {
             _userRepository = userRepository;
+            _roleRepository = roleRepository;
+            _emailService = emailService;
             _configuration = configuration;
         }
 
@@ -34,21 +39,36 @@ namespace StudyHub.Backend.UseCases.Services
         /// <param name="email">The email address of the user to log in.</param>
         /// <param name="password">The password of the user to log in.</param>
         /// <returns>A <see cref="TokenPair"/> containing the access token and refresh token if the login is successful, otherwise null.</returns>
-        public LoginResult? Login(string email, string password)
+        // Returns (result, error)
+        // error == null => success
+        // error == "unverified" => user exists but not verified
+        // error == "invalid" => credentials invalid
+        public (LoginResult? result, string? error) Login(string? emailOrUsername, string password)
         {
-            // Get the user by email
-            var user = _userRepository.GetByEmail(email);
-            if (user == null) return null;
+            // allow login by email or username
+            Domain.Entities.AppUser? user = null;
+            if (!string.IsNullOrEmpty(emailOrUsername))
+            {
+                user = _userRepository.GetByEmail(emailOrUsername);
+                if (user == null)
+                {
+                    user = _userRepository.GetByUsername(emailOrUsername);
+                }
+            }
+
+            if (user == null) return (null, "invalid");
 
             // Check if the user has a password hash
-            if (string.IsNullOrEmpty(user.PasswordHash)) return null;
+            if (string.IsNullOrEmpty(user.PasswordHash)) return (null, "invalid");
 
             // Verify the password
             bool ok = BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
-            if (!ok) return null;
+            if (!ok) return (null, "invalid");
+
+            if (!user.IsVerified) return (null, "unverified");
 
             // Load roles and user claims and create a jwt access token including permissions
-            var roles = _userRepository.GetRolesForUser(user.Id);
+            var roles = _roleRepository.GetRolesForUser(user.Id);
             var userClaims = _userRepository.GetClaimsForUser(user.Id);
             // Build permissions list from role permissions (format: Resource:Action)
             List<string> permissions = new List<string>();
@@ -94,7 +114,7 @@ namespace StudyHub.Backend.UseCases.Services
             user.RefreshTokenExpire = DateTime.UtcNow.AddMinutes(refreshExpireMinutes);
             _userRepository.UpdateUser(user);
 
-            return new LoginResult
+            var loginResult = new LoginResult
             {
                 Tokens = new TokenPair
                 {
@@ -109,23 +129,8 @@ namespace StudyHub.Backend.UseCases.Services
                 SubjectIds = subjectIds,
                 ClassIds = classIds
             };
-        }
 
-        /// <summary>
-        /// Send verification email to given email address if user exists and is not verified.
-        /// Returns true if email was sent (or user already verified), false if user not found.
-        /// </summary>
-        public bool SendVerificationEmail(string email)
-        {
-            var user = _userRepository.GetByEmail(email);
-            if (user == null) return false;
-            if (user.IsVerified) return true; // already verified
-
-            var token = JwtUtils.CreateVerificationToken(user.Id, _configuration);
-            // send email via IEmailService available in Api DI; use the email service through DI in controller (we cannot access from here),
-            // so we'll return the token and let controller send it. For convenience, we keep this method to return token via out param in another overload.
-            // But a simpler approach: store token in a public return value via tuple. We'll add an overload below.
-            return true;
+            return (loginResult, null);
         }
 
         /// <summary>
@@ -138,10 +143,10 @@ namespace StudyHub.Backend.UseCases.Services
             if (user == null) return null;
             if (user.IsVerified) return null;
 
-            var token = JwtUtils.GenerateRefreshToken(); // cryptographically strong random token
+            var token = JwtUtils.CreateAccessToken(user, [], _configuration); // cryptographically strong random token
             var expire = DateTime.UtcNow.AddHours(24);
-            _userRepository.UpdateEmailVerificationToken(user.Id, token, expire);
-            return token;
+            _userRepository.UpdateEmailVerificationToken(user.Id, token.Token, expire);
+            return token.Token;
         }
 
         /// <summary>
@@ -149,17 +154,17 @@ namespace StudyHub.Backend.UseCases.Services
         /// </summary>
         public bool VerifyEmail(string token)
         {
-            //if (string.IsNullOrEmpty(token)) return false;
-            //var user = _userRepository.GetByEmailVerificationToken(token);
-            //if (user == null) return false;
-            //if (!user.EmailVerificationExpire.HasValue || user.EmailVerificationExpire.Value < DateTime.UtcNow) return false;
+            if (string.IsNullOrEmpty(token)) return false;
+            var user = _userRepository.GetByEmailVerificationToken(token);
+            if (user == null) return false;
+            if (!user.EmailVerificationExpire.HasValue || user.EmailVerificationExpire.Value < DateTime.UtcNow) return false;
 
-            //user.IsVerified = true;
-            //user.UpdatedAt = DateTime.UtcNow;
-            //// clear token
-            //user.EmailVerificationToken = null;
-            //user.EmailVerificationExpire = null;
-            //_userRepository.UpdateUser(user);
+            user.IsVerified = true;
+            user.UpdatedAt = DateTime.UtcNow;
+            // clear token
+            user.EmailVerificationToken = null;
+            user.EmailVerificationExpire = null;
+            _userRepository.UpdateUser(user);
             return true;
         }
 
@@ -173,7 +178,7 @@ namespace StudyHub.Backend.UseCases.Services
         /// <param name="fullname">The full name of the new user.</param>
         /// <param name="communeId">The commune id of the new user.</param>
         /// <returns>The newly created <see cref="AppUser"/> if the sign up is successful, otherwise null.</returns>
-        public AppUser? Signup(string email, string password, string username, int communeId, int? schoolId = null, string? fullname = null, string? avatar = null, int? gender = null)
+        public AppUser? Signup(string email, string password, string username, string phoneNumber, int communeId, int? schoolId = null, string? fullname = null, string? avatar = null, int? gender = null)
         {
             // Check if the email already exists, if it does, return null
             var existing = _userRepository.GetByEmail(email);
@@ -189,18 +194,27 @@ namespace StudyHub.Backend.UseCases.Services
                 PasswordHash = hash,
                 Username = username,
                 Fullname = fullname,
+                PhoneNumber = phoneNumber,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 CommuneId = communeId,
                 SchoolId = schoolId,
                 Avatar = avatar,
-                Gender = gender.HasValue ? (gender.Value == 1) : false
-            };
+                Gender = gender.HasValue ? (gender.Value == 1) : false,
 
+            };
+            var roleIds = new List<Guid>
+            {
+                _roleRepository.GetRoleByName("Student") ?.Id ?? Guid.Empty
+            };
             try
             {
-                _userRepository.CreateUser(user);
-                CreateVerificationTokenForEmail(email);
+                _userRepository.CreateUser(user, roleIds);
+                string? token = CreateVerificationTokenForEmail(email);
+                if (token != null)
+                {
+                    _emailService.SendVerificationEmailAsync(email, token);
+                }
                 return user;
             }
             catch (Exception ex)
@@ -243,7 +257,7 @@ namespace StudyHub.Backend.UseCases.Services
             if (!user.RefreshTokenExpire.HasValue || user.RefreshTokenExpire.Value < DateTime.UtcNow) return null;
 
             // Build roles/claims again
-            var roles = _userRepository.GetRolesForUser(user.Id);
+            var roles = _roleRepository.GetRolesForUser(user.Id);
             var userClaims = _userRepository.GetClaimsForUser(user.Id);
 
             var accessResult = JwtUtils.CreateAccessToken(user, roles?.Select(r => r.Name ?? string.Empty) ?? Enumerable.Empty<string>(), _configuration);
@@ -317,7 +331,7 @@ namespace StudyHub.Backend.UseCases.Services
                         UpdatedAt = DateTime.UtcNow,
                     };
                     // auto-assign Student role if exists
-                    var studentRole = _userRepository.GetRoleByName("Student");
+                    var studentRole = _roleRepository.GetRoleByName("Student");
                     if (studentRole != null)
                     {
                         _userRepository.CreateUser(user, new List<Guid> { studentRole.Id });
@@ -337,7 +351,7 @@ namespace StudyHub.Backend.UseCases.Services
                 }
 
                 // Build roles/claims and issue tokens
-                var roles = _userRepository.GetRolesForUser(user.Id);
+                var roles = _roleRepository.GetRolesForUser(user.Id);
                 var userClaims = _userRepository.GetClaimsForUser(user.Id);
                 var roleNames = roles != null ? roles.Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList() : new List<string>();
 
@@ -398,20 +412,26 @@ namespace StudyHub.Backend.UseCases.Services
         /// <summary>
         /// Build Google OAuth2 authorization URL.
         /// </summary>
-        public string BuildGoogleAuthUrl(string? returnUrl)
+        public (string, string) BuildGoogleAuthUrl()
         {
             var google = _configuration.GetSection("Google");
             var clientId = google.GetValue<string>("ClientId");
             if (string.IsNullOrEmpty(clientId)) throw new InvalidOperationException("Google ClientId chưa được cấu hình!");
 
-            var callbackPath = google.GetValue<string>("CallbackPath") ?? "/api/auth/google/callback";
+            var callbackPath = google.GetValue<string>("CallbackPath") ?? "/auth/google/callback";
+            if (callbackPath.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+            {
+                callbackPath = callbackPath.Substring(4); // cắt bỏ "/api"
+            }
+            else if (callbackPath.Contains("/api/", StringComparison.OrdinalIgnoreCase))
+            {
+                callbackPath = callbackPath.Replace("/api/", "/");
+            }
             var redirectUri = new Uri(new Uri(_configuration["App:BaseUrl"] ?? "http://localhost:5173"), callbackPath).ToString();
             var scope = "openid email profile";
-            // Only include state when returnUrl is considered safe (relative or same-origin)
-            var safeReturn = ResolveReturnUrl(returnUrl);
-            var state = string.IsNullOrEmpty(safeReturn) ? string.Empty : Uri.EscapeDataString(safeReturn);
+            var state = Guid.NewGuid().ToString("N");
             var authUrl = $"https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id={Uri.EscapeDataString(clientId)}&redirect_uri={Uri.EscapeDataString(redirectUri)}&scope={Uri.EscapeDataString(scope)}&state={state}&prompt=select_account";
-            return authUrl;
+            return (authUrl, state);
         }
 
         /// <summary>
@@ -460,7 +480,7 @@ namespace StudyHub.Backend.UseCases.Services
             var clientId = google.GetValue<string>("ClientId");
             var clientSecret = google.GetValue<string>("ClientSecret");
             if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret)) return null;
-            var callbackPath = google.GetValue<string>("CallbackPath") ?? "/api/auth/google/callback";
+            var callbackPath = google.GetValue<string>("CallbackPath") ?? "/auth/google/callback";
             var redirectUri = new Uri(new Uri(_configuration["App:BaseUrl"] ?? "http://localhost:5173"), callbackPath).ToString();
 
             try
@@ -498,10 +518,10 @@ namespace StudyHub.Backend.UseCases.Services
             var user = _userRepository.GetByEmail(email);
             if (user == null) return null;
 
-            var token = JwtUtils.GenerateRefreshToken();
+            var token = JwtUtils.CreateAccessToken(user, [], _configuration);
             var expire = DateTime.UtcNow.AddHours(1);
-            _userRepository.UpdateResetToken(user.Id, token, expire);
-            return token;
+            _userRepository.UpdateResetToken(user.Id, token.Token, expire);
+            return token.Token;
         }
 
         /// <summary>
@@ -509,17 +529,17 @@ namespace StudyHub.Backend.UseCases.Services
         /// </summary>
         public bool ResetPassword(string resetToken, string newPassword)
         {
-            //if (string.IsNullOrEmpty(resetToken) || string.IsNullOrEmpty(newPassword)) return false;
-            //var user = _userRepository.GetByResetToken(resetToken);
-            //if (user == null) return false;
-            //if (!user.ResetPasswordExpire.HasValue || user.ResetPasswordExpire.Value < DateTime.UtcNow) return false;
+            if (string.IsNullOrEmpty(resetToken) || string.IsNullOrEmpty(newPassword)) return false;
+            var user = _userRepository.GetByResetToken(resetToken);
+            if (user == null) return false;
+            if (!user.ResetPasswordExpire.HasValue || user.ResetPasswordExpire.Value < DateTime.UtcNow) return false;
 
-            //// Update password hash and clear reset token
-            //var hash = BCrypt.Net.BCrypt.HashPassword(newPassword, SALT_ROUNDS);
-            //user.PasswordHash = hash;
-            //user.ResetPasswordToken = null;
-            //user.ResetPasswordExpire = null;
-            //_userRepository.UpdateUser(user);
+            // Update password hash and clear reset token
+            var hash = BCrypt.Net.BCrypt.HashPassword(newPassword, SALT_ROUNDS);
+            user.PasswordHash = hash;
+            user.ResetPasswordToken = null;
+            user.ResetPasswordExpire = null;
+            _userRepository.UpdateUser(user);
             return true;
         }
     }

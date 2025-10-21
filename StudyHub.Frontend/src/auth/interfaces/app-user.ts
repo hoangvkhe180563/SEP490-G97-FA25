@@ -2,17 +2,11 @@ interface AppUser {
   id: string;
   email: string;
   username: string;
-  fullName: string;
-  dob: string;
-  gender: string;
-  avatar: string;
-  address: string;
-  status: "Active" | "Inactive";
-  createdAt: string;
-  updatedAt: string;
-  schoolName: string;
   roles: string[];
-  communeName: string;
+  permissions: string[];
+  classIds: string[];
+  subjectIds: string[];
+  schoolId: string;
 }
 
 export type { AppUser };

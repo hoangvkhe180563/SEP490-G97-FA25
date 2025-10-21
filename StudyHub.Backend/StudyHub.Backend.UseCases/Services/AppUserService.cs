@@ -15,12 +15,14 @@ namespace StudyHub.Backend.UseCases.Services
         //thực hiện use case ở đây
         //gọi repo để thao tác với database, sau đó xử lý data lấy về từ repo.
         public IAppUserRepository _userRepository;
+        public IAppRoleRepository _roleRepository;
         private readonly IConfiguration _configuration;
         private const int SALT_ROUNDS = 12; // BCrypt salt rounds for hashing
 
-        public AppUserService(IAppUserRepository userRepository, IConfiguration configuration)
+        public AppUserService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, IConfiguration configuration)
         {
             _userRepository = userRepository;
+            _roleRepository = roleRepository;
             _configuration = configuration;
         }
 
@@ -31,7 +33,7 @@ namespace StudyHub.Backend.UseCases.Services
             var items = new List<AppUserListDto>();
             foreach (var u in users)
             {
-                var roles = _userRepository.GetRolesForUser(u.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+                var roles = _roleRepository.GetRolesForUser(u.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
 
                 items.Add(new AppUserListDto
                 {

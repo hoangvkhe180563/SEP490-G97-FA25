@@ -3,13 +3,30 @@ using StudyHub.Backend.Domain.Entities;
 
 namespace StudyHub.Backend.Api.Dtos.AuthDTOS
 {
+    using System.ComponentModel.DataAnnotations;
+
     public class SignupRequest
     {
+        [Required(ErrorMessage = "Email là bắt buộc")]
+        [EmailAddress(ErrorMessage = "Email không hợp lệ")]
         public string Email { get; set; } = null!;
+
+        [Required(ErrorMessage = "Mật khẩu là bắt buộc")]
+        [MinLength(6, ErrorMessage = "Mật khẩu phải có ít nhất 6 ký tự")]
         public string Password { get; set; } = null!;
+
+        [Required(ErrorMessage = "Username là bắt buộc")]
         public string Username { get; set; } = null!;
+
         public string? Fullname { get; set; }
+
+        [Required(ErrorMessage = "Số điện thoại là bắt buộc")]
+        [RegularExpression("^(\\+84|0)(3|5|7|8|9|1[2689])\\d{8}$", ErrorMessage = "Số điện thoại không hợp lệ (Việt Nam)")]
+        public string PhoneNumber { get; set; } = null!;
+
+        [Range(1, int.MaxValue, ErrorMessage = "CommuneId là bắt buộc")]
         public int CommuneId { get; set; }
+
         public int? SchoolId { get; set; }
     }
 
@@ -24,6 +41,7 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
     public class LoginRequest
     {
         public string Email { get; set; } = null!;
+        public string Username { get; set; } = null!;
         public string Password { get; set; } = null!;
     }
 
@@ -103,18 +121,9 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
         public UserInfoResponse? Data { get; set; }
     }
 
-    public class UserListDto
+    public class CreateGoogleAccountRequest
     {
-        public Guid Id { get; set; }
-        public string Email { get; set; } = null!;
         public string Username { get; set; } = null!;
-        public string? Fullname { get; set; }
-        public string? Address { get; set; }
-        public string Status { get; set; } = null!; // Active/Inactive
-        public string CreatedAt { get; set; } = null!; // yyyy/MM/dd
-        public string UpdatedAt { get; set; } = null!; // yyyy/MM/dd
-        public string? SchoolName { get; set; }
-        public List<string> Roles { get; set; } = new();
-        public string? CommuneName { get; set; }
+        public int CommuneId { get; set; }
     }
 }

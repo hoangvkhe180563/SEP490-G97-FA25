@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos.AuthDTOS;
+using StudyHub.Backend.Api.Filters;
 using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -21,21 +23,37 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpPost("signup")]
+        [SkipAutoModelValidation]
         public IActionResult Signup([FromBody] SignupRequest req)
         {
-            var user = _authService.Signup(req.Email, req.Password, req.Username, req.CommuneId, req.SchoolId, req.Fullname);
+            if (!ModelState.IsValid)
+            {
+                // return per-field errors
+                var errors = ModelState.ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => (kvp.Value?.Errors ?? new Microsoft.AspNetCore.Mvc.ModelBinding.ModelErrorCollection()).Select(e => e.ErrorMessage).ToArray()
+                );
+                return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ", errors });
+            }
+
+            var user = _authService.Signup(req.Email, req.Password, req.Username, req.PhoneNumber, req.CommuneId, req.SchoolId, req.Fullname);
             if (user == null)
             {
                 return BadRequest(new SignupResponse { Success = false, Message = "Người dùng đã tồn tại" });
             }
-            return Ok(new SignupResponse { Success = true, Message = "Đăng kí thành công", Data = user });
+            return Ok(new SignupResponse { Success = true, Message = "Đăng kí thành công. Đã gửi email xác nhận vui lòng kiểm tra hòm thư hoặc mục spam.", Data = user });
         }
 
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequest req)
         {
-            var result = _authService.Login(req.Email, req.Password);
-            if (result == null) return Unauthorized(new LoginResponse { Success = false, Message = "Thông tin đăng nhập không hợp lệ" });
+            var (result, error) = _authService.Login(string.IsNullOrEmpty(req.Email) ? req.Username : req.Email, req.Password);
+            if (result == null)
+            {
+                if (error == "unverified")
+                    return StatusCode(StatusCodes.Status403Forbidden, new LoginResponse { Success = false, Message = "Email chưa được xác thực" });
+                return Unauthorized(new LoginResponse { Success = false, Message = "Thông tin đăng nhập không hợp lệ" });
+            }
             SetTokenInCookie(result);
 
             // Build user info response (do not return tokens in body)
@@ -118,9 +136,7 @@ namespace StudyHub.Backend.Api.Controllers
             var ok = _authService.VerifyEmail(token!);
             if (!ok) return BadRequest(new GenericResponse { Success = false, Message = "Token không hợp lệ hoặc đã quá hạn" });
 
-            // redirect to base url root or return success
-            var baseUrl = _configuration["App:BaseUrl"] ?? "/";
-            return Redirect(baseUrl);
+            return Ok(new GenericResponse { Success = true, Message = "Xác thực email thành công" });
         }
 
         private void SetTokenInCookie(UseCases.Dtos.LoginResult result)
@@ -161,13 +177,13 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok();
         }
 
-        [HttpPost("send-test-email")]
-        public async Task<IActionResult> SendTestEmail(string email)
-        {
-            await _emailService.SendResetPasswordEmailAsync("nghianvhe123@email.com", "123456");
+        //[HttpPost("send-test-email")]
+        //public async Task<IActionResult> SendTestEmail(string email)
+        //{
+        //    await _emailService.SendResetPasswordEmailAsync("nghianvhe123@email.com", "123456");
 
-            return Ok(new { success = true, message = "Email sent successfully!" });
-        }
+        //    return Ok(new { success = true, message = "Email sent successfully!" });
+        //}
 
         [HttpPost("google")]
         public IActionResult LoginWithGoogle([FromBody] GoogleLoginRequest req)
@@ -192,12 +208,15 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpGet("google/redirect")]
-        public IActionResult GoogleRedirect([FromQuery] string? returnUrl)
+        public IActionResult GoogleRedirect()
         {
             try
             {
-                var url = _authService.BuildGoogleAuthUrl(returnUrl);
-                return Redirect(url);
+                var (url, state) = _authService.BuildGoogleAuthUrl();
+
+                // Prevent CSRF attacks
+                HttpContext.Session.SetString("google_oauth_state", state);
+                return Ok(new { Success = true, Message = "Gửi link điều hướng Google URL thành công", Url = url});
             }
             catch (InvalidOperationException ex)
             {
@@ -206,19 +225,41 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpGet("google/callback")]
-        public IActionResult GoogleCallback([FromQuery] string? code, [FromQuery] string? state)
+        public IActionResult GoogleCallback([FromQuery] string? code, [FromQuery] string? state, [FromQuery] string? error)
         {
-            if (string.IsNullOrEmpty(code)) return BadRequest("Thiếu tham số code");
+            if (!string.IsNullOrEmpty(error))
+            {
+                return BadRequest(new { success = false, message = "Lỗi khi xác thực ở Google", error });
+            }
+
+            // Check to valid CSRF attacks
+            var expectedState = HttpContext.Session.GetString("google_oauth_state");
+            HttpContext.Session.Remove("google_oauth_state"); // single use
+            if (string.IsNullOrEmpty(state) || expectedState != state)
+            {
+                return BadRequest(new { success = false, message = "Tham số state không hợp lệ" });
+            }
+
+
+            if (string.IsNullOrEmpty(code))
+                return BadRequest(new { success = false, message = "Thiếu tham số authorization code" });
 
             var loginResult = _authService.HandleGoogleCallback(code!);
-            if (loginResult == null) return Unauthorized("Đăng nhập với Google thất bại");
+            if (loginResult == null) return Unauthorized(new { success = false, message = "Đăng nhập với Google thất bại", error });
 
             SetTokenInCookie(loginResult);
-
-            // Validate state/returnUrl to prevent open redirects
-            var resolved = _authService.ResolveReturnUrl(string.IsNullOrEmpty(state) ? null : Uri.UnescapeDataString(state));
-            var target = !string.IsNullOrEmpty(resolved) ? resolved : (_configuration["App:BaseUrl"] ?? "/");
-            return Redirect(target!);
+            var userInfo = new UserInfoResponse
+            {
+                Id = loginResult.User.Id,
+                Email = loginResult.User.Email,
+                Username = loginResult.User.Username,
+                Roles = loginResult.Roles ?? new List<string>(),
+                Permissions = loginResult.Permissions ?? new List<string>(),
+                ClassIds = loginResult.ClassIds ?? new List<int>(),
+                SubjectIds = loginResult.SubjectIds ?? new List<short>(),
+                SchoolId = loginResult.User.SchoolId
+            };
+            return Ok(new GenericResponse { Success = true, Message = "Đăng nhập với Google thành công!", Data = userInfo });
         }
     }
 }

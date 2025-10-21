@@ -4,17 +4,15 @@ namespace StudyHub.Backend.UseCases.Repositories
 {
     public interface IAppUserRepository
     {
-        //chứa tên các method để thao tác với database. (CRUD)
-        //các method này sẽ được implement ở tầng infrastructure.
         public List<AppUser> GetAllUsers();
 
         public (List<AppUser>, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page, int limit);
         public AppUser? GetByEmail(string email);
+    public AppUser? GetByUsername(string username);
         public AppUser? GetById(Guid id);
-    public void CreateUser(AppUser user, IEnumerable<Guid>? roleIds = null);
-    public void UpdateUser(AppUser user, IEnumerable<Guid>? roleIds = null);
-        // get roles assigned to a user (a user can have multiple roles)
-        public List<AppRole> GetRolesForUser(Guid userId);
+        public void CreateUser(AppUser user, IEnumerable<Guid>? roleIds = null);
+        public void UpdateUser(AppUser user, IEnumerable<Guid>? roleIds = null);
+
         // get user-specific claims/assignments (classes, subjects)
         public List<AppClaim> GetClaimsForUser(Guid userId);
         // helper to get related names
@@ -22,8 +20,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         public string? GetCommuneName(int? communeId);
         // get province and city names given a commune id
         public (string? provinceName, string? cityName) GetProvinceAndCityNamesByCommuneId(int? communeId);
-    // find role by name
-    public AppRole? GetRoleByName(string roleName);
+
         // find user by refresh token
         public AppUser? GetByRefreshToken(string refreshToken);
         // find user by reset token
