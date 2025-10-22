@@ -47,9 +47,11 @@ interface AuthState {
     code: string,
     state: string,
     error: string,
-    handlerSuccess: () => void
+    handlerSuccess: () => void,
+    handlerError: () => void
   ) => Promise<void>;
   checkAuth: () => Promise<void>;
+  refreshToken: () => Promise<void>;
   logout: () => void;
 }
 

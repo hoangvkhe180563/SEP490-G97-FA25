@@ -73,7 +73,7 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(new GenericResponse { Success = true, Message = "Đăng nhập thành công", Data = userInfo });
         }
 
-        [HttpPost("refresh")]
+        [HttpPost("refresh-token")]
         public IActionResult Refresh()
         {
             var refreshToken = Request.Cookies["refresh_token"];
