@@ -19,5 +19,6 @@ namespace StudyHub.Backend.UseCases.Dtos
         public string? SchoolName { get; set; }
         public required List<string> Roles { get; set; }
         public string? CommuneName { get; set; }
+        public string? ImageUrl { get; set; }
     }
 }

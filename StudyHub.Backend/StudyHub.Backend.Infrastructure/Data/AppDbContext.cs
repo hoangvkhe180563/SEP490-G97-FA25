@@ -611,7 +611,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.SchoolId)
                 .ValueGeneratedNever()
                 .HasColumnType("int(11)");
-            entity.Property(e => e.PrimaryColor).HasColumnType("tinyint(4)");
+            //entity.Property(e => e.PrimaryColor).HasColumnType("tinyint(4)");
 
             entity.HasOne(d => d.School).WithOne(p => p.LandingPage)
                 .HasForeignKey<LandingPage>(d => d.SchoolId)

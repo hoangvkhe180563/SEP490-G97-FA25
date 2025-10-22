@@ -11,7 +11,6 @@ namespace StudyHub.Backend.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [EnableCors("AllowAll")]
     public class ClassController : ControllerBase
     {
         private readonly ClassService _service;
@@ -131,9 +130,10 @@ namespace StudyHub.Backend.Api.Controllers
                     var files = _service.GetFilesByNotificationId(n.Id);
                     var comments = _service.GetCommentsByNotificationId(n.Id);
 
-                    return n.ToNotificationDto(
+                    return n.ToNotificationDto(_aUserService.GetUserById(n.CreatedBy),
                         files.Select(f => f.ToFileDto()).ToList(),
                         comments.Select(c => c.ToCommentDto(_aUserService.GetUserById(c.UserId))).ToList()
+                        
                     );
                 })
                 .ToList();
@@ -179,6 +179,7 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpPost("notifications")]
+        [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreateNotification([FromForm] CreateNotificationDto dto)
         {
             try

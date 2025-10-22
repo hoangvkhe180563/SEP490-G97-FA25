@@ -90,8 +90,10 @@ namespace StudyHub.Backend.Api.Mappers
         }
         public static NotificationDto ToNotificationDto(
              this ClassNotification entity,
+              UserDetailsDto user,
              List<FileDto>? files = null,
-             List<CommentDto>? comments = null)
+             List<CommentDto>? comments = null
+            )
         {
             return new NotificationDto
             {
@@ -102,7 +104,9 @@ namespace StudyHub.Backend.Api.Mappers
                 CreatedBy = entity.CreatedBy,
                 CreatedAt = entity.CreatedAt,
                 Files = files ?? new List<FileDto>(),
-                Comments = comments ?? new List<CommentDto>()
+                Comments = comments ?? new List<CommentDto>(),
+                Arthur = user.Fullname,
+                Avatar = user.ImageUrl
             };
         }
 
@@ -125,7 +129,8 @@ namespace StudyHub.Backend.Api.Mappers
                 UserId = comment.UserId,
                 Content = comment.Content,
                 CreatedAt = comment.CreatedAt,
-                UserFullname = user?.Fullname ?? "Unknown"
+                UserFullname = user?.Fullname ?? "Unknown",
+                ImageUrl = user.ImageUrl
             };
         }
     }

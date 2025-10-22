@@ -9,6 +9,10 @@ public class ClassNotification:IAuditTrail
     public string Title { get; set; } = null!;
 
     public string Description { get; set; } = null!;
+    public string Arthur { get; set; }
+    public string Avatar { get; set; }
+    public Guid CreatedBy { get; set; }
+    public DateTime CreatedAt { get; set; }
 
     public virtual Class Class { get; set; } = null!;
 

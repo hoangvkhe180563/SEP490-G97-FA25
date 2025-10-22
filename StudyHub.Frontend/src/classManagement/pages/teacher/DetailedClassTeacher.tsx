@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import PostComposer from "@/classManagement/components/ui/postcomposer";
-import PostCard from "@/classManagement/components/ui/postcard";
+// import PostComposer from "@/classManagement/components/ui/postcomposer";
+// import PostCard from "@/classManagement/components/ui/postcard";
 import EveryoneListTC from "@/classManagement/components/ui/listeveryoneteacher";
 import MemberDetailModal from "@/classManagement/components/ui/memberdetailmodal";
 import type { UserRole } from "@/classManagement/components/ui/classcard";
@@ -25,7 +25,7 @@ import { useClassStore } from "@/classManagement/stores/useClassStore";
 import type {
   ClassInfo,
   ClassMemberDto,
-  ClassNotification,
+  // ClassNotification,
 } from "@/classManagement/interfaces/class";
 
 // ===== Thẻ thông tin lớp học =====
@@ -82,30 +82,30 @@ const DetailedClassTeacher: React.FC = () => {
   const teacher: ClassMemberDto | null = currentClass?.data?.teacher ?? null;
   const students: ClassMemberDto[] = currentClass?.data?.students ?? [];
   const parents: ClassMemberDto[] = currentClass?.data?.parents ?? [];
-  const [notifications, setNotifications] = useState<ClassNotification[]>([]);
+  // const [notifications, setNotifications] = useState<ClassNotification[]>([]);
 
-  useEffect(() => {
-    if (currentClass?.data?.notifications) {
-      setNotifications(currentClass.data.notifications);
-    }
-  }, [currentClass]);
+  // useEffect(() => {
+  //   if (currentClass?.data?.notifications) {
+  //     setNotifications(currentClass.data.notifications);
+  //   }
+  // }, [currentClass]);
 
   const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
 
-  const handlePost = (content: string) => {
-    const newNotification: ClassNotification = {
-  id: Date.now(),
-  classId: Number(id),
-  title: "Thông báo mới",
-  description: content,
-  createdAt: new Date().toISOString(),
-  createdBy: "currentUser", // có thể thay bằng user login
-  files: [],
-  comments: []
-};
+//   const handlePost = (content: string) => {
+//     const newNotification: ClassNotification = {
+//   id: Date.now(),
+//   classId: Number(id),
+//   title: "Thông báo mới",
+//   description: content,
+//   createdAt: new Date().toISOString(),
+//   createdBy: "currentUser", // có thể thay bằng user login
+//   files: [],
+//   comments: []
+// };
 
-    setNotifications((prev) => [newNotification, ...prev]);
-  };
+  //   setNotifications((prev) => [newNotification, ...prev]);
+  // };
 
   const handleMail = (person: ClassMemberDto) => {
     window.location.href = `mailto:${person.fullname
@@ -167,7 +167,7 @@ const DetailedClassTeacher: React.FC = () => {
 
             {/* --- Thông báo --- */}
             <TabsContent value="notifications">
-              <PostComposer onPost={handlePost} avatarUrl={"/vite.svg"} />
+              {/* <PostComposer onPost={handlePost} avatarUrl={"/vite.svg"} />
               <div className="mt-4 space-y-4">
                 {notifications.length > 0 ? (
                   notifications.map((n) => (
@@ -175,36 +175,36 @@ const DetailedClassTeacher: React.FC = () => {
                       key={n.id}
                       post={{
                         id: n.id,
-                        author: teacher?.fullname ?? "Giáo viên",
-                        time:
+                        createdBy: teacher?.fullname ?? "Giáo viên",
+                        createdAt:
                           n.createdAt && n.createdAt !== "0001-01-01T00:00:00"
                             ? new Date(n.createdAt).toLocaleString("vi-VN")
-                            : "Chưa có thời gian",
-                        avatarUrl: "/vite.svg",
-                        content: (
-                          <>
-                            <div className="font-semibold">{n.title}</div>
-                            <div className="whitespace-pre-line">
-                              {n.description}
-                            </div>
-                            {n.files?.length > 0 && (
-                              <div className="mt-2">
-                                {n.files.map((f) => (
-                                  <a
-                                    key={f.id}
-                                    href={f.fileUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 underline text-sm"
-                                  >
-                                    📎 {f.fileName}
-                                  </a>
-                                ))}
-                              </div>
-                            )}
-                          </>
-                        ),
-                        comments: n.comments ?? [],
+                        //     : "Chưa có thời gian",
+                       
+                        // files: (
+                        //   <>
+                        //     <div className="font-semibold">{n.title}</div>
+                        //     <div className="whitespace-pre-line">
+                        //       {n.description}
+                        //     </div>
+                        //     {n.files?.length > 0 && (
+                        //       <div className="mt-2">
+                        //         {n.files.map((f) => (
+                        //           <a
+                        //             key={f.id}
+                        //             href={f.fileUrl}
+                        //             target="_blank"
+                        //             rel="noopener noreferrer"
+                        //             className="text-blue-600 underline text-sm"
+                        //           >
+                        //             📎 {f.fileName}
+                        //           </a>
+                        //         ))}
+                        //       </div>
+                        //     )}
+                        //   </>
+                        // ),
+                        // comments: n.comments ?? [],
                       }}
                     />
                   ))
@@ -213,7 +213,7 @@ const DetailedClassTeacher: React.FC = () => {
                     Chưa có thông báo nào.
                   </div>
                 )}
-              </div>
+              </div> */}
             </TabsContent>
 
             {/* --- Bài tập --- */}

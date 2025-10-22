@@ -179,7 +179,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Id = n.Id,
                     ClassId = n.ClassId,
                     Title = n.Title,
-                    Description = n.Description
+                    Description = n.Description,
+                    CreatedBy= n.CreatedBy,
+                    UpdatedBy= n.UpdatedBy
                 }).ToList();
         }
         // ===================== NOTIFICATION =====================

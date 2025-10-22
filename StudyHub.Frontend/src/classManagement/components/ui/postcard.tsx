@@ -10,20 +10,23 @@ export type PostFile = {
 
 export type PostComment = {
   id: number | string;
-  author: string;
-  text: string;
+  notificationId?: number | string;
+  userId ?: number | string;
+  userFullname: string;
+  content: string;
   avatarUrl?: string;
-  time?: string;
+  createdAt?: string;
 };
 
 export type Post = {
   id: number | string;
-  author: string;
-  avatarUrl?: string;
-  time?: string;
-  content: React.ReactNode;
-  comments: PostComment[];
-  files?: PostFile[]; // ✅ thay attachmentLabel bằng mảng file
+  classId?: number;
+  title?: string;
+  description?: string;
+  createdBy?: number | string;
+  createdAt?: string;
+  files?: PostFile[];
+  comments?: PostComment[];
 };
 
 // ====== Component ======
@@ -34,10 +37,10 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const handleSendComment = (text: string) => {
     const newComment: PostComment = {
       id: Date.now(),
-      author: "You",
-      text,
+      userFullname: "You",
+      content: text,
       avatarUrl: "/vite.svg",
-      time: "just now",
+      createdAt: "just now",
     };
     setLocalComments((c) => [...c, newComment]);
     setShowComments(true);
@@ -49,23 +52,23 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       {/* Header */}
       <div className="flex items-start gap-4">
         <img
-          src={post.avatarUrl ?? "/vite.svg"}
+          src={ "/vite.svg"}
           alt="avatar"
           className="w-12 h-12 rounded-full object-cover"
         />
         <div className="flex-1">
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium text-gray-800">{post.author}</div>
+              <div className="font-medium text-gray-800"></div>
               <div className="text-xs text-gray-400">
-                {post.time ?? "just now"}
+                {post.createdAt ?? "just now"}
               </div>
             </div>
             <div className="text-sm text-gray-400 cursor-pointer">•••</div>
           </div>
 
           {/* Nội dung bài đăng */}
-          <div className="mt-3 text-gray-800">{post.content}</div>
+          <div className="mt-3 text-gray-800">{post.title}</div>
 
           {/* Hiển thị file đính kèm (nếu có) */}
           {post.files && post.files.length > 0 && (
@@ -141,12 +144,12 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
                   />
                   <div className="text-sm">
                     <div className="font-medium">
-                      {c.author}{" "}
+                      {c.userFullname}{" "}
                       <span className="text-gray-400 text-xs ml-2">
-                        {c.time ?? "just now"}
+                        {c.createdAt ?? "just now"}
                       </span>
                     </div>
-                    <div className="text-gray-700 mt-1">{c.text}</div>
+                    <div className="text-gray-700 mt-1">{c.content}</div>
                   </div>
                 </div>
               ))}

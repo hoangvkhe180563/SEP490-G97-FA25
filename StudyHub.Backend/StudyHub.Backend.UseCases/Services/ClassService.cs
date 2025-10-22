@@ -9,10 +9,12 @@ namespace StudyHub.Backend.UseCases.Services
     {
         private readonly IClassRepository _classRepository;
         private readonly ICloudinaryRepository _fileStorage;
-        public ClassService(IClassRepository classRepository, ICloudinaryRepository fileStorage)
+        private readonly IAppUserRepository _userRepository;
+        public ClassService(IClassRepository classRepository, ICloudinaryRepository fileStorage, IAppUserRepository userRepository)
         {
             _classRepository = classRepository;
             _fileStorage = fileStorage;
+            _userRepository = userRepository;
         }
         public List<Class> GetClasses()
         {
@@ -58,7 +60,14 @@ namespace StudyHub.Backend.UseCases.Services
         }
         public List<ClassNotification> GetClassNotifications(int classId)
         {
-            return _classRepository.GetClassNotifications(classId);
+            var classs= _classRepository.GetClassNotifications(classId);
+            foreach(ClassNotification cl in classs)
+            {
+                var user = _userRepository.GetById(cl.CreatedBy);
+                cl.Arthur = user.Fullname;
+                cl.Avatar = "";
+            }
+            return classs;
         }
         public List<ClassNotificationComment> GetCommentsByNotificationId(int notificationId)
         {
@@ -109,7 +118,7 @@ namespace StudyHub.Backend.UseCases.Services
             => _classRepository.MapFileToNotification(notificationId, fileId);
 
         public async Task<string> UploadFileToCloudinary(IFormFile file)
-            => await _fileStorage.UploadFileAsync(file, FileConstants.DocumentUploadPath);
+            => await _fileStorage.UploadFileAsync(file, FileConstants.ClassNotificationUploadPAth);
 
     }
 }

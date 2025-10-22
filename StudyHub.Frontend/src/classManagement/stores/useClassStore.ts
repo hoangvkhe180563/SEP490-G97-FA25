@@ -1,3 +1,5 @@
+import  { type Post, type PostComment } from "@/classManagement/components/ui/postcard";
+
 import { create } from "zustand";
 import type { ClassState, GetClassesResponse, ClassListDto, ClassMemberDto, ClassInfo, ClassDetailResponse } from "../interfaces/class";
 import { axiosInstance } from "@/lib/axios";
@@ -179,14 +181,13 @@ addClass: async (payload: { title: string; subject: number; description?: string
 },
 getClassDetail: async (id: number): Promise<ClassDetailResponse | null> => {
   try {
-    const res = await axiosInstance.get(`/Class/${id}/detail`); 
+    const res = await axiosInstance.get(`/Class/${id}/detail`);
     const raw = res.data;
 
-    if (!raw.success) return null;
+    if (!raw?.success) return null;
 
     const data = raw.data;
 
-    
     const mapped: ClassDetailResponse = {
       success: raw.success,
       message: raw.message,
@@ -198,25 +199,48 @@ getClassDetail: async (id: number): Promise<ClassDetailResponse | null> => {
           description: data.description,
           createdAt: data.createdAt,
         },
-        teacher: null, // API chưa có
-        students: data.members?.filter((m: ClassMemberDto) =>
-          m.roles?.includes("Student")
-        ) ?? [],
-        parents: data.members?.filter((m: ClassMemberDto) =>
-          m.roles?.includes("Parent")
-        ) ?? [],
-        notifications: data.notifications ?? [],
+        teacher: data.members?.find((m: ClassMemberDto) =>
+          m.roles?.includes("Teacher")
+        ) ?? null,
+        students:
+          data.members?.filter((m: ClassMemberDto) =>
+            m.roles?.includes("Student")
+          ) ?? [],
+        parents:
+          data.members?.filter((m: ClassMemberDto) =>
+            m.roles?.includes("Parent")
+          ) ?? [],
+        notifications: data.notifications?.map((n: Post) => ({
+          id: n.id,
+          classId: n.classId,
+          title: n.title,
+          description: n.description,
+          createdBy: n.createdBy,
+          createdAt: n.createdAt,
+          files: n.files ?? [],
+          comments: n.comments?.map((c: PostComment) => ({
+            id: c.id,
+            notificationId: c.notificationId,
+            userId: c.userId,
+            content: c.content,
+            createdAt: c.createdAt,
+            userFullname: c.userFullname,
+          })) ?? [],
+        })) ?? [],
       },
     };
 
-    useClassStore.setState({ currentClass: mapped });
+    // 🔥 Lưu state vào store
+    useClassStore.setState({ currentClass: mapped, isLoading: false });
 
     return mapped;
   } catch (error) {
     console.error("❌ Error when fetching class detail:", error);
+    useClassStore.setState({ isLoading: false });
     return null;
   }
-}
+},
+
 
 
 
