@@ -114,34 +114,34 @@ namespace StudyHub.Backend.Api.Controllers
             var updated = _service.UpdateClass(existing);
             return Ok(updated.ToDetailDto());
         }
-        [HttpGet("{id}/detail")]
-        public IActionResult GetClassDetail(int id)
+        //[HttpGet("{id}/detail")]
+        //public IActionResult GetClassDetail(int id)
+        //{
+        //    var cls = _service.GetClassById(id);
+        //    if (cls == null)
+        //        return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
+
+        // Lấy dữ liệu phụ trực tiếp từ repository
+        var members = _service.GetClassMembers(id)
+        .Select(m =>
         {
-            var cls = _service.GetClassById(id);
-            if (cls == null)
-                return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
+            var roles = _aRoleService.GetRolesByUser(m.UserId).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+            return m.ToMemberDto(_aUserService.GetUserById(m.UserId), roles);
+        })
+        .ToList();
 
-            // Lấy dữ liệu phụ trực tiếp từ repository
-            var members = _service.GetClassMembers(id)
-            .Select(m =>
-            {
-                var roles = _aRoleService.GetRolesByUser(m.UserId).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
-                return m.ToMemberDto(_aUserService.GetUserById(m.UserId), roles);
-            })
-            .ToList();
+        //    var notifications = _service.GetClassNotifications(id)
+        //        .Select(n => n.ToNotificationDto())
+        //        .ToList();
 
-            var notifications = _service.GetClassNotifications(id)
-                .Select(n => n.ToNotificationDto())
-                .ToList();
+        //    var dto = cls.ToFullDetailDto(members, notifications);
 
-            var dto = cls.ToFullDetailDto(members, notifications);
-
-            return Ok(new
-            {
-                success = true,
-                message = "Lấy thông tin lớp học thành công.",
-                data = dto
-            });
-        }
+        //    return Ok(new
+        //    {
+        //        success = true,
+        //        message = "Lấy thông tin lớp học thành công.",
+        //        data = dto
+        //    });
+        //}
     }
 }

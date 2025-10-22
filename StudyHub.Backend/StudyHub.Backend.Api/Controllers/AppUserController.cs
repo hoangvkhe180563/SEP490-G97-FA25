@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Api.Dtos.AppUserDTOS;
-using StudyHub.Backend.Api.Dtos.AuthDTOS; 
+using StudyHub.Backend.Api.Dtos.AuthDTOS;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.UseCases.Services;

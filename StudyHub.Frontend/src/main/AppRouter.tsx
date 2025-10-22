@@ -5,6 +5,7 @@ import RouteConfig from "@/common/constants/RouteConfig";
 import uiManagementRoutes from "@/uiManagement/routes/UiManagementRoutes";
 import userRoutes from "@/user/routes/UserRoutes";
 import { Outlet, useRoutes } from "react-router-dom";
+import courseRoutes from "@/courseManagement/routes/CourseRoute";
 import MainLayout from "@/common/pages/MainLayout";
 import Homepage from "@/uiManagement/pages/Homepage";
 import {
@@ -65,6 +66,11 @@ const AppRouter = () => {
       path: RouteConfig.DOCUMENT_MANAGEMENT,
       element: <Outlet />,
       children: documentRoutes,
+    },
+    {
+      path: RouteConfig.COURSE_MANAGEMENT,
+      element: <Outlet />,
+      children: courseRoutes,
     },
   ];
 
