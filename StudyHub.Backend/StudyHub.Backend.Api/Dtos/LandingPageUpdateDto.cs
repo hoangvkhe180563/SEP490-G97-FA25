@@ -1,5 +1,4 @@
-﻿using StudyHub.Backend.Api.Dtos;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -7,12 +6,12 @@ namespace StudyHub.Backend.Api.Controllers
     {
         [Required]
         public int SchoolId { get; set; }
-        [Required]
-        public string BannerUrl { get; set; } = string.Empty;
+        public IFormFile? BannerFile { get; set; }
         [Required]
         [MaxLength(500)]
         public string Description { get; set; } = string.Empty;
-        public List<string> LandingPageImages { get; set; } = new();
+        public List<IFormFile> LandingPageNewImages { get; set; } = new();
+        public List<string> LandingPageDeleteImages { get; set; } = new();
         public List<int> FeaturedTeacherIds { get; set; } = new();
         public List<int> FeaturedDocumentIds { get; set; } = new();
         public List<int> FeaturedCourseIds { get; set; } = new();

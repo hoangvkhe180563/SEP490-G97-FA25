@@ -70,4 +70,12 @@ public class CourseController : ControllerBase
         if (!ok) return NotFound();
         return NoContent();
     }
+
+    [HttpGet("school/{schoolId}")]
+    public IActionResult GetSchoolCourses(int schoolId)
+    {
+        var courses = _service.GetCourseBySchool(schoolId);
+        var courseDto = courses.ToDisplayDto();
+        return Ok(courseDto);
+    }
 }

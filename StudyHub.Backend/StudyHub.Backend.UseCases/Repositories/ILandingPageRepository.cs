@@ -10,7 +10,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         public List<string> GetLandingPageImages(int schoolId);
         public LandingPage GetLandingPage(int schoolId);
         public bool UpdateLandingPage(LandingPage landingPage);
-        public bool UpdateLandingPageImages(int schoolId, List<string> images);
+        public bool UpdateLandingPageImages(int schoolId, List<string> oldImages, List<string> newImages);
         public bool UpdateFeaturedDocuments(int schoolId, List<int> documentIds);
         public bool UpdateFeaturedCourses(int schoolId, List<int> courseIds);
     }

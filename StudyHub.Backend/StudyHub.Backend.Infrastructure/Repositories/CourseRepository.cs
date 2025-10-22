@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories;
@@ -136,6 +137,30 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 new InfrastructureException("CourseRepository", "DeleteCourse failed. Inner error: " + ex.Message).LogError();
                 return false;
             }
+        }
+
+        public List<Course> GetCourseBySchool(int schoolId)
+        {
+            try
+            {
+                var courses = _context.Courses.Include(c => c.Subject).Where(c => c.SchoolId == schoolId && c.Status == true)
+                    .Select(c => new Course
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        ImageUrl = c.ImageUrl,
+                        Grade = c.Grade,
+                        IsFeatured = c.IsFeatured,
+                        Subject = c.Subject != null ? new Subject { Id = c.Subject.Id, Name = c.Subject.Name } : null,
+                    })
+                    .ToList();
+                return courses;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("CourseRepository", "GetCourseBySchool failed. Inner error: " + ex.Message).LogError();
+            }
+            return [];
         }
     }
 }

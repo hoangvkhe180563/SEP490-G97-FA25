@@ -35,4 +35,14 @@ public static class CourseMapper
             }).ToList() ?? new List<LessonDto>()
         }).ToList() ?? new List<ChapterDto>()
     };
+
+    public static List<LandingPageCourseEditDto> ToDisplayDto(this List<Course> list)
+        => list.Select(c => new LandingPageCourseEditDto
+        {
+            Id = c.Id,
+            Name = c.Name,
+            Grade = c.Grade,
+            SubjectName = c.Subject.Name,
+            IsFeatured = c.IsFeatured
+        }).ToList();
 }
