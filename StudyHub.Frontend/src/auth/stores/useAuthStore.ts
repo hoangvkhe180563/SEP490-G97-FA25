@@ -239,7 +239,8 @@ const useAuthStore = create<AuthState>()(
         code: string,
         state: string,
         error: string,
-        handlerSuccess: () => void
+        handlerSuccess: () => void,
+        handlerError: () => void
       ) => {
         set({
           isLoading: true,
@@ -267,6 +268,17 @@ const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             user: null,
           });
+          handlerError();
+          console.log(error);
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      refreshToken: async () => {
+        set({ isLoading: true });
+        try {
+          await axiosInstance.post("/Auth/refresh-token");
+        } catch (error) {
           console.log(error);
         } finally {
           set({ isLoading: false });
@@ -286,6 +298,44 @@ const useAuthStore = create<AuthState>()(
     }),
     { name: "auth-storage" }
   )
+);
+
+let refreshPromise: Promise<void> | null = null;
+
+// Axios response interceptor to handle 401 errors and refresh token
+axiosInstance.interceptors.response.use(
+  //If no error, just return response
+  (response) => response,
+
+  // If error, check for 401 and try to refresh token
+  async (error) => {
+    // Original request that caused the error
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      // Retry the request only once
+      originalRequest._retry = true;
+      try {
+        // If no refresh request is in progress, start one
+        if (!refreshPromise) {
+          refreshPromise = useAuthStore
+            .getState()
+            .refreshToken()
+            .finally(() => {
+              refreshPromise = null;
+            });
+        }
+
+        // Wait for the refresh to complete
+        await refreshPromise;
+
+        // Retry the original request
+        return axiosInstance(originalRequest);
+      } catch {
+        useAuthStore.getState().logout();
+        return Promise.reject(error);
+      }
+    }
+  }
 );
 
 export { useAuthStore };

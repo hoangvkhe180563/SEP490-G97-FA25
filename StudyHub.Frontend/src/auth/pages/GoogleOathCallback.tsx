@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthStore } from "../stores/useAuthStore";
-import { Loader2 } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
 
 const GoogleOathCallback: React.FC = () => {
   const navigate = useNavigate();
@@ -16,15 +16,28 @@ const GoogleOathCallback: React.FC = () => {
     handlerGoogleCallbackMessage,
     handlerGoogleCallbackError,
   } = useAuthStore();
+  const color = isLoading
+    ? "text-gray-600"
+    : handlerGoogleCallbackMessage
+    ? "text-green-600"
+    : "text-red-600";
 
   React.useEffect(() => {
     // If error present, nothing to do — let UI show it
     if (!code && !error) return;
 
     const run = async () => {
-      await handleGoogleCallback(code, state, error, () => {
-        navigate("/");
-      });
+      await handleGoogleCallback(
+        code,
+        state,
+        error,
+        () => {
+          navigate("/");
+        },
+        () => {
+          navigate("/auth/login");
+        }
+      );
     };
 
     run();
@@ -35,20 +48,30 @@ const GoogleOathCallback: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           {isLoading && (
-            <Loader2 className="mx-auto mb-4 h-20 w-20 animate-spin text-gray-600" />
+            <>
+              <Loader2
+                className={`mx-auto mb-4 h-20 w-20 animate-spin ${color}`}
+              />
+              <h2 className="text-2xl font-semibold">
+                Đang xử lý đăng nhập bằng Google...
+              </h2>
+            </>
           )}
-          <h2 className="text-2xl font-semibold">
-            Đang xử lý đăng nhập bằng Google...
-          </h2>
           {handlerGoogleCallbackMessage && (
-            <p className="text-sm text-green-700 mt-2">
-              {handlerGoogleCallbackMessage}
-            </p>
+            <>
+              <Check className={`mx-auto mb-4 h-20 w-20 ${color}`} />
+              <p className={`text-2xl font-semibold ${color}`}>
+                {handlerGoogleCallbackMessage}
+              </p>
+            </>
           )}
           {handlerGoogleCallbackError && (
-            <p className="text-sm text-red-700 mt-2">
-              {handlerGoogleCallbackError}
-            </p>
+            <>
+              <X className={`mx-auto mb-4 h-20 w-20 ${color}`} />
+              <p className={`text-2xl font-semibold ${color}`}>
+                {handlerGoogleCallbackError}
+              </p>
+            </>
           )}
         </div>
       </div>
