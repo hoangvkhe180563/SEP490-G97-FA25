@@ -32,6 +32,7 @@ export const courseApi = {
       page: data.page,
       pageSize: data.pageSize ?? 5,
     };
+    console.log("Fetched courses:", mapped.items);
     return mapped;
   },
 
@@ -157,6 +158,15 @@ export const courseApi = {
   async deleteLesson(id: number) {
     await axiosInstance.delete(`/lecture/lesson/${id}`);
     return true;
+  },
+
+  async uploadThumbnail(file: File) {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await axiosInstance.post(`/course/upload-thumbnail`, fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data as { url: string };
   },
 };
 

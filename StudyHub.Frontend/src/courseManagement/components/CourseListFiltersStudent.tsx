@@ -2,21 +2,29 @@ import React, { useEffect, useRef, useState } from "react";
 import { Input } from "@/common/components/ui/input";
 import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
-// Checkbox not used; using native inputs
 import { documentService } from "@/documentManagement/services/documentService";
 
 type Props = {
   filters?: Record<string, any>;
+  teachers?: any[];
   onApply?: (next: Record<string, any>) => void;
   onReset?: () => void;
 };
 
-const CourseFilters: React.FC<Props> = ({ filters = {}, onApply, onReset }) => {
+const CourseFilters: React.FC<Props> = ({
+  filters = {},
+  teachers = [],
+  onApply,
+  onReset,
+}) => {
   const [local, setLocal] = useState<Record<string, any>>({
     category: filters.category ?? undefined,
     grade: filters.grade ?? filters.level ?? undefined,
     duration: filters.duration ?? undefined,
+    // 'instructor' here will store the id to send to backend
     instructor: filters.instructor ?? undefined,
+    // displayInstructor stores the visible text shown in the input (teacher name)
+    displayInstructor: undefined,
     isFeatured: filters.isFeatured ?? undefined,
   });
 
@@ -24,44 +32,50 @@ const CourseFilters: React.FC<Props> = ({ filters = {}, onApply, onReset }) => {
   const [grades, setGrades] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
-    // when syncing from parent props, avoid triggering auto-apply
     suppressApply.current = true;
     setLocal((l) => ({
       ...l,
       ...filters,
       grade: filters.grade ?? filters.level ?? l.grade,
+      // if filters.instructor is an id, try to show the teacher name
+      displayInstructor:
+        filters.instructor && Array.isArray(teachers)
+          ? teachers.find(
+              (t: any) => String(t.id) === String(filters.instructor)
+            )?.fullname ?? String(filters.instructor)
+          : filters.instructor ?? l.displayInstructor,
     }));
-  }, [filters]);
+  }, [filters, teachers]);
 
-  // Auto-apply behavior: notify parent when local filters change
   const debounceRef = useRef<number | null>(null);
   const firstRun = useRef(true);
-  // use a ref flag to suppress auto-apply when local is updated from incoming props
   const suppressApply = useRef(false);
+  // keep a stable ref to onApply so changes in parent's function identity
+  // won't retrigger this effect and cause loops
+  const onApplyRef = useRef<typeof onApply | undefined>(onApply);
   useEffect(() => {
-    // don't trigger on first mount (avoid double-fetch) unless filters prop provided
+    onApplyRef.current = onApply;
+  }, [onApply]);
+
+  useEffect(() => {
     if (firstRun.current) {
       firstRun.current = false;
       return;
     }
 
     if (suppressApply.current) {
-      // This change originated from incoming props; skip auto-apply once
       suppressApply.current = false;
       return;
     }
 
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    // debounce for text input changes; numeric/checkbox changes will also respect debounce (300ms)
-    // setTimeout returns number in browser
     debounceRef.current = window.setTimeout(() => {
-      if (onApply) onApply(local);
+      if (onApplyRef.current) onApplyRef.current(local);
     }, 300) as unknown as number;
 
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [local]);
 
   useEffect(() => {
@@ -71,7 +85,6 @@ const CourseFilters: React.FC<Props> = ({ filters = {}, onApply, onReset }) => {
         const s = await documentService.getSubjects();
         if (!mounted) return;
         setSubjects((s || []).map((x: any) => ({ id: x.id, name: x.name })));
-        // grades are not provided by documentService in this project; use static 1..12
         const staticGrades = Array.from({ length: 12 }).map((_, i) => ({
           id: i + 1,
           name: String(i + 1),
@@ -94,20 +107,19 @@ const CourseFilters: React.FC<Props> = ({ filters = {}, onApply, onReset }) => {
   return (
     <aside className="bg-white rounded-md p-4 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-medium text-[#171717]">Filters</h3>
+        <h3 className="text-lg font-medium text-[#171717]">Bộ lọc</h3>
         <button
           onClick={doReset}
           className="text-sm text-gray-500 hover:underline"
         >
-          Clear all
+          Xóa tất cả
         </button>
       </div>
 
       <div className="space-y-6">
         <div>
           <div className="flex items-center justify-between mb-2">
-            <Label className="text-sm">Subject</Label>
-            <span className="text-xs text-gray-400">{subjects.length}</span>
+            <Label className="text-sm">Chủ đề</Label>
           </div>
           <div className="space-y-2 mt-2">
             {subjects.map((cat) => (
@@ -140,7 +152,7 @@ const CourseFilters: React.FC<Props> = ({ filters = {}, onApply, onReset }) => {
         </div>
 
         <div>
-          <Label className="text-sm">Grade</Label>
+          <Label className="text-sm">Khối</Label>
           <div className="space-y-2 mt-2 text-sm">
             {grades.map((g) => (
               <label key={g.id} className="flex items-center gap-2">
@@ -173,12 +185,12 @@ const CourseFilters: React.FC<Props> = ({ filters = {}, onApply, onReset }) => {
         </div>
 
         <div>
-          <Label className="text-sm">Duration</Label>
+          <Label className="text-sm">Khoảng thời gian</Label>
           <div className="space-y-2 mt-2 text-sm">
             {[
-              { id: "0-5", label: "0-5 hours" },
-              { id: "5-20", label: "5-20 hours" },
-              { id: "20+", label: "20+ hours" },
+              { id: "0-5", label: "0-5 giờ" },
+              { id: "5-20", label: "5-20 giờ" },
+              { id: "20+", label: "20+ giờ" },
             ].map((d) => (
               <label key={d.id} className="flex items-center gap-2">
                 <input
@@ -209,20 +221,38 @@ const CourseFilters: React.FC<Props> = ({ filters = {}, onApply, onReset }) => {
         </div>
 
         <div>
-          <Label className="text-sm">Instructor</Label>
+          <Label className="text-sm">Giáo viên</Label>
           <Input
-            placeholder="Search instructors..."
+            placeholder="Tìm kiếm giáo viên..."
             className="mt-2"
-            value={local.instructor ?? ""}
-            onChange={(e) =>
-              setLocal({ ...local, instructor: e.target.value || undefined })
-            }
+            list="teachers-suggestions"
+            value={local.displayInstructor ?? ""}
+            onChange={(e) => {
+              const v = e.target.value || undefined;
+              // try to find an exact match by fullname/username/email
+              const found = teachers.find(
+                (t: any) =>
+                  String(t.fullname ?? t.username ?? t.email).toLowerCase() ===
+                  String(v ?? "").toLowerCase()
+              );
+              setLocal({
+                ...local,
+                displayInstructor: v,
+                // only set instructor id when an exact match is found
+                instructor: found ? String(found.id) : undefined,
+              });
+            }}
           />
+          <datalist id="teachers-suggestions">
+            {teachers.map((t: any) => (
+              <option key={t.id} value={t.fullname ?? t.username ?? t.email} />
+            ))}
+          </datalist>
         </div>
 
         <div className="flex items-center gap-2">
           <Button className="bg-black text-white" onClick={doReset}>
-            Reset
+            Đặt lại
           </Button>
         </div>
       </div>

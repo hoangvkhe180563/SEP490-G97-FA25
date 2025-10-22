@@ -2,21 +2,21 @@ import { useLocation } from "react-router-dom";
 import { User } from "lucide-react";
 
 const TITLE_MAP: Array<[string, string]> = [
-  ["/course/teacher/dashboard", "Dashboard"],
-  ["/course/teacher/courses", "Courses"],
-  ["/course/teacher/lessons", "Lessons"],
-  ["/course/teacher/assignments", "Assignments"],
-  ["/course/teacher/students", "Students"],
-  ["/course/teacher/instructors", "Instructors"],
-  ["/course/teacher/courses/:id", "Course Detail"],
-  ["/course/teacher/add-course", "Add New Course"],
-  ["/course/teacher/edit-course", "Edit Course"],
-  ["/course/teacher/add-lecture", "Add New Lecture"],
-  ["/course/teacher/edit-lecture", "Edit Lecture"],
-  ["/course/teacher/lecture", "Lecture Detail"],
-  ["/course/teacher/profile", "Teacher Profile"],
-  ["/course/settings", "System"],
-  ["/course/analytics", "Analytics"],
+  ["/course/teacher/dashboard", "Bảng điều khiển"],
+  ["/course/teacher/courses", "Khóa học"],
+  ["/course/teacher/lessons", "Bài học"],
+  ["/course/teacher/assignments", "Bài tập"],
+  ["/course/teacher/students", "Học viên"],
+  ["/course/teacher/instructors", "Giảng viên"],
+  ["/course/teacher/courses/:id", "Chi tiết khóa học"],
+  ["/course/teacher/add-course", "Thêm khóa học mới"],
+  ["/course/teacher/edit-course", "Chỉnh sửa khóa học"],
+  ["/course/teacher/add-lecture", "Thêm bài giảng mới"],
+  ["/course/teacher/edit-lecture", "Chỉnh sửa bài giảng"],
+  ["/course/teacher/lecture", "Chi tiết bài giảng"],
+  ["/course/teacher/profile", "Hồ sơ giảng viên"],
+  ["/course/settings", "Hệ thống"],
+  ["/course/analytics", "Phân tích"],
 ];
 
 function resolveTitle(pathname: string) {

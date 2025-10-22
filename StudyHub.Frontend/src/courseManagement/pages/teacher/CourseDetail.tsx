@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
+import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import type {
   ChapterListDto,
   LessonListDto,
@@ -29,6 +30,8 @@ const CourseDetail: React.FC = () => {
   const fetchChapters = useLectureStore((s) => s.fetchChapters);
   const chaptersFromStore = useLectureStore((s) => s.chapters);
   const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
 
   // === Load subjects for category label ===
   useEffect(() => {
@@ -61,8 +64,16 @@ const CourseDetail: React.FC = () => {
     if (courseId) {
       fetchCourseById(courseId);
       fetchChapters(courseId);
+      (async () => {
+        try {
+          const r = await filterAppUsers("role=Teacher&page=1&limit=200");
+          setTeachers(r?.users ?? []);
+        } catch (err) {
+          // ignore
+        }
+      })();
     }
-  }, [courseId, fetchCourseById, fetchChapters]);
+  }, [courseId, fetchCourseById, fetchChapters, filterAppUsers]);
 
   return (
     <div className="flex-1 overflow-auto bg-white">
@@ -70,13 +81,13 @@ const CourseDetail: React.FC = () => {
         {/* === Breadcrumb + back button === */}
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/course/teacher/courses")}
             className="w-8 h-8 mb-4 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
           >
             <ArrowLeft className="w-4 h-4 text-[#525252]" />
           </button>
           <div className="text-sm text-[#525252] mb-3">
-            Courses / Course Details
+            Khóa học / Chi tiết khóa học
           </div>
         </div>
 
@@ -95,7 +106,7 @@ const CourseDetail: React.FC = () => {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
-                      No Image
+                      Không có hình ảnh
                     </div>
                   )}
                 </div>
@@ -108,21 +119,6 @@ const CourseDetail: React.FC = () => {
                   <div className="text-sm text-[#737373] mt-1">
                     {selectedCourse?.information ?? ""}
                   </div>
-
-                  <div className="flex items-center gap-4 text-sm text-[#525252] mt-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-[#171717]" />
-                      <span>
-                        {selectedCourse?.instructorName ?? "Instructor"}
-                      </span>
-                    </div>
-                    <div>
-                      Created:{" "}
-                      {selectedCourse?.createdAt
-                        ? new Date(selectedCourse.createdAt).toLocaleString()
-                        : "-"}
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -134,14 +130,14 @@ const CourseDetail: React.FC = () => {
                     navigate(`/course/teacher/edit-course/${courseId}`)
                   }
                 >
-                  <Edit2 className="mr-2" /> Edit Course
+                  <Edit2 className="mr-2" /> Chỉnh sửa khóa học
                 </Button>
                 <Button
                   onClick={() =>
                     navigate(`/course/teacher/preview/${courseId}`)
                   }
                 >
-                  Preview
+                  Xem trước
                 </Button>
               </div>
             </div>
@@ -151,7 +147,7 @@ const CourseDetail: React.FC = () => {
               <div className="col-span-12 lg:col-span-8">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Course Description</CardTitle>
+                    <CardTitle>Mô tả khóa học</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-[#404040]">
@@ -163,7 +159,7 @@ const CourseDetail: React.FC = () => {
                 {/* === Curriculum === */}
                 <Card className="mt-4">
                   <CardHeader>
-                    <CardTitle>Curriculum</CardTitle>
+                    <CardTitle>Chương trình học</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
@@ -214,7 +210,7 @@ const CourseDetail: React.FC = () => {
                         ))
                       ) : (
                         <div className="text-sm text-gray-500">
-                          No curriculum available.
+                          Không có chương trình học nào.
                         </div>
                       )}
                     </div>
@@ -227,30 +223,30 @@ const CourseDetail: React.FC = () => {
                 <div className="space-y-4">
                   <Card>
                     <CardHeader>
-                      <CardTitle>Course Status</CardTitle>
+                      <CardTitle>Trạng thái khóa học</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="text-sm text-[#404040] space-y-1">
                         <div className="flex justify-between">
-                          <span>Status</span>
+                          <span>Trạng thái</span>
                           <span>
-                            {selectedCourse?.status ? "Published" : "Draft"}
+                            {selectedCourse?.status ? "Đã xuất bản" : "Nháp"}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Price</span>
+                          <span>Giá</span>
                           <span>
                             {selectedCourse?.price
                               ? `${selectedCourse.price}`
-                              : "Free"}
+                              : "Miễn phí"}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Subject</span>
+                          <span>Chủ đề</span>
                           <span>{categoryLabel(selectedCourse?.category)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Grade</span>
+                          <span>Khối lớp</span>
                           <span>{selectedCourse?.grade ?? "-"}</span>
                         </div>
                       </div>
@@ -259,18 +255,108 @@ const CourseDetail: React.FC = () => {
 
                   <Card>
                     <CardHeader>
-                      <CardTitle>Instructor</CardTitle>
+                      <CardTitle>Giảng viên</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 rounded-full bg-[#D9D9D9]" />
-                        <div>
-                          <div className="text-sm text-[#737373]">
-                            {selectedCourse?.instructorName ? "Instructor" : ""}
+                        {/* Avatar giảng viên */}
+                        <div className="w-12 h-12 rounded-full bg-[#171717] text-white flex items-center justify-center text-sm font-semibold shadow-sm">
+                          {(() => {
+                            const teacher = teachers.find(
+                              (t) =>
+                                String(t.id) ===
+                                String(selectedCourse?.instructorName)
+                            );
+                            const name =
+                              teacher?.fullname ||
+                              selectedCourse?.instructorName ||
+                              "GV";
+                            return name
+                              .split(" ")
+                              .slice(-2)
+                              .map((n: string) => n[0])
+                              .join("")
+                              .toUpperCase();
+                          })()}
+                        </div>
+
+                        {/* Thông tin chi tiết */}
+                        <div className="flex-1 text-sm text-[#404040]">
+                          {/* Giảng viên chính */}
+                          <div className="flex justify-between mb-1">
+                            <span className="font-medium text-[#171717]">
+                              Giảng viên:
+                            </span>
+                            <span>
+                              {
+                                teachers.find(
+                                  (t) =>
+                                    String(t.id) ===
+                                    String(selectedCourse?.instructorName)
+                                )?.fullname
+                              }
+                            </span>
                           </div>
-                          <div className="mt-3 flex gap-2">
-                            <Button variant="outline">View Profile</Button>
-                            <Button>Message</Button>
+
+                          {/* Người cập nhật */}
+                          {selectedCourse?.updatedAt && (
+                            <>
+                              <div className="flex justify-between mb-1">
+                                <span className="font-medium text-[#171717]">
+                                  Cập nhật bởi:
+                                </span>
+                                <span>
+                                  {
+                                    teachers.find(
+                                      (t) =>
+                                        String(t.id) ===
+                                        String(selectedCourse?.updatedBy)
+                                    )?.fullname
+                                  }
+                                </span>
+                              </div>
+                              <div className="flex justify-between mb-1">
+                                <span className="font-medium text-[#171717]">
+                                  Cập nhật ngày:
+                                </span>
+                                <span>
+                                  {new Date(
+                                    selectedCourse.updatedAt
+                                  ).toLocaleString("vi-VN", {
+                                    hour12: false,
+                                  })}
+                                </span>
+                              </div>
+                            </>
+                          )}
+
+                          {/* Ngày tạo */}
+                          {selectedCourse?.createdAt && (
+                            <div className="flex justify-between mb-1">
+                              <span className="font-medium text-[#171717]">
+                                Tạo ngày:
+                              </span>
+                              <span>
+                                {new Date(
+                                  selectedCourse.createdAt
+                                ).toLocaleString("vi-VN", {
+                                  hour12: false,
+                                })}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Nút hành động */}
+                          <div className="mt-4 flex gap-2">
+                            <Button
+                              variant="outline"
+                              className="w-1/2 border-[#D1D5DB] hover:bg-gray-100 text-[#171717]"
+                            >
+                              Xem hồ sơ
+                            </Button>
+                            <Button className="w-1/2 bg-[#171717] hover:bg-[#2D2D2D] text-white">
+                              Nhắn tin
+                            </Button>
                           </div>
                         </div>
                       </div>

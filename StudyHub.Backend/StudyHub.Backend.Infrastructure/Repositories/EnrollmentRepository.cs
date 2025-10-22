@@ -29,7 +29,7 @@ namespace Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                new InfrastructureException("EnrollmentRepository", "GetAllEnrollments failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("EnrollmentRepository", "GetEnrollment failed. Inner error: " + ex.Message).LogError();
                 return new Enrollment{};
             }
         }
@@ -50,7 +50,7 @@ namespace Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                new InfrastructureException("EnrollmentRepository", "GetAllEnrollments failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("EnrollmentRepository", "GetEnrollmentByUserAndCourse failed. Inner error: " + ex.Message).LogError();
                 return new Enrollment { };
             }
         }
@@ -72,7 +72,7 @@ namespace Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                new InfrastructureException("EnrollmentRepository", "GetAllEnrollments failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("EnrollmentRepository", "CreateEnrollment failed. Inner error: " + ex.Message).LogError();
                 return new Enrollment { };
             }
         }
@@ -89,7 +89,7 @@ namespace Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                new InfrastructureException("EnrollmentRepository", "GetAllEnrollments failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("EnrollmentRepository", "DeleteEnrollment failed. Inner error: " + ex.Message).LogError();
                 return false;
             }
         }
@@ -105,7 +105,7 @@ namespace Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                new InfrastructureException("EnrollmentRepository", "GetAllEnrollments failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("EnrollmentRepository", "GetEnrollmentsByCourse failed. Inner error: " + ex.Message).LogError();
                 return new List<Enrollment>();
             }
         }
@@ -121,7 +121,7 @@ namespace Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                new InfrastructureException("EnrollmentRepository", "GetAllEnrollments failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("EnrollmentRepository", "GetEnrollmentsByUser failed. Inner error: " + ex.Message).LogError();
                 return new List<Enrollment>();
             }
         }

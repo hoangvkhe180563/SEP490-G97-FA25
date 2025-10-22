@@ -44,13 +44,13 @@ const CourseNavSidebar: React.FC<Props> = ({
     <aside className="space-y-6">
       <div className="bg-white rounded-md p-4 shadow-sm">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="text-sm font-medium">Course Navigation</h4>
+          <h4 className="text-sm font-medium">Điều hướng khóa học</h4>
           <button className="text-xs text-gray-400" onClick={onClear}>
-            Clear
+            Xóa
           </button>
         </div>
 
-        <div className="text-sm text-gray-600 mb-2">Progress Filter</div>
+        <div className="text-sm text-gray-600 mb-2">Bộ lọc tiến độ</div>
         <div className="space-y-2 text-sm">
           <label className="flex items-center gap-2">
             <input
@@ -60,7 +60,7 @@ const CourseNavSidebar: React.FC<Props> = ({
                 setFilters({ ...filters, completed: e.target.checked })
               }
             />
-            <span>Completed</span>
+            <span>Đã hoàn thành</span>
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -70,7 +70,7 @@ const CourseNavSidebar: React.FC<Props> = ({
                 setFilters({ ...filters, inProgress: e.target.checked })
               }
             />
-            <span>In Progress</span>
+            <span>Đang tiến hành</span>
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -80,11 +80,11 @@ const CourseNavSidebar: React.FC<Props> = ({
                 setFilters({ ...filters, notStarted: e.target.checked })
               }
             />
-            <span>Not Started</span>
+            <span>Chưa bắt đầu</span>
           </label>
         </div>
 
-        <div className="mt-4 text-sm text-gray-600">Content Type</div>
+        <div className="mt-4 text-sm text-gray-600">Loại nội dung</div>
         <div className="space-y-2 text-sm mt-2">
           <label className="flex items-center gap-2">
             <input
@@ -94,7 +94,7 @@ const CourseNavSidebar: React.FC<Props> = ({
                 setContentTypes({ ...contentTypes, video: e.target.checked })
               }
             />
-            <span>Video Lessons</span>
+            <span>Video</span>
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -104,7 +104,7 @@ const CourseNavSidebar: React.FC<Props> = ({
                 setContentTypes({ ...contentTypes, reading: e.target.checked })
               }
             />
-            <span>Reading Material</span>
+            <span>Tài liệu đọc</span>
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -117,7 +117,7 @@ const CourseNavSidebar: React.FC<Props> = ({
                 })
               }
             />
-            <span>Assignments</span>
+            <span>Bài tập</span>
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -127,28 +127,28 @@ const CourseNavSidebar: React.FC<Props> = ({
                 setContentTypes({ ...contentTypes, quiz: e.target.checked })
               }
             />
-            <span>Quizzes</span>
+            <span>Câu đố</span>
           </label>
         </div>
 
         <div className="mt-4">
-          <Label className="text-sm">Duration</Label>
+          <Label className="text-sm">Thời gian</Label>
           <select
             className="w-full mt-2 border rounded px-2 py-1 text-sm"
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
           >
-            <option value="all">All Durations</option>
-            <option value="0-5">0-5 hours</option>
-            <option value="5-20">5-20 hours</option>
-            <option value="20+">20+ hours</option>
+            <option value="all">Tất cả thời gian</option>
+            <option value="0-5">0-5 giờ</option>
+            <option value="5-20">5-20 giờ</option>
+            <option value="20+">20+ giờ</option>
           </select>
         </div>
       </div>
 
       <div className="bg-white rounded-md p-4 shadow-sm">
-        <h4 className="text-sm font-medium mb-2">Course Stats</h4>
-        <div className="text-sm text-gray-600">Overall Progress</div>
+        <h4 className="text-sm font-medium mb-2">Thống kê khóa học</h4>
+        <div className="text-sm text-gray-600">Tiến độ tổng thể</div>
         <div className="w-full bg-gray-100 h-3 rounded mt-2 overflow-hidden">
           <div
             className="bg-gray-700 h-3"
@@ -164,8 +164,12 @@ const CourseNavSidebar: React.FC<Props> = ({
           />
         </div>
         <div className="flex items-center justify-between text-sm text-gray-500 mt-3">
-          <div>{stats ? `${stats.completed} Completed` : "0 Completed"}</div>
-          <div>{stats ? `${stats.remaining} Remaining` : "0 Remaining"}</div>
+          <div>
+            {stats ? `${stats.completed} Đã hoàn thành` : "0 Đã hoàn thành"}
+          </div>
+          <div>
+            {stats ? `${stats.remaining} Chưa hoàn thành` : "0 Chưa hoàn thành"}
+          </div>
         </div>
       </div>
     </aside>

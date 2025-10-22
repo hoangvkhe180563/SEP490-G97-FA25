@@ -57,7 +57,7 @@ const CourseFilterTeacher: React.FC = () => {
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search courses..."
+          placeholder="Tìm kiếm khóa học..."
           className="max-w-md"
         />
 

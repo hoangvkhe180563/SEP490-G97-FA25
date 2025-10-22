@@ -3,6 +3,7 @@ import CourseFilters from "@/courseManagement/components/CourseListFiltersStuden
 import { useEffect, useState } from "react";
 import { documentService } from "@/documentManagement/services/documentService";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
+import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import type { CourseListDto } from "@/courseManagement/types/api";
 import type { CourseListDto as Course } from "@/courseManagement/interfaces/types";
 
@@ -15,12 +16,16 @@ const CourseList: React.FC = () => {
   const [q, setQ] = useState<string | undefined>(undefined);
   const [sort, setSort] = useState<string | undefined>(undefined);
   const [filters, setFilters] = useState<Record<string, any>>({});
+  const [selectedPageSize, setSelectedPageSize] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
 
   useEffect(() => {
     // initial load
     fetchCourses({ page: 1, pageSize: 12 });
+    // run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -35,13 +40,26 @@ const CourseList: React.FC = () => {
         console.error("Failed to load subjects", err);
       }
     })();
+    (async () => {
+      try {
+        const r = await filterAppUsers("role=Teacher&page=1&limit=200");
+        setTeachers(r?.users ?? []);
+      } catch (err) {
+        // ignore
+      }
+    })();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [filterAppUsers]);
 
   const page = useCourseStore((s) => s.page);
   const pageSize = useCourseStore((s) => s.pageSize);
+
+  // keep local selected page size in sync with store pageSize
+  useEffect(() => {
+    setSelectedPageSize(pageSize ?? null);
+  }, [pageSize]);
 
   const goPage = (p: number) => {
     fetchCourses({ page: p, pageSize, q, sort, ...filters });
@@ -67,9 +85,12 @@ const CourseList: React.FC = () => {
     <div>
       <main className="max-w-screen-xl mx-auto w-full">
         <div className="flex items-center justify-between mb-4">
-          <div className="text-2xl font-normal text-[#171717]">All Courses</div>
+          <div className="text-2xl font-normal text-[#171717]">
+            Tất cả các khóa học
+          </div>
           <div className="text-sm text-gray-500">
-            Discover and enroll in courses to advance your learning journey
+            Khám phá và đăng ký các khóa học để nâng cao hành trình học tập của
+            bạn
           </div>
         </div>
 
@@ -100,7 +121,7 @@ const CourseList: React.FC = () => {
 
             <div className="flex items-center gap-3">
               <input
-                placeholder="Search courses..."
+                placeholder="Tìm kiếm khóa học..."
                 className="border rounded px-3 py-1 text-sm"
                 value={q ?? ""}
                 onChange={(e) => applySearch(e.target.value || undefined)}
@@ -111,28 +132,30 @@ const CourseList: React.FC = () => {
                 value={sort ?? ""}
                 onChange={(e) => applySort(e.target.value || undefined)}
               >
-                <option value="">Sort: Relevance</option>
-                <option value="newest">Time: Newest</option>
-                <option value="priceAsc">Price: Low - High</option>
-                <option value="priceDesc">Price: High - Low</option>
+                <option value="">Sắp xếp: Mức độ liên quan</option>
+                <option value="newest">Thời gian: Mới nhất</option>
+                <option value="priceAsc">Giá: Thấp - Cao</option>
+                <option value="priceDesc">Giá: Cao - Thấp</option>
               </select>
 
               <select
                 className="border rounded px-3 py-1 text-sm"
-                value={pageSize}
-                onChange={(e) =>
+                value={selectedPageSize ?? pageSize}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  setSelectedPageSize(next);
                   fetchCourses({
                     page: 1,
-                    pageSize: Number(e.target.value),
+                    pageSize: next,
                     q,
                     sort,
                     ...filters,
-                  })
-                }
+                  });
+                }}
               >
-                <option value={6}>6 / page</option>
-                <option value={12}>12 / page</option>
-                <option value={24}>24 / page</option>
+                <option value={6}>6 / trang</option>
+                <option value={12}>12 / trang</option>
+                <option value={24}>24 / trang</option>
               </select>
             </div>
           </div>
@@ -142,6 +165,7 @@ const CourseList: React.FC = () => {
           <aside className="col-span-12 lg:col-span-3">
             <CourseFilters
               filters={filters}
+              teachers={teachers}
               onApply={applyFilters}
               onReset={() => {
                 setFilters({});
@@ -182,7 +206,13 @@ const CourseList: React.FC = () => {
                       price: c.price,
                       status: c.status,
                       category: (c.category as any) ?? null,
-                      instructorName: c.instructorName ?? null,
+                      instructorName:
+                        (c.instructorName &&
+                          (teachers.find(
+                            (t) => String(t.id) === String(c.instructorName)
+                          )?.fullname ??
+                            String(c.instructorName))) ||
+                        null,
                       createdAt: c.createdAt,
                     };
 
@@ -202,8 +232,15 @@ const CourseList: React.FC = () => {
 
             <div className="flex items-center justify-between mt-8">
               <div className="text-sm text-gray-600">
-                Showing {(page - 1) * pageSize + 1} -
-                {Math.min(page * pageSize, total)} of {total}
+                {total === 0 ? (
+                  <>Hiển thị 0 của 0</>
+                ) : (
+                  <>
+                    Hiển thị {(page - 1) * (selectedPageSize ?? pageSize) + 1} -{" "}
+                    {Math.min(page * (selectedPageSize ?? pageSize), total)} của{" "}
+                    {total}
+                  </>
+                )}
               </div>
 
               <nav className="inline-flex items-center gap-2">
@@ -213,7 +250,7 @@ const CourseList: React.FC = () => {
                   }`}
                   onClick={() => goPage((page || 1) - 1)}
                 >
-                  Prev
+                  Trước
                 </button>
 
                 <button className="p-2 bg-black text-white rounded">
@@ -228,7 +265,7 @@ const CourseList: React.FC = () => {
                   }`}
                   onClick={() => goPage((page || 1) + 1)}
                 >
-                  Next
+                  Tiếp theo
                 </button>
               </nav>
             </div>

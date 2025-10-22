@@ -3,6 +3,8 @@ import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { Button } from "@/common/components/ui/button";
 import { Link } from "react-router-dom";
 import type { CourseListDto as Course } from "@/courseManagement/interfaces/types";
+import { useAppUserStore } from "@/user/stores/useAppUserStore";
+import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 
 const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
   course,
@@ -11,6 +13,9 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
   const selectCourse = useCourseStore((s: any) => s.selectCourse);
   const selectedCourseId = useCourseStore((s: any) => s.selectedCourseId);
   const isSelected = selectedCourseId === course.id;
+  const currentUser = useAppUserStore((s: any) => s.appUser);
+  const enrollAction = useEnrollmentStore((s: any) => s.enroll);
+  const fetchProgresses = useEnrollmentStore((s: any) => s.fetchProgresses);
   return (
     <div
       onClick={() => selectCourse && selectCourse(course.id)}
@@ -31,7 +36,7 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
             }}
           />
         ) : (
-          <div className="text-gray-400 text-sm">No Image</div>
+          <div className="text-gray-400 text-sm">Không có hình ảnh</div>
         )}
       </div>
       <div className="p-4">
@@ -72,11 +77,35 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
                 variant="outline"
                 className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-200 rounded-lg py-2"
               >
-                View
+                Xem chi tiết
               </Button>
             </Link>
-            <Button className="flex-[1.5] bg-black text-white hover:bg-gray-900 transition-colors duration-200 rounded-lg py-2 shadow-md">
-              Enroll Now
+            <Button
+              className="flex-[1.5] bg-black text-white hover:bg-gray-900 transition-colors duration-200 rounded-lg py-2 shadow-md"
+              onClick={async (e) => {
+                e.stopPropagation();
+                if (!currentUser) {
+                  alert("Vui lòng đăng nhập");
+                  return;
+                }
+                try {
+                  const created = await enrollAction({
+                    appUserId: String(currentUser.id),
+                    courseId: course.id,
+                  });
+                  if (created?.id) {
+                    try {
+                      await fetchProgresses(created.id);
+                    } catch {
+                      // ignore
+                    }
+                  }
+                } catch (err) {
+                  // ignore
+                }
+              }}
+            >
+              Đăng ký ngay
             </Button>
           </div>
         </div>

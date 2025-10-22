@@ -17,7 +17,8 @@ const LectureNextUp: React.FC = () => {
   // flatten lessons order and find next after selected
   const flat: any[] = [];
   for (const ch of chapters || []) {
-    for (const l of ch.lessons || []) flat.push({ ...l, chapterId: ch.id });
+    for (const l of ch.lessons || [])
+      flat.push({ ...l, chapterId: ch.id, courseId: ch.courseId });
   }
 
   let next: any | undefined;
@@ -27,11 +28,10 @@ const LectureNextUp: React.FC = () => {
   } else if (flat.length > 0) {
     next = flat[0];
   }
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Next Up</CardTitle>
+        <CardTitle>Tiếp theo</CardTitle>
       </CardHeader>
       <CardContent>
         {next ? (
@@ -48,17 +48,17 @@ const LectureNextUp: React.FC = () => {
                     console.debug("fetchLesson failed", err);
                   }
                   navigate(
-                    `/courses/${next.courseId ?? ""}/lecture/${next.id}`
+                    `/course/student/courses/${next.courseId}/lecture/${next.id}`
                   );
                 }}
               >
-                Play next
+                Phát tiếp theo
               </button>
             </div>
           </div>
         ) : (
           <div className="text-sm text-gray-600">
-            No upcoming lectures are scheduled.
+            Không có bài giảng nào sắp tới.
           </div>
         )}
       </CardContent>

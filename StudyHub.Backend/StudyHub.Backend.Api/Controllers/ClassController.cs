@@ -111,30 +111,30 @@ namespace StudyHub.Backend.Api.Controllers
             var updated = _service.UpdateClass(existing);
             return Ok(updated.ToDetailDto());
         }
-        [HttpGet("{id}/detail")]
-        public IActionResult GetClassDetail(int id)
-        {
-            var cls = _service.GetClassById(id);
-            if (cls == null)
-                return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
+        //[HttpGet("{id}/detail")]
+        //public IActionResult GetClassDetail(int id)
+        //{
+        //    var cls = _service.GetClassById(id);
+        //    if (cls == null)
+        //        return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
 
-            // Lấy dữ liệu phụ trực tiếp từ repository
-            var members = _service.GetClassMembers(id)
-                .Select(m => m.ToMemberDto(_aUserService.GetUserById(m.UserId)))
-                .ToList();
+        //    Lấy dữ liệu phụ trực tiếp từ repository
+        //    var members = _service.GetClassMembers(id)
+        //        .Select(m => m.ToMemberDto(_aUserService.GetUserById(m.UserId)))
+        //        .ToList();
 
-            var notifications = _service.GetClassNotifications(id)
-                .Select(n => n.ToNotificationDto())
-                .ToList();
+        //    var notifications = _service.GetClassNotifications(id)
+        //        .Select(n => n.ToNotificationDto())
+        //        .ToList();
 
-            var dto = cls.ToFullDetailDto(members, notifications);
+        //    var dto = cls.ToFullDetailDto(members, notifications);
 
-            return Ok(new
-            {
-                success = true,
-                message = "Lấy thông tin lớp học thành công.",
-                data = dto
-            });
-        }
+        //    return Ok(new
+        //    {
+        //        success = true,
+        //        message = "Lấy thông tin lớp học thành công.",
+        //        data = dto
+        //    });
+        //}
     }
 }

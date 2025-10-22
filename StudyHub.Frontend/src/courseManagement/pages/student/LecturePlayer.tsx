@@ -5,12 +5,17 @@ import LectureNextUp from "@/courseManagement/components/LectureNextUp";
 import { Button } from "@/common/components/ui/button";
 import LectureFilters from "@/courseManagement/components/LectureFilters";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { useAppUserStore } from "@/user/stores/useAppUserStore";
+import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 
 const LecturePlayer: React.FC = () => {
-  const { lessonId, courseId } = useParams();
-  const lid = Number(lessonId || 0);
-  const cid = Number(courseId || 0);
+  const params = useParams();
+  const navigate = useNavigate();
+  const lid = Number(
+    (params as any).lectureId ?? (params as any).lessonId ?? 0
+  );
+  const cid = Number((params as any).courseId ?? 0);
 
   const selectedLesson = useLectureStore((s: any) => s.selectedLesson);
   const fetchChapters = useLectureStore((s: any) => s.fetchChapters);
@@ -18,9 +23,19 @@ const LecturePlayer: React.FC = () => {
   const updateLesson = useLectureStore((s: any) => s.updateLesson);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [bookmarked, setBookmarked] = useState(false);
   const [localProgress, setLocalProgress] = useState<number>(
     (selectedLesson?.progress as number) ?? 0
+  );
+  const currentUser = useAppUserStore((s: any) => s.appUser);
+  const fetchEnrollmentsByUser = useEnrollmentStore((s: any) => s.fetchByUser);
+  const getEnrollmentForCourse = useEnrollmentStore(
+    (s: any) => s.getEnrollmentForCourse
+  );
+  const recordProgress = useEnrollmentStore((s: any) => s.recordProgress);
+  const fetchProgresses = useEnrollmentStore((s: any) => s.fetchProgresses);
+  const enrollment = getEnrollmentForCourse(cid);
+  const [enrollmentId, setEnrollmentId] = useState<number | null>(
+    enrollment?.id ?? null
   );
 
   // persist progress helper
@@ -42,16 +57,39 @@ const LecturePlayer: React.FC = () => {
   useEffect(() => {
     if (cid) fetchChapters(cid);
     if (lid) fetchLesson(lid);
-  }, [cid, lid, fetchChapters, fetchLesson]);
+    // ensure enrollments are loaded in store for current user and find enrollment id
+    (async () => {
+      if (!currentUser) return;
+      try {
+        await fetchEnrollmentsByUser(String(currentUser.id));
+      } catch (err) {
+        // ignore
+      }
+      const found = getEnrollmentForCourse(cid);
+      if (found) {
+        setEnrollmentId(found.id);
+        try {
+          // populate per-lesson progresses for UI
+          await fetchProgresses(found.id);
+        } catch (err) {
+          // ignore
+        }
+      }
+    })();
+  }, [
+    cid,
+    lid,
+    fetchChapters,
+    fetchLesson,
+    fetchEnrollmentsByUser,
+    getEnrollmentForCourse,
+    currentUser,
+    fetchProgresses,
+  ]);
 
   // keep localProgress in sync when selectedLesson changes
   useEffect(() => {
     setLocalProgress((selectedLesson?.progress as number) ?? 0);
-    // restore bookmark from localStorage
-    if (selectedLesson?.id) {
-      const key = `bookmark_lesson_${selectedLesson.id}`;
-      setBookmarked(Boolean(localStorage.getItem(key)));
-    }
   }, [selectedLesson]);
 
   // attach video events
@@ -81,6 +119,16 @@ const LecturePlayer: React.FC = () => {
       const pct = Math.round((v.currentTime / (v.duration || 1)) * 100);
       setLocalProgress(pct);
       await saveProgress(pct);
+      if (enrollmentId && selectedLesson?.id) {
+        try {
+          await recordProgress(enrollmentId, {
+            lessonId: selectedLesson.id,
+            completionDate: new Date().toISOString(),
+          });
+        } catch {
+          // ignore
+        }
+      }
     };
 
     v.addEventListener("loadedmetadata", onLoaded);
@@ -91,6 +139,16 @@ const LecturePlayer: React.FC = () => {
     const onBefore = async () => {
       const pct = Math.round((v.currentTime / (v.duration || 1)) * 100);
       await saveProgress(pct);
+      if (enrollmentId && selectedLesson?.id) {
+        try {
+          await recordProgress(enrollmentId, {
+            lessonId: selectedLesson.id,
+            completionDate: new Date().toISOString(),
+          });
+        } catch {
+          // ignore
+        }
+      }
     };
     window.addEventListener("beforeunload", onBefore);
 
@@ -101,7 +159,14 @@ const LecturePlayer: React.FC = () => {
       v.removeEventListener("ended", onPauseOrEnd);
       window.removeEventListener("beforeunload", onBefore);
     };
-  }, [videoRef, selectedLesson, updateLesson, saveProgress]);
+  }, [
+    videoRef,
+    selectedLesson,
+    updateLesson,
+    saveProgress,
+    enrollmentId,
+    recordProgress,
+  ]);
 
   return (
     <div className="w-full bg-white">
@@ -114,8 +179,15 @@ const LecturePlayer: React.FC = () => {
           <main className="col-span-12 lg:col-span-6">
             <div className="flex items-center justify-between mb-2">
               <div>
+                <button
+                  onClick={() => navigate(`/course/student/courses/${cid}`)}
+                  className="w-8 h-8 mb-4 border rounded"
+                  aria-label="Go back"
+                >
+                  ←
+                </button>
                 <div className="text-sm text-gray-500 mb-2">
-                  My Courses / Course
+                  Khóa học của tôi / Khóa học
                 </div>
                 <div className="text-lg font-medium">
                   {selectedLesson?.name ?? "Lecture"}
@@ -127,76 +199,51 @@ const LecturePlayer: React.FC = () => {
 
               <div className="flex items-center gap-3">
                 <button className="border rounded px-3 py-1 text-sm">
-                  Save
+                  Lưu
                 </button>
                 <button className="border rounded px-3 py-1 text-sm">
-                  Share
+                  Chia sẻ
                 </button>
               </div>
             </div>
 
             <div className="bg-black h-[420px] rounded mb-4 flex items-center justify-center text-white">
               {selectedLesson?.videoUrl ? (
-                <video
-                  ref={videoRef}
-                  className="w-full h-full object-contain"
-                  controls
-                  src={selectedLesson.videoUrl as string}
-                />
+                (() => {
+                  const src = String(selectedLesson.videoUrl || "");
+                  const lower = src.toLowerCase();
+                  const isMp4 = lower.endsWith(".mp4");
+                  const isEmbed =
+                    /youtube|vimeo|embed/.test(lower) || src.includes("iframe");
+
+                  if (isEmbed || (!isMp4 && src.startsWith("http"))) {
+                    return (
+                      <iframe
+                        src={src}
+                        title={selectedLesson?.name || "embed-player"}
+                        className="w-full h-full"
+                        frameBorder={0}
+                        allowFullScreen
+                      />
+                    );
+                  }
+
+                  return (
+                    <video
+                      ref={videoRef}
+                      className="w-full h-full object-contain"
+                      controls
+                      src={src}
+                    />
+                  );
+                })()
               ) : (
                 <div className="text-3xl">▶</div>
               )}
             </div>
-
-            <div className="flex items-center gap-3 mb-4">
-              <Button
-                className="bg-black text-white"
-                onClick={() => videoRef.current?.play()}
-              >
-                Play
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const url =
-                    selectedLesson?.fileUrl || selectedLesson?.videoUrl;
-                  if (!url) return;
-                  const a = document.createElement("a");
-                  a.href = url as string;
-                  a.target = "_blank";
-                  a.rel = "noopener noreferrer";
-                  // trigger download if fileUrl available
-                  if (selectedLesson?.fileUrl) a.download = "";
-                  document.body.appendChild(a);
-                  a.click();
-                  a.remove();
-                }}
-              >
-                Download
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (!selectedLesson?.id) return;
-                  const key = `bookmark_lesson_${selectedLesson.id}`;
-                  if (bookmarked) {
-                    localStorage.removeItem(key);
-                    setBookmarked(false);
-                  } else {
-                    localStorage.setItem(key, "1");
-                    setBookmarked(true);
-                  }
-                }}
-              >
-                {bookmarked ? "Bookmarked" : "Bookmark"}
-              </Button>
-            </div>
-
             <div className="bg-white border rounded p-4 mb-4">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium">Progress</h4>
+                <h4 className="font-medium">Tiến độ</h4>
                 <div className="text-sm text-gray-600">{localProgress}%</div>
               </div>
               <input
@@ -228,24 +275,36 @@ const LecturePlayer: React.FC = () => {
                         progress: 100,
                       });
                       setLocalProgress(100);
+                      if (enrollmentId) {
+                        try {
+                          await recordProgress(enrollmentId, {
+                            lessonId: selectedLesson.id,
+                            completionDate: new Date().toISOString(),
+                          });
+                          // refresh local progresses map
+                          await fetchProgresses(enrollmentId);
+                        } catch {
+                          // ignore
+                        }
+                      }
                     } catch {
                       // ignore
                     }
                   }}
                   disabled={Boolean((selectedLesson?.progress ?? 0) >= 100)}
                 >
-                  Mark complete
+                  Đánh dấu hoàn thành
                 </Button>
               </div>
             </div>
 
             <div className="bg-white border rounded p-4">
-              <h4 className="font-medium mb-2">Lecture Transcript</h4>
+              <h4 className="font-medium mb-2">Bảng ghi chép bài giảng</h4>
               <div className="max-h-48 overflow-auto text-sm text-gray-700">
                 <p>
                   {selectedLesson?.description ??
                     selectedLesson?.content ??
-                    "No transcript available."}
+                    "Không có bảng ghi chép nào."}
                 </p>
               </div>
             </div>

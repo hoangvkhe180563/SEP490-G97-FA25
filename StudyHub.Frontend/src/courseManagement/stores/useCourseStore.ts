@@ -19,6 +19,7 @@ interface CourseState {
   ) => Promise<CourseListDto | undefined>;
   deleteCourse: (id: number) => Promise<boolean>;
   selectCourse?: (id?: number) => void;
+  uploadThumbnail: (file: File) => Promise<string>;
 }
 
 export const useCourseStore = create<CourseState>((set, get) => ({
@@ -39,8 +40,11 @@ export const useCourseStore = create<CourseState>((set, get) => ({
         page: query.page ?? get().page,
         pageSize: query.pageSize ?? get().pageSize,
         q: query.q,
+        sort: query.sort,
         subjectId: query.category,
         grade: query.grade,
+        duration: query.duration,
+        instructor: query.instructor,
         status: query.status,
         isFeatured: query.isFeatured,
       });
@@ -97,14 +101,15 @@ export const useCourseStore = create<CourseState>((set, get) => ({
                 information: updated.information,
                 imageUrl: updated.imageUrl,
                 status: updated.status ?? c.status,
-                // keep previous category if subjectId is not provided in updated
                 category:
                   (updated as any).subjectId ?? (c as any).category ?? null,
+                grade: updated.grade ?? c.grade,
               } as CourseListDto)
             : c
         ),
         loading: false,
       }));
+      console.log(updated);
       return updated;
     } catch (e) {
       set({ loading: false });
@@ -126,6 +131,15 @@ export const useCourseStore = create<CourseState>((set, get) => ({
       console.error("Failed to delete course:", e);
       set({ loading: false });
       return false;
+    }
+  },
+  uploadThumbnail: async (file: File) => {
+    try {
+      const res = await courseApi.uploadThumbnail(file);
+      return res.url as string;
+    } catch (err) {
+      console.error("uploadThumbnail failed", err);
+      throw err;
     }
   },
 }));

@@ -35,7 +35,7 @@ const CourseItem: React.FC<Props> = ({ course }) => {
                 className="w-full h-full object-cover rounded"
               />
             ) : (
-              <span>Course Image</span>
+              <span>Hình ảnh khóa học</span>
             )}
           </div>
           <div>
@@ -63,7 +63,7 @@ const CourseItem: React.FC<Props> = ({ course }) => {
             </span>
           </div>
           <span className="text-sm text-[#171717]">
-            {course.instructorName}
+            {course.updatedBy ?? course.instructorName ?? "-"}
           </span>
         </div>
       </td>
@@ -107,7 +107,7 @@ const CourseItem: React.FC<Props> = ({ course }) => {
 
               const ok = await deleteCourse?.(Number(course.id));
               if (!ok) {
-                alert("Delete failed");
+                alert("Xóa khóa học thất bại.");
               }
             }}
             className="p-2 hover:bg-gray-100 rounded text-rose-600"

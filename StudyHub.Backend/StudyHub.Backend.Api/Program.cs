@@ -27,8 +27,17 @@ builder.Services.AddCors(options =>
               .AllowCredentials();
     });
 });
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SupportNonNullableReferenceTypes();
 
-builder.Services.AddSwaggerGen();
+    c.MapType<IFormFile>(() => new Microsoft.OpenApi.Models.OpenApiSchema
+    {
+        Type = "string",
+        Format = "binary"
+    });
+});
+
 var app = builder.Build();
 app.UseCors("AllowReactApp");
 if (app.Environment.IsDevelopment())

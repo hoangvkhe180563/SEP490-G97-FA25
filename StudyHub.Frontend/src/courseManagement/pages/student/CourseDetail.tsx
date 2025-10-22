@@ -5,6 +5,8 @@ import CourseNavSidebar from "@/courseManagement/components/CourseDetailFiltersS
 import CourseContentItem from "@/courseManagement/components/CourseContentItem";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
+import { useAppUserStore } from "@/user/stores/useAppUserStore";
+import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import type {
   ChapterListDto,
   LessonListDto,
@@ -42,6 +44,8 @@ const CourseDetail: React.FC = () => {
     assignment: false,
     quiz: false,
   });
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
   const [durationFilter, setDurationFilter] = useState<string>("all");
 
   useEffect(() => {
@@ -59,10 +63,38 @@ const CourseDetail: React.FC = () => {
         // ignore
       }
     })();
+    (async () => {
+      try {
+        const r = await filterAppUsers("role=Teacher&page=1&limit=200");
+        if (mounted) setTeachers(r?.users ?? []);
+      } catch (err) {
+        // ignore
+      }
+    })();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [filterAppUsers]);
+
+  // enrollment state for current user via store
+  const currentUser = useAppUserStore((s: any) => s.appUser);
+  const fetchEnrollmentsByUser = useEnrollmentStore((s: any) => s.fetchByUser);
+  const getEnrollmentForCourse = useEnrollmentStore(
+    (s: any) => s.getEnrollmentForCourse
+  );
+  const enrollAction = useEnrollmentStore((s: any) => s.enroll);
+  const enrollment = getEnrollmentForCourse(courseId);
+
+  useEffect(() => {
+    (async () => {
+      if (!currentUser) return;
+      try {
+        await fetchEnrollmentsByUser(String(currentUser.id));
+      } catch (err) {
+        // ignore
+      }
+    })();
+  }, [currentUser, fetchEnrollmentsByUser]);
 
   useEffect(() => {
     if (courseId) {
@@ -106,6 +138,13 @@ const CourseDetail: React.FC = () => {
       if (Array.isArray(lessons)) {
         setLessonsByChapter((prev) => ({ ...prev, [ch.id]: lessons }));
       }
+    } catch (err) {
+      // ignore
+    }
+    // fetch teachers (small one-time list) so we can resolve instructor id -> name
+    try {
+      const r = await filterAppUsers("role=Teacher&page=1&limit=200");
+      setTeachers(r?.users ?? []);
     } catch (err) {
       // ignore
     }
@@ -205,7 +244,7 @@ const CourseDetail: React.FC = () => {
     try {
       return new Intl.NumberFormat(undefined, {
         style: "currency",
-        currency: "USD",
+        currency: "VND",
       }).format(p);
     } catch {
       return String(p);
@@ -231,11 +270,13 @@ const CourseDetail: React.FC = () => {
   return (
     <div className="w-full bg-white">
       <div className="max-w-screen-xl mx-auto">
-        <div className="text-sm text-gray-500 mb-4">My Courses / Course</div>
+        <div className="text-sm text-gray-500 mb-4">
+          Khóa học của tôi / Khóa học
+        </div>
 
         <div className="flex items-center gap-4 mb-4">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/course/student/courses")}
             className="w-8 h-8 flex items-center justify-center border rounded"
             aria-label="Go back"
           >
@@ -287,19 +328,33 @@ const CourseDetail: React.FC = () => {
                 <div className="flex items-center gap-4 text-sm text-gray-600 mt-3">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs">
-                      {(selectedCourse?.instructorName || "").slice(0, 1)}
+                      {(selectedCourse?.instructorName &&
+                        (
+                          teachers.find(
+                            (t) =>
+                              String(t.id) ===
+                              String(selectedCourse.instructorName)
+                          )?.fullname || String(selectedCourse.instructorName)
+                        ).slice(0, 1)) ||
+                        "G"}
                     </div>
                     <span>
-                      {selectedCourse?.ownerName ??
-                        selectedCourse?.instructorName ??
-                        "Instructor"}
+                      {selectedCourse?.instructorName &&
+                      teachers.find(
+                        (t) =>
+                          String(t.id) === String(selectedCourse.instructorName)
+                      )
+                        ? teachers.find(
+                            (t) =>
+                              String(t.id) ===
+                              String(selectedCourse.instructorName)
+                          )?.fullname
+                        : selectedCourse?.instructorName ?? "Giáo viên"}
                     </span>
                   </div>
 
-                  <div>Duration: {selectedCourse?.duration ?? "-"}</div>
-                  <div>Grade: {selectedCourse?.grade ?? "-"}</div>
-                  <div>Price: {fmtPrice(selectedCourse?.price)}</div>
-                  <div>Students: {selectedCourse?.totalStudents ?? 0}</div>
+                  <div>Khối Lớp: {selectedCourse?.grade ?? "-"}</div>
+                  <div>Giá: {fmtPrice(selectedCourse?.price)}</div>
                 </div>
               </div>
 
@@ -317,32 +372,48 @@ const CourseDetail: React.FC = () => {
                       }
                     />
                   ) : (
-                    <span className="text-sm text-gray-400">No image</span>
+                    <span className="text-sm text-gray-400">
+                      Không có hình ảnh
+                    </span>
                   )}
                 </div>
 
                 {/* Nút Enroll */}
                 <Button
-                  onClick={() => navigate(`/student/course/${courseId}/enroll`)}
+                  onClick={async () => {
+                    if (!currentUser) {
+                      navigate(`/login`);
+                      return;
+                    }
+                    try {
+                      const payload = {
+                        appUserId: String(currentUser.id),
+                        courseId,
+                      };
+                      await enrollAction(payload);
+                    } catch (err) {
+                      // ignore
+                    }
+                  }}
                   className="w-28 bg-[#111827] text-white hover:bg-[#1f2937] transition-colors duration-200"
                 >
-                  Enroll
+                  {enrollment ? "Enrolled" : "Enroll"}
                 </Button>
               </div>
             </div>
 
             <div className="bg-white rounded-md border p-4">
               <div className="flex items-center justify-between mb-4">
-                <div className="text-lg font-medium">Course Content</div>
+                <div className="text-lg font-medium">Nội dung khóa học</div>
                 <div className="flex items-center gap-3">
                   <select
                     className="border rounded px-3 py-1 text-sm"
                     value={contentSort}
                     onChange={(e) => setContentSort(e.target.value)}
                   >
-                    <option value="default">Sort by: Default</option>
-                    <option value="name">Name</option>
-                    <option value="duration">Duration</option>
+                    <option value="default">Sắp xếp theo: Mặc định</option>
+                    <option value="name">Tên</option>
+                    <option value="duration">Thời gian</option>
                   </select>
                   <div className="flex items-center gap-2">
                     <button
@@ -353,7 +424,7 @@ const CourseDetail: React.FC = () => {
                           : "bg-transparent border-gray-200 text-gray-500"
                       }`}
                     >
-                      List
+                      Danh sách
                     </button>
                     <button
                       onClick={() => setContentView("grid")}
@@ -363,7 +434,7 @@ const CourseDetail: React.FC = () => {
                           : "bg-transparent border-gray-200 text-gray-500"
                       }`}
                     >
-                      Grid
+                      Lưới
                     </button>
                   </div>
                 </div>
@@ -391,24 +462,31 @@ const CourseDetail: React.FC = () => {
                           {lessons.map((ls: LessonListDto) => (
                             <div
                               key={ls.id}
-                              onClick={() =>
+                              className="cursor-pointer"
+                              onClick={() => {
+                                const isPreview = Boolean(ls.isPreview);
+                                if (!isPreview && !enrollment) return;
                                 navigate(
                                   `/course/student/courses/${courseId}/lecture/${ls.id}`
-                                )
-                              }
-                              className="cursor-pointer"
+                                );
+                              }}
                             >
-                              <CourseContentItem
-                                title={ls.name}
-                                subtitle={ls.description ?? ""}
-                                duration={ls.duration ?? ""}
-                                variant="list"
-                              />
+                              <div className="flex items-center justify-between rounded-lg hover:bg-gray-50 transition">
+                                <div className="flex-1">
+                                  <CourseContentItem
+                                    title={ls.name}
+                                    subtitle={ls.description ?? ""}
+                                    duration={ls.duration ?? ""}
+                                    isPreview={Boolean(ls.isPreview)}
+                                    variant="list"
+                                  />
+                                </div>
+                              </div>
                             </div>
                           ))}
                           {lessons.length === 0 && (
                             <div className="text-sm text-gray-400 mt-2">
-                              No lessons match the current filters.
+                              Không có bài học nào phù hợp với bộ lọc hiện tại.
                             </div>
                           )}
                         </div>
@@ -418,24 +496,35 @@ const CourseDetail: React.FC = () => {
                             {lessons.map((ls: LessonListDto) => (
                               <div
                                 key={ls.id}
-                                onClick={() =>
+                                className="cursor-pointer"
+                                onClick={() => {
+                                  const isPreview = Boolean(ls.isPreview);
+                                  if (!isPreview && !enrollment) return;
                                   navigate(
                                     `/course/student/courses/${courseId}/lecture/${ls.id}`
-                                  )
-                                }
-                                className="cursor-pointer"
+                                  );
+                                }}
                               >
-                                <CourseContentItem
-                                  title={ls.name}
-                                  subtitle={ls.description ?? ""}
-                                  duration={ls.duration ?? ""}
-                                  variant="grid"
-                                />
+                                <div className="relative group rounded-lg border hover:shadow-sm transition">
+                                  <CourseContentItem
+                                    title={ls.name}
+                                    subtitle={ls.description ?? ""}
+                                    duration={ls.duration ?? ""}
+                                    variant="grid"
+                                  />
+
+                                  {ls.isPreview && (
+                                    <div className="absolute bottom-2 right-2 text-[11px] font-medium text-blue-600 bg-blue-50 border border-blue-300 px-2 py-0.5 rounded">
+                                      Preview
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             ))}
                             {lessons.length === 0 && (
                               <div className="text-sm text-gray-400 mt-2 col-span-full">
-                                No lessons match the current filters.
+                                Không có bài học nào phù hợp với bộ lọc hiện
+                                tại.
                               </div>
                             )}
                           </div>

@@ -12,22 +12,22 @@ const LectureResources: React.FC = () => {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Resources</CardTitle>
+          <CardTitle>Tài nguyên</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-sm text-gray-600">
-            No resources attached to this lecture.
+            Không có tài nguyên nào đính kèm cho bài giảng này.
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Practice Test</CardTitle>
+          <CardTitle>Bài kiểm tra thực hành</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-sm text-gray-600 mb-3">
-            No practice tests available for this lecture.
+            Không có bài kiểm tra thực hành nào cho bài giảng này.
           </div>
         </CardContent>
       </Card>

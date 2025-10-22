@@ -27,7 +27,7 @@ namespace StudyHub.Backend.Api.Controllers
                 success = true,
                 users = result.Items,
                 meta = new
-                {
+                {   
                     total = result.Total,
                     page = result.Page,
                     limit = result.Limit,

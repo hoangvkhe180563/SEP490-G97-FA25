@@ -246,38 +246,33 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         || (c.Information != null && c.Information.ToLower().Contains(t)));
                 }
 
-                if (query.Status.HasValue)
-                    q = q.Where(c => c.Status == query.Status.Value);
-
-                if (query.IsFeatured.HasValue)
-                    q = q.Where(c => c.IsFeatured == query.IsFeatured.Value);
-
-                // Subjects filter: support single SubjectId (legacy) or comma-separated Subjects
-                if (!string.IsNullOrWhiteSpace(query.Subjects))
-                {
-                    // parse comma-separated ints safely
-                    var parts = query.Subjects.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                    var ids = new List<short>();
-                    foreach (var p in parts)
-                    {
-                        if (short.TryParse(p, out var v)) ids.Add(v);
-                    }
-
-                    if (ids.Count > 0)
-                    {
-                        q = q.Where(c => ids.Contains(c.SubjectId));
-                    }
-                }
-
                 if (query.SubjectId.HasValue)
                 {
                     q = q.Where(c => c.SubjectId == query.SubjectId.Value);
                 }
 
                 if (query.Grade.HasValue)
+                {
                     q = q.Where(c => c.Grade == query.Grade.Value);
+                }
 
-                // Sorting: default by CreatedAt desc
+                if (query.Instructor != null)
+                {
+                    var t = query.Instructor;
+                    q = q.Where(c => c.CreatedBy == t);
+                }
+
+                //if (!string.IsNullOrWhiteSpace(query.Duration))
+                //{
+                //    q = q.Where(c => c.Duration == query.Duration);
+                //}
+
+                if (query.Status.HasValue)
+                    q = q.Where(c => c.Status == query.Status.Value);
+
+                if (query.IsFeatured.HasValue)
+                    q = q.Where(c => c.IsFeatured == query.IsFeatured.Value);
+
                 switch ((query.Sort ?? string.Empty).ToLower())
                 {
                     case "priceasc":
@@ -290,7 +285,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         q = q.OrderByDescending(c => c.CreatedAt);
                         break;
                     default:
-                        // preserve existing ordering if any; default to CreatedAt desc
                         q = q.OrderByDescending(c => c.CreatedAt);
                         break;
                 }
@@ -317,6 +311,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         CreatedAt = c.CreatedAt,
                         CreatedBy = c.CreatedBy,
                         UpdatedAt = c.UpdatedAt,
+                        UpdatedBy = c.UpdatedBy,
                     }).ToList();
 
                 return new PagedResult<Course>
@@ -334,5 +329,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 return new PagedResult<Course>();
             }
         }
+
     }
 }

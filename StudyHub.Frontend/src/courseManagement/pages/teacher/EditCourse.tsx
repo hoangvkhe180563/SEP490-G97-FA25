@@ -23,15 +23,14 @@ import {
   ArrowLeft,
   Trash2,
   Upload,
-  Video,
   Plus,
   Eye,
   Edit2,
   Pencil,
 } from "lucide-react";
-// AddLessonButton replaced with inline clickable element to avoid nested button issues
 import { documentService } from "@/documentManagement/services/documentService";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
+import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import type {
   ChapterListDto,
   LessonListDto,
@@ -62,7 +61,6 @@ const EditCourse: React.FC = () => {
     load();
   }, []);
 
-  // form state
   const [name, setName] = useState("");
   const [information, setInformation] = useState("");
   const [price, setPrice] = useState<number | undefined>(undefined);
@@ -71,14 +69,15 @@ const EditCourse: React.FC = () => {
   const [status, setStatus] = useState<boolean | undefined>(undefined);
   const [isFeatured, setIsFeatured] = useState<boolean>(false);
   const [saving, setSaving] = useState(false);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
 
-  // Lecture state: fetch chapters and keep a local editable copy
   const fetchChapters = useLectureStore((s) => s.fetchChapters);
   const chaptersFromStore = useLectureStore((s) => s.chapters);
   const createChapter = useLectureStore((s) => s.createChapter);
   const fetchCourseById = useCourseStore((s) => s.fetchCourseById);
+  const uploadThumbnail = useCourseStore((s) => s.uploadThumbnail);
 
-  // stabilize store function references to avoid re-triggering effects
   const fetchCourseByIdRef = useRef(fetchCourseById);
   const fetchChaptersRef = useRef(fetchChapters);
 
@@ -90,13 +89,15 @@ const EditCourse: React.FC = () => {
     fetchChaptersRef.current = fetchChapters;
   }, [fetchChapters]);
   const deleteChapterStore = useLectureStore((s) => s.deleteChapter);
-  // createLessonStore not used here anymore; AddLecture page handles creation
   const updateChapterStore = useLectureStore((s) => s.updateChapter);
   const fetchChapter = useLectureStore((s) => s.fetchChapter);
   const deleteLessonStore = useLectureStore((s) => s.deleteLesson);
-  // lesson delete is handled here via store
   const [chaptersLocal, setChaptersLocal] = useState<ChapterListDto[]>([]);
-  // chapter modal (repurposed) state
+  const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const [selectedInstructor, setSelectedInstructor] = useState<string | null>(
+    null
+  );
   const [modalChapter, setModalChapter] = useState<ChapterListDto | undefined>(
     undefined
   );
@@ -106,8 +107,6 @@ const EditCourse: React.FC = () => {
     "view"
   );
 
-  // keep a ref to modalChapter so sync effects can read its latest value
-  // without including it in dependency arrays (which would overwrite user edits)
   const modalChapterRef = useRef<ChapterListDto | undefined>(modalChapter);
 
   useEffect(() => {
@@ -122,20 +121,20 @@ const EditCourse: React.FC = () => {
 
     if (!selectedId || selectedId !== courseId) {
       fetchCourseByIdRef.current(courseId);
+      setChaptersLocal([]);
+      if (fetchChaptersRef.current) fetchChaptersRef.current(courseId);
+      return;
     }
 
     if (!chaptersLen || chaptersLen === 0) {
-      fetchChaptersRef.current(courseId);
+      if (fetchChaptersRef.current) fetchChaptersRef.current(courseId);
     }
-    // depend on courseId, selectedCourse id and chapters length only
   }, [courseId, selectedId, chaptersLen]);
 
-  // if navigating to edit a different course, clear local form while new course loads
   useEffect(() => {
     let mounted = true;
     if (!courseId) return;
     if (!selectedCourse || (selectedCourse as any).id !== courseId) {
-      // clear form so stale values from previous course aren't shown
       if (mounted) {
         setName("");
         setInformation("");
@@ -163,24 +162,58 @@ const EditCourse: React.FC = () => {
     );
     setStatus(selectedCourse.status ?? undefined);
     setIsFeatured((selectedCourse as any).isFeatured ?? false);
+    setSelectedInstructor(
+      selectedCourse.updatedBy ?? selectedCourse.instructorName ?? ""
+    );
   }, [selectedCourse]);
 
-  // When the store chapters change (from API), populate local editable copy
+  useEffect(() => {
+    // load teachers for instructor selection
+    const loadTeachers = async () => {
+      try {
+        const res = await filterAppUsers("role=Teacher&page=1&limit=200");
+        const items = res?.users ?? [];
+        setTeachers(items);
+      } catch (err) {
+        console.error("Failed to load teachers", err);
+      }
+    };
+    loadTeachers();
+  }, [filterAppUsers]);
+
+  const formatDate = (d?: string | null) => {
+    if (!d) return "-";
+    try {
+      const dt = new Date(d);
+      if (Number.isNaN(dt.getTime())) return "-";
+      return dt.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch (_e) {
+      return "-";
+    }
+  };
+
   useEffect(() => {
     if (chaptersFromStore && chaptersFromStore.length > 0) {
-      setChaptersLocal(chaptersFromStore);
-    } else if (selectedCourse?.chapters) {
+      const belongsToCurrent = chaptersFromStore.every(
+        (c: any) => c.courseId === courseId
+      );
+      if (belongsToCurrent) {
+        setChaptersLocal(chaptersFromStore);
+        return;
+      }
+    }
+
+    if (selectedCourse?.chapters) {
       setChaptersLocal(selectedCourse.chapters as ChapterListDto[]);
     } else {
       setChaptersLocal([]);
     }
-  }, [chaptersFromStore, selectedCourse]);
+  }, [chaptersFromStore, selectedCourse, courseId]);
 
-  // if chaptersLocal changes (e.g. lesson added/removed), keep modalChapter in sync
-  // NOTE: don't include modalChapter in the dependency list — updating modalChapter
-  // from inputs would retrigger this effect and overwrite user edits. Instead,
-  // only sync when the chapter's lessons length changed (so the read-only
-  // numberOfLessons stays up-to-date when lessons are added/removed elsewhere).
   useEffect(() => {
     const current = modalChapterRef.current;
     if (!current) return;
@@ -191,7 +224,6 @@ const EditCourse: React.FC = () => {
     if (updatedLessonsLen !== modalLessonsLen) {
       setModalChapter(updated);
     }
-    // only run when chaptersLocal changes
   }, [chaptersLocal]);
 
   const updateChapterName = (chapterId: number, name: string) => {
@@ -199,8 +231,6 @@ const EditCourse: React.FC = () => {
       prev.map((ch) => (ch.id === chapterId ? { ...ch, name } : ch))
     );
   };
-
-  // chapter saving is now handled via the chapter modal saveModalChapter
 
   const updateLessonName = (
     chapterId: number,
@@ -222,8 +252,7 @@ const EditCourse: React.FC = () => {
 
   const handleAddChapter = async () => {
     if (!courseId)
-      return alert("Open this page from a course to add a section.");
-    // create a local, temporary chapter object (no server call yet)
+      return alert("Mở trang này từ một khóa học để thêm một phần.");
     const tempId = -Date.now();
     const temp: any = {
       id: tempId,
@@ -249,20 +278,16 @@ const EditCourse: React.FC = () => {
     try {
       const res = deleteChapterStore ? await deleteChapterStore(id) : false;
       if (res) {
-        // remove locally
         setChaptersLocal((prev) => prev.filter((c) => c.id !== id));
-        // refresh from server to ensure consistency
         if (fetchChaptersRef.current) await fetchChaptersRef.current(courseId);
-      } else alert("Delete failed");
+      } else alert("Xóa thất bại");
     } catch (err) {
       console.error("delete chapter failed", err);
-      alert("Delete failed");
+      alert("Xóa thất bại");
     }
   };
 
   const handleAddLessonToChapter = async (chapterId: number) => {
-    // Navigate to the Add Lecture page with courseId and chapterId
-    // so the creation flow is handled in AddLecture and returns a proper id.
     const qp = new URLSearchParams();
     if (courseId) qp.set("courseId", String(courseId));
     if (chapterId) qp.set("chapterId", String(chapterId));
@@ -270,14 +295,12 @@ const EditCourse: React.FC = () => {
     navigate(`/course/teacher/add-lecture?${qp.toString()}`);
   };
 
-  // Lessons are edited/viewed on their own pages now (EditLecture / LectureDetails)
-
   const deleteLesson = async (lessonId: number) => {
     console.log("delete lesson", lessonId);
     const ok = confirm("Delete this lesson?");
     if (!ok) return;
     if (!deleteLessonStore) {
-      alert("Delete unavailable");
+      alert("Xóa không khả dụng");
       return;
     }
     try {
@@ -289,13 +312,13 @@ const EditCourse: React.FC = () => {
             lessons: (ch.lessons || []).filter((ls) => ls.id !== lessonId),
           }))
         );
-        alert("Lesson deleted");
+        alert("Xóa bài giảng thành công");
       } else {
-        alert("Delete failed");
+        alert("Xóa thất bại");
       }
     } catch (err) {
       console.error("delete lesson failed", err);
-      alert("Delete failed");
+      alert("Xóa thất bại");
     }
   };
 
@@ -319,7 +342,6 @@ const EditCourse: React.FC = () => {
   };
 
   const closeChapterModal = () => {
-    // if the modal was opened for a temporary (unsaved) chapter, remove it
     if (
       modalChapter &&
       (modalChapter as any).id &&
@@ -335,14 +357,13 @@ const EditCourse: React.FC = () => {
 
   const saveModalChapter = async () => {
     if (!modalChapter) return;
-    if (!updateChapterStore) return alert("Save unavailable");
+    if (!updateChapterStore) return alert("Lưu không khả dụng");
     setChapterModalSaving(true);
     try {
       const dto: any = {
         name: modalChapter.name,
         courseId: modalChapter.courseId,
         status: modalChapter.status ?? true,
-        // new chapter fields
         description: (modalChapter as any).description ?? null,
         numberOfLessons:
           (modalChapter as any).numberOfLessons ??
@@ -361,22 +382,20 @@ const EditCourse: React.FC = () => {
           readingContent: (l as any).readingContent ?? null,
         })),
       };
-      // if this is a temporary chapter (negative id), create it on the server
       if ((modalChapter as any).id < 0) {
         if (!createChapter) {
-          alert("Create unavailable");
+          alert("Tạo không khả dụng");
           return;
         }
         const created = await createChapter(dto);
         if (created && created.id) {
-          // replace temp with created
           setChaptersLocal((prev) =>
             prev.map((c) => (c.id === (modalChapter as any).id ? created : c))
           );
-          alert("Section created");
+          alert("Lưu Chương thành công");
           closeChapterModal();
         } else {
-          alert("Create failed");
+          alert("Tạo thất bại");
         }
       } else {
         const updated = await updateChapterStore(modalChapter.id, dto);
@@ -384,15 +403,15 @@ const EditCourse: React.FC = () => {
           setChaptersLocal((prev) =>
             prev.map((c) => (c.id === updated.id ? updated : c))
           );
-          alert("Section saved");
+          alert("Lưu Chương thành công");
           closeChapterModal();
         } else {
-          alert("Save failed");
+          alert("Lưu thất bại");
         }
       }
     } catch (err) {
       console.error("save chapter failed", err);
-      alert("Save failed");
+      alert("Lưu thất bại");
     } finally {
       setChapterModalSaving(false);
     }
@@ -402,13 +421,15 @@ const EditCourse: React.FC = () => {
     <div className="flex-1 overflow-auto bg-white">
       <div className="max-w-[1200px] mx-auto px-8 py-6">
         {/* Breadcrumb */}
-        <div className="text-sm text-[#525252] mb-3">Courses / Edit Course</div>
+        <div className="text-sm text-[#525252] mb-3">
+          Khóa học / Chỉnh sửa khóa học
+        </div>
 
         {/* Page Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate("/course/teacher/courses")}
               className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
             >
               <ArrowLeft className="w-4 h-4 text-[#525252]" />
@@ -416,10 +437,10 @@ const EditCourse: React.FC = () => {
 
             <div>
               <h1 className="text-2xl font-normal text-[#171717]">
-                Edit Course
+                Chỉnh sửa khóa học
               </h1>
               <p className="text-sm text-[#525252]">
-                Modify course details and content
+                Thay đổi thông tin và nội dung khóa học
               </p>
             </div>
           </div>
@@ -427,10 +448,10 @@ const EditCourse: React.FC = () => {
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate("/course/teacher/courses")}
               disabled={saving}
             >
-              Cancel
+              Hủy
             </Button>
             <Button
               onClick={async () => {
@@ -441,16 +462,8 @@ const EditCourse: React.FC = () => {
                     name: ch.name,
                     courseId: ch.courseId ?? courseId,
                     status: ch.status ?? null,
-                    // include new chapter-level fields
                     description: (ch as any).description ?? null,
-                    numberOfLessons:
-                      (ch as any).numberOfLessons ??
-                      (ch.lessons || []).length ??
-                      0,
-                    duration: (ch as any).duration ?? null,
                     postDate: (ch as any).postDate ?? null,
-                    difficultyLevel: (ch as any).difficultyLevel ?? null,
-                    resourceUrl: (ch as any).resourceUrl ?? null,
                     lessons: (ch.lessons || []).map((l) => ({
                       name: l.name,
                       chapterId: ch.id,
@@ -464,7 +477,8 @@ const EditCourse: React.FC = () => {
                   const dto: any = {
                     name,
                     information,
-                    imageUrl: selectedCourse?.imageUrl ?? null,
+                    imageUrl:
+                      thumbnailPreview ?? selectedCourse?.imageUrl ?? null,
                     price: price ?? 0,
                     category:
                       typeof subjectId === "number"
@@ -478,21 +492,24 @@ const EditCourse: React.FC = () => {
                     isFeatured: isFeatured,
                     status: status ?? null,
                     createdAt: selectedCourse?.createdAt ?? new Date(),
+                    updatedAt: new Date().toISOString(),
+                    updatedBy: selectedInstructor,
                   };
 
+                  console.log("Updating course with data:", dto);
                   await updateCourse(courseId, dto);
-                  alert("Course updated successfully");
+                  alert("Cập nhật khóa học thành công");
                   navigate(`/course/teacher/courses`);
                 } catch (err) {
                   console.error("Update failed", err);
-                  alert("Update failed");
+                  alert("Cập nhật không thành công");
                 } finally {
                   setSaving(false);
                 }
               }}
               disabled={saving}
             >
-              {saving ? "Saving..." : "Save Changes"}
+              {saving ? "Đang lưu..." : "Lưu thay đổi"}
             </Button>
           </div>
         </div>
@@ -502,38 +519,38 @@ const EditCourse: React.FC = () => {
           <div className="col-span-12 lg:col-span-8">
             <Card>
               <CardHeader>
-                <CardTitle>Basic Information</CardTitle>
+                <CardTitle>Thông tin cơ bản</CardTitle>
                 <CardDescription>
-                  Course title, description and meta
+                  Tiêu đề khóa học, mô tả ngắn, môn học và lớp học
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
                   {/* Title */}
                   <div className="space-y-2">
-                    <Label>Course Title</Label>
+                    <Label>Tiêu đề khóa học</Label>
                     <Input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="Enter course title"
+                      placeholder="Nhập tiêu đề khóa học"
                     />
                   </div>
 
                   {/* Description */}
                   <div className="space-y-2">
-                    <Label>Short Description</Label>
+                    <Label>Mô tả ngắn</Label>
                     <Textarea
                       value={information}
                       onChange={(e) => setInformation(e.target.value)}
                       rows={4}
-                      placeholder="Enter short description..."
+                      placeholder="Nhập mô tả ngắn..."
                     />
                   </div>
 
                   {/* Subject & Grade */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label>Subject</Label>
+                      <Label>Chủ đề</Label>
                       <Select
                         value={String(subjectId)}
                         onValueChange={(v) =>
@@ -541,7 +558,7 @@ const EditCourse: React.FC = () => {
                         }
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select subject" />
+                          <SelectValue placeholder="Chọn chủ đề" />
                         </SelectTrigger>
                         <SelectContent>
                           {subjects.map((opt) => (
@@ -557,7 +574,7 @@ const EditCourse: React.FC = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Grade</Label>
+                      <Label>Khối lớp</Label>
                       <Select
                         value={String(gradeId)}
                         onValueChange={(v) =>
@@ -565,7 +582,7 @@ const EditCourse: React.FC = () => {
                         }
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select grade" />
+                          <SelectValue placeholder="Chọn khối lớp" />
                         </SelectTrigger>
                         <SelectContent>
                           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((g) => (
@@ -585,7 +602,7 @@ const EditCourse: React.FC = () => {
               <CardHeader>
                 <div className="flex items-center justify-between w-full">
                   <div>
-                    <CardTitle>Course Content</CardTitle>
+                    <CardTitle>Nội dung khóa học</CardTitle>
                   </div>
                   <div>
                     <Button
@@ -593,7 +610,7 @@ const EditCourse: React.FC = () => {
                       className="flex items-center gap-2"
                       onClick={handleAddChapter}
                     >
-                      <Plus className="w-3 h-3" /> Add Section
+                      <Plus className="w-3 h-3" /> Thêm phần
                     </Button>
                   </div>
                 </div>
@@ -706,14 +723,14 @@ const EditCourse: React.FC = () => {
                             }}
                             className="w-full h-[38px] border border-dashed border-[#D4D4D4] rounded flex items-center justify-center gap-2 text-sm text-[#525252] hover:bg-gray-50 cursor-pointer"
                           >
-                            <Plus className="w-3 h-3.5" /> Add Lesson
+                            <Plus className="w-3 h-3.5" /> Thêm bài học
                           </div>
                         </div>
                       </div>
                     ))
                   ) : (
                     <div className="text-sm text-gray-500">
-                      No modules yet. Use Add Lesson to create content.
+                      Chưa có mô-đun nào. Sử dụng Thêm bài học để tạo nội dung.
                     </div>
                   )}
                 </div>
@@ -726,20 +743,97 @@ const EditCourse: React.FC = () => {
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Course Thumbnail</CardTitle>
+                  <CardTitle>Hình thu nhỏ khóa học</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="h-36 bg-[#D9D9D9] rounded flex flex-col items-center justify-center text-sm text-[#666]">
-                      <Upload className="w-6 h-6 text-[#666] mb-2" />
-                      <div>Course Thumbnail</div>
+                  <div className="space-y-5">
+                    {/* Vùng hiển thị hoặc xem trước ảnh */}
+                    <div
+                      className="relative h-44 w-full rounded-lg border border-dashed border-gray-300 
+                 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 
+                 transition group overflow-hidden"
+                    >
+                      {thumbnailPreview || selectedCourse?.imageUrl ? (
+                        <>
+                          <img
+                            src={
+                              thumbnailPreview ??
+                              selectedCourse?.imageUrl ??
+                              undefined
+                            }
+                            alt="thumbnail"
+                            className="h-full w-full object-cover rounded-lg"
+                          />
+                          <div
+                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 
+                       flex items-center justify-center text-white text-sm transition"
+                          >
+                            Nhấn “Tải lên hình ảnh mới” để thay đổi
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                          <p className="text-gray-500 font-medium">
+                            Chưa có hình thu nhỏ
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            (Hỗ trợ JPG, PNG — tối đa 5MB)
+                          </p>
+                        </>
+                      )}
                     </div>
-                    <Button variant="outline">Upload New Image</Button>
-                    <div className="mt-3 border-2 border-dashed border-[#D4D4D4] rounded-lg h-[120px] flex flex-col items-center justify-center">
-                      <Video className="w-6 h-6 text-[#A3A3A3] mb-2" />
-                      <div className="text-sm text-[#525252]">
-                        Preview Video
-                      </div>
+
+                    {/* Khu vực chọn và tải lên ảnh */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                      {/* Input ẩn + label tùy chỉnh */}
+                      <input
+                        id="thumbnail-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files && e.target.files[0];
+                          if (f) {
+                            setThumbnailFile(f);
+                            setThumbnailPreview(URL.createObjectURL(f));
+                          } else {
+                            setThumbnailFile(null);
+                            setThumbnailPreview(null);
+                          }
+                        }}
+                      />
+
+                      <label
+                        htmlFor="thumbnail-upload"
+                        className="cursor-pointer inline-flex items-center justify-center px-4 py-2 
+                   bg-[#f28d3d] text-white text-sm font-medium rounded-lg 
+                   hover:bg-[#e77c1e] transition shadow-sm"
+                      >
+                        Chọn ảnh
+                      </label>
+
+                      <Button
+                        variant="outline"
+                        className="border-[#f28d3d] text-[#f28d3d] hover:bg-[#f28d3d] hover:text-white 
+                   transition font-medium"
+                        onClick={async () => {
+                          if (!thumbnailFile)
+                            return alert("Vui lòng chọn ảnh trước");
+                          if (!uploadThumbnail)
+                            return alert("Upload không khả dụng");
+                          try {
+                            const url = await uploadThumbnail(thumbnailFile);
+                            setThumbnailPreview(url);
+                            alert("Tải lên thành công!");
+                          } catch (err) {
+                            console.error("Upload failed", err);
+                            alert("Upload hình thất bại");
+                          }
+                        }}
+                      >
+                        Tải lên hình ảnh mới
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -747,26 +841,27 @@ const EditCourse: React.FC = () => {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Settings</CardTitle>
+                  <CardTitle>Cài đặt</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Course Price</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-2 text-base text-[#737373]">
-                          $
+                      <Label className="font-medium text-base text-gray-800">
+                        Giá khóa học
+                      </Label>
+                      <div className="relative mt-1 w-full flex items-center">
+                        <span className="absolute left-3 text-gray-500 text-sm top-1/2 -translate-y-1/2">
+                          VNĐ
                         </span>
+
                         <Input
-                          className="pl-8"
-                          value={price ?? ""}
-                          onChange={(e) =>
-                            setPrice(
-                              e.target.value
-                                ? Number(e.target.value)
-                                : undefined
-                            )
-                          }
+                          type="number"
+                          min={0}
+                          step={1000}
+                          placeholder="0"
+                          className="pl-14 pr-3 py-2 text-right text-base font-semibold text-gray-800 tracking-wide"
+                          value={price || ""}
+                          onChange={(e) => setPrice(Number(e.target.value))}
                         />
                       </div>
                     </div>
@@ -778,37 +873,115 @@ const EditCourse: React.FC = () => {
                         checked={isFeatured}
                         onChange={(e) => setIsFeatured(e.target.checked)}
                       />
-                      <Label>Featured Course</Label>
+                      <Label>Khóa học nổi bật</Label>
                     </div>
                   </div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader>
-                  <CardTitle>Status</CardTitle>
+                  <CardTitle>Trạng thái</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <Label>Publication Status</Label>
+                    <Label>Trạng thái xuất bản</Label>
                     <Select>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Published" />
+                        <SelectValue placeholder="Đã xuất bản" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="published">Published</SelectItem>
+                        <SelectItem value="draft">Nháp</SelectItem>
+                        <SelectItem value="published">Đã xuất bản</SelectItem>
                       </SelectContent>
                     </Select>
 
                     <div className="text-xs text-[#8A8A8A]">
                       <div>
-                        Last Updated{" "}
-                        <span className="float-right">Jan 15, 2025</span>
+                        Cập nhật gần nhất{" "}
+                        <span className="float-right">
+                          {formatDate(
+                            selectedCourse?.updatedAt ??
+                              selectedCourse?.createdAt
+                          )}
+                        </span>
                       </div>
                       <div>
-                        Created <span className="float-right">Dec 1, 2024</span>
+                        Được tạo vào{" "}
+                        <span className="float-right">
+                          {formatDate(selectedCourse?.createdAt ?? null)}
+                        </span>
                       </div>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Giảng viên</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="space-y-4">
+                      <Label>Giảng viên chính</Label>
+                      <Select
+                        value={selectedInstructor ?? ""}
+                        onValueChange={(v) => setSelectedInstructor(v || null)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Chọn giảng viên" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {teachers.map((t) => (
+                            <SelectItem key={t.id} value={String(t.id)}>
+                              {t.fullname ?? t.username ?? t.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {selectedInstructor ? (
+                      <div className="bg-[#FAFAFA] rounded-lg p-3 flex items-center gap-3">
+                        <img
+                          src={
+                            teachers.find(
+                              (t) => String(t.id) === selectedInstructor
+                            )?.avatarUrl ??
+                            "https://api.builder.io/api/v1/image/assets/TEMP/ad7da240b72ac1157e7a1043cd1b1821bb4369b1?width=80"
+                          }
+                          alt="Instructor"
+                          className="w-10 h-10 rounded-full"
+                        />
+                        <div>
+                          <div className="text-sm text-[#171717]">
+                            {teachers.find(
+                              (t) => String(t.id) === selectedInstructor
+                            )?.fullname ?? "Giảng viên"}
+                          </div>
+                          <div className="text-xs text-[#737373]">
+                            {teachers.find(
+                              (t) => String(t.id) === selectedInstructor
+                            )?.bio ?? "Giảng viên"}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-[#FAFAFA] rounded-lg p-3 flex items-center gap-3">
+                        <img
+                          src="https://api.builder.io/api/v1/image/assets/TEMP/ad7da240b72ac1157e7a1043cd1b1821bb4369b1?width=80"
+                          alt="Chọn giảng viên"
+                          className="w-10 h-10 rounded-full opacity-70"
+                        />
+                        <div>
+                          <div className="text-sm font-medium text-[#171717]">
+                            Hãy chọn giảng viên
+                          </div>
+                          <div className="text-xs text-[#737373]">
+                            Chưa có giảng viên được chọn
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -836,7 +1009,7 @@ const EditCourse: React.FC = () => {
 
             <div className="space-y-4">
               <div className="space-y-4">
-                <Label>Section Title</Label>
+                <Label>Tiêu đề phần</Label>
                 <Input
                   value={modalChapter.name}
                   onChange={(e) =>
@@ -848,7 +1021,7 @@ const EditCourse: React.FC = () => {
 
               <div className="grid grid-cols-1 gap-3">
                 <div className="space-y-4">
-                  <Label>Description</Label>
+                  <Label>Mô tả</Label>
                   <Textarea
                     value={(modalChapter as any).description ?? ""}
                     onChange={(e) =>
@@ -863,13 +1036,13 @@ const EditCourse: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-4">
-                    <Label>Number of Lessons</Label>
+                    <Label>Số lượng bài học</Label>
                     <div className="text-sm text-[#404040] py-2">
                       {(modalChapter?.lessons || []).length ?? 0}
                     </div>
                   </div>
                   <div className="space-y-4">
-                    <Label>Post Date</Label>
+                    <Label>Ngày đăng</Label>
                     <Input
                       type="date"
                       value={
@@ -894,7 +1067,7 @@ const EditCourse: React.FC = () => {
               </div>
 
               <div>
-                <Label>Lessons</Label>
+                <Label>Bài học</Label>
                 <div className="space-y-2">
                   {(modalChapter.lessons || []).map((ls, idx) => (
                     <div
@@ -909,7 +1082,7 @@ const EditCourse: React.FC = () => {
                           }
                           className="text-sm"
                         >
-                          View
+                          Xem
                         </button>
                         <button
                           onClick={() =>
@@ -917,7 +1090,7 @@ const EditCourse: React.FC = () => {
                           }
                           className="text-sm"
                         >
-                          Edit
+                          Chỉnh sửa
                         </button>
                       </div>
                     </div>
@@ -931,14 +1104,14 @@ const EditCourse: React.FC = () => {
                   onClick={closeChapterModal}
                   disabled={chapterModalSaving}
                 >
-                  Close
+                  Đóng
                 </Button>
                 {modalChapterMode === "edit" && (
                   <Button
                     onClick={saveModalChapter}
                     disabled={chapterModalSaving}
                   >
-                    {chapterModalSaving ? "Saving..." : "Save Section"}
+                    {chapterModalSaving ? "Đang lưu..." : "Lưu phần"}
                   </Button>
                 )}
               </div>

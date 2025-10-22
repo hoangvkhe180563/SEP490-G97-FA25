@@ -19,4 +19,5 @@ public static class FileConstants
 
     public const string DocumentUploadPath = "Documents/Raw";
     public const string ThumbnailUploadPath = "Documents/Thumbnails";
+    public const string CourseThumbnailUploadPath = "Courses/Thumbnails";
 }

@@ -1,7 +1,7 @@
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Data;
+using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories;
-using System.Linq;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
@@ -15,50 +15,99 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public CourseProgress? GetProgress(int id)
         {
-            var p = _context.Progresses.FirstOrDefault(x => x.Id == id);
-            if (p == null) return null;
-            return new CourseProgress { Id = p.Id, EnrollmentId = p.EnrollmentId, LessonId = p.LessonId, CompletionDate = p.CompletionDate };
+            try
+            {
+                var p = _context.Progresses.FirstOrDefault(x => x.Id == id);
+                if (p == null) return null;
+                return new CourseProgress { Id = p.Id, EnrollmentId = p.EnrollmentId, LessonId = p.LessonId, CompletionDate = p.CompletionDate };
+                }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ProgressRepository", "GetProgress failed. Inner error: " + ex.Message).LogError();
+                return new CourseProgress { };
+            }
         }
 
         public CourseProgress? GetProgressByEnrollmentAndLesson(int enrollmentId, int lessonId)
         {
-            var p = _context.Progresses.FirstOrDefault(x => x.EnrollmentId == enrollmentId && x.LessonId == lessonId);
-            if (p == null) return null;
-            return new CourseProgress { Id = p.Id, EnrollmentId = p.EnrollmentId, LessonId = p.LessonId, CompletionDate = p.CompletionDate };
+            try
+            {
+                var p = _context.Progresses.FirstOrDefault(x => x.EnrollmentId == enrollmentId && x.LessonId == lessonId);
+                if (p == null) return null;
+                return new CourseProgress { Id = p.Id, EnrollmentId = p.EnrollmentId, LessonId = p.LessonId, CompletionDate = p.CompletionDate };
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ProgressRepository", "GetProgressByEnrollmentAndLesson failed. Inner error: " + ex.Message).LogError();
+                return new CourseProgress { };
+            }
         }
 
         public CourseProgress CreateProgress(CourseProgress p)
         {
-            var entity = new Data.Progress { EnrollmentId = p.EnrollmentId, LessonId = p.LessonId, CompletionDate = p.CompletionDate == default ? DateTime.UtcNow : p.CompletionDate };
-            _context.Progresses.Add(entity);
-            _context.SaveChanges();
-            p.Id = entity.Id;
-            return p;
+            try
+            {
+                var entity = new Data.Progress { EnrollmentId = p.EnrollmentId, LessonId = p.LessonId, CompletionDate = p.CompletionDate == default ? DateTime.UtcNow : p.CompletionDate };
+                _context.Progresses.Add(entity);
+                _context.SaveChanges();
+                p.Id = entity.Id;
+                return p;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ProgressRepository", "CreateProgress failed. Inner error: " + ex.Message).LogError();
+                return new CourseProgress { };
+            }
         }
 
         public CourseProgress UpdateProgress(CourseProgress p)
         {
-            var entity = _context.Progresses.FirstOrDefault(x => x.Id == p.Id);
-            if (entity == null) return p;
-            entity.EnrollmentId = p.EnrollmentId;
-            entity.LessonId = p.LessonId;
-            entity.CompletionDate = p.CompletionDate;
-            _context.SaveChanges();
-            return p;
+            try
+            {
+                var entity = _context.Progresses.FirstOrDefault(x => x.Id == p.Id);
+                if (entity == null) return p;
+                entity.EnrollmentId = p.EnrollmentId;
+                entity.LessonId = p.LessonId;
+                entity.CompletionDate = p.CompletionDate;
+                _context.SaveChanges();
+                return p;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ProgressRepository", "UpdateProgress failed. Inner error: " + ex.Message).LogError();
+                return new CourseProgress { };
+            }
         }
 
         public bool DeleteProgress(int id)
         {
-            var entity = _context.Progresses.FirstOrDefault(x => x.Id == id);
-            if (entity == null) return false;
-            _context.Progresses.Remove(entity);
-            _context.SaveChanges();
-            return true;
+            try
+            {
+                var entity = _context.Progresses.FirstOrDefault(x => x.Id == id);
+                if (entity == null) return false;
+                _context.Progresses.Remove(entity);
+                _context.SaveChanges();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ProgressRepository", "DeleteProgress failed. Inner error: " + ex.Message).LogError();
+                return false;
+            }
         }
 
         public List<CourseProgress> GetProgressesByEnrollment(int enrollmentId)
         {
-            return _context.Progresses.Where(x => x.EnrollmentId == enrollmentId).Select(x => new CourseProgress { Id = x.Id, EnrollmentId = x.EnrollmentId, LessonId = x.LessonId, CompletionDate = x.CompletionDate }).ToList();
+            try
+            {
+                return _context.Progresses.Where(x => x.EnrollmentId == enrollmentId).Select(x => new CourseProgress { Id = x.Id, EnrollmentId = x.EnrollmentId, LessonId = x.LessonId, CompletionDate = x.CompletionDate }).ToList();
+
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ProgressRepository", "GetProgressesByEnrollment failed. Inner error: " + ex.Message).LogError();
+                return new List<CourseProgress>();
+            }
         }
     }
 }

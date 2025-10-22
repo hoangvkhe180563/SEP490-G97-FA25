@@ -11,9 +11,12 @@ namespace StudyHub.Backend.Api.Controllers;
 public class CourseController : ControllerBase
 {
     private readonly CourseService _service;
-    public CourseController(CourseService service)
+    private readonly CloudFileStorageService _fileStorage;
+
+    public CourseController(CourseService service, CloudFileStorageService fileStorage)
     {
         _service = service;
+        _fileStorage = fileStorage;
     }
 
     // ===================== GET ALL =====================
@@ -23,6 +26,8 @@ public class CourseController : ControllerBase
         [FromQuery] short? subjectId,
         [FromQuery] string? subjects,
         [FromQuery] sbyte? grade,
+        [FromQuery] string? duration,
+        [FromQuery] Guid? instructor,
         [FromQuery] bool? status,
         [FromQuery] bool? isFeatured,
         [FromQuery] string? sort,
@@ -36,6 +41,8 @@ public class CourseController : ControllerBase
             Subjects = subjects,
             Sort = sort,
             Grade = grade,
+            Duration = duration,
+            Instructor = instructor,
             Status = status,
             IsFeatured = isFeatured,
             Page = page,
@@ -124,4 +131,28 @@ public class CourseController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpPost("upload-thumbnail")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadThumbnail([FromForm] UploadThumbnailDto dto)
+    {
+        var file = dto.File;
+        if (file == null || file.Length == 0)
+            return BadRequest("File is required");
+
+        try
+        {
+            var path = UseCases.Utils.FileConstants.CourseThumbnailUploadPath;
+            var url = await _fileStorage.UploadFileAsync(file, path);
+            if (string.IsNullOrEmpty(url))
+                return StatusCode(500, "Upload failed");
+
+            return Ok(new { url });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ex.Message);
+        }
+    }
+
 }

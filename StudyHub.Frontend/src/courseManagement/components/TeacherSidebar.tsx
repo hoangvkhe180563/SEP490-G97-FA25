@@ -43,7 +43,7 @@ export default function TeacherSidebar({
       items: [
         {
           icon: LayoutDashboard,
-          label: "Dashboard",
+          label: "Bảng điều khiển",
           path: "/course/teacher",
         },
       ],
@@ -51,11 +51,11 @@ export default function TeacherSidebar({
     {
       section: "Content",
       items: [
-        { icon: BookOpen, label: "Courses", path: "/course/teacher/courses" },
-        { icon: Play, label: "Lessons", path: "/course/teacher/lessons" },
+        { icon: BookOpen, label: "Khóa học", path: "/course/teacher/courses" },
+        { icon: Play, label: "Bài học", path: "/course/teacher/lessons" },
         {
           icon: FileText,
-          label: "Assignments",
+          label: "Bài tập",
           path: "/course/teacher/assignments",
         },
       ],
@@ -63,10 +63,10 @@ export default function TeacherSidebar({
     {
       section: "Users",
       items: [
-        { icon: Users, label: "Students", path: "/course/teacher/students" },
+        { icon: Users, label: "Học viên", path: "/course/teacher/students" },
         {
           icon: GraduationCap,
-          label: "Instructors",
+          label: "Giảng viên",
           path: "/course/teacher/instructors",
         },
       ],
@@ -74,8 +74,8 @@ export default function TeacherSidebar({
     {
       section: "Settings",
       items: [
-        { icon: Settings, label: "System", path: "/course/settings" },
-        { icon: BarChart3, label: "Analytics", path: "/course/analytics" },
+        { icon: Settings, label: "Hệ thống", path: "/course/settings" },
+        { icon: BarChart3, label: "Phân tích", path: "/course/analytics" },
       ],
     },
   ];
