@@ -9,14 +9,30 @@ import FeaturedTeachers from "../components/FeaturedTeachers";
 import useLocalStorage from "@/common/hooks/useLocalStorage";
 
 const Homepage = () => {
-  const [data, setData] = useState<ILandingPageService>(); //chỉnh sau
+  const [data, setData] = useState<ILandingPageService>();
   const uiManagementService = new UiManagementService();
   const [schoolId] = useLocalStorage("schoolId", 0);
 
   useEffect(() => {
     const fetchData = async () => {
-      const landingPageData = await uiManagementService.getLandingPageInformation(schoolId);
-      setData(landingPageData);
+      try {
+        const landingPageData = await uiManagementService.getLandingPageInformation(schoolId);
+        setData(landingPageData);
+      } catch (error) {
+        console.log("error", error);
+        setData({
+          bannerImage: "/src/uiManagement/assets/banner-image.png",
+          description: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book.",
+          featuredCourses: [],
+          featuredDocuments: [],
+          featuredTeachers: [],
+          introductionImage: [
+            "/src/common/assets/StudyHubLogo.png",
+            "/src/common/assets/StudyHubLogo.png",
+            "/src/common/assets/StudyHubLogo.png"
+          ]
+        })
+      }
     }
 
     fetchData().catch(console.error);

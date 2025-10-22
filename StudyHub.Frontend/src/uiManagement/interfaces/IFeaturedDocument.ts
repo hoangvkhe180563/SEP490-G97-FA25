@@ -1,5 +1,5 @@
 export interface IFeaturedDocument {
-  image: string,
+  thumbnail: string,
   id: number,
   name: string,
   subjectName: string,

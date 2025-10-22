@@ -1,11 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
+using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
 
 namespace StudyHub.Backend.Infrastructure.Data;
 
 public partial class AppDbContext : DbContext
 {
+    public AppDbContext()
+    {
+    }
+
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
     {
@@ -74,6 +79,10 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<Subject> Subjects { get; set; }
 
     public virtual DbSet<SubmissionFile> SubmissionFiles { get; set; }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+        => optionsBuilder.UseMySql("server=127.0.0.1;database=StudyHub;user=root;password=123456", ServerVersion.Parse("8.0.43-mysql"));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -626,8 +635,6 @@ public partial class AppDbContext : DbContext
             entity.ToTable("landing_page_images");
 
             entity.HasIndex(e => e.LandingPageId, "LandingPageId");
-
-            entity.Property(e => e.Id).ValueGeneratedNever();
 
             entity.HasOne(d => d.LandingPage).WithMany(p => p.LandingPageImages)
                 .HasForeignKey(d => d.LandingPageId)

@@ -11,7 +11,7 @@ public static class FileConstants
 
     public static readonly string[] AllowedImageExtensions =
     {
-        ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"
+        ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg"
     };
 
     public const long MaxDocumentSize = 1024L * 1024L * 1000L;
@@ -20,4 +20,7 @@ public static class FileConstants
     public const string DocumentUploadPath = "Documents/Raw";
     public const string ThumbnailUploadPath = "Documents/Thumbnails";
     public const string ClassNotificationUploadPAth = "Class/NotificationFile";
+    public const string CourseThumbnailUploadPath = "Courses/Thumbnails";
+    public const string LandingPageBannerUploadPath = "LandingPage/Banner";
+    public const string LandingPageImagesUploadPath = "LandingPage/Introduction";
 }

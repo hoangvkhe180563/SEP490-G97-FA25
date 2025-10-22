@@ -1,10 +1,11 @@
 import type { RouteObject } from "react-router-dom";
 import UiManagementRouteConfig from "../constants/UiManagementRouteConfig";
+import LandingPageEdit from "../pages/LandingPageEdit";
 
 const uiManagementRoutes: RouteObject[] = [
   {
     path: UiManagementRouteConfig.LANDING_PAGE.CONFIGURATION,
-    // element: <LandingPageEdit/>
+    element: <LandingPageEdit/>
   },
   {
     path: UiManagementRouteConfig.PAYMENT_PAGE.INDEX,

@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StudyHub.Backend.Infrastructure.Data;
@@ -21,10 +23,14 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<ILessonRepository, LessonRepository>();
             services.AddScoped<ILandingPageRepository, LandingPageRepository>();
             services.AddScoped<IDocumentRepository, DocumentRepository>();
+            services.AddScoped<ILocationRepository, LocationRepository>();
             //services.AddScoped<IFileStorageRepository, LocalFileStorageService>();
             services.AddScoped<ISubjectRepository, SubjectRepository>();
             services.AddScoped<IDocumentCategoryRepository, DocumentCategoryRepository>();
+            services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
+            services.AddScoped<IProgressRepository, ProgressRepository>();
             services.AddScoped<IClassRepository, ClassRepository>();
+            services.AddScoped<IAppRoleRepository, AppRoleRepositoy>();
 
             services.AddScoped<ICloudinaryRepository>(provider =>
             {
@@ -34,7 +40,9 @@ namespace StudyHub.Backend.Infrastructure
 
                 return new CloudinaryRepository(cloudName, apiKey, apiSecret);
             });
+
             return services;
         }
     }
 }
+

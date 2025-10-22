@@ -1,11 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/common/components/ui/card";
+import { Card, CardContent } from "@/common/components/ui/card";
 import { Input } from "@/common/components/ui/input";
 import { Textarea } from "@/common/components/ui/textarea";
 import {
@@ -17,42 +12,138 @@ import {
 } from "@/common/components/ui/select";
 import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
-import { ArrowLeft, Upload, Video } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { courseApi } from "@/courseManagement/services/courseService";
+import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 
 const AddLecture: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  // keep a controlled local state for the lecture type so the Select component
-  // can be controlled and we can sync changes to the URL without dropping
-  // existing query params
   const initialType = searchParams.get("type") || "video";
-  const [type, setTypeState] = React.useState<string>(initialType);
+  const [type, setTypeState] = useState<string>(initialType);
+  const [useEmbed, setUseEmbed] = useState(false);
+  const [embedSrc, setEmbedSrc] = useState("");
+  const courseIdFromQuery = searchParams.get("courseId");
+  const chapterIdFromQuery = searchParams.get("chapterId");
 
-  // Keep local state in sync when the URL changes (e.g. navigation/back)
-  React.useEffect(() => {
-    const p = searchParams.get("type") || "video";
-    if (p !== type) setTypeState(p);
+  const [chapters, setChapters] = useState<{ id: number; name: string }[]>([]);
+  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(
+    chapterIdFromQuery ?? null
+  );
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(
+    courseIdFromQuery ?? null
+  );
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [readingContent, setReadingContent] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [duration, setDuration] = useState("");
+  const [postDate, setPostDate] = useState("");
+  const [isPreview, setIsPreview] = useState(false);
+
+  const [saving, setSaving] = useState(false);
+
+  const createLesson = useLectureStore((s: any) => s.createLesson);
+
+  // Đồng bộ query param "type"
+  useEffect(() => {
+    const t = searchParams.get("type") || "video";
+    if (t !== type) setTypeState(t);
   }, [searchParams, type]);
+
+  // Lấy danh sách chapters
+  useEffect(() => {
+    const cid = courseIdFromQuery ? Number(courseIdFromQuery) : undefined;
+    if (!cid) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const ch = await courseApi.getChapters(cid);
+        if (!mounted) return;
+        setChapters((ch || []).map((c: any) => ({ id: c.id, name: c.name })));
+        if ((ch || []).length > 0 && !selectedChapterId) {
+          if (chapterIdFromQuery) setSelectedChapterId(chapterIdFromQuery);
+          else setSelectedChapterId(String((ch || [])[0].id));
+        }
+      } catch (err) {
+        console.error("Failed to load chapters", err);
+      }
+      if (selectedChapterId) {
+        const ch = await courseApi.getChapter(Number(selectedChapterId));
+        if (ch && (ch as any).courseId) {
+          setSelectedCourseId(String((ch as any).courseId));
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [courseIdFromQuery, selectedChapterId, chapterIdFromQuery]);
 
   const setType = (t: string) => {
     setTypeState(t);
-    // preserve other existing query params
     const newParams = new URLSearchParams(searchParams);
     newParams.set("type", t);
     setSearchParams(newParams);
+  };
+
+  // Hàm tạo lecture
+  const handleCreate = async () => {
+    if (!title) {
+      alert("Vui lòng cung cấp tiêu đề cho bài giảng.");
+      return;
+    }
+    if ((courseIdFromQuery || chapterIdFromQuery) && !selectedChapterId) {
+      alert("Vui lòng chọn một chương cho bài giảng.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const dto: any = {
+        name: title,
+        chapterId: selectedChapterId ? Number(selectedChapterId) : 0,
+        status: true,
+        type: type === "video" ? "Video" : "Đọc",
+        videoUrl: type === "video" ? (useEmbed ? embedSrc : videoUrl) : null,
+        readingContent: type !== "video" ? readingContent : null,
+        duration: duration || null,
+        description: description || null,
+        postDate: postDate ? new Date(postDate) : null,
+        isPreview,
+      };
+
+      const created = createLesson
+        ? await createLesson(dto)
+        : await courseApi.createLesson(dto);
+
+      if (created && created.id) {
+        navigate(`/course/teacher/edit-course/${courseIdFromQuery}`);
+      } else {
+        alert("Tạo bài giảng thất bại");
+      }
+    } catch (err) {
+      console.error("Create lecture failed", err);
+      alert("Tạo bài giảng thất bại");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="flex-1 overflow-auto bg-white">
       <div className="max-w-[1200px] mx-auto px-8 py-6">
         <div className="text-sm text-[#525252] mb-3">
-          Lectures / Add Lecture
+          Bài giảng / Thêm bài giảng
         </div>
 
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() =>
+                navigate("/course/teacher/edit-course/" + selectedCourseId)
+              }
               className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
             >
               <ArrowLeft className="w-4 h-4 text-[#525252]" />
@@ -60,206 +151,192 @@ const AddLecture: React.FC = () => {
 
             <div>
               <h1 className="text-2xl font-normal text-[#171717]">
-                Add Lecture
+                Thêm bài giảng mới
               </h1>
               <p className="text-sm text-[#525252]">
-                Modify lecture details and content
+                Thêm thông tin chi tiết về bài giảng của bạn
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <Button variant="outline">Cancel</Button>
-            <Button>Save Changes</Button>
+            <Button
+              variant="outline"
+              onClick={() =>
+                navigate("/course/teacher/edit-course/" + selectedCourseId)
+              }
+            >
+              Hủy
+            </Button>
+            <Button onClick={handleCreate} disabled={saving}>
+              {saving ? "Đang tạo..." : "Tạo bài giảng"}
+            </Button>
           </div>
         </div>
 
         <Card>
           <CardContent>
-            <div className="grid grid-cols-12 gap-4">
-              <div className="col-span-12 lg:col-span-8 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-4">
-                    <Label>Course Selection</Label>
-                    <Select>
+            <div className="grid grid-cols-12 gap-6">
+              <div className="col-span-12 space-y-4">
+                {/* Chapter */}
+                <div className="space-y-2">
+                  <Label>Chương</Label>
+                  {chapters.length ? (
+                    <Select
+                      value={selectedChapterId ?? undefined}
+                      onValueChange={(v) => setSelectedChapterId(v)}
+                    >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a course" />
+                        <SelectValue placeholder="Chọn một chương" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="c1">
-                          Complete Web Development
-                        </SelectItem>
-                        <SelectItem value="c2">React Development</SelectItem>
+                        {chapters.map((c) => (
+                          <SelectItem key={c.id} value={String(c.id)}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  <div className="space-y-4">
-                    <Label>Lecture Type</Label>
-                    <Select value={type} onValueChange={(v) => setType(v)}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue
-                          placeholder={
-                            type === "video" ? "Video Lecture" : "Document"
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="video">Video Lecture</SelectItem>
-                        <SelectItem value="document">Document</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Không tìm thấy chương nào. Vui lòng tạo chương trước.
+                    </p>
+                  )}
                 </div>
 
-                <div className="space-y-4">
-                  <Label>Lecture Title</Label>
-                  <Input placeholder="Enter lecture title" />
+                {/* Type */}
+                <div className="space-y-2">
+                  <Label>Loại bài giảng</Label>
+                  <Select value={type} onValueChange={setType}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Chọn loại bài giảng" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="video">Bài giảng video</SelectItem>
+                      <SelectItem value="đọc">Tài liệu đọc</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div className="space-y-4">
-                  <Label>Description</Label>
-                  <Textarea
-                    placeholder="Describe what students will learn in this lecture..."
-                    rows={4}
+                {/* Title */}
+                <div className="space-y-2">
+                  <Label>Tên bài giảng</Label>
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Nhập tên bài giảng"
                   />
                 </div>
 
+                {/* Description */}
+                <div className="space-y-2">
+                  <Label>Mô tả</Label>
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={4}
+                    placeholder="Nhập mô tả"
+                  />
+                </div>
+
+                {/* File Upload / Embed */}
                 {type === "video" ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-4">
-                      <Label>Duration (minutes)</Label>
-                      <Input placeholder="45" />
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <Label>Video URL</Label>
+                      <div className="flex items-center gap-2 text-sm">
+                        <input
+                          id="use-embed"
+                          type="checkbox"
+                          checked={useEmbed}
+                          onChange={(e) => setUseEmbed(e.target.checked)}
+                          className="w-4 h-4"
+                        />
+                        <label htmlFor="use-embed">Embed (iframe)</label>
+                      </div>
                     </div>
-                    <div className="space-y-4">
-                      <Label>Difficulty Level</Label>
-                      <Select>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Beginner" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="beginner">Beginner</SelectItem>
-                          <SelectItem value="intermediate">
-                            Intermediate
-                          </SelectItem>
-                          <SelectItem value="advanced">Advanced</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+
+                    {!useEmbed ? (
+                      <Input
+                        placeholder="https://example.com/video.mp4"
+                        value={videoUrl}
+                        onChange={(e) => setVideoUrl(e.target.value)}
+                      />
+                    ) : (
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Dán link embed YouTube (vd: https://www.youtube.com/embed/...)"
+                          value={embedSrc}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const match = val.match(/src="([^"]+)"/);
+                            setEmbedSrc(match ? match[1] : val);
+                          }}
+                        />
+                        <div className="border rounded overflow-hidden">
+                          {embedSrc ? (
+                            <iframe
+                              title="embed-preview"
+                              src={embedSrc}
+                              className="w-full aspect-video rounded-md border border-gray-200"
+                              frameBorder="0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              referrerPolicy="strict-origin-when-cross-origin"
+                              allowFullScreen
+                            />
+                          ) : (
+                            <div className="p-3 text-sm text-gray-500">
+                              Nhập link embed (ví dụ YouTube embed URL) để xem
+                              trước
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Pages</Label>
-                      <Input placeholder="20" />
-                    </div>
-                    <div>
-                      <Label>Difficulty Level</Label>
-                      <Select>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Beginner" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="beginner">Beginner</SelectItem>
-                          <SelectItem value="intermediate">
-                            Intermediate
-                          </SelectItem>
-                          <SelectItem value="advanced">Advanced</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-4">
+                    <Label>Nội dung đọc</Label>
+                    <Textarea
+                      value={readingContent}
+                      onChange={(e) => setReadingContent(e.target.value)}
+                      rows={6}
+                    />
                   </div>
                 )}
 
-                <div>
-                  <Label>Upload Content</Label>
-                  <div className="mt-2 border-2 border-dashed border-[#D4D4D4] rounded-lg h-[160px] flex flex-col items-center justify-center">
-                    <Upload className="w-6 h-6 text-[#A3A3A3] mb-2" />
-                    <p className="text-sm text-[#525252] mb-1">
-                      Drop your files here or click to browse
-                    </p>
-                    <p className="text-xs text-[#737373] mb-3">
-                      {type === "video"
-                        ? "Supports: MP4 (Max 500MB)"
-                        : "Supports: PDF, PPTX (Max 20MB)"}
-                    </p>
-                    <Button variant="outline">Browse Files</Button>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <Label>Tags</Label>
-                  <Input placeholder="Add tags separated by commas" />
-                </div>
-
+                {/* Duration, Date, Time */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-4">
-                    <Label>Scheduled Date</Label>
-                    <Input type="date" />
+                  <div className="space-y-2">
+                    <Label>Thời gian (phút)</Label>
+                    <Input
+                      value={duration}
+                      onChange={(e) => setDuration(e.target.value)}
+                    />
                   </div>
-                  <div className="space-y-4">
-                    <Label>Scheduled Time</Label>
-                    <Input type="time" />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 mt-4">
-                  <div className="flex items-center gap-2">
-                    <input id="immediate" type="checkbox" className="w-4 h-4" />
-                    <label
-                      htmlFor="immediate"
-                      className="text-sm text-[#404040]"
-                    >
-                      Make this lecture available immediately
-                    </label>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input id="notify" type="checkbox" className="w-4 h-4" />
-                    <label htmlFor="notify" className="text-sm text-[#404040]">
-                      Send notification to enrolled students
-                    </label>
+                  <div className="space-y-2">
+                    <Label>Ngày đăng</Label>
+                    <Input
+                      type="date"
+                      value={postDate}
+                      onChange={(e) => setPostDate(e.target.value)}
+                    />
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 mt-6">
-                  <Button variant="outline">Save as Draft</Button>
-                  <Button>Publish Lecture</Button>
+                {/* Teacher Name + Preview */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2 mt-6">
+                    <input
+                      type="checkbox"
+                      checked={isPreview}
+                      onChange={(e) => setIsPreview(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <Label>Cho phép xem trước bài giảng</Label>
+                  </div>
                 </div>
               </div>
-
-              <aside className="col-span-12 lg:col-span-4">
-                <div className="space-y-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Preview</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="h-28 bg-[#FAFAFA] rounded flex items-center justify-center text-sm text-[#666]">
-                        <Video className="w-6 h-6 text-[#666]" />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Options</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3 text-sm text-[#404040]">
-                        <div className="flex justify-between">
-                          <span>Duration / Pages</span>
-                          <span className="font-semibold">—</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Difficulty</span>
-                          <span className="font-semibold">—</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </aside>
             </div>
           </CardContent>
         </Card>
