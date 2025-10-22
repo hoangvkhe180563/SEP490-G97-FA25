@@ -1,10 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos;
+using StudyHub.Backend.Api.Dtos.ClassDTOS;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.UseCases.Services;
 using System;
 using System.Linq;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -15,11 +17,12 @@ namespace StudyHub.Backend.Api.Controllers
     {
         private readonly DocumentService _documentService;
         private readonly AppUserService _userService;
-
-        public DocumentController(DocumentService documentService, AppUserService userService)
+        private readonly ClassService _classService;
+        public DocumentController(DocumentService documentService, AppUserService userService, ClassService classService)
         {
             _documentService = documentService;
             _userService = userService;
+            _classService = classService;
         }
 
         private Guid? GetCurrentUserId()
@@ -150,6 +153,44 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
+        //[HttpPost("create")]
+        //[Consumes("multipart/form-data")]
+        //public async Task<IActionResult> CreateDocument([FromForm] CreateDocumentDto dto)
+        //{
+        //    if (!ModelState.IsValid)
+        //        return BadRequest(new { success = false, errors = ModelState });
+
+        //    // var currentUserId = GetCurrentUserId();
+        //    // if (!currentUserId.HasValue)
+        //    //     return Unauthorized(new { success = false });
+        //    // 
+        //    // var userInfo = _userService.GetUserById(currentUserId.Value);
+        //    // if (userInfo == null)
+        //    //     return Unauthorized(new { success = false });
+        //    // 
+        //    // var document = dto.ToEntity();
+        //    // document.CreatedBy = currentUserId.Value;
+        //    // 
+        //    // if (dto.IsInClass == true)
+        //    // {
+        //    //     if (userInfo.SchoolId == null)
+        //    //         return BadRequest(new { success = false });
+        //    //     document.SchoolId = userInfo.SchoolId;
+        //    // }
+        //    // else
+        //    // {
+        //    //     document.SchoolId = dto.SchoolId;
+        //    // }
+        //    var document = dto.ToEntity();
+        //    document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList() ?? new List<Domain.Entities.Class>();
+
+        //    var createdDocument = await _documentService.CreateDocumentAsync(
+        //        document, dto.DocumentFile, dto.ThumbnailFile);
+
+        //    return CreatedAtAction(nameof(GetDocumentById), new { id = createdDocument.Id },
+        //        new { success = true, data = createdDocument.ToDetailDto() });
+
+        //}
         [HttpPost("create")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreateDocument([FromForm] CreateDocumentDto dto)
@@ -157,30 +198,40 @@ namespace StudyHub.Backend.Api.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(new { success = false, errors = ModelState });
 
-            // var currentUserId = GetCurrentUserId();
-            // if (!currentUserId.HasValue)
-            //     return Unauthorized(new { success = false });
-            // 
-            // var userInfo = _userService.GetUserById(currentUserId.Value);
-            // if (userInfo == null)
-            //     return Unauthorized(new { success = false });
-            // 
-            // var document = dto.ToEntity();
-            // document.CreatedBy = currentUserId.Value;
-            // 
-            // if (dto.IsInClass == true)
-            // {
-            //     if (userInfo.SchoolId == null)
-            //         return BadRequest(new { success = false });
-            //     document.SchoolId = userInfo.SchoolId;
-            // }
-            // else
-            // {
-            //     document.SchoolId = dto.SchoolId;
-            // }
-
             var document = dto.ToEntity();
-            document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList() ?? new List<Domain.Entities.Class>();
+
+            // Lấy tất cả giá trị classes từ form (dù tên là classes hay classesJson)
+            var classesValues = Request.Form["classes"];
+            if (classesValues.Count == 0)
+                classesValues = Request.Form["classesJson"];
+
+            if (classesValues.Count > 0)
+            {
+                var classList = new List<ClassListDto>();
+                foreach (var jsonString in classesValues)
+                {
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(jsonString))
+                        {
+                            var classItem = System.Text.Json.JsonSerializer.Deserialize<ClassListDto>(jsonString,
+                                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            if (classItem != null)
+                                classList.Add(classItem);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error parsing class JSON: {ex.Message}");
+                    }
+                }
+                document.Classes = classList.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList();
+            }
+            else
+            {
+                document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList()
+                                   ?? new List<Domain.Entities.Class>();
+            }
 
             var createdDocument = await _documentService.CreateDocumentAsync(
                 document, dto.DocumentFile, dto.ThumbnailFile);
@@ -188,7 +239,38 @@ namespace StudyHub.Backend.Api.Controllers
             return CreatedAtAction(nameof(GetDocumentById), new { id = createdDocument.Id },
                 new { success = true, data = createdDocument.ToDetailDto() });
         }
+        //[HttpPut("{id:int}")]
+        //[Consumes("multipart/form-data")]
+        //public async Task<IActionResult> UpdateDocument(int id, [FromForm] UpdateDocumentDto dto)
+        //{
+        //    if (id != dto.Id)
+        //        return BadRequest(new { success = false });
 
+        //    if (!ModelState.IsValid)
+        //        return BadRequest(new { success = false, errors = ModelState });
+
+        //    // var currentUserId = GetCurrentUserId();
+        //    // if (!currentUserId.HasValue)
+        //    //     return Unauthorized(new { success = false });
+        //    // 
+        //    // var existingDoc = _documentService.GetDocumentById(id);
+        //    // if (existingDoc == null)
+        //    //     return NotFound(new { success = false });
+        //    // 
+        //    // if (existingDoc.CreatedBy != currentUserId.Value)
+        //    //     return Forbid();
+        //    // 
+        //    // var document = dto.ToEntity();
+        //    // document.UpdatedBy = currentUserId.Value;
+
+        //    var document = dto.ToEntity();
+        //    document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList() ?? new List<Domain.Entities.Class>();
+
+        //    var updatedDocument = await _documentService.UpdateDocumentAsync(
+        //        document, dto.DocumentFile, dto.ThumbnailFile);
+
+        //    return Ok(new { success = true, data = updatedDocument.ToDetailDto() });
+        //}
         [HttpPut("{id:int}")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateDocument(int id, [FromForm] UpdateDocumentDto dto)
@@ -199,29 +281,46 @@ namespace StudyHub.Backend.Api.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(new { success = false, errors = ModelState });
 
-            // var currentUserId = GetCurrentUserId();
-            // if (!currentUserId.HasValue)
-            //     return Unauthorized(new { success = false });
-            // 
-            // var existingDoc = _documentService.GetDocumentById(id);
-            // if (existingDoc == null)
-            //     return NotFound(new { success = false });
-            // 
-            // if (existingDoc.CreatedBy != currentUserId.Value)
-            //     return Forbid();
-            // 
-            // var document = dto.ToEntity();
-            // document.UpdatedBy = currentUserId.Value;
-
             var document = dto.ToEntity();
-            document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList() ?? new List<Domain.Entities.Class>();
+
+            // Lấy tất cả giá trị classes từ form (dù tên là classes hay classesJson)
+            var classesValues = Request.Form["classes"];
+            if (classesValues.Count == 0)
+                classesValues = Request.Form["classesJson"];
+
+            if (classesValues.Count > 0)
+            {
+                var classList = new List<ClassListDto>();
+                foreach (var jsonString in classesValues)
+                {
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(jsonString))
+                        {
+                            var classItem = System.Text.Json.JsonSerializer.Deserialize<ClassListDto>(jsonString,
+                                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            if (classItem != null)
+                                classList.Add(classItem);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error parsing class JSON: {ex.Message}");
+                    }
+                }
+                document.Classes = classList.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList();
+            }
+            else
+            {
+                document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList()
+                                   ?? new List<Domain.Entities.Class>();
+            }
 
             var updatedDocument = await _documentService.UpdateDocumentAsync(
                 document, dto.DocumentFile, dto.ThumbnailFile);
 
             return Ok(new { success = true, data = updatedDocument.ToDetailDto() });
         }
-
         [HttpDelete("{id:int}")]
         public IActionResult DeleteDocument(int id)
         {
@@ -357,7 +456,21 @@ namespace StudyHub.Backend.Api.Controllers
                 _ => "application/octet-stream"
             };
         }
+        [HttpGet("my-class/{userid:guid}")]
+        public IActionResult GetClassByUserId(Guid userid)
+        {
+            var classes = _classService.GetClassByUserId(userid);
+            var subjects = _classService.GetSubjects();
+            var teachers = _classService.GetTeachers();
 
+            var result = classes.Select(c => {
+                var subject = subjects.FirstOrDefault(s => s.Id == c.SubjectId);
+                var teacher = teachers.FirstOrDefault(t => t.Id == c.CreatedBy);
+                return c.ToListClassDto(teacher, subject);
+            }).ToList();
+
+            return Ok(result);
+        }
         [HttpGet("by-subject/{subjectId:int}")]
         public IActionResult GetDocumentsBySubject(int subjectId)
         {

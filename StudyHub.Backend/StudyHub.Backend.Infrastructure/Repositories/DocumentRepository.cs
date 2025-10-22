@@ -318,6 +318,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public Document CreateDocument(Document doc)
         {
+            using var transaction = _context.Database.BeginTransaction();
             try
             {
                 var entity = new Data.Document
@@ -351,11 +352,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     }
                 }
 
+                transaction.Commit();
                 doc.Id = entity.Id;
                 return doc;
             }
             catch (DbUpdateException ex)
             {
+                transaction.Rollback();
                 var innerMessage = ex.InnerException?.Message ?? ex.Message;
                 new InfrastructureException("DocumentRepository", $"CreateDocument failed: {innerMessage}").LogError();
                 throw new InvalidOperationException("Failed to create document", ex);

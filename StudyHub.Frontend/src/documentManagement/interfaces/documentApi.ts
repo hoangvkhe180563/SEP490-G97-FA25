@@ -32,7 +32,35 @@ export interface DocumentDetailDto {
   isInClass?: boolean
   classes?: Array<{ id: number; name?: string }>
 }
-
+export interface DocumentListDto {
+  id: number
+  name: string
+  subjectId: number
+  subjectName?: string  
+  gradeId: number
+  grade: number 
+  documentCategoryId: number
+  categoryName?: string  
+  accessibilityId: number
+  documentUrl: string
+  createdAt: string
+  createdBy: string
+  updatedAt: string | null
+  updatedBy: string | null
+  deletedAt: string | null
+  isApproved: boolean
+  status: boolean
+  description: string
+  uploaderName: string
+  thumbnail: string
+  schoolId: number
+  schoolName?: string 
+  isFeatured: boolean
+  price: number
+  isSchoolDocument: boolean
+  fileType?: string  
+  classId?: number  
+}
 export interface DocumentListDto {
   id: number
   name: string

@@ -9,7 +9,9 @@ import type {
   SubjectDto,
   DocumentDetailDto,
 } from "@/documentManagement/interfaces/documentApi"
-
+import type {
+  ClassListDto,
+} from "@/classManagement/interfaces/class"
 const BASE_URL = "http://localhost:6789/api"
 
 export const documentService = {
@@ -190,4 +192,22 @@ export const documentService = {
     const response = await axios.get<SubjectDto[] | ApiResponse<SubjectDto[]>>(`${BASE_URL}/Subject/allsubject`)
     return Array.isArray(response.data) ? response.data : response.data.data
   },
+
+  getUserClasses: async (userId: string): Promise<ClassListDto[]> => {
+    const response = await axios.get(`${BASE_URL}/Document/my-class/${userId}`)
+    return response.data
+  },
+
+  createDocument: async (formData: FormData): Promise<ApiResponse<DocumentDetailDto>> => {
+    const response = await axios.post<ApiResponse<DocumentDetailDto>>(
+      `${BASE_URL}/Document/create`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    )
+    return response.data
+  }
 }

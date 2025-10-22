@@ -2,14 +2,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Input } from "@/common/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/common/components/ui/select"
 import { Button } from "@/common/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/common/components/ui/table"
 import {
@@ -30,6 +22,39 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/common/components/ui/alert-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/common/components/ui/dropdown-menu"
+import { Checkbox } from "@/common/components/ui/checkbox"
+import { Label } from "@/common/components/ui/label"
+import { 
+  Eye, 
+  Check, 
+  X, 
+  RotateCcw, 
+  EyeOff,
+  ChevronLeft,
+  ChevronRight,
+  MoreVertical,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
+} from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/common/components/ui/select"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/common/components/ui/collapsible"
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore"
 import { documentService } from "@/documentManagement/services/documentService"
 import type { Subject, DocumentCategory } from "@/documentManagement/interfaces/masterData"
@@ -38,19 +63,30 @@ import type { Document } from "@/documentManagement/interfaces/document"
 const MANAGER_SCHOOL_ID = 1
 const UPDATED_BY = "a1b2c3d4-e5f6-7890-1234-567890abcdef"
 
+type SortField = "createdAt" | "updatedAt" | "name" | null
+type SortOrder = "asc" | "desc"
+
 const ManagerDocumentApprovalList = () => {
   const navigate = useNavigate()
   const [statusFilter, setStatusFilter] = useState<string>("pending")
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedSubject, setSelectedSubject] = useState<string>("all")
-  const [selectedGrade, setSelectedGrade] = useState<string>("all")
-  const [selectedCategory, setSelectedCategory] = useState<string>("all")
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
+  const [selectedGrades, setSelectedGrades] = useState<string[]>([])
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [pageSize, setPageSize] = useState(5)
+  const [sortField, setSortField] = useState<SortField>(null)
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
   
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [categories, setCategories] = useState<DocumentCategory[]>([])
   const [successMessage, setSuccessMessage] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
+  const [openSections, setOpenSections] = useState<{[key: string]: boolean}>({
+    status: true,
+    subject: false,
+    grade: false,
+    category: false
+  })
 
   const [dialogState, setDialogState] = useState<{
     open: boolean
@@ -66,7 +102,6 @@ const ManagerDocumentApprovalList = () => {
 
   const {
     documents,
-    totalCount,
     totalPages,
     currentPage,
     isLoading,
@@ -96,41 +131,107 @@ const ManagerDocumentApprovalList = () => {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [statusFilter, searchQuery, selectedCategory, selectedGrade, selectedSubject])
+  }, [statusFilter, searchQuery, selectedCategories, selectedGrades, selectedSubjects])
 
   useEffect(() => {
     fetchDocuments()
-  }, [statusFilter, searchQuery, selectedCategory, selectedGrade, selectedSubject, currentPage, pageSize])
+  }, [statusFilter, searchQuery, selectedCategories, selectedGrades, selectedSubjects, currentPage, pageSize, sortField, sortOrder])
 
-const fetchDocuments = () => {
-  let isApproved: boolean | undefined = undefined
+  const fetchDocuments = () => {
+    let isApproved: boolean | undefined = undefined
 
-  if (statusFilter === "approved") {
-    isApproved = true
-  } else if (statusFilter === "rejected") {
-    isApproved = false
+    if (statusFilter === "approved") {
+      isApproved = true
+    } else if (statusFilter === "rejected") {
+      isApproved = false
+    }
+
+    fetchManagerSchoolDocuments(
+      MANAGER_SCHOOL_ID,
+      searchQuery || undefined,
+      selectedCategories.length > 0 ? parseInt(selectedCategories[0]) : undefined,
+      selectedGrades.length > 0 ? parseInt(selectedGrades[0]) : undefined,
+      selectedSubjects.length > 0 ? selectedSubjects[0] : undefined,
+      undefined,
+      isApproved,
+      true,
+      currentPage,
+      pageSize
+    )
   }
 
-  fetchManagerSchoolDocuments(
-    MANAGER_SCHOOL_ID,
-    searchQuery || undefined,
-    selectedCategory !== "all" ? parseInt(selectedCategory) : undefined,
-    selectedGrade !== "all" ? parseInt(selectedGrade) : undefined,
-    selectedSubject !== "all" ? selectedSubject : undefined,
-    undefined,
-    isApproved,
-    true,
-    currentPage,
-    pageSize
-  )
-}
+  const sortedDocuments = [...documents].sort((a, b) => {
+    if (!sortField) return 0
+    
+    let aValue: any = a[sortField]
+    let bValue: any = b[sortField]
+    
+    if (sortField === "name") {
+      aValue = a.name.toLowerCase()
+      bValue = b.name.toLowerCase()
+    } else if (sortField === "createdAt" || sortField === "updatedAt") {
+      aValue = new Date(aValue).getTime()
+      bValue = new Date(bValue).getTime()
+    }
+    
+    if (sortOrder === "asc") {
+      return aValue > bValue ? 1 : -1
+    } else {
+      return aValue < bValue ? 1 : -1
+    }
+  })
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+    } else {
+      setSortField(field)
+      setSortOrder("desc")
+    }
+  }
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 inline" />
+    return sortOrder === "asc" ? <ArrowUp className="h-3 w-3 ml-1 inline" /> : <ArrowDown className="h-3 w-3 ml-1 inline" />
+  }
 
   const handleClearFilters = () => {
     setSearchQuery("")
-    setSelectedSubject("all")
-    setSelectedGrade("all")
-    setSelectedCategory("all")
+    setSelectedSubjects([])
+    setSelectedGrades([])
+    setSelectedCategories([])
     setStatusFilter("pending")
+  }
+
+  const toggleSubject = (subjectName: string) => {
+    setSelectedSubjects(prev =>
+      prev.includes(subjectName)
+        ? prev.filter(s => s !== subjectName)
+        : [...prev, subjectName]
+    )
+  }
+
+  const toggleGrade = (grade: string) => {
+    setSelectedGrades(prev =>
+      prev.includes(grade)
+        ? prev.filter(g => g !== grade)
+        : [...prev, grade]
+    )
+  }
+
+  const toggleCategory = (categoryId: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(categoryId)
+        ? prev.filter(c => c !== categoryId)
+        : [...prev, categoryId]
+    )
+  }
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }))
   }
 
   const openDialog = (type: typeof dialogState.type, documentId: number, documentName: string) => {
@@ -231,71 +332,46 @@ const fetchDocuments = () => {
     }
   }
 
-  const renderActionButtons = (status: string, doc: Document) => {
-    if (status === "pending") {
-      return (
-        <div className="flex flex-col gap-1.5 items-center">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="text-xs bg-transparent px-3 h-8 w-20"
-            onClick={() => handleViewDocument(doc.id)}
-          >
-            Xem
+  const renderDropdownMenu = (status: string, doc: Document) => {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+            <MoreVertical className="h-4 w-4" />
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="text-xs bg-transparent px-3 h-8 w-20"
-            onClick={() => openDialog("reject", doc.id, doc.name)}
-          >
-            Từ chối
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="text-xs bg-transparent px-3 h-8 w-20"
-            onClick={() => openDialog("approve", doc.id, doc.name)}
-          >
-            Chấp nhận
-          </Button>
-        </div>
-      )
-    } else if (status === "approved") {
-      return (
-        <div className="flex flex-col gap-1.5 items-center">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="text-xs bg-transparent px-3 h-8 w-20"
-            onClick={() => handleViewDocument(doc.id)}
-          >
-            Xem
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="text-xs bg-transparent px-3 h-8 w-20"
-            onClick={() => openDialog("revoke", doc.id, doc.name)}
-          >
-            Thu hồi
-          </Button>
-        </div>
-      )
-    } else if (status === "rejected") {
-      return (
-        <div className="flex justify-center">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="text-xs bg-transparent px-3 h-8 w-20"
-            onClick={() => openDialog("hide", doc.id, doc.name)}
-          >
-            Ẩn
-          </Button>
-        </div>
-      )
-    }
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem onClick={() => handleViewDocument(doc.id)} className="cursor-pointer">
+            <Eye className="mr-2 h-4 w-4" />
+            <span>Xem chi tiết</span>
+          </DropdownMenuItem>
+          {status === "pending" && (
+            <>
+              <DropdownMenuItem onClick={() => openDialog("approve", doc.id, doc.name)} className="cursor-pointer">
+                <Check className="mr-2 h-4 w-4 text-green-600" />
+                <span>Phê duyệt</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openDialog("reject", doc.id, doc.name)} className="cursor-pointer">
+                <X className="mr-2 h-4 w-4 text-red-600" />
+                <span>Từ chối</span>
+              </DropdownMenuItem>
+            </>
+          )}
+          {status === "approved" && (
+            <DropdownMenuItem onClick={() => openDialog("revoke", doc.id, doc.name)} className="cursor-pointer">
+              <RotateCcw className="mr-2 h-4 w-4 text-orange-600" />
+              <span>Thu hồi phê duyệt</span>
+            </DropdownMenuItem>
+          )}
+          {status === "rejected" && (
+            <DropdownMenuItem onClick={() => openDialog("hide", doc.id, doc.name)} className="cursor-pointer">
+              <EyeOff className="mr-2 h-4 w-4 text-gray-600" />
+              <span>Ẩn tài liệu</span>
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
   }
 
   const getPageTitle = () => {
@@ -308,110 +384,152 @@ const fetchDocuments = () => {
   const dialogContent = getDialogContent()
 
   return (
-    <div className="flex gap-4">
+    <div className="flex gap-1 h-screen p-1">
       <style>{`
-        .scrollbar-thin::-webkit-scrollbar {
-          width: 4px;
+        .scrollbar-custom::-webkit-scrollbar {
+          width: 10px;
+          height: 10px;
         }
-        .scrollbar-thin::-webkit-scrollbar-track {
-          background: transparent;
+        .scrollbar-custom::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 5px;
         }
-        .scrollbar-thin::-webkit-scrollbar-thumb {
-          background: #d1d5db;
-          border-radius: 2px;
+        .scrollbar-custom::-webkit-scrollbar-thumb {
+          background: #94a3b8;
+          border-radius: 5px;
+        }
+        .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+          background: #64748b;
         }
       `}</style>
 
-      <div className="w-40 bg-white rounded-xl shadow-md p-4 h-fit flex-shrink-0">
-        <h3 className="font-semibold mb-3 text-sm">Bộ lọc</h3>
-
-        <div className="mb-3">
-          <label className="text-xs text-gray-600 mb-1.5 block">Tìm kiếm</label>
+      <div className="w-72 bg-white rounded-lg shadow-sm border flex-shrink-0 overflow-y-auto scrollbar-custom">
+        <div className="p-4 border-b sticky top-0 bg-white z-10">
+          <h3 className="font-semibold text-base mb-3">Bộ lọc</h3>
           <Input 
-            placeholder="Tên tài liệu..." 
-            className="text-xs h-8"
+            placeholder="Tìm kiếm tài liệu..." 
+            className="text-sm h-10"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
-        <div className="mb-3">
-          <label className="text-xs text-gray-600 mb-1.5 block">Trạng thái</label>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Chọn trạng thái" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="pending">Chờ phê duyệt</SelectItem>
-                <SelectItem value="approved">Đã phê duyệt</SelectItem>
-                <SelectItem value="rejected">Bị từ chối</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
+        <div className="p-4 space-y-4">
+          <div className="border-b pb-4">
+            <Collapsible open={openSections.status} onOpenChange={() => toggleSection('status')}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full">
+                <span className="text-sm font-medium">Trạng thái</span>
+                <ChevronRight className={`h-4 w-4 transition-transform ${openSections.status ? 'rotate-90' : ''}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3 space-y-2.5">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="pending"
+                    checked={statusFilter === "pending"}
+                    onCheckedChange={() => setStatusFilter("pending")}
+                  />
+                  <Label htmlFor="pending" className="text-sm cursor-pointer font-normal">
+                    Chờ phê duyệt
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="approved"
+                    checked={statusFilter === "approved"}
+                    onCheckedChange={() => setStatusFilter("approved")}
+                  />
+                  <Label htmlFor="approved" className="text-sm cursor-pointer font-normal">
+                    Đã phê duyệt
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="rejected"
+                    checked={statusFilter === "rejected"}
+                    onCheckedChange={() => setStatusFilter("rejected")}
+                  />
+                  <Label htmlFor="rejected" className="text-sm cursor-pointer font-normal">
+                    Bị từ chối
+                  </Label>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
 
-        <div className="mb-3">
-          <label className="text-xs text-gray-600 mb-1.5 block">Môn học</label>
-          <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Tất cả môn" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="all">Tất cả môn</SelectItem>
+          <div className="border-b pb-4">
+            <Collapsible open={openSections.subject} onOpenChange={() => toggleSection('subject')}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full">
+                <span className="text-sm font-medium">Môn học</span>
+                <ChevronRight className={`h-4 w-4 transition-transform ${openSections.subject ? 'rotate-90' : ''}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3 space-y-2.5 max-h-60 overflow-y-auto scrollbar-custom">
                 {subjects.map((subject) => (
-                  <SelectItem key={subject.id} value={subject.name}>
-                    {subject.name}
-                  </SelectItem>
+                  <div key={subject.id} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`subject-${subject.id}`}
+                      checked={selectedSubjects.includes(subject.name)}
+                      onCheckedChange={() => toggleSubject(subject.name)}
+                    />
+                    <Label htmlFor={`subject-${subject.id}`} className="text-sm cursor-pointer font-normal">
+                      {subject.name}
+                    </Label>
+                  </div>
                 ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
 
-        <div className="mb-3">
-          <label className="text-xs text-gray-600 mb-1.5 block">Lớp</label>
-          <Select value={selectedGrade} onValueChange={setSelectedGrade}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Tất cả lớp" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="all">Tất cả lớp</SelectItem>
+          <div className="border-b pb-4">
+            <Collapsible open={openSections.grade} onOpenChange={() => toggleSection('grade')}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full">
+                <span className="text-sm font-medium">Lớp</span>
+                <ChevronRight className={`h-4 w-4 transition-transform ${openSections.grade ? 'rotate-90' : ''}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3 space-y-2.5 max-h-60 overflow-y-auto scrollbar-custom">
                 {[...Array(12)].map((_, i) => (
-                  <SelectItem key={i + 1} value={(i + 1).toString()}>
-                    Lớp {i + 1}
-                  </SelectItem>
+                  <div key={i + 1} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`grade-${i + 1}`}
+                      checked={selectedGrades.includes((i + 1).toString())}
+                      onCheckedChange={() => toggleGrade((i + 1).toString())}
+                    />
+                    <Label htmlFor={`grade-${i + 1}`} className="text-sm cursor-pointer font-normal">
+                      Lớp {i + 1}
+                    </Label>
+                  </div>
                 ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
 
-        <div className="mb-3">
-          <label className="text-xs text-gray-600 mb-1.5 block">Loại tài liệu</label>
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Tất cả loại" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="all">Tất cả loại</SelectItem>
+          <div className="pb-4">
+            <Collapsible open={openSections.category} onOpenChange={() => toggleSection('category')}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full">
+                <span className="text-sm font-medium">Loại tài liệu</span>
+                <ChevronRight className={`h-4 w-4 transition-transform ${openSections.category ? 'rotate-90' : ''}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3 space-y-2.5 max-h-60 overflow-y-auto scrollbar-custom">
                 {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id.toString()}>
-                    {category.name}
-                  </SelectItem>
+                  <div key={category.id} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`category-${category.id}`}
+                      checked={selectedCategories.includes(category.id.toString())}
+                      onCheckedChange={() => toggleCategory(category.id.toString())}
+                    />
+                    <Label htmlFor={`category-${category.id}`} className="text-sm cursor-pointer font-normal">
+                      {category.name}
+                    </Label>
+                  </div>
                 ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="p-4 border-t sticky bottom-0 bg-white">
           <Button 
             variant="outline" 
-            className="w-full bg-transparent h-8 text-xs"
+            className="w-full h-10 text-sm"
             onClick={handleClearFilters}
           >
             Xóa bộ lọc
@@ -419,165 +537,178 @@ const fetchDocuments = () => {
         </div>
       </div>
 
-      <div className="flex-1 bg-white rounded-xl shadow-md p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">{getPageTitle()}</h2>
+      <div className="flex-1 bg-white rounded-lg shadow-sm border flex flex-col overflow-hidden">
+        <div className="p-6 border-b">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">{getPageTitle()}</h2>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600">Số hàng:</span>
+              <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(parseInt(value))}>
+                <SelectTrigger className="w-20 h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {successMessage && (
+            <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-sm">
+              {successMessage}
+            </div>
+          )}
+
+          {errorMessage && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+              {errorMessage}
+            </div>
+          )}
         </div>
 
-        {successMessage && (
-          <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-sm">
-            {successMessage}
-          </div>
-        )}
-
-        {errorMessage && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
-            {errorMessage}
-          </div>
-        )}
-
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-gray-500">Đang tải...</div>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-gray-100">
-                    <TableHead className="text-center font-semibold text-gray-700 w-12 px-2">STT</TableHead>
-                    <TableHead className="text-center font-semibold text-gray-700 w-20 px-2">TÀI LIỆU</TableHead>
-                    <TableHead className="text-center font-semibold text-gray-700 w-32 px-2">MÔ TẢ</TableHead>
-                    <TableHead className="text-center font-semibold text-gray-700 w-32 px-2">TÁC GIẢ</TableHead>
-                    <TableHead className="text-center font-semibold text-gray-700 w-24 px-2">MÔN HỌC</TableHead>
-                    <TableHead className="text-center font-semibold text-gray-700 w-24 px-2">NGÀY TẠO</TableHead>
+        <div className="flex-1 overflow-auto scrollbar-custom">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-gray-500">Đang tải...</div>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader className="sticky top-0 bg-gray-50 z-10">
+                <TableRow>
+                  <TableHead className="text-center font-semibold text-gray-700 w-16">STT</TableHead>
+                  <TableHead 
+                    className="text-center font-semibold text-gray-700 w-40 cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort("name")}
+                  >
+                    TÀI LIỆU {getSortIcon("name")}
+                  </TableHead>
+                  <TableHead className="text-center font-semibold text-gray-700 w-48">MÔ TẢ</TableHead>
+                  <TableHead className="text-center font-semibold text-gray-700 w-48">TÁC GIẢ</TableHead>
+                  <TableHead className="text-center font-semibold text-gray-700 w-32">MÔN HỌC</TableHead>
+                  <TableHead 
+                    className="text-center font-semibold text-gray-700 w-36 cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort("createdAt")}
+                  >
+                    NGÀY TẠO {getSortIcon("createdAt")}
+                  </TableHead>
+                  {statusFilter === "approved" && (
+                    <TableHead 
+                      className="text-center font-semibold text-gray-700 w-36 cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort("updatedAt")}
+                    >
+                      NGÀY DUYỆT {getSortIcon("updatedAt")}
+                    </TableHead>
+                  )}
+                  <TableHead className="text-center font-semibold text-gray-700 w-24">THAO TÁC</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedDocuments.map((doc, index) => (
+                  <TableRow key={doc.id} className="hover:bg-gray-50">
+                    <TableCell className="text-center text-sm">
+                      {(currentPage - 1) * pageSize + index + 1}
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-xs text-center">
+                        <div className="font-medium line-clamp-2">{doc.name}</div>
+                        <div className="text-gray-500 text-[11px] mt-1">
+                          {doc.fileType || "PDF"}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-xs h-20 overflow-y-auto scrollbar-custom text-left px-2 whitespace-normal break-words">
+                        {doc.description || "-"}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="overflow-x-auto scrollbar-custom">
+                        <div className="text-xs text-center min-w-max px-2">
+                          <div className="font-medium">{doc.uploaderName || "N/A"}</div>
+                          <div className="text-gray-500 text-[11px] mt-1">{doc.schoolName || "N/A"}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="text-xs">
+                        <div>{doc.subjectName}</div>
+                        <div className="text-gray-500 text-[11px] mt-1">Lớp {doc.grade}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center text-xs">
+                      {new Date(doc.createdAt).toLocaleDateString("vi-VN")}
+                    </TableCell>
                     {statusFilter === "approved" && (
-                      <TableHead className="text-center font-semibold text-gray-700 w-24 px-2">NGÀY DUYỆT</TableHead>
+                      <TableCell className="text-center text-xs">
+                        {doc.updatedAt ? new Date(doc.updatedAt).toLocaleDateString("vi-VN") : "-"}
+                      </TableCell>
                     )}
-                    <TableHead className="text-center font-semibold text-gray-700 w-32 px-2">THAO TÁC</TableHead>
+                    <TableCell>
+                      <div className="flex items-center justify-center">
+                        {renderDropdownMenu(statusFilter, doc)}
+                      </div>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {documents.map((doc, index) => (
-                    <TableRow key={doc.id} className="hover:bg-gray-50">
-                      <TableCell className="text-center text-sm py-3 px-2">
-                        {(currentPage - 1) * pageSize + index + 1}
-                      </TableCell>
-                      <TableCell className="py-3 px-2">
-                        <div className="flex items-center justify-center h-full">
-                          <div className="text-xs w-20 break-words text-center">
-                            <div className="font-medium line-clamp-2">{doc.name}</div>
-                            <div className="text-gray-500 text-[11px]">
-                              {doc.fileType || "PDF"}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-3 px-2">
-                        <div className="flex items-center justify-center h-full">
-                          <div className="text-xs w-32 h-20 overflow-y-auto scrollbar-thin text-left px-1 whitespace-normal break-words">
-                            {doc.description || "-"}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-3 px-2">
-                        <div className="flex items-center justify-center h-full">
-                          <div className="text-xs w-32 break-words text-center">
-                            <div className="font-medium line-clamp-1">{doc.uploaderName || "N/A"}</div>
-                            <div className="text-gray-500 text-[11px] line-clamp-1">{doc.schoolName || "N/A"}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-3 px-2">
-                        <div className="text-xs">
-                          <div className="mb-0.5">{doc.subjectName}</div>
-                          <div className="text-gray-500 text-[11px]">Lớp {doc.grade}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center text-xs py-3 px-2">
-                        {new Date(doc.createdAt).toLocaleDateString("vi-VN")}
-                      </TableCell>
-                      {statusFilter === "approved" && (
-                        <TableCell className="text-center text-xs py-3 px-2">
-                          {doc.updatedAt ? new Date(doc.updatedAt).toLocaleDateString("vi-VN") : "-"}
-                        </TableCell>
-                      )}
-                      <TableCell className="py-3 px-2">
-                        <div className="flex items-center justify-center h-full">
-                          {renderActionButtons(statusFilter, doc)}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
 
-            <div className="flex items-center justify-between mt-4 px-2">
-              <span className="text-sm text-gray-600">
-                Hiển thị {Math.min((currentPage - 1) * pageSize + 1, totalCount)}-
-                {Math.min(currentPage * pageSize, totalCount)} trong tổng số {totalCount} tài liệu
-              </span>
-              <div className="flex items-center gap-4">
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious 
-                        onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
-                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                      />
+        <div className="p-3 border-t">
+          <div className="flex items-center justify-between">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                    className={`${currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer hover:bg-gray-100"}`}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Trước
+                  </PaginationPrevious>
+                </PaginationItem>
+                {[...Array(Math.min(totalPages, 5))].map((_, i) => {
+                  let pageNumber: number
+                  if (totalPages <= 5) {
+                    pageNumber = i + 1
+                  } else if (currentPage <= 3) {
+                    pageNumber = i + 1
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNumber = totalPages - 4 + i
+                  } else {
+                    pageNumber = currentPage - 2 + i
+                  }
+                  
+                  return (
+                    <PaginationItem key={pageNumber}>
+                      <PaginationLink 
+                        onClick={() => setCurrentPage(pageNumber)}
+                        isActive={currentPage === pageNumber}
+                        className="cursor-pointer hover:bg-gray-100"
+                      >
+                        {pageNumber}
+                      </PaginationLink>
                     </PaginationItem>
-                    {[...Array(Math.min(totalPages, 5))].map((_, i) => {
-                      let pageNumber: number
-                      if (totalPages <= 5) {
-                        pageNumber = i + 1
-                      } else if (currentPage <= 3) {
-                        pageNumber = i + 1
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNumber = totalPages - 4 + i
-                      } else {
-                        pageNumber = currentPage - 2 + i
-                      }
-                      
-                      return (
-                        <PaginationItem key={pageNumber}>
-                          <PaginationLink 
-                            onClick={() => setCurrentPage(pageNumber)}
-                            isActive={currentPage === pageNumber}
-                            className="cursor-pointer"
-                          >
-                            {pageNumber}
-                          </PaginationLink>
-                        </PaginationItem>
-                      )
-                    })}
-                    <PaginationItem>
-                      <PaginationNext 
-                        onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
-                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Hiển thị:</span>
-                  <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(parseInt(value))}>
-                    <SelectTrigger className="w-20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="25">25</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <span className="text-sm text-gray-600">/trang</span>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+                  )
+                })}
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+                    className={`${currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer hover:bg-gray-100"}`}
+                  >
+                    Sau
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </PaginationNext>
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        </div>
       </div>
 
       <AlertDialog open={dialogState.open} onOpenChange={closeDialog}>

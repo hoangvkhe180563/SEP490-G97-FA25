@@ -48,6 +48,7 @@ interface DocumentState {
   rejectDocument: (documentId: number, approvedBy: string) => Promise<boolean>;
   revokeApproval: (documentId: number, approvedBy: string) => Promise<boolean>;
   softDeleteDocument: (documentId: number, deletedBy: string) => Promise<boolean>;
+  createDocument: (formData: FormData) => Promise<DocumentDetailDto | null>;
   setCurrentPage: (page: number) => void;
 }
 
@@ -171,58 +172,58 @@ export const useDocumentStore = create<DocumentState>((set) => ({
     }
   },
 
-fetchManagerSchoolDocuments: async (
-  schoolId,
-  query,
-  categoryId,
-  gradeId,
-  subject,
-  classId,
-  isApproved,
-  status,
-  pageNumber = 1,
-  pageSize = 10
-) => {
-  set({ isLoading: true, error: null });
-  try {
-    const params = new URLSearchParams();
-    if (query) params.append('query', query);
-    if (categoryId) params.append('categoryId', categoryId.toString());
-    if (gradeId) params.append('grade', gradeId.toString());
-    if (subject) params.append('subject', subject);
-    if (classId) params.append('classId', classId.toString());
-    if (isApproved !== undefined) {
-      if (isApproved === true) {
-        params.append('isApproved', 'true');
-      } else if (isApproved === false) {
-        params.append('isApproved', 'false');
+  fetchManagerSchoolDocuments: async (
+    schoolId,
+    query,
+    categoryId,
+    gradeId,
+    subject,
+    classId,
+    isApproved,
+    status,
+    pageNumber = 1,
+    pageSize = 10
+  ) => {
+    set({ isLoading: true, error: null });
+    try {
+      const params = new URLSearchParams();
+      if (query) params.append('query', query);
+      if (categoryId) params.append('categoryId', categoryId.toString());
+      if (gradeId) params.append('grade', gradeId.toString());
+      if (subject) params.append('subject', subject);
+      if (classId) params.append('classId', classId.toString());
+      if (isApproved !== undefined) {
+        if (isApproved === true) {
+          params.append('isApproved', 'true');
+        } else if (isApproved === false) {
+          params.append('isApproved', 'false');
+        }
       }
-    }
-    if (status !== undefined) params.append('status', status.toString());
-    params.append('pageNumber', pageNumber.toString());
-    params.append('pageSize', pageSize.toString());
+      if (status !== undefined) params.append('status', status.toString());
+      params.append('pageNumber', pageNumber.toString());
+      params.append('pageSize', pageSize.toString());
 
-    const response = await axiosInstance.get<ApiResponse<PagedDocumentResponse>>(
-      `/Document/manager/school/${schoolId}?${params.toString()}`
-    );
-    
-    set({
-      documents: response.data.data.items,
-      totalCount: response.data.data.total,
-      totalPages: response.data.data.totalPages,
-      currentPage: response.data.data.page,
-      isLoading: false,
-      success: true
-    });
-  } catch (error) {
-    set({ 
-      error: "Không thể tải danh sách tài liệu", 
-      isLoading: false,
-      success: false
-    });
-    console.error(error);
-  }
-},
+      const response = await axiosInstance.get<ApiResponse<PagedDocumentResponse>>(
+        `/Document/manager/school/${schoolId}?${params.toString()}`
+      );
+      
+      set({
+        documents: response.data.data.items,
+        totalCount: response.data.data.total,
+        totalPages: response.data.data.totalPages,
+        currentPage: response.data.data.page,
+        isLoading: false,
+        success: true
+      });
+    } catch (error) {
+      set({ 
+        error: "Không thể tải danh sách tài liệu", 
+        isLoading: false,
+        success: false
+      });
+      console.error(error);
+    }
+  },
 
   approveDocument: async (documentId: number, approvedBy: string) => {
     try {
@@ -285,6 +286,35 @@ fetchManagerSchoolDocuments: async (
       set({ success: false, message: "Không thể ẩn tài liệu" });
       console.error(error);
       return false;
+    }
+  },
+
+  createDocument: async (formData: FormData) => {
+    set({ isLoading: true });
+    try {
+      const response = await axiosInstance.post<ApiResponse<DocumentDetailDto>>(
+        '/Document/create',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+      set({
+        success: true,
+        message: "Tạo tài liệu thành công",
+        isLoading: false
+      });
+      return response.data.data;
+    } catch (error) {
+      set({
+        success: false,
+        message: "Không thể tạo tài liệu",
+        isLoading: false
+      });
+      console.error(error);
+      return null;
     }
   },
 

@@ -5,7 +5,7 @@ import { Button } from "@/common/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/common/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avatar"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/common/components/ui/carousel"
-import { FileText, Download, Calendar, Lock, RefreshCw, FileType, FolderOpen, User } from "lucide-react"
+import { FileText, Download, Calendar, Lock, RefreshCw, FileType, FolderOpen, User, Loader2 } from "lucide-react"
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore"
 import { documentService } from "@/documentManagement/services/documentService"
 import type { DocumentDetailDto, DocumentListDto } from "@/documentManagement/interfaces/documentApi"
@@ -30,11 +30,13 @@ function DocumentPreview({ thumbnail, fileType }: { thumbnail?: string; fileType
 function DocumentHeader({ 
   document, 
   onView, 
-  onDownload 
+  onDownload,
+  isDownloading
 }: { 
   document: DocumentDetailDto | null
   onView: () => void
   onDownload: () => void
+  isDownloading: boolean
 }) {
   return (
     <div className="flex-1">
@@ -52,8 +54,12 @@ function DocumentHeader({
           <FileText className="w-4 h-4 mr-2" />
           Xem tài liệu
         </Button>
-        <Button variant="outline" onClick={onDownload}>
-          <Download className="w-4 h-4 mr-2" />
+        <Button variant="outline" onClick={onDownload} disabled={isDownloading}>
+          {isDownloading ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Download className="w-4 h-4 mr-2" />
+          )}
           Tải xuống
         </Button>
       </div>
@@ -133,12 +139,10 @@ function DocumentDetailsInfo({ document }: { document: DocumentDetailDto | null 
 }
 
 function UserInfo({ 
-  uploaderName, 
-  schoolId,
+  uploaderName,
   onViewUploaderDocs 
 }: { 
   uploaderName?: string
-  schoolId?: number
   onViewUploaderDocs: () => void
 }) {
   const getInitials = (name: string) => {
@@ -217,7 +221,7 @@ function RelatedDocumentsSection({
   currentDocId 
 }: { 
   subjectName?: string
-  schoolId?: number
+  schoolId?: number | null
   currentDocId: number
 }) {
   const [relatedDocs, setRelatedDocs] = useState<DocumentListDto[]>([])
@@ -237,19 +241,19 @@ function RelatedDocumentsSection({
             documentService.getSchoolDocuments(schoolId, undefined, undefined, undefined, subjectName, undefined, 1, 999)
           ])
 
-          if (publicResponse.success) {
-            allDocs = [...allDocs, ...publicResponse.data.items]
+          if (publicResponse.success && publicResponse.data?.items) {
+            allDocs = publicResponse.data.items as DocumentListDto[]
           }
-          if (schoolResponse.success) {
-            allDocs = [...allDocs, ...schoolResponse.data.items]
+          if (schoolResponse.success && schoolResponse.data?.items) {
+            allDocs = [...allDocs, ...(schoolResponse.data.items as DocumentListDto[])]
           }
         } else {
           const publicResponse = await documentService.getPublicDocuments(
             undefined, undefined, undefined, subjectName, undefined, 1, 999
           )
           
-          if (publicResponse.success) {
-            allDocs = publicResponse.data.items
+          if (publicResponse.success && publicResponse.data?.items) {
+            allDocs = publicResponse.data.items as DocumentListDto[]
           }
         }
 
@@ -278,7 +282,7 @@ function RelatedDocumentsSection({
       <div className="mt-8">
         <h2 className="text-2xl font-bold mb-3">Tài liệu cùng môn học</h2>
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+          <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
         </div>
       </div>
     )
@@ -333,6 +337,7 @@ export default function DocumentDetails() {
   const navigate = useNavigate()
   const location = useLocation()
   const { document, isLoading, getDocumentById, downloadDocument } = useDocumentStore()
+  const [isDownloading, setIsDownloading] = useState(false)
 
   const userSchoolId = 1
 
@@ -347,15 +352,20 @@ export default function DocumentDetails() {
   }
 
   const handleDownload = async () => {
-    if (id && document) {
-      const blob = await downloadDocument(Number(id))
-      if (blob) {
-        const url = window.URL.createObjectURL(blob)
-        const anchor = window.document.createElement('a')
-        anchor.href = url
-        anchor.download = document.name || 'document'
-        anchor.click()
-        window.URL.revokeObjectURL(url)
+    if (id && document && !isDownloading) {
+      setIsDownloading(true)
+      try {
+        const blob = await downloadDocument(Number(id))
+        if (blob) {
+          const url = window.URL.createObjectURL(blob)
+          const anchor = window.document.createElement('a')
+          anchor.href = url
+          anchor.download = document.name || 'document'
+          anchor.click()
+          window.URL.revokeObjectURL(url)
+        }
+      } finally {
+        setIsDownloading(false)
       }
     }
   }
@@ -374,16 +384,15 @@ export default function DocumentDetails() {
           timestamp: Date.now()
         } 
       })
-      
     }
   }
 
-  if (isLoading) {
+  if (isLoading && !document) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
-          <p className="text-gray-700 font-medium">Đang tải tài liệu...</p>
+          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Đang tải tài liệu...</p>
         </div>
       </div>
     )
@@ -405,7 +414,12 @@ export default function DocumentDetails() {
       <div className="container mx-auto p-6 max-w-7xl">
         <div className="flex gap-6 mb-6">
           <DocumentPreview thumbnail={document.thumbnail} fileType={document.fileType} />
-          <DocumentHeader document={document} onView={handleView} onDownload={handleDownload} />
+          <DocumentHeader 
+            document={document} 
+            onView={handleView} 
+            onDownload={handleDownload}
+            isDownloading={isDownloading}
+          />
           <Button variant="outline" className="self-start">Feedback</Button>
         </div>
 
@@ -413,8 +427,7 @@ export default function DocumentDetails() {
           <DocumentDescription description={document.description} />
           <DocumentDetailsInfo document={document} />
           <UserInfo 
-            uploaderName={document.uploaderName} 
-            schoolId={document.schoolId}
+            uploaderName={document.uploaderName}
             onViewUploaderDocs={handleViewUploaderDocs}
           />
         </div>

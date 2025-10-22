@@ -92,7 +92,6 @@ namespace StudyHub.Backend.Api.Dtos
 
         public IFormFile? ThumbnailFile { get; set; }
         public List<ClassListDto> classes { get; set; } = new();
-
     }
 
     public class UpdateDocumentDto

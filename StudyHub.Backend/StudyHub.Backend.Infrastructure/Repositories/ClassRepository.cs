@@ -18,7 +18,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             _context = context;
         }
-        public  Class CreateClass(Class classEntity)
+        public Class CreateClass(Class classEntity)
         {
             try
             {
@@ -33,11 +33,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 _context.SaveChanges();
                 return classEntity;
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 new InfrastructureException("ClassRepository", "Create failed. Inner error: " + ex.Message).LogError();
                 return new Class { };
             }
-           
+
         }
 
 
@@ -46,7 +47,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             throw new NotImplementedException();
         }
 
-         public List<Class> GetAllClasses()
+        public List<Class> GetAllClasses()
         {
             // Chỉ trả về các Class entity
             return _context.Classes.Where(c => c.DeletedAt == null).Select(c => new Class
@@ -61,7 +62,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 UpdatedBy = c.UpdatedBy,
                 DeletedAt = c.DeletedAt
             }).ToList();
-                
+
         }
         public List<Subject> GetAllSubject()
         {
@@ -74,7 +75,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public List<AppUser> GetAllTeacher()
         {
             var teacherRole = _context.AppRoles
-                .Include(r => r.Users) 
+                .Include(r => r.Users)
                 .FirstOrDefault(r => r.Name.Equals("Teacher"));
 
             if (teacherRole == null)
@@ -83,7 +84,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
 
             return teacherRole.Users
-                .Select(infraUser => new AppUser 
+                .Select(infraUser => new AppUser
                 {
                     Id = infraUser.Id,
                     Email = infraUser.Email,
@@ -107,8 +108,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public Class? GetClassById(int id)
         {
-            var clas = _context.Classes.FirstOrDefault(c=>c.Id == id);
-            return clas==null?null: new Class
+            var clas = _context.Classes.FirstOrDefault(c => c.Id == id);
+            return clas == null ? null : new Class
             {
                 Id = id,
                 Name = clas.Name,
@@ -129,11 +130,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public Class UpdateClass(Class classEntity)
         {
-            var clas= _context.Classes.FirstOrDefault(c=>c.Id == classEntity.Id); 
-            clas.Name= classEntity.Name;
-            clas.Description= classEntity.Description;
-            clas.UpdatedAt= classEntity.UpdatedAt;
-            clas.SubjectId= classEntity.SubjectId;
+            var clas = _context.Classes.FirstOrDefault(c => c.Id == classEntity.Id);
+            clas.Name = classEntity.Name;
+            clas.Description = classEntity.Description;
+            clas.UpdatedAt = classEntity.UpdatedAt;
+            clas.SubjectId = classEntity.SubjectId;
 
             _context.Classes.Update(clas);
             _context.SaveChanges();
@@ -182,5 +183,24 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Description = n.Description
                 }).ToList();
         }
+        public List<Class> GetClassByUserId(Guid userid)
+        {
+            return _context.Classes
+                .Where(c => c.CreatedBy == userid)
+                .Select(c => new Class
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    Description = c.Description,
+                    SubjectId = c.SubjectId,
+                    CreatedAt = c.CreatedAt,
+                    CreatedBy = c.CreatedBy,
+                    UpdatedAt = c.UpdatedAt,
+                    UpdatedBy = c.UpdatedBy,
+                    DeletedAt = c.DeletedAt
+                })
+                .ToList();
+        }
+
     }
 }

@@ -1,3 +1,4 @@
+//StudyHub.Frontend/src/documentManagement/pages/DocumentViewer.tsx
 import type React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams } from "react-router-dom"
@@ -13,6 +14,7 @@ import {
   Minimize,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/common/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/common/components/ui/tabs"
@@ -46,6 +48,14 @@ interface PdfJs {
 
 type ViewMode = "normal" | "flipbook"
 
+interface FlipBookRef {
+  pageFlip: () => {
+    flip: (page: number) => void
+    flipNext: () => void
+    flipPrev: () => void
+  }
+}
+
 export default function DocumentViewer() {
   const { id } = useParams<{ id: string }>()
   const [zoom, setZoom] = useState(100)
@@ -60,11 +70,14 @@ export default function DocumentViewer() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [thumbnails, setThumbnails] = useState<string[]>([])
   const [pageInput, setPageInput] = useState("1")
+  const [isContentLoading, setIsContentLoading] = useState(true)
+  const [flipbookRotation, setFlipbookRotation] = useState(0)
+  const [isDownloading, setIsDownloading] = useState(false)
 
   const { document, isLoading, getDocumentById, previewDocument, downloadDocument } = useDocumentStore()
   const pdfDocRef = useRef<PdfDocument | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const flipBookRef = useRef<any>(null)
+  const flipBookRef = useRef<FlipBookRef | null>(null)
   const pageObserverRef = useRef<IntersectionObserver | null>(null)
 
   const isPdf = document?.fileType?.toLowerCase().includes("pdf")
@@ -126,6 +139,7 @@ export default function DocumentViewer() {
   )
 
   const loadPreview = useCallback(async () => {
+    setIsContentLoading(true)
     if (id) {
       const blob = await previewDocument(Number(id))
       if (blob) {
@@ -137,6 +151,7 @@ export default function DocumentViewer() {
         }
       }
     }
+    setIsContentLoading(false)
   }, [id, previewDocument, loadPdfDocument])
 
   useEffect(() => {
@@ -189,7 +204,7 @@ export default function DocumentViewer() {
     }
 
     loadInitialPages()
-  }, [isPdf, numPages, renderPdfPageToCanvas, viewMode])
+  }, [isPdf, numPages, renderPdfPageToCanvas, viewMode, pageImages.length, zoom])
 
   useEffect(() => {
     if (!isPdf || !scrollContainerRef.current || viewMode !== "normal") return
@@ -284,6 +299,23 @@ export default function DocumentViewer() {
     setPageInput(currentPage.toString())
   }, [currentPage])
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return
+
+      if (e.key === "ArrowLeft") {
+        e.preventDefault()
+        handlePageChange(currentPage - 1)
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault()
+        handlePageChange(currentPage + 1)
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [currentPage, numPages])
+
   const handleZoomIn = () => {
     setZoom((prev) => Math.min(prev + 10, 200))
   }
@@ -292,7 +324,13 @@ export default function DocumentViewer() {
     setZoom((prev) => Math.max(prev - 10, 50))
   }
 
-  const handleRotate = () => setRotation((prev) => (prev + 90) % 360)
+  const handleRotate = () => {
+    if (viewMode === "flipbook") {
+      setFlipbookRotation((prev) => (prev + 90) % 360)
+    } else {
+      setRotation((prev) => (prev + 90) % 360)
+    }
+  }
 
   const handleAutoFit = () => {
     setZoom(100)
@@ -306,8 +344,10 @@ export default function DocumentViewer() {
     }
   }
 
-  const handleDownload = async () => {
-    if (id && document) {
+const handleDownload = async () => {
+  if (id && document && !isDownloading) {
+    setIsDownloading(true)
+    try {
       const blob = await downloadDocument(Number(id))
       if (blob) {
         const url = window.URL.createObjectURL(blob)
@@ -317,11 +357,16 @@ export default function DocumentViewer() {
         anchor.click()
         window.URL.revokeObjectURL(url)
       }
+    } finally {
+      setIsDownloading(false)
     }
   }
+}
 
   const toggleViewMode = () => {
     setViewMode((prev) => (prev === "normal" ? "flipbook" : "normal"))
+    setRotation(0)
+    setFlipbookRotation(0)
   }
 
   const handlePageChange = (page: number) => {
@@ -362,16 +407,16 @@ export default function DocumentViewer() {
     setCurrentPage(e.data + 1)
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-gray-600 font-medium">Đang tải tài liệu...</p>
-        </div>
+if (isLoading && !document) {
+  return (
+    <div className="flex items-center justify-center h-screen bg-gray-50">
+      <div className="text-center">
+        <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+        <p className="text-gray-600 font-medium">Đang tải tài liệu...</p>
       </div>
-    )
-  }
+    </div>
+  )
+}
 
   const canFlipbook = isPdf && numPages > 0
 
@@ -418,8 +463,12 @@ export default function DocumentViewer() {
                   {viewMode === "normal" ? "Lật sách" : "Thường"}
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={handleDownload}>
-                <Download className="w-4 h-4 mr-1" />
+              <Button variant="outline" size="sm" onClick={handleDownload} disabled={isDownloading}>
+                {isDownloading ? (
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-1" />
+                )}
                 Tải về
               </Button>
               <Button variant="outline" size="sm" onClick={handleFullscreen}>
@@ -491,7 +540,14 @@ export default function DocumentViewer() {
 
         <div className="flex flex-1 overflow-hidden">
           <div ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-gray-100 flex justify-center p-4">
-            {isPdf ? (
+            {isContentLoading ? (
+              <div className="flex items-center justify-center w-full h-full">
+                <div className="text-center">
+                  <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+                  <p className="text-gray-600 font-medium">Đang tải nội dung...</p>
+                </div>
+              </div>
+            ) : isPdf ? (
               viewMode === "normal" ? (
                 <div className="w-full max-w-6xl space-y-4">
                   {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
@@ -514,7 +570,7 @@ export default function DocumentViewer() {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <div className="text-gray-400">Đang tải trang {pageNum}...</div>
+                          <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
                         </div>
                       )}
                     </div>
@@ -524,12 +580,12 @@ export default function DocumentViewer() {
                 <div 
                   className="w-full max-w-6xl flex items-center justify-center"
                   style={{
-                    transform: `scale(${zoom / 100})`,
+                    transform: `scale(${zoom / 100}) rotate(${flipbookRotation}deg)`,
                     transformOrigin: "center center",
                   }}
                 >
                   {numPages === 0 ? (
-                    <p className="text-gray-400">Đang tải chế độ lật sách...</p>
+                    <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
                   ) : (
                     <HTMLFlipBook
                       width={550}
@@ -553,7 +609,7 @@ export default function DocumentViewer() {
                             <img src={pageImages[idx] || "/placeholder.svg"} alt={`Page ${idx + 1}`} />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                              <div className="text-gray-400">Đang tải trang {idx + 1}...</div>
+                              <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
                             </div>
                           )}
                         </div>
@@ -581,8 +637,8 @@ export default function DocumentViewer() {
             ) : (
               <div className="w-full max-w-6xl">
                 {!previewUrl ? (
-                  <div className="bg-white p-12 shadow-lg rounded">
-                    <p className="text-center text-gray-400">Đang tải nội dung tài liệu...</p>
+                  <div className="flex items-center justify-center h-full">
+                    <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
                   </div>
                 ) : (
                   <div
@@ -643,7 +699,9 @@ export default function DocumentViewer() {
 
                   <TabsContent value="pages" className="p-3 mt-0">
                     {numPages === 0 ? (
-                      <div className="text-center py-8 text-gray-500 text-sm">Đang tải danh sách trang...</div>
+                      <div className="text-center py-8">
+                        <Loader2 className="w-8 h-8 text-gray-400 animate-spin mx-auto" />
+                      </div>
                     ) : (
                       <div className="grid grid-cols-2 gap-2">
                         {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
@@ -662,7 +720,7 @@ export default function DocumentViewer() {
                               />
                             ) : (
                               <div className="w-full h-24 bg-gray-50 rounded border border-gray-100 flex items-center justify-center mb-1">
-                                <div className="text-xs text-gray-400">...</div>
+                                <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
                               </div>
                             )}
                             <div className="text-xs text-gray-500">{pageNum}</div>

@@ -30,17 +30,18 @@ const DocumentList = () => {
     setSortBy,
   } = useDocumentFilters()
 
-useEffect(() => {
-  if (locationState?.searchQuery) {
-    setSearchQuery(locationState.searchQuery)
-  }
-  if (locationState?.showSchoolDocs !== undefined) {
-    setFilters(prev => ({ ...prev, showSchoolDocs: !!locationState.showSchoolDocs }))
-  }
-  if (locationState) {
-    window.history.replaceState({}, document.title)
-  }
-}, [locationState?.searchQuery, locationState?.showSchoolDocs, locationState?.timestamp])
+  useEffect(() => {
+    if (locationState?.searchQuery) {
+      setSearchQuery(locationState.searchQuery)
+    }
+    if (locationState?.showSchoolDocs !== undefined) {
+      setFilters(prev => ({ ...prev, showSchoolDocs: !!locationState.showSchoolDocs }))
+    }
+    if (locationState) {
+      window.history.replaceState({}, document.title)
+    }
+  }, 
+  [])
 
   const handleGradeChange = (gradeId: number) => {
     setFilters(prev => ({
