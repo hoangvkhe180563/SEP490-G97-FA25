@@ -526,8 +526,6 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.LandingPageId, "LandingPageId");
 
-            entity.Property(e => e.Id).ValueGeneratedNever();
-
             entity.HasOne(d => d.LandingPage).WithMany(p => p.LandingPageImages)
                 .HasForeignKey(d => d.LandingPageId)
                 .OnDelete(DeleteBehavior.ClientSetNull)

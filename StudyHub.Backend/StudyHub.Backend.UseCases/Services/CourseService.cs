@@ -41,5 +41,10 @@ namespace StudyHub.Backend.UseCases.Services
         {
             return _repo.DeleteCourse(id);
         }
+
+        public List<Course> GetCourseBySchool(int schoolId)
+        {
+            return _repo.GetCourseBySchool(schoolId);
+        }
     }
 }

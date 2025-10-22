@@ -3,6 +3,7 @@ using CloudinaryDotNet.Actions;
 using Microsoft.AspNetCore.Http;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories;
+using StudyHub.Backend.UseCases.Utils;
 using System.Net;
 using System.Text.RegularExpressions;
 
@@ -81,6 +82,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public async Task<string> UploadFileAsync(IFormFile file, string folderName)
         {
             if (file == null || file.Length == 0) return string.Empty;
+
+            //if it is image, return back to the uploadimageasync function
+            if (FileConstants.AllowedImageExtensions.Contains(Path.GetExtension(file.FileName)))
+            {
+                return await UploadImageAsync(file, folderName);
+            }
             try
             {
                 using var stream = file.OpenReadStream();
@@ -118,9 +125,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 string publicId = GetPublicIdFromUrl(url);
                 var extension = Path.GetExtension(url).ToLowerInvariant();
-                var imageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg" };
 
-                var resourceType = imageExtensions.Contains(extension) ? ResourceType.Image : ResourceType.Raw;
+                var resourceType = FileConstants.AllowedImageExtensions.Contains(extension) ? ResourceType.Image : ResourceType.Raw;
 
                 var deletionParams = new DeletionParams(publicId)
                 {
@@ -135,7 +141,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 }
                 else
                 {
-                    new InfrastructureException("CloudinaryRepository", "DeleteFileAsync failed. Inner error: " + deletionResult.Error.Message).LogError();
+                    string error = deletionResult.Result + ". ";
+                    if (deletionResult.Error != null)
+                    {
+                        error += deletionResult.Error.Message;
+                    }
+                    new InfrastructureException("CloudinaryRepository", "DeleteFileAsync failed. Inner error: " + error).LogError();
                     return false;
                 }
             }

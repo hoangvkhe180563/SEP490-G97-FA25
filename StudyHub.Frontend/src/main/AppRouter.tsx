@@ -12,10 +12,17 @@ import {
   guestSidebarItems,
   uiManagerSidebarItems,
 } from "@/common/constants/SidebarItems";
-import useLocalStorage from "@/common/hooks/useLocalStorage";
+import authRoutes from "@/auth/routes/AuthRoutes";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { useEffect } from "react";
 
 const AppRouter = () => {
-  const [isLoggedIn] = useLocalStorage("isLoggedIn", false);
+  const { isAuthenticated: isLoggedIn, checkAuth } = useAuthStore();
+
+  useEffect(() => {
+    // On app load, check if user is authenticated
+    checkAuth();
+  }, [checkAuth]);
 
   const appRoutes = [
     {
@@ -29,6 +36,11 @@ const AppRouter = () => {
           element: <Homepage />,
         },
       ],
+    },
+    {
+      path: RouteConfig.AUTH,
+      element: <Outlet />,
+      children: authRoutes,
     },
     {
       path: RouteConfig.USER,
