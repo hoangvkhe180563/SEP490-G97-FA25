@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Api.Dtos.AppUserDTOS;
-using StudyHub.Backend.Api.Dtos.AuthDTOS; 
+using StudyHub.Backend.Api.Dtos.AuthDTOS;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.UseCases.Services;
@@ -31,6 +31,10 @@ namespace StudyHub.Backend.Api.Controllers
             try
             {
                 var result = _userService.GetAppUsers(status, role, search, page, limit);
+                if(result == null)
+                {
+                    return NotFound(new { Success = "false", Message = "Không tìm thấy người dùng" });
+                }
                 var response = AppUserMapper.ToAppUserList(result);
                 return Ok(response);
             }

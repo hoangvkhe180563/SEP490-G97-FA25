@@ -50,6 +50,16 @@ builder.Services.AddCors(options =>
               .AllowCredentials();
     });
 });
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SupportNonNullableReferenceTypes();
+
+    c.MapType<IFormFile>(() => new Microsoft.OpenApi.Models.OpenApiSchema
+    {
+        Type = "string",
+        Format = "binary"
+    });
+});
 
 builder.Services.AddSwaggerGen();
 builder.Services.AddDistributedMemoryCache();
