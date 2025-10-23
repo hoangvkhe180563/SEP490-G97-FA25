@@ -30,6 +30,10 @@ namespace StudyHub.Backend.Api.Controllers
             try
             {
                 var result = _userService.GetAppUsers(status, role, search, page, limit);
+                if(result == null)
+                {
+                    return NotFound(new { Success = "false", Message = "Không tìm thấy người dùng" });
+                }
                 var response = AppUserMapper.ToAppUserList(result);
                 return Ok(response);
             }

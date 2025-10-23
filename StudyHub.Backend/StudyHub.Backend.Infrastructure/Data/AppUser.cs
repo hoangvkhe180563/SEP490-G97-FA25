@@ -11,7 +11,7 @@ public partial class AppUser
 
     public string? PasswordHash { get; set; }
 
-    public string Username { get; set; } = null!;
+    public string? Username { get; set; }
 
     public string? Fullname { get; set; }
 
@@ -62,6 +62,10 @@ public partial class AppUser
     public virtual ICollection<AppClaim> AppClaims { get; set; } = new List<AppClaim>();
 
     public virtual ICollection<ClassMember> ClassMembers { get; set; } = new List<ClassMember>();
+
+    public virtual ICollection<ClassNotificationComment> ClassNotificationComments { get; set; } = new List<ClassNotificationComment>();
+
+    public virtual ICollection<ClassNotification> ClassNotifications { get; set; } = new List<ClassNotification>();
 
     public virtual ICollection<ClassworkSubmission> ClassworkSubmissions { get; set; } = new List<ClassworkSubmission>();
 

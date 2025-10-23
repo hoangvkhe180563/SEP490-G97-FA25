@@ -10,4 +10,6 @@ public class Chapter
 
     public bool? Status { get; set; }
     public List<Lesson> Lessons { get; set; } = new();
+    public string? Description { get; set; }
+    public DateTime? PostDate { get; set; }
 }
