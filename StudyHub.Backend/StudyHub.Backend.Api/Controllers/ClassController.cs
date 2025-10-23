@@ -122,13 +122,13 @@ namespace StudyHub.Backend.Api.Controllers
         //        return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
 
         // Lấy dữ liệu phụ trực tiếp từ repository
-        //var members = _service.GetClassMembers(id)
-        //.Select(m =>
-        //{
-        //    var roles = _aRoleService.GetRolesByUser(m.UserId).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
-        //    return m.ToMemberDto(_aUserService.GetUserById(m.UserId), roles);
-        //})
-        //.ToList();
+        var members = _service.GetClassMembers(id)
+        .Select(m =>
+        {
+            var roles = _aRoleService.GetRolesByUser(m.UserId).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+            return m.ToMemberDto(_aUserService.GetUserById(m.UserId), roles);
+        })
+        .ToList();
 
         //    var notifications = _service.GetClassNotifications(id)
         //        .Select(n => n.ToNotificationDto())

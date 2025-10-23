@@ -132,6 +132,14 @@ public class CourseController : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("school/{schoolId}")]
+    public IActionResult GetSchoolCourses(int schoolId)
+    {
+        var courses = _service.GetCourseBySchool(schoolId);
+        var courseDto = courses.ToDisplayDto();
+        return Ok(courseDto);
+    }
+
     [HttpPost("upload-thumbnail")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadThumbnail([FromForm] UploadThumbnailDto dto)
