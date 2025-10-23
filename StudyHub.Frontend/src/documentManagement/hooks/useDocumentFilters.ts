@@ -1,3 +1,14 @@
+// hooks/useDocumentFilters.ts
+import { useState, useEffect, useCallback } from "react";
+import { documentService } from "@/documentManagement/services/documentService";
+import type {
+  DocumentListDto,
+  DocumentFilterParams,
+} from "@/documentManagement/interfaces/documentApi";
+import type {
+  Subject,
+  DocumentCategory,
+} from "@/documentManagement/interfaces/masterData";
 // src/documentManagement/hooks/useDocumentFilters.ts
 import { useState, useEffect, useCallback } from "react";
 import { documentService } from "@/documentManagement/services/documentService";
@@ -11,11 +22,26 @@ import { useAuthStore } from "@/auth/stores/useAuthStore";
 interface FilterState {
   showSchoolDocs: boolean;
   selectedGrades: number[];
+  selectedSubjects: number[];
+  selectedCategories: number[];
+  showSchoolDocs: boolean;
+  selectedGrades: number[];
   selectedSubjects: string[];
   selectedCategories: number[];
 }
 
 export const useDocumentFilters = () => {
+  const [documents, setDocuments] = useState<DocumentListDto[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [categories, setCategories] = useState<DocumentCategory[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
+  const pageSize = 9;
   const { user } = useAuthStore();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -35,6 +61,7 @@ export const useDocumentFilters = () => {
     selectedSubjects: [],
     selectedCategories: [],
   });
+  });
 
   const userSchoolId = user?.schoolId;
 
@@ -42,14 +69,22 @@ export const useDocumentFilters = () => {
     const fetchMasterData = async () => {
       try {
         const [subjectsData, categoriesData] = await Promise.all([
+        const [subjectsData, categoriesData] = await Promise.all([
           documentService.getSubjects(),
           documentService.getDocumentCategories(),
         ]);
         setSubjects(subjectsData);
         setCategories(categoriesData);
+        ]);
+        setSubjects(subjectsData);
+        setCategories(categoriesData);
       } catch (err) {
         console.error("Failed to fetch master data", err);
+        console.error("Failed to fetch master data", err);
       }
+    };
+    fetchMasterData();
+  }, []);
     };
     fetchMasterData();
   }, []);
@@ -73,8 +108,29 @@ export const useDocumentFilters = () => {
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setLoading(true);
+    setError(null);
 
     try {
+      const params: DocumentFilterParams = {
+        query: searchQuery || undefined,
+        gradeId:
+          filters.selectedGrades.length === 1
+            ? filters.selectedGrades[0]
+            : undefined,
+        categoryId:
+          filters.selectedCategories.length === 1
+            ? filters.selectedCategories[0]
+            : undefined,
+        accessibility: filters.showSchoolDocs ? undefined : 1,
+        pageNumber: currentPage,
+        pageSize,
+      };
+
+      const response = await documentService.searchDocuments(params);
+
+      if (response.success) {
+        let filteredDocs = response.data;
       const gradeParam =
         filters.selectedGrades.length === 1
           ? filters.selectedGrades[0]
@@ -123,11 +179,18 @@ export const useDocumentFilters = () => {
         let allDocs = [...publicDocs, ...schoolDocs];
 
         if (filters.selectedGrades.length > 1) {
+          filteredDocs = filteredDocs.filter((doc) =>
+            filters.selectedGrades.includes(doc.gradeId)
+          );
           allDocs = allDocs.filter((d) =>
             filters.selectedGrades.includes(Number(d.grade))
           );
         }
 
+        if (filters.selectedSubjects.length > 0) {
+          filteredDocs = filteredDocs.filter((doc) =>
+            filters.selectedSubjects.includes(doc.subjectId)
+          );
         if (filters.selectedSubjects.length > 1) {
           allDocs = allDocs.filter((d) =>
             filters.selectedSubjects.includes(d.subjectName || "")
@@ -135,6 +198,39 @@ export const useDocumentFilters = () => {
         }
 
         if (filters.selectedCategories.length > 1) {
+          filteredDocs = filteredDocs.filter((doc) =>
+            filters.selectedCategories.includes(doc.documentCategoryId)
+          );
+        }
+
+        if (!filters.showSchoolDocs) {
+          filteredDocs = filteredDocs.filter(
+            (doc) => doc.accessibilityId === 1
+          );
+        }
+
+        switch (sortBy) {
+          case "oldest":
+            filteredDocs.sort(
+              (a, b) =>
+                new Date(a.createdAt).getTime() -
+                new Date(b.createdAt).getTime()
+            );
+            break;
+          case "name":
+            filteredDocs.sort((a, b) => a.name.localeCompare(b.name));
+            break;
+          default:
+            filteredDocs.sort(
+              (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime()
+            );
+        }
+
+        setDocuments(filteredDocs);
+        setTotalPages(response.pagination.totalPages);
+        setTotalCount(response.pagination.totalCount);
           allDocs = allDocs.filter((d) =>
             filters.selectedCategories.includes(Number(d.documentCategoryId))
           );
@@ -200,9 +296,13 @@ export const useDocumentFilters = () => {
     } catch (err) {
       setError("Không thể tải danh sách tài liệu");
       console.error(err);
+      setError("Không thể tải danh sách tài liệu");
+      console.error(err);
     } finally {
       setLoading(false);
+      setLoading(false);
     }
+  }, [currentPage, searchQuery, sortBy, filters]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, searchQuery, sortBy, filters, userSchoolId]);
 
@@ -217,6 +317,8 @@ export const useDocumentFilters = () => {
   ]);
 
   useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
     fetchDocuments();
   }, [fetchDocuments]);
 
@@ -237,5 +339,8 @@ export const useDocumentFilters = () => {
     setCurrentPage,
     setSearchQuery,
     setSortBy,
+  };
+};
+
   };
 };

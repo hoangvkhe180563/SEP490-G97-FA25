@@ -1,4 +1,6 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
+import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import {
   Card,
   CardContent,
@@ -7,23 +9,58 @@ import {
 } from "@/common/components/ui/card";
 
 const LectureNextUp: React.FC = () => {
+  const navigate = useNavigate();
+  const chapters = useLectureStore((s) => s.chapters);
+  const selected = useLectureStore((s) => s.selectedLesson);
+  const fetchLesson = useLectureStore((s) => s.fetchLesson);
+
+  // flatten lessons order and find next after selected
+  const flat: any[] = [];
+  for (const ch of chapters || []) {
+    for (const l of ch.lessons || [])
+      flat.push({ ...l, chapterId: ch.id, courseId: ch.courseId });
+  }
+
+  let next: any | undefined;
+  if (selected) {
+    const idx = flat.findIndex((f) => f.id === selected.id);
+    if (idx >= 0 && idx + 1 < flat.length) next = flat[idx + 1];
+  } else if (flat.length > 0) {
+    next = flat[0];
+  }
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Next Up</CardTitle>
+        <CardTitle>Tiếp theo</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center justify-between">
+        {next ? (
           <div>
-            <div className="text-sm text-gray-600">Determinants</div>
-            <div className="text-sm text-gray-800 mt-1">
-              15:20 • Next lecture
+            <div className="font-medium">{next.name}</div>
+            <div className="text-sm text-gray-500 mb-3">{next.type}</div>
+            <div className="flex justify-end">
+              <button
+                className="px-3 py-1 rounded border text-sm"
+                onClick={() => {
+                  try {
+                    fetchLesson(next.id);
+                  } catch (err) {
+                    console.debug("fetchLesson failed", err);
+                  }
+                  navigate(
+                    `/course/student/courses/${next.courseId}/lecture/${next.id}`
+                  );
+                }}
+              >
+                Phát tiếp theo
+              </button>
             </div>
           </div>
-          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-            ▶
+        ) : (
+          <div className="text-sm text-gray-600">
+            Không có bài giảng nào sắp tới.
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

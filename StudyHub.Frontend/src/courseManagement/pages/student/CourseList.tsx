@@ -1,45 +1,96 @@
 import CourseCard from "@/courseManagement/components/CourseCard";
 import CourseFilters from "@/courseManagement/components/CourseListFiltersStudent";
-import type { Course } from "@/courseManagement/interfaces/types";
-
-const sampleCourses: Course[] = [
-  {
-    id: "c1",
-    title: "Introduction to Python Programming",
-    description: "Learn the fundamentals of Python programming",
-    instructor: "Dr. Sarah Wilson",
-    duration: "12 hours",
-    students: "1,234",
-    updatedAt: "Jan 15, 2025",
-  },
-  {
-    id: "c2",
-    title: "Calculus I: Limits and Derivatives",
-    description: "Master the fundamentals of differential calculus",
-    instructor: "Prof. Michael Chen",
-    duration: "18 hours",
-    students: "856",
-    updatedAt: "Jan 10, 2025",
-  },
-  {
-    id: "c3",
-    title: "UI/UX Design Fundamentals",
-    description: "Learn the principles of user interface and experience design",
-    instructor: "Emma Rodriguez",
-    duration: "15 hours",
-    students: "482",
-    updatedAt: "Jan 8, 2025",
-  },
-];
+import { useEffect, useState } from "react";
+import { documentService } from "@/documentManagement/services/documentService";
+import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
+import { useAppUserStore } from "@/user/stores/useAppUserStore";
+import type { CourseListDto } from "@/courseManagement/types/api";
+import type { CourseListDto as Course } from "@/courseManagement/interfaces/types";
 
 const CourseList: React.FC = () => {
+  const courses = useCourseStore((s) => s.courses);
+  const total = useCourseStore((s) => s.total);
+  const loading = useCourseStore((s) => s.loading);
+  const fetchCourses = useCourseStore((s) => s.fetchCourses);
+
+  const [q, setQ] = useState<string | undefined>(undefined);
+  const [sort, setSort] = useState<string | undefined>(undefined);
+  const [filters, setFilters] = useState<Record<string, any>>({});
+  const [selectedPageSize, setSelectedPageSize] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
+
+  useEffect(() => {
+    // initial load
+    fetchCourses({ page: 1, pageSize: 12 });
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const s = await documentService.getSubjects();
+        if (!mounted) return;
+        setSubjects((s || []).map((x: any) => ({ id: x.id, name: x.name })));
+      } catch (err) {
+        console.error("Failed to load subjects", err);
+      }
+    })();
+    (async () => {
+      try {
+        const r = await filterAppUsers("role=Teacher&page=1&limit=200");
+        setTeachers(r?.users ?? []);
+      } catch (err) {
+        // ignore
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [filterAppUsers]);
+
+  const page = useCourseStore((s) => s.page);
+  const pageSize = useCourseStore((s) => s.pageSize);
+
+  // keep local selected page size in sync with store pageSize
+  useEffect(() => {
+    setSelectedPageSize(pageSize ?? null);
+  }, [pageSize]);
+
+  const goPage = (p: number) => {
+    fetchCourses({ page: p, pageSize, q, sort, ...filters });
+  };
+
+  const applyFilters = (next: Record<string, any>) => {
+    setFilters(next);
+    // fetch page 1 with new filters
+    fetchCourses({ page: 1, pageSize, q, sort, ...next });
+  };
+
+  const applySearch = (value?: string) => {
+    setQ(value);
+    fetchCourses({ page: 1, pageSize, q: value, sort, ...filters });
+  };
+
+  const applySort = (value?: string) => {
+    setSort(value);
+    fetchCourses({ page: 1, pageSize, q, sort: value, ...filters });
+  };
+
   return (
     <div>
       <main className="max-w-screen-xl mx-auto w-full">
         <div className="flex items-center justify-between mb-4">
-          <div className="text-2xl font-normal text-[#171717]">All Courses</div>
+          <div className="text-2xl font-normal text-[#171717]">
+            Tất cả các khóa học
+          </div>
           <div className="text-sm text-gray-500">
-            Discover and enroll in courses to advance your learning journey
+            Khám phá và đăng ký các khóa học để nâng cao hành trình học tập của
+            bạn
           </div>
         </div>
 
@@ -48,25 +99,63 @@ const CourseList: React.FC = () => {
 
           <div className="col-span-12 lg:col-span-9 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-600">
-                Showing 1-12 of 64 courses
-              </div>
-
               <div className="flex items-center gap-2">
-                <button className="w-8 h-8 rounded border bg-white flex items-center justify-center">
+                <button
+                  onClick={() => setViewMode("grid")}
+                  className={`w-8 h-8 rounded border bg-white flex items-center justify-center ${
+                    viewMode === "grid" ? "ring-2 ring-black" : ""
+                  }`}
+                >
                   ▦
                 </button>
-                <button className="w-8 h-8 rounded border bg-white flex items-center justify-center">
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`w-8 h-8 rounded border bg-white flex items-center justify-center ${
+                    viewMode === "list" ? "ring-2 ring-black" : ""
+                  }`}
+                >
                   ≡
                 </button>
               </div>
             </div>
 
-            <div>
-              <select className="border rounded px-3 py-1 text-sm">
-                <option>Sort by: Most Popular</option>
-                <option>Newest</option>
-                <option>Duration</option>
+            <div className="flex items-center gap-3">
+              <input
+                placeholder="Tìm kiếm khóa học..."
+                className="border rounded px-3 py-1 text-sm"
+                value={q ?? ""}
+                onChange={(e) => applySearch(e.target.value || undefined)}
+              />
+
+              <select
+                className="border rounded px-3 py-1 text-sm"
+                value={sort ?? ""}
+                onChange={(e) => applySort(e.target.value || undefined)}
+              >
+                <option value="">Sắp xếp: Mức độ liên quan</option>
+                <option value="newest">Thời gian: Mới nhất</option>
+                <option value="priceAsc">Giá: Thấp - Cao</option>
+                <option value="priceDesc">Giá: Cao - Thấp</option>
+              </select>
+
+              <select
+                className="border rounded px-3 py-1 text-sm"
+                value={selectedPageSize ?? pageSize}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  setSelectedPageSize(next);
+                  fetchCourses({
+                    page: 1,
+                    pageSize: next,
+                    q,
+                    sort,
+                    ...filters,
+                  });
+                }}
+              >
+                <option value={6}>6 / trang</option>
+                <option value={12}>12 / trang</option>
+                <option value={24}>24 / trang</option>
               </select>
             </div>
           </div>
@@ -74,22 +163,110 @@ const CourseList: React.FC = () => {
 
         <div className="grid grid-cols-12 gap-6">
           <aside className="col-span-12 lg:col-span-3">
-            <CourseFilters />
+            <CourseFilters
+              filters={filters}
+              teachers={teachers}
+              onApply={applyFilters}
+              onReset={() => {
+                setFilters({});
+                fetchCourses({ page: 1, pageSize, q, sort });
+              }}
+            />
           </aside>
 
           <section className="col-span-12 lg:col-span-9">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sampleCourses.map((c) => (
-                <CourseCard key={c.id} course={c} />
-              ))}
+            <div
+              className={
+                viewMode === "grid"
+                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  : "space-y-4"
+              }
+            >
+              {loading
+                ? Array.from({ length: 6 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-40 bg-gray-100 animate-pulse rounded"
+                    />
+                  ))
+                : courses.map((c: CourseListDto) => {
+                    // map category id -> subject name if available
+                    const categoryLabel = (() => {
+                      const id = c.category as any;
+                      if (id === null || id === undefined) return undefined;
+                      const found = subjects.find((s) => s.id === Number(id));
+                      return found ? found.name : String(id);
+                    })();
+
+                    const uiCourse: Course = {
+                      id: c.id,
+                      name: c.name,
+                      information: c.information ?? null,
+                      imageUrl: c.imageUrl ?? null,
+                      price: c.price,
+                      status: c.status,
+                      category: (c.category as any) ?? null,
+                      instructorName:
+                        (c.instructorName &&
+                          (teachers.find(
+                            (t) => String(t.id) === String(c.instructorName)
+                          )?.fullname ??
+                            String(c.instructorName))) ||
+                        null,
+                      createdAt: c.createdAt,
+                    };
+
+                    return (
+                      <div
+                        key={c.id}
+                        className={viewMode === "list" ? "" : undefined}
+                      >
+                        <CourseCard
+                          course={uiCourse}
+                          categoryLabel={categoryLabel ?? undefined}
+                        />
+                      </div>
+                    );
+                  })}
             </div>
 
-            <div className="flex items-center justify-center mt-8">
+            <div className="flex items-center justify-between mt-8">
+              <div className="text-sm text-gray-600">
+                {total === 0 ? (
+                  <>Hiển thị 0 của 0</>
+                ) : (
+                  <>
+                    Hiển thị {(page - 1) * (selectedPageSize ?? pageSize) + 1} -{" "}
+                    {Math.min(page * (selectedPageSize ?? pageSize), total)} của{" "}
+                    {total}
+                  </>
+                )}
+              </div>
+
               <nav className="inline-flex items-center gap-2">
-                <button className="p-2">&lt;</button>
-                <button className="p-2 bg-black text-white rounded">1</button>
-                <button className="p-2">2</button>
-                <button className="p-2">&gt;</button>
+                <button
+                  className={`p-2 ${
+                    page <= 1 ? "pointer-events-none opacity-50" : ""
+                  }`}
+                  onClick={() => goPage((page || 1) - 1)}
+                >
+                  Trước
+                </button>
+
+                <button className="p-2 bg-black text-white rounded">
+                  {page || 1}
+                </button>
+
+                <button
+                  className={`p-2 ${
+                    page * pageSize >= total
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }`}
+                  onClick={() => goPage((page || 1) + 1)}
+                >
+                  Tiếp theo
+                </button>
               </nav>
             </div>
           </section>

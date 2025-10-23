@@ -3,15 +3,24 @@ import type { ClassMemberDto } from "@/classManagement/interfaces/class";
 
 type Props = {
   open: boolean;
-  member?: ClassMemberDto | null;
+  // accept either ClassMemberDto or a lightweight Person shape from list components
+  member?: ClassMemberDto | any | null;
   onClose: () => void;
 };
 
 const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
   if (!open || !member) return null;
 
+  // normalize fields from different shapes
+  const roles: string[] =
+    member.roles && Array.isArray(member.roles)
+      ? member.roles
+      : member.role
+      ? [String(member.role)]
+      : [];
+
   // Xác định vai trò chính
-  const lowerRoles = member.roles.map((r) => r.toLowerCase());
+  const lowerRoles = roles.map((r) => String(r).toLowerCase());
   const isTeacher = lowerRoles.includes("teacher");
   const isStudent = lowerRoles.includes("student");
   const isParent = lowerRoles.includes("parent");
@@ -30,7 +39,9 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
               ? "Parent Information"
               : "Member Information"}
           </h3>
-          <button onClick={onClose} className="text-gray-500">✕</button>
+          <button onClick={onClose} className="text-gray-500">
+            ✕
+          </button>
         </div>
 
         <div className="p-6">
@@ -44,9 +55,14 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
               <div className="flex-1">
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="text-lg font-medium">{member.fullname}</div>
+                    <div className="text-lg font-medium">
+                      {member.fullname ?? member.name ?? member.userName ?? ""}
+                    </div>
                     <div className="text-sm text-gray-400">
-                      Tham gia: {new Date(member.joinDate).toLocaleDateString()}
+                      Tham gia:{" "}
+                      {member.joinDate
+                        ? new Date(member.joinDate).toLocaleDateString()
+                        : "-"}
                     </div>
                   </div>
                 </div>
@@ -54,12 +70,16 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
                 <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-700">
                   <div>
                     <div className="text-xs text-gray-400">Name</div>
-                    <div className="mt-1">{member.fullname}</div>
+                    <div className="mt-1">
+                      {member.fullname ?? member.name ?? member.userName ?? ""}
+                    </div>
                   </div>
 
                   <div>
                     <div className="text-xs text-gray-400">Role</div>
-                    <div className="mt-1">{member.roles.join(", ")}</div>
+                    <div className="mt-1">
+                      {roles.length ? roles.join(", ") : "-"}
+                    </div>
                   </div>
                 </div>
               </div>

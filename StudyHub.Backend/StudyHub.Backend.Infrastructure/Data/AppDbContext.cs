@@ -33,6 +33,10 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<ClassNotification> ClassNotifications { get; set; }
 
+    public virtual DbSet<ClassNotificationComment> ClassNotificationComments { get; set; }
+
+    public virtual DbSet<ClassNotificationFile> ClassNotificationFiles { get; set; }
+
     public virtual DbSet<Classwork> Classworks { get; set; }
 
     public virtual DbSet<ClassworkSubmission> ClassworkSubmissions { get; set; }
@@ -307,15 +311,75 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("class_notifications");
 
-            entity.HasIndex(e => e.ClassId, "ClassId");
+            entity.HasIndex(e => e.AppUserId, "FK_ClassNotifications_AppUser");
 
-            entity.Property(e => e.Description).HasMaxLength(5000);
-            entity.Property(e => e.Title).HasMaxLength(200);
+            entity.HasIndex(e => e.ClassId, "FK_ClassNotifications_Class");
+
+            entity.Property(e => e.CreatedAt)
+                .HasMaxLength(6)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+            entity.Property(e => e.DeletedAt).HasMaxLength(6);
+            entity.Property(e => e.Description)
+                .HasMaxLength(5000)
+                .UseCollation("utf8mb3_general_ci")
+                .HasCharSet("utf8mb3");
+            entity.Property(e => e.Title)
+                .HasMaxLength(200)
+                .UseCollation("utf8mb3_general_ci")
+                .HasCharSet("utf8mb3");
+            entity.Property(e => e.UpdatedAt).HasMaxLength(6);
+
+            entity.HasOne(d => d.AppUser).WithMany(p => p.ClassNotifications)
+                .HasForeignKey(d => d.AppUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ClassNotifications_AppUser");
 
             entity.HasOne(d => d.Class).WithMany(p => p.ClassNotifications)
                 .HasForeignKey(d => d.ClassId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("class_notifications_ibfk_1");
+        });
+
+        modelBuilder.Entity<ClassNotificationComment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("class_notification_comments");
+
+            entity.HasIndex(e => e.AppUserId, "AppUserId");
+
+            entity.HasIndex(e => e.NotificationId, "NotificationId");
+
+            entity.Property(e => e.Content).HasMaxLength(2000);
+            entity.Property(e => e.CreatedAt)
+                .HasMaxLength(6)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+            entity.Property(e => e.DeletedAt).HasMaxLength(6);
+            entity.Property(e => e.UpdatedAt).HasMaxLength(6);
+
+            entity.HasOne(d => d.AppUser).WithMany(p => p.ClassNotificationComments)
+                .HasForeignKey(d => d.AppUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("class_notification_comments_ibfk_2");
+
+            entity.HasOne(d => d.Notification).WithMany(p => p.ClassNotificationComments)
+                .HasForeignKey(d => d.NotificationId)
+                .HasConstraintName("class_notification_comments_ibfk_1");
+        });
+
+        modelBuilder.Entity<ClassNotificationFile>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("class_notification_files");
+
+            entity.HasIndex(e => e.NotificationId, "NotificationId");
+
+            entity.Property(e => e.FileName).HasMaxLength(200);
+
+            entity.HasOne(d => d.Notification).WithMany(p => p.ClassNotificationFiles)
+                .HasForeignKey(d => d.NotificationId)
+                .HasConstraintName("class_notification_files_ibfk_1");
         });
 
         modelBuilder.Entity<Classwork>(entity =>
@@ -516,6 +580,8 @@ public partial class AppDbContext : DbContext
             entity.ToTable("landing_page_images");
 
             entity.HasIndex(e => e.LandingPageId, "LandingPageId");
+
+            entity.Property(e => e.Id).ValueGeneratedNever();
 
             entity.HasOne(d => d.LandingPage).WithMany(p => p.LandingPageImages)
                 .HasForeignKey(d => d.LandingPageId)

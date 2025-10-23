@@ -20,6 +20,8 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<LocationService>();
             services.AddScoped<ClassService>();
             services.AddScoped<LandingPageService>();
+            services.AddScoped<EnrollmentService>();
+            services.AddScoped<ProgressService>();
             services.AddScoped<IEmailService, SmtpEmailService>();
             return services;
         }
