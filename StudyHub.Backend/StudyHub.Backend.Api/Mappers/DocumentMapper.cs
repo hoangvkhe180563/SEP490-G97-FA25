@@ -76,7 +76,7 @@ namespace StudyHub.Backend.Api.Mappers
             SchoolId = dto.SchoolId,
             IsInClass = dto.IsInClass ?? false,
             IsFeatured = dto.IsFeatured,
-            CreatedBy = dto.CreatedBy
+            //CreatedBy = dto.CreatedBy
         };
 
         public static Document ToEntity(this UpdateDocumentDto dto) => new Document
@@ -90,7 +90,7 @@ namespace StudyHub.Backend.Api.Mappers
             SchoolId = dto.SchoolId,
             IsInClass = dto.IsInClass ?? false,
             IsFeatured = dto.IsFeatured,
-            UpdatedBy = dto.UpdatedBy
+            //UpdatedBy = dto.UpdatedBy
         };
 
         private static string? GetFileType(string? documentUrl)

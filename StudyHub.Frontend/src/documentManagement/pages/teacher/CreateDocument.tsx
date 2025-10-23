@@ -1,3 +1,4 @@
+//documentManagement/pages/teacher/CreateDocument.tsx
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,7 +39,7 @@ import type {
   DocumentCategoryDto,
   SubjectDto,
 } from "@/documentManagement/interfaces/documentApi";
-
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 const schema = z.object({
   name: z.string().min(1, "Tên tài liệu là bắt buộc"),
   subject: z.string().min(1, "Vui lòng chọn môn học"),
@@ -79,11 +80,10 @@ interface ToastMessage {
   message: string;
 }
 
-const USER_ID = "d4e5f6a7-b8c9-0123-4567-890abcdef019";
-const SCHOOL_ID = 1;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export default function CreateDocument() {
+  const { user } = useAuthStore();
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
@@ -156,16 +156,36 @@ export default function CreateDocument() {
     if (accessValue === "class") {
       fetchUserClasses();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessValue]);
-
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="text-xl font-semibold text-red-600 mb-2">
+            Vui lòng đăng nhập
+          </div>
+          <div className="text-gray-600">Bạn cần đăng nhập để tạo tài liệu</div>
+        </div>
+      </div>
+    );
+  }
   const fetchUserClasses = async () => {
+    if (!user?.id) return;
+
     setIsLoadingClasses(true);
     try {
-      const response = await axiosInstance.get(`/Document/my-class/${USER_ID}`);
-      setClasses(response.data);
+      const response = await axiosInstance.get(`/Document/my-class/${user.id}`);
+      const classesData = response.data?.data || response.data || [];
+      if (Array.isArray(classesData)) {
+        setClasses(classesData);
+      } else {
+        console.error("Classes data is not an array:", classesData);
+        setClasses([]);
+        showToast("error", "Dữ liệu lớp học không đúng định dạng");
+      }
     } catch (error) {
       console.error("Error fetching classes:", error);
+      setClasses([]);
       showToast("error", "Không thể tải danh sách lớp");
     } finally {
       setIsLoadingClasses(false);
@@ -197,14 +217,14 @@ export default function CreateDocument() {
     const subject = subjects.find((s) => s.id.toString() === data.subject);
     const category = categories.find((c) => c.id.toString() === data.type);
 
-    let schoolId: number | null = null;
+    let schoolId: string | null = null;
     let isInClass: boolean | undefined = undefined;
 
     if (data.access === "school") {
-      schoolId = SCHOOL_ID;
+      schoolId = user?.schoolId || null;
       isInClass = false;
     } else if (data.access === "class") {
-      schoolId = SCHOOL_ID;
+      schoolId = user?.schoolId || null;
       isInClass = true;
     }
 
@@ -228,7 +248,7 @@ export default function CreateDocument() {
       classes: data.classes,
       subjectId: parseInt(data.subject),
       categoryId: parseInt(data.type),
-      schoolId,
+      schoolId: schoolId ? parseInt(schoolId) : null,
       isInClass,
     };
 
@@ -311,7 +331,6 @@ export default function CreateDocument() {
       formData.append("SubjectId", doc.subjectId.toString());
       formData.append("Grade", doc.grade);
       formData.append("DocumentCategoryId", doc.categoryId.toString());
-      formData.append("CreatedBy", USER_ID);
       formData.append("DocumentFile", doc.documentFile);
 
       if (doc.description) formData.append("Description", doc.description);

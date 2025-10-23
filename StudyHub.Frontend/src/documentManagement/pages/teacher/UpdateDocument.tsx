@@ -1,75 +1,531 @@
+//documentManagement/pages/teacher/UpdateDocument.tsx
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Input } from "@/common/components/ui/input";
-import { Button } from "@/common/components/ui/button";
-import { Checkbox } from "@/common/components/ui/checkbox";
-import { Textarea } from "@/common/components/ui/textarea";
-import { Badge } from "@/common/components/ui/badge";
+import { useParams, useNavigate } from "react-router-dom";
 import { Card } from "@/common/components/ui/card";
-import { Separator } from "@/common/components/ui/separator";
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/common/components/ui/select";
-import { CloudUpload, FileText, Download, Eye } from "lucide-react";
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/common/components/ui/form";
+import { Input } from "@/common/components/ui/input";
+import { Textarea } from "@/common/components/ui/textarea";
+import { Button } from "@/common/components/ui/button";
 
-// Validation schema
-const schema = z
-  .object({
-    name: z.string().min(1, "Tên tài liệu là bắt buộc"),
-    subjectId: z.string().min(1, "Môn học là bắt buộc"),
-    gradeId: z.string().min(1, "Khối lớp là bắt buộc"),
-    documentCategoryId: z.string().min(1, "Loại tài liệu là bắt buộc"),
-    accessibilityId: z.string().min(1, "Quyền truy cập là bắt buộc"),
-    description: z.string().optional(),
-    isFree: z.boolean().optional(),
-    price: z.string().optional(),
-  })
-  .refine(
-    (data) => {
-      if (!data.isFree && !data.price) return false;
-      return true;
-    },
-    {
-      message: "Vui lòng nhập giá",
-      path: ["price"],
-    }
-  );
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/common/components/ui/select";
+import { Badge } from "@/common/components/ui/badge";
+import { Separator } from "@/common/components/ui/separator";
+import {
+  Upload,
+  X,
+  Check,
+  Loader2,
+  FileText,
+  Eye,
+  Download,
+  AlertCircle,
+} from "lucide-react";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/common/components/ui/form";
+import { documentService } from "@/documentManagement/services/documentService";
+import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
+import { axiosInstance } from "@/lib/axios";
+import type {
+  DocumentCategoryDto,
+  SubjectDto,
+} from "@/documentManagement/interfaces/documentApi";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { Alert, AlertDescription } from "@/common/components/ui/alert";
+
+const schema = z.object({
+  name: z.string().min(1, "Tên tài liệu là bắt buộc"),
+  subject: z.string().min(1, "Vui lòng chọn môn học"),
+  grade: z.string().min(1, "Vui lòng chọn khối lớp"),
+  type: z.string().min(1, "Vui lòng chọn loại tài liệu"),
+  access: z.string().min(1, "Vui lòng chọn quyền truy cập"),
+  description: z.string().optional(),
+  classes: z.array(z.number()).optional(),
+});
 
 type FormValues = z.infer<typeof schema>;
 
-const UpdateDocument = () => {
+interface ClassDto {
+  id: number;
+  name: string;
+}
+
+interface ToastMessage {
+  id: string;
+  type: "success" | "error";
+  message: string;
+}
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+export default function UpdateDocument() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const { getDocumentById, document } = useDocumentStore();
+
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [categories, setCategories] = useState<DocumentCategoryDto[]>([]);
+  const [subjects, setSubjects] = useState<SubjectDto[]>([]);
+  const [classes, setClasses] = useState<ClassDto[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const [isLoadingSubjects, setIsLoadingSubjects] = useState(false);
+  const [isLoadingClasses, setIsLoadingClasses] = useState(false);
+  const [isLoadingDocument, setIsLoadingDocument] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isPreviewing] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [isReadOnly, setIsReadOnly] = useState(false);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name: "Bài giảng Hàm số bậc 2 - Chương 3",
-      subjectId: "1",
-      gradeId: "10",
-      documentCategoryId: "1",
-      accessibilityId: "2",
-      description:
-        "Bài giảng về hàm số bậc 2, bao gồm định nghĩa, tính chất, cách vẽ đồ thị và các dạng bài tập thường gặp. Phù hợp cho học sinh lớp 10.",
-      isFree: false,
-      price: "50000",
+      name: "",
+      subject: "",
+      grade: "",
+      type: "",
+      access: "",
+      description: "",
+      classes: [],
     },
   });
 
-  const isFree = form.watch("isFree");
+  const accessValue = form.watch("access");
 
-  const onSubmit = async (data: FormValues) => {
-    console.log("submit", data);
-    return new Promise((res) => setTimeout(res, 500));
+  const showToast = (type: "success" | "error", message: string) => {
+    const id = Date.now().toString();
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 5000);
   };
 
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const fetchUserClasses = async () => {
+    if (!user?.id) return;
+
+    setIsLoadingClasses(true);
+    try {
+      const response = await axiosInstance.get(`/Document/my-class/${user.id}`);
+      const classesData = response.data?.data || response.data || [];
+      if (Array.isArray(classesData)) {
+        setClasses(classesData);
+      } else {
+        console.error("Classes data is not an array:", classesData);
+        setClasses([]);
+        showToast("error", "Dữ liệu lớp học không đúng định dạng");
+      }
+    } catch (error) {
+      console.error("Error fetching classes:", error);
+      setClasses([]);
+      showToast("error", "Không thể tải danh sách lớp");
+    } finally {
+      setIsLoadingClasses(false);
+    }
+  };
+
+  const onDocumentFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      showToast("error", "Kích thước file không được vượt quá 10MB");
+      e.target.value = "";
+      return;
+    }
+
+    setDocumentFile(file);
+  };
+
+  const onThumbnailFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setThumbnailFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setThumbnailPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeThumbnail = () => {
+    setThumbnailFile(null);
+    setThumbnailPreview(null);
+  };
+
+  const onSubmit = async (data: FormValues) => {
+    if (!id) return;
+
+    if (isReadOnly) {
+      showToast("error", "Không thể chỉnh sửa tài liệu đã được phê duyệt");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const formData = new FormData();
+      formData.append("Id", id);
+      formData.append("Name", data.name);
+      formData.append("SubjectId", data.subject);
+      formData.append("Grade", data.grade);
+      formData.append("DocumentCategoryId", data.type);
+
+      if (documentFile) {
+        formData.append("DocumentFile", documentFile);
+      }
+
+      if (data.description) {
+        formData.append("Description", data.description);
+      }
+
+      if (thumbnailFile) {
+        formData.append("ThumbnailFile", thumbnailFile);
+      }
+
+      if (data.access === "school" && user?.schoolId) {
+        formData.append("SchoolId", user.schoolId.toString());
+        formData.append("IsInClass", "false");
+      } else if (data.access === "class" && user?.schoolId) {
+        formData.append("SchoolId", user.schoolId.toString());
+        formData.append("IsInClass", "true");
+      } else if (data.access === "public") {
+        formData.append("IsInClass", "false");
+      }
+
+      if (data.classes && data.classes.length > 0) {
+        data.classes.forEach((classId) => {
+          const classData = classes.find((c) => c.id === classId);
+          const classObj = classData
+            ? {
+                id: classData.id,
+                name: classData.name,
+                subjectName: null,
+                instructorName: null,
+                description: null,
+                subjectId: null,
+              }
+            : { id: classId };
+          formData.append("classes", JSON.stringify(classObj));
+        });
+      }
+
+      console.log("FormData contents:");
+      for (const pair of formData.entries()) {
+        console.log(pair[0] + ": " + pair[1]);
+      }
+
+      const response = await axiosInstance.put(
+        `/Document/update/${id}`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+
+      console.log("Update response:", response.data);
+
+      showToast("success", "Cập nhật tài liệu thành công");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error: unknown) {
+      console.error("Error updating document:", error);
+      const err = error as { response?: { data?: { message?: string } } };
+      console.error("Error response:", err.response?.data);
+      showToast(
+        "error",
+        err.response?.data?.message || "Không thể cập nhật tài liệu"
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    if (!confirm("Bạn có chắc chắn muốn xóa tài liệu này?")) return;
+
+    if (isReadOnly) {
+      showToast("error", "Không thể xóa tài liệu đã được phê duyệt");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await axiosInstance.delete(`/Document/${id}`);
+      showToast("success", "Xóa tài liệu thành công");
+      setTimeout(() => {
+        navigate("/documents");
+      }, 1500);
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      showToast("error", "Không thể xóa tài liệu");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handlePreview = () => {
+    if (!document?.id) return;
+    window.open(`/document/student/doc-info/${document.id}`, "_blank");
+  };
+
+  const handleDownload = async () => {
+    if (!document?.id) return;
+    setIsDownloading(true);
+    try {
+      const blob = await useDocumentStore
+        .getState()
+        .downloadDocument(document.id);
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        const a = window.document.createElement("a");
+        a.href = url;
+        a.download = document.name;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error("Error downloading document:", error);
+      showToast("error", "Không thể tải xuống tài liệu");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoadingCategories(true);
+      setIsLoadingSubjects(true);
+      try {
+        const [categoriesData, subjectsData] = await Promise.all([
+          documentService.getDocumentCategories(),
+          documentService.getSubjects(),
+        ]);
+        setCategories(categoriesData);
+        setSubjects(subjectsData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        showToast("error", "Không thể tải dữ liệu môn học và loại tài liệu");
+      } finally {
+        setIsLoadingCategories(false);
+        setIsLoadingSubjects(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const fetchDocument = async () => {
+      if (!id) return;
+      setIsLoadingDocument(true);
+      try {
+        const docData = await getDocumentById(parseInt(id));
+        if (docData) {
+          let accessType = "public";
+          if (docData.schoolId && docData.isInClass) {
+            accessType = "class";
+            await fetchUserClasses();
+          } else if (docData.schoolId) {
+            accessType = "school";
+          }
+
+          const canEdit = docData.isApproved !== true;
+          setIsReadOnly(!canEdit);
+
+          form.reset({
+            name: docData.name,
+            subject: docData.subjectId.toString(),
+            grade: docData.grade.toString(),
+            type: docData.documentCategoryId.toString(),
+            access: accessType,
+            description: docData.description || "",
+            classes: docData.classes?.map((c) => c.id) || [],
+          });
+
+          if (docData.thumbnail) {
+            setThumbnailPreview(docData.thumbnail);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching document:", error);
+        showToast("error", "Không thể tải thông tin tài liệu");
+      } finally {
+        setIsLoadingDocument(false);
+      }
+    };
+
+    fetchDocument();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, getDocumentById]);
+
+  useEffect(() => {
+    if (accessValue === "class" && classes.length === 0 && user?.id) {
+      fetchUserClasses();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessValue, user?.id]);
+
+  const Toast = ({ toast }: { toast: ToastMessage }) => (
+    <div
+      className={`flex items-center gap-3 px-4 py-3 shadow-lg animate-in slide-in-from-right ${
+        toast.type === "success"
+          ? "bg-green-50 border border-green-200"
+          : "bg-red-50 border border-red-200"
+      }`}
+    >
+      <div
+        className={toast.type === "success" ? "text-green-600" : "text-red-600"}
+      >
+        {toast.type === "success" ? (
+          <Check className="h-5 w-5" />
+        ) : (
+          <X className="h-5 w-5" />
+        )}
+      </div>
+      <p
+        className={`text-sm font-medium ${
+          toast.type === "success" ? "text-green-800" : "text-red-800"
+        }`}
+      >
+        {toast.message}
+      </p>
+      <button
+        onClick={() => removeToast(toast.id)}
+        className="ml-2 text-gray-400 hover:text-gray-600"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+
+  const FileUploadZone = ({
+    id,
+    accept,
+    onChange,
+    file,
+    title,
+    subtitle,
+    required = false,
+    disabled = false,
+  }: {
+    id: string;
+    accept: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    file?: File | null;
+    title: string;
+    subtitle: string;
+    required?: boolean;
+    disabled?: boolean;
+  }) => (
+    <div className="relative">
+      <input
+        id={id}
+        type="file"
+        accept={accept}
+        onChange={onChange}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+        disabled={disabled}
+      />
+      <div
+        className={`border-2 border-dashed border-gray-300 p-6 text-center ${
+          !disabled && "hover:border-blue-400 hover:bg-blue-50/50"
+        } transition-all ${!disabled && "cursor-pointer"} ${
+          disabled && "opacity-50 cursor-not-allowed bg-gray-50"
+        }`}
+      >
+        <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+        {file ? (
+          <div className="space-y-1">
+            <div className="text-sm font-medium text-gray-900">{file.name}</div>
+            <div className="text-xs text-gray-500">
+              {(file.size / 1024 / 1024).toFixed(2)} MB
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <div className="text-sm font-medium text-gray-600">
+              {title} {required && "*"}
+            </div>
+            <div className="text-xs text-gray-500">{subtitle}</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (isLoadingDocument || !user) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-600" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="text-xl font-semibold text-red-600 mb-2">
+            Vui lòng đăng nhập
+          </div>
+          <div className="text-gray-600">
+            Bạn cần đăng nhập để cập nhật tài liệu
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div  className="p-4">
+    <div>
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        {toasts.map((toast) => (
+          <Toast key={toast.id} toast={toast} />
+        ))}
+      </div>
+
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 pr-4">
-          {/* LEFT SIDE - Update Form (3 columns) */}
+        {isReadOnly && (
+          <Alert className="mb-4 border-yellow-200 bg-yellow-50">
+            <AlertCircle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-800">
+              Tài liệu đã được phê duyệt. Bạn chỉ có thể xem, không thể chỉnh
+              sửa.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-2">
           <div className="lg:col-span-4">
             <Card className="p-6">
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  {/* Document Name Field */}
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-6"
+                >
                   <FormField
                     control={form.control}
                     name="name"
@@ -77,146 +533,283 @@ const UpdateDocument = () => {
                       <FormItem>
                         <FormLabel>Tên tài liệu</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Nhập tên tài liệu" />
+                          <Input
+                            {...field}
+                            placeholder="Nhập tên tài liệu"
+                            disabled={isReadOnly}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  {/* Subject and Grade Fields - Two Columns */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="subjectId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Môn học</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Chọn môn học" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="1">Toán học</SelectItem>
-                              <SelectItem value="2">Vật lý</SelectItem>
-                              <SelectItem value="3">Hóa học</SelectItem>
-                              <SelectItem value="4">Sinh học</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                    <div className="space-y-6">
+                      <div>
+                        <label className="text-sm font-medium">
+                          Ảnh thu nhỏ
+                        </label>
+                        {thumbnailPreview ? (
+                          <div className="relative border overflow-hidden aspect-[3/4]">
+                            <img
+                              src={thumbnailPreview}
+                              alt="Thumbnail"
+                              className="w-full h-full object-cover"
+                            />
+                            {!isReadOnly && (
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon"
+                                className="absolute top-1 right-1 h-6 w-6"
+                                onClick={removeThumbnail}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="relative aspect-[3/4]">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={onThumbnailFileChange}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                              disabled={isReadOnly}
+                            />
+                            <div
+                              className={`border-2 border-dashed border-gray-300 text-center ${
+                                !isReadOnly &&
+                                "hover:border-blue-400 hover:bg-blue-50/50"
+                              } transition-all ${
+                                !isReadOnly && "cursor-pointer"
+                              } h-full flex flex-col items-center justify-center ${
+                                isReadOnly &&
+                                "opacity-50 cursor-not-allowed bg-gray-50"
+                              }`}
+                            >
+                              <Upload className="h-6 w-6 text-gray-400 mb-2" />
+                              <span className="text-xs text-gray-600">
+                                Chọn ảnh
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                    <FormField
-                      control={form.control}
-                      name="gradeId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Khối lớp</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Chọn khối lớp" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="10">Lớp 10</SelectItem>
-                              <SelectItem value="11">Lớp 11</SelectItem>
-                              <SelectItem value="12">Lớp 12</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
+                    <div className="md:col-span-2 space-y-6">
+                      <div className="grid grid-cols-2 gap-6 items-start">
+                        <FormField
+                          control={form.control}
+                          name="subject"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Môn học</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value}
+                                disabled={isLoadingSubjects || isReadOnly}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Chọn môn học" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {isLoadingSubjects ? (
+                                    <SelectItem value="loading" disabled>
+                                      <div className="flex items-center gap-2">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Đang tải...
+                                      </div>
+                                    </SelectItem>
+                                  ) : (
+                                    subjects.map((subject) => (
+                                      <SelectItem
+                                        key={subject.id}
+                                        value={subject.id.toString()}
+                                      >
+                                        {subject.name}
+                                      </SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="grade"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Khối lớp</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value}
+                                disabled={isReadOnly}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Chọn khối" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {Array.from(
+                                    { length: 12 },
+                                    (_, i) => i + 1
+                                  ).map((grade) => (
+                                    <SelectItem
+                                      key={grade}
+                                      value={grade.toString()}
+                                    >
+                                      Lớp {grade}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-6 items-start">
+                        <FormField
+                          control={form.control}
+                          name="type"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Loại tài liệu</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value}
+                                disabled={isLoadingCategories || isReadOnly}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Chọn loại" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {isLoadingCategories ? (
+                                    <SelectItem value="loading" disabled>
+                                      <div className="flex items-center gap-2">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Đang tải...
+                                      </div>
+                                    </SelectItem>
+                                  ) : (
+                                    categories.map((category) => (
+                                      <SelectItem
+                                        key={category.id}
+                                        value={category.id.toString()}
+                                      >
+                                        {category.name}
+                                      </SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="access"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Quyền truy cập</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value}
+                                disabled={isReadOnly}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Chọn quyền" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="public">
+                                    Công khai
+                                  </SelectItem>
+                                  <SelectItem value="school">Trường</SelectItem>
+                                  <SelectItem value="class">Lớp</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {accessValue === "class" && (
+                        <FormField
+                          control={form.control}
+                          name="classes"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Chọn lớp</FormLabel>
+                              <div className="border p-4">
+                                {isLoadingClasses ? (
+                                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Đang tải...
+                                  </div>
+                                ) : classes.length === 0 ? (
+                                  <div className="text-sm text-gray-500">
+                                    Không có lớp nào
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-wrap gap-2">
+                                    {classes.map((cls) => (
+                                      <Button
+                                        key={cls.id}
+                                        type="button"
+                                        variant={
+                                          field.value?.includes(cls.id)
+                                            ? "default"
+                                            : "outline"
+                                        }
+                                        size="sm"
+                                        className={`transition-all ${
+                                          field.value?.includes(cls.id)
+                                            ? "bg-blue-600 hover:bg-blue-700 text-white"
+                                            : "hover:border-blue-400"
+                                        }`}
+                                        onClick={() => {
+                                          if (!isReadOnly) {
+                                            const current = field.value || [];
+                                            field.onChange(
+                                              current.includes(cls.id)
+                                                ? current.filter(
+                                                    (id) => id !== cls.id
+                                                  )
+                                                : [...current, cls.id]
+                                            );
+                                          }
+                                        }}
+                                        disabled={isReadOnly}
+                                      >
+                                        {cls.name}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       )}
-                    />
+                    </div>
                   </div>
 
-                  {/* Document Type and Access Rights - Two Columns */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="documentCategoryId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Loại tài liệu</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Chọn loại tài liệu" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="1">Bài giảng</SelectItem>
-                              <SelectItem value="2">Bài tập</SelectItem>
-                              <SelectItem value="3">Đề thi</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="accessibilityId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Quyền truy cập</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Chọn quyền truy cập" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="1">Công khai</SelectItem>
-                              <SelectItem value="2">Nội bộ trường</SelectItem>
-                              <SelectItem value="3">Riêng tư</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  {/* Free Checkbox */}
-                  <FormField
-                    control={form.control}
-                    name="isFree"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                        <FormControl>
-                          <Checkbox checked={!!field.value} onCheckedChange={(v) => field.onChange(!!v)} />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel className="cursor-pointer">Miễn phí</FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Price Field - Conditionally Rendered */}
-                  {!isFree && (
-                    <FormField
-                      control={form.control}
-                      name="price"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Giá (VNĐ)</FormLabel>
-                          <FormControl>
-                            <Input {...field} type="number" placeholder="Nhập giá" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-
-                  {/* Description Field */}
                   <FormField
                     control={form.control}
                     name="description"
@@ -224,113 +817,228 @@ const UpdateDocument = () => {
                       <FormItem>
                         <FormLabel>Mô tả tài liệu</FormLabel>
                         <FormControl>
-                          <Textarea {...field} placeholder="Nhập mô tả tài liệu" className="min-h-[80px] resize-none" />
+                          <Textarea
+                            {...field}
+                            placeholder="Nhập mô tả tài liệu"
+                            className="resize-none h-24"
+                            disabled={isReadOnly}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  {/* Current Document File Section */}
-                  <div className="space-y-2">
-                    <FormLabel>Tập tài liệu hiện tại</FormLabel>
-                    <Card className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
-                            <FileText className="w-5 h-5 text-gray-600" />
+                  {document && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        Tập tài liệu hiện tại
+                      </label>
+                      <Card className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gray-100 flex items-center justify-center">
+                              <FileText className="w-5 h-5 text-gray-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">
+                                {document.name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Tải lên{" "}
+                                {new Date(
+                                  document.createdAt
+                                ).toLocaleDateString("vi-VN")}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium">Bài giảng Hàm số bậc 2 - Chương 3.pdf</p>
-                            <p className="text-xs text-gray-500">2.4 MB • Tải lên 15/03/2024 10:30</p>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              type="button"
+                              onClick={handlePreview}
+                              disabled={isPreviewing}
+                            >
+                              {isPreviewing ? (
+                                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                              ) : (
+                                <Eye className="w-4 h-4 mr-1" />
+                              )}
+                              Xem trước
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              type="button"
+                              onClick={handleDownload}
+                              disabled={isDownloading}
+                            >
+                              {isDownloading ? (
+                                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                              ) : (
+                                <Download className="w-4 h-4 mr-1" />
+                              )}
+                              Tải về
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" type="button">
-                            <Eye className="w-4 h-4 mr-1" />
-                            Xem trước
-                          </Button>
-                          <Button variant="outline" size="sm" type="button">
-                            <Download className="w-4 h-4 mr-1" />
-                            Tải về
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  </div>
-
-                  {/* File Upload Section - Replace Document */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      Tập tài liệu mới (thay thế)
-                    </label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors cursor-pointer">
-                      <div className="flex flex-col items-center justify-center space-y-2">
-                        <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                          <CloudUpload className="w-5 h-5 text-gray-400" />
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          <span className="font-medium">Kéo thả tệp vào đây</span> hoặc nhấp để chọn
-                        </div>
-                        <div className="text-xs text-gray-500">PDF, DOC, DOCX, PPT, PPTX - Tối đa 50MB</div>
-                      </div>
+                      </Card>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-3 pt-2">
-                    <Button variant="outline" type="button" className="flex-1">
-                      Hủy bỏ
-                    </Button>
-                    <Button variant="outline" type="button" className="text-red-600 bg-transparent">
-                      Xóa tài liệu
-                    </Button>
+                  {!isReadOnly && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        Tập tài liệu mới (thay thế)
+                      </label>
+                      <FileUploadZone
+                        id="document"
+                        accept=".pdf,.doc,.docx,.ppt,.pptx"
+                        onChange={onDocumentFileChange}
+                        file={documentFile}
+                        title="Chọn tệp tài liệu"
+                        subtitle="PDF, DOC, DOCX, PPT, PPTX - Tối đa 10MB"
+                        disabled={isReadOnly}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
                     <Button
-                      type="submit"
-                      className="flex-1 bg-gray-800 hover:bg-gray-900"
-                      disabled={form.formState.isSubmitting}
+                      variant="outline"
+                      type="button"
+                      className="flex-1"
+                      onClick={() => navigate(-1)}
                     >
-                      Lưu thay đổi
+                      {isReadOnly ? "Quay lại" : "Hủy bỏ"}
                     </Button>
+                    {!isReadOnly && (
+                      <>
+                        <Button
+                          variant="outline"
+                          type="button"
+                          className="text-red-600 bg-transparent hover:bg-red-50"
+                          onClick={handleDelete}
+                          disabled={isDeleting}
+                        >
+                          {isDeleting ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Đang xóa...
+                            </>
+                          ) : (
+                            "Xóa tài liệu"
+                          )}
+                        </Button>
+                        <Button
+                          type="submit"
+                          className="flex-1 bg-gray-800 hover:bg-gray-900"
+                          disabled={isUpdating}
+                        >
+                          {isUpdating ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Đang lưu...
+                            </>
+                          ) : (
+                            "Lưu thay đổi"
+                          )}
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </form>
               </Form>
             </Card>
           </div>
 
-          {/* RIGHT SIDE - Document Information Panel (2 columns) */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-2">
             <Card className="p-4">
-              {/* Panel Title */}
-              <h3 className="text-base font-semibold mb-4">Thông tin tài liệu</h3>
-
+              <h3 className="text-base font-semibold mb-4">
+                Thông tin tài liệu
+              </h3>
               <Separator className="mb-4" />
-
-              {/* Status Section */}
               <div className="mb-4">
                 <h4 className="text-sm font-medium mb-3">Trạng thái</h4>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Tình trạng:</span>
-                  <Badge variant="secondary" className="bg-green-100 text-green-700">
-                    Đã xuất bản
+                  <Badge
+                    variant="secondary"
+                    className={
+                      document?.isApproved
+                        ? "bg-green-100 text-green-700"
+                        : document?.isApproved === false
+                        ? "bg-red-100 text-red-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }
+                  >
+                    {document?.isApproved
+                      ? "Đã phê duyệt"
+                      : document?.isApproved === false
+                      ? "Đã từ chối"
+                      : "Chờ phê duyệt"}
                   </Badge>
                 </div>
               </div>
-
               <Separator className="mb-4" />
-
-              {/* Details Section */}
               <div>
                 <h4 className="text-sm font-medium mb-3">Chi tiết</h4>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Tạo lúc:</span>
-                    <span className="text-sm font-medium">15/03/2024</span>
+                    <span className="text-sm font-medium">
+                      {document?.createdAt
+                        ? new Date(document.createdAt).toLocaleDateString(
+                            "vi-VN"
+                          )
+                        : "-"}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Cập nhật:</span>
-                    <span className="text-sm font-medium">20/03/2024</span>
+                    <span className="text-sm font-medium">
+                      {document?.updatedAt
+                        ? new Date(document.updatedAt).toLocaleDateString(
+                            "vi-VN"
+                          )
+                        : "-"}
+                    </span>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Người tạo:</span>
+                    <span className="text-sm font-medium">
+                      {document?.uploaderFullname ||
+                        document?.uploaderName ||
+                        "-"}
+                    </span>
+                  </div>
+                  {document?.schoolName && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Trường:</span>
+                      <span className="text-sm font-medium">
+                        {document.schoolName}
+                      </span>
+                    </div>
+                  )}
+                  {document?.classes && document.classes.length > 0 && (
+                    <div>
+                      <span className="text-sm text-gray-600 block mb-2">
+                        Lớp học:
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {document.classes.map((cls) => (
+                          <Badge
+                            key={cls.id}
+                            variant="secondary"
+                            className="text-xs"
+                          >
+                            {cls.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </Card>
@@ -339,6 +1047,4 @@ const UpdateDocument = () => {
       </div>
     </div>
   );
-};
-
-export default UpdateDocument;
+}

@@ -1,24 +1,30 @@
 // src/documentManagement/components/documents/DocumentFilterSidebar.tsx
-import { useEffect, useState } from "react"
-import { Button } from "@/common/components/ui/button"
-import { Checkbox } from "@/common/components/ui/checkbox"
-import { Label } from "@/common/components/ui/label"
-import type { DocumentCategoryDto, SubjectDto } from "@/documentManagement/interfaces/documentApi"
-import { documentService } from "@/documentManagement/services/documentService"
+import { useEffect, useState } from "react";
+import { Button } from "@/common/components/ui/button";
+import { Checkbox } from "@/common/components/ui/checkbox";
+import { Label } from "@/common/components/ui/label";
+import type {
+  DocumentCategoryDto,
+  SubjectDto,
+} from "@/documentManagement/interfaces/documentApi";
+import { documentService } from "@/documentManagement/services/documentService";
 
 interface DocumentFilterSidebarProps {
-  showSchoolDocs: boolean
-  onSchoolDocsChange: (checked: boolean) => void
-  selectedGrades: number[]
-  onGradeChange: (gradeId: number) => void
-  selectedSubjects: string[]
-  onSubjectChange: (subject: string) => void
-  selectedCategories: number[]
-  onCategoryChange: (categoryId: number) => void
-  hasSchoolAccess: boolean
+  showSchoolDocs: boolean;
+  onSchoolDocsChange: (checked: boolean) => void;
+  selectedGrades: number[];
+  onGradeChange: (gradeId: number) => void;
+  selectedSubjects: string[];
+  onSubjectChange: (subject: string) => void;
+  selectedCategories: number[];
+  onCategoryChange: (categoryId: number) => void;
+  hasSchoolAccess: boolean;
 }
 
-const GRADES = Array.from({ length: 12 }, (_, i) => ({ id: i + 1, name: `${i + 1}` }))
+const GRADES = Array.from({ length: 12 }, (_, i) => ({
+  id: i + 1,
+  name: `${i + 1}`,
+}));
 
 const DocumentFilterSidebar = ({
   showSchoolDocs,
@@ -31,8 +37,8 @@ const DocumentFilterSidebar = ({
   onCategoryChange,
   hasSchoolAccess,
 }: DocumentFilterSidebarProps) => {
-  const [subjects, setSubjects] = useState<SubjectDto[]>([])
-  const [categories, setCategories] = useState<DocumentCategoryDto[]>([])
+  const [subjects, setSubjects] = useState<SubjectDto[]>([]);
+  const [categories, setCategories] = useState<DocumentCategoryDto[]>([]);
 
   useEffect(() => {
     const fetchFilters = async () => {
@@ -40,22 +46,32 @@ const DocumentFilterSidebar = ({
         const [subjectsData, categoriesData] = await Promise.all([
           documentService.getSubjects(),
           documentService.getDocumentCategories(),
-        ])
-        setSubjects(subjectsData)
-        setCategories(categoriesData)
+        ]);
+        setSubjects(subjectsData);
+        setCategories(categoriesData);
       } catch (error) {
-        console.error("Failed to fetch filters:", error)
+        console.error("Failed to fetch filters:", error);
       }
-    }
-    fetchFilters()
-  }, [])
+    };
+    fetchFilters();
+  }, []);
 
   return (
     <div className="w-72 flex-shrink-0">
       <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 shadow-sm border border-gray-200">
         <h3 className="font-bold text-xl mb-6 text-gray-800 flex items-center gap-2">
-          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          <svg
+            className="w-5 h-5 text-blue-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+            />
           </svg>
           Bộ lọc
         </h3>
@@ -66,10 +82,15 @@ const DocumentFilterSidebar = ({
               <Checkbox
                 id="school-docs"
                 checked={showSchoolDocs}
-                onCheckedChange={(checked) => onSchoolDocsChange(checked === true)}
+                onCheckedChange={(checked) =>
+                  onSchoolDocsChange(checked === true)
+                }
                 className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
               />
-              <Label htmlFor="school-docs" className="text-sm font-medium cursor-pointer text-gray-700">
+              <Label
+                htmlFor="school-docs"
+                className="text-sm font-medium cursor-pointer text-gray-700"
+              >
                 🏫 Tài liệu của trường
               </Label>
             </div>
@@ -85,7 +106,9 @@ const DocumentFilterSidebar = ({
             {GRADES.map((grade) => (
               <Button
                 key={grade.id}
-                variant={selectedGrades.includes(grade.id) ? "default" : "outline"}
+                variant={
+                  selectedGrades.includes(grade.id) ? "default" : "outline"
+                }
                 size="sm"
                 className={`h-10 font-medium transition-all ${
                   selectedGrades.includes(grade.id)
@@ -156,7 +179,7 @@ const DocumentFilterSidebar = ({
           </div>
         </div>
       </div>
-      
+
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
@@ -174,7 +197,7 @@ const DocumentFilterSidebar = ({
         }
       `}</style>
     </div>
-  )
-}
+  );
+};
 
-export default DocumentFilterSidebar
+export default DocumentFilterSidebar;

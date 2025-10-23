@@ -2,7 +2,6 @@
 using StudyHub.Backend.Api.Dtos.ClassDTOS;
 using System.ComponentModel.DataAnnotations;
 
-
 namespace StudyHub.Backend.Api.Dtos
 {
     public class DocumentListDto
@@ -57,23 +56,21 @@ namespace StudyHub.Backend.Api.Dtos
         public string? UploaderName { get; set; }
         public string? UploaderUrl { get; set; }
         public string? UploaderFullname { get; set; }
-
         public List<ClassListDto> classes { get; set; } = new();
-
     }
 
     public class CreateDocumentDto
     {
-        [Required]
+        [Required(ErrorMessage = "Tên tài liệu là bắt buộc")]
         public string Name { get; set; } = string.Empty;
 
-        [Required]
+        [Required(ErrorMessage = "Môn học là bắt buộc")]
         public short SubjectId { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Khối là bắt buộc")]
         public sbyte Grade { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Danh mục là bắt buộc")]
         public sbyte DocumentCategoryId { get; set; }
 
         public string? Description { get; set; }
@@ -84,10 +81,7 @@ namespace StudyHub.Backend.Api.Dtos
 
         public bool IsFeatured { get; set; }
 
-        [Required]
-        public Guid CreatedBy { get; set; }
-
-        [Required]
+        [Required(ErrorMessage = "File tài liệu là bắt buộc")]
         public IFormFile DocumentFile { get; set; } = null!;
 
         public IFormFile? ThumbnailFile { get; set; }
@@ -99,16 +93,16 @@ namespace StudyHub.Backend.Api.Dtos
         [Required]
         public int Id { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Tên tài liệu là bắt buộc")]
         public string Name { get; set; } = string.Empty;
 
-        [Required]
+        [Required(ErrorMessage = "Môn học là bắt buộc")]
         public short SubjectId { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Khối là bắt buộc")]
         public sbyte Grade { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Danh mục là bắt buộc")]
         public sbyte DocumentCategoryId { get; set; }
 
         public string? Description { get; set; }
@@ -119,15 +113,10 @@ namespace StudyHub.Backend.Api.Dtos
 
         public bool IsFeatured { get; set; }
 
-        [Required]
-        public Guid UpdatedBy { get; set; }
-        
-        [Required]
         public IFormFile? DocumentFile { get; set; }
 
         public IFormFile? ThumbnailFile { get; set; }
         public List<ClassListDto> classes { get; set; } = new();
-
     }
 
     public class DocumentFilterDto
@@ -139,7 +128,7 @@ namespace StudyHub.Backend.Api.Dtos
         public bool? IsInClass { get; set; }
         public string? Subject { get; set; }
         public string? Description { get; set; }
-        public string? UploaderId { get; set; }
+        public Guid? UploaderId { get; set; }
         public bool? IsFeatured { get; set; }
         public bool? IsApproved { get; set; }
         public bool? Status { get; set; } = true;
@@ -153,19 +142,13 @@ namespace StudyHub.Backend.Api.Dtos
 
     public class ApprovalDto
     {
-        [Required]
+        [Required(ErrorMessage = "DocumentId là bắt buộc")]
         public int DocumentId { get; set; }
-
-        [Required]
-        public Guid ApprovedBy { get; set; }
     }
 
     public class ToggleFeaturedDto
     {
-        [Required]
+        [Required(ErrorMessage = "DocumentId là bắt buộc")]
         public int DocumentId { get; set; }
-
-        [Required]
-        public Guid UpdatedBy { get; set; }
     }
 }
