@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Api.Dtos.AppUserDTOS;
-using StudyHub.Backend.Api.Dtos.AuthDTOS; 
+using StudyHub.Backend.Api.Dtos.AuthDTOS;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.UseCases.Services;
@@ -24,7 +24,6 @@ namespace StudyHub.Backend.Api.Controllers
             _configuration = configuration;
         }
 
-        [Authorize(Roles = "Student")]
         [HttpGet]
         public IActionResult Get([FromQuery] string? status, [FromQuery] string? role, [FromQuery] string? search, [FromQuery] int page, [FromQuery] int limit)
         {

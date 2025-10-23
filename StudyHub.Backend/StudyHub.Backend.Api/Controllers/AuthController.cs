@@ -166,10 +166,21 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpPost("logout")]
-        public IActionResult Logout([FromBody] Guid userId)
+        public IActionResult Logout()
         {
+
+            var accessToken = Request.Cookies["access_token"];
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                return Unauthorized(new GenericResponse { Success = false, Message = "Access token không tìm thấy" });
+            }
+
+            var userId = _authService.ValidateAccessToken(accessToken);
+
+            if (userId == null) return Unauthorized(new GenericResponse { Success = false, Message = "Token không hợp lệ hoặc đã hết hạn" });
+
             // server-side: clear refresh token stored for the user
-            _authService.Logout(userId);
+            _authService.Logout(userId.Value);
 
             // clear cookies on client
             Response.Cookies.Delete("access_token");
