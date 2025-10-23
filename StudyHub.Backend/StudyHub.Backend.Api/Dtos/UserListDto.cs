@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace StudyHub.Backend.UseCases.Dtos
+namespace StudyHub.Backend.Api.Dtos
 {
     public class AppUserListDto
     {
