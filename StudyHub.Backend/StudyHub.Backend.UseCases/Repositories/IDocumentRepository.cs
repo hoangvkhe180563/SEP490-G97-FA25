@@ -59,7 +59,7 @@ namespace StudyHub.Backend.UseCases.Repositories
             bool? status = null,
             int? pageNumber = null,
             int? pageSize = null);
-
+        List<Document> GetDocumentsBySubject(int subjectId);
         Document CreateDocument(Document document);
         Document UpdateDocument(Document document);
         bool DeleteDocument(int id);

@@ -56,6 +56,9 @@ namespace StudyHub.Backend.UseCases.Services
         {
             return _classRepository.GetClassNotifications(classId);
         }
-
+        public List<Class> GetClassByUserId(Guid userid)
+        {
+            return _classRepository.GetClassByUserId(userid);
+        }
     }
 }

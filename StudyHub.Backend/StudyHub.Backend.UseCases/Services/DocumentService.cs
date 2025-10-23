@@ -241,7 +241,17 @@ namespace StudyHub.Backend.UseCases.Services
             if (file.Length > FileConstants.MaxImageSize)
                 throw new ArgumentException($"Image size exceeds {FileConstants.MaxImageSize / (1024 * 1024)}MB");
         }
+        public List<Document> GetDocumentsBySubject(int subjectId)
+        {
+            return _repo.GetDocumentsBySubject(subjectId);
+        }
+        public async Task<Stream> StreamDocumentAsync(Document document)
+        {
+            if (string.IsNullOrEmpty(document.DocumentUrl))
+                throw new InvalidOperationException("Document URL not available");
 
+            return await _fileStorage.ReadFileStreamAsync(document.DocumentUrl);
+        }
         private string GetContentType(string filePath)
         {
             var extension = Path.GetExtension(filePath).ToLowerInvariant();

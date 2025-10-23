@@ -156,6 +156,24 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 return false;
             }
         }
+        public async Task<Stream> ReadFileStreamAsync(string fileUrl)
+        {
+            try
+            {
+                using var httpClient = new HttpClient();
+                httpClient.Timeout = TimeSpan.FromMinutes(5);
+
+                var response = await httpClient.GetAsync(fileUrl, HttpCompletionOption.ResponseHeadersRead);
+                response.EnsureSuccessStatusCode();
+
+                return await response.Content.ReadAsStreamAsync();
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("CloudinaryRepository", "ReadFileStreamAsync exception. Inner error: " + ex.Message).LogError();
+                throw;
+            }
+        }
         public async Task<byte[]> ReadFileAsync(string filePath)
         {
             try

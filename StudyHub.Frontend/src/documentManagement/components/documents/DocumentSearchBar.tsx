@@ -1,3 +1,4 @@
+// StudyHub.Frontend/src/documentManagement/components/documents/DocumentSearchBar.tsx
 import { Input } from "@/common/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
 import { Search } from "lucide-react"

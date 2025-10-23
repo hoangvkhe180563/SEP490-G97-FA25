@@ -1,266 +1,312 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Button } from "@/common/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/common/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avatar";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/common/components/ui/carousel";
-import { FileText, Download } from "lucide-react";
-import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
-import { documentService } from "@/documentManagement/services/documentService";
-import type { DocumentDetailDto, DocumentListDto } from "@/documentManagement/interfaces/documentApi";
+// src/documentManagement/pages/student/DocumentDetails.tsx
+import { useEffect, useState } from "react"
+import { useParams, useNavigate, useLocation } from "react-router-dom"
+import { Button } from "@/common/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/common/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avatar"
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/common/components/ui/carousel"
+import { FileText, Download, Calendar, Lock, RefreshCw, FileType, FolderOpen, User, Loader2 } from "lucide-react"
+import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore"
+import { documentService } from "@/documentManagement/services/documentService"
+import type { DocumentDetailDto, DocumentListDto } from "@/documentManagement/interfaces/documentApi"
 
 function DocumentPreview({ thumbnail, fileType }: { thumbnail?: string; fileType?: string }) {
   return (
-    <Card className="w-40 h-48 flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 shadow-md hover:shadow-lg transition-shadow">
+    <Card className="w-48 h-64 flex items-center justify-center overflow-hidden">
       {thumbnail ? (
-        <img src={thumbnail} alt="Document preview" className="w-full h-full object-cover rounded" />
+        <div className="w-full h-full p-2">
+          <img src={thumbnail} alt="Document preview" className="w-full h-full object-contain" />
+        </div>
       ) : (
-        <>
-          <div className="bg-blue-50 p-4 rounded-full mb-3">
-            <FileText className="w-12 h-12 text-blue-500" />
-          </div>
-          <p className="text-sm font-medium text-gray-700">{fileType || "PDF"}</p>
-        </>
+        <div className="flex flex-col items-center justify-center space-y-3">
+          <FileText className="w-16 h-16 text-gray-400" />
+          <p className="text-sm font-medium text-gray-600">{fileType || "PDF"}</p>
+        </div>
       )}
     </Card>
-  );
+  )
 }
 
 function DocumentHeader({ 
   document, 
   onView, 
-  onDownload 
+  onDownload,
+  isDownloading
 }: { 
-  document: DocumentDetailDto | null; 
-  onView: () => void;
-  onDownload: () => void;
+  document: DocumentDetailDto | null
+  onView: () => void
+  onDownload: () => void
+  isDownloading: boolean
 }) {
   return (
     <div className="flex-1">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="px-4 py-1.5 bg-blue-100 text-blue-700 text-sm font-semibold rounded-full">
           {document?.subjectName || "Môn học"}
         </span>
-        <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full">
+        <span className="px-4 py-1.5 bg-green-100 text-green-700 text-sm font-semibold rounded-full">
           Lớp {document?.grade || ""}
         </span>
       </div>
-      <h1 className="text-3xl font-bold mb-4 text-gray-800">{document?.name || "Tên tài liệu"}</h1>
+      <h1 className="text-4xl font-bold mb-5 text-gray-900">{document?.name || "Tên tài liệu"}</h1>
       <div className="flex gap-3">
-        <Button className="bg-blue-600 hover:bg-blue-700 shadow-md" onClick={onView}>
+        <Button onClick={onView}>
           <FileText className="w-4 h-4 mr-2" />
           Xem tài liệu
         </Button>
-        <Button variant="outline" className="border-gray-300 hover:bg-gray-50 shadow-sm" onClick={onDownload}>
-          <Download className="w-4 h-4 mr-2" />
+        <Button variant="outline" onClick={onDownload} disabled={isDownloading}>
+          {isDownloading ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Download className="w-4 h-4 mr-2" />
+          )}
           Tải xuống
         </Button>
       </div>
     </div>
-  );
+  )
 }
 
 function DocumentDescription({ description }: { description?: string }) {
   return (
-    <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-      <CardHeader className="bg-gradient-to-r from-gray-50 to-white">
-        <CardTitle className="text-base font-semibold text-gray-800">Mô tả tài liệu</CardTitle>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <FileText className="w-5 h-5" />
+          Mô tả tài liệu
+        </CardTitle>
       </CardHeader>
-      <CardContent className="pt-4">
-        <p className="text-sm text-gray-600 leading-relaxed">
+      <CardContent>
+        <p className="text-sm text-gray-700 leading-relaxed">
           {description || "Chưa có mô tả"}
         </p>
       </CardContent>
     </Card>
-  );
+  )
 }
 
 function DocumentDetailsInfo({ document }: { document: DocumentDetailDto | null }) {
   return (
-    <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-      <CardHeader className="bg-gradient-to-r from-gray-50 to-white">
-        <CardTitle className="text-base font-semibold text-gray-800">Thông tin chi tiết</CardTitle>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Thông tin chi tiết</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3 pt-4">
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Ngày tạo:</span>
-          <span className="font-medium text-gray-800">
+      <CardContent className="space-y-3">
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-gray-600 flex items-center gap-2">
+            <Calendar className="w-4 h-4" />
+            Ngày tạo:
+          </span>
+          <span className="font-semibold">
             {document?.createdAt ? new Date(document.createdAt).toLocaleDateString('vi-VN') : "N/A"}
           </span>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Quyền truy cập:</span>
-          <span className="font-medium text-gray-800">
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-gray-600 flex items-center gap-2">
+            <Lock className="w-4 h-4" />
+            Quyền truy cập:
+          </span>
+          <span className="font-semibold">
             {document?.schoolId ? "Trường học" : "Công khai"}
           </span>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Lần cập nhật:</span>
-          <span className="font-medium text-gray-800">
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-gray-600 flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" />
+            Lần cập nhật:
+          </span>
+          <span className="font-semibold">
             {document?.updatedAt ? new Date(document.updatedAt).toLocaleDateString('vi-VN') : "Chưa cập nhật"}
           </span>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Định dạng:</span>
-          <span className="font-medium text-gray-800">{document?.fileType || "PDF"}</span>
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-gray-600 flex items-center gap-2">
+            <FileType className="w-4 h-4" />
+            Định dạng:
+          </span>
+          <span className="font-semibold">{document?.fileType || "PDF"}</span>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Danh mục:</span>
-          <span className="font-medium text-gray-800">{document?.categoryName || "N/A"}</span>
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-gray-600 flex items-center gap-2">
+            <FolderOpen className="w-4 h-4" />
+            Danh mục:
+          </span>
+          <span className="font-semibold">{document?.categoryName || "N/A"}</span>
         </div>
       </CardContent>
     </Card>
-  );
+  )
 }
 
-function UserInfo({ createdBy }: { createdBy?: string }) {
+function UserInfo({ 
+  uploaderName,
+  onViewUploaderDocs 
+}: { 
+  uploaderName?: string
+  onViewUploaderDocs: () => void
+}) {
+  const getInitials = (name: string) => {
+    const words = name.trim().split(' ')
+    if (words.length >= 2) {
+      return words[0][0] + words[words.length - 1][0]
+    }
+    return name.substring(0, 2)
+  }
+
   return (
-    <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-      <CardHeader className="bg-gradient-to-r from-gray-50 to-white">
-        <CardTitle className="text-base font-semibold text-gray-800">Thông tin người dùng</CardTitle>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <User className="w-5 h-5" />
+          Thông tin người đăng
+        </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col items-center space-y-4 pt-4">
-        <Avatar className="w-20 h-20 ring-2 ring-gray-200">
+      <CardContent className="flex flex-col items-center space-y-4">
+        <Avatar className="w-24 h-24">
           <AvatarImage src="/placeholder.svg" />
-          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white text-2xl">
-            {typeof createdBy === 'string' ? createdBy.charAt(0).toUpperCase() : "U"}
+          <AvatarFallback className="text-2xl font-bold">
+            {uploaderName ? getInitials(uploaderName).toUpperCase() : "ND"}
           </AvatarFallback>
         </Avatar>
         <div className="text-center">
-          <p className="font-semibold text-base text-gray-800">{createdBy || "Người dùng"}</p>
-          <p className="text-sm text-gray-600">Giáo viên</p>
+          <p className="font-bold text-lg">{uploaderName || "Người đăng"}</p>
         </div>
-        <Button variant="outline" className="w-full border-gray-300 hover:bg-gray-50">
-          Xem thêm tài liệu cùng tác giả
+        <Button 
+          variant="outline" 
+          className="w-full"
+          onClick={onViewUploaderDocs}
+        >
+          Xem thêm tài liệu của {uploaderName}
         </Button>
       </CardContent>
     </Card>
-  );
+  )
 }
 
 function RelatedDocumentCard({ 
-  doc,
+  document,
   onClick 
 }: { 
-  doc: DocumentListDto;
-  onClick: () => void;
+  document: DocumentListDto
+  onClick: () => void
 }) {
   return (
-    <Card 
-      className="cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-gray-200"
-      onClick={onClick}
-    >
+    <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={onClick}>
       <CardContent className="p-4">
         <div className="flex gap-3">
-          <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-            <FileText className="w-7 h-7 text-blue-600" />
+          <div className="w-14 h-14 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {document.thumbnail ? (
+              <img src={document.thumbnail} alt={document.name} className="w-full h-full object-cover" />
+            ) : (
+              <FileText className="w-7 h-7 text-gray-400" />
+            )}
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-sm mb-1.5 line-clamp-2 text-gray-800 hover:text-blue-600 transition-colors">
-              {doc.name}
+            <h4 className="font-semibold text-sm mb-1 line-clamp-2">
+              {document.name}
             </h4>
-            <p className="text-xs text-gray-500 flex items-center gap-1">
-              <span>{doc.createdBy || "N/A"}</span>
-              <span className="text-gray-300">•</span>
-              <span>Lớp {doc.grade}</span>
+            <p className="text-xs text-gray-600">
+              {document.uploaderName || "N/A"} • Lớp {document.grade}
             </p>
           </div>
         </div>
       </CardContent>
     </Card>
-  );
+  )
 }
 
 function RelatedDocumentsSection({ 
-  subjectId, 
+  subjectName,
+  schoolId,
   currentDocId 
 }: { 
-  subjectId?: number;
-  currentDocId: number;
+  subjectName?: string
+  schoolId?: number | null
+  currentDocId: number
 }) {
-  const navigate = useNavigate();
-  const [relatedDocs, setRelatedDocs] = useState<DocumentListDto[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [relatedDocs, setRelatedDocs] = useState<DocumentListDto[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     const fetchRelatedDocs = async () => {
-      if (!subjectId) return;
+      if (!subjectName) return
       
-      setIsLoading(true);
+      setIsLoading(true)
       try {
-        const response = await documentService.getDocumentsBySubject(subjectId);
-        
-        if (response.success && response.data) {
-          const filtered = response.data
-            .filter(doc => doc.id !== currentDocId)
-            .sort(() => Math.random() - 0.5)
-            .slice(0, 7)
-            .map(doc => ({
-              id: doc.id,
-              name: doc.name,
-              subjectId: doc.subjectId,
-              subjectName: doc.subjectName,
-              documentCategoryId: doc.documentCategoryId,
-              categoryName: doc.categoryName,
-              thumbnail: doc.thumbnail,
-              description: doc.description,
-              createdAt: doc.createdAt,
-              createdBy: doc.createdBy,
-              isSchoolDocument: doc.isSchoolDocument,
-              isFeatured: doc.isFeatured,
-              isApproved: doc.isApproved,
-              schoolId: doc.schoolId,
-              schoolName: doc.schoolName,
-              fileType: doc.fileType,
-              documentUrl: doc.documentUrl
-            } as DocumentListDto));
-          
-          setRelatedDocs(filtered);
-        }
-      } catch (error) {
-        console.error('Error fetching related docs:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+        let allDocs: DocumentListDto[] = []
 
-    fetchRelatedDocs();
-  }, [subjectId, currentDocId]);
+        if (schoolId) {
+          const [publicResponse, schoolResponse] = await Promise.all([
+            documentService.getPublicDocuments(undefined, undefined, undefined, subjectName, undefined, 1, 999),
+            documentService.getSchoolDocuments(schoolId, undefined, undefined, undefined, subjectName, undefined, 1, 999)
+          ])
+
+          if (publicResponse.success && publicResponse.data?.items) {
+            allDocs = publicResponse.data.items as DocumentListDto[]
+          }
+          if (schoolResponse.success && schoolResponse.data?.items) {
+            allDocs = [...allDocs, ...(schoolResponse.data.items as DocumentListDto[])]
+          }
+        } else {
+          const publicResponse = await documentService.getPublicDocuments(
+            undefined, undefined, undefined, subjectName, undefined, 1, 999
+          )
+          
+          if (publicResponse.success && publicResponse.data?.items) {
+            allDocs = publicResponse.data.items as DocumentListDto[]
+          }
+        }
+
+        const filtered = allDocs
+          .filter(d => d.id !== currentDocId)
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 7)
+        
+        setRelatedDocs(filtered)
+      } catch (error) {
+        console.error('Error fetching related docs:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchRelatedDocs()
+  }, [subjectName, schoolId, currentDocId])
 
   const handleDocumentClick = (docId: number) => {
-    navigate(`/document/student/details/${docId}`);
-  };
+    window.location.href = `/document/student/details/${docId}`
+  }
 
   if (isLoading) {
     return (
       <div className="mt-8">
-        <h2 className="text-xl font-bold mb-2 text-gray-800">Tài liệu cùng môn học</h2>
-        <div className="flex items-center justify-center py-12 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+        <h2 className="text-2xl font-bold mb-3">Tài liệu cùng môn học</h2>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
         </div>
       </div>
-    );
+    )
   }
 
   if (!relatedDocs || relatedDocs.length === 0) {
     return (
       <div className="mt-8">
-        <h2 className="text-xl font-bold mb-2 text-gray-800">Tài liệu cùng môn học</h2>
-        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-12 text-center border border-gray-200">
-          <div className="bg-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-sm">
-            <FileText className="w-8 h-8 text-gray-400" />
-          </div>
-          <p className="text-gray-600 font-medium text-lg">Không có tài liệu cùng môn</p>
-          <p className="text-gray-500 text-sm mt-2">Hãy quay lại sau để khám phá thêm tài liệu mới</p>
-        </div>
+        <h2 className="text-2xl font-bold mb-3">Tài liệu cùng môn học</h2>
+        <Card>
+          <CardContent className="p-12 text-center">
+            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-700 font-medium">Không có tài liệu cùng môn</p>
+            <p className="text-gray-500 text-sm mt-2">Hãy quay lại sau để khám phá thêm tài liệu mới</p>
+          </CardContent>
+        </Card>
       </div>
-    );
+    )
   }
 
   return (
     <div className="mt-8">
-      <h2 className="text-xl font-bold mb-2 text-gray-800">Tài liệu cùng môn học</h2>
-      <p className="text-sm text-gray-600 mb-6">Khám phá thêm các tài liệu khác</p>
+      <h2 className="text-2xl font-bold mb-3">Tài liệu cùng môn học</h2>
+      <p className="text-sm text-gray-600 mb-4">Khám phá thêm các tài liệu khác</p>
 
       <Carousel
         opts={{
@@ -270,11 +316,11 @@ function RelatedDocumentsSection({
         className="w-full"
       >
         <CarouselContent>
-          {relatedDocs.map((doc) => (
-            <CarouselItem key={doc.id} className="md:basis-1/2 lg:basis-1/3">
+          {relatedDocs.map((d) => (
+            <CarouselItem key={d.id} className="md:basis-1/2 lg:basis-1/3">
               <RelatedDocumentCard 
-                doc={doc}
-                onClick={() => handleDocumentClick(doc.id)}
+                document={d}
+                onClick={() => handleDocumentClick(d.id)}
               />
             </CarouselItem>
           ))}
@@ -283,84 +329,115 @@ function RelatedDocumentsSection({
         <CarouselNext />
       </Carousel>
     </div>
-  );
+  )
 }
 
 export default function DocumentDetails() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { document, isLoading, getDocumentById, downloadDocument } = useDocumentStore();
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { document, isLoading, getDocumentById, downloadDocument } = useDocumentStore()
+  const [isDownloading, setIsDownloading] = useState(false)
+
+  const userSchoolId = 1
 
   useEffect(() => {
     if (id) {
-      getDocumentById(Number(id));
+      getDocumentById(Number(id))
     }
-  }, [id, getDocumentById]);
+  }, [id, getDocumentById])
 
   const handleView = () => {
-    navigate(`/document/student/doc-info/${id}`);
-  };
+    navigate(`/document/student/doc-info/${id}`)
+  }
 
   const handleDownload = async () => {
-    if (id && document) {
-      const blob = await downloadDocument(Number(id));
-      if (blob) {
-        const url = window.URL.createObjectURL(blob);
-        const anchor = window.document.createElement('a');
-        anchor.href = url;
-        anchor.download = document.name || 'document';
-        anchor.click();
-        window.URL.revokeObjectURL(url);
+    if (id && document && !isDownloading) {
+      setIsDownloading(true)
+      try {
+        const blob = await downloadDocument(Number(id))
+        if (blob) {
+          const url = window.URL.createObjectURL(blob)
+          const anchor = window.document.createElement('a')
+          anchor.href = url
+          anchor.download = document.name || 'document'
+          anchor.click()
+          window.URL.revokeObjectURL(url)
+        }
+      } finally {
+        setIsDownloading(false)
       }
     }
-  };
+  }
 
-  if (isLoading) {
+  const handleViewUploaderDocs = () => {
+    if (document?.uploaderName) {
+      const basePath = location.pathname.split("/details")[0]
+      const documentsPath = basePath.replace(/\/(teacher|student|manager)$/, '/$1/documents')
+      
+      const hasSchoolAccess = !!userSchoolId && !!document.schoolId
+      
+      navigate(documentsPath, { 
+        state: { 
+          searchQuery: document.uploaderName,
+          showSchoolDocs: hasSchoolAccess,
+          timestamp: Date.now()
+        } 
+      })
+    }
+  }
+
+  if (isLoading && !document) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
           <p className="text-gray-600 font-medium">Đang tải tài liệu...</p>
         </div>
       </div>
-    );
+    )
   }
 
   if (!document) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="bg-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-md">
-            <FileText className="w-8 h-8 text-gray-400" />
-          </div>
-          <p className="text-gray-600 font-medium text-lg">Không tìm thấy tài liệu</p>
+          <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-700 font-medium text-lg">Không tìm thấy tài liệu</p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto p-6 max-w-7xl">
         <div className="flex gap-6 mb-6">
           <DocumentPreview thumbnail={document.thumbnail} fileType={document.fileType} />
-          <DocumentHeader document={document} onView={handleView} onDownload={handleDownload} />
-          <Button variant="outline" className="self-start border-gray-300 hover:bg-gray-50 shadow-sm">
-            Feedback
-          </Button>
+          <DocumentHeader 
+            document={document} 
+            onView={handleView} 
+            onDownload={handleDownload}
+            isDownloading={isDownloading}
+          />
+          <Button variant="outline" className="self-start">Feedback</Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <DocumentDescription description={document.description} />
           <DocumentDetailsInfo document={document} />
-          <UserInfo createdBy={document.createdBy} />
+          <UserInfo 
+            uploaderName={document.uploaderName}
+            onViewUploaderDocs={handleViewUploaderDocs}
+          />
         </div>
 
         <RelatedDocumentsSection 
-          subjectId={document.subjectId} 
+          subjectName={document.subjectName}
+          schoolId={document.schoolId}
           currentDocId={document.id}
         />
       </div>
     </div>
-  );
+  )
 }

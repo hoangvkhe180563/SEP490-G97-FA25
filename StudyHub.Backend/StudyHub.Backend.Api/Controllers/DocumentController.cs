@@ -1,9 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos;
+using StudyHub.Backend.Api.Dtos.AuthDTOS;
+using StudyHub.Backend.Api.Dtos.ClassDTOS;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.UseCases.Services;
 using System;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -13,10 +16,38 @@ namespace StudyHub.Backend.Api.Controllers
     public class DocumentController : ControllerBase
     {
         private readonly DocumentService _documentService;
+        private readonly AppUserService _userService;
+        private readonly ClassService _classService;
+        private readonly AuthService _authService;
 
-        public DocumentController(DocumentService documentService)
+        public DocumentController(
+            DocumentService documentService,
+            AppUserService userService,
+            ClassService classService,
+            AuthService authService)
         {
             _documentService = documentService;
+            _userService = userService;
+            _classService = classService;
+            _authService = authService;
+        }
+
+        private Guid? GetCurrentUserId()
+        {
+            var accessToken = Request.Cookies["access_token"];
+            if (string.IsNullOrEmpty(accessToken))
+                return null;
+
+            return _authService.ValidateAccessToken(accessToken);
+        }
+
+        private Domain.Entities.AppUser? GetCurrentUser()
+        {
+            var userId = GetCurrentUserId();
+            if (!userId.HasValue)
+                return null;
+
+            return _userService.GetUserById(userId.Value);
         }
 
         private IActionResult PagedResult<T>(List<T> items, int total, int page, int limit)
@@ -61,6 +92,13 @@ namespace StudyHub.Backend.Api.Controllers
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
+            var currentUser = GetCurrentUser();
+            if (currentUser == null)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            if (currentUser.SchoolId != schoolId)
+                return Forbid();
+
             var (documents, totalCount) = _documentService.GetSchoolDocuments(
                 schoolId, query, categoryId, grade, subject, classId, pageNumber, pageSize);
             return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
@@ -91,6 +129,7 @@ namespace StudyHub.Backend.Api.Controllers
             [FromQuery] int? classId = null,
             [FromQuery] bool? isApproved = null,
             [FromQuery] bool? status = null,
+            [FromQuery] bool? isPending = null,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
@@ -109,9 +148,17 @@ namespace StudyHub.Backend.Api.Controllers
             [FromQuery] int? classId = null,
             [FromQuery] bool? isApproved = null,
             [FromQuery] bool? status = null,
+            [FromQuery] bool? isPending = null,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
+            var currentUser = GetCurrentUser();
+            if (currentUser == null)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            if (currentUser.SchoolId != schoolId)
+                return Forbid();
+
             var (documents, totalCount) = _documentService.GetManagerSchoolDocuments(
                 schoolId, query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
             return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
@@ -122,7 +169,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             var document = _documentService.GetDocumentById(id);
             if (document == null)
-                return NotFound(new { success = false });
+                return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
 
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
@@ -134,8 +181,55 @@ namespace StudyHub.Backend.Api.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(new { success = false, errors = ModelState });
 
+            var currentUser = GetCurrentUser();
+            if (currentUser == null)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
             var document = dto.ToEntity();
-            document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList() ?? new List<Domain.Entities.Class>();
+            document.CreatedBy = currentUser.Id;
+
+            if (dto.IsInClass == true)
+            {
+                if (currentUser.SchoolId == null)
+                    return BadRequest(new { success = false, message = "Bạn không thuộc trường học nào" });
+                document.SchoolId = currentUser.SchoolId;
+            }
+            else
+            {
+                document.SchoolId = dto.SchoolId;
+            }
+
+            var classesValues = Request.Form["classes"];
+            if (classesValues.Count == 0)
+                classesValues = Request.Form["classesJson"];
+
+            if (classesValues.Count > 0)
+            {
+                var classList = new List<ClassListDto>();
+                foreach (var jsonString in classesValues)
+                {
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(jsonString))
+                        {
+                            var classItem = JsonSerializer.Deserialize<ClassListDto>(jsonString,
+                                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            if (classItem != null)
+                                classList.Add(classItem);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error parsing class JSON: {ex.Message}");
+                    }
+                }
+                document.Classes = classList.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList();
+            }
+            else
+            {
+                document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList()
+                                   ?? new List<Domain.Entities.Class>();
+            }
 
             var createdDocument = await _documentService.CreateDocumentAsync(
                 document, dto.DocumentFile, dto.ThumbnailFile);
@@ -144,18 +238,61 @@ namespace StudyHub.Backend.Api.Controllers
                 new { success = true, data = createdDocument.ToDetailDto() });
         }
 
-        [HttpPut("{id:int}")]
+        [HttpPut("update/{id:int}")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateDocument(int id, [FromForm] UpdateDocumentDto dto)
         {
             if (id != dto.Id)
-                return BadRequest(new { success = false });
+                return BadRequest(new { success = false, message = "ID không khớp" });
 
             if (!ModelState.IsValid)
                 return BadRequest(new { success = false, errors = ModelState });
 
+            var currentUser = GetCurrentUser();
+            if (currentUser == null)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            var existingDoc = _documentService.GetDocumentById(id);
+            if (existingDoc == null)
+                return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
+
+            if (existingDoc.CreatedBy != currentUser.Id)
+                return Forbid();
+
             var document = dto.ToEntity();
-            document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList() ?? new List<Domain.Entities.Class>();
+            document.UpdatedBy = currentUser.Id;
+
+            var classesValues = Request.Form["classes"];
+            if (classesValues.Count == 0)
+                classesValues = Request.Form["classesJson"];
+
+            if (classesValues.Count > 0)
+            {
+                var classList = new List<ClassListDto>();
+                foreach (var jsonString in classesValues)
+                {
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(jsonString))
+                        {
+                            var classItem = JsonSerializer.Deserialize<ClassListDto>(jsonString,
+                                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            if (classItem != null)
+                                classList.Add(classItem);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error parsing class JSON: {ex.Message}");
+                    }
+                }
+                document.Classes = classList.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList();
+            }
+            else
+            {
+                document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList()
+                                   ?? new List<Domain.Entities.Class>();
+            }
 
             var updatedDocument = await _documentService.UpdateDocumentAsync(
                 document, dto.DocumentFile, dto.ThumbnailFile);
@@ -166,48 +303,79 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpDelete("{id:int}")]
         public IActionResult DeleteDocument(int id)
         {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            var existingDoc = _documentService.GetDocumentById(id);
+            if (existingDoc == null)
+                return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
+
+            if (existingDoc.CreatedBy != currentUserId.Value)
+                return Forbid();
+
             var result = _documentService.DeleteDocument(id);
             if (!result)
-                return NotFound(new { success = false });
+                return NotFound(new { success = false, message = "Xóa thất bại" });
 
-            return Ok(new { success = true });
+            return Ok(new { success = true, message = "Xóa thành công" });
         }
 
         [HttpPatch("soft-delete/{id:int}")]
-        public IActionResult SoftDeleteDocument(int id, [FromBody] Guid deletedBy)
+        public IActionResult SoftDeleteDocument(int id)
         {
-            var result = _documentService.SoftDeleteDocument(id, deletedBy);
-            if (!result)
-                return NotFound(new { success = false });
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            return Ok(new { success = true });
+            var result = _documentService.SoftDeleteDocument(id, currentUserId.Value);
+            if (!result)
+                return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
+
+            return Ok(new { success = true, message = "Xóa mềm thành công" });
         }
 
         [HttpPost("approve")]
         public IActionResult ApproveDocument([FromBody] ApprovalDto dto)
         {
-            var document = _documentService.ApproveDocument(dto.DocumentId, dto.ApprovedBy);
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            var document = _documentService.ApproveDocument(dto.DocumentId, currentUserId.Value);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
         [HttpPost("reject")]
         public IActionResult RejectDocument([FromBody] ApprovalDto dto)
         {
-            var document = _documentService.RejectDocument(dto.DocumentId, dto.ApprovedBy);
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            var document = _documentService.RejectDocument(dto.DocumentId, currentUserId.Value);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
         [HttpPost("revoke")]
         public IActionResult RevokeApproval([FromBody] ApprovalDto dto)
         {
-            var document = _documentService.RevokeApproval(dto.DocumentId, dto.ApprovedBy);
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            var document = _documentService.RevokeApproval(dto.DocumentId, currentUserId.Value);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
         [HttpPost("toggle-featured")]
         public IActionResult ToggleFeatured([FromBody] ToggleFeaturedDto dto)
         {
-            var document = _documentService.ToggleFeatured(dto.DocumentId, dto.UpdatedBy);
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            var document = _documentService.ToggleFeatured(dto.DocumentId, currentUserId.Value);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
@@ -216,10 +384,13 @@ namespace StudyHub.Backend.Api.Controllers
         {
             var document = _documentService.GetDocumentById(id);
             if (document == null)
-                return NotFound(new { success = false });
+                return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
 
-            var (fileBytes, contentType, fileName) = await _documentService.DownloadDocumentAsync(document);
-            return File(fileBytes, contentType, fileName);
+            var stream = await _documentService.StreamDocumentAsync(document);
+            var contentType = GetContentType(document.DocumentUrl);
+            var fileName = document.Name + Path.GetExtension(document.DocumentUrl);
+
+            return File(stream, contentType, fileName);
         }
 
         [HttpGet("preview/{id:int}")]
@@ -227,10 +398,61 @@ namespace StudyHub.Backend.Api.Controllers
         {
             var document = _documentService.GetDocumentById(id);
             if (document == null)
-                return NotFound(new { success = false });
+                return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
 
-            var (fileBytes, contentType, _) = await _documentService.DownloadDocumentAsync(document);
-            return File(fileBytes, contentType);
+            var stream = await _documentService.StreamDocumentAsync(document);
+            var contentType = GetContentType(document.DocumentUrl);
+
+            Response.Headers.Add("Accept-Ranges", "bytes");
+            Response.Headers.Add("Cache-Control", "public, max-age=31536000");
+
+            return File(stream, contentType, enableRangeProcessing: true);
+        }
+
+        private string GetContentType(string filePath)
+        {
+            var extension = Path.GetExtension(filePath).ToLowerInvariant();
+            return extension switch
+            {
+                ".pdf" => "application/pdf",
+                ".doc" => "application/msword",
+                ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ".xls" => "application/vnd.ms-excel",
+                ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ".ppt" => "application/vnd.ms-powerpoint",
+                ".pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                ".txt" => "text/plain",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".zip" => "application/zip",
+                ".rar" => "application/x-rar-compressed",
+                _ => "application/octet-stream"
+            };
+        }
+
+        [HttpGet("my-class/{userid:guid}")]
+        public IActionResult GetClassByUserId(Guid userid)
+        {
+            var classes = _classService.GetClassByUserId(userid);
+            var subjects = _classService.GetSubjects();
+            var teachers = _classService.GetTeachers();
+
+            var result = classes.Select(c => {
+                var subject = subjects.FirstOrDefault(s => s.Id == c.SubjectId);
+                var teacher = teachers.FirstOrDefault(t => t.Id == c.CreatedBy);
+                return c.ToListClassDto(teacher, subject);
+            }).ToList();
+
+            return Ok(new { success = true, data = result });
+        }
+
+        [HttpGet("by-subject/{subjectId:int}")]
+        public IActionResult GetDocumentsBySubject(int subjectId)
+        {
+            var documents = _documentService.GetDocumentsBySubject(subjectId);
+            var dtos = documents.Select(d => d.ToListDto()).ToList();
+            return Ok(new { success = true, data = dtos });
         }
     }
 }
