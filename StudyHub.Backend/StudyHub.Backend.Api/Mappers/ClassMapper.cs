@@ -77,7 +77,14 @@ namespace StudyHub.Backend.Api.Mappers
                 UserId = member.UserId,
                 Fullname = user?.Fullname ?? "Không rõ",
                 JoinDate = member.JoinDate,
-                Roles = roles
+                Roles = roles,
+                Gender = user.Gender,
+                SchoolId = user.SchoolId,
+                CommuneId=user.CommuneId,
+                Address = user.Address,
+                PhoneNumber = user.PhoneNumber,
+                Wallet = user.Wallet,
+
             };
         }
 

@@ -114,6 +114,33 @@ namespace StudyHub.Backend.Api.Controllers
             var updated = _service.UpdateClass(existing);
             return Ok(updated.ToDetailDto());
         }
+        [HttpGet("{id}/members")]
+        public IActionResult GetClassMembers(int id)
+        {
+            var cls = _service.GetClassById(id);
+            if (cls == null)
+                return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
+
+            var members = _service.GetClassMembers(id)
+                .Select(m =>
+                {
+                    var roles = _aRoleService.GetRolesByUser(m.UserId)
+                                             .Where(r => !string.IsNullOrEmpty(r.Name))
+                                             .Select(r => r.Name!)
+                                             .ToList();
+                    return m.ToMemberDto(_aUserService.GetUserById(m.UserId), roles);
+                })
+                .ToList();
+
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy danh sách thành viên thành công.",
+                data = members
+            });
+        }
+
+        
         [HttpGet("{id}/detail")]
         public IActionResult GetClassDetail(int id)
         {
@@ -121,33 +148,23 @@ namespace StudyHub.Backend.Api.Controllers
             if (cls == null)
                 return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
 
-        // Lấy dữ liệu phụ trực tiếp từ repository
-        var members = _service.GetClassMembers(id)
-        .Select(m =>
-        {
-            var roles = _aRoleService.GetRolesByUser(m.UserId).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
-            return m.ToMemberDto(_aUserService.GetUserById(m.UserId), roles);
-        })
-        .ToList();
-
-           
-
-            // Lấy notification + comment + file
             var notifications = _service.GetClassNotifications(id)
                 .Select(n =>
                 {
                     var files = _service.GetFileByNotificationId(n.Id);
                     var comments = _service.GetCommentsByNotificationId(n.Id);
 
-                    return n.ToNotificationDto(n.AppUser,
+                    return n.ToNotificationDto(
+                        n.AppUser,
                         files.Select(f => f.ToFileDto()).ToList(),
                         comments.Select(c => c.ToCommentDto(_aUserService.GetUserById(c.AppUserId))).ToList()
-                        
                     );
                 })
                 .ToList();
 
-            var dto = cls.ToFullDetailDto(members, notifications);
+           
+            var emptyMembers = new List<MemberDto>();
+            var dto = cls.ToFullDetailDto(emptyMembers, notifications);
 
             return Ok(new
             {

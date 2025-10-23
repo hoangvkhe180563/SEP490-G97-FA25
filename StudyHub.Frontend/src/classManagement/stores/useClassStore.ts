@@ -344,7 +344,7 @@ export const useClassStore = create<ClassState>((set, get) => ({
         title: created.title ?? payload.title,
         description: created.description ?? payload.description ?? "",
         createdBy: String(created.createdBy ?? createdByValue),
-        createdAt: created.createdAt ?? createdAtValue,
+        createdAt: created.createdAt ?? createdByValue,
         files: created.files ?? [],
         comments: created.comments ?? [],
       };
