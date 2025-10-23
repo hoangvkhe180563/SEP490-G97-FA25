@@ -15,38 +15,41 @@ namespace StudyHub.Backend.Api.Controllers
     {
         private readonly ClassService _service;
         private readonly AppUserService _aUserService;
-        public ClassController(ClassService service, AppUserService aUserService)
+        private readonly AppRoleService _aRoleService;
+
+        public ClassController(ClassService service, AppUserService aUserService, AppRoleService aRoleService)
         {
             _service = service;
             _aUserService = aUserService;
+            _aRoleService = aRoleService;
         }
 
         [HttpGet]
         public IActionResult GetClasses(
-         [FromQuery] string? query, 
-         [FromQuery] string? subject, 
-         [FromQuery] string? status, 
-         [FromQuery] int page = 1, 
-         [FromQuery] int limit = 10 
+         [FromQuery] string? query,
+         [FromQuery] string? subject,
+         [FromQuery] string? status,
+         [FromQuery] int page = 1,
+         [FromQuery] int limit = 10
      )
         {
-           
+
             var allClasses = _service.GetClasses();
 
             var filteredClasses = allClasses
-                
-                .Where(c => string.IsNullOrEmpty(query) || c.Name.Contains(query, StringComparison.OrdinalIgnoreCase )&& c.DeletedAt==null)
-                
+
+                .Where(c => string.IsNullOrEmpty(query) || c.Name.Contains(query, StringComparison.OrdinalIgnoreCase) && c.DeletedAt == null)
+
                 .ToList();
 
-            
+
             int totalItems = filteredClasses.Count;
             int totalPages = (int)Math.Ceiling((double)totalItems / limit);
 
-            
+
             page = Math.Max(1, Math.Min(page, totalPages));
 
-            
+
             var pagedClasses = filteredClasses
                 .Skip((page - 1) * limit)
                 .Take(limit)
@@ -69,12 +72,12 @@ namespace StudyHub.Backend.Api.Controllers
                 return c.ToListClassDto(teacher, subjectEntity);
             }).ToList();
 
-           
+
             var response = new
             {
                 success = true,
                 message = "Danh sách lớp học được tải thành công.",
-                classes = subject!=null? classListDtos.Where(c=>c.SubjectName.Contains(subject, StringComparison.OrdinalIgnoreCase)): classListDtos,
+                classes = subject != null ? classListDtos.Where(c => c.SubjectName.Contains(subject, StringComparison.OrdinalIgnoreCase)) : classListDtos,
                 meta = new
                 {
                     total = totalItems,
@@ -106,7 +109,7 @@ namespace StudyHub.Backend.Api.Controllers
             var existing = _service.GetClassById(id);
             if (existing == null) return NotFound();
             existing.Name = dto.Name;
-            existing.Description= dto.Description;
+            existing.Description = dto.Description;
             existing.SubjectId = dto.SubjectId;
             var updated = _service.UpdateClass(existing);
             return Ok(updated.ToDetailDto());
@@ -118,10 +121,14 @@ namespace StudyHub.Backend.Api.Controllers
         //    if (cls == null)
         //        return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
 
-        //    Lấy dữ liệu phụ trực tiếp từ repository
-        //    var members = _service.GetClassMembers(id)
-        //        .Select(m => m.ToMemberDto(_aUserService.GetUserById(m.UserId)))
-        //        .ToList();
+        // Lấy dữ liệu phụ trực tiếp từ repository
+        //var members = _service.GetClassMembers(id)
+        //.Select(m =>
+        //{
+        //    var roles = _aRoleService.GetRolesByUser(m.UserId).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+        //    return m.ToMemberDto(_aUserService.GetUserById(m.UserId), roles);
+        //})
+        //.ToList();
 
         //    var notifications = _service.GetClassNotifications(id)
         //        .Select(n => n.ToNotificationDto())

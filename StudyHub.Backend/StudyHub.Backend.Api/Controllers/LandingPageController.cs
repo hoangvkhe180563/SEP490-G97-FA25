@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos;
+using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -48,6 +49,19 @@ namespace StudyHub.Backend.Api.Controllers
                 }).ToList()
             };
             return Ok(landingPageDto);
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateLandingPage([FromForm] LandingPageUpdateDto landingPageDto)
+        {
+            if (landingPageDto.SchoolId <= 0)
+            {
+                return NotFound();
+            }
+            var landingPage = landingPageDto.ToLandingPage();
+            string msg = await _service.UpdateLandingPage(landingPage, landingPageDto.BannerFile, landingPageDto.LandingPageDeleteImages, landingPageDto.LandingPageNewImages);
+
+            return msg == string.Empty ? Ok("Cập nhật thành công!") : BadRequest(msg);
         }
     }
 }
