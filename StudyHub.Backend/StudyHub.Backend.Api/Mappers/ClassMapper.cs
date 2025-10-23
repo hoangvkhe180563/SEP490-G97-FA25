@@ -54,7 +54,6 @@ namespace StudyHub.Backend.Api.Mappers
         };
         public static ClassPostDTO ToFullDetailDto(
            this Class c,
-           List<MemberDto> members,
            List<NotificationDto> notifications)
         {
             return new ClassPostDTO
@@ -65,7 +64,6 @@ namespace StudyHub.Backend.Api.Mappers
                 Description = c.Description,
                 CreatedAt = c.CreatedAt,
 
-                Members = members,
                 Notifications = notifications
             };
         }

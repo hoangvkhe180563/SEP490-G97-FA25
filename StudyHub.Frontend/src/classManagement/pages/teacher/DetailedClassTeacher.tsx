@@ -53,19 +53,20 @@ const ClassInfoCard: React.FC<{ info: ClassInfo | null }> = ({ info }) => {
 // ===== Trang chi tiết lớp học =====
 const DetailedClassTeacher: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { getClassDetail, currentClass, isLoading, createNotification } = useClassStore();
+  const { getClassInfo, getClassMembers, currentClass, isLoading, createNotification } =
+    useClassStore();
   const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(null);
   const userRole: UserRole = useMemo(() => {
     if (location.pathname.includes("/student")) return "student";
     return "teacher";
   }, [location.pathname]);
 
-  // ✅ Gọi API lấy thông tin lớp khi mount
+  // ✅ Gọi API lấy thông tin lớp + notifications khi mount
   useEffect(() => {
     if (id) {
-      getClassDetail(Number(id));
+      getClassInfo(Number(id));
     }
-  }, [id, getClassDetail]);
+  }, [id, getClassInfo]);
 
   // Tab đang hoạt động
   const [activeTab, setActiveTab] = useState("notifications");
@@ -78,21 +79,31 @@ const DetailedClassTeacher: React.FC = () => {
     }
   }, [searchParams]);
 
+  // Khi mở tab "everyone", load members (nếu cần)
+  useEffect(() => {
+    if (!id) return;
+    if (activeTab === "everyone") {
+      // you may want to avoid refetch if already loaded; simple call for now
+      getClassMembers(Number(id));
+    }
+  }, [activeTab, id, getClassMembers]);
+
   const teacher: ClassMemberDto | null = currentClass?.data?.teacher ?? null;
   const students: ClassMemberDto[] = currentClass?.data?.students ?? [];
   const parents: ClassMemberDto[] = currentClass?.data?.parents ?? [];
   const [notifications, setNotifications] = useState<ClassNotification[]>([]);
 
+  // sync notifications whenever currentClass updates
   useEffect(() => {
     if (currentClass?.data?.notifications) {
       setNotifications(currentClass.data.notifications);
     }
-  }, [currentClass]);
+  }, [currentClass?.data?.notifications]);
 
   const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
 
   // handlePost now calls backend to create notification (and uploads file if provided).
-  // After successful creation we refresh class detail from server to get latest data.
+  // After successful creation we refresh notifications via getClassInfo.
   const handlePost = async (content: string, files?: File[]) => {
     if (!id) return;
     const title = content.length > 40 ? `${content.slice(0, 40)}...` : "Thông báo mới";
@@ -107,14 +118,12 @@ const DetailedClassTeacher: React.FC = () => {
       title,
       description: content,
       createdBy: createdByGuid,
-      // optional: include createdAt here if you want to send it
-      // createdAt: new Date().toISOString(),
       files: files && files.length > 0 ? files : undefined,
     });
 
     if (created) {
-      // Refresh whole class detail from API to make sure we have server-side generated fields (ids, files, comments, timestamps)
-      const refreshed = await getClassDetail(Number(id));
+      // Refresh notifications from API to get server-generated fields
+      const refreshed = await getClassInfo(Number(id));
       if (refreshed && refreshed.data?.notifications) {
         setNotifications(refreshed.data.notifications);
       } else {

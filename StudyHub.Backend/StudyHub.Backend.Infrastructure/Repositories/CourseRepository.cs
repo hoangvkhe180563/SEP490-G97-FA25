@@ -354,9 +354,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
-        public List<Course> GetCourseBySchool(int schoolId)
-        {
-            throw new NotImplementedException();
-        }
+       
     }
 }

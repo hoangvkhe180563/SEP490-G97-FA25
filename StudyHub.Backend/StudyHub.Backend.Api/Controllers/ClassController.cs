@@ -163,8 +163,7 @@ namespace StudyHub.Backend.Api.Controllers
                 .ToList();
 
            
-            var emptyMembers = new List<MemberDto>();
-            var dto = cls.ToFullDetailDto(emptyMembers, notifications);
+            var dto = cls.ToFullDetailDto( notifications);
 
             return Ok(new
             {

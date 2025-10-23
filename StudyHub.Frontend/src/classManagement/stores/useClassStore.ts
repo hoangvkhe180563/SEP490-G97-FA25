@@ -206,18 +206,74 @@ export const useClassStore = create<ClassState>((set, get) => ({
     }
   },
 
-  getClassDetail: async (id: number): Promise<ClassDetailResponse | null> => {
+  // Fetch members only (from /Class/{id}/members)
+  getClassMembers: async (id: number): Promise<ClassMemberDto[] | null> => {
+    set({ isLoading: true });
+    try {
+      const res = await axiosInstance.get(`/Class/${id}/members`);
+      const raw = res?.data ?? null;
+
+      if (!raw || raw.success === false) {
+        console.warn("getClassMembers: API returned success=false", raw?.message);
+        set({ isLoading: false });
+        return null;
+      }
+
+      const membersRaw = raw.data ?? [];
+      const members: ClassMemberDto[] = membersRaw.map((m: any) => ({
+        userId: m.userId,
+        fullname: m.fullname,
+        roles: m.roles ?? [],
+        joinDate: m.joinDate,
+        // keep other fields if needed by your UI (address, communeId, wallet...) — add here as needed
+      }));
+
+      // merge members into currentClass while preserving classInfo & notifications
+      set((state) => {
+        const cur = state.currentClass ?? defaultCurrentClass;
+        return {
+          currentClass: {
+            ...cur,
+            data: {
+              ...cur.data,
+              teacher: members.find((m) => m.roles?.includes("Teacher")) ?? null,
+              students: members.filter((m) => m.roles?.includes("Student")) ?? [],
+              parents: members.filter((m) => m.roles?.includes("Parent")) ?? [],
+            },
+            success: true,
+            message: raw.message ?? cur.message,
+          },
+        };
+      });
+
+      return members;
+    } catch (error) {
+      console.error("❌ getClassMembers error:", error);
+      return null;
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  // Fetch class info + notifications only (from /Class/{id}/detail)
+  getClassInfo: async (id: number): Promise<ClassDetailResponse | null> => {
     set({ isLoading: true });
     try {
       const res = await axiosInstance.get(`/Class/${id}/detail`);
-      const raw = res.data;
+      const raw = res?.data ?? null;
 
-      if (!raw?.success) {
-        // set currentClass to a failed state
+      if (!raw) {
+        console.warn("getClassInfo: no response data");
+        set({ isLoading: false });
+        return null;
+      }
+
+      if (!raw.success) {
+        // set a failed currentClass state for clarity
         set({
           currentClass: {
             success: false,
-            message: raw?.message ?? "Failed to load class detail",
+            message: raw.message ?? "Failed to load class info",
             data: {
               classInfo: defaultClassInfo,
               teacher: null,
@@ -233,13 +289,49 @@ export const useClassStore = create<ClassState>((set, get) => ({
 
       const data = raw.data;
 
-      // Map members
-      const members: ClassMemberDto[] = (data.members ?? []).map((m: any) => ({
-        userId: m.userId,
-        fullname: m.fullname,
-        roles: m.roles ?? [],
-        joinDate: m.joinDate,
-      }));
+      const notifications =
+        (data.notifications ?? []).map((n: any) => ({
+          id: n.id,
+          classId: n.classId,
+          title: n.title,
+          description: n.description,
+          createdBy: n.createdBy,
+          createdAt: n.createdAt,
+          files: n.files ?? [],
+          comments:
+            (n.comments ?? []).map((c: any) => ({
+              id: c.id,
+              notificationId: c.notificationId,
+              userId: c.userId,
+              content: c.content,
+              createdAt: c.createdAt,
+              userFullname: c.userFullname,
+              imageUrl: c.imageUrl ?? null,
+            })) ?? [],
+        })) ?? [];
+
+      // merge classInfo & notifications into currentClass while preserving members
+      set((state) => {
+        const cur = state.currentClass ?? defaultCurrentClass;
+        return {
+          currentClass: {
+            ...cur,
+            success: true,
+            message: raw.message ?? cur.message,
+            data: {
+              ...cur.data,
+              classInfo: {
+                id: data.id,
+                name: data.name,
+                subjectId: data.subjectId,
+                description: data.description,
+                createdAt: data.createdAt,
+              },
+              notifications: notifications,
+            },
+          },
+        };
+      });
 
       const mapped: ClassDetailResponse = {
         success: true,
@@ -252,42 +344,24 @@ export const useClassStore = create<ClassState>((set, get) => ({
             description: data.description,
             createdAt: data.createdAt,
           },
-          // pick first teacher if multiple
-          teacher: members.find((m) => m.roles?.includes("Teacher")) ?? null,
-          students: members.filter((m) => m.roles?.includes("Student")) ?? [],
-          parents: members.filter((m) => m.roles?.includes("Parent")) ?? [],
-          notifications:
-            (data.notifications ?? []).map((n: any) => ({
-              id: n.id,
-              classId: n.classId,
-              title: n.title,
-              description: n.description,
-              createdBy: n.createdBy,
-              createdAt: n.createdAt,
-              files: n.files ?? [],
-              comments:
-                (n.comments ?? []).map((c: any) => ({
-                  id: c.id,
-                  notificationId: c.notificationId,
-                  userId: c.userId,
-                  content: c.content,
-                  createdAt: c.createdAt,
-                  userFullname: c.userFullname,
-                })) ?? [],
-            })) ?? [],
+          // members will remain as-is in the store; for the returned value pick from store
+          teacher: get().currentClass.data.teacher ?? null,
+          students: get().currentClass.data.students ?? [],
+          parents: get().currentClass.data.parents ?? [],
+          notifications: notifications,
         },
       };
 
-      // Save mapped result into store
-      set({ currentClass: mapped, isLoading: false });
-
       return mapped;
     } catch (error) {
-      console.error("❌ Error when fetching class detail:", error);
-      set({ isLoading: false });
+      console.error("❌ getClassInfo error:", error);
       return null;
+    } finally {
+      set({ isLoading: false });
     }
   },
+
+  // Note: getClassDetail removed — use getClassInfo and getClassMembers separately when needed.
 
   createNotification: async (payload: {
     classId: number;
@@ -309,8 +383,6 @@ export const useClassStore = create<ClassState>((set, get) => ({
         payload.createdBy ??
         "d4e5f6a7-b8c9-0123-4567-890abcdef014";
       fd.append("CreatedBy", createdByValue);
-
-      
 
       // Append tất cả files (key "Files"). Backend phải chấp nhận nhiều file với cùng key.
       if (payload.files && payload.files.length > 0) {
@@ -395,8 +467,4 @@ export const useClassStore = create<ClassState>((set, get) => ({
       set({ isLoading: false });
     }
   },
-
-  
-  
- 
 }));
