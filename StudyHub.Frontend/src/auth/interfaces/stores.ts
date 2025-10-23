@@ -64,7 +64,7 @@ interface LocationState {
   communes: Commune[];
   fetchCommunes: (id: number) => Promise<void>;
   schools: School[];
-  fetchSchools: () => Promise<void>;
+  fetchSchools: (id: number) => Promise<void>;
   selectedCity: City | null;
   selectedProvince: Province | null;
   selectedCommune: Commune | null;

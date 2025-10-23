@@ -56,5 +56,16 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Name = c.Name
             }).ToList();
         }
+
+        public List<DomainEntities.School> GetSchoolsByCommuneId(int communeId)
+        {
+            return _context.Schools
+                .Where(s => s.CommuneId == communeId)
+                .Select(s => new DomainEntities.School
+                {
+                    Id = (sbyte)s.Id,
+                    Name = s.Name,
+                }).ToList();
+        }
     }
 }
