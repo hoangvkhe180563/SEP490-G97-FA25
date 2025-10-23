@@ -24,7 +24,6 @@ namespace StudyHub.Backend.Api.Controllers
             _configuration = configuration;
         }
 
-        [Authorize(Roles = "Student")]
         [HttpGet]
         public IActionResult Get([FromQuery] string? status, [FromQuery] string? role, [FromQuery] string? search, [FromQuery] int page, [FromQuery] int limit)
         {
