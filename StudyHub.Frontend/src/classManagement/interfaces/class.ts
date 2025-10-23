@@ -25,11 +25,12 @@ export type ClassMemberDto = {
   roles: string[];
   joinDate: string;
 };
-export type NotificationFile = {
+export type ClassNotificationFile = {
   id: number;
   fileName: string;
   fileUrl: string;
 };
+
 export type ClassNotification = {
   id: number;
   classId: number;
@@ -37,10 +38,19 @@ export type ClassNotification = {
   description: string;
   createdBy: string;
   createdAt: string;
-  files: NotificationFile[];
+  files: ClassNotificationFile[];
    comments: PostComment[]; // có thể mở rộng sau
 };
-
+export interface ClassNotificationComment {
+  id: number;
+  notificationId: number;
+  userId: string;
+  content: string;
+  createdAt?: string;
+  userFullname?: string;
+  // optional nested user object if backend returns it
+  user?: any;
+}
 export interface ClassDetailResponse {
   success: boolean;
   message: string;
@@ -69,7 +79,7 @@ export interface GetClassesResponse {
 
 export interface ClassState {
   classes: ClassListDto[];
-  subjects: Subject[], 
+  subjects: Subject[];
   currentClass?: ClassDetailResponse | null;
   isLoading: boolean;
   success: boolean;
@@ -77,8 +87,19 @@ export interface ClassState {
   meta?: Meta | null;
 
   getClasses: (query: string) => Promise<GetClassesResponse | null>;
-  addClass: (payload: { title: string; subject: number; description?: string }) => Promise<boolean>;
-  getAllSubjects: () => Promise<void>;
-  updateClass: (payload: { id: number; title: string; subject: number; description?: string }) => Promise<boolean>;
+  addClass: (payload: { title: string; subject: number; description?: string }) => Promise<any | null>;
+  getAllSubjects: () => Promise<Subject[]>;
+  updateClass: (payload: { id: number; title: string; subject: number; description?: string }) => Promise<any | null>;
   getClassDetail: (id: number) => Promise<ClassDetailResponse | null>;
+
+ 
+  createNotification: (payload: {
+    classId: number;
+    title: string;
+    description?: string;
+    createdBy: string;
+    files?: File[] | null;
+  }) => Promise<ClassNotification | null>;
+
+  
 }

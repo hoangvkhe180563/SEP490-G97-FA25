@@ -28,6 +28,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Name = classEntity.Name,
                     SubjectId = classEntity.SubjectId,
                     Description = classEntity.Description,
+                    CreatedBy = classEntity.CreatedBy,
                 };
                 _context.Classes.Add(classentity);
                 _context.SaveChanges();
@@ -174,14 +175,28 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             return _context.ClassNotifications
                 .Where(n => n.ClassId == classId)
+                .OrderByDescending(n=>n.CreatedAt)
                 .Select(n => new ClassNotification
                 {
                     Id = n.Id,
                     ClassId = n.ClassId,
                     Title = n.Title,
                     Description = n.Description,
-                    CreatedBy= n.CreatedBy,
-                    UpdatedBy= n.UpdatedBy
+                    Arthur= n.AppUser.Fullname,
+                    Avatar = n.AppUser.Avatar,
+                    
+                    AppUser = new AppUser
+                    {
+                        Id = n.AppUser.Id,
+                        Email = n.AppUser.Email,
+                        Username = n.AppUser.Username,
+                        Fullname = n.AppUser.Fullname,
+                        Dob = n.AppUser.Dob,
+                        Avatar = n.AppUser.Avatar,
+                        Address = n.AppUser.Address,
+                        PhoneNumber = n.AppUser.PhoneNumber,
+                        Status = n.AppUser.Status,
+                    },
                 }).ToList();
         }
         // ===================== NOTIFICATION =====================
@@ -192,11 +207,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 ClassId=notification.ClassId,
                 Title= notification.Title,
                 Description= notification.Description,
-                CreatedAt = notification.CreatedAt,
-                DeletedAt = notification.DeletedAt,
-                UpdatedAt = notification.UpdatedAt,
-                CreatedBy = notification.CreatedBy,
-                UpdatedBy = notification.UpdatedBy
+                CreatedAt = DateTime.Now,
+                
+               
+                AppUserId = notification.CreatedBy,
             };
             _context.ClassNotifications.Add(classesnoti);
             _context.SaveChanges();
@@ -208,18 +222,17 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             var nos= _context.ClassNotifications
                 .Where(n => n.ClassId == classId)
-                .OrderByDescending(n => n.CreatedAt)
+                .Include(n=>n.AppUser)
+                .OrderByDescending(n => n.Title)
                 .Select(n=> new ClassNotification
                 {
                     Id = n.Id,
                     ClassId = n.ClassId,
                     Title = n.Title,
                     Description = n.Description,
-                    CreatedAt = n.CreatedAt,
-                    DeletedAt = n.DeletedAt,
-                    UpdatedAt = n.UpdatedAt,
-                    CreatedBy = n.CreatedBy,
-                    UpdatedBy = n.UpdatedBy
+                    Arthur= n.AppUser.Fullname,
+                    Avatar = n.AppUser.Avatar
+
                 });
             return nos.ToList();
         }
@@ -231,13 +244,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 Id = comment.Id,
                 NotificationId = comment.NotificationId,
-                UserId = comment.UserId,
+                AppUserId = comment.AppUserId,
                 Content = comment.Content,
-                CreatedBy = comment.CreatedBy,
-                UpdatedBy = comment.UpdatedBy,
-                CreatedAt = comment.CreatedAt,
-                DeletedAt = comment.DeletedAt,
-                UpdatedAt = comment.UpdatedAt
+                
             };
             _context.ClassNotificationComments.Add(com);
             _context.SaveChanges();
@@ -248,8 +257,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             // Gồm cả comment cha và các reply comment
             var allComments = _context.ClassNotificationComments
+                .Include(c=>c.AppUser)
                 .Where(c => c.NotificationId == notificationId)
-                .OrderBy(c => c.CreatedAt)
+                .OrderBy(c => c.Content)
                 .ToList();
 
             // Nếu muốn, có thể build cây reply ở tầng Service sau này.
@@ -257,24 +267,34 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 Id = a.Id,
                 NotificationId = a.NotificationId,
-                UserId = a.UserId,
+                AppUserId = a.AppUserId,
                 Content = a.Content,
-                CreatedBy = a.CreatedBy,
-                UpdatedBy = a.UpdatedBy,
-                CreatedAt= a.CreatedAt,
-                DeletedAt= a.DeletedAt,
-                UpdatedAt= a.UpdatedAt
+                CreatedAt = a.CreatedAt,
+                UpdatedAt = a.UpdatedAt,
+                AppUser= new AppUser
+                {
+                    Id = a.AppUser.Id,
+                    Email = a.AppUser.Email,
+                    Username = a.AppUser.Username,
+                    Fullname = a.AppUser.Fullname,
+                    Dob = a.AppUser.Dob,
+                    Avatar = a.AppUser.Avatar,
+                    Address = a.AppUser.Address,
+                    PhoneNumber = a.AppUser.PhoneNumber,
+                    Status = a.AppUser.Status,
+                }
             }).ToList();
         }
 
-        public NotificationFile CreateSubmissionFile(NotificationFile file)
+        public ClassNotificationFile CreateSubmissionFile(ClassNotificationFile file)
         {
-            var subfile = new Data.NotificationFile
+            var subfile = new Data.ClassNotificationFile
             {
                 FileName = file.FileName,
-                FileUrl = file.FileUrl
+                FileUrl = file.FileUrl,
+                NotificationId= file.NotificationId,
             };
-            _context.NotificationFiles.Add(subfile);
+            _context.ClassNotificationFiles.Add(subfile);
             _context.SaveChanges();
             file.Id=subfile.Id;
             file.FileName = subfile.FileName;
@@ -283,29 +303,17 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return file;
         }
 
-        public void MapFileToNotification(int notificationId, int fileId)
+        public List<ClassNotificationFile> GetFileByNotificationId(int notificationId)
         {
-            var mapping = new Data.ClassNotificationFileMapping
+            var noti = _context.ClassNotifications.Include(a => a.ClassNotificationFiles).FirstOrDefault(a => a.Id == notificationId);
+            var files = noti.ClassNotificationFiles.Select(a => new ClassNotificationFile
             {
-                NotificationId = notificationId,
-                FileId = fileId
-            };
-            _context.ClassNotificationFileMappings.Add(mapping);
-            _context.SaveChanges();
+                FileName = a.FileName,
+                FileUrl = a.FileUrl,
+                NotificationId = a.NotificationId,
+                Id = a.Id
+            }).ToList();
+            return files ;
         }
-        public List<SubmissionFile> GetFilesByNotificationId(int notificationId)
-        {
-            return _context.ClassNotificationFileMappings
-                .Include(m => m.File)
-                .Where(m => m.NotificationId == notificationId)
-                .Select(m => new SubmissionFile
-                {
-                    Id = m.File.Id,
-                    FileName = m.File.FileName,
-                    FileUrl = m.File.FileUrl
-                })
-                .ToList();
-        }
-
     }
 }

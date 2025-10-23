@@ -60,14 +60,7 @@ namespace StudyHub.Backend.UseCases.Services
         }
         public List<ClassNotification> GetClassNotifications(int classId)
         {
-            var classs= _classRepository.GetClassNotifications(classId);
-            foreach(ClassNotification cl in classs)
-            {
-                var user = _userRepository.GetById(cl.CreatedBy);
-                cl.Arthur = user.Fullname;
-                cl.Avatar = "";
-            }
-            return classs;
+            return _classRepository.GetClassNotifications(classId);
         }
         public List<ClassNotificationComment> GetCommentsByNotificationId(int notificationId)
         {
@@ -82,40 +75,40 @@ namespace StudyHub.Backend.UseCases.Services
             // Tạo notification
             var createdNoti = _classRepository.CreateNotification(notification);
 
-            // Nếu có file => upload lên Cloudinary và map vào notification
+            // Nếu có file => upload lên storage và tạo bản ghi file gắn với notification
             if (files != null && files.Count > 0)
             {
                 foreach (var file in files)
                 {
                     var fileUrl = await _fileStorage.UploadFileAsync(file, "notification-attachments");
 
-                    var submissionFile = new NotificationFile
+                    var submissionFile = new ClassNotificationFile
                     {
+                        NotificationId = createdNoti.Id, // gắn trực tiếp vào file record
                         FileName = file.FileName,
                         FileUrl = fileUrl
                     };
 
-                    var savedFile = _classRepository.CreateSubmissionFile(submissionFile);
+                    //var savedFile = _classRepository.CreateSubmissionFile(submissionFile);
 
-                    // map file - notification
-                    _classRepository.MapFileToNotification(createdNoti.Id, savedFile.Id);
+                    // Không cần gọi MapFileToNotification vì NotificationId đã được lưu trên ClassNotificationFile
                 }
             }
 
             return createdNoti;
         }
-        public List<SubmissionFile> GetFilesByNotificationId(int notiId)
-    => _classRepository.GetFilesByNotificationId(notiId);
 
-        
+
+
         public ClassNotification CreateNotification(ClassNotification entity)
             => _classRepository.CreateNotification(entity);
 
-        public NotificationFile CreateSubmissionFile(NotificationFile file)
-            => _classRepository.CreateSubmissionFile(file);
+        
+        public List<ClassNotificationFile> GetFileByNotificationId(int notificationid)
+        =>_classRepository.GetFileByNotificationId(notificationid);
 
-        public void MapFileToNotification(int notificationId, int fileId)
-            => _classRepository.MapFileToNotification(notificationId, fileId);
+
+        public ClassNotificationFile CreateFile(ClassNotificationFile entity) => _classRepository.CreateSubmissionFile(entity);
 
         public async Task<string> UploadFileToCloudinary(IFormFile file)
             => await _fileStorage.UploadFileAsync(file, FileConstants.ClassNotificationUploadPAth);

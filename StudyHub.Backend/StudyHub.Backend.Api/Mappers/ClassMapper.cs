@@ -87,12 +87,15 @@ namespace StudyHub.Backend.Api.Mappers
             {
                 Id = noti.Id,
                 Title = noti.Title,
-                Description = noti.Description
+                Description = noti.Description,
+                CreatedBy = noti.AppUser.Id,
+                CreatedAt = noti.CreatedAt,
+                
             };
         }
         public static NotificationDto ToNotificationDto(
              this ClassNotification entity,
-              UserDetailsDto user,
+              AppUser user, 
              List<FileDto>? files = null,
              List<CommentDto>? comments = null
             )
@@ -104,15 +107,15 @@ namespace StudyHub.Backend.Api.Mappers
                 Title = entity.Title,
                 Description = entity.Description,
                 CreatedBy = entity.CreatedBy,
-                CreatedAt = entity.CreatedAt,
+                CreatedAt = DateTime.Now,
                 Files = files ?? new List<FileDto>(),
                 Comments = comments ?? new List<CommentDto>(),
                 Arthur = user.Fullname,
-                Avatar = user.ImageUrl
+                Avatar = user.Avatar
             };
         }
 
-        public static FileDto ToFileDto(this SubmissionFile file)
+        public static FileDto ToFileDto(this ClassNotificationFile file)
         {
             return new FileDto
             {
@@ -122,17 +125,17 @@ namespace StudyHub.Backend.Api.Mappers
             };
         }
 
-        public static CommentDto ToCommentDto(this ClassNotificationComment comment, UserDetailsDto user)
+        public static CommentDto ToCommentDto(this ClassNotificationComment comment, AppUser user)
         {
             return new CommentDto
             {
                 Id = comment.Id,
                 NotificationId = comment.NotificationId,
-                UserId = comment.UserId,
+                UserId = comment.AppUserId,
                 Content = comment.Content,
                 CreatedAt = comment.CreatedAt,
                 UserFullname = user?.Fullname ?? "Unknown",
-                ImageUrl = user.ImageUrl
+                ImageUrl = user.Avatar
             };
         }
     }

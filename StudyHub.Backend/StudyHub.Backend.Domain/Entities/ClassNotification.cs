@@ -11,12 +11,10 @@ public class ClassNotification:IAuditTrail
     public string Description { get; set; } = null!;
     public string Arthur { get; set; }
     public string Avatar { get; set; }
-    public Guid CreatedBy { get; set; }
-    public DateTime CreatedAt { get; set; }
 
+    public virtual AppUser AppUser { get; set; } = null!;
     public virtual Class Class { get; set; } = null!;
 
     public virtual ICollection<ClassNotificationComment> ClassNotificationComments { get; set; } = new List<ClassNotificationComment>();
-
-    public virtual ICollection<ClassNotificationFileMapping> ClassNotificationFileMappings { get; set; } = new List<ClassNotificationFileMapping>();
+    public virtual ICollection<ClassNotificationFile> ClassNotificationFiles { get; set; } = new List<ClassNotificationFile>();
 }

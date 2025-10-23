@@ -114,12 +114,12 @@ namespace StudyHub.Backend.Api.Controllers
             var updated = _service.UpdateClass(existing);
             return Ok(updated.ToDetailDto());
         }
-        //[HttpGet("{id}/detail")]
-        //public IActionResult GetClassDetail(int id)
-        //{
-        //    var cls = _service.GetClassById(id);
-        //    if (cls == null)
-        //        return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
+        [HttpGet("{id}/detail")]
+        public IActionResult GetClassDetail(int id)
+        {
+            var cls = _service.GetClassById(id);
+            if (cls == null)
+                return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
 
         // Lấy dữ liệu phụ trực tiếp từ repository
         var members = _service.GetClassMembers(id)
@@ -130,21 +130,18 @@ namespace StudyHub.Backend.Api.Controllers
         })
         .ToList();
 
-            // Lấy danh sách thành viên
-            var members = _service.GetClassMembers(id)
-                .Select(m => m.ToMemberDto(_aUserService.GetUserById(m.UserId)))
-                .ToList();
+           
 
             // Lấy notification + comment + file
             var notifications = _service.GetClassNotifications(id)
                 .Select(n =>
                 {
-                    var files = _service.GetFilesByNotificationId(n.Id);
+                    var files = _service.GetFileByNotificationId(n.Id);
                     var comments = _service.GetCommentsByNotificationId(n.Id);
 
-                    return n.ToNotificationDto(_aUserService.GetUserById(n.CreatedBy),
+                    return n.ToNotificationDto(n.AppUser,
                         files.Select(f => f.ToFileDto()).ToList(),
-                        comments.Select(c => c.ToCommentDto(_aUserService.GetUserById(c.UserId))).ToList()
+                        comments.Select(c => c.ToCommentDto(_aUserService.GetUserById(c.AppUserId))).ToList()
                         
                     );
                 })
@@ -179,7 +176,7 @@ namespace StudyHub.Backend.Api.Controllers
         public IActionResult GetCommentsByNotification(int notificationId)
         {
             var comments = _service.GetCommentsByNotificationId(notificationId)
-                .Select(c => c.ToCommentDto(_aUserService.GetUserById(c.UserId))) // mapping dto (tạo mapper nếu chưa có)
+                .Select(c => c.ToCommentDto(_aUserService.GetUserById(c.AppUserId))) // mapping dto (tạo mapper nếu chưa có)
                 .ToList();
 
             return Ok(new
@@ -208,23 +205,24 @@ namespace StudyHub.Backend.Api.Controllers
                     Title = dto.Title.Trim(),
                     Description = dto.Description?.Trim() ?? "",
                     CreatedAt = DateTime.UtcNow,
-                    CreatedBy = dto.CreatedBy
+                    CreatedBy = dto.CreatedBy,
+                    
+                    AppUser = _aUserService.GetUserById(dto.CreatedBy)
+                    
                 };
 
                 var createdNoti = _service.CreateNotification(notificationEntity);
-
-
-
                 if (dto.Files != null)
                 {
-                    var fileUrl = await _service.UploadFileToCloudinary(dto.Files);
-                    var newFile = _service.CreateSubmissionFile(new NotificationFile
+                    var url = _service.UploadFileToCloudinary(dto.Files);
+                    var files = _service.CreateFile(new ClassNotificationFile
                     {
+                        NotificationId = createdNoti.Id,
                         FileName = dto.Files.FileName,
-                        FileUrl = fileUrl
+                        FileUrl = url.Result.ToString()
                     });
-                    _service.MapFileToNotification(createdNoti.Id, newFile.Id);
                 }
+                
 
 
 

@@ -22,12 +22,10 @@ namespace StudyHub.Backend.UseCases.Repositories
         List<ClassNotification> GetClassNotifications(int classId);
         ClassNotification CreateNotification(ClassNotification notification);
         List<ClassNotification> GetNotificationsByClassId(int classId);
-
+        ClassNotificationFile CreateSubmissionFile(ClassNotificationFile file);
         ClassNotificationComment CreateComment(ClassNotificationComment comment);
         List<ClassNotificationComment> GetCommentsByNotificationId(int notificationId);
-
-        NotificationFile CreateSubmissionFile(NotificationFile file);
-        void MapFileToNotification(int notificationId, int fileId);
-        List<SubmissionFile> GetFilesByNotificationId(int notificationId);
+        List<ClassNotificationFile> GetFileByNotificationId(int notificationId);
+       
     }
 }

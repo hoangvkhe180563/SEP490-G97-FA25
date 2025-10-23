@@ -12,13 +12,14 @@ namespace StudyHub.Backend.Domain.Entities
 
         public int NotificationId { get; set; }
 
-        public Guid UserId { get; set; }
+        public Guid AppUserId { get; set; }
 
-        public string? Content { get; set; }
+        public string Content { get; set; } = null!;
 
+       
+
+        public virtual AppUser AppUser { get; set; } = null!;
 
         public virtual ClassNotification Notification { get; set; } = null!;
-
-        public virtual AppUser User { get; set; } = null!;
     }
 }

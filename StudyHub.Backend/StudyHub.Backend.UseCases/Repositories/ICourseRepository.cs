@@ -3,7 +3,7 @@ using StudyHub.Backend.UseCases.Dtos;
 
 namespace StudyHub.Backend.UseCases.Repositories
 {
-        public interface ICourseRepository
+        public interface   ICourseRepository
         {
                 List<Course> GetAllCourses();
                 Course? GetCourseById(int id);
@@ -11,5 +11,6 @@ namespace StudyHub.Backend.UseCases.Repositories
                 Course UpdateCourse(Course course);
                 bool DeleteCourse(int id);
                 PagedResult<Course> SearchCourses(CourseQueryParams query);
+                List<Course> GetCourseBySchool(int schoolId);
         }
 }

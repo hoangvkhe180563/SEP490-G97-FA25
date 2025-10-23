@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
-// import PostComposer from "@/classManagement/components/ui/postcomposer";
-// import PostCard from "@/classManagement/components/ui/postcard";
+import PostComposer from "@/classManagement/components/ui/postcomposer";
+import PostCard from "@/classManagement/components/ui/postcard";
 import EveryoneListTC from "@/classManagement/components/ui/listeveryoneteacher";
 import MemberDetailModal from "@/classManagement/components/ui/memberdetailmodal";
 import type { UserRole } from "@/classManagement/components/ui/classcard";
@@ -25,7 +25,7 @@ import { useClassStore } from "@/classManagement/stores/useClassStore";
 import type {
   ClassInfo,
   ClassMemberDto,
-  // ClassNotification,
+  ClassNotification,
 } from "@/classManagement/interfaces/class";
 
 // ===== Thẻ thông tin lớp học =====
@@ -53,14 +53,13 @@ const ClassInfoCard: React.FC<{ info: ClassInfo | null }> = ({ info }) => {
 // ===== Trang chi tiết lớp học =====
 const DetailedClassTeacher: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { getClassDetail, currentClass, isLoading } = useClassStore();
-  const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(
-    null
-  );
+  const { getClassDetail, currentClass, isLoading, createNotification } = useClassStore();
+  const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(null);
   const userRole: UserRole = useMemo(() => {
     if (location.pathname.includes("/student")) return "student";
     return "teacher";
   }, [location.pathname]);
+
   // ✅ Gọi API lấy thông tin lớp khi mount
   useEffect(() => {
     if (id) {
@@ -82,54 +81,75 @@ const DetailedClassTeacher: React.FC = () => {
   const teacher: ClassMemberDto | null = currentClass?.data?.teacher ?? null;
   const students: ClassMemberDto[] = currentClass?.data?.students ?? [];
   const parents: ClassMemberDto[] = currentClass?.data?.parents ?? [];
-  // const [notifications, setNotifications] = useState<ClassNotification[]>([]);
+  const [notifications, setNotifications] = useState<ClassNotification[]>([]);
 
-  // useEffect(() => {
-  //   if (currentClass?.data?.notifications) {
-  //     setNotifications(currentClass.data.notifications);
-  //   }
-  // }, [currentClass]);
+  useEffect(() => {
+    if (currentClass?.data?.notifications) {
+      setNotifications(currentClass.data.notifications);
+    }
+  }, [currentClass]);
 
   const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
 
-//   const handlePost = (content: string) => {
-//     const newNotification: ClassNotification = {
-//   id: Date.now(),
-//   classId: Number(id),
-//   title: "Thông báo mới",
-//   description: content,
-//   createdAt: new Date().toISOString(),
-//   createdBy: "currentUser", // có thể thay bằng user login
-//   files: [],
-//   comments: []
-// };
+  // handlePost now calls backend to create notification (and uploads file if provided).
+  // After successful creation we refresh class detail from server to get latest data.
+  const handlePost = async (content: string, files?: File[]) => {
+    if (!id) return;
+    const title = content.length > 40 ? `${content.slice(0, 40)}...` : "Thông báo mới";
 
-  //   setNotifications((prev) => [newNotification, ...prev]);
-  // };
+    // createdBy must be a GUID string that backend accepts.
+    // Replace with actual current user id when available.
+    const createdByGuid = "d4e5f6a7-b8c9-0123-4567-890abcdef014";
+
+    // Call store action to create notification
+    const created = await createNotification({
+      classId: Number(id),
+      title,
+      description: content,
+      createdBy: createdByGuid,
+      // optional: include createdAt here if you want to send it
+      // createdAt: new Date().toISOString(),
+      files: files && files.length > 0 ? files : undefined,
+    });
+
+    if (created) {
+      // Refresh whole class detail from API to make sure we have server-side generated fields (ids, files, comments, timestamps)
+      const refreshed = await getClassDetail(Number(id));
+      if (refreshed && refreshed.data?.notifications) {
+        setNotifications(refreshed.data.notifications);
+      } else {
+        // fallback: prepend created item if refresh failed
+        setNotifications((prev) => [created, ...prev]);
+      }
+    } else {
+      // fallback: just add to local UI (optimistic) - optional
+      const fallback: ClassNotification = {
+        id: Date.now(),
+        classId: Number(id),
+        title,
+        description: content,
+        createdAt: new Date().toISOString(),
+        createdBy: createdByGuid,
+        files: files?.map((f) => ({ id: 0, fileName: f.name, fileUrl: "" })) ?? [],
+        comments: [],
+      };
+      setNotifications((prev) => [fallback, ...prev]);
+    }
+  };
 
   const handleMail = (person: ClassMemberDto) => {
-    window.location.href = `mailto:${person.fullname
-      .replace(/\s+/g, ".")
-      .toLowerCase()}@example.com`;
+    window.location.href = `mailto:${person.fullname.replace(/\s+/g, ".").toLowerCase()}@example.com`;
   };
 
   const handleSelect = (p: ClassMemberDto) => setSelectedMember(p);
   const handleCloseModal = () => setSelectedMember(null);
 
   if (isLoading) {
-    return (
-      <div className="p-6 text-center text-gray-500">
-        Đang tải thông tin lớp học...
-      </div>
-    );
+    return <div className="p-6 text-center text-gray-500">Đang tải thông tin lớp học...</div>;
   }
 
   if (!currentClass?.success) {
-    return (
-      <div className="p-6 text-center text-red-500">
-        Không thể tải thông tin lớp học.
-      </div>
-    );
+    return <div className="p-6 text-center text-red-500">Không thể tải thông tin lớp học.</div>;
   }
 
   return (
@@ -142,9 +162,7 @@ const DetailedClassTeacher: React.FC = () => {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>
-              {classInfo?.name ?? "Chi tiết lớp học"}
-            </BreadcrumbPage>
+            <BreadcrumbPage>{classInfo?.name ?? "Chi tiết lớp học"}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -152,11 +170,7 @@ const DetailedClassTeacher: React.FC = () => {
       {/* ===== Lưới bố cục chính ===== */}
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-8">
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full mt-4"
-          >
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-4">
             <div className="mb-4">
               <TabsList>
                 <TabsTrigger value="notifications">Thông báo</TabsTrigger>
@@ -167,7 +181,8 @@ const DetailedClassTeacher: React.FC = () => {
 
             {/* --- Thông báo --- */}
             <TabsContent value="notifications">
-              {/* <PostComposer onPost={handlePost} avatarUrl={"/vite.svg"} />
+              {/* If PostComposer supports files, ensure it calls onPost(content, files) */}
+              <PostComposer onPost={handlePost} avatarUrl={"/vite.svg"} />
               <div className="mt-4 space-y-4">
                 {notifications.length > 0 ? (
                   notifications.map((n) => (
@@ -175,45 +190,18 @@ const DetailedClassTeacher: React.FC = () => {
                       key={n.id}
                       post={{
                         id: n.id,
-                        createdBy: teacher?.fullname ?? "Giáo viên",
-                        createdAt:
-                          n.createdAt && n.createdAt !== "0001-01-01T00:00:00"
-                            ? new Date(n.createdAt).toLocaleString("vi-VN")
-                        //     : "Chưa có thời gian",
-                       
-                        // files: (
-                        //   <>
-                        //     <div className="font-semibold">{n.title}</div>
-                        //     <div className="whitespace-pre-line">
-                        //       {n.description}
-                        //     </div>
-                        //     {n.files?.length > 0 && (
-                        //       <div className="mt-2">
-                        //         {n.files.map((f) => (
-                        //           <a
-                        //             key={f.id}
-                        //             href={f.fileUrl}
-                        //             target="_blank"
-                        //             rel="noopener noreferrer"
-                        //             className="text-blue-600 underline text-sm"
-                        //           >
-                        //             📎 {f.fileName}
-                        //           </a>
-                        //         ))}
-                        //       </div>
-                        //     )}
-                        //   </>
-                        // ),
-                        // comments: n.comments ?? [],
+                        title: n.title,
+                        description: n.description,
+                        createdAt: n.createdAt,
+                        files: n.files ?? [],
+                        comments: n.comments ?? [],
                       }}
                     />
                   ))
                 ) : (
-                  <div className="text-gray-500 text-sm">
-                    Chưa có thông báo nào.
-                  </div>
+                  <div className="text-gray-500 text-sm">Chưa có thông báo nào.</div>
                 )}
-              </div> */}
+              </div>
             </TabsContent>
 
             {/* --- Bài tập --- */}
@@ -241,11 +229,7 @@ const DetailedClassTeacher: React.FC = () => {
       </div>
 
       {/* ===== Modal chi tiết thành viên ===== */}
-      <MemberDetailModal
-        open={!!selectedMember}
-        member={selectedMember}
-        onClose={handleCloseModal}
-      />
+      <MemberDetailModal open={!!selectedMember} member={selectedMember} onClose={handleCloseModal} />
     </div>
   );
 };

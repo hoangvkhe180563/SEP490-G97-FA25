@@ -69,7 +69,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
 
           {/* Nội dung bài đăng */}
           <div className="mt-3 text-gray-800">{post.title}</div>
-
+          <div className="mt-1 text-gray-600">{post.description}</div>
           {/* Hiển thị file đính kèm (nếu có) */}
           {post.files && post.files.length > 0 && (
             <div className="mt-3 bg-gray-50 border rounded p-3 space-y-2">

@@ -6,14 +6,16 @@ using System.Threading.Tasks;
 
 namespace StudyHub.Backend.Domain.Entities
 {
-    public class NotificationFile
+    public  class ClassNotificationFile
     {
         public int Id { get; set; }
+
+        public int NotificationId { get; set; }
 
         public string FileName { get; set; } = null!;
 
         public string FileUrl { get; set; } = null!;
 
-        public virtual ICollection<ClassNotificationFileMapping> ClassNotificationFileMappings { get; set; } = new List<ClassNotificationFileMapping>();
+        public virtual ClassNotification Notification { get; set; } = null!;
     }
 }
