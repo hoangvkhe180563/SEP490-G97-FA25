@@ -332,20 +332,18 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.ClassId, "FK_ClassNotifications_Class");
 
-            entity.Property(e => e.Id).HasColumnType("int(11)");
-            entity.Property(e => e.ClassId).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
                 .HasMaxLength(6)
-                .HasDefaultValueSql("current_timestamp(6)");
+                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
             entity.Property(e => e.DeletedAt).HasMaxLength(6);
             entity.Property(e => e.Description)
                 .HasMaxLength(5000)
-                .UseCollation("utf8_general_ci")
-                .HasCharSet("utf8");
+                .UseCollation("utf8mb3_general_ci")
+                .HasCharSet("utf8mb3");
             entity.Property(e => e.Title)
                 .HasMaxLength(200)
-                .UseCollation("utf8_general_ci")
-                .HasCharSet("utf8");
+                .UseCollation("utf8mb3_general_ci")
+                .HasCharSet("utf8mb3");
             entity.Property(e => e.UpdatedAt).HasMaxLength(6);
 
             entity.HasOne(d => d.AppUser).WithMany(p => p.ClassNotifications)
@@ -369,13 +367,11 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.NotificationId, "NotificationId");
 
-            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.Content).HasMaxLength(2000);
             entity.Property(e => e.CreatedAt)
                 .HasMaxLength(6)
-                .HasDefaultValueSql("current_timestamp(6)");
+                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
             entity.Property(e => e.DeletedAt).HasMaxLength(6);
-            entity.Property(e => e.NotificationId).HasColumnType("int(11)");
             entity.Property(e => e.UpdatedAt).HasMaxLength(6);
 
             entity.HasOne(d => d.AppUser).WithMany(p => p.ClassNotificationComments)
@@ -396,9 +392,7 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.NotificationId, "NotificationId");
 
-            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.FileName).HasMaxLength(200);
-            entity.Property(e => e.NotificationId).HasColumnType("int(11)");
 
             entity.HasOne(d => d.Notification).WithMany(p => p.ClassNotificationFiles)
                 .HasForeignKey(d => d.NotificationId)
@@ -627,10 +621,7 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.LandingPageId, "LandingPageId");
 
-            entity.Property(e => e.Id)
-                .ValueGeneratedNever()
-                .HasColumnType("int(11)");
-            entity.Property(e => e.LandingPageId).HasColumnType("int(11)");
+            entity.Property(e => e.Id).ValueGeneratedNever();   
 
             entity.HasOne(d => d.LandingPage).WithMany(p => p.LandingPageImages)
                 .HasForeignKey(d => d.LandingPageId)

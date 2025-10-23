@@ -1,12 +1,10 @@
 using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Repositories;
 using StudyHub.Backend.UseCases.Repositories;
-using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.Infrastructure
 {

@@ -1,5 +1,6 @@
 ﻿using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Api.Dtos.CourseDTOS;
+using StudyHub.Backend.Api.Dtos;
 
 namespace StudyHub.Backend.Api.Mappers;
 
@@ -70,4 +71,14 @@ public static class CourseMapper
 
         return course;
     }
+
+    public static List<LandingPageCourseEditDto> ToDisplayDto(this List<Course> list)
+        => list.Select(c => new LandingPageCourseEditDto
+        {
+            Id = c.Id,
+            Name = c.Name,
+            Grade = c.Grade,
+            SubjectName = c.Subject.Name,
+            IsFeatured = c.IsFeatured
+        }).ToList();
 }

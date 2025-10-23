@@ -233,6 +233,30 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
+        public List<Course> GetCourseBySchool(int schoolId)
+        {
+            try
+            {
+                var courses = _context.Courses.Include(c => c.Subject).Where(c => c.SchoolId == schoolId && c.Status == true)
+                    .Select(c => new Course
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        ImageUrl = c.ImageUrl,
+                        Grade = c.Grade,
+                        IsFeatured = c.IsFeatured,
+                        Subject = c.Subject != null ? new Subject { Id = c.Subject.Id, Name = c.Subject.Name } : null,
+                    })
+                    .ToList();
+                return courses;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("CourseRepository", "GetCourseBySchool failed. Inner error: " + ex.Message).LogError();
+            }
+            return [];
+        }
+
         public PagedResult<Course> SearchCourses(CourseQueryParams query)
         {
             try
