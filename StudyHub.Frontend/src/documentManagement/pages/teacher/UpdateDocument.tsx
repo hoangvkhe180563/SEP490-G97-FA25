@@ -1,4 +1,3 @@
-//documentManagement/pages/teacher/UpdateDocument.tsx
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,7 +7,6 @@ import { Card } from "@/common/components/ui/card";
 import { Input } from "@/common/components/ui/input";
 import { Textarea } from "@/common/components/ui/textarea";
 import { Button } from "@/common/components/ui/button";
-
 import {
   Select,
   SelectContent,
@@ -36,13 +34,8 @@ import {
   FormControl,
   FormMessage,
 } from "@/common/components/ui/form";
-import { documentService } from "@/documentManagement/services/documentService";
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
 import { axiosInstance } from "@/lib/axios";
-import type {
-  DocumentCategoryDto,
-  SubjectDto,
-} from "@/documentManagement/interfaces/documentApi";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { Alert, AlertDescription } from "@/common/components/ui/alert";
 
@@ -57,7 +50,7 @@ const schema = z.object({
 });
 
 type FormValues = z.infer<typeof schema>;
-
+// @ts-expect-error TS6196
 interface ClassDto {
   id: number;
   name: string;
@@ -75,21 +68,23 @@ export default function UpdateDocument() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { getDocumentById, document } = useDocumentStore();
+  const {
+    getDocumentById,
+    document,
+    categories,
+    subjects,
+    userClasses,
+    getCategories,
+    getSubjects,
+    getUserClasses,
+  } = useDocumentStore();
 
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
-  const [categories, setCategories] = useState<DocumentCategoryDto[]>([]);
-  const [subjects, setSubjects] = useState<SubjectDto[]>([]);
-  const [classes, setClasses] = useState<ClassDto[]>([]);
-  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
-  const [isLoadingSubjects, setIsLoadingSubjects] = useState(false);
-  const [isLoadingClasses, setIsLoadingClasses] = useState(false);
   const [isLoadingDocument, setIsLoadingDocument] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isPreviewing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
@@ -119,29 +114,6 @@ export default function UpdateDocument() {
 
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
-
-  const fetchUserClasses = async () => {
-    if (!user?.id) return;
-
-    setIsLoadingClasses(true);
-    try {
-      const response = await axiosInstance.get(`/Document/my-class/${user.id}`);
-      const classesData = response.data?.data || response.data || [];
-      if (Array.isArray(classesData)) {
-        setClasses(classesData);
-      } else {
-        console.error("Classes data is not an array:", classesData);
-        setClasses([]);
-        showToast("error", "Dữ liệu lớp học không đúng định dạng");
-      }
-    } catch (error) {
-      console.error("Error fetching classes:", error);
-      setClasses([]);
-      showToast("error", "Không thể tải danh sách lớp");
-    } finally {
-      setIsLoadingClasses(false);
-    }
   };
 
   const onDocumentFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,7 +187,7 @@ export default function UpdateDocument() {
 
       if (data.classes && data.classes.length > 0) {
         data.classes.forEach((classId) => {
-          const classData = classes.find((c) => c.id === classId);
+          const classData = userClasses.find((c) => c.id === classId);
           const classObj = classData
             ? {
                 id: classData.id,
@@ -230,29 +202,16 @@ export default function UpdateDocument() {
         });
       }
 
-      console.log("FormData contents:");
-      for (const pair of formData.entries()) {
-        console.log(pair[0] + ": " + pair[1]);
-      }
-
-      const response = await axiosInstance.put(
-        `/Document/update/${id}`,
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
-
-      console.log("Update response:", response.data);
+      await axiosInstance.put(`/Document/update/${id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
       showToast("success", "Cập nhật tài liệu thành công");
       setTimeout(() => {
         window.location.reload();
       }, 1000);
     } catch (error: unknown) {
-      console.error("Error updating document:", error);
       const err = error as { response?: { data?: { message?: string } } };
-      console.error("Error response:", err.response?.data);
       showToast(
         "error",
         err.response?.data?.message || "Không thể cập nhật tài liệu"
@@ -279,7 +238,6 @@ export default function UpdateDocument() {
         navigate("/documents");
       }, 1500);
     } catch (error) {
-      console.error("Error deleting document:", error);
       showToast("error", "Không thể xóa tài liệu");
     } finally {
       setIsDeleting(false);
@@ -307,7 +265,6 @@ export default function UpdateDocument() {
         URL.revokeObjectURL(url);
       }
     } catch (error) {
-      console.error("Error downloading document:", error);
       showToast("error", "Không thể tải xuống tài liệu");
     } finally {
       setIsDownloading(false);
@@ -315,27 +272,9 @@ export default function UpdateDocument() {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoadingCategories(true);
-      setIsLoadingSubjects(true);
-      try {
-        const [categoriesData, subjectsData] = await Promise.all([
-          documentService.getDocumentCategories(),
-          documentService.getSubjects(),
-        ]);
-        setCategories(categoriesData);
-        setSubjects(subjectsData);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        showToast("error", "Không thể tải dữ liệu môn học và loại tài liệu");
-      } finally {
-        setIsLoadingCategories(false);
-        setIsLoadingSubjects(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+    getCategories(() => {});
+    getSubjects(() => {});
+  }, [getCategories, getSubjects]);
 
   useEffect(() => {
     const fetchDocument = async () => {
@@ -347,7 +286,9 @@ export default function UpdateDocument() {
           let accessType = "public";
           if (docData.schoolId && docData.isInClass) {
             accessType = "class";
-            await fetchUserClasses();
+            if (user?.id) {
+              await getUserClasses(user.id);
+            }
           } else if (docData.schoolId) {
             accessType = "school";
           }
@@ -370,7 +311,6 @@ export default function UpdateDocument() {
           }
         }
       } catch (error) {
-        console.error("Error fetching document:", error);
         showToast("error", "Không thể tải thông tin tài liệu");
       } finally {
         setIsLoadingDocument(false);
@@ -378,15 +318,13 @@ export default function UpdateDocument() {
     };
 
     fetchDocument();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, getDocumentById]);
+  }, [id, getDocumentById, getUserClasses, user?.id, form]);
 
   useEffect(() => {
-    if (accessValue === "class" && classes.length === 0 && user?.id) {
-      fetchUserClasses();
+    if (accessValue === "class" && userClasses.length === 0 && user?.id) {
+      getUserClasses(user.id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessValue, user?.id]);
+  }, [accessValue, user?.id, getUserClasses, userClasses.length]);
 
   const Toast = ({ toast }: { toast: ToastMessage }) => (
     <div
@@ -428,7 +366,6 @@ export default function UpdateDocument() {
     file,
     title,
     subtitle,
-    required = false,
     disabled = false,
   }: {
     id: string;
@@ -437,7 +374,6 @@ export default function UpdateDocument() {
     file?: File | null;
     title: string;
     subtitle: string;
-    required?: boolean;
     disabled?: boolean;
   }) => (
     <div className="relative">
@@ -466,9 +402,7 @@ export default function UpdateDocument() {
           </div>
         ) : (
           <div className="space-y-1">
-            <div className="text-sm font-medium text-gray-600">
-              {title} {required && "*"}
-            </div>
+            <div className="text-sm font-medium text-gray-600">{title}</div>
             <div className="text-xs text-gray-500">{subtitle}</div>
           </div>
         )}
@@ -480,21 +414,6 @@ export default function UpdateDocument() {
     return (
       <div className="flex items-center justify-center h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-gray-600" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="text-xl font-semibold text-red-600 mb-2">
-            Vui lòng đăng nhập
-          </div>
-          <div className="text-gray-600">
-            Bạn cần đăng nhập để cập nhật tài liệu
-          </div>
-        </div>
       </div>
     );
   }
@@ -610,7 +529,7 @@ export default function UpdateDocument() {
                               <Select
                                 onValueChange={field.onChange}
                                 value={field.value}
-                                disabled={isLoadingSubjects || isReadOnly}
+                                disabled={isReadOnly}
                               >
                                 <FormControl>
                                   <SelectTrigger className="w-full">
@@ -618,23 +537,14 @@ export default function UpdateDocument() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {isLoadingSubjects ? (
-                                    <SelectItem value="loading" disabled>
-                                      <div className="flex items-center gap-2">
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Đang tải...
-                                      </div>
+                                  {subjects.map((subject) => (
+                                    <SelectItem
+                                      key={subject.id}
+                                      value={subject.id.toString()}
+                                    >
+                                      {subject.name}
                                     </SelectItem>
-                                  ) : (
-                                    subjects.map((subject) => (
-                                      <SelectItem
-                                        key={subject.id}
-                                        value={subject.id.toString()}
-                                      >
-                                        {subject.name}
-                                      </SelectItem>
-                                    ))
-                                  )}
+                                  ))}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -687,7 +597,7 @@ export default function UpdateDocument() {
                               <Select
                                 onValueChange={field.onChange}
                                 value={field.value}
-                                disabled={isLoadingCategories || isReadOnly}
+                                disabled={isReadOnly}
                               >
                                 <FormControl>
                                   <SelectTrigger className="w-full">
@@ -695,23 +605,14 @@ export default function UpdateDocument() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {isLoadingCategories ? (
-                                    <SelectItem value="loading" disabled>
-                                      <div className="flex items-center gap-2">
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Đang tải...
-                                      </div>
+                                  {categories.map((category) => (
+                                    <SelectItem
+                                      key={category.id}
+                                      value={category.id.toString()}
+                                    >
+                                      {category.name}
                                     </SelectItem>
-                                  ) : (
-                                    categories.map((category) => (
-                                      <SelectItem
-                                        key={category.id}
-                                        value={category.id.toString()}
-                                      >
-                                        {category.name}
-                                      </SelectItem>
-                                    ))
-                                  )}
+                                  ))}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -756,18 +657,13 @@ export default function UpdateDocument() {
                             <FormItem>
                               <FormLabel>Chọn lớp</FormLabel>
                               <div className="border p-4">
-                                {isLoadingClasses ? (
-                                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Đang tải...
-                                  </div>
-                                ) : classes.length === 0 ? (
+                                {userClasses.length === 0 ? (
                                   <div className="text-sm text-gray-500">
                                     Không có lớp nào
                                   </div>
                                 ) : (
                                   <div className="flex flex-wrap gap-2">
-                                    {classes.map((cls) => (
+                                    {userClasses.map((cls) => (
                                       <Button
                                         key={cls.id}
                                         type="button"
@@ -858,13 +754,8 @@ export default function UpdateDocument() {
                               size="sm"
                               type="button"
                               onClick={handlePreview}
-                              disabled={isPreviewing}
                             >
-                              {isPreviewing ? (
-                                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                              ) : (
-                                <Eye className="w-4 h-4 mr-1" />
-                              )}
+                              <Eye className="w-4 h-4 mr-1" />
                               Xem trước
                             </Button>
                             <Button

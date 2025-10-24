@@ -1,11 +1,7 @@
 // src/documentManagement/hooks/useOwnedDocuments.ts
 import { useState, useEffect, useCallback } from "react";
-import { documentService } from "@/documentManagement/services/documentService";
+import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
 import type { Document } from "@/documentManagement/interfaces/document";
-import type {
-  Subject,
-  DocumentCategory,
-} from "@/documentManagement/interfaces/masterData";
 
 interface FilterState {
   selectedGrades: number[];
@@ -23,17 +19,24 @@ interface AvailableFilters {
 }
 
 export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
+  const {
+    documents: storeDocuments,
+    categories,
+    subjects,
+    fetchOwnedDocuments,
+    getCategories,
+    getSubjects,
+    isLoading,
+  } = useDocumentStore();
+
   const [documents, setDocuments] = useState<Document[]>([]);
   const [allDocuments, setAllDocuments] = useState<Document[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [categories, setCategories] = useState<DocumentCategory[]>([]);
   const [availableFilters, setAvailableFilters] = useState<AvailableFilters>({
     grades: [],
     subjects: [],
     categories: [],
     accessTypes: [],
   });
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -50,20 +53,9 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
   });
 
   useEffect(() => {
-    const fetchMasterData = async () => {
-      try {
-        const [subjectsData, categoriesData] = await Promise.all([
-          documentService.getSubjects(),
-          documentService.getDocumentCategories(),
-        ]);
-        setSubjects(subjectsData);
-        setCategories(categoriesData);
-      } catch (err) {
-        console.error("Failed to fetch master data", err);
-      }
-    };
-    fetchMasterData();
-  }, []);
+    getCategories();
+    getSubjects();
+  }, [getCategories, getSubjects]);
 
   const getAccessType = (doc: Document): string => {
     if (!doc.schoolId && doc.isInClass === false) return "public";
@@ -162,15 +154,12 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
   };
 
   const fetchDocuments = useCallback(async () => {
-    if (!creatorId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!creatorId) return;
+
     setError(null);
 
     try {
-      const response = await documentService.getOwnedDocuments(
+      await fetchOwnedDocuments(
         creatorId,
         undefined,
         undefined,
@@ -181,7 +170,7 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
         9999
       );
 
-      const allDocs = response.data.items;
+      const allDocs = storeDocuments;
       setAllDocuments(allDocs);
       calculateAvailableFilters(allDocs);
 
@@ -200,10 +189,8 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
     } catch (err) {
       setError("Không thể tải danh sách tài liệu");
       console.error(err);
-    } finally {
-      setLoading(false);
     }
-  }, [creatorId, pageSize]);
+  }, [creatorId, pageSize, fetchOwnedDocuments, storeDocuments]);
 
   useEffect(() => {
     fetchDocuments();
@@ -235,7 +222,7 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
     subjects,
     categories,
     availableFilters,
-    loading,
+    loading: isLoading,
     error,
     currentPage,
     totalPages,

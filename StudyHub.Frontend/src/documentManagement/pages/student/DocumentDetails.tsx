@@ -32,11 +32,10 @@ import {
   Loader2,
 } from "lucide-react";
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
-import { documentService } from "@/documentManagement/services/documentService";
 import type {
   DocumentDetailDto,
-  DocumentListDto,
-} from "@/documentManagement/interfaces/documentApi";
+  Document,
+} from "@/documentManagement/interfaces/document";
 
 function DocumentPreview({
   thumbnail,
@@ -239,7 +238,7 @@ function RelatedDocumentCard({
   document,
   onClick,
 }: {
-  document: DocumentListDto;
+  document: Document;
   onClick: () => void;
 }) {
   return (
@@ -280,10 +279,11 @@ function RelatedDocumentsSection({
   currentDocId,
 }: {
   subjectName?: string;
-  schoolId?: string | null;
+  schoolId?: number | null;
   currentDocId: number;
 }) {
-  const [relatedDocs, setRelatedDocs] = useState<DocumentListDto[]>([]);
+  const { fetchPublicDocuments, fetchSchoolDocuments } = useDocumentStore();
+  const [relatedDocs, setRelatedDocs] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -292,42 +292,10 @@ function RelatedDocumentsSection({
 
       setIsLoading(true);
       try {
-        let allDocs: DocumentListDto[] = [];
+        let allDocs: Document[] = [];
 
         if (schoolId) {
-          const [publicResponse, schoolResponse] = await Promise.all([
-            documentService.getPublicDocuments(
-              undefined,
-              undefined,
-              undefined,
-              subjectName,
-              undefined,
-              1,
-              999
-            ),
-            documentService.getSchoolDocuments(
-              schoolId,
-              undefined,
-              undefined,
-              undefined,
-              subjectName,
-              undefined,
-              1,
-              999
-            ),
-          ]);
-
-          if (publicResponse.success && publicResponse.data?.items) {
-            allDocs = publicResponse.data.items as DocumentListDto[];
-          }
-          if (schoolResponse.success && schoolResponse.data?.items) {
-            allDocs = [
-              ...allDocs,
-              ...(schoolResponse.data.items as DocumentListDto[]),
-            ];
-          }
-        } else {
-          const publicResponse = await documentService.getPublicDocuments(
+          await fetchPublicDocuments(
             undefined,
             undefined,
             undefined,
@@ -337,9 +305,34 @@ function RelatedDocumentsSection({
             999
           );
 
-          if (publicResponse.success && publicResponse.data?.items) {
-            allDocs = publicResponse.data.items as DocumentListDto[];
-          }
+          const publicDocsFromStore = useDocumentStore.getState().documents;
+          allDocs = [...publicDocsFromStore];
+
+          await fetchSchoolDocuments(
+            schoolId.toString(),
+            undefined,
+            undefined,
+            undefined,
+            subjectName,
+            undefined,
+            1,
+            999
+          );
+
+          const schoolDocsFromStore = useDocumentStore.getState().documents;
+          allDocs = [...allDocs, ...schoolDocsFromStore];
+        } else {
+          await fetchPublicDocuments(
+            undefined,
+            undefined,
+            undefined,
+            subjectName,
+            undefined,
+            1,
+            999
+          );
+
+          allDocs = useDocumentStore.getState().documents;
         }
 
         const filtered = allDocs
@@ -356,7 +349,13 @@ function RelatedDocumentsSection({
     };
 
     fetchRelatedDocs();
-  }, [subjectName, schoolId, currentDocId]);
+  }, [
+    subjectName,
+    schoolId,
+    currentDocId,
+    fetchPublicDocuments,
+    fetchSchoolDocuments,
+  ]);
 
   const handleDocumentClick = (docId: number) => {
     window.location.href = `/document/student/details/${docId}`;

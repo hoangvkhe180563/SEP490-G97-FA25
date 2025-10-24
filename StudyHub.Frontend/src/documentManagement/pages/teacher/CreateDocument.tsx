@@ -1,4 +1,4 @@
-//documentManagement/pages/teacher/CreateDocument.tsx
+// src/documentManagement/pages/teacher/CreateDocument.tsx
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,13 +33,10 @@ import {
   FormControl,
   FormMessage,
 } from "@/common/components/ui/form";
-import { documentService } from "@/documentManagement/services/documentService";
-import { axiosInstance } from "@/lib/axios";
-import type {
-  DocumentCategoryDto,
-  SubjectDto,
-} from "@/documentManagement/interfaces/documentApi";
+import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { axiosInstance } from "@/lib/axios";
+
 const schema = z.object({
   name: z.string().min(1, "Tên tài liệu là bắt buộc"),
   subject: z.string().min(1, "Vui lòng chọn môn học"),
@@ -84,6 +81,9 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export default function CreateDocument() {
   const { user } = useAuthStore();
+  const { categories, subjects, getCategories, getSubjects } =
+    useDocumentStore();
+
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
@@ -93,11 +93,7 @@ export default function CreateDocument() {
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(
     new Set()
   );
-  const [categories, setCategories] = useState<DocumentCategoryDto[]>([]);
-  const [subjects, setSubjects] = useState<SubjectDto[]>([]);
   const [classes, setClasses] = useState<ClassDto[]>([]);
-  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
-  const [isLoadingSubjects, setIsLoadingSubjects] = useState(false);
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -130,33 +126,16 @@ export default function CreateDocument() {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoadingCategories(true);
-      setIsLoadingSubjects(true);
-      try {
-        const [categoriesData, subjectsData] = await Promise.all([
-          documentService.getDocumentCategories(),
-          documentService.getSubjects(),
-        ]);
-        setCategories(categoriesData);
-        setSubjects(subjectsData);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        showToast("error", "Không thể tải dữ liệu môn học và loại tài liệu");
-      } finally {
-        setIsLoadingCategories(false);
-        setIsLoadingSubjects(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+    getCategories();
+    getSubjects();
+  }, [getCategories, getSubjects]);
 
   useEffect(() => {
-    if (accessValue === "class") {
+    if (accessValue === "class" && user?.id) {
       fetchUserClasses();
     }
-  }, [accessValue]);
+  }, [accessValue, user?.id]);
+
   if (!user) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -169,20 +148,13 @@ export default function CreateDocument() {
       </div>
     );
   }
-  const fetchUserClasses = async () => {
-    if (!user?.id) return;
 
+  const fetchUserClasses = async () => {
     setIsLoadingClasses(true);
     try {
       const response = await axiosInstance.get(`/Document/my-class/${user.id}`);
       const classesData = response.data?.data || response.data || [];
-      if (Array.isArray(classesData)) {
-        setClasses(classesData);
-      } else {
-        console.error("Classes data is not an array:", classesData);
-        setClasses([]);
-        showToast("error", "Dữ liệu lớp học không đúng định dạng");
-      }
+      setClasses(Array.isArray(classesData) ? classesData : []);
     } catch (error) {
       console.error("Error fetching classes:", error);
       setClasses([]);
@@ -401,7 +373,7 @@ export default function CreateDocument() {
 
   const Toast = ({ toast }: { toast: ToastMessage }) => (
     <div
-      className={`flex items-center gap-3 px-4 py-3  shadow-lg animate-in slide-in-from-right ${
+      className={`flex items-center gap-3 px-4 py-3 shadow-lg animate-in slide-in-from-right ${
         toast.type === "success"
           ? "bg-green-50 border border-green-200"
           : "bg-red-50 border border-red-200"
@@ -488,7 +460,6 @@ export default function CreateDocument() {
 
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {/* LEFT: form (spans 3 cols on lg) */}
           <div className="lg:col-span-3">
             <Card className="p-6">
               <Form {...form}>
@@ -496,7 +467,6 @@ export default function CreateDocument() {
                   onSubmit={form.handleSubmit(onAddToList)}
                   className="space-y-6"
                 >
-                  {/* Tên tài liệu */}
                   <FormField
                     control={form.control}
                     name="name"
@@ -564,7 +534,6 @@ export default function CreateDocument() {
                               <Select
                                 onValueChange={field.onChange}
                                 value={field.value}
-                                disabled={isLoadingSubjects}
                               >
                                 <FormControl>
                                   <SelectTrigger className="w-full">
@@ -572,23 +541,14 @@ export default function CreateDocument() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {isLoadingSubjects ? (
-                                    <SelectItem value="loading" disabled>
-                                      <div className="flex items-center gap-2">
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Đang tải...
-                                      </div>
+                                  {subjects.map((subject) => (
+                                    <SelectItem
+                                      key={subject.id}
+                                      value={subject.id.toString()}
+                                    >
+                                      {subject.name}
                                     </SelectItem>
-                                  ) : (
-                                    subjects.map((subject) => (
-                                      <SelectItem
-                                        key={subject.id}
-                                        value={subject.id.toString()}
-                                      >
-                                        {subject.name}
-                                      </SelectItem>
-                                    ))
-                                  )}
+                                  ))}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -640,7 +600,6 @@ export default function CreateDocument() {
                               <Select
                                 onValueChange={field.onChange}
                                 value={field.value}
-                                disabled={isLoadingCategories}
                               >
                                 <FormControl>
                                   <SelectTrigger className="w-full">
@@ -648,23 +607,14 @@ export default function CreateDocument() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {isLoadingCategories ? (
-                                    <SelectItem value="loading" disabled>
-                                      <div className="flex items-center gap-2">
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Đang tải...
-                                      </div>
+                                  {categories.map((category) => (
+                                    <SelectItem
+                                      key={category.id}
+                                      value={category.id.toString()}
+                                    >
+                                      {category.name}
                                     </SelectItem>
-                                  ) : (
-                                    categories.map((category) => (
-                                      <SelectItem
-                                        key={category.id}
-                                        value={category.id.toString()}
-                                      >
-                                        {category.name}
-                                      </SelectItem>
-                                    ))
-                                  )}
+                                  ))}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -759,7 +709,6 @@ export default function CreateDocument() {
                     </div>
                   </div>
 
-                  {/* Mô tả */}
                   <FormField
                     control={form.control}
                     name="description"
@@ -778,7 +727,6 @@ export default function CreateDocument() {
                     )}
                   />
 
-                  {/* File upload zone */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
                       Tập tài liệu *
@@ -794,7 +742,6 @@ export default function CreateDocument() {
                     />
                   </div>
 
-                  {/* Buttons */}
                   <div className="flex gap-3 pt-2">
                     <Button
                       variant="outline"
@@ -816,7 +763,6 @@ export default function CreateDocument() {
             </Card>
           </div>
 
-          {/* RIGHT: pending list (spans 2 cols on lg) */}
           <div className="lg:col-span-2">
             <Card className="p-4">
               <div className="flex items-center justify-between mb-4">

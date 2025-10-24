@@ -1,3 +1,4 @@
+// src/documentManagement/pages/manager/VerifyDocument.tsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/common/components/ui/input";
@@ -62,12 +63,11 @@ import {
   CollapsibleTrigger,
 } from "@/common/components/ui/collapsible";
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
-import { documentService } from "@/documentManagement/services/documentService";
 import type {
-  Subject,
-  DocumentCategory,
-} from "@/documentManagement/interfaces/masterData";
-import type { Document } from "@/documentManagement/interfaces/document";
+  SubjectDto,
+  DocumentCategoryDto,
+  Document,
+} from "@/documentManagement/interfaces/document";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 type SortField = "createdAt" | "updatedAt" | "name" | null;
@@ -85,8 +85,8 @@ const ManagerDocumentApprovalList = () => {
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [categories, setCategories] = useState<DocumentCategory[]>([]);
+  const [subjects, setSubjects] = useState<SubjectDto[]>([]);
+  const [categories, setCategories] = useState<DocumentCategoryDto[]>([]);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [openSections, setOpenSections] = useState<{ [key: string]: boolean }>({
@@ -120,6 +120,10 @@ const ManagerDocumentApprovalList = () => {
     revokeApproval,
     softDeleteDocument,
     setCurrentPage,
+    getCategories,
+    getSubjects,
+    categories: storeCategoriesRaw,
+    subjects: storeSubjectsRaw,
   } = useDocumentStore();
 
   const managerSchoolId = user?.schoolId;
@@ -128,18 +132,26 @@ const ManagerDocumentApprovalList = () => {
   useEffect(() => {
     const fetchMasterData = async () => {
       try {
-        const [subjectsData, categoriesData] = await Promise.all([
-          documentService.getSubjects(),
-          documentService.getDocumentCategories(),
-        ]);
-        setSubjects(subjectsData);
-        setCategories(categoriesData);
+        await getCategories();
+        await getSubjects();
       } catch (err) {
         console.error("Failed to fetch master data", err);
       }
     };
     fetchMasterData();
   }, []);
+
+  useEffect(() => {
+    if (storeSubjectsRaw && storeSubjectsRaw.length > 0) {
+      setSubjects(storeSubjectsRaw);
+    }
+  }, [storeSubjectsRaw]);
+
+  useEffect(() => {
+    if (storeCategoriesRaw && storeCategoriesRaw.length > 0) {
+      setCategories(storeCategoriesRaw);
+    }
+  }, [storeCategoriesRaw]);
 
   useEffect(() => {
     setCurrentPage(1);
