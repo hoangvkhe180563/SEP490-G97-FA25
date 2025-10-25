@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 
@@ -22,55 +22,112 @@ import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
 import { ArrowLeft, Upload } from "lucide-react";
 import { documentService } from "@/documentManagement/services/documentService";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+} from "@/common/components/ui/alert-dialog";
 
 const AddCourse: React.FC = () => {
   const navigate = useNavigate();
-  const [isPublished, setIsPublished] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [dialog, setDialog] = useState({
+    open: false,
+    title: "",
+    message: "",
+  });
   const createCourse = useCourseStore((s) => s.createCourse);
   const uploadThumbnail = useCourseStore((s) => s.uploadThumbnail);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [saving, setSaving] = useState(false);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [price, setPrice] = useState<number | "">("");
-  const [gradeId, setGradeId] = useState<number | "">("");
-  const [isFeatured, setIsFeatured] = useState<boolean>(false);
-  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
-  const [subjectId, setSubjectId] = useState<number | null>(null);
-  const [teachers, setTeachers] = React.useState<any[]>([]);
-  const [selectedInstructor, setSelectedInstructor] = React.useState<
-    string | null
-  >(null);
-  const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
+  const [grade, setGrade] = useState<number | "">("");
+  const [SubjectId, setSubjectId] = useState<number | null>(null);
+  const [schoolId, setSchoolId] = useState<number | null>(null);
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [status, setStatus] = useState<string>("draft");
+  const [startAt, setStartAt] = useState("");
+  const [endAt, setEndAt] = useState("");
+  const [createdBy, setCreatedBy] = useState("");
 
-  React.useEffect(() => {
-    const load = async () => {
-      try {
-        const s = await documentService.getSubjects();
-        setSubjects(s || []);
-      } catch (err) {
-        console.error("Failed to load subjects", err);
-      }
-    };
+  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
+
+  const load = async () => {
+    try {
+      const s = await documentService.getSubjects();
+      setSubjects(s || []);
+    } catch (err) {
+      console.error("Failed to load subjects", err);
+    }
+  };
+
+  useEffect(() => {
     load();
   }, []);
 
-  React.useEffect(() => {
-    // load teachers for instructor selection
-    const loadTeachers = async () => {
-      try {
-        const res = await filterAppUsers("role=Teacher&page=1&limit=200");
-        const items = res?.users ?? [];
-        setTeachers(items);
-      } catch (err) {
-        console.error("Failed to load teachers", err);
+  const handleCreate = async () => {
+    if (!title)
+      return setDialog({
+        open: true,
+        title: "Thiếu thông tin",
+        message: "Vui lòng nhập tên khóa học.",
+      });
+
+    if (!SubjectId)
+      return setDialog({
+        open: true,
+        title: "Thiếu thông tin",
+        message: "Vui lòng chọn môn học.",
+      });
+
+    setSaving(true);
+    try {
+      const dto = {
+        name: title,
+        information: description || null,
+        imageUrl: thumbnailPreview ?? null,
+        price: price ? Number(price) : 0,
+        grade: grade ? Number(grade) : 0,
+        SubjectId: SubjectId,
+        schoolId: schoolId ?? null,
+        isFeatured: isFeatured,
+        status: status,
+        createdAt: new Date().toISOString(),
+        startAt: startAt
+          ? new Date(startAt).toISOString()
+          : new Date().toISOString(),
+        endAt: endAt ? new Date(endAt).toISOString() : new Date().toISOString(),
+        createdBy: createdBy || "unknown",
+      };
+
+      const created = await createCourse(dto);
+      if (created && created.id) {
+        navigate(`/course/teacher/courses`);
+      } else {
+        setDialog({
+          open: true,
+          title: "Thất bại",
+          message: "Tạo khóa học thất bại. Vui lòng thử lại.",
+        });
       }
-    };
-    loadTeachers();
-  }, [filterAppUsers]);
+    } catch (err) {
+      console.error("create course failed", err);
+      setDialog({
+        open: true,
+        title: "Lỗi hệ thống",
+        message: "Có lỗi xảy ra khi tạo khóa học.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="flex-1 overflow-auto bg-white">
@@ -107,98 +164,46 @@ const AddCourse: React.FC = () => {
             >
               Hủy
             </Button>
-            <Button
-              onClick={async () => {
-                if (!title)
-                  return alert("Vui lòng cung cấp tiêu đề cho khóa học.");
-                if (!selectedInstructor)
-                  return alert("Vui lòng chọn giảng viên cho khóa học.");
-                setSaving(true);
-                try {
-                  const dto: any = {
-                    name: title,
-                    information: description,
-                    imageUrl: thumbnailPreview ?? "none",
-                    price: price,
-                    grade: gradeId ? Number(gradeId) : 0,
-                    category: subjectId ? Number(subjectId) : 0, // backend dùng "category" thay vì "subjectId"
-                    schoolId: 0,
-                    isFeatured: isFeatured,
-                    status: isPublished,
-                    createdAt: new Date().toISOString(),
-                    instructorName: selectedInstructor, // selected instructor id (guid)
-                    updatedAt: new Date().toISOString(),
-                    updatedBy: selectedInstructor,
-                    deletedAt: new Date().toISOString(),
-                    chapters: [],
-                  };
-
-                  const created = createCourse
-                    ? await createCourse(dto)
-                    : undefined;
-
-                  if (created && created.id) {
-                    navigate(`/course/teacher/courses`);
-                  } else {
-                    alert("Tạo khóa học thất bại");
-                  }
-                } catch (err) {
-                  console.error("create course failed", err);
-                  alert("Tạo khóa học thất bại");
-                } finally {
-                  setSaving(false);
-                }
-              }}
-              disabled={saving}
-            >
+            <Button onClick={handleCreate} disabled={saving}>
               {saving ? "Đang tạo..." : "Tạo khóa học"}
             </Button>
           </div>
         </div>
-
         <div className="grid grid-cols-12 gap-8">
           {/* Left Column */}
           <div className="col-span-12 lg:col-span-8">
             <Card>
               <CardHeader>
                 <CardTitle>Thông tin cơ bản</CardTitle>
-                <CardDescription>
-                  Nhập các chi tiết cốt lõi của khóa học
-                </CardDescription>
+                <CardDescription>Điền các trường yêu cầu</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {/* Course Title */}
                   <div className="space-y-2">
                     <Label>Tên khóa học</Label>
                     <Input
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Nhập tên khóa học"
                     />
                   </div>
-
-                  {/* Description */}
                   <div className="space-y-2">
-                    <Label>Mô tả ngắn</Label>
+                    <Label>Mô tả</Label>
                     <Textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Mô tả những gì học sinh sẽ học trong khóa học này"
-                      rows={4}
                     />
                   </div>
 
-                  {/* Subject & Grade */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label>Chủ đề</Label>
+                  {/* Subject + Grade */}
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <Label>Môn học</Label>
                       <Select
-                        value={subjectId ? String(subjectId) : ""}
-                        onValueChange={(value) => setSubjectId(Number(value))}
+                        value={SubjectId ? String(SubjectId) : ""}
+                        onValueChange={(v) => setSubjectId(Number(v))}
                       >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Chọn chủ đề" />
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn môn học" />
                         </SelectTrigger>
                         <SelectContent>
                           {subjects.map((s) => (
@@ -210,15 +215,15 @@ const AddCourse: React.FC = () => {
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
+                    <div>
                       <Label>Khối lớp</Label>
                       <Select
-                        value={String(gradeId)}
+                        value={String(grade)}
                         onValueChange={(v) =>
-                          setGradeId(v === "" ? "" : Number(v))
+                          setGrade(v === "" ? "" : Number(v))
                         }
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger>
                           <SelectValue placeholder="Chọn khối lớp" />
                         </SelectTrigger>
                         <SelectContent>
@@ -229,6 +234,26 @@ const AddCourse: React.FC = () => {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                  </div>
+
+                  {/* Start / End Date */}
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <Label>Ngày bắt đầu</Label>
+                      <Input
+                        type="date"
+                        value={startAt}
+                        onChange={(e) => setStartAt(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Ngày kết thúc</Label>
+                      <Input
+                        type="date"
+                        value={endAt}
+                        onChange={(e) => setEndAt(e.target.value)}
+                      />
                     </div>
                   </div>
                 </div>
@@ -249,8 +274,12 @@ const AddCourse: React.FC = () => {
                     {/* Vùng xem trước ảnh */}
                     <div
                       className={`mt-3 relative flex items-center justify-center rounded-xl border-2 border-dashed 
-        ${thumbnailPreview ? "border-transparent" : "border-gray-300"} 
-        bg-gray-50 hover:bg-gray-100 transition h-52 overflow-hidden`}
+                                ${
+                                  thumbnailPreview
+                                    ? "border-transparent"
+                                    : "border-gray-300"
+                                } 
+                                bg-gray-50 hover:bg-gray-100 transition h-52 overflow-hidden`}
                     >
                       {thumbnailPreview ? (
                         <>
@@ -285,11 +314,11 @@ const AddCourse: React.FC = () => {
                         accept="image/*"
                         id="thumbnailInput"
                         className="block w-full text-sm text-gray-700
-            file:mr-4 file:py-2.5 file:px-4
-            file:rounded-lg file:border-0
-            file:font-medium file:bg-[#f28d3d] file:text-white
-            hover:file:bg-[#e77c1e] cursor-pointer
-            file:transition-all"
+                                  file:mr-4 file:py-2.5 file:px-4
+                                  file:rounded-lg file:border-0
+                                  file:font-medium file:bg-[#f28d3d] file:text-white
+                                  hover:file:bg-[#e77c1e] cursor-pointer
+                                  file:transition-all"
                         onChange={(e) => {
                           const f = e.target.files && e.target.files[0];
                           if (f) {
@@ -336,131 +365,64 @@ const AddCourse: React.FC = () => {
                 <CardHeader>
                   <CardTitle>Cài đặt khóa học</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="space-y-4">
-                      <Label className="font-medium text-base text-gray-800">
-                        Giá khóa học
-                      </Label>
-                      <div className="relative mt-1 w-full flex items-center">
-                        <span className="absolute left-3 text-gray-500 text-sm top-1/2 -translate-y-1/2">
-                          VNĐ
-                        </span>
-
-                        <Input
-                          type="number"
-                          min={0}
-                          step={1000}
-                          placeholder="0"
-                          className="pl-14 pr-3 py-2 text-right text-base font-semibold text-gray-800 tracking-wide"
-                          value={price || ""}
-                          onChange={(e) => setPrice(Number(e.target.value))}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4"
-                        checked={isFeatured}
-                        onChange={(e) => setIsFeatured(e.target.checked)}
-                      />
-                      <Label>Khóa học nổi bật</Label>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2">
-                      <span className="text-sm text-[#404040]">
-                        Đã xuất bản
-                      </span>
-                      <button
-                        onClick={() => setIsPublished(!isPublished)}
-                        className={`w-12 h-6 rounded-full transition-colors ${
-                          isPublished ? "bg-[#171717]" : "bg-[#D4D4D4]"
-                        }`}
-                      >
-                        <div
-                          className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                            isPublished ? "translate-x-6" : "translate-x-1"
-                          }`}
-                        />
-                      </button>
-                    </div>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Giá khóa học</Label>
+                    <Input
+                      type="number"
+                      value={price || ""}
+                      onChange={(e) => setPrice(Number(e.target.value))}
+                      placeholder="0"
+                    />
                   </div>
-                </CardContent>
-              </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Giảng viên</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="space-y-4">
-                      <Label>Giảng viên chính</Label>
-                      <Select
-                        value={selectedInstructor ?? ""}
-                        onValueChange={(v) => setSelectedInstructor(v || null)}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Chọn giảng viên" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {teachers.map((t) => (
-                            <SelectItem key={t.id} value={String(t.id)}>
-                              {t.fullname ?? t.username ?? t.email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div>
+                    <Label>Trạng thái</Label>
+                    <Select value={status} onValueChange={(v) => setStatus(v)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn trạng thái" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Mở">Đang mở</SelectItem>
+                        <SelectItem value="Đóng">Đã đóng</SelectItem>
+                        <SelectItem value="Nháp">Nháp</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                    {selectedInstructor ? (
-                      <div className="bg-[#FAFAFA] rounded-lg p-3 flex items-center gap-3">
-                        <img
-                          src={
-                            teachers.find(
-                              (t) => String(t.id) === selectedInstructor
-                            )?.avatarUrl ??
-                            "https://api.builder.io/api/v1/image/assets/TEMP/ad7da240b72ac1157e7a1043cd1b1821bb4369b1?width=80"
-                          }
-                          alt="Instructor"
-                          className="w-10 h-10 rounded-full"
-                        />
-                        <div>
-                          <div className="text-sm text-[#171717]">
-                            {teachers.find(
-                              (t) => String(t.id) === selectedInstructor
-                            )?.fullname ?? "Giảng viên"}
-                          </div>
-                          <div className="text-xs text-[#737373]">
-                            {teachers.find(
-                              (t) => String(t.id) === selectedInstructor
-                            )?.bio ?? "Giảng viên"}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="bg-[#FAFAFA] rounded-lg p-3 flex items-center gap-3">
-                        <img
-                          src="https://api.builder.io/api/v1/image/assets/TEMP/ad7da240b72ac1157e7a1043cd1b1821bb4369b1?width=80"
-                          alt="Chọn giảng viên"
-                          className="w-10 h-10 rounded-full opacity-70"
-                        />
-                        <div>
-                          <div className="text-sm font-medium text-[#171717]">
-                            Hãy chọn giảng viên
-                          </div>
-                          <div className="text-xs text-[#737373]">
-                            Chưa có giảng viên được chọn
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isFeatured}
+                      onChange={(e) => setIsFeatured(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <Label>Khóa học nổi bật</Label>
                   </div>
                 </CardContent>
               </Card>
             </div>
           </aside>
+          <AlertDialog
+            open={dialog.open}
+            onOpenChange={(open) => setDialog({ ...dialog, open })}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{dialog.title}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {dialog.message}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogAction
+                  onClick={() => setDialog({ ...dialog, open: false })}
+                >
+                  OK
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </div>
@@ -468,5 +430,3 @@ const AddCourse: React.FC = () => {
 };
 
 export default AddCourse;
-
-// small helper used in page to navigate to add-lecture

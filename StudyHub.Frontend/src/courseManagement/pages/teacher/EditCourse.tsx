@@ -66,7 +66,7 @@ const EditCourse: React.FC = () => {
   const [price, setPrice] = useState<number | undefined>(undefined);
   const [subjectId, setSubjectId] = useState<number | "">("");
   const [gradeId, setGradeId] = useState<number | "">("");
-  const [status, setStatus] = useState<boolean | undefined>(undefined);
+  const [status, setStatus] = useState<string | undefined>(undefined);
   const [isFeatured, setIsFeatured] = useState<boolean>(false);
   const [saving, setSaving] = useState(false);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
@@ -156,14 +156,14 @@ const EditCourse: React.FC = () => {
     setName(selectedCourse.name ?? "");
     setInformation(selectedCourse.information ?? "");
     setPrice(selectedCourse.price ?? undefined);
-    setSubjectId(selectedCourse.category ?? "");
+    setSubjectId(selectedCourse.subjectId ?? "");
     setGradeId(
       (selectedCourse as any).gradeId ?? (selectedCourse as any).grade ?? ""
     );
     setStatus(selectedCourse.status ?? undefined);
     setIsFeatured((selectedCourse as any).isFeatured ?? false);
     setSelectedInstructor(
-      selectedCourse.updatedBy ?? selectedCourse.instructorName ?? ""
+      selectedCourse.updatedBy ?? selectedCourse.createdBy ?? ""
     );
   }, [selectedCourse]);
 
@@ -363,7 +363,6 @@ const EditCourse: React.FC = () => {
       const dto: any = {
         name: modalChapter.name,
         courseId: modalChapter.courseId,
-        status: modalChapter.status ?? true,
         description: (modalChapter as any).description ?? null,
         numberOfLessons:
           (modalChapter as any).numberOfLessons ??
@@ -376,7 +375,6 @@ const EditCourse: React.FC = () => {
         lessons: (modalChapter.lessons || []).map((l) => ({
           name: l.name,
           chapterId: modalChapter.id,
-          status: l.status ?? null,
           type: l.type ?? "Video",
           videoUrl: (l as any).videoUrl ?? null,
           readingContent: (l as any).readingContent ?? null,
@@ -461,13 +459,11 @@ const EditCourse: React.FC = () => {
                   const chaptersPayload = (chaptersLocal || []).map((ch) => ({
                     name: ch.name,
                     courseId: ch.courseId ?? courseId,
-                    status: ch.status ?? null,
                     description: (ch as any).description ?? null,
                     postDate: (ch as any).postDate ?? null,
                     lessons: (ch.lessons || []).map((l) => ({
                       name: l.name,
                       chapterId: ch.id,
-                      status: l.status ?? null,
                       type: l.type ?? "Video",
                       videoUrl: (l as any).videoUrl ?? null,
                       readingContent: (l as any).readingContent ?? null,

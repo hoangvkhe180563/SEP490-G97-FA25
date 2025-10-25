@@ -2,28 +2,24 @@ export type LessonListDto = {
   id: number;
   name: string;
   chapterId: number;
-  status: boolean | null;
   type: string;
-  videoUrl: string | null;
-  readingContent: string | null;
-
-  // New fields
-  duration: string | null;
-  description: string | null;
-  postDate: Date | null;
-  isPreview?: boolean;
+  videoUrl?: string | null;
+  readingContent?: string | null;
+  ExamContent?: string | null;
+  duration?: string | null;
+  description?: string | null;
+  postDate?: Date | null;
+  isPreview: boolean;
+  ResourceId?: number | null;
 };
 
 export type ChapterListDto = {
   id: number;
   name: string;
   courseId: number;
-  status: boolean | null;
+  description?: string | null;
+  postDate?: Date | null;
   lessons: LessonListDto[];
-
-  // New fields
-  description: string | null;
-  postDate: Date | null;
 };
 
 export type CourseListDto = {
@@ -31,62 +27,60 @@ export type CourseListDto = {
   name: string;
   information: string | null;
   imageUrl: string | null;
-  price?: number;
-  grade?: number;
-  category?: number | null;
-  schoolId?: number | null;
-  isFeatured?: boolean;
-  status?: boolean | null;
-  createdAt?: string;
-  instructorName?: string | null;
+  price: number;
+  grade: number;
+  subjectId: number;
+  schoolId: number | null;
+  isFeatured: boolean;
+  status: string;
+  createdAt: string;
+  startAt: string;
+  endAt: string;
   updatedAt?: string | null;
   updatedBy?: string | null;
-  deletedAt?: string | null;
+  createdBy: string;
   chapters?: ChapterListDto[];
 };
 
-export type CourseStatus = "Published" | "Draft" | "Archived";
+export type CourseStatus = "Open" | "Closed" | "Draft";
 
 export type LessonDto = {
   name: string;
   chapterId: number;
-  status: boolean | null;
   type: string;
-  videoUrl: string | null;
-  readingContent: string | null;
-
-  // New fields
-  duration: string | null;
-  description: string | null;
-  postDate: Date | null;
-  isPreview?: boolean;
+  videoUrl?: string | null;
+  readingContent?: string | null;
+  ExamContent?: string | null;
+  duration?: string | null;
+  description?: string | null;
+  postDate?: Date | null;
+  isPreview: boolean;
+  ResourceId?: number | null;
 };
 
 export type ChapterDto = {
   name: string;
   courseId: number;
-  status: boolean | null;
-  lessons: LessonListDto[];
-
-  // New fields
-  description: string | null;
-  postDate: Date | null;
+  description?: string | null;
+  postDate?: Date | null;
+  lessons: LessonDto[];
 };
 
 export type CourseDetailDto = {
   name: string;
   information: string | null;
   imageUrl: string | null;
-  price?: number;
-  grade?: number;
-  category?: number | null;
-  schoolId?: number | null;
-  isFeatured?: boolean;
-  status?: boolean | null;
-  createdAt?: string;
-  instructorName?: string | null;
+  price: number;
+  grade: number;
+  SubjectId: number;
+  schoolId: number | null;
+  isFeatured: boolean;
+  status: string;
+  createdAt: string;
+  startAt: string;
+  endAt: string;
   updatedAt?: string | null;
   updatedBy?: string | null;
-  deletedAt?: string | null;
-  chapters?: ChapterListDto[];
+  createdBy: string;
+  chapters?: ChapterDto[];
 };

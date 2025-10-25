@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo } from "react";
 import CourseItem from "../../components/CourseItem";
 import type { CourseListDto as CourseType } from "@/courseManagement/interfaces/types";
 import {
@@ -21,8 +21,6 @@ import {
 import CourseFilterTeacher from "@/courseManagement/components/CourseFilterTeacher";
 
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
-import { documentService } from "@/documentManagement/services/documentService";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import type { CourseListDto } from "@/courseManagement/types/api";
 
 const CourseList: React.FC = () => {
@@ -81,65 +79,35 @@ const CourseList: React.FC = () => {
     }
   };
 
-  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
-  const [teachers, setTeachers] = useState<any[]>([]);
-  const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
-
   useEffect(() => {
-    let mounted = true;
     (async () => {
       try {
         fetchCourses({ page: 1, pageSize: pageSize || 10 });
-
-        const res = await documentService.getSubjects();
-        if (mounted && Array.isArray(res)) {
-          setSubjects(res.map((s: any) => ({ id: s.id, name: s.name })));
-        }
-
-        const r = await filterAppUsers("role=Teacher&page=1&limit=200");
-        if (mounted) setTeachers(r?.users ?? []);
       } catch (err) {
-        // ignore for now
+        console.error("Failed to load courses", err);
       }
     })();
-    return () => {
-      mounted = false;
-    };
-  }, [fetchCourses, pageSize, filterAppUsers]);
+  }, [fetchCourses, pageSize]);
 
-  const categoryLabel = (id?: string | number | null) => {
-    if (id === undefined || id === null) return undefined;
-    const sid = Number(id);
-    const found = subjects.find((s) => s.id === sid);
-    return found ? found.name : String(id);
-  };
-
-  const shown = (courses ?? []).map(
-    (c: CourseListDto) =>
-      ({
-        id: c.id,
-        name: c.name,
-        information: c.information ?? null,
-        imageUrl: c.imageUrl ?? null,
-        price: c.price,
-        instructorName:
-          (c.instructorName &&
-            teachers.find((t) => String(t.id) === String(c.instructorName))
-              ?.fullname) ||
-          null,
-        category: categoryLabel(c.category),
-        grade: c.grade,
-        status: c.status,
-        createdAt: c.createdAt
-          ? new Date(c.createdAt).toLocaleDateString()
-          : undefined,
-        updatedBy:
-          (c.updatedBy &&
-            teachers.find((t) => String(t.id) === String(c.updatedBy))
-              ?.fullname) ||
-          null,
-      } as CourseType)
-  );
+  const shown: CourseType[] = (courses ?? []).map((c: CourseListDto) => ({
+    id: c.id,
+    name: c.name,
+    information: c.information ?? null,
+    imageUrl: c.imageUrl ?? null,
+    price: c.price,
+    grade: c.grade,
+    subjectId: c.subjectId,
+    schoolId: c.schoolId ?? null,
+    isFeatured: c.isFeatured,
+    status: c.status,
+    createdAt: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "",
+    startAt: c.startAt ? new Date(c.startAt).toLocaleDateString() : "",
+    endAt: c.endAt ? new Date(c.endAt).toLocaleDateString() : "",
+    updatedAt: c.updatedAt ? new Date(c.updatedAt).toLocaleDateString() : null,
+    updatedBy: c.updatedBy ?? null,
+    createdBy: c.createdBy,
+    chapters: c.chapters ?? [],
+  }));
 
   const startRange = page && pageSize ? (page - 1) * pageSize + 1 : 0;
   const countOnPage = shown.length;
@@ -166,10 +134,19 @@ const CourseList: React.FC = () => {
                 Khối lớp
               </TableHead>
               <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Trường
+              </TableHead>
+              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Trạng thái
               </TableHead>
               <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Ngày tạo
+              </TableHead>
+              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Ngày bắt đầu
+              </TableHead>
+              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Ngày kết thúc
               </TableHead>
               <TableHead className="w-36 px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Hành động
@@ -185,7 +162,6 @@ const CourseList: React.FC = () => {
                 <TableCell colSpan={9} className="h-20" />
               </TableRow>
             )}
-            {/* Thêm thông báo "Không có dữ liệu" nếu shown rỗng và đã fetch xong */}
             {shown.length === 0 && (
               <TableRow>
                 <TableCell
@@ -202,13 +178,11 @@ const CourseList: React.FC = () => {
 
       <div className="flex items-center justify-between mt-4 px-2">
         <span className="text-sm text-gray-600">
-          {/* Hiển thị số lượng khóa học thực tế */}
           {totalCourses > 0
-            ? `Showing ${startRange} to ${endRange} of ${totalCourses} results`
-            : "No results found"}
+            ? `Hiển thị từ ${startRange} đến ${endRange} trong tổng số ${totalCourses} kết quả`
+            : "Không tìm thấy kết quả nào"}
         </span>
 
-        {/* Chỉ hiển thị Pagination nếu có nhiều hơn 1 trang */}
         {totalPages > 1 && (
           <div>
             <Pagination>
