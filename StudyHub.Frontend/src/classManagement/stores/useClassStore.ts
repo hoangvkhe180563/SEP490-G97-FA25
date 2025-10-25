@@ -356,6 +356,119 @@ export const useClassStore = create<ClassState>()(
         }
       },
 
+      // --- addComment: send comment HTML to backend and update state ---
+      addComment: async (payload) => {
+        // payload: { notificationId, content (HTML), createdBy? }
+        set({ isLoading: true, success: false, message: "" });
+        try {
+          const body = {
+            content: payload.content ?? "",
+            createdBy: payload.userId ?? "d4e5f6a7-b8c9-0123-4567-890abcdef014",
+          };
+
+          const url = `/Class/notifications/${payload.notificationId}/comments`;
+          const res = await axiosInstance.post(url, body);
+          const raw = res?.data ?? null;
+
+          if (!raw || raw.success === false) {
+            set({ isLoading: false, success: false, message: raw?.message ?? "Failed to add comment" });
+            return null;
+          }
+
+          const created = raw.data ?? raw;
+          const mapped = {
+            id: created.id ?? Date.now(),
+            notificationId: created.notificationId ?? payload.notificationId,
+            userId: created.userId ?? created.createdBy ?? body.createdBy,
+            userFullname: created.userFullname ?? "Bạn",
+            content: created.content ?? payload.content,
+            avatarUrl: created.avatarUrl ?? null,
+            createdAt: created.createdAt ?? new Date().toISOString(),
+          };
+
+          // update currentClass.notifications: append comment to matching notification
+          set((state) => {
+            const cur = state.currentClass ?? defaultCurrentClass;
+            const updatedNotifications = (cur.data?.notifications ?? []).map((n) => {
+              if (String(n.id) === String(payload.notificationId)) {
+                const comments = (n.comments ?? []).concat([mapped]);
+                return { ...n, comments };
+              }
+              return n;
+            });
+
+            // If the notification wasn't found (edge case), just leave state unchanged
+            return {
+              currentClass: {
+                ...cur,
+                data: {
+                  ...cur.data,
+                  notifications: updatedNotifications,
+                },
+                success: true,
+              },
+              success: true,
+              message: raw.message ?? "Comment added",
+            };
+          });
+
+          return mapped;
+        } catch (err) {
+          console.error("addComment error:", err);
+          set({ isLoading: false, success: false, message: "Failed to add comment" });
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+        deleteNotification: async (notificationId) => {
+        set({ isLoading: true, success: false, message: "" });
+        try {
+          const url = `/Class/notifications/${notificationId}`;
+          const res = await axiosInstance.delete(url);
+          const raw = res?.data ?? null;
+
+          // If API returns { success: false } or no data, treat as failure
+          if (!raw || raw.success === false) {
+            set({
+              isLoading: false,
+              success: false,
+              message: raw?.message ?? "Failed to delete notification",
+            });
+            return false;
+          }
+
+          // On success, update store.notifications by filtering out deleted one
+          set((state) => {
+            const cur = state.currentClass ?? defaultCurrentClass;
+            const updatedNotifications = (cur.data?.notifications ?? []).filter(
+              (n) => String(n.id) !== String(notificationId)
+            );
+
+            return {
+              currentClass: {
+                ...cur,
+                data: {
+                  ...cur.data,
+                  notifications: updatedNotifications,
+                },
+                success: true,
+              },
+              success: true,
+              message: raw.message ?? "Deleted notification",
+            };
+          });
+
+          return true;
+        } catch (err) {
+          console.error("deleteNotification error:", err);
+          set({ isLoading: false, success: false, message: "Failed to delete notification" });
+          return false;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
       createNotification: async (payload) => {
         set({ isLoading: true, success: false, message: "" });
         try {

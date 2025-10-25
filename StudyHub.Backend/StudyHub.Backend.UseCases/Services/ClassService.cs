@@ -114,6 +114,12 @@ namespace StudyHub.Backend.UseCases.Services
             => await _fileStorage.UploadFileAsync(file, FileConstants.ClassNotificationUploadPAth);
 
         public List<Class> GetClassByUserId(Guid userid)=> _classRepository.GetClassByUserId(userid);
-       
+
+        public ClassNotificationComment CreateNotificationComment(ClassNotificationComment commentEntity)
+        {
+           return _classRepository.CommentNoti(commentEntity);
+        }
+        public bool deleteNoti(int  notificationid) => _classRepository.deleteNotification(notificationid);
+        public ClassNotification GetNotificationByID(int notificationid) => _classRepository.getNotificationByID(notificationid);
     }
 }

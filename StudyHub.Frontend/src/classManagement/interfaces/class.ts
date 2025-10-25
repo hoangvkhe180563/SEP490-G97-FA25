@@ -42,16 +42,7 @@ export type ClassNotification = {
   comments: PostComment[]; // có thể mở rộng sau
 };
 
-export interface ClassNotificationComment {
-  id: number;
-  notificationId: number;
-  userId: string;
-  content: string;
-  createdAt?: string;
-  userFullname?: string;
-  // optional nested user object if backend returns it
-  user?: any;
-}
+
 
 export interface ClassDetailResponse {
   success: boolean;
@@ -111,4 +102,10 @@ export interface ClassState {
     files?: File[] | null;
     links?: LinkPayload[];
   }) => Promise<ClassNotification | null>;
+  addComment: (payload: {
+    notificationId: number|string;
+    userId: string;
+    content: string;
+  }) => Promise<PostComment | null>;
+  deleteNotification: (notificationId: number | string) => Promise<boolean>;
 }

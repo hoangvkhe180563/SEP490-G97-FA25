@@ -393,6 +393,85 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
+        public class CreateCommentDto
+        {
+            public string Content { get; set; } = string.Empty; // HTML allowed
+            public Guid CreatedBy { get; set; } // optional if you use auth, but keep for now
+        }
+
+        [HttpPost("notifications/{notificationId}/comments")]
+        public async Task<IActionResult> AddCommentToNotification([FromRoute] int notificationId, [FromBody] CreateCommentDto dto)
+        {
+            try
+            {
+                if (notificationId <= 0)
+                    return BadRequest(new { success = false, message = "Invalid notificationId." });
+
+                if (string.IsNullOrWhiteSpace(dto.Content))
+                    return BadRequest(new { success = false, message = "Content cannot be empty." });
+
+                // Create entity (adjust ClassNotificationComment to your entity name)
+                var commentEntity = new ClassNotificationComment
+                {
+                    NotificationId = notificationId,
+                    Content = dto.Content.Trim(),
+                    CreatedAt = DateTime.UtcNow,
+                    AppUserId = dto.CreatedBy
+                };
+
+                // Save via service. Adjust method name as your service implements
+                var created = _service.CreateNotificationComment(commentEntity);
+
+                if (created == null)
+                    return StatusCode(500, new { success = false, message = "Unable to create comment." });
+
+                // Return created comment (shape: id, notificationId, content, createdBy, createdAt, userFullname/avatar optional)
+                var response = new
+                {
+                    id = created.Id,
+                    notificationId = created.NotificationId,
+                    content = created.Content,
+                    createdBy = created.AppUserId,
+                    createdAt = created.CreatedAt,
+                    userFullname = _aUserService.GetUserById(created.AppUserId).Fullname ?? "", // if your entity/service populates this
+                    avatarUrl = _aUserService.GetUserById(created.AppUserId).Avatar ?? ""
+                };
+
+                return Ok(new { success = true, message = "Comment added", data = response });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = $"Server error: {ex.Message}", error = ex.ToString() });
+            }
+        }
+
+        [HttpDelete("notifications/{notificationId}")]
+        public async Task<IActionResult> DeleteNotic(int notificationId)
+        {
+            try
+            {
+                var noti = _service.GetNotificationByID(notificationId);
+                if (noti == null)
+                {
+                    return NotFound(new { success = false, message = "Notification not found" });
+                }
+
+                var issucessed = _service.deleteNoti(notificationId);
+                if (issucessed)
+                {
+                    return Ok(new { success = true, message = "Deleted notification" });
+                }
+                else
+                {
+                    return StatusCode(500, new { success = false, message = "Không xoá được", error = "Không xoá được" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = $"Server error: {ex.Message}", error = ex.ToString() });
+            }
+        }
+
 
     }
 }

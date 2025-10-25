@@ -177,7 +177,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public List<ClassNotification> GetClassNotifications(int classId)
         {
             return _context.ClassNotifications
-                .Where(n => n.ClassId == classId)
+                .Where(n => n.ClassId == classId&& n.DeletedAt==null)
                 .OrderByDescending(n=>n.CreatedAt)
                 .Select(n => new ClassNotification
                 {
@@ -315,6 +315,49 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                    DeletedAt = c.Class.DeletedAt
                }).OrderByDescending(c => c.CreatedAt).ToList();
             return classes ;
+        }
+        public ClassNotificationComment CommentNoti(ClassNotificationComment comment)
+        {
+            var commented = new Data.ClassNotificationComment
+            {
+                NotificationId = comment.NotificationId,
+                AppUserId = comment.AppUserId,
+                Content = comment.Content,
+                CreatedAt = DateTime.Now,
+            };
+            _context.ClassNotificationComments.Add( commented );
+            _context.SaveChanges();
+            comment.Id = commented.Id;
+            return comment;
+
+        }
+        public bool deleteNotification(int id)
+        {
+            var comment = _context.ClassNotifications.FirstOrDefault(c => c.Id == id);
+            if (comment != null)
+            {
+                comment.DeletedAt= DateTime.Now;
+                _context.ClassNotifications.Update(comment);
+                _context.SaveChanges();
+                return true;
+            }
+            return false;
+        }
+        public ClassNotification getNotificationByID(int notificationId)
+        {
+            var noti = _context.ClassNotifications.FirstOrDefault(c => c.Id == notificationId);
+            var noti2 = new ClassNotification
+            {
+                Id = notificationId,
+                ClassId = noti.ClassId,
+                Title = noti.Title,
+                Description=noti.Description,
+                AppUserId=noti.AppUserId,
+                DeletedAt = noti.DeletedAt,
+                CreatedAt=noti.CreatedAt,
+                UpdatedAt=noti.UpdatedAt,
+            };
+            return noti2;
         }
     }
 }

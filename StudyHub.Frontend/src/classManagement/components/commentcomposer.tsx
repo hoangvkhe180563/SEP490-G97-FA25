@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import CommentComposer from "@/classManagement/components/ui/commentcomposer";
 import DOMPurify from "dompurify";
 import useClassStore from "@/classManagement/stores/useClassStore";
+import type { PostComment } from "@/classManagement/components/ui/postcard";
 
 // ====== Types ======
 export type PostFile = {
@@ -10,15 +11,7 @@ export type PostFile = {
   fileUrl: string;
 };
 
-export type PostComment = {
-  id: number | string; // allow string for optimistic temp ids
-  notificationId?: number|string;
-  userId?: number | string;
-  userFullname: string;
-  content: string; // HTML content
-  avatarUrl?: string | null;
-  createdAt?: string;
-};
+
 
 export type Post = {
   id: number | string;
@@ -49,6 +42,7 @@ const extractYouTubeId = (url: string): string | null => {
     }
     if (u.hostname.includes("youtube.com")) {
       if (u.searchParams.has("v")) return u.searchParams.get("v");
+      // embed path: /embed/<id>
       const parts = u.pathname.split("/");
       const idx = parts.indexOf("embed");
       if (idx >= 0 && parts.length > idx + 1) return parts[idx + 1];
@@ -61,7 +55,6 @@ const extractYouTubeId = (url: string): string | null => {
 
 const sanitizeHtml = (html: string) => {
   try {
-    /* Allow limited HTML for comments */
     return DOMPurify.sanitize(html, {
       ALLOWED_TAGS: [
         "b",
@@ -131,6 +124,7 @@ const renderContent = (html?: string) => {
         </div>
       );
     } else if (url) {
+      // Not a recognized youtube link — render as sanitized link
       const safeUrl = sanitizeHtml(escapeHtml(url));
       nodes.push(
         <div key={`link-${idx}`} className="my-2">
@@ -138,6 +132,7 @@ const renderContent = (html?: string) => {
             href={url}
             target="_blank"
             rel="noopener noreferrer"
+            // Inline styles to guarantee wrapping/breaking even if global CSS forces nowrap
             style={{
               color: "#2563eb",
               textDecoration: "underline",
@@ -157,6 +152,7 @@ const renderContent = (html?: string) => {
     idx++;
   }
 
+  // trailing content
   const tail = html.slice(lastIndex);
   if (tail && tail.trim()) {
     const sanitizedTail = sanitizeHtml(tail);
@@ -184,6 +180,7 @@ const FilePreview: React.FC<{ file: PostFile }> = ({ file }) => {
     ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"].includes(ext);
   const isPdf = ext === "pdf" || /\.pdf$/i.test(url);
 
+  // Build a short display label: prefer hostname + path when name/url is long URL
   const getDisplayName = (): { text: string; full: string } => {
     try {
       const parsedName = new URL(name);
@@ -249,11 +246,12 @@ const FilePreview: React.FC<{ file: PostFile }> = ({ file }) => {
       target="_blank"
       rel="noopener noreferrer"
       className="w-full flex items-center gap-3 bg-white border rounded overflow-hidden px-3 py-2 hover:shadow transition"
+      // Inline styles to ensure no overflow even if global CSS forces nowrap
       style={{
         maxWidth: "100%",
         boxSizing: "border-box",
         overflow: "hidden",
-        wordBreak: "break-all",
+        wordBreak: "break-all", // break long continuous strings
         whiteSpace: "normal",
       }}
       title={display.full}
@@ -292,20 +290,20 @@ const FilePreview: React.FC<{ file: PostFile }> = ({ file }) => {
 // ====== Component ======
 const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const [showComments, setShowComments] = useState(false);
-  // use localComments for immediate UI updates (optimistic)
+  // initialize localComments from post.comments (may contain HTML)
   const [localComments, setLocalComments] = useState<PostComment[]>(post.comments ?? []);
 
-  // local UI state to hide the card optimistically when deleting
+  // Keep localComments in sync whenever post.comments prop changes
+  useEffect(() => {
+    setLocalComments(post.comments ?? []);
+  }, [post.comments]);
+
+  // local state to hide card optimistically when deleting
   const [isDeleted, setIsDeleted] = useState(false);
 
   // dropdown/menu state
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-
-  // sync incoming comments if parent/store updates
-  useEffect(() => {
-    setLocalComments(post.comments ?? []);
-  }, [post.comments]);
 
   // close menu on outside click
   useEffect(() => {
@@ -318,7 +316,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     return () => document.removeEventListener("mousedown", handler);
   }, [menuOpen]);
 
-  // get actions from store
+  // get addComment & deleteNotification action from store
   const addComment = useClassStore((s) => s.addComment);
   const deleteNotification = useClassStore((s) => s.deleteNotification);
 
@@ -335,35 +333,35 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       createdAt: "just now",
     };
 
-    // show immediately
+    // show immediately (optimistic UI)
     setLocalComments((c) => [...c, optimistic]);
     setShowComments(true);
 
     try {
-      const payload = {
-        notificationId: typeof post.id === "number" ? post.id : Number(post.id),
+      const created = await addComment({
+        notificationId: post.id,
         content: htmlContent,
-        userId: "d4e5f6a7-b8c9-0123-4567-890abcdef017", // replace with actual user ID from auth
-      };
-
-      const created = await addComment(payload);
-
+         userId: "d4e5f6a7-b8c9-0123-4567-890abcdef017",
+         
+      });
       if (created) {
-        // replace optimistic with server-created comment (match by temp id)
+        // replace optimistic comment with server comment
         setLocalComments((prev) =>
           prev.map((c) => (String(c.id) === String(tempId) ? created : c))
         );
+        
+        setShowComments(true);
       } else {
-        // server didn't return created - leave optimistic or mark failed
+        // fallback: optimistic local append kept, change id
         setLocalComments((prev) =>
           prev.map((c) => (String(c.id) === String(tempId) ? { ...c, id: Date.now() } : c))
         );
+        setShowComments(true);
       }
     } catch (err) {
       console.error("Failed to send comment", err);
-      // remove optimistic comment on error
+      // remove optimistic on error
       setLocalComments((prev) => prev.filter((c) => String(c.id) !== String(tempId)));
-      // optionally show error UI (toast)
     }
   };
 
@@ -377,12 +375,9 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     try {
       const ok = await deleteNotification(post.id);
       if (!ok) {
-        // restore UI if failed
         setIsDeleted(false);
         console.error("Xóa thông báo thất bại");
-        // optionally show toast
       }
-      // if ok, store already removed notification and parent will re-render
     } catch (err) {
       console.error("delete failed", err);
       setIsDeleted(false);
@@ -425,8 +420,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
                     className="w-full text-left px-3 py-2 hover:bg-gray-50 text-red-500"
                     onClick={() => {
                       setMenuOpen(false);
-                      // placeholder for dismiss student logic
-                      alert("Dismiss student (chưa triển khai)"); 
+                      alert("Dismiss student (chưa triển khai)");
                     }}
                   >
                     Dismiss student
@@ -455,8 +449,8 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
               </svg>
               {localComments.length} comments
             </button>
-            
-          </div>  
+            <div className="text-gray-400 cursor-pointer hover:text-gray-600">Share</div>
+          </div>
 
           <div className="mt-4">
             <CommentComposer onSend={handleSendComment} avatarUrl="/vite.svg" />
@@ -465,7 +459,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
           {showComments && localComments.length > 0 && (
             <div className="mt-3 space-y-3">
               {localComments.map((c) => (
-                <div key={String(c.id)} className="flex gap-3 items-start">
+                <div key={c.id} className="flex gap-3 items-start">
                   <img src={c.avatarUrl ?? "/vite.svg"} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
                   <div className="text-sm">
                     <div className="font-medium">
@@ -479,7 +473,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
                   </div>
                 </div>
               ))}
-            </div>
+            </div>  
           )}
         </div>
       </div>
