@@ -12,14 +12,9 @@ namespace StudyHub.Backend.UseCases.Services
             _repo = repo;
         }
 
-        public List<Course> GetCourses()
-        {
-            return _repo.GetAllCourses();
-        }
-
         public PagedResult<Course> SearchCourses(CourseQueryParams query)
         {
-            return _repo.SearchCourses(query);
+            return _repo.GetAllCourses(query);
         }
 
         public Course? GetCourse(int id)

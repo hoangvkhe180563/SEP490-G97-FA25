@@ -9,5 +9,7 @@ public partial class AppResource
 
     public string Name { get; set; } = null!;
 
-    public virtual ICollection<AppPermission> AppPermissions { get; set; } = new List<AppPermission>();
+    public string ResourceType { get; set; } = null!;
+
+    public virtual ICollection<AppPolicy> AppPolicies { get; set; } = new List<AppPolicy>();
 }

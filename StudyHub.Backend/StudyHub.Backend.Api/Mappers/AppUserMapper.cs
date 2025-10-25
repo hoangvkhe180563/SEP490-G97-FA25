@@ -15,7 +15,7 @@ namespace StudyHub.Backend.Api.Mappers
                 Email = user.Email,
                 Username = user.Username,
                 Fullname = user.Fullname,
-                Gender = user.Gender ? "Male" : "Female",
+                Gender = user.Gender.HasValue ? (user.Gender.Value ? "Male" : "Female") : null,
                 Avatar = user.Avatar,
                 Address = user.Address,
                 Status = (user.Status == true) ? "Active" : "Inactive",

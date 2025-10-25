@@ -101,11 +101,11 @@ namespace StudyHub.Backend.UseCases.Utils
                 var permissions = new List<string>();
                 foreach (var role in roles)
                 {
-                    if (role?.AppPermissions == null) continue;
-                    foreach (var p in role.AppPermissions)
+                    if (role?.AppPolicies == null) continue;
+                    foreach (var p in role.AppPolicies)
                     {
                         var res = p.Resource?.Name ?? p.ResourceId.ToString();
-                        var act = p.Action?.Name ?? p.ActionId.ToString();
+                        var act = p.ActionType;
                         permissions.Add($"{res}:{act}");
                     }
                 }

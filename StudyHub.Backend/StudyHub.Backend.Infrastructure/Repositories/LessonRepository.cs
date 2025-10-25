@@ -28,12 +28,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         Id = l.Id,
                         Name = l.Name,
                         ChapterId = l.ChapterId,
-                        Status = l.Status,
                         Type = l.Type,
                         Description = l.Description,
                         Duration = l.Duration,
                         PostDate = l.PostDate,
                         IsPreview = l.IsPreview,
+                        ResourceId = l.ResourceId,
                         LessonVideo = l.LessonVideo == null ? null :
                             new LessonVideo { LessonId = l.LessonVideo.LessonId, Url = l.LessonVideo.Url },
                         LessonReading = l.LessonReading == null ? null :
@@ -63,12 +63,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Id = l.Id,
                     Name = l.Name,
                     ChapterId = l.ChapterId,
-                    Status = l.Status,
                     Type = l.Type,
                     Description = l.Description,
                     Duration = l.Duration,
                     PostDate = l.PostDate,
                     IsPreview = l.IsPreview,
+                    ResourceId = l.ResourceId,
                     LessonReading = l.LessonReading == null ? null :
                         new LessonReading { LessonId = l.LessonReading.LessonId, Content = l.LessonReading.Content },
                     LessonVideo = l.LessonVideo == null ? null :
@@ -90,12 +90,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     Name = lesson.Name,
                     ChapterId = lesson.ChapterId,
-                    Status = lesson.Status ?? true,
                     Type = lesson.Type,
                     Description = lesson.Description,
                     Duration = lesson.Duration,
                     PostDate = lesson.PostDate,
-                    IsPreview = lesson.IsPreview
+                    IsPreview = lesson.IsPreview,
+                    ResourceId = lesson.ResourceId
                 };
 
                 if (!string.IsNullOrEmpty(lesson.LessonVideo?.Url))
@@ -142,12 +142,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (entity == null) return lesson;
 
                 entity.Name = lesson.Name;
-                entity.Status = lesson.Status;
                 entity.Type = lesson.Type;
                 entity.Description = lesson.Description;
                 entity.Duration = lesson.Duration;
                 entity.PostDate = lesson.PostDate;
                 entity.IsPreview = lesson.IsPreview;
+                entity.ResourceId = lesson.ResourceId;
 
                 // update video
                 if (!string.IsNullOrEmpty(lesson.LessonVideo?.Url))

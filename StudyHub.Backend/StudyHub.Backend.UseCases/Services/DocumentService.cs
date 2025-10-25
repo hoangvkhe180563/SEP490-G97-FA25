@@ -107,7 +107,7 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 ValidateThumbnailFile(thumbnailFile);
                 if (!string.IsNullOrEmpty(existingDocument.Thumbnail))
-                    _fileStorage.DeleteFileAsync(existingDocument.Thumbnail);
+                   await _fileStorage.DeleteFileAsync(existingDocument.Thumbnail);
                 document.Thumbnail = await _fileStorage.UploadFileAsync(thumbnailFile, FileConstants.ThumbnailUploadPath);
             }
             else

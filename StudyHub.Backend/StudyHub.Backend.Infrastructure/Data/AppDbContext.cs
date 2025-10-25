@@ -11,11 +11,9 @@ public partial class AppDbContext : DbContext
     {
     }
 
-    public virtual DbSet<AppAction> AppActions { get; set; }
-
     public virtual DbSet<AppClaim> AppClaims { get; set; }
 
-    public virtual DbSet<AppPermission> AppPermissions { get; set; }
+    public virtual DbSet<AppPolicy> AppPolicies { get; set; }
 
     public virtual DbSet<AppResource> AppResources { get; set; }
 
@@ -59,6 +57,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<LessonReading> LessonReadings { get; set; }
 
+    public virtual DbSet<LessonResource> LessonResources { get; set; }
+
     public virtual DbSet<LessonVideo> LessonVideos { get; set; }
 
     public virtual DbSet<PaymentInfo> PaymentInfos { get; set; }
@@ -78,15 +78,6 @@ public partial class AppDbContext : DbContext
         modelBuilder
             .UseCollation("utf8mb4_0900_ai_ci")
             .HasCharSet("utf8mb4");
-
-        modelBuilder.Entity<AppAction>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("app_actions");
-
-            entity.Property(e => e.Name).HasMaxLength(256);
-        });
 
         modelBuilder.Entity<AppClaim>(entity =>
         {
@@ -123,32 +114,32 @@ public partial class AppDbContext : DbContext
                 .HasConstraintName("app_claims_ibfk_2");
         });
 
-        modelBuilder.Entity<AppPermission>(entity =>
+        modelBuilder.Entity<AppPolicy>(entity =>
         {
-            entity.HasKey(e => new { e.RoleId, e.ResourceId, e.ActionId })
+            entity.HasKey(e => new { e.RoleId, e.ResourceId })
                 .HasName("PRIMARY")
-                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0, 0 });
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
 
-            entity.ToTable("app_permissions");
-
-            entity.HasIndex(e => e.ActionId, "ActionId");
+            entity.ToTable("app_policy");
 
             entity.HasIndex(e => e.ResourceId, "ResourceId");
 
-            entity.HasOne(d => d.Action).WithMany(p => p.AppPermissions)
-                .HasForeignKey(d => d.ActionId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("app_permissions_ibfk_2");
+            entity.Property(e => e.ActionType).HasMaxLength(100);
+            entity.Property(e => e.Condition).HasMaxLength(256);
+            entity.Property(e => e.Description)
+                .HasMaxLength(256)
+                .UseCollation("utf8mb3_general_ci")
+                .HasCharSet("utf8mb3");
 
-            entity.HasOne(d => d.Resource).WithMany(p => p.AppPermissions)
+            entity.HasOne(d => d.Resource).WithMany(p => p.AppPolicies)
                 .HasForeignKey(d => d.ResourceId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("app_permissions_ibfk_3");
+                .HasConstraintName("app_policy_ibfk_2");
 
-            entity.HasOne(d => d.Role).WithMany(p => p.AppPermissions)
+            entity.HasOne(d => d.Role).WithMany(p => p.AppPolicies)
                 .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("app_permissions_ibfk_1");
+                .HasConstraintName("app_policy_ibfk_1");
         });
 
         modelBuilder.Entity<AppResource>(entity =>
@@ -158,6 +149,7 @@ public partial class AppDbContext : DbContext
             entity.ToTable("app_resources");
 
             entity.Property(e => e.Name).HasMaxLength(256);
+            entity.Property(e => e.ResourceType).HasMaxLength(100);
         });
 
         modelBuilder.Entity<AppRole>(entity =>
@@ -209,26 +201,6 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Commune).WithMany(p => p.AppUsers)
                 .HasForeignKey(d => d.CommuneId)
                 .HasConstraintName("app_users_ibfk_1");
-
-            entity.HasMany(d => d.Roles).WithMany(p => p.Users)
-                .UsingEntity<Dictionary<string, object>>(
-                    "AppUserRole",
-                    r => r.HasOne<AppRole>().WithMany()
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("app_user_roles_ibfk_2"),
-                    l => l.HasOne<AppUser>().WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("app_user_roles_ibfk_1"),
-                    j =>
-                    {
-                        j.HasKey("UserId", "RoleId")
-                            .HasName("PRIMARY")
-                            .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
-                        j.ToTable("app_user_roles");
-                        j.HasIndex(new[] { "RoleId" }, "RoleId");
-                    });
         });
 
         modelBuilder.Entity<Chapter>(entity =>
@@ -242,7 +214,6 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Description).HasColumnType("text");
             entity.Property(e => e.Name).HasMaxLength(255);
             entity.Property(e => e.PostDate).HasColumnType("datetime");
-            entity.Property(e => e.Status).HasDefaultValueSql("'1'");
 
             entity.HasOne(d => d.Course).WithMany(p => p.Chapters)
                 .HasForeignKey(d => d.CourseId)
@@ -455,10 +426,13 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime");
-            entity.Property(e => e.DeletedAt).HasColumnType("datetime");
+            entity.Property(e => e.EndAt).HasColumnType("datetime");
             entity.Property(e => e.Information).HasMaxLength(1000);
             entity.Property(e => e.Name).HasMaxLength(200);
-            entity.Property(e => e.Status).HasDefaultValueSql("'1'");
+            entity.Property(e => e.StartAt).HasColumnType("datetime");
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'Mở'")
+                .HasColumnType("enum('Mở','Đóng','Nháp')");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.Subject).WithMany(p => p.Courses)
@@ -597,20 +571,26 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.ChapterId, "ChapterId");
 
+            entity.HasIndex(e => e.ResourceId, "ResourceId");
+
             entity.Property(e => e.Description).HasColumnType("text");
             entity.Property(e => e.Duration).HasMaxLength(100);
             entity.Property(e => e.IsPreview).HasDefaultValueSql("'0'");
             entity.Property(e => e.Name).HasMaxLength(255);
             entity.Property(e => e.PostDate).HasColumnType("datetime");
-            entity.Property(e => e.Status).HasDefaultValueSql("'1'");
             entity.Property(e => e.Type)
-                .HasDefaultValueSql("'Đọc'")
-                .HasColumnType("enum('Đọc','Video','Luyện tập')");
+                .HasDefaultValueSql("'Video'")
+                .HasColumnType("enum('Reading','Video','Exam')");
 
             entity.HasOne(d => d.Chapter).WithMany(p => p.Lessons)
                 .HasForeignKey(d => d.ChapterId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("lessons_ibfk_1");
+
+            entity.HasOne(d => d.Resource).WithMany(p => p.Lessons)
+                .HasForeignKey(d => d.ResourceId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("lessons_ibfk_2");
         });
 
         modelBuilder.Entity<LessonReading>(entity =>
@@ -624,6 +604,13 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Lesson).WithOne(p => p.LessonReading)
                 .HasForeignKey<LessonReading>(d => d.LessonId)
                 .HasConstraintName("lesson_reading_ibfk_1");
+        });
+
+        modelBuilder.Entity<LessonResource>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("lesson_resource");
         });
 
         modelBuilder.Entity<LessonVideo>(entity =>
