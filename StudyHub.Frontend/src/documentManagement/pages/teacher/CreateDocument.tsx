@@ -97,6 +97,7 @@ export default function CreateDocument() {
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [classSearch, setClassSearch] = useState("");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -657,7 +658,7 @@ export default function CreateDocument() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Chọn lớp</FormLabel>
-                              <div className="border rounded-md p-4">
+                              <div className="border rounded-md p-2">
                                 {isLoadingClasses ? (
                                   <div className="flex items-center gap-2 text-sm text-gray-500">
                                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -668,37 +669,53 @@ export default function CreateDocument() {
                                     Không có lớp nào
                                   </div>
                                 ) : (
-                                  <div className="flex flex-wrap gap-2">
-                                    {classes.map((cls) => (
-                                      <Button
-                                        key={cls.id}
-                                        type="button"
-                                        variant={
-                                          field.value?.includes(cls.id)
-                                            ? "default"
-                                            : "outline"
-                                        }
-                                        size="sm"
-                                        className={`transition-all ${
-                                          field.value?.includes(cls.id)
-                                            ? "bg-blue-600 hover:bg-blue-700 text-white"
-                                            : "hover:border-blue-400"
-                                        }`}
-                                        onClick={() => {
-                                          const current = field.value || [];
-                                          field.onChange(
-                                            current.includes(cls.id)
-                                              ? current.filter(
-                                                  (id) => id !== cls.id
-                                                )
-                                              : [...current, cls.id]
-                                          );
-                                        }}
-                                      >
-                                        {cls.name}
-                                      </Button>
-                                    ))}
-                                  </div>
+                                  <>
+                                    <Input
+                                      placeholder="Tìm kiếm lớp..."
+                                      value={classSearch}
+                                      onChange={(e) =>
+                                        setClassSearch(e.target.value)
+                                      }
+                                      className="mb-3"
+                                    />
+                                    <div className="max-h-[60px] overflow-y-auto flex flex-wrap gap-1">
+                                      {classes
+                                        .filter((cls) =>
+                                          cls.name
+                                            .toLowerCase()
+                                            .includes(classSearch.toLowerCase())
+                                        )
+                                        .map((cls) => (
+                                          <Button
+                                            key={cls.id}
+                                            type="button"
+                                            variant={
+                                              field.value?.includes(cls.id)
+                                                ? "default"
+                                                : "outline"
+                                            }
+                                            size="sm"
+                                            className={`transition-all ${
+                                              field.value?.includes(cls.id)
+                                                ? "bg-blue-600 hover:bg-blue-700 text-white"
+                                                : "hover:border-blue-400"
+                                            }`}
+                                            onClick={() => {
+                                              const current = field.value || [];
+                                              field.onChange(
+                                                current.includes(cls.id)
+                                                  ? current.filter(
+                                                      (id) => id !== cls.id
+                                                    )
+                                                  : [...current, cls.id]
+                                              );
+                                            }}
+                                          >
+                                            {cls.name}
+                                          </Button>
+                                        ))}
+                                    </div>
+                                  </>
                                 )}
                               </div>
                               <FormMessage />

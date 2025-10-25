@@ -1,3 +1,4 @@
+// src/documentManagement/pages/teacher/UpdateDocument.tsx
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,7 +51,7 @@ const schema = z.object({
 });
 
 type FormValues = z.infer<typeof schema>;
-// @ts-expect-error TS6196
+
 interface ClassDto {
   id: number;
   name: string;
@@ -73,10 +74,8 @@ export default function UpdateDocument() {
     document,
     categories,
     subjects,
-    userClasses,
     getCategories,
     getSubjects,
-    getUserClasses,
   } = useDocumentStore();
 
   const [documentFile, setDocumentFile] = useState<File | null>(null);
@@ -88,6 +87,9 @@ export default function UpdateDocument() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const [classSearch, setClassSearch] = useState("");
+  const [localClasses, setLocalClasses] = useState<ClassDto[]>([]);
+  const [isLoadingClasses, setIsLoadingClasses] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -187,7 +189,7 @@ export default function UpdateDocument() {
 
       if (data.classes && data.classes.length > 0) {
         data.classes.forEach((classId) => {
-          const classData = userClasses.find((c) => c.id === classId);
+          const classData = localClasses.find((c) => c.id === classId);
           const classObj = classData
             ? {
                 id: classData.id,
@@ -286,9 +288,6 @@ export default function UpdateDocument() {
           let accessType = "public";
           if (docData.schoolId && docData.isInClass) {
             accessType = "class";
-            if (user?.id) {
-              await getUserClasses(user.id);
-            }
           } else if (docData.schoolId) {
             accessType = "school";
           }
@@ -318,13 +317,28 @@ export default function UpdateDocument() {
     };
 
     fetchDocument();
-  }, [id, getDocumentById, getUserClasses, user?.id, form]);
+  }, [id, getDocumentById, form]);
 
   useEffect(() => {
-    if (accessValue === "class" && userClasses.length === 0 && user?.id) {
-      getUserClasses(user.id);
-    }
-  }, [accessValue, user?.id, getUserClasses, userClasses.length]);
+    const fetchClasses = async () => {
+      if (accessValue === "class" && user?.id) {
+        setIsLoadingClasses(true);
+        try {
+          const response = await axiosInstance.get(
+            `/Document/my-class/${user.id}`
+          );
+          const classesData = response.data?.data || response.data || [];
+          setLocalClasses(Array.isArray(classesData) ? classesData : []);
+        } catch (error) {
+          console.error("Error fetching classes:", error);
+          setLocalClasses([]);
+        } finally {
+          setIsLoadingClasses(false);
+        }
+      }
+    };
+    fetchClasses();
+  }, [accessValue, user?.id]);
 
   const Toast = ({ toast }: { toast: ToastMessage }) => (
     <div
@@ -657,45 +671,68 @@ export default function UpdateDocument() {
                             <FormItem>
                               <FormLabel>Chọn lớp</FormLabel>
                               <div className="border p-4">
-                                {userClasses.length === 0 ? (
+                                {isLoadingClasses ? (
+                                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Đang tải...
+                                  </div>
+                                ) : localClasses.length === 0 ? (
                                   <div className="text-sm text-gray-500">
                                     Không có lớp nào
                                   </div>
                                 ) : (
-                                  <div className="flex flex-wrap gap-2">
-                                    {userClasses.map((cls) => (
-                                      <Button
-                                        key={cls.id}
-                                        type="button"
-                                        variant={
-                                          field.value?.includes(cls.id)
-                                            ? "default"
-                                            : "outline"
-                                        }
-                                        size="sm"
-                                        className={`transition-all ${
-                                          field.value?.includes(cls.id)
-                                            ? "bg-blue-600 hover:bg-blue-700 text-white"
-                                            : "hover:border-blue-400"
-                                        }`}
-                                        onClick={() => {
-                                          if (!isReadOnly) {
-                                            const current = field.value || [];
-                                            field.onChange(
-                                              current.includes(cls.id)
-                                                ? current.filter(
-                                                    (id) => id !== cls.id
-                                                  )
-                                                : [...current, cls.id]
-                                            );
-                                          }
-                                        }}
-                                        disabled={isReadOnly}
-                                      >
-                                        {cls.name}
-                                      </Button>
-                                    ))}
-                                  </div>
+                                  <>
+                                    <Input
+                                      placeholder="Tìm kiếm lớp..."
+                                      value={classSearch}
+                                      onChange={(e) =>
+                                        setClassSearch(e.target.value)
+                                      }
+                                      className="mb-3"
+                                      disabled={isReadOnly}
+                                    />
+                                    <div className="max-h-[100px] overflow-y-auto flex flex-wrap gap-2">
+                                      {localClasses
+                                        .filter((cls) =>
+                                          cls.name
+                                            .toLowerCase()
+                                            .includes(classSearch.toLowerCase())
+                                        )
+                                        .map((cls) => (
+                                          <Button
+                                            key={cls.id}
+                                            type="button"
+                                            variant={
+                                              field.value?.includes(cls.id)
+                                                ? "default"
+                                                : "outline"
+                                            }
+                                            size="sm"
+                                            className={`transition-all ${
+                                              field.value?.includes(cls.id)
+                                                ? "bg-blue-600 hover:bg-blue-700 text-white"
+                                                : "hover:border-blue-400"
+                                            }`}
+                                            onClick={() => {
+                                              if (!isReadOnly) {
+                                                const current =
+                                                  field.value || [];
+                                                field.onChange(
+                                                  current.includes(cls.id)
+                                                    ? current.filter(
+                                                        (id) => id !== cls.id
+                                                      )
+                                                    : [...current, cls.id]
+                                                );
+                                              }
+                                            }}
+                                            disabled={isReadOnly}
+                                          >
+                                            {cls.name}
+                                          </Button>
+                                        ))}
+                                    </div>
+                                  </>
                                 )}
                               </div>
                               <FormMessage />
