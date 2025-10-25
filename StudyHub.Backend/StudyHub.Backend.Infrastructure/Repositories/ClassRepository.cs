@@ -317,5 +317,23 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }).ToList();
             return files ;
         }
+
+        public List<Class> GetClassByUserId(Guid userid)
+        {
+           var classes = _context.ClassMembers.Include(a=>a.Class).Where(a=>a.UserId.Equals(userid)).Select(
+               c => new Class
+               {
+                   Id = c.Class.Id,
+                   Name = c.Class.Name,
+                   SubjectId = c.Class.SubjectId,
+                   Description = c.Class.Description,
+                   CreatedAt = c.Class.CreatedAt,
+                   CreatedBy = c.Class.CreatedBy,
+                   UpdatedAt = c.Class.UpdatedAt,
+                   UpdatedBy = c.Class.UpdatedBy,
+                   DeletedAt = c.Class.DeletedAt
+               }).OrderByDescending(c => c.CreatedAt).ToList();
+            return classes ;
+        }
     }
 }

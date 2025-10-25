@@ -108,10 +108,12 @@ namespace StudyHub.Backend.UseCases.Services
         =>_classRepository.GetFileByNotificationId(notificationid);
 
 
-        public ClassNotificationFile CreateFile(ClassNotificationFile entity) => _classRepository.CreateSubmissionFile(entity);
+        public ClassNotificationFile CreateFile(ClassNotificationFile entity) => _classRepository.CreateSubmissionFile  (entity);
 
         public async Task<string> UploadFileToCloudinary(IFormFile file)
             => await _fileStorage.UploadFileAsync(file, FileConstants.ClassNotificationUploadPAth);
 
+        public List<Class> GetClassByUserId(Guid userid)=> _classRepository.GetClassByUserId(userid);
+       
     }
 }
