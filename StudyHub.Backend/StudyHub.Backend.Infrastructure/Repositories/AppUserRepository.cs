@@ -298,7 +298,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public List<Domain.Entities.AppClaim> GetClaimsForUser(Guid userId)
         {
-            var claims = _context.AppClaims.Where(c => c.UserId == userId).ToList();
+            var claims = _context.AppClaims
+                .Where(c => c.UserId == userId)
+                .Include(c => c.Class)
+                .Include(c => c.Role)
+                .Include(c => c.Subject)
+                .ToList();
             var result = new List<Domain.Entities.AppClaim>();
             foreach (var c in claims)
             {
