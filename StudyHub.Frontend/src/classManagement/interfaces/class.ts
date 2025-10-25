@@ -64,6 +64,11 @@ export interface ClassDetailResponse {
     notifications: ClassNotification[];
   };
 }
+export type LinkPayload = {
+  url: string;
+  title?: string;
+  thumbnail?: string;
+};
 
 interface Meta {
   total: number;
@@ -104,5 +109,6 @@ export interface ClassState {
     description?: string;
     createdBy: string;
     files?: File[] | null;
+    links?: LinkPayload[];
   }) => Promise<ClassNotification | null>;
 }

@@ -11,8 +11,6 @@ public partial class Chapter
 
     public int CourseId { get; set; }
 
-    public bool? Status { get; set; }
-
     public string? Description { get; set; }
 
     public DateTime? PostDate { get; set; }

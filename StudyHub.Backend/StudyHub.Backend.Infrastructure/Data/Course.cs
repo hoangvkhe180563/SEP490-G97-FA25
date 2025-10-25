@@ -23,17 +23,19 @@ public partial class Course
 
     public bool IsFeatured { get; set; }
 
-    public bool? Status { get; set; }
+    public string Status { get; set; } = null!;
 
     public DateTime CreatedAt { get; set; }
 
-    public Guid CreatedBy { get; set; }
+    public DateTime StartAt { get; set; }
+
+    public DateTime EndAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
 
     public Guid? UpdatedBy { get; set; }
 
-    public DateTime? DeletedAt { get; set; }
+    public Guid CreatedBy { get; set; }
 
     public virtual ICollection<Chapter> Chapters { get; set; } = new List<Chapter>();
 

@@ -72,6 +72,4 @@ public partial class AppUser
     public virtual Commune? Commune { get; set; }
 
     public virtual ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
-
-    public virtual ICollection<AppRole> Roles { get; set; } = new List<AppRole>();
 }

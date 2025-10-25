@@ -222,25 +222,54 @@ namespace StudyHub.Backend.Api.Controllers
                     Description = dto.Description?.Trim() ?? "",
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = dto.CreatedBy,
-                    
                     AppUser = _aUserService.GetUserById(dto.CreatedBy)
-                    
                 };
 
                 var createdNoti = _service.CreateNotification(notificationEntity);
+
+                // --- xử lý file uploads (nhiều file) ---
                 if (dto.Files != null)
                 {
-                    var url = _service.UploadFileToCloudinary(dto.Files);
-                    var files = _service.CreateFile(new ClassNotificationFile
-                    {
-                        NotificationId = createdNoti.Id,
-                        FileName = dto.Files.FileName,
-                        FileUrl = url.Result.ToString()
-                    });
+                    
+
+                        // UploadFileToCloudinary phải chấp nhận IFormFile (nếu hiện tại nhận Stream hoặc byte[] thì điều chỉnh)
+                        var url = await _service.UploadFileToCloudinary(dto.Files);
+                        _service.CreateFile(new ClassNotificationFile
+                        {
+                            NotificationId = createdNoti.Id,
+                            FileName = dto.Files.FileName,
+                            FileUrl = url.ToString()
+                        });
+                    
                 }
-                
 
+                // --- xử lý links (không upload, chỉ lưu url/title/thumbnail nếu có) ---
+                if (!string.IsNullOrWhiteSpace(dto.LinksJson))
+                {
+                    try
+                    {
+                        var links = System.Text.Json.JsonSerializer.Deserialize<List<LinkItem>>(dto.LinksJson);
+                        if (links != null)
+                        {
+                            foreach (var l in links)
+                            {
+                                if (string.IsNullOrWhiteSpace(l?.Url)) continue;
 
+                                _service.CreateFile(new ClassNotificationFile
+                                {
+                                    NotificationId = createdNoti.Id,
+                                    FileName = !string.IsNullOrWhiteSpace(l.Title) ? l.Title : l.Url,
+                                    FileUrl = l.Url
+                                    // nếu bạn có cột để lưu thumbnail/types, cập nhật tương ứng ở đây
+                                });
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // nếu JSON không parse được thì bỏ qua (hoặc log)
+                    }
+                }
 
                 return Ok(new
                 {

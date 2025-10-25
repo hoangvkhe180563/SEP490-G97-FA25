@@ -8,5 +8,12 @@
         public Guid CreatedBy { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public IFormFile? Files { get; set; }
+        public string? LinksJson { get; set; }
+    }
+    public class LinkItem
+    {
+        public string Url { get; set; } = string.Empty;
+        public string? Title { get; set; }
+        public string? Thumbnail { get; set; }
     }
 }
