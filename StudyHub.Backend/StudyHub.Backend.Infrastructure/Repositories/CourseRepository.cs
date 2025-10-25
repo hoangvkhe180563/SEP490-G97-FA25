@@ -15,68 +15,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             _context = context;
         }
 
-        public List<Course> GetAllCourses()
-        {
-            try
-            {
-                return _context.Courses
-                    .Include(c => c.Chapters)
-                    .Select(c => new Course
-                    {
-                        Id = c.Id,
-                        Name = c.Name,
-                        Information = c.Information,
-                        ImageUrl = c.ImageUrl,
-                        Price = c.Price,
-                        Grade = c.Grade,
-                        SubjectId = c.SubjectId,
-                        SchoolId = c.SchoolId,
-                        IsFeatured = c.IsFeatured,
-                        Status = c.Status,
-                        CreatedAt = c.CreatedAt,
-                        CreatedBy = c.CreatedBy,
-                        UpdatedAt = c.UpdatedAt,
-                        UpdatedBy = c.UpdatedBy,
-                        DeletedAt = c.DeletedAt,
-                        Chapters = c.Chapters.Select(ch => new Domain.Entities.Chapter
-                        {
-                            Id = ch.Id,
-                            Name = ch.Name,
-                            CourseId = ch.CourseId,
-                            Status = ch.Status,
-                            Description = ch.Description,
-                            PostDate = ch.PostDate,
-                            Lessons = ch.Lessons.Select(l => new Lesson
-                            {
-                                Id = l.Id,
-                                Name = l.Name,
-                                ChapterId = l.ChapterId,
-                                Status = l.Status,
-                                Type = l.Type,
-                                LessonReading = l.LessonReading == null ? null : new LessonReading
-                                {
-                                    Content = l.LessonReading.Content
-                                },
-                                LessonVideo = l.LessonVideo == null ? null : new LessonVideo
-                                {
-                                    Url = l.LessonVideo.Url
-                                },
-                                Duration = l.Duration,
-                                Description = l.Description,
-                                PostDate = l.PostDate,
-                                IsPreview = l.IsPreview
-                            }).ToList()
-                        }).ToList()
-
-                    }).ToList();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("CourseRepository", "GetAllCourses failed. Inner error: " + ex.Message).LogError();
-                return new List<Course>();
-            }
-        }
-
         public Course? GetCourseById(int id)
         {
             try
@@ -103,13 +41,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     CreatedBy = c.CreatedBy,
                     UpdatedAt = c.UpdatedAt,
                     UpdatedBy = c.UpdatedBy,
-                    DeletedAt = c.DeletedAt,
+                    StartAt = c.StartAt,
+                    EndAt = c.EndAt,
                     Chapters = c.Chapters.Select(ch => new Domain.Entities.Chapter
                     {
                         Id = ch.Id,
                         Name = ch.Name,
                         CourseId = ch.CourseId,
-                        Status = ch.Status,
                         Description = ch.Description,
                         PostDate = ch.PostDate,
                         Lessons = ch.Lessons.Select(l => new Lesson
@@ -117,7 +55,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                             Id = l.Id,
                             Name = l.Name,
                             ChapterId = l.ChapterId,
-                            Status = l.Status,
                             Type = l.Type,
                             LessonReading = l.LessonReading == null ? null : new LessonReading
                             {
@@ -130,7 +67,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                             Duration = l.Duration,
                             Description = l.Description,
                             PostDate = l.PostDate,
-                            IsPreview = l.IsPreview
+                            IsPreview = l.IsPreview,
+                            ResourceId = l.ResourceId,
                         }).ToList()
                     }).ToList()
 
@@ -157,8 +95,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     SubjectId = course.SubjectId,
                     SchoolId = course.SchoolId,
                     IsFeatured = course.IsFeatured,
-                    Status = course.Status ?? true,
+                    Status = course.Status,
                     CreatedAt = DateTime.UtcNow,
+                    StartAt = course.StartAt,
+                    EndAt = course.EndAt,
                     CreatedBy = course.CreatedBy,
                 };
 
@@ -191,6 +131,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.SchoolId = course.SchoolId;
                 entity.IsFeatured = course.IsFeatured;
                 entity.Status = course.Status;
+                entity.StartAt = course.StartAt;
+                entity.EndAt = course.EndAt;
                 entity.UpdatedAt = DateTime.UtcNow;
                 entity.UpdatedBy = course.UpdatedBy;
 
@@ -237,7 +179,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var courses = _context.Courses.Include(c => c.Subject).Where(c => c.SchoolId == schoolId && c.Status == true)
+                var courses = _context.Courses.Include(c => c.Subject).Where(c => c.SchoolId == schoolId && c.Status.Equals("M?"))
                     .Select(c => new Course
                     {
                         Id = c.Id,
@@ -245,7 +187,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         ImageUrl = c.ImageUrl,
                         Grade = c.Grade,
                         IsFeatured = c.IsFeatured,
-                        Subject = c.Subject != null ? new Subject { Id = c.Subject.Id, Name = c.Subject.Name } : null,
+                        Subject = new Subject { Id = c.Subject.Id, Name = c.Subject.Name }
                     })
                     .ToList();
                 return courses;
@@ -257,7 +199,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return [];
         }
 
-        public PagedResult<Course> SearchCourses(CourseQueryParams query)
+        public PagedResult<Course> GetAllCourses(CourseQueryParams query)
         {
             try
             {
@@ -291,8 +233,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 //    q = q.Where(c => c.Duration == query.Duration);
                 //}
 
-                if (query.Status.HasValue)
-                    q = q.Where(c => c.Status == query.Status.Value);
+                if (string.IsNullOrEmpty(query.Status))
+                    q = q.Where(c => c.Status.Equals(query.Status));
 
                 if (query.IsFeatured.HasValue)
                     q = q.Where(c => c.IsFeatured == query.IsFeatured.Value);
@@ -320,23 +262,54 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 var items = q.Skip((page - 1) * pageSize)
                     .Take(pageSize)
-                    .Select(c => new Course
-                    {
-                        Id = c.Id,
-                        Name = c.Name,
-                        Information = c.Information,
-                        ImageUrl = c.ImageUrl,
-                        Price = c.Price,
-                        Grade = c.Grade,
-                        SubjectId = c.SubjectId,
-                        SchoolId = c.SchoolId,
-                        IsFeatured = c.IsFeatured,
-                        Status = c.Status,
-                        CreatedAt = c.CreatedAt,
-                        CreatedBy = c.CreatedBy,
-                        UpdatedAt = c.UpdatedAt,
-                        UpdatedBy = c.UpdatedBy,
-                    }).ToList();
+                   .Select(c => new Course
+                   {
+                       Id = c.Id,
+                       Name = c.Name,
+                       Information = c.Information,
+                       ImageUrl = c.ImageUrl,
+                       Price = c.Price,
+                       Grade = c.Grade,
+                       SubjectId = c.SubjectId,
+                       SchoolId = c.SchoolId,
+                       IsFeatured = c.IsFeatured,
+                       Status = c.Status,
+                       CreatedAt = c.CreatedAt,
+                       CreatedBy = c.CreatedBy,
+                       UpdatedAt = c.UpdatedAt,
+                       UpdatedBy = c.UpdatedBy,
+                       StartAt = c.StartAt,
+                       EndAt = c.EndAt,
+                       Chapters = c.Chapters.Select(ch => new Domain.Entities.Chapter
+                       {
+                           Id = ch.Id,
+                           Name = ch.Name,
+                           CourseId = ch.CourseId,
+                           Description = ch.Description,
+                           PostDate = ch.PostDate,
+                           Lessons = ch.Lessons.Select(l => new Lesson
+                           {
+                               Id = l.Id,
+                               Name = l.Name,
+                               ChapterId = l.ChapterId,
+                               Type = l.Type,
+                               LessonReading = l.LessonReading == null ? null : new LessonReading
+                               {
+                                   Content = l.LessonReading.Content
+                               },
+                               LessonVideo = l.LessonVideo == null ? null : new LessonVideo
+                               {
+                                   Url = l.LessonVideo.Url
+                               },
+                               Duration = l.Duration,
+                               Description = l.Description,
+                               PostDate = l.PostDate,
+                               IsPreview = l.IsPreview,
+                               ResourceId = l.ResourceId,
+                           }).ToList()
+                       }).ToList()
+
+                   }).ToList();
 
                 return new PagedResult<Course>
                 {
@@ -349,7 +322,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                new InfrastructureException("CourseRepository", "SearchCourses failed. Inner error: " + ex.Message).LogError();
+                new InfrastructureException("CourseRepository", "GetAllCourses failed. Inner error: " + ex.Message).LogError();
                 return new PagedResult<Course>();
             }
         }

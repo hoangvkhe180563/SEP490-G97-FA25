@@ -75,35 +75,36 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
         public List<AppUser> GetAllTeacher()
         {
-            var teacherRole = _context.AppClaims
-                .Include(r => r.User)
-                .Include(a=>a.Role)
-                .Where(r => r.Role.Name.Equals("Teacher"));
+            var teachers = _context.AppClaims
+                .Where(c => c.Role.Name.Contains("Teacher"))
+                .Select(c => c.User)
+                .Distinct()
+                .ToList();
 
-            if (teacherRole == null)
+            if (teachers == null)
             {
                 return new List<AppUser>();
             }
 
-            return teacherRole
-                .Select(infraUser => new AppUser 
+            return teachers
+                .Select(infraUser => new AppUser
                 {
-                    Id = infraUser.User.Id,
-                    Email = infraUser.User.Email,
-                    Username = infraUser.User.Username,
-                    Fullname = infraUser.User.Fullname,
-                    Dob = infraUser.User.Dob,
-                    Gender = (bool)infraUser.User.Gender,
-                    SchoolId = infraUser.User.SchoolId,
-                    Address = infraUser.User.Address,
-                    CommuneId = infraUser.User.CommuneId,
-                    PhoneNumber = infraUser.User.PhoneNumber,
-                    Wallet = infraUser.User.Wallet,
-                    IsVerified = infraUser.User.IsVerified,
-                    IsLoginWithGoogle = infraUser.User.IsLoginWithGoogle,
-                    RefreshToken = infraUser.User.RefreshToken,
-                    Status = infraUser.User.Status,
-                    RefreshTokenExpire = infraUser.User.RefreshTokenExpire
+                    Id = infraUser.Id,
+                    Email = infraUser.Email,
+                    Username = infraUser.Username,
+                    Fullname = infraUser.Fullname,
+                    Dob = infraUser.Dob,
+                    Gender = (bool)infraUser.Gender,
+                    SchoolId = infraUser.SchoolId,
+                    Address = infraUser.Address,
+                    CommuneId = infraUser.CommuneId,
+                    PhoneNumber = infraUser.PhoneNumber,
+                    Wallet = infraUser.Wallet,
+                    IsVerified = infraUser.IsVerified,
+                    IsLoginWithGoogle = infraUser.IsLoginWithGoogle,
+                    RefreshToken = infraUser.RefreshToken,
+                    Status = infraUser.Status,
+                    RefreshTokenExpire = infraUser.RefreshTokenExpire
                 })
                 .ToList();
         }

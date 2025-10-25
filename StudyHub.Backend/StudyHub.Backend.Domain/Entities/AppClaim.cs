@@ -13,8 +13,8 @@ public class AppClaim
 
     public int ClassId { get; set; }
 
-    public Class? Class { get; set; }
-    public AppRole? Role { get; set; }
-    public Subject? Subject { get; set; }
-    public AppUser? User { get; set; }
+    public Class Class { get; set; } = null!;
+    public AppRole Role { get; set; } = null!;
+    public Subject Subject { get; set; } = null!;
+    public AppUser User { get; set; } = null!;
 }

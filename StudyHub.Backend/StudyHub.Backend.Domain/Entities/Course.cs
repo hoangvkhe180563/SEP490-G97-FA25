@@ -20,18 +20,12 @@ public class Course : IAuditTrail
 
     public bool IsFeatured { get; set; }
 
-    public bool? Status { get; set; }
+    public string Status { get; set; } = null!; 
+    public DateTime StartAt { get; set; }
+    public DateTime EndAt { get; set; }
 
-    public DateTime CreatedAt { get; set; }
-
-    public Guid CreatedBy { get; set; }
-
-    public DateTime? UpdatedAt { get; set; }
-
-    public Guid? UpdatedBy { get; set; }
-
-    public DateTime? DeletedAt { get; set; }
+    public Subject Subject { get; set; } = null!;
 
     public List<Chapter> Chapters { get; set; } = new();
-    public Subject? Subject { get; set; }
+    public List<Enrollment> Enrollments { get; set; } = new();
 }

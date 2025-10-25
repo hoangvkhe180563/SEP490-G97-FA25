@@ -127,13 +127,12 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.ResourceId, "ResourceId");
 
-            entity.Property(e => e.ResourceId).HasColumnType("int(11)");
             entity.Property(e => e.ActionType).HasMaxLength(100);
             entity.Property(e => e.Condition).HasMaxLength(256);
             entity.Property(e => e.Description)
                 .HasMaxLength(256)
-                .UseCollation("utf8_general_ci")
-                .HasCharSet("utf8");
+                .UseCollation("utf8mb3_general_ci")
+                .HasCharSet("utf8mb3");
 
             entity.HasOne(d => d.Resource).WithMany(p => p.AppPolicies)
                 .HasForeignKey(d => d.ResourceId)
@@ -454,16 +453,12 @@ public partial class AppDbContext : DbContext
                 .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.EndAt).HasColumnType("datetime");
-            entity.Property(e => e.Grade).HasColumnType("tinyint(4)");
             entity.Property(e => e.Information).HasMaxLength(1000);
             entity.Property(e => e.Name).HasMaxLength(200);
-            entity.Property(e => e.Price).HasColumnType("int(10) unsigned");
-            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
             entity.Property(e => e.StartAt).HasColumnType("datetime");
             entity.Property(e => e.Status)
                 .HasDefaultValueSql("'Mở'")
                 .HasColumnType("enum('Mở','Đóng','Nháp')");
-            entity.Property(e => e.SubjectId).HasColumnType("smallint(6)");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.Subject).WithMany(p => p.Courses)
@@ -619,14 +614,11 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.ResourceId, "ResourceId");
 
-            entity.Property(e => e.Id).HasColumnType("int(11)");
-            entity.Property(e => e.ChapterId).HasColumnType("int(11)");
             entity.Property(e => e.Description).HasColumnType("text");
             entity.Property(e => e.Duration).HasMaxLength(100);
             entity.Property(e => e.IsPreview).HasDefaultValueSql("'0'");
             entity.Property(e => e.Name).HasMaxLength(255);
             entity.Property(e => e.PostDate).HasColumnType("datetime");
-            entity.Property(e => e.ResourceId).HasColumnType("int(11)");
             entity.Property(e => e.Type)
                 .HasDefaultValueSql("'Video'")
                 .HasColumnType("enum('Reading','Video','Exam')");
@@ -662,8 +654,6 @@ public partial class AppDbContext : DbContext
             entity.HasKey(e => e.Id).HasName("PRIMARY");
 
             entity.ToTable("lesson_resource");
-
-            entity.Property(e => e.Id).HasColumnType("int(11)");
         });
 
         modelBuilder.Entity<LessonVideo>(entity =>

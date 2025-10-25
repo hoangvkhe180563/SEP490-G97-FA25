@@ -13,7 +13,6 @@ namespace StudyHub.Backend.Api.Mappers
             Id = ch.Id,
             Name = ch.Name,
             CourseId = ch.CourseId,
-            Status = ch.Status,
             Lessons = ch.Lessons?.Select(l => l.ToListDto()).ToList() ?? new List<LessonListDto>(),
             Description = ch.Description,
             PostDate = ch.PostDate,
@@ -27,7 +26,6 @@ namespace StudyHub.Backend.Api.Mappers
             Id = l.Id,
             Name = l.Name,
             ChapterId = l.ChapterId,
-            Status = l.Status,
             Type = l.Type,
             VideoUrl = l.LessonVideo?.Url,
             ReadingContent = l.LessonReading?.Content,
@@ -44,7 +42,6 @@ namespace StudyHub.Backend.Api.Mappers
         {
             Name = ch.Name,
             CourseId = ch.CourseId,
-            Status = ch.Status,
             Lessons = ch.Lessons?.Select(l => l.ToDto()).ToList() ?? new List<LessonDto>(),
             Description = ch.Description,
             PostDate = ch.PostDate,
@@ -57,7 +54,6 @@ namespace StudyHub.Backend.Api.Mappers
         {
             Name = l.Name,
             ChapterId = l.ChapterId,
-            Status = l.Status,
             Type = l.Type,
             VideoUrl = l.LessonVideo?.Url,
             ReadingContent = l.LessonReading?.Content,
@@ -74,7 +70,6 @@ namespace StudyHub.Backend.Api.Mappers
         {
             Name = dto.Name,
             CourseId = dto.CourseId,
-            Status = dto.Status,
             Lessons = dto.Lessons?.Select(l => l.ToEntity()).ToList() ?? new List<Lesson>(),
             Description = dto.Description,
             PostDate = dto.PostDate
@@ -88,7 +83,6 @@ namespace StudyHub.Backend.Api.Mappers
             Id = dto.Id,
             Name = dto.Name,
             CourseId = dto.CourseId,
-            Status = dto.Status,
             Lessons = dto.Lessons?.Select(l => l.ToEntity()).ToList() ?? new List<Lesson>(),
             Description = dto.Description,
             PostDate = dto.PostDate
@@ -103,7 +97,6 @@ namespace StudyHub.Backend.Api.Mappers
             {
                 Name = dto.Name,
                 ChapterId = dto.ChapterId,
-                Status = dto.Status,
                 Type = dto.Type,
                 LessonVideo = !string.IsNullOrEmpty(dto.VideoUrl) ? new LessonVideo { Url = dto.VideoUrl } : null,
                 LessonReading = !string.IsNullOrEmpty(dto.ReadingContent) ? new LessonReading { Content = dto.ReadingContent } : null,
@@ -132,7 +125,6 @@ namespace StudyHub.Backend.Api.Mappers
                 Id = dto.Id,
                 Name = dto.Name,
                 ChapterId = dto.ChapterId,
-                Status = dto.Status,
                 Type = dto.Type,
                 LessonVideo = !string.IsNullOrEmpty(dto.VideoUrl) ? new LessonVideo { Url = dto.VideoUrl } : null,
                 LessonReading = !string.IsNullOrEmpty(dto.ReadingContent) ? new LessonReading { Content = dto.ReadingContent } : null,

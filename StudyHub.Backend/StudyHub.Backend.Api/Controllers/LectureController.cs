@@ -57,7 +57,6 @@ namespace StudyHub.Backend.Api.Controllers
 
             existing.Name = ch.Name;
             existing.CourseId = ch.CourseId;
-            existing.Status = ch.Status;
             existing.Description = ch.Description;
             existing.PostDate = ch.PostDate;
 
@@ -118,7 +117,6 @@ namespace StudyHub.Backend.Api.Controllers
 
             existing.Name = l.Name;
             existing.Type = l.Type;
-            existing.Status = l.Status;
             existing.Duration = l.Duration;
             existing.Description = l.Description;
             existing.PostDate = l.PostDate;

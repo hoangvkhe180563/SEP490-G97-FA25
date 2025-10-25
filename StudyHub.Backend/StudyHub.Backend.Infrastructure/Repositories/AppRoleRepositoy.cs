@@ -21,47 +21,34 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public List<Domain.Entities.AppRole> GetRolesForUser(Guid userId)
         {
-            var roles = new List<Domain.Entities.AppRole>();
-
-            var primaryRole = _context.AppRoles.Include(r => r.Users).FirstOrDefault(r => r.Users.Any(u => u.Id == userId));
-            if (primaryRole != null)
-            {
-                roles.Add(new Domain.Entities.AppRole
-                {
-                    Id = primaryRole.Id,
-                    Name = primaryRole.Name
-                });
-            }
-
-            var extraRoleIds = _context.AppClaims
-                .Where(c => c.UserId == userId)
-                .Select(c => c.RoleId)
+            var roles = _context.AppClaims
+                .Where(ac => ac.UserId == userId)
+                .Include(ac => ac.Role)
                 .Distinct()
-                .ToList();
-            foreach (var rid in extraRoleIds)
-            {
-                if (roles.Any(r => r.Id == rid)) continue;
-                var r = _context.AppRoles.Find(rid);
-                if (r == null) continue;
-                roles.Add(new Domain.Entities.AppRole
+                .Select(ac => new Domain.Entities.AppRole
                 {
-                    Id = r.Id,
-                    Name = r.Name
-                });
-            }
-
+                    Id = ac.Role.Id,
+                    Name = ac.Role.Name
+                })
+                .ToList();
             foreach (var role in roles)
             {
-                var perms = _context.AppPermissions.Where(p => p.RoleId == role.Id).ToList();
-                foreach (var p in perms)
+                var policies = _context.AppPolicies.Where(p => p.RoleId == role.Id).ToList();
+                foreach (var p in policies)
                 {
-                    role.AppPermissions.Add(new Domain.Entities.AppPermission
+                    role.AppPolicies.Add(new Domain.Entities.AppPolicy
                     {
                         RoleId = p.RoleId,
                         ResourceId = p.ResourceId,
-                        ActionId = p.ActionId,
-                        Action = p.Action == null ? null : new Domain.Entities.AppAction { Id = p.Action.Id, Name = p.Action.Name },
-                        Resource = p.Resource == null ? null : new Domain.Entities.AppResource { Id = p.Resource.Id, Name = p.Resource.Name }
+                        ActionType = p.ActionType,
+                        Condition = p.Condition,
+                        Description = p.Description,
+                        Resource = new Domain.Entities.AppResource
+                        {
+                            Id = p.Resource.Id,
+                            Name = p.Resource.Name,
+                            ResourceType = p.Resource.ResourceType
+                        }
                     });
                 }
             }

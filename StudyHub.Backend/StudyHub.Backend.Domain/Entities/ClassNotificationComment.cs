@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace StudyHub.Backend.Domain.Entities
 {
-    public class ClassNotificationComment:IAuditTrail
+    public class ClassNotificationComment
     {
         public int Id { get; set; }
 
@@ -15,11 +15,10 @@ namespace StudyHub.Backend.Domain.Entities
         public Guid AppUserId { get; set; }
 
         public string Content { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
 
-       
+        public DateTime? UpdatedAt { get; set; }
 
-        public virtual AppUser AppUser { get; set; } = null!;
-
-        public virtual ClassNotification Notification { get; set; } = null!;
+        public DateTime? DeletedAt { get; set; }
     }
 }
