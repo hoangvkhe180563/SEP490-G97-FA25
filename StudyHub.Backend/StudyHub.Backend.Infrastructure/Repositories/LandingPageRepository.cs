@@ -101,7 +101,15 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                return []; //TODO: add db column
+                List<Guid> teacherRoleIds = _context.AppRoles.Where(r => r.Name.Contains("Teacher")).Select(r => r.Id).ToList();
+                return _context.AppUsers.Where(u => u.AppClaims.Any(c => teacherRoleIds.Contains(c.RoleId)) && u.SchoolId == schoolId && u.Status == true && u.IsVerified == true)
+                    .Select(u => new Domain.Entities.AppUser
+                    {
+                        Fullname = u.Fullname,
+                        Avatar = u.Avatar,
+                    })
+                    .Take(5)
+                    .ToList();
             }
             catch (Exception ex)
             {
