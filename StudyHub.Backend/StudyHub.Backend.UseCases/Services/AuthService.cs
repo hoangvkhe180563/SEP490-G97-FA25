@@ -76,8 +76,8 @@ namespace StudyHub.Backend.UseCases.Services
             List<string> permissions = new List<string>();
             if (roles != null)
             {
-                permissions = roles.SelectMany(r => r.AppPermissions ?? new List<AppPermission>())
-                                    .Select(p => (p.Resource?.Name ?? p.ResourceId.ToString()) + ":" + (p.Action?.Name ?? p.ActionId.ToString()))
+                permissions = roles.SelectMany(r => r.AppPolicies ?? new List<AppPolicy>())
+                                    .Select(p => (p.Resource?.Name ?? p.ResourceId.ToString()) + ":" + (p.ActionType))
                                     .Distinct()
                                     .ToList();
             }
@@ -285,7 +285,7 @@ namespace StudyHub.Backend.UseCases.Services
                 },
                 User = user,
                 Roles = roles?.Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList() ?? new List<string>(),
-                Permissions = roles != null ? roles.SelectMany(r => r.AppPermissions ?? new List<AppPermission>()).Select(p => (p.Resource?.Name ?? p.ResourceId.ToString()) + ":" + (p.Action?.Name ?? p.ActionId.ToString())).Distinct().ToList() : new List<string>(),
+                Permissions = roles != null ? roles.SelectMany(r => r.AppPolicies ?? new List<AppPolicy>()).Select(p => (p.Resource?.Name ?? p.ResourceId.ToString()) + ":" + (p.ActionType)).Distinct().ToList() : new List<string>(),
                 SubjectIds = userClaims != null ? userClaims.Where(c => c.SubjectId > 0).Select(c => c.SubjectId).Distinct().ToList() : new List<short>(),
                 ClassIds = userClaims != null ? userClaims.Where(c => c.ClassId > 0).Select(c => c.ClassId).Distinct().ToList() : new List<int>()
             };
@@ -372,8 +372,8 @@ namespace StudyHub.Backend.UseCases.Services
                 List<string> permissions = new List<string>();
                 if (roles != null)
                 {
-                    permissions = roles.SelectMany(r => r.AppPermissions ?? new List<AppPermission>())
-                                        .Select(p => (p.Resource?.Name ?? p.ResourceId.ToString()) + ":" + (p.Action?.Name ?? p.ActionId.ToString()))
+                    permissions = roles.SelectMany(r => r.AppPolicies ?? new List<AppPolicy>())
+                                        .Select(p => (p.Resource?.Name ?? p.ResourceId.ToString()) + ":" + (p.ActionType))
                                         .Distinct()
                                         .ToList();
                 }
@@ -560,8 +560,8 @@ namespace StudyHub.Backend.UseCases.Services
             List<string> permissions = new List<string>();
             if (roles != null)
             {
-                permissions = roles.SelectMany(r => r.AppPermissions ?? new List<AppPermission>())
-                                    .Select(p => (p.Resource?.Name ?? p.ResourceId.ToString()) + ":" + (p.Action?.Name ?? p.ActionId.ToString()))
+                permissions = roles.SelectMany(r => r.AppPolicies ?? new List<AppPolicy>())
+                                    .Select(p => (p.Resource?.Name ?? p.ResourceId.ToString()) + ":" + (p.ActionType))
                                     .Distinct()
                                     .ToList();
             }

@@ -127,6 +127,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 var extension = Path.GetExtension(url).ToLowerInvariant();
 
                 var resourceType = FileConstants.AllowedImageExtensions.Contains(extension) ? ResourceType.Image : ResourceType.Raw;
+                if (resourceType == ResourceType.Image)
+                {
+                    return await DeleteImageAsync(url);
+                }
 
                 var deletionParams = new DeletionParams(publicId)
                 {

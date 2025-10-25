@@ -11,7 +11,5 @@ public partial class AppRole
 
     public virtual ICollection<AppClaim> AppClaims { get; set; } = new List<AppClaim>();
 
-    public virtual ICollection<AppPermission> AppPermissions { get; set; } = new List<AppPermission>();
-
-    public virtual ICollection<AppUser> Users { get; set; } = new List<AppUser>();
+    public virtual ICollection<AppPolicy> AppPolicies { get; set; } = new List<AppPolicy>();
 }

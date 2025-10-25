@@ -8,7 +8,7 @@ namespace StudyHub.Backend.Api.Dtos.AppUserDTOS
     {
         public Guid Id { get; set; }
         public string Email { get; set; } = null!;
-        public string Username { get; set; } = null!;
+        public string? Username { get; set; }
         public string? Fullname { get; set; }
         // Gender friendly string: "Male" or "Female"
         public string? Gender { get; set; }

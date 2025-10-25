@@ -3,15 +3,17 @@ using System.Collections.Generic;
 
 namespace StudyHub.Backend.Infrastructure.Data;
 
-public partial class AppPermission
+public partial class AppPolicy
 {
     public Guid RoleId { get; set; }
 
     public int ResourceId { get; set; }
 
-    public int ActionId { get; set; }
+    public string ActionType { get; set; } = null!;
 
-    public virtual AppAction Action { get; set; } = null!;
+    public string? Condition { get; set; }
+
+    public string? Description { get; set; }
 
     public virtual AppResource Resource { get; set; } = null!;
 
