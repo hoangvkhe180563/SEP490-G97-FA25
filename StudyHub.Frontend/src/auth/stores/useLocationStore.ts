@@ -29,7 +29,7 @@ const useLocationStore = create<LocationState>()(
         set({ isLoading: true });
         try {
           const response = await axiosInstance.get(
-            `/Location/provinces?cityId=${id}`
+            `/Location/cities/${id}/provinces`
           );
           const { data } = response;
           set({ provinces: data });
@@ -44,7 +44,7 @@ const useLocationStore = create<LocationState>()(
         set({ isLoading: true });
         try {
           const response = await axiosInstance.get(
-            `/Location/communes?provinceId=${id}`
+            `/Location/provinces/${id}/communes`
           );
           const { data } = response;
           set({ communes: data });
@@ -55,10 +55,12 @@ const useLocationStore = create<LocationState>()(
         }
       },
       schools: [],
-      fetchSchools: async () => {
+      fetchSchools: async (id: number) => {
         set({ isLoading: true });
         try {
-          const response = await axiosInstance.get("/Location/schools");
+          const response = await axiosInstance.get(
+            `/Location/communes/${id}/schools`
+          );
           const { data } = response;
           set({ schools: data });
         } catch (error) {

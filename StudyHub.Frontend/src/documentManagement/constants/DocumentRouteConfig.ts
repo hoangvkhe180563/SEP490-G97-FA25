@@ -21,6 +21,6 @@ const DocumentRouteConfig = {
     INFO: "doc-info/:id",
     DOCUMENTS: "documents",
   },
-}
+};
 
 export default DocumentRouteConfig;

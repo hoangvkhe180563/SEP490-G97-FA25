@@ -58,6 +58,7 @@ namespace StudyHub.Backend.Api.Mappers
             IsApproved = d.IsApproved,
             Status = d.Status ?? true,
             FileType = GetFileType(d.DocumentUrl),
+            UploaderName = d.Username?.Fullname ?? d.Username?.Username,
             classes = d.Classes?.Select(c => new ClassListDto
             {
                 Id = c.Id,
@@ -75,7 +76,7 @@ namespace StudyHub.Backend.Api.Mappers
             SchoolId = dto.SchoolId,
             IsInClass = dto.IsInClass ?? false,
             IsFeatured = dto.IsFeatured,
-            CreatedBy = dto.CreatedBy
+            //CreatedBy = dto.CreatedBy
         };
 
         public static Document ToEntity(this UpdateDocumentDto dto) => new Document
@@ -89,7 +90,7 @@ namespace StudyHub.Backend.Api.Mappers
             SchoolId = dto.SchoolId,
             IsInClass = dto.IsInClass ?? false,
             IsFeatured = dto.IsFeatured,
-            UpdatedBy = dto.UpdatedBy
+            //UpdatedBy = dto.UpdatedBy
         };
 
         private static string? GetFileType(string? documentUrl)

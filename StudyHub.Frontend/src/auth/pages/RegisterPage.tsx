@@ -88,6 +88,7 @@ export default function RegisterPage() {
       // clear provinces/communes by fetching with invalid id (backend should return empty)
       await fetchProvinces(0);
       await fetchCommunes(0);
+      await fetchSchools(0);
     }
   };
 
@@ -95,16 +96,22 @@ export default function RegisterPage() {
     const id = Number(e.target.value);
     setValue("communeId", 0);
     if (id) await fetchCommunes(id);
-    else await fetchCommunes(0);
+    else {
+      await fetchCommunes(0);
+      await fetchSchools(0);
+    }
   };
 
-  const onCommuneChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const onCommuneChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = Number(e.target.value);
     setValue("communeId", id);
+    if (id) await fetchSchools(id);
+    else await fetchSchools(0);
   };
 
-  const onSchoolFocus = async () => {
-    if (!schools || schools.length === 0) await fetchSchools();
+  const onSchoolChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = Number(e.target.value);
+    setValue("schoolId", id);
   };
 
   const onSubmit = async (data: RegisterValues) => {
@@ -289,10 +296,7 @@ export default function RegisterPage() {
                   Trường
                 </label>
                 <select
-                  onFocus={onSchoolFocus}
-                  onChange={(e) =>
-                    setValue("schoolId", Number(e.target.value) || undefined)
-                  }
+                  onChange={onSchoolChange}
                   className="mt-1 block w-full rounded border-gray-300 py-2 px-3"
                 >
                   <option value="">Chọn trường (tùy chọn)</option>

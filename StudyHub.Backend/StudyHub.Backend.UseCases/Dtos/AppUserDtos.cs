@@ -16,4 +16,15 @@ namespace StudyHub.Backend.UseCases.Dtos
         public string CreatedAt { get; set; } = null!; // yyyy/MM/dd
         public List<string> Roles { get; set; } = new();
     }
+    public class UserInfoDtos
+    {
+        public Guid Id { get; set; }
+        public string Email { get; set; } = null!;
+        public string Username { get; set; } = null!;
+        public List<string> Roles { get; set; } = new();
+        public List<string> Permissions { get; set; } = new();
+        public List<int> ClassIds { get; set; } = new();
+        public List<short> SubjectIds { get; set; } = new();
+        public int? SchoolId { get; set; }
+    }
 }

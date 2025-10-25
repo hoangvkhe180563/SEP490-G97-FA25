@@ -19,6 +19,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         bool DeleteClass(int id);
         Class? GetClassDetailById(int id);
         List<ClassMember> GetClassMembers(int classId);
+        List<Class> GetClassByUserId(Guid userid);
         List<ClassNotification> GetClassNotifications(int classId);
         ClassNotification CreateNotification(ClassNotification notification);
         List<ClassNotification> GetNotificationsByClassId(int classId);

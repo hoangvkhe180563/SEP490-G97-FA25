@@ -18,7 +18,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             _context = context;
         }
-        public  Class CreateClass(Class classEntity)
+        public Class CreateClass(Class classEntity)
         {
             try
             {
@@ -34,11 +34,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 _context.SaveChanges();
                 return classEntity;
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 new InfrastructureException("ClassRepository", "Create failed. Inner error: " + ex.Message).LogError();
                 return new Class { };
             }
-           
+
         }
 
 
@@ -47,7 +48,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             throw new NotImplementedException();
         }
 
-         public List<Class> GetAllClasses()
+        public List<Class> GetAllClasses()
         {
             // Chỉ trả về các Class entity
             return _context.Classes.Where(c => c.DeletedAt == null).Select(c => new Class
@@ -109,8 +110,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public Class? GetClassById(int id)
         {
-            var clas = _context.Classes.FirstOrDefault(c=>c.Id == id);
-            return clas==null?null: new Class
+            var clas = _context.Classes.FirstOrDefault(c => c.Id == id);
+            return clas == null ? null : new Class
             {
                 Id = id,
                 Name = clas.Name,
@@ -131,11 +132,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public Class UpdateClass(Class classEntity)
         {
-            var clas= _context.Classes.FirstOrDefault(c=>c.Id == classEntity.Id); 
-            clas.Name= classEntity.Name;
-            clas.Description= classEntity.Description;
-            clas.UpdatedAt= classEntity.UpdatedAt;
-            clas.SubjectId= classEntity.SubjectId;
+            var clas = _context.Classes.FirstOrDefault(c => c.Id == classEntity.Id);
+            clas.Name = classEntity.Name;
+            clas.Description = classEntity.Description;
+            clas.UpdatedAt = classEntity.UpdatedAt;
+            clas.SubjectId = classEntity.SubjectId;
 
             _context.Classes.Update(clas);
             _context.SaveChanges();

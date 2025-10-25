@@ -53,8 +53,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    .Where(d => d.DeletedAt == null && d.SchoolId == null && d.IsApproved == true);
-
+                    .Where(d => d.DeletedAt == null && d.SchoolId == null && d.IsInClass == false && d.IsApproved == true);
                 return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, null, null, pageNumber, pageSize, true);
             }
             catch (Exception ex)
@@ -75,8 +74,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    .Where(d => d.DeletedAt == null && d.SchoolId == schoolId && d.IsApproved == true);
-
+                    .Where(d => d.DeletedAt == null && d.SchoolId == schoolId && d.IsInClass == false && d.IsApproved == true);
                 return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, null, null, pageNumber, pageSize, true);
             }
             catch (Exception ex)
@@ -119,9 +117,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    .Where(d => d.DeletedAt == null && d.SchoolId == null);
-
-                return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize, false);
+                    .Where(d => d.DeletedAt == null && d.SchoolId == null && d.IsInClass == false);
+                return ExecuteManagerQuery(dbQuery, query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
             }
             catch (Exception ex)
             {
@@ -141,9 +138,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    .Where(d => d.DeletedAt == null && d.SchoolId == schoolId);
+                    .Where(d => d.DeletedAt == null && d.SchoolId == schoolId && d.IsInClass == false);
 
-                return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize, false);
+                return ExecuteManagerQuery(dbQuery, query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
             }
             catch (Exception ex)
             {
@@ -152,6 +149,102 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
+        private (List<Document>, int) ExecuteManagerQuery(
+            IQueryable<Data.Document> dbQuery, string? query, int? categoryId, int? grade,
+            string? subject, int? classId, bool? isApproved, bool? status,
+            int? pageNumber, int? pageSize)
+        {
+            dbQuery = ApplyManagerFilters(dbQuery, query, categoryId, grade, subject, classId, isApproved, status);
+            var totalCount = dbQuery.Count();
+
+            dbQuery = dbQuery.OrderByDescending(d => d.CreatedAt);
+
+            if (pageNumber.HasValue && pageSize.HasValue)
+                dbQuery = dbQuery.Skip((pageNumber.Value - 1) * pageSize.Value).Take(pageSize.Value);
+
+            var documents = dbQuery.ToList();
+            var creatorIds = documents.Select(d => d.CreatedBy).Distinct().ToList();
+            var users = _context.AppUsers.Where(u => creatorIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.Username, u.Fullname }).ToList();
+
+            var result = documents.Select(d =>
+            {
+                var doc = MapToEntity(d);
+                var user = users.FirstOrDefault(u => u.Id == d.CreatedBy);
+                if (user != null)
+                    doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
+                return doc;
+            }).ToList();
+
+            return (result, totalCount);
+        }
+
+        private IQueryable<Data.Document> ApplyManagerFilters(
+            IQueryable<Data.Document> query, string? searchQuery, int? categoryId, int? grade, string? subject, int? classId, bool? isApproved, bool? status)
+        {
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                query = query.Where(d =>
+                    d.Name.Contains(searchQuery) ||
+                    (d.Description != null && d.Description.Contains(searchQuery)) ||
+                    _context.AppUsers.Any(u => u.Id == d.CreatedBy &&
+                        (u.Username.Contains(searchQuery) ||
+                         (u.Fullname != null && u.Fullname.Contains(searchQuery)))));
+            }
+
+            if (categoryId.HasValue)
+                query = query.Where(d => d.DocumentCategoryId == categoryId.Value);
+
+            if (grade.HasValue)
+                query = query.Where(d => d.Grade == grade);
+
+            if (!string.IsNullOrEmpty(subject))
+                query = query.Where(d => d.Subject.Name.Contains(subject));
+
+            if (classId.HasValue)
+                query = query.Where(d => d.Classes.Any(c => c.Id == classId.Value));
+
+            if (isApproved.HasValue)
+            {
+                if (isApproved.Value)
+                    query = query.Where(d => d.IsApproved == true);
+                else
+                    query = query.Where(d => d.IsApproved == false);
+            }
+            else
+            {
+                query = query.Where(d => d.IsApproved == null);
+            }
+
+            if (status.HasValue)
+                query = query.Where(d => d.Status == status.Value);
+
+            return query;
+        }
+        public List<Document> GetDocumentsBySubject(int subjectId)
+        {
+            try
+            {
+                var documents = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Where(d => d.SubjectId == subjectId
+                             && d.IsApproved == true
+                             && d.Status == true
+                             && d.DeletedAt == null)
+                    .OrderByDescending(d => d.CreatedAt)
+                    .Select(d => MapToEntity(d))
+                    .ToList();
+
+                return documents;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetDocumentsBySubject failed. Inner error: " + ex.Message).LogError();
+                return new List<Document>();
+            }
+        }
         private (List<Document>, int) ExecuteQuery(
             IQueryable<Data.Document> dbQuery, string? query, int? categoryId, int? grade,
             string? subject, int? classId, bool? isApproved, bool? status,
@@ -210,7 +303,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 query = query.Where(d => d.Classes.Any(c => c.Id == classId.Value));
 
             if (isApproved.HasValue)
-                query = query.Where(d => d.IsApproved == isApproved.Value);
+            {
+                if (isApproved.Value)
+                    query = query.Where(d => d.IsApproved == true);
+                else
+                    query = query.Where(d => d.IsApproved == false);
+            }
 
             if (status.HasValue)
                 query = query.Where(d => d.Status == status.Value);
@@ -220,6 +318,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public Document CreateDocument(Document doc)
         {
+            using var transaction = _context.Database.BeginTransaction();
             try
             {
                 var entity = new Data.Document
@@ -253,11 +352,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     }
                 }
 
+                transaction.Commit();
                 doc.Id = entity.Id;
                 return doc;
             }
             catch (DbUpdateException ex)
             {
+                transaction.Rollback();
                 var innerMessage = ex.InnerException?.Message ?? ex.Message;
                 new InfrastructureException("DocumentRepository", $"CreateDocument failed: {innerMessage}").LogError();
                 throw new InvalidOperationException("Failed to create document", ex);

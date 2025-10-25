@@ -17,7 +17,7 @@ namespace StudyHub.Backend.Api.Controllers
             _locationService = locationService;
         }
 
-        // GET: api/commune/cities
+        // GET: api/location/cities
         [HttpGet("cities")]
         public IActionResult GetCities()
         {
@@ -27,9 +27,9 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(cities);
         }
 
-        // GET: api/commune/provinces?cityId=1
-        [HttpGet("provinces")]
-        public IActionResult GetProvinces([FromQuery] sbyte cityId)
+        // GET: api/location/cites/1/provinces
+        [HttpGet("cities/{cityId}/provinces")]
+        public IActionResult GetProvincesByCityId(sbyte cityId)
         {
             var provinces = _locationService.GetProvincesByCityId(cityId)
                 .Select(p => new ProvinceDto { Id = p.Id, Name = p.Name, CityId = p.CityId })
@@ -37,9 +37,9 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(provinces);
         }
 
-        // GET: api/commune/communes?provinceId=1
-        [HttpGet("communes")]
-        public IActionResult GetCommunes([FromQuery] short provinceId)
+        // GET: api/location/communes?provinceId=1
+        [HttpGet("provinces/{provinceId}/communes")]
+        public IActionResult GetCommunesByProvinceId(short provinceId)
         {
             var communes = _locationService.GetCommunesByProvinceId(provinceId)
                 .Select(c => new CommuneDto { Id = c.Id, Name = c.Name, ProvinceId = c.ProvinceId })
@@ -47,7 +47,7 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(communes);
         }
 
-        // GET: api/commune/schools
+        // GET: api/location/schools
         [HttpGet("schools")]
         public IActionResult GetSchools()
         {
@@ -55,6 +55,16 @@ namespace StudyHub.Backend.Api.Controllers
                 .Select(s => new SchoolDto { Id = s.Id, Name = s.Name })
                 .ToList();
             return Ok(schools);
+        }
+
+        //GET: api/location/schools?communeId=1
+        [HttpGet("communes/{communeId}/schools")]
+        public IActionResult GetSchoolsByCommuneId(int communeId)
+        {
+            var communes = _locationService.GetSchoolsByCommuneId(communeId)
+                .Select(s => new SchoolDto { Id = s.Id, Name = s.Name })
+                .ToList();
+            return Ok(communes);
         }
     }
 }

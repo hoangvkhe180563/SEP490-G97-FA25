@@ -1,62 +1,236 @@
-//documentManagement/services/documentService.ts
-import axios from "axios"
+// src/documentManagement/services/documentService.ts
+import axios from "axios";
 import type {
-  DocumentSearchResponse,
-  DocumentFilterParams,
   ApiResponse,
   PagedDocumentResponse,
-} from "@/documentManagement/interfaces/document"
+} from "@/documentManagement/interfaces/document";
 import type {
   DocumentCategoryDto,
   SubjectDto,
-  DocumentListDto,
-} from "@/documentManagement/interfaces/documentApi"
-
-const BASE_URL = "http://localhost:6789/api"
+  DocumentDetailDto,
+} from "@/documentManagement/interfaces/documentApi";
+import type { ClassListDto } from "@/classManagement/interfaces/class";
+const BASE_URL = "http://localhost:6789/api";
 
 export const documentService = {
-  searchDocuments: async (params: DocumentFilterParams = {}): Promise<DocumentSearchResponse> => {
-    const payload = {
-      query: params.query || null,
-      categoryId: params.categoryId || null,
-      gradeId: params.gradeId || null,
-      schoolId: params.schoolId || null,
-      subject: params.subject || null,
-      pageNumber: params.pageNumber || 1,
-      pageSize: params.pageSize || 9,
-    }
-    
-    const response = await axios.post<DocumentSearchResponse>(`${BASE_URL}/Document/search`, payload)
-    return response.data
+  getPublicDocuments: async (
+    query?: string,
+    categoryId?: number,
+    gradeId?: number,
+    subject?: string,
+    classId?: number,
+    pageNumber: number = 1,
+    pageSize: number = 9
+  ): Promise<ApiResponse<PagedDocumentResponse>> => {
+    const params = new URLSearchParams();
+    if (query) params.append("query", query);
+    if (categoryId) params.append("categoryId", categoryId.toString());
+    if (gradeId) params.append("grade", gradeId.toString());
+    if (subject) params.append("subject", subject);
+    if (classId) params.append("classId", classId.toString());
+    params.append("pageNumber", pageNumber.toString());
+    params.append("pageSize", pageSize.toString());
+
+    const response = await axios.get<ApiResponse<PagedDocumentResponse>>(
+      `${BASE_URL}/Document/public?${params.toString()}`,
+      { withCredentials: true }
+    );
+    return response.data;
   },
 
-  getPublicDocuments: async (pageNumber: number = 1, pageSize: number = 9): Promise<ApiResponse<PagedDocumentResponse>> => {
+  getSchoolDocuments: async (
+    schoolId: string,
+    query?: string,
+    categoryId?: number,
+    gradeId?: number,
+    subject?: string,
+    classId?: number,
+    pageNumber: number = 1,
+    pageSize: number = 9
+  ): Promise<ApiResponse<PagedDocumentResponse>> => {
+    const params = new URLSearchParams();
+    if (query) params.append("query", query);
+    if (categoryId) params.append("categoryId", categoryId.toString());
+    if (gradeId) params.append("grade", gradeId.toString());
+    if (subject) params.append("subject", subject);
+    if (classId) params.append("classId", classId.toString());
+    params.append("pageNumber", pageNumber.toString());
+    params.append("pageSize", pageSize.toString());
+
     const response = await axios.get<ApiResponse<PagedDocumentResponse>>(
-      `${BASE_URL}/Document/public?pageNumber=${pageNumber}&pageSize=${pageSize}`
-    )
-    return response.data
+      `${BASE_URL}/Document/school/${schoolId}?${params.toString()}`,
+      { withCredentials: true }
+    );
+    return response.data;
   },
 
-  getSchoolDocuments: async (schoolId: number, pageNumber: number = 1, pageSize: number = 9): Promise<ApiResponse<PagedDocumentResponse>> => {
+  getOwnedDocuments: async (
+    creatorId: string,
+    query?: string,
+    categoryId?: number,
+    gradeId?: number,
+    subject?: string,
+    classId?: number,
+    pageNumber: number = 1,
+    pageSize: number = 9
+  ): Promise<ApiResponse<PagedDocumentResponse>> => {
+    const params = new URLSearchParams();
+    if (query) params.append("query", query);
+    if (categoryId) params.append("categoryId", categoryId.toString());
+    if (gradeId) params.append("grade", gradeId.toString());
+    if (subject) params.append("subject", subject);
+    if (classId) params.append("classId", classId.toString());
+    params.append("pageNumber", pageNumber.toString());
+    params.append("pageSize", pageSize.toString());
+
     const response = await axios.get<ApiResponse<PagedDocumentResponse>>(
-      `${BASE_URL}/Document/by-school/${schoolId}?pageNumber=${pageNumber}&pageSize=${pageSize}`
-    )
-    return response.data
+      `${BASE_URL}/Document/owned/${creatorId}?${params.toString()}`,
+      { withCredentials: true }
+    );
+    return response.data;
+  },
+
+  getManagerPublicDocuments: async (
+    query?: string,
+    categoryId?: number,
+    gradeId?: number,
+    subject?: string,
+    classId?: number,
+    isApproved?: boolean,
+    status?: boolean,
+    pageNumber: number = 1,
+    pageSize: number = 10
+  ): Promise<ApiResponse<PagedDocumentResponse>> => {
+    const params = new URLSearchParams();
+    if (query) params.append("query", query);
+    if (categoryId) params.append("categoryId", categoryId.toString());
+    if (gradeId) params.append("grade", gradeId.toString());
+    if (subject) params.append("subject", subject);
+    if (classId) params.append("classId", classId.toString());
+    if (isApproved !== undefined)
+      params.append("isApproved", isApproved.toString());
+    if (status !== undefined) params.append("status", status.toString());
+    params.append("pageNumber", pageNumber.toString());
+    params.append("pageSize", pageSize.toString());
+
+    const response = await axios.get<ApiResponse<PagedDocumentResponse>>(
+      `${BASE_URL}/Document/manager/public?${params.toString()}`,
+      { withCredentials: true }
+    );
+    return response.data;
+  },
+
+  getManagerSchoolDocuments: async (
+    schoolId: number,
+    query?: string,
+    categoryId?: number,
+    gradeId?: number,
+    subject?: string,
+    classId?: number,
+    isApproved?: boolean,
+    status?: boolean,
+    pageNumber: number = 1,
+    pageSize: number = 10
+  ): Promise<ApiResponse<PagedDocumentResponse>> => {
+    const params = new URLSearchParams();
+    if (query) params.append("query", query);
+    if (categoryId) params.append("categoryId", categoryId.toString());
+    if (gradeId) params.append("grade", gradeId.toString());
+    if (subject) params.append("subject", subject);
+    if (classId) params.append("classId", classId.toString());
+    if (isApproved !== undefined)
+      params.append("isApproved", isApproved.toString());
+    if (status !== undefined) params.append("status", status.toString());
+    params.append("pageNumber", pageNumber.toString());
+    params.append("pageSize", pageSize.toString());
+
+    const response = await axios.get<ApiResponse<PagedDocumentResponse>>(
+      `${BASE_URL}/Document/manager/school/${schoolId}?${params.toString()}`,
+      { withCredentials: true }
+    );
+    return response.data;
+  },
+
+  approveDocument: async (
+    documentId: number
+  ): Promise<ApiResponse<DocumentDetailDto>> => {
+    const response = await axios.post<ApiResponse<DocumentDetailDto>>(
+      `${BASE_URL}/Document/approve`,
+      { documentId },
+      { withCredentials: true }
+    );
+    return response.data;
+  },
+
+  rejectDocument: async (
+    documentId: number
+  ): Promise<ApiResponse<DocumentDetailDto>> => {
+    const response = await axios.post<ApiResponse<DocumentDetailDto>>(
+      `${BASE_URL}/Document/reject`,
+      { documentId },
+      { withCredentials: true }
+    );
+    return response.data;
+  },
+
+  revokeApproval: async (
+    documentId: number
+  ): Promise<ApiResponse<DocumentDetailDto>> => {
+    const response = await axios.post<ApiResponse<DocumentDetailDto>>(
+      `${BASE_URL}/Document/revoke`,
+      { documentId },
+      { withCredentials: true }
+    );
+    return response.data;
+  },
+
+  softDeleteDocument: async (
+    documentId: number
+  ): Promise<ApiResponse<DocumentDetailDto>> => {
+    const response = await axios.patch<ApiResponse<DocumentDetailDto>>(
+      `${BASE_URL}/Document/soft-delete/${documentId}`,
+      null,
+      { withCredentials: true }
+    );
+    return response.data;
   },
 
   getDocumentCategories: async (): Promise<DocumentCategoryDto[]> => {
-    const response = await axios.get<DocumentCategoryDto[] | ApiResponse<DocumentCategoryDto[]>>(`${BASE_URL}/DocumentCategory`)
-    return Array.isArray(response.data) ? response.data : response.data.data
+    const response = await axios.get<
+      DocumentCategoryDto[] | ApiResponse<DocumentCategoryDto[]>
+    >(`${BASE_URL}/DocumentCategory`, { withCredentials: true });
+    return Array.isArray(response.data) ? response.data : response.data.data;
   },
 
   getSubjects: async (): Promise<SubjectDto[]> => {
-    const response = await axios.get<SubjectDto[] | ApiResponse<SubjectDto[]>>(`${BASE_URL}/Subject/allsubject`)
-    return Array.isArray(response.data) ? response.data : response.data.data
+    const response = await axios.get<SubjectDto[] | ApiResponse<SubjectDto[]>>(
+      `${BASE_URL}/Subject/allsubject`,
+      { withCredentials: true }
+    );
+    return Array.isArray(response.data) ? response.data : response.data.data;
   },
-getDocumentsBySubject: async (subjectId: number): Promise<ApiResponse<DocumentListDto[]>> => {
-  const response = await axios.get<ApiResponse<DocumentListDto[]>>(
-    `${BASE_URL}/Document/by-subject/${subjectId}`
-  )
-  return response.data
-},
-}
+
+  getUserClasses: async (userId: string): Promise<ClassListDto[]> => {
+    const response = await axios.get(
+      `${BASE_URL}/Document/my-class/${userId}`,
+      { withCredentials: true }
+    );
+    return response.data;
+  },
+
+  createDocument: async (
+    formData: FormData
+  ): Promise<ApiResponse<DocumentDetailDto>> => {
+    const response = await axios.post<ApiResponse<DocumentDetailDto>>(
+      `${BASE_URL}/Document/create`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        withCredentials: true,
+      }
+    );
+    return response.data;
+  },
+};
