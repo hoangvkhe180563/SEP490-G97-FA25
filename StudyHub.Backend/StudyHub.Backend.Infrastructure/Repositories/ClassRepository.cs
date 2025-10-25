@@ -185,21 +185,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     ClassId = n.ClassId,
                     Title = n.Title,
                     Description = n.Description,
-                    Arthur= n.AppUser.Fullname,
-                    Avatar = n.AppUser.Avatar,
-                    
-                    AppUser = new AppUser
-                    {
-                        Id = n.AppUser.Id,
-                        Email = n.AppUser.Email,
-                        Username = n.AppUser.Username,
-                        Fullname = n.AppUser.Fullname,
-                        Dob = n.AppUser.Dob,
-                        Avatar = n.AppUser.Avatar,
-                        Address = n.AppUser.Address,
-                        PhoneNumber = n.AppUser.PhoneNumber,
-                        Status = n.AppUser.Status,
-                    },
+                    CreatedAt= n.CreatedAt,
+                    DeletedAt=n.DeletedAt, 
+                    UpdatedAt= n.UpdatedAt,
+                    AppUserId = n.AppUserId 
                 }).ToList();
         }
         // ===================== NOTIFICATION =====================
@@ -233,8 +222,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     ClassId = n.ClassId,
                     Title = n.Title,
                     Description = n.Description,
-                    Arthur= n.AppUser.Fullname,
-                    Avatar = n.AppUser.Avatar
+                    CreatedAt = n.CreatedAt,
+                    DeletedAt = n.DeletedAt,
+                    UpdatedAt = n.UpdatedAt,
+                    AppUserId = n.AppUserId
 
                 });
             return nos.ToList();
@@ -273,19 +264,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 AppUserId = a.AppUserId,
                 Content = a.Content,
                 CreatedAt = a.CreatedAt,
+                DeletedAt = a.DeletedAt,
                 UpdatedAt = a.UpdatedAt,
-                AppUser= new AppUser
-                {
-                    Id = a.AppUser.Id,
-                    Email = a.AppUser.Email,
-                    Username = a.AppUser.Username,
-                    Fullname = a.AppUser.Fullname,
-                    Dob = a.AppUser.Dob,
-                    Avatar = a.AppUser.Avatar,
-                    Address = a.AppUser.Address,
-                    PhoneNumber = a.AppUser.PhoneNumber,
-                    Status = a.AppUser.Status,
-                }
             }).ToList();
         }
 

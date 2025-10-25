@@ -60,7 +60,6 @@ const extractYouTubeId = (url: string): string | null => {
 };
 
 const sanitizeHtml = (html: string) => {
-  // allow basic formatting tags and inline style (used by composer)
   try {
     return DOMPurify.sanitize(html, {
       ALLOWED_TAGS: [
@@ -77,11 +76,11 @@ const sanitizeHtml = (html: string) => {
         "ul",
         "ol",
         "li",
+        "a",
       ],
-      ALLOWED_ATTR: ["style", "class"],
+      ALLOWED_ATTR: ["style", "class", "href", "target", "rel"],
     });
   } catch {
-    // fallback: escape HTML entirely
     return escapeHtml(html);
   }
 };
@@ -105,7 +104,6 @@ const renderContent = (html?: string) => {
         <div
           key={`html-${idx}-${lastIndex}`}
           className="post-html"
-          // safe because we've sanitized
           dangerouslySetInnerHTML={{ __html: sanitized }}
         />
       );
@@ -116,7 +114,11 @@ const renderContent = (html?: string) => {
     if (ytId) {
       const embedSrc = `https://www.youtube.com/embed/${ytId}?rel=0`;
       nodes.push(
-        <div key={`yt-${idx}`} className="my-3 embed-video w-full max-w-full" style={{ aspectRatio: "16/9" }}>
+        <div
+          key={`yt-${idx}`}
+          className="my-3 embed-video w-full max-w-full"
+          style={{ aspectRatio: "16/9" }}
+        >
           <iframe
             title={`youtube-${ytId}`}
             src={embedSrc}
@@ -136,11 +138,18 @@ const renderContent = (html?: string) => {
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:underline break-all"
-            // content sanitized above; link href is raw but we rely on browser to handle
-          >
-            {safeUrl}
-          </a>
+            // Inline styles to guarantee wrapping/breaking even if global CSS forces nowrap
+            style={{
+              color: "#2563eb",
+              textDecoration: "underline",
+              display: "block",
+              wordBreak: "break-all",
+              overflowWrap: "anywhere",
+              whiteSpace: "normal",
+              hyphens: "auto",
+            }}
+            dangerouslySetInnerHTML={{ __html: safeUrl }}
+          />
         </div>
       );
     }
@@ -168,14 +177,40 @@ const renderContent = (html?: string) => {
 // ====== Helper: file preview component ======
 const FilePreview: React.FC<{ file: PostFile }> = ({ file }) => {
   const url = file.fileUrl;
-  const name = file.fileName;
+  const name = file.fileName || "";
   const extMatch = (name || url).split(".").pop() || "";
   const ext = extMatch.toLowerCase();
 
-  const isImage = /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(url) || ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"].includes(ext);
+  const isImage =
+    /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(url) ||
+    ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"].includes(ext);
   const isPdf = ext === "pdf" || /\.pdf$/i.test(url);
 
-  // small generic thumbnails for non-image files
+  // Build a short display label: prefer hostname + path when name/url is long URL
+  const getDisplayName = (): { text: string; full: string } => {
+    try {
+      const parsedName = new URL(name);
+      const short =
+        parsedName.hostname +
+        (parsedName.pathname && parsedName.pathname !== "/" ? parsedName.pathname : "");
+      return { text: short, full: name };
+    } catch {
+      try {
+        const parsedUrl = new URL(url);
+        const short =
+          parsedUrl.hostname +
+          (parsedUrl.pathname && parsedUrl.pathname !== "/" ? parsedUrl.pathname : "");
+        return { text: short, full: url };
+      } catch {
+        const max = 120;
+        if (name.length > max) return { text: name.slice(0, max) + "...", full: name };
+        return { text: name, full: name };
+      }
+    }
+  };
+
+  const display = getDisplayName();
+
   const renderThumb = () => {
     if (isImage) {
       return (
@@ -184,7 +219,6 @@ const FilePreview: React.FC<{ file: PostFile }> = ({ file }) => {
           alt={name}
           className="w-full h-full object-cover"
           onError={(e) => {
-            // fallback to generic if image fails to load
             (e.currentTarget as HTMLImageElement).style.display = "none";
           }}
         />
@@ -194,17 +228,17 @@ const FilePreview: React.FC<{ file: PostFile }> = ({ file }) => {
     if (isPdf) {
       return (
         <div className="flex items-center justify-center w-full h-full bg-red-50 text-red-600">
-          {/* simple PDF icon + extension */}
           <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none">
             <path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z" stroke="currentColor" strokeWidth="1.2" />
             <path d="M14 3v6h6" stroke="currentColor" strokeWidth="1.2" />
-            <text x="50%" y="70%" dominantBaseline="middle" textAnchor="middle" fontSize="8" fill="currentColor" fontFamily="Inter, Arial, sans-serif">{ext.toUpperCase()}</text>
+            <text x="50%" y="70%" dominantBaseline="middle" textAnchor="middle" fontSize="8" fill="currentColor" fontFamily="Inter, Arial, sans-serif">
+              {ext.toUpperCase()}
+            </text>
           </svg>
         </div>
       );
     }
 
-    // other file types
     return (
       <div className="flex items-center justify-center w-full h-full bg-gray-100 text-gray-700">
         <div className="text-xs font-medium">{ext ? ext.toUpperCase() : "FILE"}</div>
@@ -217,14 +251,44 @@ const FilePreview: React.FC<{ file: PostFile }> = ({ file }) => {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center gap-3 bg-white border rounded overflow-hidden px-3 py-2 hover:shadow transition"
+      className="w-full flex items-center gap-3 bg-white border rounded overflow-hidden px-3 py-2 hover:shadow transition"
+      // Inline styles to ensure no overflow even if global CSS forces nowrap
+      style={{
+        maxWidth: "100%",
+        boxSizing: "border-box",
+        overflow: "hidden",
+        wordBreak: "break-all", // break long continuous strings
+        whiteSpace: "normal",
+      }}
+      title={display.full}
     >
       <div className="w-16 h-12 flex-shrink-0 rounded overflow-hidden bg-gray-100">{renderThumb()}</div>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm text-gray-800 truncate underline decoration-dashed">{name}</div>
-        <div className="text-xs text-gray-500 mt-1">{isPdf ? "PDF" : isImage ? "Image" : ext.toUpperCase() || "File"}</div>
+
+      <div className="flex-1 min-w-0" style={{ overflow: "hidden" }}>
+        <div
+          className="text-sm text-gray-800 underline decoration-dashed"
+          style={{
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            wordBreak: "break-word",
+            overflowWrap: "anywhere",
+            whiteSpace: "normal",
+            hyphens: "auto",
+            lineHeight: "1.15rem",
+            maxHeight: "2.4rem",
+          }}
+        >
+          {display.text}
+        </div>
+
+        <div className="text-xs text-gray-500 mt-1" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {isPdf ? "PDF" : isImage ? "Image" : (ext ? ext.toUpperCase() : "File")}
+        </div>
       </div>
-      <div className="text-xs text-blue-600">Tải xuống</div>
+
+      <div className="text-xs text-blue-600 ml-3 flex-shrink-0">Tải xuống</div>
     </a>
   );
 };
@@ -244,32 +308,25 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     };
     setLocalComments((c) => [...c, newComment]);
     setShowComments(true);
-    // optionally call API here
   };
 
   return (
     <div className="bg-white border rounded-lg p-4 shadow-sm">
-      {/* Header */}
       <div className="flex items-start gap-4">
         <img src={"/vite.svg"} alt="avatar" className="w-12 h-12 rounded-full object-cover" />
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium text-gray-800"></div>
+              <div className="font-medium text-gray-800" />
               <div className="text-xs text-gray-400">{post.createdAt ?? "just now"}</div>
             </div>
             <div className="text-sm text-gray-400 cursor-pointer">•••</div>
           </div>
 
-          {/* Title */}
           {post.title && <div className="mt-3 text-gray-800 font-semibold">{post.title}</div>}
 
-          {/* Nội dung bài đăng (safely render HTML + embed-video → iframe) */}
-          <div className="mt-1 text-gray-600">
-            {renderContent(post.description)}
-          </div>
+          <div className="mt-1 text-gray-600">{renderContent(post.description)}</div>
 
-          {/* Hiển thị file đính kèm (nếu có) - PREVIEW BOXES */}
           {post.files && post.files.length > 0 && (
             <div className="mt-3 bg-gray-50 border rounded p-3 space-y-2">
               {post.files.map((file) => (
@@ -278,7 +335,6 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
             </div>
           )}
 
-          {/* Nút comment & share */}
           <div className="mt-4 border-t pt-3 flex items-center justify-between text-sm text-gray-500">
             <button className="flex items-center gap-2 hover:text-gray-700" onClick={() => setShowComments((s) => !s)}>
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -289,12 +345,10 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
             <div className="text-gray-400 cursor-pointer hover:text-gray-600">Share</div>
           </div>
 
-          {/* Comment composer */}
           <div className="mt-4">
             <CommentComposer onSend={handleSendComment} avatarUrl="/vite.svg" />
           </div>
 
-          {/* Danh sách comment */}
           {showComments && localComments.length > 0 && (
             <div className="mt-3 space-y-3">
               {localComments.map((c) => (
@@ -302,8 +356,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
                   <img src={c.avatarUrl ?? "/vite.svg"} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
                   <div className="text-sm">
                     <div className="font-medium">
-                      {c.userFullname}{" "}
-                      <span className="text-gray-400 text-xs ml-2">{c.createdAt ?? "just now"}</span>
+                      {c.userFullname} <span className="text-gray-400 text-xs ml-2">{c.createdAt ?? "just now"}</span>
                     </div>
                     <div className="text-gray-700 mt-1">{c.content}</div>
                   </div>

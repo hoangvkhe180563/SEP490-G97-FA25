@@ -28,6 +28,9 @@ import type {
   ClassNotification,
 } from "@/classManagement/interfaces/class";
 
+// local type for links coming from PostComposer
+type LinkPayload = { url: string; title?: string; thumbnail?: string };
+
 // ===== Thẻ thông tin lớp học =====
 const ClassInfoCard: React.FC<{ info: ClassInfo | null }> = ({ info }) => {
   if (!info) return null;
@@ -102,23 +105,36 @@ const DetailedClassTeacher: React.FC = () => {
 
   const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
 
-  // handlePost now calls backend to create notification (and uploads file if provided).
-  // After successful creation we refresh notifications via getClassInfo.
-  const handlePost = async (content: string, files?: File[]) => {
+  // handlePost now accepts title and links from PostComposer and forwards them to the store
+  const handlePost = async (
+    content: string,
+    files?: File[],
+    links?: LinkPayload[],
+    titleFromComposer?: string
+  ) => {
     if (!id) return;
-    const title = content.length > 40 ? `${content.slice(0, 40)}...` : "Thông báo mới";
+
+    // decide title: use provided composer title when available, otherwise fallback to generated one
+    const fallbackTitle =
+      content && content.length > 40 ? `${content.slice(0, 40)}...` : "Thông báo mới";
+    const titleToSend =
+      titleFromComposer && titleFromComposer.trim().length > 0
+        ? titleFromComposer.trim()
+        : fallbackTitle;
 
     // createdBy must be a GUID string that backend accepts.
     // Replace with actual current user id when available.
     const createdByGuid = "d4e5f6a7-b8c9-0123-4567-890abcdef014";
 
     // Call store action to create notification
+    // Include links if provided (store should append LinksJson or send appropriately)
     const created = await createNotification({
       classId: Number(id),
-      title,
+      title: titleToSend,
       description: content,
       createdBy: createdByGuid,
       files: files && files.length > 0 ? files : undefined,
+      links: links && links.length > 0 ? links : undefined,
     });
 
     if (created) {
@@ -131,15 +147,25 @@ const DetailedClassTeacher: React.FC = () => {
         setNotifications((prev) => [created, ...prev]);
       }
     } else {
-      // fallback: just add to local UI (optimistic) - optional
+      // fallback: just add to local UI (optimistic) - include links as pseudo-file entries
+      const fallbackFiles =
+        files?.map((f) => ({ id: 0, fileName: f.name, fileUrl: "" })) ??
+        (links?.map((l, idx) => ({
+          id: `link-${Date.now()}-${idx}`,
+          fileName: l.title ?? l.url,
+          fileUrl: l.url,
+          thumbnail: l.thumbnail,
+          isExternal: true,
+        })) ?? []);
+
       const fallback: ClassNotification = {
         id: Date.now(),
         classId: Number(id),
-        title,
+        title: titleToSend,
         description: content,
         createdAt: new Date().toISOString(),
         createdBy: createdByGuid,
-        files: files?.map((f) => ({ id: 0, fileName: f.name, fileUrl: "" })) ?? [],
+        files: fallbackFiles as any,
         comments: [],
       };
       setNotifications((prev) => [fallback, ...prev]);
@@ -190,7 +216,7 @@ const DetailedClassTeacher: React.FC = () => {
 
             {/* --- Thông báo --- */}
             <TabsContent value="notifications">
-              {/* If PostComposer supports files, ensure it calls onPost(content, files) */}
+              {/* PostComposer updated to call onPost(content, files?, links?, title?) */}
               <PostComposer onPost={handlePost} avatarUrl={"/vite.svg"} />
               <div className="mt-4 space-y-4">
                 {notifications.length > 0 ? (
@@ -237,7 +263,7 @@ const DetailedClassTeacher: React.FC = () => {
         </aside>
       </div>
 
-      {/* ===== Modal chi tiết thành viên ===== */}
+      {/* ===== Modal chi tiết thành viên ===== */} 
       <MemberDetailModal open={!!selectedMember} member={selectedMember} onClose={handleCloseModal} />
     </div>
   );

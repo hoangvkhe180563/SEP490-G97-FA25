@@ -28,17 +28,20 @@ export default function PostComposer({
   onPost,
   avatarUrl,
 }: {
-  // updated signature: now accepts optional links array as third argument
+  // onPost(contentHtml, files?, links?, titleHtml?)
   onPost: (
     content: string,
     files?: File[] | undefined,
-    links?: LinkPayload[] | undefined
+    links?: LinkPayload[] | undefined,
+    title?: string | undefined
   ) => void | Promise<void>;
   avatarUrl?: string;
 }) {
+  const titleRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // isEmpty means both title and content are empty
   const [isEmpty, setIsEmpty] = useState(true);
 
   // YouTube modal state
@@ -57,6 +60,12 @@ export default function PostComposer({
   const [linkError, setLinkError] = useState<string | null>(null);
   const [linkPreview, setLinkPreview] = useState<{ title?: string; thumbnail?: string; domain?: string } | null>(null);
 
+  const updateEmptyState = () => {
+    const titleText = titleRef.current?.textContent?.trim() ?? "";
+    const contentText = editorRef.current?.textContent?.trim() ?? "";
+    setIsEmpty(titleText.length === 0 && contentText.length === 0);
+  };
+
   const exec = (cmd: string, value?: string) => {
     document.execCommand("styleWithCSS", false, "true");
     document.execCommand(cmd, false, value);
@@ -68,7 +77,7 @@ export default function PostComposer({
       '<ul style="list-style-type: disc; list-style-position: outside; padding-left: 1.2rem;"><li><br></li></ul>';
     document.execCommand("insertHTML", false, html);
     editorRef.current?.focus();
-    setIsEmpty(false);
+    updateEmptyState();
   };
 
   const insertOrderedListWithMarker = () => {
@@ -76,7 +85,7 @@ export default function PostComposer({
       '<ol style="list-style-type: decimal; list-style-position: outside; padding-left: 1.2rem;"><li><br></li></ol>';
     document.execCommand("insertHTML", false, html);
     editorRef.current?.focus();
-    setIsEmpty(false);
+    updateEmptyState();
   };
 
   const clearFormatting = () => {
@@ -86,25 +95,24 @@ export default function PostComposer({
 
   const handlePost = async () => {
     const html = editorRef.current?.innerHTML.trim() ?? "";
-    if (!html || html === "<br>") return;
+    const titleHtml = titleRef.current?.innerHTML.trim() ?? "";
 
-    // collect File objects
-    const filesToSend = attachments
+    // Validate title: server expects Title not empty
+    if (!titleHtml || titleHtml === "<br>" || titleHtml === "") {
+      // focus title
+      titleRef.current?.focus();
+      return;
+    }
+
+    // collect File objects (regular uploaded files)
+    const filesFromAttachments = attachments
       .filter((a) => a.type === "file")
       .map((a) => (a as any).file as File);
 
-    // collect links (both link and youtube attachments)
+   // collect links (both link and youtube attachments)
     const linksToSend: LinkPayload[] = attachments
       .filter((a) => a.type === "link" || a.type === "youtube")
       .map((a) => {
-        if (a.type === "youtube") {
-          return {
-            url: a.url,
-            title: a.title,
-            thumbnail: a.thumbnail,
-          } as LinkPayload;
-        }
-        // link attachment
         return {
           url: a.url,
           title: a.title,
@@ -112,14 +120,17 @@ export default function PostComposer({
         } as LinkPayload;
       });
 
-    // pass both files and links to parent onPost
+    // pass content, files, links and title to parent onPost
     await onPost(
       html,
-      filesToSend.length ? filesToSend : undefined,
-      linksToSend.length ? linksToSend : undefined
+      filesFromAttachments.length ? filesFromAttachments : undefined,
+      linksToSend.length ? linksToSend : undefined,
+      titleHtml
     );
 
+    // reset
     editorRef.current!.innerHTML = "";
+    titleRef.current!.innerHTML = "";
     setAttachments([]);
     setIsExpanded(false);
     setIsEmpty(true);
@@ -127,6 +138,7 @@ export default function PostComposer({
 
   const handleCancel = () => {
     editorRef.current!.innerHTML = "";
+    titleRef.current!.innerHTML = "";
     setIsExpanded(false);
     setAttachments([]);
     setIsEmpty(true);
@@ -134,17 +146,20 @@ export default function PostComposer({
 
   const handleFocus = () => {
     setIsExpanded(true);
-    setTimeout(() => editorRef.current?.focus(), 0);
+    setTimeout(() => {
+      // focus title if empty, otherwise editor
+      const titleText = titleRef.current?.textContent?.trim() ?? "";
+      if (!titleText) titleRef.current?.focus();
+      else editorRef.current?.focus();
+    }, 0);
   };
 
   const removeAttachment = (index: number) => {
-    // revoke object URL if it was created for image preview
     const att = attachments[index];
     if (att && att.type === "file") {
       const f = att.file;
       try {
-        // we created object URLs using URL.createObjectURL in preview flows; revoke them if needed
-        // Note: this only revokes if you stored object URLs. Here we didn't store them persistently.
+        // revoke created object URLs if you created them elsewhere
       } catch {
         //
       }
@@ -293,7 +308,7 @@ export default function PostComposer({
       const html = `<div class="embed-video">${videoUrl}</div><p><br></p>`;
       document.execCommand("insertHTML", false, html);
       editorRef.current?.focus();
-      setIsEmpty(false);
+      updateEmptyState();
       return;
     }
 
@@ -302,7 +317,7 @@ export default function PostComposer({
       const html = `<div class="embed-video"><iframe src="https://www.youtube.com/embed/${vid}" frameborder="0" allowfullscreen></iframe></div><p><br></p>`;
       document.execCommand("insertHTML", false, html);
       editorRef.current?.focus();
-      setIsEmpty(false);
+      updateEmptyState();
 
       const attachment: Attachment = {
         id: `${Date.now()}-${vid}`,
@@ -317,7 +332,7 @@ export default function PostComposer({
       const html = `<div class="embed-video"><iframe src="https://www.youtube.com/embed/${vid}" frameborder="0" allowfullscreen></iframe></div><p><br></p>`;
       document.execCommand("insertHTML", false, html);
       editorRef.current?.focus();
-      setIsEmpty(false);
+      updateEmptyState();
       const attachment: Attachment = {
         id: `${Date.now()}-${vid}`,
         type: "youtube",
@@ -411,7 +426,7 @@ export default function PostComposer({
     const safeHtml = `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(display)}</a><p><br></p>`;
     document.execCommand("insertHTML", false, safeHtml);
     editorRef.current?.focus();
-    setIsEmpty(false);
+    updateEmptyState();
 
     const attachment: Attachment = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -454,16 +469,35 @@ export default function PostComposer({
               </div>
             ) : (
               <motion.div layout className="flex flex-col">
+                <div className="relative mb-2">
+                  {/* Title (single-line, contentEditable) */}
+                  <div
+                    ref={titleRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onInput={() => {
+                      updateEmptyState();
+                    }}
+                    data-placeholder="Tiêu đề (bắt buộc)"
+                    className="min-h-[36px] bg-gray-50 rounded-xl p-2 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white empty:before:content-[attr(data-placeholder)] empty:before:text-gray-500 empty:before:opacity-70"
+                    style={{
+                      wordBreak: "break-word",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  ></div>
+                </div>
+
                 <div className="relative">
                   <div
                     ref={editorRef}
                     contentEditable
                     suppressContentEditableWarning
-                    onInput={(e) => {
-                      const text = e.currentTarget.textContent?.trim() ?? "";
-                      setIsEmpty(text.length === 0);
+                    onInput={() => {
+                      updateEmptyState();
                     }}
-                    data-placeholder="Thông báo nội dung nào đó cho lớp học của bạn"
+                    data-placeholder="Nội dung mô tả... (có thể định dạng)"
                     className="min-h-[100px] bg-gray-50 rounded-xl p-3 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white empty:before:content-[attr(data-placeholder)] empty:before:text-gray-500 empty:before:opacity-70"
                     style={{
                       wordBreak: "break-word",
@@ -540,7 +574,7 @@ export default function PostComposer({
                                 {att.type === "youtube"
                                   ? "YouTube"
                                   : att.type === "link"
-                                  ? att.domain ?? new URL(att.url).hostname.replace(/^www\./, "")
+                                  ? att.domain ?? (() => { try { return new URL(att.url).hostname.replace(/^www\./, "") } catch { return att.url } })()
                                   : att.file.type
                                   ? att.file.type
                                   : "File"}
@@ -682,6 +716,7 @@ export default function PostComposer({
                           title: f.name,
                         }));
                         setAttachments((prev) => [...prev, ...newFiles]);
+                        updateEmptyState();
                       }}
                       className="hidden"
                     />

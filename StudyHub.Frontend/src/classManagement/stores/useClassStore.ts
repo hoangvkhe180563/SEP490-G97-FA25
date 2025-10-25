@@ -366,13 +366,16 @@ export const useClassStore = create<ClassState>()(
           const createdByValue = payload.createdBy ?? "d4e5f6a7-b8c9-0123-4567-890abcdef014";
           fd.append("CreatedBy", createdByValue);
 
+          // Append files (if any). payload.files should be an array of File objects.
           if (payload.files && payload.files.length > 0) {
             for (let i = 0; i < payload.files.length; i++) {
+              // append under same key "Files" so server can bind to List<IFormFile>
               fd.append("Files", payload.files[i], payload.files[i].name);
             }
           }
 
-          console.debug("createNotification - links payload:", payload.links);
+          // If links array provided, also send LinksJson (server will parse it).
+          // We intentionally send LinksJson for backward compatibility.
           if (payload.links && payload.links.length > 0) {
             const sanitizedLinks: LinkPayload[] = payload.links
               .filter((l) => l && typeof l.url === "string" && l.url.trim().length > 0)
@@ -393,6 +396,24 @@ export const useClassStore = create<ClassState>()(
             if (sanitizedLinks.length > 0) {
               fd.append("LinksJson", JSON.stringify(sanitizedLinks));
             }
+          }
+
+          // Debug: log FormData entries (can't stringify fd directly)
+          try {
+            const entries: string[] = [];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            for (const e of (fd as any).entries()) {
+              // entry[1] may be a File — show name and type
+              const val = e[1];
+              if (val instanceof File) {
+                entries.push(`${e[0]}: File(${val.name}, ${val.type})`);
+              } else {
+                entries.push(`${e[0]}: ${String(val)}`);
+              }
+            }
+            console.debug("createNotification - FormData entries:", entries.join(" | "));
+          } catch {
+            console.debug("createNotification - FormData (debugging failed)");
           }
 
           const res = await axiosInstance.post("/Class/notifications", fd, {

@@ -93,7 +93,7 @@ namespace StudyHub.Backend.Api.Mappers
                 Id = noti.Id,
                 Title = noti.Title,
                 Description = noti.Description,
-                CreatedBy = noti.AppUser.Id,
+                CreatedBy = noti.AppUserId,
                 CreatedAt = noti.CreatedAt,
                 
             };

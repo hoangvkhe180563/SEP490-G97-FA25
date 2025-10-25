@@ -6,6 +6,7 @@ using StudyHub.Backend.Api.Dtos.ClassDTOS;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Services;
+using System.Text.Json;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -147,7 +148,7 @@ namespace StudyHub.Backend.Api.Controllers
             var cls = _service.GetClassById(id);
             if (cls == null)
                 return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
-
+                        
             var notifications = _service.GetClassNotifications(id)
                 .Select(n =>
                 {
@@ -155,7 +156,7 @@ namespace StudyHub.Backend.Api.Controllers
                     var comments = _service.GetCommentsByNotificationId(n.Id);
 
                     return n.ToNotificationDto(
-                        n.AppUser,
+                        _aUserService.GetUserById(n.AppUserId),
                         files.Select(f => f.ToFileDto()).ToList(),
                         comments.Select(c => c.ToCommentDto(_aUserService.GetUserById(c.AppUserId))).ToList()
                     );
@@ -222,52 +223,155 @@ namespace StudyHub.Backend.Api.Controllers
                     Description = dto.Description?.Trim() ?? "",
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = dto.CreatedBy,
-                    AppUser = _aUserService.GetUserById(dto.CreatedBy)
+                    AppUserId = dto.CreatedBy
                 };
 
                 var createdNoti = _service.CreateNotification(notificationEntity);
 
-                // --- xử lý file uploads (nhiều file) ---
-                if (dto.Files != null)
+                if (createdNoti == null)
                 {
-                    
-
-                        // UploadFileToCloudinary phải chấp nhận IFormFile (nếu hiện tại nhận Stream hoặc byte[] thì điều chỉnh)
-                        var url = await _service.UploadFileToCloudinary(dto.Files);
-                        _service.CreateFile(new ClassNotificationFile
-                        {
-                            NotificationId = createdNoti.Id,
-                            FileName = dto.Files.FileName,
-                            FileUrl = url.ToString()
-                        });
-                    
+                    return StatusCode(500, new { success = false, message = "Không tạo được thông báo." });
                 }
 
-                // --- xử lý links (không upload, chỉ lưu url/title/thumbnail nếu có) ---
+                var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+                if (dto.Files != null && dto.Files.Any())
+                {
+                    foreach (var formFile in dto.Files)
+                    {
+                        if (formFile == null || formFile.Length == 0) continue;
+
+                        var fn = formFile.FileName ?? "";
+                        var fnLower = fn.ToLowerInvariant();
+
+                        var looksLikeJson =
+                            (!string.IsNullOrWhiteSpace(formFile.ContentType) && formFile.ContentType.Contains("application/json", StringComparison.OrdinalIgnoreCase))
+                            || fnLower.StartsWith("link-")
+                            || fnLower.EndsWith(".json");
+
+                        if (looksLikeJson)
+                        {
+                            try
+                            {
+                                using var sr = new StreamReader(formFile.OpenReadStream());
+                                var txt = await sr.ReadToEndAsync();
+                                if (!string.IsNullOrWhiteSpace(txt))
+                                {
+                                    try
+                                    {
+                                        var arr = JsonSerializer.Deserialize<List<LinkItem>>(txt, jsonOptions);
+                                        if (arr != null && arr.Count > 0)
+                                        {
+                                            foreach (var li in arr)
+                                            {
+                                                if (string.IsNullOrWhiteSpace(li?.Url)) continue;
+                                                _service.CreateFile(new ClassNotificationFile
+                                                {
+                                                    NotificationId = createdNoti.Id,
+                                                    FileName = !string.IsNullOrWhiteSpace(li.Title) ? li.Title : li.Url,
+                                                    FileUrl = li.Url
+                                                });
+                                            }
+                                            continue; 
+                                        }
+                                    }
+                                    catch
+                                    {
+                                    }
+
+                                    try
+                                    {
+                                        var single = JsonSerializer.Deserialize<LinkItem>(txt, jsonOptions);
+                                        if (single != null && !string.IsNullOrWhiteSpace(single.Url))
+                                        {
+                                            _service.CreateFile(new ClassNotificationFile
+                                            {
+                                                NotificationId = createdNoti.Id,
+                                                FileName = !string.IsNullOrWhiteSpace(single.Title) ? single.Title : single.Url,
+                                                FileUrl = single.Url
+                                            });
+                                            continue;
+                                        }
+                                    }
+                                    catch
+                                    {
+                                    }
+
+                                    var raw = txt.Trim();
+                                    if (raw.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || raw.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        _service.CreateFile(new ClassNotificationFile
+                                        {
+                                            NotificationId = createdNoti.Id,
+                                            FileName = raw,
+                                            FileUrl = raw
+                                        });
+                                        continue;
+                                    }
+                                }
+                            }
+                            catch
+                            {
+                            }
+                        }
+
+                        try
+                        {
+                            var uploaded = await _service.UploadFileToCloudinary(formFile);
+                            if (uploaded != null)
+                            {
+                                _service.CreateFile(new ClassNotificationFile
+                                {
+                                    NotificationId = createdNoti.Id,
+                                    FileName = formFile.FileName,
+                                    FileUrl = uploaded.ToString()
+                                });
+                            }
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+
                 if (!string.IsNullOrWhiteSpace(dto.LinksJson))
                 {
                     try
                     {
-                        var links = System.Text.Json.JsonSerializer.Deserialize<List<LinkItem>>(dto.LinksJson);
-                        if (links != null)
+                        var raw = dto.LinksJson.Trim();
+                        if (raw.StartsWith("["))
                         {
-                            foreach (var l in links)
+                            var links = JsonSerializer.Deserialize<List<LinkItem>>(raw, jsonOptions);
+                            if (links != null)
                             {
-                                if (string.IsNullOrWhiteSpace(l?.Url)) continue;
-
+                                foreach (var l in links)
+                                {
+                                    if (string.IsNullOrWhiteSpace(l?.Url)) continue;
+                                    _service.CreateFile(new ClassNotificationFile
+                                    {
+                                        NotificationId = createdNoti.Id,
+                                        FileName = !string.IsNullOrWhiteSpace(l.Title) ? l.Title : l.Url,
+                                        FileUrl = l.Url
+                                    });
+                                }
+                            }
+                        }
+                        else
+                        {
+                            var single = JsonSerializer.Deserialize<LinkItem>(raw, jsonOptions);
+                            if (single != null && !string.IsNullOrWhiteSpace(single.Url))
+                            {
                                 _service.CreateFile(new ClassNotificationFile
                                 {
                                     NotificationId = createdNoti.Id,
-                                    FileName = !string.IsNullOrWhiteSpace(l.Title) ? l.Title : l.Url,
-                                    FileUrl = l.Url
-                                    // nếu bạn có cột để lưu thumbnail/types, cập nhật tương ứng ở đây
+                                    FileName = !string.IsNullOrWhiteSpace(single.Title) ? single.Title : single.Url,
+                                    FileUrl = single.Url
                                 });
                             }
                         }
                     }
                     catch
                     {
-                        // nếu JSON không parse được thì bỏ qua (hoặc log)
                     }
                 }
 
