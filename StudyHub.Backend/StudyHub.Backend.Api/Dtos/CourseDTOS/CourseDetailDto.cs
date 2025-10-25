@@ -13,7 +13,7 @@ public class CourseDetailDto
     public short Category { get; set; }
     public int? SchoolId { get; set; }
     public bool IsFeatured { get; set; }
-    public bool? Status { get; set; }
+    public string Status { get; set; } = null!;
     public DateTime CreatedAt { get; set; }
     public Guid InstructorName { get; set; }
     public DateTime? UpdatedAt { get; set; }
@@ -26,7 +26,6 @@ public class ChapterDto
 {
     public string Name { get; set; } = null!;
     public int CourseId { get; set; }
-    public bool? Status { get; set; }
     public List<LessonDto> Lessons { get; set; } = new();
     public string? Description { get; set; }
     public DateTime? PostDate { get; set; }
@@ -36,7 +35,6 @@ public class LessonDto
 {
     public string Name { get; set; } = null!;
     public int ChapterId { get; set; }
-    public bool? Status { get; set; }
     public string Type { get; set; } = null!;
     public string? VideoUrl { get; set; }
     public string? ReadingContent { get; set; }

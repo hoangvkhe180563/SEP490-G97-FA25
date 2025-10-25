@@ -31,7 +31,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         Id = ch.Id,
                         Name = ch.Name,
                         CourseId = ch.CourseId,
-                        Status = ch.Status,
                         Description = ch.Description,
                         PostDate = ch.PostDate,
                         Lessons = ch.Lessons.Select(l => new Lesson
@@ -39,12 +38,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                             Id = l.Id,
                             Name = l.Name,
                             ChapterId = l.ChapterId,
-                            Status = l.Status,
                             Type = l.Type,
                             Description = l.Description,
                             Duration = l.Duration,
                             PostDate = l.PostDate,
                             IsPreview = l.IsPreview,
+                            ResourceId = l.ResourceId,
                             LessonVideo = l.LessonVideo == null ? null :
                                 new LessonVideo { LessonId = l.LessonVideo.LessonId, Url = l.LessonVideo.Url },
                             LessonReading = l.LessonReading == null ? null :
@@ -78,7 +77,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Id = ch.Id,
                     Name = ch.Name,
                     CourseId = ch.CourseId,
-                    Status = ch.Status,
                     Description = ch.Description,
                     PostDate = ch.PostDate,
                     Lessons = ch.Lessons.Select(l => new Lesson
@@ -86,12 +84,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         Id = l.Id,
                         Name = l.Name,
                         ChapterId = l.ChapterId,
-                        Status = l.Status,
                         Type = l.Type,
                         Description = l.Description,
                         Duration = l.Duration,
                         PostDate = l.PostDate,
                         IsPreview = l.IsPreview,
+                        ResourceId = l.ResourceId,
                         LessonVideo = l.LessonVideo == null ? null :
                             new LessonVideo { LessonId = l.LessonVideo.LessonId, Url = l.LessonVideo.Url },
                         LessonReading = l.LessonReading == null ? null :
@@ -114,7 +112,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     Name = chapter.Name,
                     CourseId = chapter.CourseId,
-                    Status = chapter.Status ?? true,
                     Description = chapter.Description,
                     PostDate = chapter.PostDate,
                 };
@@ -143,7 +140,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (entity == null) return chapter;
 
                 entity.Name = chapter.Name;
-                entity.Status = chapter.Status;
                 entity.Description = chapter.Description;
                 entity.PostDate = chapter.PostDate;
 

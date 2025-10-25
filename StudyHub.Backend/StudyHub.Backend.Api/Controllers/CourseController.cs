@@ -28,7 +28,7 @@ public class CourseController : ControllerBase
         [FromQuery] sbyte? grade,
         [FromQuery] string? duration,
         [FromQuery] Guid? instructor,
-        [FromQuery] bool? status,
+        [FromQuery] string? status,
         [FromQuery] bool? isFeatured,
         [FromQuery] string? sort,
         [FromQuery] int page = 1,

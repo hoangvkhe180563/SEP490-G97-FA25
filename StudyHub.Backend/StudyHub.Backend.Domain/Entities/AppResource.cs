@@ -8,4 +8,5 @@ public class AppResource
     public int Id { get; set; }
 
     public string Name { get; set; } = null!;
+    public string ResourceType { get; set; } = null!;
 }

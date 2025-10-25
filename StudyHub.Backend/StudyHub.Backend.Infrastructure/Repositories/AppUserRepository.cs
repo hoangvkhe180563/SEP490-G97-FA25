@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using CloudinaryDotNet.Actions;
+using Microsoft.EntityFrameworkCore;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Exceptions;
@@ -23,7 +24,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 Id = d.Id,
                 Email = d.Email,
-                Gender = (bool)d.Gender,
+                Gender = d.Gender,
                 PasswordHash = d.PasswordHash,
                 Username = d.Username,
                 Fullname = d.Fullname,
@@ -102,7 +103,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 if (!string.IsNullOrEmpty(roleId))
                 {
-                    users = users.Where(u => u.Roles.Any(r => r.Id.Equals(roleId)));
+                    // Parse roleId to Guid
+                    if (Guid.TryParse(roleId, out Guid parsedRoleId))
+                    {
+                        users = users.Where(u => u.AppClaims.Any(c => c.RoleId == parsedRoleId));
+                    }
                 }
 
                 if (!string.IsNullOrEmpty(search))
@@ -166,13 +171,37 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     try
                     {
-                        var existing = _context.AppUsers.Include(u => u.Roles).FirstOrDefault(u => u.Id == d.Id);
+                        var existing = _context.AppUsers
+                                    .Include(u => u.AppClaims)
+                                    .FirstOrDefault(u => u.Id == d.Id);
                         if (existing != null)
                         {
                             var roles = _context.AppRoles.Where(r => roleIds.Contains(r.Id)).ToList();
                             foreach (var r in roles)
                             {
-                                if (!existing.Roles.Any(er => er.Id == r.Id)) existing.Roles.Add(r);
+                                var subjectIds = GetUserSubjectIds(existing.Id); // Implement hàm này
+                                var classIds = GetUserClassIds(existing.Id);     // Implement hàm này
+
+                                foreach (var subjectId in subjectIds)
+                                {
+                                    foreach (var classId in classIds)
+                                    {
+                                        if (!existing.AppClaims.Any(c => c.RoleId == r.Id
+                                                                      && c.SubjectId == subjectId
+                                                                      && c.ClassId == classId))
+                                        {
+                                            var claim = new Data.AppClaim
+                                            {
+                                                UserId = existing.Id,
+                                                RoleId = r.Id,
+                                                SubjectId = subjectId,
+                                                ClassId = classId
+                                            };
+
+                                            _context.AppClaims.Add(claim);
+                                        }
+                                    }
+                                }
                             }
                             _context.SaveChanges();
                         }
@@ -195,8 +224,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var existing = _context.AppUsers.Include(u => u.Roles).FirstOrDefault(u => u.Id == user.Id);
+                var existing = _context.AppUsers
+                                .Include(u => u.AppClaims)
+                                .ThenInclude(c => c.Role)
+                                .FirstOrDefault(u => u.Id == user.Id);
+
                 if (existing == null) return;
+
                 existing.Email = user.Email;
                 existing.PasswordHash = user.PasswordHash;
                 existing.Username = user.Username;
@@ -215,12 +249,43 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 existing.Address = user.Address;
                 existing.CommuneId = user.CommuneId;
                 existing.Avatar = user.Avatar;
-                if (roleIds != null)
+
+                if (roleIds != null && roleIds.Any())
                 {
-                    existing.Roles.Clear();
-                    var roles = _context.AppRoles.Where(r => roleIds.Contains(r.Id)).ToList();
-                    foreach (var r in roles) existing.Roles.Add(r);
+                    // Lấy tất cả claims hiện tại của user
+                    var existingClaims = _context.AppClaims
+                        .Where(c => c.UserId == user.Id)
+                        .ToList();
+
+                    // Lấy danh sách các cặp SubjectId-ClassId hiện tại
+                    var currentSubjectClassPairs = existingClaims
+                        .Select(c => new { c.SubjectId, c.ClassId })
+                        .Distinct()
+                        .ToList();
+
+                    // Xóa chỉ các claims có RoleId trong danh sách roleIds cần update
+                    var claimsToRemove = existingClaims
+                        .Where(c => roleIds.Contains(c.RoleId))
+                        .ToList();
+                    _context.AppClaims.RemoveRange(claimsToRemove);
+
+                    // Thêm lại claims mới với roles từ roleIds
+                    foreach (var roleId in roleIds)
+                    {
+                        foreach (var pair in currentSubjectClassPairs)
+                        {
+                            var claim = new Data.AppClaim
+                            {
+                                UserId = user.Id,
+                                RoleId = roleId,
+                                SubjectId = pair.SubjectId,
+                                ClassId = pair.ClassId
+                            };
+                            _context.AppClaims.Add(claim);
+                        }
+                    }
                 }
+
                 _context.AppUsers.Update(existing);
                 _context.SaveChanges();
             }
@@ -243,10 +308,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     RoleId = c.RoleId,
                     SubjectId = c.SubjectId,
                     ClassId = c.ClassId,
-                    Class = c.Class == null ? null : new Domain.Entities.Class { Id = c.Class.Id, Name = c.Class.Name },
-                    Role = c.Role == null ? null : new Domain.Entities.AppRole { Id = c.Role.Id, Name = c.Role.Name },
-                    Subject = c.Subject == null ? null : new Domain.Entities.Subject { Id = c.Subject.Id, Name = c.Subject.Name },
-                    User = c.User == null ? null : ToDomain(c.User)
+                    Class = new Domain.Entities.Class { Id = c.Class.Id, Name = c.Class.Name },
+                    Role = new Domain.Entities.AppRole { Id = c.Role.Id, Name = c.Role.Name },
+                    Subject = new Domain.Entities.Subject { Id = c.Subject.Id, Name = c.Subject.Name },
+                    User = ToDomain(c.User)
                 });
             }
             return result;
@@ -326,6 +391,30 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             var provinceName = commune.Province?.Name;
             var cityName = commune.Province?.City?.Name;
             return (provinceName, cityName);
+        }
+
+        // Lấy tất cả SubjectId mà user đã có claims
+        private List<short> GetUserSubjectIds(Guid userId)
+        {
+            var subjectIds = _context.AppClaims
+                .Where(c => c.UserId == userId)
+                .Select(c => c.SubjectId)
+                .Distinct()
+                .ToList();
+
+            return subjectIds;
+        }
+
+        // Lấy tất cả ClassId mà user đã có claims
+        private List<int> GetUserClassIds(Guid userId)
+        {
+            var classIds = _context.AppClaims
+                .Where(c => c.UserId == userId)
+                .Select(c => c.ClassId)
+                .Distinct()
+                .ToList();
+
+            return classIds;
         }
 
     }
