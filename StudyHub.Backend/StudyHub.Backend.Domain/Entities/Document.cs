@@ -15,7 +15,7 @@
         public int? SchoolId { get; set; }
         public bool IsInClass { get; set; }
         public bool IsFeatured { get; set; }
-        public virtual ICollection<Class> Classes { get; set; } = new List<Class>();
+        public List<Class> Classes { get; set; } = new List<Class>();
         public Subject? Subject { get; set; }
         public DocumentCategory? DocumentCategory { get; set; }
         public School? School { get; set; }

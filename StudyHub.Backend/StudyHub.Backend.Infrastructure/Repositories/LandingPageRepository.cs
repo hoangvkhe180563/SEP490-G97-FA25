@@ -61,7 +61,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 if (schoolId == 0)
                 {
-                    return _context.Courses.Where(c => c.IsFeatured && c.SchoolId == null && c.Status == true)
+                    return _context.Courses.Where(c => c.IsFeatured && c.SchoolId == null && c.Status.Equals("Mở"))
                         .Select(c => new Domain.Entities.Course
                         {
                             Id = c.Id,
@@ -70,13 +70,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                             Name = c.Name,
                             IsFeatured = c.IsFeatured,
                             ImageUrl = c.ImageUrl,
-                            Subject = c.Subject != null ? new Domain.Entities.Subject { Id = c.Subject.Id, Name = c.Subject.Name } : null,
+                            Subject = new Domain.Entities.Subject { Id = c.Subject.Id, Name = c.Subject.Name }
                         })
                         .ToList();
                 }
                 else
                 {
-                    return _context.Courses.Where(c => c.IsFeatured && c.SchoolId == schoolId && c.Status == true)
+                    return _context.Courses.Where(c => c.IsFeatured && c.SchoolId == schoolId && c.Status.Equals("Mở"))
                         .Select(c => new Domain.Entities.Course
                         {
                             Id = c.Id,
@@ -85,7 +85,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                             Name = c.Name,
                             IsFeatured = c.IsFeatured,
                             ImageUrl = c.ImageUrl,
-                            Subject = c.Subject != null ? new Domain.Entities.Subject { Id = c.Subject.Id, Name = c.Subject.Name } : null,
+                            Subject = new Domain.Entities.Subject { Id = c.Subject.Id, Name = c.Subject.Name },
                         })
                         .ToList();
                 }

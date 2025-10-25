@@ -15,7 +15,7 @@ public partial class School
 
     public virtual Commune Commune { get; set; } = null!;
 
-    public virtual ICollection<Document> Documents { get; set; } = new List<Document>();
+    public virtual List<Document> Documents { get; set; } = new List<Document>();
 
     public virtual LandingPage? LandingPage { get; set; }
 

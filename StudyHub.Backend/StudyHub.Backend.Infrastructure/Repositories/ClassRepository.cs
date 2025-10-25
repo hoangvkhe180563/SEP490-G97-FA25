@@ -74,16 +74,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
         public List<AppUser> GetAllTeacher()
         {
-            var teacherRole = _context.AppRoles
-                .Include(r => r.Users)
-                .FirstOrDefault(r => r.Name.Equals("Teacher"));
+            var teachers = _context.AppClaims
+                .Where(c => c.Role.Name.Contains("Teacher"))
+                .Select(c => c.User)
+                .Distinct()
+                .ToList();
 
-            if (teacherRole == null)
+            if (teachers == null)
             {
                 return new List<AppUser>();
             }
 
-            return teacherRole.Users
+            return teachers
                 .Select(infraUser => new AppUser
                 {
                     Id = infraUser.Id,

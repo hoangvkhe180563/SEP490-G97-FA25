@@ -17,5 +17,5 @@ public partial class PaymentInfo
 
     public string QrcodeUrl { get; set; } = null!;
 
-    public virtual School School { get; set; } = null!;
+    public School School { get; set; } = null!;
 }
