@@ -4,8 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Api.Dtos.ClassDTOS;
 using StudyHub.Backend.Api.Mappers;
+using StudyHub.Backend.Api.Services;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Services;
+using System.Collections.Generic;
+using System.Net;
 using System.Text.Json;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -17,12 +20,19 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly ClassService _service;
         private readonly AppUserService _aUserService;
         private readonly AppRoleService _aRoleService;
+        private readonly LocationService _locationService;
+        private readonly IConfiguration _config;
+        private readonly IEmailService _emailService;
 
-        public ClassController(ClassService service, AppUserService aUserService, AppRoleService aRoleService)
+
+        public ClassController(ClassService service, AppUserService aUserService, AppRoleService aRoleService, LocationService locationService,IEmailService emailService, IConfiguration config)
         {
             _service = service;
             _aUserService = aUserService;
             _aRoleService = aRoleService;
+            _locationService = locationService;
+            _emailService = emailService;
+            _config = config;
         }
 
         [HttpGet]
@@ -123,15 +133,26 @@ namespace StudyHub.Backend.Api.Controllers
                 return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
 
             var members = _service.GetClassMembers(id)
-                .Select(m =>
-                {
-                    var roles = _aRoleService.GetRolesByUser(m.UserId)
-                                             .Where(r => !string.IsNullOrEmpty(r.Name))
-                                             .Select(r => r.Name!)
-                                             .ToList();
-                    return m.ToMemberDto(_aUserService.GetUserById(m.UserId), roles);
-                })
-                .ToList();
+                 .Select(m =>
+                 {
+                     var roles = _aRoleService.GetRolesByUser(m.UserId)
+                                              .Where(r => !string.IsNullOrEmpty(r.Name))
+                                              .Select(r => r.Name!)
+                                              .ToList();
+
+                     var user = _aUserService.GetUserById(m.UserId);
+
+                     var school = (user?.SchoolId).HasValue
+                         ? _locationService.GetSchoolById(user!.SchoolId.Value)
+                         : null;
+
+                     var commune = (user?.CommuneId).HasValue
+                         ? _locationService.GetCommuneById(user!.CommuneId.Value)
+                         : null;
+
+                     return m.ToMemberDto(user, roles, school, commune);
+                 })
+                    .ToList();
 
             return Ok(new
             {
@@ -470,6 +491,155 @@ namespace StudyHub.Backend.Api.Controllers
             {
                 return StatusCode(500, new { success = false, message = $"Server error: {ex.Message}", error = ex.ToString() });
             }
+        }
+        [HttpPost("{id}/invite")]
+        public async Task<IActionResult> InviteByEmails(int id, [FromBody] InviteRequest request)
+        {
+            try
+            {
+                var cls = _service.GetClassById(id);
+                if (cls == null)
+                    return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
+
+                if (request?.Emails == null || request.Emails.Count == 0)
+                    return BadRequest(new { success = false, message = "Cần cung cấp ít nhất một email để mời." });
+
+                var results = new List<object>();
+                var baseFrontendUrl = _config["Frontend:BaseUrl"]?.TrimEnd('/') ?? $"{Request.Scheme}://{Request.Host}";
+
+                foreach (var raw in request.Emails.Select(e => e?.Trim()).Where(e => !string.IsNullOrWhiteSpace(e)).Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    var email = raw!;
+                    // Try find user by email via AppUserService
+                    var user = TryGetUserByEmail(email);
+
+                    if (user != null)
+                    {
+                        // Existing user: create/update class_members with status = 'invited'
+                        var invited = _service.InviteMember(user.Id, id);
+
+                        // Build frontend accept URL (frontend should call confirm)
+                        var acceptUrl = $"{baseFrontendUrl}/class/{id}?invite=true";
+
+                        // send invitation email (only here)
+                        await _emailService.SendClassInvitationEmailAsync(email, cls.Name ?? "Class", acceptUrl, inviterName: _aUserService.GetUserById(cls.CreatedBy)?.Fullname ?? "", customMessage: request.Message);
+
+                        results.Add(new { email, existingAccount = true, invited });
+                    }
+                    else
+                    {
+                        // No user: send invitation encouraging registration (only here)
+                        var registerUrl = $"{baseFrontendUrl}/register?email={WebUtility.UrlEncode(email)}&redirect=/class/{id}";
+                        await _emailService.SendClassInvitationEmailAsync(email, cls.Name ?? "Class", registerUrl, inviterName: _aUserService.GetUserById(cls.CreatedBy)?.Fullname ?? "", customMessage: request.Message);
+                        results.Add(new { email, existingAccount = false, invited = false });
+                    }
+                }
+
+                return Ok(new { success = true, message = "Đã gửi lời mời.", data = results });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = $"Lỗi khi gửi lời mời: {ex.Message}", error = ex.ToString() });
+            }
+        }
+
+        /// <summary>
+        /// Confirm (accept) the invitation for a specific userId and classId.
+        /// This endpoint will set class_members.status = 'joined' and set JoinDate if invite existed or create new record.
+        /// </summary>
+        [HttpPost("{id}/members/{userId}/confirm")]
+        public IActionResult ConfirmMember(int id, string userId)
+        {
+            try
+            {
+                if (!Guid.TryParse(userId, out var userGuid))
+                    return BadRequest(new { success = false, message = "UserId không hợp lệ." });
+
+                var cls = _service.GetClassById(id);
+                if (cls == null)
+                    return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
+
+                var ok = _service.ConfirmMember(userGuid, id);
+                if (!ok)
+                    return StatusCode(500, new { success = false, message = "Không thể xác nhận thành viên." });
+
+                return Ok(new { success = true, message = "Thành viên đã được xác nhận (joined)." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = $"Lỗi khi xác nhận: {ex.Message}", error = ex.ToString() });
+            }
+        }
+
+        /// <summary>
+        /// Kick a member from class (set status = 'kicked').
+        /// </summary>
+        [HttpPost("{id}/members/{userId}/kick")]
+        public IActionResult KickMember(int id, string userId)
+        {
+            try
+            {
+                if (!Guid.TryParse(userId, out var userGuid))
+                    return BadRequest(new { success = false, message = "UserId không hợp lệ." });
+
+                var cls = _service.GetClassById(id);
+                if (cls == null)
+                    return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
+
+                var ok = _service.KickMember(userGuid, id);
+                if (!ok)
+                    return StatusCode(500, new { success = false, message = "Không thể kick thành viên." });
+
+                return Ok(new { success = true, message = "Thành viên đã bị kick (status set to kicked)." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = $"Lỗi khi kick: {ex.Message}", error = ex.ToString() });
+            }
+        }
+
+        // ---------------- Helpers ----------------
+
+        // Try to resolve user by email using AppUserService. Uses reflection fallback if method name differs.
+        private AppUser? TryGetUserByEmail(string email)
+        {
+            try
+            {
+                // Prefer a direct method call if available
+                var mi = _aUserService.GetType().GetMethod("GetUserByEmail");
+                if (mi != null)
+                {
+                    var res = mi.Invoke(_aUserService, new object[] { email });
+                    return res as AppUser;
+                }
+
+                // fallback: attempt GetAllUsers and find
+                var allMethod = _aUserService.GetType().GetMethod("GetAllUsers");
+                if (allMethod != null)
+                {
+                    var list = allMethod.Invoke(_aUserService, Array.Empty<object>()) as IEnumerable<AppUser>;
+                    return list?.FirstOrDefault(u => string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase));
+                }
+            }
+            catch
+            {
+                // ignore and return null
+            }
+            return null;
+        }
+        [HttpGet("classworks/{id}")]
+        public IActionResult getClasswork(int id)
+        {
+            var cw = _service.GetClassworks(id);
+            if (cw == null) return NotFound();
+            var response = new
+            {
+                success = true,
+                message = "Danh sách lớp học được tải thành công.",
+                classes =  cw,
+               
+            };
+            return Ok(response);
         }
 
 

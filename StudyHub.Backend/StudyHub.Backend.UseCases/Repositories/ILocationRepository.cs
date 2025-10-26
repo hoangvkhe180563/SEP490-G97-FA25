@@ -10,5 +10,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         List<Commune> GetCommunesByProvinceId(short provinceId);
         List<School> GetAllSchools();
         List<School> GetSchoolsByCommuneId(int communeId);
+        School GetSchoolByID(int schoolId);
+        Commune CommuneByID(int communeId);
     }
 }

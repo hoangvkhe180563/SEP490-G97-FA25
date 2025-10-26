@@ -22,5 +22,9 @@ namespace StudyHub.Backend.UseCases.Services
         public List<School> GetAllSchools() => _locationRepository.GetAllSchools();
 
         public List<School> GetSchoolsByCommuneId(int communeId) => _locationRepository.GetSchoolsByCommuneId(communeId);
+
+        public School GetSchoolById(int schoolId)=> _locationRepository.GetSchoolByID(schoolId);
+
+        public Commune GetCommuneById(int communeId)=> _locationRepository.CommuneByID(communeId);
     }
 }

@@ -30,5 +30,10 @@ namespace StudyHub.Backend.UseCases.Repositories
         List<ClassNotificationFile> GetFileByNotificationId(int notificationId);
         ClassNotificationComment CommentNoti(ClassNotificationComment comment);
         bool deleteNotification(int id);
+        bool InviteMember(Guid userId, int classId);
+        bool ConfirmMember(Guid userId, int classId);
+        bool KickMember(Guid userId, int classId);
+        List<Classwork> GetClassworks(int classId);
+
     }
 }

@@ -120,6 +120,10 @@ namespace StudyHub.Backend.UseCases.Services
            return _classRepository.CommentNoti(commentEntity);
         }
         public bool deleteNoti(int  notificationid) => _classRepository.deleteNotification(notificationid);
+        public bool InviteMember(Guid userId, int classId)=>_classRepository.InviteMember(userId, classId);
+        public bool ConfirmMember(Guid userId, int classId) =>_classRepository.ConfirmMember(userId, classId);
+        public bool KickMember(Guid userId, int classId)=> _classRepository.KickMember(userId,classId);
         public ClassNotification GetNotificationByID(int notificationid) => _classRepository.getNotificationByID(notificationid);
+        public List<Classwork> GetClassworks(int classId)=> _classRepository.GetClassworks(classId);
     }
 }

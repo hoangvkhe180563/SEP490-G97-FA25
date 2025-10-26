@@ -165,12 +165,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public List<ClassMember> GetClassMembers(int classId)
         {
             return _context.ClassMembers
-                .Where(m => m.ClassId == classId)
+                .Where(m => m.ClassId == classId && m.Status.Equals("joined"))
                 .Select(m => new ClassMember
                 {
                     UserId = m.UserId,
                     ClassId = m.ClassId,
-                    JoinDate = m.JoinDate
+                    JoinDate = m.JoinDate,
+                    Status = m.Status,
                 }).ToList();
         }
 
@@ -359,5 +360,111 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             };
             return noti2;
         }
+        public bool InviteMember(Guid userId, int classId)
+        {
+            try
+            {
+                // Nếu đã có record:
+                var existing = _context.ClassMembers.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
+                if (existing != null)
+                {
+                    // nếu đã joined, không đổi; nếu bị kicked hoặc invited, set lại invited and null JoinDate
+                    existing.Status = "invited";
+                    existing.JoinDate = DateTime.Now;
+                    _context.ClassMembers.Update(existing);
+                    _context.SaveChanges();
+                    return true;
+                }
+
+                // tạo record mới với status invited (JoinDate null)
+                var newMember = new Data.ClassMember
+                {
+                    UserId = userId,
+                    ClassId = classId,
+                    JoinDate = DateTime.Now,
+                    Status = "invited"
+                };
+                _context.ClassMembers.Add(newMember);
+                _context.SaveChanges();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ClassRepository", "InviteMember failed. Inner error: " + ex.Message).LogError();
+                return false;
+            }
+        }
+
+        public bool ConfirmMember(Guid userId, int classId)
+        {
+            try
+            {
+                var existing = _context.ClassMembers.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
+                if (existing == null)
+                {
+                    // nếu chưa có record (hiếm), tạo record mới với joined
+                    var newMember = new Data.ClassMember
+                    {
+                        UserId = userId,
+                        ClassId = classId,
+                        JoinDate = DateTime.UtcNow,
+                        Status = "joined"
+                    };
+                    _context.ClassMembers.Add(newMember);
+                    _context.SaveChanges();
+                    return true;
+                }
+
+                // Cập nhật status -> joined và set JoinDate nếu null
+                existing.Status = "joined";
+                existing.JoinDate = existing.JoinDate;
+                _context.ClassMembers.Update(existing);
+                _context.SaveChanges();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ClassRepository", "ConfirmMember failed. Inner error: " + ex.Message).LogError();
+                return false;
+            }
+        }
+
+        public bool KickMember(Guid userId, int classId)
+        {
+            try
+            {
+                var existing = _context.ClassMembers.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
+                if (existing == null)
+                {
+                    // Nếu chưa tồn tại, không cần tạo record; trả về false (không có gì để kick)
+                    return false;
+                }
+
+                existing.Status = "kicked";
+                // Optional: bạn có thể giữ JoinDate để audit hoặc set null
+                _context.ClassMembers.Update(existing);
+                _context.SaveChanges();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ClassRepository", "KickMember failed. Inner error: " + ex.Message).LogError();
+                return false;
+            }
+        }
+
+        public List<Classwork> GetClassworks(int classId)
+        {
+            var classww= _context.Classworks.Where(c=>c.ClassId== classId).Select(a=> new Classwork
+            {
+                Id = a.Id,
+                ClassId = a.ClassId,
+                Title = a.Title,
+                Description = a.Description,
+                Deadline = a.Deadline,
+            });
+            return classww.ToList();
+        }
+        
     }
 }

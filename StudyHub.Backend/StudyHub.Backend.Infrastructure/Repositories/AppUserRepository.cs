@@ -42,7 +42,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 IsLoginWithGoogle = d.IsLoginWithGoogle,
                 Address = d.Address,
                 CommuneId = d.CommuneId,
-                Avatar = d.Avatar
+                Avatar = d.Avatar,
+                PhoneNumber = d.PhoneNumber,
             };
         }
 

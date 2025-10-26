@@ -13,5 +13,5 @@ public partial class SubmissionFile
 
     public string FileUrl { get; set; } = null!;
 
-    public ClassworkSubmission Submission { get; set; } = null!;
+    public virtual ClassworkSubmission Submission { get; set; } = null!;
 }

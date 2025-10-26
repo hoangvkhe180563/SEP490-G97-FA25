@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-
+import type { ClassWork } from "@/classManagement/interfaces/class";
 import PostComposer from "@/classManagement/components/ui/postcomposer";
 import PostCard from "@/classManagement/components/ui/postcard";
 import EveryoneListTC from "@/classManagement/components/ui/listeveryoneteacher";
 import MemberDetailModal from "@/classManagement/components/ui/memberdetailmodal";
+import AddMemberModal from "@/classManagement/components/ui/addmembermodal";
 import type { UserRole } from "@/classManagement/components/ui/classcard";
 import {
   Breadcrumb,
@@ -56,9 +57,11 @@ const ClassInfoCard: React.FC<{ info: ClassInfo | null }> = ({ info }) => {
 // ===== Trang chi tiết lớp học =====
 const DetailedClassTeacher: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { getClassInfo, getClassMembers, currentClass, isLoading, createNotification } =
+  const { getClassInfo, getClassMembers,getClassWorks, currentClass, isLoading, createNotification } =
     useClassStore();
   const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(null);
+  const [openAddMember, setOpenAddMember] = useState(false);
+
   const userRole: UserRole = useMemo(() => {
     if (location.pathname.includes("/student")) return "student";
     return "teacher";
@@ -70,7 +73,7 @@ const DetailedClassTeacher: React.FC = () => {
       getClassInfo(Number(id));
     }
   }, [id, getClassInfo]);
-
+  const worksFromStore: ClassWork[] = currentClass?.data?.works ?? [];
   // Tab đang hoạt động
   const [activeTab, setActiveTab] = useState("notifications");
   const [searchParams] = useSearchParams();
@@ -86,16 +89,31 @@ const DetailedClassTeacher: React.FC = () => {
   useEffect(() => {
     if (!id) return;
     if (activeTab === "everyone") {
-      // you may want to avoid refetch if already loaded; simple call for now
-      getClassMembers(Number(id));
+      // Only fetch if we don't already have loaded members (avoid refetching every open)
+      const hasTeacher = !!currentClass?.data?.teacher;
+      const hasStudents = (currentClass?.data?.students ?? []).length > 0;
+      const hasParents = (currentClass?.data?.parents ?? []).length > 0;
+
+      if (!hasTeacher && !hasStudents && !hasParents) {
+        getClassMembers(Number(id));
+      }
     }
-  }, [activeTab, id, getClassMembers]);
+  }, [activeTab, id, getClassMembers, currentClass?.data?.teacher, currentClass?.data?.students, currentClass?.data?.parents]);
 
   const teacher: ClassMemberDto | null = currentClass?.data?.teacher ?? null;
   const students: ClassMemberDto[] = currentClass?.data?.students ?? [];
   const parents: ClassMemberDto[] = currentClass?.data?.parents ?? [];
   const [notifications, setNotifications] = useState<ClassNotification[]>([]);
-
+  useEffect(() => {
+  if (!id) return;
+  if (activeTab === "exercise") {
+    const hasWorks = (currentClass?.data?.works ?? []).length > 0;
+    if (!hasWorks) {
+      // call store action
+      getClassWorks(Number(id));
+    }
+  }
+}, [activeTab, id, getClassWorks, currentClass?.data?.works]);
   // sync notifications whenever currentClass updates
   useEffect(() => {
     if (currentClass?.data?.notifications) {
@@ -179,6 +197,18 @@ const DetailedClassTeacher: React.FC = () => {
   const handleSelect = (p: ClassMemberDto) => setSelectedMember(p);
   const handleCloseModal = () => setSelectedMember(null);
 
+  // Add member modal handlers
+  const handleOpenAdd = () => setOpenAddMember(true);
+  const handleCloseAdd = () => setOpenAddMember(false);
+  const handleInvited = (res?: any) => {
+    // refresh members if needed (store inviteMembers already attempts getClassMembers)
+    if (id) {
+      getClassMembers(Number(id));
+    }
+    // close modal handled by AddMemberModal caller or parent
+    handleCloseAdd();
+  };
+
   if (isLoading) {
     return <div className="p-6 text-center text-gray-500">Đang tải thông tin lớp học...</div>;
   }
@@ -201,6 +231,22 @@ const DetailedClassTeacher: React.FC = () => {
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
+
+      {/* Header with title and Add member button */}
+      <div className="mt-4 mb-4 flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">{classInfo?.name ?? "Chi tiết lớp học"}</h1>
+          <div className="text-sm text-gray-500">{classInfo?.description ?? ""}</div>
+        </div>
+        <div>
+          <button
+            onClick={handleOpenAdd}
+            className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded"
+          >
+            Thêm thành viên
+          </button>
+        </div>
+      </div>
 
       {/* ===== Lưới bố cục chính ===== */}
       <div className="grid grid-cols-12 gap-6">
@@ -241,8 +287,31 @@ const DetailedClassTeacher: React.FC = () => {
 
             {/* --- Bài tập --- */}
             <TabsContent value="exercise">
-              <div className="text-gray-500 text-sm">Chưa có bài tập nào.</div>
-            </TabsContent>
+  <div className="mt-2">
+    {worksFromStore.length === 0 ? (
+      <div className="text-gray-500 text-sm">Chưa có bài tập nào.</div>
+    ) : (
+      <div className="space-y-3">
+        {worksFromStore.map((w) => (
+          <div key={w.id} className="bg-white border rounded-lg p-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <div className="text-sm font-semibold text-gray-800">{w.title}</div>
+                <div className="text-sm text-gray-600 mt-1">{w.description}</div>
+              </div>
+              <div className="text-xs text-gray-500 text-right">
+                <div className="text-gray-400">Hạn nộp</div>
+                <div className="font-medium">
+                  {w.deadline ? new Date(w.deadline).toLocaleString() : "Không xác định"}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</TabsContent>
 
             {/* --- Mọi người --- */}
             <TabsContent value="everyone">
@@ -263,8 +332,16 @@ const DetailedClassTeacher: React.FC = () => {
         </aside>
       </div>
 
-      {/* ===== Modal chi tiết thành viên ===== */} 
+      {/* ===== Modal chi tiết thành viên ===== */}
       <MemberDetailModal open={!!selectedMember} member={selectedMember} onClose={handleCloseModal} />
+
+      {/* ===== Add member modal ===== */}
+      <AddMemberModal
+        open={openAddMember}
+        classId={id ? Number(id) : 0}
+        onClose={handleCloseAdd}
+        onInvited={handleInvited}
+      />
     </div>
   );
 };

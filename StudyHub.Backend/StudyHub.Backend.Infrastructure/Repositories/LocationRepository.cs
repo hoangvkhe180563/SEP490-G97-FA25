@@ -67,5 +67,30 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Name = s.Name,
                 }).ToList();
         }
+
+        public DomainEntities.School GetSchoolByID(int schoolId)
+        {
+            var school= _context.Schools.FirstOrDefault(c => c.Id == schoolId);
+            return new DomainEntities.School
+            {
+                Id = schoolId,
+                Name = school.Name,
+                CommuneId = school.CommuneId,
+                Address = school.Address,
+                
+            };
+        }
+
+        public DomainEntities.Commune CommuneByID(int communeId)
+        {
+            var commune = _context.Communes.FirstOrDefault(c=>c.Id== communeId);
+            return new DomainEntities.Commune
+            {
+                Id = communeId,
+                Name = commune.Name,
+                ProvinceId = commune.ProvinceId,
+
+            };
+        }
     }
 }

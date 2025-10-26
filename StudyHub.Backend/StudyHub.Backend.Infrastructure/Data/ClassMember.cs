@@ -11,6 +11,8 @@ public partial class ClassMember
 
     public DateTime JoinDate { get; set; }
 
+    public string Status { get; set; } = null!;
+
     public virtual Class Class { get; set; } = null!;
 
     public virtual AppUser User { get; set; } = null!;

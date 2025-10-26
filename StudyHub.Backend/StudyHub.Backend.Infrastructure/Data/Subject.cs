@@ -9,11 +9,11 @@ public partial class Subject
 
     public string Name { get; set; } = null!;
 
-    public List<AppClaim> AppClaims { get; set; } = new List<AppClaim>();
+    public virtual ICollection<AppClaim> AppClaims { get; set; } = new List<AppClaim>();
 
-    public List<Class> Classes { get; set; } = new List<Class>();
+    public virtual ICollection<Class> Classes { get; set; } = new List<Class>();
 
-    public List<Course> Courses { get; set; } = new List<Course>();
+    public virtual ICollection<Course> Courses { get; set; } = new List<Course>();
 
-    public List<Document> Documents { get; set; } = new List<Document>();
+    public virtual ICollection<Document> Documents { get; set; } = new List<Document>();
 }

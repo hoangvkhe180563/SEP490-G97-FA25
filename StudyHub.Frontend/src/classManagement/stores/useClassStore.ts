@@ -1,4 +1,8 @@
-import { type Post, type PostComment } from "@/classManagement/components/ui/postcard";
+// Updated mapping to include all member fields returned by the API (address, communeId, phoneNumber, wallet, gender, schoolId, ...)
+import {
+  type Post,
+  type PostComment,
+} from "@/classManagement/components/ui/postcard";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type {
@@ -10,6 +14,7 @@ import type {
   ClassDetailResponse,
   ClassNotification,
   ClassNotificationFile,
+  ClassWork,
 } from "../interfaces/class";
 import { axiosInstance } from "@/lib/axios";
 
@@ -72,7 +77,9 @@ export const useClassStore = create<ClassState>()(
       getClasses: async (query: string) => {
         set({ isLoading: true, success: false, message: "" });
         try {
-          const response = await axiosInstance.get<GetClassesResponse>(`/Class?${query}`);
+          const response = await axiosInstance.get<GetClassesResponse>(
+            `/Class?${query}`
+          );
           const data = response.data;
           console.log("API trả về số lớp:", data.classes.length);
 
@@ -105,7 +112,11 @@ export const useClassStore = create<ClassState>()(
         }
       },
 
-      addClass: async (payload: { title: string; subject: number; description?: string }) => {
+      addClass: async (payload: {
+        title: string;
+        subject: number;
+        description?: string;
+      }) => {
         set({ isLoading: true, success: false, message: "" });
         try {
           const body = {
@@ -165,7 +176,12 @@ export const useClassStore = create<ClassState>()(
         }
       },
 
-      updateClass: async (payload: { id: number; title: string; subject: number; description?: string }) => {
+      updateClass: async (payload: {
+        id: number;
+        title: string;
+        subject: number;
+        description?: string;
+      }) => {
         set({ isLoading: true, success: false, message: "" });
         try {
           const body = {
@@ -215,18 +231,82 @@ export const useClassStore = create<ClassState>()(
           const raw = res?.data ?? null;
 
           if (!raw || raw.success === false) {
-            console.warn("getClassMembers: API returned success=false", raw?.message);
+            console.warn(
+              "getClassMembers: API returned success=false",
+              raw?.message
+            );
             set({ isLoading: false });
             return null;
           }
 
           const membersRaw = raw.data ?? [];
-          const members: ClassMemberDto[] = membersRaw.map((m: any) => ({
-            userId: m.userId,
-            fullname: m.fullname,
-            roles: m.roles ?? [],
-            joinDate: m.joinDate,
-          }));
+
+          const normalizeRoles = (r: any): string[] => {
+            if (!r) return [];
+            if (Array.isArray(r)) return r.map(String);
+            if (typeof r === "string") {
+              try {
+                // sometimes server sends JSON-string: '["Student"]'
+                const parsed = JSON.parse(r);
+                if (Array.isArray(parsed)) return parsed.map(String);
+              } catch {
+                // not JSON — treat as single role string
+              }
+              return [r];
+            }
+            return [];
+          };
+
+          const toBoolean = (v: any): boolean | undefined => {
+            if (v === undefined || v === null) return undefined;
+            if (typeof v === "boolean") return v;
+            const s = String(v).toLowerCase();
+            if (s === "true" || s === "1") return true;
+            if (s === "false" || s === "0") return false;
+            return undefined;
+          };
+
+          const members: ClassMemberDto[] = membersRaw.map((m: any) => {
+            return {
+              userId: m.userId ?? m.id ?? "",
+              fullname: m.fullname ?? m.fullName ?? m.name ?? "",
+              roles: normalizeRoles(m.roles),
+              joinDate: m.joinDate ?? m.joinedAt ?? m.createdAt ?? "",
+              // new fields
+              email: m.email ?? null,
+              gender: toBoolean(m.gender ?? m.sex ?? m.isMale),
+              schoolId:
+                m.schoolId ??
+                m.school_id ??
+                (m.school ? m.school.id ?? null : null) ??
+                null,
+              schoolName:
+                m.schoolName ??
+                m.school_name ??
+                (m.school ? m.school.name ?? null : null) ??
+                null,
+              address: m.address ?? m.addr ?? null,
+              communes: m.communes ?? m.communeName ?? null,
+              communeId: m.communeId ?? m.commune_id ?? null,
+              phoneNumber: m.phoneNumber ?? m.phone ?? m.phone_number ?? null,
+              wallet:
+                typeof m.wallet === "number" ? m.wallet : Number(m.wallet ?? 0),
+              avatarUrl: m.avatarUrl ?? m.avatar ?? m.imageUrl ?? null,
+              ...m,
+            } as ClassMemberDto;
+          });
+
+          const hasRole = (memberRoles: string[], pattern: RegExp) =>
+            (memberRoles ?? []).some((r) => pattern.test(String(r)));
+
+          const teacherMember =
+            members.find((m) => hasRole(m.roles, /teacher/i)) ?? null;
+          const parentMembers = members.filter((m) =>
+            hasRole(m.roles, /parent/i)
+          );
+          const studentMembers = members.filter(
+            (m) => (m.roles ?? []).length === 0 || hasRole(m.roles, /student/i)
+          );
 
           set((state) => {
             const cur = state.currentClass ?? defaultCurrentClass;
@@ -235,9 +315,9 @@ export const useClassStore = create<ClassState>()(
                 ...cur,
                 data: {
                   ...cur.data,
-                  teacher: members.find((m) => m.roles?.includes("Teacher")) ?? null,
-                  students: members.filter((m) => m.roles?.includes("Student")) ?? [],
-                  parents: members.filter((m) => m.roles?.includes("Parent")) ?? [],
+                  teacher: teacherMember,
+                  students: studentMembers,
+                  parents: parentMembers,
                 },
                 success: true,
                 message: raw.message ?? cur.message,
@@ -253,7 +333,125 @@ export const useClassStore = create<ClassState>()(
           set({ isLoading: false });
         }
       },
+      inviteMembers: async (
+        classId: number,
+        emails: string[],
+        role?: string
+      ) => {
+        set({ isLoading: true, success: false, message: "" });
+        try {
+          if (!emails || emails.length === 0) {
+            set({
+              isLoading: false,
+              success: false,
+              message: "No emails to invite",
+            });
+            return { success: false, message: "No emails to invite" };
+          }
 
+          // prepare body; backend contract may differ — update if needed
+          const body = {
+            emails,
+            role: role ?? "Student", // default role; change if UI provides role selection
+          };
+
+          // Example endpoint; change if your API is different.
+          const url = `/Class/${classId}/invite`;
+          const res = await axiosInstance.post(url, body);
+          const raw = res?.data ?? null;
+
+          if (!raw || raw.success === false) {
+            set({
+              isLoading: false,
+              success: false,
+              message: raw?.message ?? "Failed to send invites",
+            });
+            return {
+              success: false,
+              message: raw?.message ?? "Failed to send invites",
+            };
+          }
+
+          // Optionally: if backend returns created member objects in raw.data, we can merge them into state
+          // For now just return success and message
+          set({
+            isLoading: false,
+            success: true,
+            message: raw.message ?? "Invitations sent",
+          });
+
+          // best-effort: refresh members for the class after sending invites
+          try {
+            await get().getClassMembers(classId);
+          } catch {
+            // ignore refresh errors
+          }
+
+          return {
+            success: true,
+            message: raw.message ?? "Invitations sent",
+            data: raw.data ?? null,
+          };
+        } catch (error) {
+          console.error("inviteMembers error:", error);
+          set({
+            isLoading: false,
+            success: false,
+            message: "Failed to send invites",
+          });
+          return { success: false, message: "Failed to send invites" };
+        }
+      },
+      getClassWorks: async (classId: number): Promise<ClassWork[] | null> => {
+        set({ isLoading: true });
+        try {
+          const res = await axiosInstance.get(`/Class/${classId}/works`);
+          const raw = res?.data ?? null;
+
+          if (!raw) {
+            console.warn("getClassWorks: no response data");
+            set({ isLoading: false });
+            return null;
+          }
+
+          let arr: any[] = [];
+          if (Array.isArray(raw.classes)) arr = raw.classes;
+          else if (raw.data && Array.isArray(raw.data.classes))
+            arr = raw.data.classes;
+          else if (raw.data && Array.isArray(raw.data)) arr = raw.data;
+          else if (Array.isArray(raw)) arr = raw;
+
+          const works: ClassWork[] = arr.map((w: any) => ({
+            id: w.id ?? w.workId ?? 0,
+            classId: w.classId ?? w.classId ?? classId,
+            title: w.title ?? w.name ?? "",
+            description: w.description ?? w.desc ?? "",
+            deadline: w.deadline ?? w.dueDate ?? null,
+            ...w,
+          }));
+
+          set((state) => {
+            const cur = state.currentClass ?? defaultCurrentClass;
+            return {
+              currentClass: {
+                ...cur,
+                data: {
+                  ...cur.data,
+                  works: works,
+                },
+                success: true,
+              },
+            };
+          });
+
+          return works;
+        } catch (err) {
+          console.error("getClassWorks error:", err);
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
       getClassInfo: async (id: number): Promise<ClassDetailResponse | null> => {
         set({ isLoading: true });
         try {
@@ -371,7 +569,11 @@ export const useClassStore = create<ClassState>()(
           const raw = res?.data ?? null;
 
           if (!raw || raw.success === false) {
-            set({ isLoading: false, success: false, message: raw?.message ?? "Failed to add comment" });
+            set({
+              isLoading: false,
+              success: false,
+              message: raw?.message ?? "Failed to add comment",
+            });
             return null;
           }
 
@@ -389,13 +591,15 @@ export const useClassStore = create<ClassState>()(
           // update currentClass.notifications: append comment to matching notification
           set((state) => {
             const cur = state.currentClass ?? defaultCurrentClass;
-            const updatedNotifications = (cur.data?.notifications ?? []).map((n) => {
-              if (String(n.id) === String(payload.notificationId)) {
-                const comments = (n.comments ?? []).concat([mapped]);
-                return { ...n, comments };
+            const updatedNotifications = (cur.data?.notifications ?? []).map(
+              (n) => {
+                if (String(n.id) === String(payload.notificationId)) {
+                  const comments = (n.comments ?? []).concat([mapped]);
+                  return { ...n, comments };
+                }
+                return n;
               }
-              return n;
-            });
+            );
 
             // If the notification wasn't found (edge case), just leave state unchanged
             return {
@@ -415,13 +619,17 @@ export const useClassStore = create<ClassState>()(
           return mapped;
         } catch (err) {
           console.error("addComment error:", err);
-          set({ isLoading: false, success: false, message: "Failed to add comment" });
+          set({
+            isLoading: false,
+            success: false,
+            message: "Failed to add comment",
+          });
           return null;
         } finally {
           set({ isLoading: false });
         }
       },
-        deleteNotification: async (notificationId) => {
+      deleteNotification: async (notificationId) => {
         set({ isLoading: true, success: false, message: "" });
         try {
           const url = `/Class/notifications/${notificationId}`;
@@ -462,7 +670,11 @@ export const useClassStore = create<ClassState>()(
           return true;
         } catch (err) {
           console.error("deleteNotification error:", err);
-          set({ isLoading: false, success: false, message: "Failed to delete notification" });
+          set({
+            isLoading: false,
+            success: false,
+            message: "Failed to delete notification",
+          });
           return false;
         } finally {
           set({ isLoading: false });
@@ -476,28 +688,30 @@ export const useClassStore = create<ClassState>()(
           fd.append("ClassId", String(payload.classId));
           fd.append("Title", payload.title ?? "");
           fd.append("Description", payload.description ?? "");
-          const createdByValue = payload.createdBy ?? "d4e5f6a7-b8c9-0123-4567-890abcdef014";
+          const createdByValue =
+            payload.createdBy ?? "d4e5f6a7-b8c9-0123-4567-890abcdef014";
           fd.append("CreatedBy", createdByValue);
 
-          // Append files (if any). payload.files should be an array of File objects.
           if (payload.files && payload.files.length > 0) {
             for (let i = 0; i < payload.files.length; i++) {
-              // append under same key "Files" so server can bind to List<IFormFile>
               fd.append("Files", payload.files[i], payload.files[i].name);
             }
           }
 
-          // If links array provided, also send LinksJson (server will parse it).
-          // We intentionally send LinksJson for backward compatibility.
           if (payload.links && payload.links.length > 0) {
             const sanitizedLinks: LinkPayload[] = payload.links
-              .filter((l) => l && typeof l.url === "string" && l.url.trim().length > 0)
+              .filter(
+                (l) => l && typeof l.url === "string" && l.url.trim().length > 0
+              )
               .map((l) => {
                 let normalized = l.url;
                 try {
                   normalized = new URL(l.url, window.location.href).href;
                 } catch {
-                  console.warn("Invalid URL in notification link, skipping normalization:", l.url);
+                  console.warn(
+                    "Invalid URL in notification link, skipping normalization:",
+                    l.url
+                  );
                 }
                 return {
                   url: normalized,
@@ -524,7 +738,10 @@ export const useClassStore = create<ClassState>()(
                 entries.push(`${e[0]}: ${String(val)}`);
               }
             }
-            console.debug("createNotification - FormData entries:", entries.join(" | "));
+            console.debug(
+              "createNotification - FormData entries:",
+              entries.join(" | ")
+            );
           } catch {
             console.debug("createNotification - FormData (debugging failed)");
           }
@@ -563,7 +780,10 @@ export const useClassStore = create<ClassState>()(
 
           set((state) => {
             const cur = state.currentClass ?? defaultCurrentClass;
-            const newNotifications = [mapped, ...(cur.data?.notifications ?? [])];
+            const newNotifications = [
+              mapped,
+              ...(cur.data?.notifications ?? []),
+            ];
             return {
               currentClass: {
                 ...cur,
@@ -582,7 +802,11 @@ export const useClassStore = create<ClassState>()(
           return mapped;
         } catch (error) {
           console.error("❌ createNotification error:", error);
-          set({ success: false, message: "Failed to create notification", isLoading: false });
+          set({
+            success: false,
+            message: "Failed to create notification",
+            isLoading: false,
+          });
           return null;
         } finally {
           set({ isLoading: false });

@@ -68,13 +68,14 @@ namespace StudyHub.Backend.Api.Mappers
             };
         }
 
-        public static MemberDto ToMemberDto(this ClassMember member, AppUser? user, List<string> roles)
+        public static MemberDto ToMemberDto(this ClassMember member, AppUser? user, List<string> roles, School school, Commune commune)
         {
             return new MemberDto
             {
                 UserId = member.UserId,
                 Fullname = user?.Fullname ?? "Không rõ",
                 JoinDate = member.JoinDate,
+                Email = user.Email,
                 Roles = roles,
                 Gender = user.Gender,
                 SchoolId = user.SchoolId,
@@ -82,6 +83,8 @@ namespace StudyHub.Backend.Api.Mappers
                 Address = user.Address,
                 PhoneNumber = user.PhoneNumber,
                 Wallet = user.Wallet,
+                SchoolName = school!=null?school.Name:"",
+                Communes = commune!=null?commune.Name:""
 
             };
         }

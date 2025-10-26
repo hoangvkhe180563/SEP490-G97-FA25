@@ -23,6 +23,19 @@ export type ClassMemberDto = {
   fullname: string;
   roles: string[];
   joinDate: string;
+
+  email?: string | null;
+  gender?: boolean | number | string; 
+  schoolId?: number | null;
+  schoolName?: string | null;
+  address?: string | null;
+  communeId?: number | null;
+  communes?: string | null; 
+  phoneNumber?: string | null;
+  wallet?: number;
+
+  avatarUrl?: string | null;
+  [key: string]: any;
 };
 
 export type ClassNotificationFile = {
@@ -53,6 +66,7 @@ export interface ClassDetailResponse {
     students: ClassMemberDto[];
     parents: ClassMemberDto[];
     notifications: ClassNotification[];
+    works?: ClassWork[];
   };
 }
 export type LinkPayload = {
@@ -74,7 +88,14 @@ export interface GetClassesResponse {
   message: string;
   meta?: Meta;
 }
-
+export type ClassWork = {
+  id: number;
+  classId: number;
+  title: string;
+  description?: string | null;
+  deadline?: string | null;
+  [key: string]: any;
+};
 export interface ClassState {
   classes: ClassListDto[];
   subjects: Subject[];
@@ -108,4 +129,6 @@ export interface ClassState {
     content: string;
   }) => Promise<PostComment | null>;
   deleteNotification: (notificationId: number | string) => Promise<boolean>;
+  inviteMembers: (classId: number, emails: string[], role?: string) => Promise<any | null>;
+  getClassWorks: (classId: number) => Promise<ClassWork[] | null>;
 }
