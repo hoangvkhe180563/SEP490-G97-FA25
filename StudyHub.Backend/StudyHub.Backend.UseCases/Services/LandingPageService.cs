@@ -2,6 +2,7 @@
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Utils;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -15,7 +16,27 @@ namespace StudyHub.Backend.UseCases.Services
             _cloudRepo = cloudRepo;
         }
 
-        public LandingPage? GetLandingPage(int schoolId)
+        public LandingPage GetGeneralLandingPage()
+        {
+            var landingPage = _repo.GetLandingPage(0);
+            var documents = _repo.GetFeaturedDocuments(0);
+            var courses = _repo.GetFeaturedCourses(0);
+
+            //no teachers included
+            landingPage.FeaturedDocuments = documents;
+            landingPage.FeaturedCourses = courses;
+            landingPage.LandingPageImages = Enumerable.Repeat("/src/common/assets/StudyHubLogo.png", 3).ToList();
+
+            return landingPage;
+        }
+
+        public List<LandingPage> GetLandingPageList()
+        {
+            var landingPages = _repo.GetLandingPages();
+            return landingPages;
+        }
+
+        public LandingPage? GetSchoolLandingPage(int schoolId)
         {
             var landingPage = _repo.GetLandingPage(schoolId);
             var teachers = _repo.GetFeaturedTeachers(schoolId);

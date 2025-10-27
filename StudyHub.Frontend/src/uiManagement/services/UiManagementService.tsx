@@ -3,9 +3,25 @@ import type { ILandingPageService } from "../interfaces/ILandingPageService";
 import type { IDocumentItem } from "../interfaces/IDocumentItem";
 import type { ICourseItem } from "../interfaces/ICourseItem";
 import type { ILandingPageUpdateService } from "../interfaces/ILandingPageUpdateService";
+import type { ILandingPageListItem } from "../interfaces/ILandingPageListItem";
 
 export class UiManagementService {
-  async getLandingPageInformation(schoolId: number): Promise<ILandingPageService> {
+  async getLandingPageGeneral(): Promise<ILandingPageService> {
+    const response = await axiosInstance.get("/LandingPage");
+    const { data } = response;
+
+    return {
+      bannerImage: data.bannerUrl,
+      logoImage: data.schoolLogoUrl,
+      description: data.description,
+      introductionImage: data.landingPageImages,
+      featuredTeachers: data.featuredTeachers,
+      featuredDocuments: data.featuredDocuments,
+      featuredCourses: data.featuredCourses
+    }
+  }
+
+  async getLandingPageSchool(schoolId: number): Promise<ILandingPageService> {
     const response = await axiosInstance.get("/LandingPage/" + schoolId);
     const { data } = response;
 
@@ -65,9 +81,6 @@ export class UiManagementService {
     for (const img of landingPageData.deletedLandingPageImages || []) {
       formData.append("LandingPageDeleteImages", img);
     }
-    for (const id of landingPageData.featuredTeachers || []) {
-      formData.append("FeaturedTeacherIds", id.toString());
-    }
     for (const id of landingPageData.featuredDocuments || []) {
       formData.append("FeaturedDocumentIds", id.toString());
     }
@@ -84,5 +97,14 @@ export class UiManagementService {
     );
 
     return response.status === 200 ? "" : response.data;
+  }
+
+  async getLandingPageList(): Promise<ILandingPageListItem[]> {
+    const response = await axiosInstance.get("/LandingPage/list");
+    if (response.status === 200) {
+      return response.data;
+    } else {
+      return [];
+    }
   }
 }

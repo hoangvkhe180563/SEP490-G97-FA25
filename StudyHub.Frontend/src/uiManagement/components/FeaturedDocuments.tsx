@@ -18,7 +18,9 @@ const FeaturedDocuments = (props: { data: IFeaturedDocument[] }) => {
               {textbooks.length === 0 && <div className="w-full text-center italic">Không có dữ liệu!</div>}
               {textbooks.map((book) => (
                 <div key={book.id} className="flex items-center gap-4 bg-white p-4 rounded-lg shadow-sm">
-                  <img src={book.thumbnail} alt={book.name} className="w-20 h-auto object-cover rounded-md" />
+                  <div className="flex-shrink-0 w-20 h-20 object-cover bg-gray-200 rounded-md flex items-center justify-center text-sm text-gray-600 overflow-hidden">
+                    <img src={book.thumbnail} alt="" className="w-20 h-auto object-cover rounded-md" />
+                  </div>
                   <div>
                     <p className="font-semibold text-lg">{book.name}</p>
                     <p className="text-gray-600 text-sm flex items-center gap-1">
@@ -40,7 +42,9 @@ const FeaturedDocuments = (props: { data: IFeaturedDocument[] }) => {
               {references.length === 0 && <div className="w-full text-center italic">Không có dữ liệu!</div>}
               {references.map((book) => (
                 <div key={book.id} className="flex items-center gap-4 bg-white p-4 rounded-lg shadow-sm">
-                  <img src={book.thumbnail} alt={book.name} className="w-20 h-auto object-cover rounded-md" />
+                  <div className="flex-shrink-0 w-20 h-20 object-cover bg-gray-200 rounded-md flex items-center justify-center text-sm text-gray-600 overflow-hidden">
+                    <img src={book.thumbnail} alt="" className="w-20 h-auto object-cover rounded-md" />
+                  </div>
                   <div>
                     <p className="font-semibold text-lg">{book.name}</p>
                     <p className="text-gray-600 text-sm flex items-center gap-1">

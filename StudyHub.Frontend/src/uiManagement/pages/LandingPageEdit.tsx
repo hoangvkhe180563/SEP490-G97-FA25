@@ -5,11 +5,11 @@ import MultipleFilesCommand from '../components/MultipleFilesCommand';
 import type { IDocumentItem } from '../interfaces/IDocumentItem'
 import { UiManagementService } from '../services/UiManagementService';
 import type { ICourseItem } from '../interfaces/ICourseItem';
-import useLocalStorage from '@/common/hooks/useLocalStorage';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Input } from '@/common/components/ui/input';
 import type { ILandingPageUpdateService } from '../interfaces/ILandingPageUpdateService';
 import { Textarea } from '@/common/components/ui/textarea';
+import { useLoading } from '@/common/hooks/useLoading';
 
 interface IBanner {
   url: string,
@@ -27,7 +27,8 @@ const LandingPageEdit = () => {
   const [selectedLogo, setSelectedLogo] = useState<IBanner | null>(null);
   const [selectedImages, setSelectedImages] = useState<ILogo[]>([]);
   const imgInputRef = useRef<HTMLInputElement>(null);
-  const [schoolId] = useLocalStorage("schoolId", 0);
+  const { schoolId } = useParams();
+  const { setLoading } = useLoading();
   const [allDocuments, setAllDocuments] = useState<IDocumentItem[]>([]);
   const [featuredDocuments, setFeaturedDocuments] = useState<number[]>([]);
   const [allCourses, setAllCourses] = useState<IDocumentItem[]>([]);
@@ -46,15 +47,17 @@ const LandingPageEdit = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       if (schoolId) {
-        const documentData = await uiManagementService.getAllDocuments(schoolId);
+        const schoolIdInt = Number(schoolId);
+        const documentData = await uiManagementService.getAllDocuments(schoolIdInt);
         setAllDocuments(documentData);
         setFeaturedDocuments(documentData.filter(doc => doc.isFeatured).map(doc => doc.id));
-        const courseData = await uiManagementService.getAllCourses(schoolId);
+        const courseData = await uiManagementService.getAllCourses(schoolIdInt);
         setAllCourses(courseData);
         setFeaturedCourses(courseData.filter(c => c.isFeatured).map(c => c.id));
 
-        const landingPageData = await uiManagementService.getLandingPageInformation(schoolId);
+        const landingPageData = await uiManagementService.getLandingPageSchool(schoolIdInt);
 
         setLandingPageData({
           bannerImage: null,
@@ -78,7 +81,7 @@ const LandingPageEdit = () => {
       }
     }
 
-    fetchData().catch(console.error);
+    fetchData().catch(console.error).finally(() => setLoading(false));
   }, [])
 
   const handleDocumentSelect = (item: IDocumentItem) => {
@@ -176,6 +179,10 @@ const LandingPageEdit = () => {
 
   const handleSave = async () => {
     let error = [];
+    if (!Number(schoolId)) {
+      error.push("Có lỗi xảy ra, vui lòng thử lại!");
+      return;
+    }
     if (selectedImages.length === 0) {
       error.push("Vui lòng chọn ít nhất 1 logo trường!");
     }
@@ -188,143 +195,144 @@ const LandingPageEdit = () => {
       return;
     }
 
-    const result = await uiManagementService.updateLandingPage(schoolId, landingPageData);
+    const result = await uiManagementService.updateLandingPage(Number(schoolId), landingPageData);
     if (result) {
       alert(result);
-      navigate("/ui-management/landing-page");
     } else {
       alert('success');
-      navigate("/");
+      navigate(`/ui/${schoolId}/landing`);
     }
   };
 
   const handleCancel = () => {
-    location.href = '/'
+    location.href = `/ui/${schoolId}/landing`
   };
 
   return (
-    <div className="bg-white p-8 rounded-lg shadow-xl max-w-3xl mx-auto my-12 border border-gray-200">
-      {error.length > 0 && (
-        <div className='border border-red-500 bg-red-200 mb-2 px-2 py-2 flex items-center'>
-          <ul className='flex-1'>
-            {error.map((e, index) => <li key={`error-${index}`}>{e}</li>)}
-          </ul>
-          <button onClick={() => setError([])}>
-            <X className='stroke-gray-600' />
-          </button>
-        </div>
-      )}
-      <div className="grid md:grid-cols-3 gap-x-12 gap-y-8">
-        <div className="md:col-span-1">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Banner trường <span className='text-red-500'>*</span></label>
-        </div>
-        <Input ref={imgInputRef} type='file' className='md:col-span-2' onChange={handleBannerUpload} />
-
-        {selectedLogo && (
-          <>
-            <div className="md:col-span-1"></div>
-            <div className='md:col-span-2 shadow-lg rounded-md h-[200px]'>
-              <img src={selectedLogo.url} className='w-full h-full object-contain' alt='No Image' />
-            </div>
-          </>
+    <div className="w-full h-full overflow-y-auto">
+      <div className='max-w-3xl mx-auto my-12 p-8 rounded-lg shadow-xl border border-gray-200'>
+        {error.length > 0 && (
+          <div className='border border-red-500 bg-red-200 mb-2 px-2 py-2 flex items-center'>
+            <ul className='flex-1'>
+              {error.map((e, index) => <li key={`error-${index}`}>{e}</li>)}
+            </ul>
+            <button onClick={() => setError([])}>
+              <X className='stroke-gray-600' />
+            </button>
+          </div>
         )}
+        <div className="grid md:grid-cols-3 gap-x-12 gap-y-8">
+          <div className="md:col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Banner trường <span className='text-red-500'>*</span></label>
+          </div>
+          <Input ref={imgInputRef} type='file' className='md:col-span-2' onChange={handleBannerUpload} />
 
-        <div className="md:col-span-1">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Logo giới thiệu trường <span className='text-red-500'>*</span></label>
-        </div>
-        <Input ref={imgInputRef} type='file' className='md:col-span-2' onChange={handleFileUpload} />
+          {selectedLogo && (
+            <>
+              <div className="md:col-span-1"></div>
+              <div className='md:col-span-2 shadow-lg rounded-md h-[200px]'>
+                <img src={selectedLogo.url} className='w-full h-full object-contain' alt='No Image' />
+              </div>
+            </>
+          )}
 
-        {
-          selectedImages.length > 0 && <>
-            <div className="md:col-span-1"></div>
-            <div className="md:col-span-2 flex justify-between space-x-3 h-[150px]">
-              {selectedImages.map((image, index) => (
-                <div className='rounded-md relative w-1/3 shadow-md' key={`image-${index}`}>
-                  <button className='absolute right-2 top-2 bg-gray-600 rounded-full text-white px-1 py-1' onClick={() => handleRemoveFile(index)}><X size={15} /></button>
-                  <img src={image.url} className='w-full h-full object-contain' alt='No Image' />
-                </div>
-              ))}
+          <div className="md:col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Logo giới thiệu trường <span className='text-red-500'>*</span></label>
+          </div>
+          <Input ref={imgInputRef} type='file' className='md:col-span-2' onChange={handleFileUpload} />
+
+          {
+            selectedImages.length > 0 && <>
+              <div className="md:col-span-1"></div>
+              <div className="md:col-span-2 flex justify-between space-x-3 h-[150px]">
+                {selectedImages.map((image, index) => (
+                  <div className='rounded-md relative w-1/3 shadow-md' key={`image-${index}`}>
+                    <button className='absolute right-2 top-2 bg-gray-600 rounded-full text-white px-1 py-1' onClick={() => handleRemoveFile(index)}><X size={15} /></button>
+                    <img src={image.url} className='w-full h-full object-contain' alt='No Image' />
+                  </div>
+                ))}
+              </div>
+            </>
+          }
+
+          <div className='md:col-span-1'>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Mô tả giới thiệu <span className='text-red-500'>*</span></label>
+          </div>
+          <div className="md:col-span-2 flex justify-between space-x-3 h-[150px]">
+            <Textarea placeholder='Nhập mô tả trường...' value={landingPageData.description} onChange={(e) => handleDescriptionChange(e)} maxLength={500} />
+          </div>
+
+          <div className="md:col-span-1 mt-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tài liệu nổi bật <br />
+              <span className="text-red-500 text-xs font-normal">(Chọn tối đa 5 tài liệu)</span>
+            </label>
+          </div>
+          <div className="md:col-span-2 mt-6">
+            <MultipleFilesCommand
+              items={allDocuments}
+              selectedItems={featuredDocuments}
+              onSelect={handleDocumentSelect}
+              onRemove={removeDocument}
+              placeholder="Tìm kiếm tài liệu..."
+              label="Chọn tài liệu..."
+              maxSelections={5}
+            />
+            <div className="mt-4 space-y-2">
+              {featuredDocuments.map((docId, index) => {
+                const docObj = allDocuments.find(doc => doc.id === docId);
+                return (
+                  docObj && <div key={`doc-${index}`} className="flex items-center justify-between bg-gray-100 px-3 rounded-md border border-gray-200">
+                    <span className="text-sm font-medium text-gray-800">{docObj.name} <span className="text-gray-500 text-xs">(Môn {docObj.subject} - Lớp {docObj.grade})</span></span>
+                    <Button variant="ghost" size="icon" onClick={() => removeDocument(docObj.id)}>
+                      <X className="h-4 w-4 text-gray-500" />
+                    </Button>
+                  </div>
+                )
+              })}
             </div>
-          </>
-        }
+          </div>
 
-        <div className='md:col-span-1'>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Mô tả giới thiệu <span className='text-red-500'>*</span></label>
-        </div>
-        <div className="md:col-span-2 flex justify-between space-x-3 h-[150px]">
-          <Textarea placeholder='Nhập mô tả trường...' value={landingPageData.description} onChange={(e) => handleDescriptionChange(e)} maxLength={500} />
-        </div>
-
-        <div className="md:col-span-1 mt-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Tài liệu nổi bật <br />
-            <span className="text-red-500 text-xs font-normal">(Chọn tối đa 5 tài liệu)</span>
-          </label>
-        </div>
-        <div className="md:col-span-2 mt-6">
-          <MultipleFilesCommand
-            items={allDocuments}
-            selectedItems={featuredDocuments}
-            onSelect={handleDocumentSelect}
-            onRemove={removeDocument}
-            placeholder="Tìm kiếm tài liệu..."
-            label="Chọn tài liệu..."
-            maxSelections={5}
-          />
-          <div className="mt-4 space-y-2">
-            {featuredDocuments.map((docId, index) => {
-              const docObj = allDocuments.find(doc => doc.id === docId);
-              return (
-                docObj && <div key={`doc-${index}`} className="flex items-center justify-between bg-gray-100 px-3 rounded-md border border-gray-200">
-                  <span className="text-sm font-medium text-gray-800">{docObj.name} <span className="text-gray-500 text-xs">(Môn {docObj.subject} - Lớp {docObj.grade})</span></span>
-                  <Button variant="ghost" size="icon" onClick={() => removeDocument(docObj.id)}>
+          <div className="md:col-span-1 mt-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Khoá học nổi bật <br />
+              <span className="text-red-500 text-xs font-normal">(Chọn tối đa 3 khoá học)</span>
+            </label>
+          </div>
+          <div className="md:col-span-2 mt-6">
+            <MultipleFilesCommand
+              items={allCourses}
+              selectedItems={featuredCourses}
+              onSelect={handleCourseSelect}
+              onRemove={removeCourse}
+              placeholder="Tìm kiếm khóa học..."
+              label="Chọn khóa học..."
+              maxSelections={3}
+            />
+            <div className="mt-4 space-y-2">
+              {featuredCourses.map((courseId, index) => {
+                const courseObj = allCourses.find(course => course.id === courseId);
+                return (courseObj && <div key={`course-${index}`} className="flex items-center justify-between bg-gray-100 px-3 rounded-md border border-gray-200">
+                  <span className="text-sm font-medium text-gray-800">{courseObj.name} <span className="text-gray-500 text-xs">(Môn {courseObj.subject} - Lớp {courseObj.grade})</span></span>
+                  <Button variant="ghost" size="icon" onClick={() => removeCourse(courseObj.id)}>
                     <X className="h-4 w-4 text-gray-500" />
                   </Button>
-                </div>
-              )
-            })}
+                </div>)
+              })}
+            </div>
           </div>
         </div>
 
-        <div className="md:col-span-1 mt-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Khoá học nổi bật <br />
-            <span className="text-red-500 text-xs font-normal">(Chọn tối đa 3 khoá học)</span>
-          </label>
-        </div>
-        <div className="md:col-span-2 mt-6">
-          <MultipleFilesCommand
-            items={allCourses}
-            selectedItems={featuredCourses}
-            onSelect={handleCourseSelect}
-            onRemove={removeCourse}
-            placeholder="Tìm kiếm khóa học..."
-            label="Chọn khóa học..."
-            maxSelections={3}
-          />
-          <div className="mt-4 space-y-2">
-            {featuredCourses.map((courseId, index) => {
-              const courseObj = allCourses.find(course => course.id === courseId);
-              return (courseObj && <div key={`course-${index}`} className="flex items-center justify-between bg-gray-100 px-3 rounded-md border border-gray-200">
-                <span className="text-sm font-medium text-gray-800">{courseObj.name} <span className="text-gray-500 text-xs">(Môn {courseObj.subject} - Lớp {courseObj.grade})</span></span>
-                <Button variant="ghost" size="icon" onClick={() => removeCourse(courseObj.id)}>
-                  <X className="h-4 w-4 text-gray-500" />
-                </Button>
-              </div>)
-            })}
+        <div className='w-full flex justify-between mt-12 pt-6 border-t border-gray-200'>
+          <Button variant="outline" className='px-6' onClick={() => location.reload()}><Repeat /> Đặt lại</Button>
+          <div className="flex gap-4">
+            <Button variant="outline" className="px-6" onClick={handleCancel}>
+              Hủy bỏ thay đổi
+            </Button>
+            <Button className="px-6 bg-gray-800 hover:bg-gray-700 text-white" onClick={handleSave}>
+              Lưu thay đổi
+            </Button>
           </div>
-        </div>
-      </div>
-
-      <div className='w-full flex justify-between mt-12 pt-6 border-t border-gray-200'>
-        <Button variant="outline" className='px-6' onClick={() => location.reload()}><Repeat /> Đặt lại</Button>
-        <div className="flex gap-4">
-          <Button variant="outline" className="px-6" onClick={handleCancel}>
-            Hủy bỏ thay đổi
-          </Button>
-          <Button className="px-6 bg-gray-800 hover:bg-gray-700 text-white" onClick={handleSave}>
-            Lưu thay đổi
-          </Button>
         </div>
       </div>
     </div>

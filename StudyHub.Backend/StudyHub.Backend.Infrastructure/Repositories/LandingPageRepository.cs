@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories;
@@ -12,6 +13,17 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             _context = context;
         }
+        private Domain.Entities.LandingPage DEFAULT_LANDING_PAGE = new Domain.Entities.LandingPage
+        {
+            SchoolId = 0,
+            BannerUrl = "/src/uiManagement/assets/banner-image.png",
+            SchoolLogoUrl = "/src/common/assets/StudyHubLogo.png",
+            Description = "StudyHub là một trang web phục vụ học tập và ôn luyện cho học sinh, giúp học sinh định hướng được phương pháp học tập cho bản thân.",
+            FeaturedCourses = [],
+            FeaturedDocuments = [],
+            FeaturedTeachers = [],
+            LandingPageImages = []
+        };
         public List<Domain.Entities.Document> GetFeaturedDocuments(int schoolId)
         {
             try
@@ -99,6 +111,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public List<Domain.Entities.AppUser> GetFeaturedTeachers(int schoolId)
         {
+            if (schoolId == 0)
+            {
+                return [];
+            }
             try
             {
                 List<Guid> teacherRoleIds = _context.AppRoles.Where(r => r.Name.Contains("Teacher")).Select(r => r.Id).ToList();
@@ -124,17 +140,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 if (schoolId == 0)
                 {
-                    return new Domain.Entities.LandingPage
-                    {
-                        SchoolId = 0,
-                        BannerUrl = "/src/uiManagement/assets/banner-image.png",
-                        SchoolLogoUrl = "/src/common/assets/StudyHubLogo.png",
-                        Description = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book.",
-                        FeaturedCourses = [],
-                        FeaturedDocuments = [],
-                        FeaturedTeachers = [],
-                        LandingPageImages = []
-                    };
+                    return DEFAULT_LANDING_PAGE;
                 }
                 else
                 {
@@ -155,17 +161,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             catch (Exception ex)
             {
                 new InfrastructureException("LandingPageRepository", "GetLandingPage failed. Inner error: " + ex.Message).LogError();
-                return new Domain.Entities.LandingPage
-                {
-                    SchoolId = 0,
-                    BannerUrl = "/src/uiManagement/assets/banner-image.png",
-                    SchoolLogoUrl = "/src/common/assets/StudyHubLogo.png",
-                    Description = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book.",
-                    FeaturedCourses = [],
-                    FeaturedDocuments = [],
-                    FeaturedTeachers = [],
-                    LandingPageImages = []
-                };
+                return DEFAULT_LANDING_PAGE;
             }
         }
 
@@ -214,7 +210,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     landingPageToUpdate.BannerUrl = landingPage.BannerUrl;
                 }
-                
+
                 if (!string.IsNullOrEmpty(landingPage.SchoolLogoUrl))
                 {
                     landingPageToUpdate.SchoolLogoUrl = landingPage.SchoolLogoUrl;
@@ -341,6 +337,25 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 new InfrastructureException("LandingPageRepository", "UpdateFeaturedCourses failed. Inner error: " + ex.Message).LogError();
             }
             return false;
+        }
+
+        public List<Domain.Entities.LandingPage> GetLandingPages()
+        {
+            try
+            {
+                var landingPages = _context.LandingPages.Include(lp => lp.School).Select(lp => new Domain.Entities.LandingPage
+                {
+                    SchoolId = lp.SchoolId,
+                    SchoolName = lp.School.Name,
+                    SchoolLogoUrl = lp.SchoolLogoUrl,
+                }).ToList();
+                return landingPages;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("LandingPageRepository", "GetLandingPages failed. Inner error: " + ex.Message).LogError();
+            }
+            return [];
         }
     }
 }
