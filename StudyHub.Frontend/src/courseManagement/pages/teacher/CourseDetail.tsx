@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
-import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import type {
   ChapterListDto,
@@ -16,6 +15,8 @@ import {
 } from "@/common/components/ui/card";
 import { Button } from "@/common/components/ui/button";
 import { Edit2, ArrowLeft } from "lucide-react";
+import { documentService } from "@/documentManagement/services/documentService";
+import type { AppUser } from "@/auth/interfaces/app-user";
 
 const CourseDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -23,36 +24,46 @@ const CourseDetail: React.FC = () => {
   const courseId = Number(id || 0);
 
   const selectedCourse = useCourseStore(
-    (s) => s.selectedCourse as CourseListDto | undefined
+    (s) => s.selectedCourse as CourseListDto
   );
   const fetchCourseById = useCourseStore((s) => s.fetchCourseById);
 
-  const fetchChapters = useLectureStore((s) => s.fetchChapters);
-  const chaptersFromStore = useLectureStore((s) => s.chapters);
   const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
-  const [teachers, setTeachers] = useState<any[]>([]);
-  const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
+  const [teacherCreated, setTeacherCreated] = useState<Partial<AppUser> | null>(
+    null
+  );
+  const [teacherUpdated, setTeacherUpdated] = useState<Partial<AppUser> | null>(
+    null
+  );
+  const getAppUserById = useAppUserStore((s) => s.getAppUserById);
 
-  // === Load subjects for category label ===
+  // === Load subjects ===
   useEffect(() => {
-    let mounted = true;
     (async () => {
-      try {
-        const { documentService } = await import(
-          "@/documentManagement/services/documentService"
-        );
-        const res = await documentService.getSubjects();
-        if (mounted && Array.isArray(res)) {
-          setSubjects(res.map((s: any) => ({ id: s.id, name: s.name })));
-        }
-      } catch {
-        // ignore
+      const res = await documentService.getSubjects();
+      if (Array.isArray(res)) {
+        setSubjects(res.map((s: any) => ({ id: s.id, name: s.name })));
       }
     })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    if (courseId) {
+      fetchCourseById(courseId);
+    }
+  }, [fetchCourseById, courseId]);
+
+  // when selectedCourse is loaded, fetch creator/updater info
+  useEffect(() => {
+    if (!selectedCourse) return;
+    if (selectedCourse.createdBy) {
+      getAppUserById(selectedCourse.createdBy).then((res) => {
+        if (res?.success && res.data) setTeacherCreated(res.data);
+      });
+    }
+    if (selectedCourse.updatedBy) {
+      getAppUserById(selectedCourse.updatedBy).then((res) => {
+        if (res?.success && res.data) setTeacherUpdated(res.data);
+      });
+    }
+  }, [selectedCourse, getAppUserById]);
 
   const categoryLabel = (id?: number | null) => {
     if (id === undefined || id === null) return "-";
@@ -60,25 +71,10 @@ const CourseDetail: React.FC = () => {
     return found ? found.name : String(id);
   };
 
-  useEffect(() => {
-    if (courseId) {
-      fetchCourseById(courseId);
-      fetchChapters(courseId);
-      (async () => {
-        try {
-          const r = await filterAppUsers("role=Teacher&page=1&limit=200");
-          setTeachers(r?.users ?? []);
-        } catch (err) {
-          // ignore
-        }
-      })();
-    }
-  }, [courseId, fetchCourseById, fetchChapters, filterAppUsers]);
-
   return (
     <div className="flex-1 overflow-auto bg-white">
       <div className="max-w-[1200px] mx-auto px-8 py-6">
-        {/* === Breadcrumb + back button === */}
+        {/* === Breadcrumb === */}
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate("/course/teacher/courses")}
@@ -130,7 +126,7 @@ const CourseDetail: React.FC = () => {
                     navigate(`/course/teacher/edit-course/${courseId}`)
                   }
                 >
-                  <Edit2 className="mr-2" /> Chỉnh sửa khóa học
+                  <Edit2 className="mr-2" /> Chỉnh sửa
                 </Button>
                 <Button
                   onClick={() =>
@@ -163,51 +159,62 @@ const CourseDetail: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {(chaptersFromStore && chaptersFromStore.length > 0) ||
-                      (selectedCourse?.chapters &&
-                        selectedCourse.chapters.length > 0) ? (
-                        (chaptersFromStore && chaptersFromStore.length > 0
-                          ? chaptersFromStore
-                          : selectedCourse?.chapters ?? []
-                        ).map((ch: ChapterListDto, idx: number) => (
-                          <details
-                            className="border rounded p-3"
-                            key={ch.id ?? idx}
-                          >
-                            <summary className="cursor-pointer font-medium">
-                              {ch.name}
-                            </summary>
-                            <div className="mt-2">
-                              <ul className="list-disc pl-5 text-sm">
-                                {ch.lessons?.map(
-                                  (l: LessonListDto, liIdx: number) => (
-                                    <li key={l.id ?? liIdx} className="py-1">
-                                      <div className="flex items-center justify-between">
-                                        <div>
-                                          <div className="font-medium">
-                                            {l.name}
+                      {selectedCourse?.chapters?.length ? (
+                        selectedCourse.chapters.map(
+                          (ch: ChapterListDto, idx: number) => (
+                            <details
+                              key={ch.id ?? idx}
+                              className="border rounded p-3 bg-gray-50"
+                              open
+                            >
+                              <summary className="cursor-pointer font-semibold">
+                                {ch.name}
+                              </summary>
+                              <div className="mt-2">
+                                {ch.lessons?.length ? (
+                                  <ul className="list-disc pl-5 text-sm">
+                                    {ch.lessons.map(
+                                      (l: LessonListDto, liIdx: number) => (
+                                        <li
+                                          key={l.id ?? liIdx}
+                                          className="py-1 cursor-pointer group"
+                                          onClick={() =>
+                                            navigate(
+                                              `/course/teacher/lecture/${l.id}`
+                                            )
+                                          }
+                                        >
+                                          <div className="flex items-start justify-between transition-colors group-hover:bg-gray-50 p-2 rounded-lg">
+                                            <div>
+                                              <div className="font-medium text-[#171717] group-hover:text-[#2563EB] transition-colors">
+                                                {l.name}
+                                              </div>
+                                              {l.description && (
+                                                <p className="text-xs text-gray-600 mt-1">
+                                                  {l.description}
+                                                </p>
+                                              )}
+                                            </div>
+
+                                            {l.isPreview && (
+                                              <span className="text-xs px-2 py-1 border rounded text-gray-700 bg-white">
+                                                Preview
+                                              </span>
+                                            )}
                                           </div>
-                                          <div className="text-xs text-gray-500">
-                                            {l.type ?? ""}
-                                            {l.videoUrl ? " • Video" : ""}
-                                            {l.readingContent
-                                              ? " • Reading"
-                                              : ""}
-                                          </div>
-                                        </div>
-                                        {l.isPreview && (
-                                          <span className="text-xs px-2 py-1 border rounded">
-                                            Preview
-                                          </span>
-                                        )}
-                                      </div>
-                                    </li>
-                                  )
+                                        </li>
+                                      )
+                                    )}
+                                  </ul>
+                                ) : (
+                                  <div className="text-sm text-gray-500">
+                                    Chưa có bài học nào trong chương này.
+                                  </div>
                                 )}
-                              </ul>
-                            </div>
-                          </details>
-                        ))
+                              </div>
+                            </details>
+                          )
+                        )
                       ) : (
                         <div className="text-sm text-gray-500">
                           Không có chương trình học nào.
@@ -218,32 +225,34 @@ const CourseDetail: React.FC = () => {
                 </Card>
               </div>
 
-              {/* === Right Sidebar === */}
+              {/* === Sidebar === */}
               <aside className="col-span-12 lg:col-span-4">
                 <div className="space-y-4">
                   <Card>
                     <CardHeader>
-                      <CardTitle>Trạng thái khóa học</CardTitle>
+                      <CardTitle>Thông tin khóa học</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="text-sm text-[#404040] space-y-1">
                         <div className="flex justify-between">
                           <span>Trạng thái</span>
                           <span>
-                            {selectedCourse?.status ? "Đã xuất bản" : "Nháp"}
+                            {selectedCourse?.status ?? "Không xác định"}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span>Giá</span>
                           <span>
                             {selectedCourse?.price
-                              ? `${selectedCourse.price}`
+                              ? `${selectedCourse.price.toLocaleString()}₫`
                               : "Miễn phí"}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Chủ đề</span>
-                          <span>{categoryLabel(selectedCourse?.category)}</span>
+                          <span>Môn học</span>
+                          <span>
+                            {categoryLabel(selectedCourse?.subjectId)}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span>Khối lớp</span>
@@ -252,67 +261,41 @@ const CourseDetail: React.FC = () => {
                       </div>
                     </CardContent>
                   </Card>
-
                   <Card>
                     <CardHeader>
                       <CardTitle>Giảng viên</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-start gap-3">
-                        {/* Avatar giảng viên */}
                         <div className="w-12 h-12 rounded-full bg-[#171717] text-white flex items-center justify-center text-sm font-semibold shadow-sm">
                           {(() => {
-                            const teacher = teachers.find(
-                              (t) =>
-                                String(t.id) ===
-                                String(selectedCourse?.instructorName)
-                            );
-                            const name =
-                              teacher?.fullname ||
-                              selectedCourse?.instructorName ||
-                              "GV";
+                            const name = teacherCreated?.fullname || "GV";
+
                             return name
                               .split(" ")
                               .slice(-2)
-                              .map((n: string) => n[0])
+                              .map((n) => n[0])
                               .join("")
                               .toUpperCase();
                           })()}
                         </div>
-
-                        {/* Thông tin chi tiết */}
                         <div className="flex-1 text-sm text-[#404040]">
-                          {/* Giảng viên chính */}
                           <div className="flex justify-between mb-1">
                             <span className="font-medium text-[#171717]">
                               Giảng viên:
                             </span>
                             <span>
-                              {
-                                teachers.find(
-                                  (t) =>
-                                    String(t.id) ===
-                                    String(selectedCourse?.instructorName)
-                                )?.fullname
-                              }
+                              {teacherCreated?.fullname || "GV - Chính"}
                             </span>
                           </div>
-
-                          {/* Người cập nhật */}
-                          {selectedCourse?.updatedAt && (
+                          {teacherUpdated?.fullname && (
                             <>
                               <div className="flex justify-between mb-1">
                                 <span className="font-medium text-[#171717]">
                                   Cập nhật bởi:
                                 </span>
                                 <span>
-                                  {
-                                    teachers.find(
-                                      (t) =>
-                                        String(t.id) ===
-                                        String(selectedCourse?.updatedBy)
-                                    )?.fullname
-                                  }
+                                  {teacherUpdated?.fullname || "GV - Cập nhật"}
                                 </span>
                               </div>
                               <div className="flex justify-between mb-1">
@@ -321,7 +304,7 @@ const CourseDetail: React.FC = () => {
                                 </span>
                                 <span>
                                   {new Date(
-                                    selectedCourse.updatedAt
+                                    selectedCourse.updatedAt || ""
                                   ).toLocaleString("vi-VN", {
                                     hour12: false,
                                   })}
@@ -329,8 +312,6 @@ const CourseDetail: React.FC = () => {
                               </div>
                             </>
                           )}
-
-                          {/* Ngày tạo */}
                           {selectedCourse?.createdAt && (
                             <div className="flex justify-between mb-1">
                               <span className="font-medium text-[#171717]">
@@ -345,8 +326,6 @@ const CourseDetail: React.FC = () => {
                               </span>
                             </div>
                           )}
-
-                          {/* Nút hành động */}
                           <div className="mt-4 flex gap-2">
                             <Button
                               variant="outline"

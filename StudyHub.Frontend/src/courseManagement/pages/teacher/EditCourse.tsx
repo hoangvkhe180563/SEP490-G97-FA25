@@ -27,73 +27,69 @@ import {
   Eye,
   Edit2,
   Pencil,
+  Loader2,
 } from "lucide-react";
 import { documentService } from "@/documentManagement/services/documentService";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import type {
   ChapterListDto,
-  LessonListDto,
   CourseListDto,
 } from "@/courseManagement/types/api";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+} from "@/common/components/ui/alert-dialog";
 
 const EditCourse: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const courseId = Number(id || 0);
 
+  const [dialog, setDialog] = useState({
+    open: false,
+    title: "",
+    message: "",
+  });
+
   const selectedCourse = useCourseStore(
-    (s) => s.selectedCourse as CourseListDto | undefined
+    (s) => s.selectedCourse as CourseListDto
   );
   const updateCourse = useCourseStore((s) => s.updateCourse);
-
-  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const s = await documentService.getSubjects();
-        setSubjects(s || []);
-      } catch (err) {
-        console.error("Failed to load subjects", err);
-      }
-    };
-    load();
-  }, []);
-
-  const [name, setName] = useState("");
-  const [information, setInformation] = useState("");
-  const [price, setPrice] = useState<number | undefined>(undefined);
-  const [subjectId, setSubjectId] = useState<number | "">("");
-  const [gradeId, setGradeId] = useState<number | "">("");
-  const [status, setStatus] = useState<string | undefined>(undefined);
-  const [isFeatured, setIsFeatured] = useState<boolean>(false);
-  const [saving, setSaving] = useState(false);
-  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
-
   const fetchChapters = useLectureStore((s) => s.fetchChapters);
   const chaptersFromStore = useLectureStore((s) => s.chapters);
   const createChapter = useLectureStore((s) => s.createChapter);
   const fetchCourseById = useCourseStore((s) => s.fetchCourseById);
   const uploadThumbnail = useCourseStore((s) => s.uploadThumbnail);
-
-  const fetchCourseByIdRef = useRef(fetchCourseById);
-  const fetchChaptersRef = useRef(fetchChapters);
-
-  useEffect(() => {
-    fetchCourseByIdRef.current = fetchCourseById;
-  }, [fetchCourseById]);
-
-  useEffect(() => {
-    fetchChaptersRef.current = fetchChapters;
-  }, [fetchChapters]);
   const deleteChapterStore = useLectureStore((s) => s.deleteChapter);
   const updateChapterStore = useLectureStore((s) => s.updateChapter);
   const fetchChapter = useLectureStore((s) => s.fetchChapter);
   const deleteLessonStore = useLectureStore((s) => s.deleteLesson);
-  const [chaptersLocal, setChaptersLocal] = useState<ChapterListDto[]>([]);
   const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
+
+  const fetchCourseByIdRef = useRef(fetchCourseById);
+  const fetchChaptersRef = useRef(fetchChapters);
+
+  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
+  const [name, setName] = useState("");
+  const [information, setInformation] = useState("");
+  const [price, setPrice] = useState<number | undefined>(undefined);
+  const [subjectId, setSubjectId] = useState<number | "">("");
+  const [gradeId, setGradeId] = useState<number | "">("");
+  const [status, setStatus] = useState<string>("");
+  const [isFeatured, setIsFeatured] = useState<boolean>(false);
+  const [startAt, setStartAt] = useState("");
+  const [endAt, setEndAt] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  const [chaptersLocal, setChaptersLocal] = useState<ChapterListDto[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [selectedInstructor, setSelectedInstructor] = useState<string | null>(
     null
@@ -106,6 +102,27 @@ const EditCourse: React.FC = () => {
   const [modalChapterMode, setModalChapterMode] = useState<"view" | "edit">(
     "view"
   );
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      const res = await documentService.getSubjects();
+      if (Array.isArray(res)) {
+        setSubjects(res.map((s: any) => ({ id: s.id, name: s.name })));
+      }
+    };
+    const loadTeachers = async () => {
+      const res = await filterAppUsers("role=Teacher&page=1&limit=200");
+      const items = res?.users ?? [];
+      setTeachers(items);
+    };
+    fetchSubjects();
+    loadTeachers();
+  }, [filterAppUsers]);
+
+  useEffect(() => {
+    fetchCourseByIdRef.current = fetchCourseById;
+    fetchChaptersRef.current = fetchChapters;
+  }, [fetchCourseById, fetchChapters]);
 
   const modalChapterRef = useRef<ChapterListDto | undefined>(modalChapter);
 
@@ -134,6 +151,7 @@ const EditCourse: React.FC = () => {
   useEffect(() => {
     let mounted = true;
     if (!courseId) return;
+
     if (!selectedCourse || (selectedCourse as any).id !== courseId) {
       if (mounted) {
         setName("");
@@ -141,66 +159,48 @@ const EditCourse: React.FC = () => {
         setPrice(undefined);
         setSubjectId("");
         setGradeId("");
-        setStatus(undefined);
+        setStatus("");
         setIsFeatured(false);
         setChaptersLocal([]);
+        setSelectedInstructor("");
+        setStartAt("");
+        setEndAt("");
       }
+    } else {
+      setName(selectedCourse.name ?? "");
+      setInformation(selectedCourse.information ?? "");
+      setPrice(selectedCourse.price ?? undefined);
+      setSubjectId(selectedCourse.subjectId ?? "");
+      setGradeId(
+        (selectedCourse as any).gradeId ?? (selectedCourse as any).grade ?? ""
+      );
+      setStatus(selectedCourse.status ?? undefined);
+      setIsFeatured((selectedCourse as any).isFeatured ?? false);
+      setSelectedInstructor(
+        selectedCourse.updatedBy ?? selectedCourse.createdBy ?? ""
+      );
+      setStartAt(formatDate(selectedCourse.startAt));
+      setEndAt(formatDate(selectedCourse.endAt));
     }
+
     return () => {
       mounted = false;
     };
   }, [courseId, selectedCourse]);
 
-  useEffect(() => {
-    if (!selectedCourse) return;
-    setName(selectedCourse.name ?? "");
-    setInformation(selectedCourse.information ?? "");
-    setPrice(selectedCourse.price ?? undefined);
-    setSubjectId(selectedCourse.subjectId ?? "");
-    setGradeId(
-      (selectedCourse as any).gradeId ?? (selectedCourse as any).grade ?? ""
-    );
-    setStatus(selectedCourse.status ?? undefined);
-    setIsFeatured((selectedCourse as any).isFeatured ?? false);
-    setSelectedInstructor(
-      selectedCourse.updatedBy ?? selectedCourse.createdBy ?? ""
-    );
-  }, [selectedCourse]);
-
-  useEffect(() => {
-    // load teachers for instructor selection
-    const loadTeachers = async () => {
-      try {
-        const res = await filterAppUsers("role=Teacher&page=1&limit=200");
-        const items = res?.users ?? [];
-        setTeachers(items);
-      } catch (err) {
-        console.error("Failed to load teachers", err);
-      }
-    };
-    loadTeachers();
-  }, [filterAppUsers]);
-
-  const formatDate = (d?: string | null) => {
-    if (!d) return "-";
-    try {
-      const dt = new Date(d);
-      if (Number.isNaN(dt.getTime())) return "-";
-      return dt.toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    } catch (_e) {
-      return "-";
-    }
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "";
+    const d = new Date(dateString);
+    return d.toISOString().split("T")[0];
   };
 
   useEffect(() => {
-    if (chaptersFromStore && chaptersFromStore.length > 0) {
-      const belongsToCurrent = chaptersFromStore.every(
-        (c: any) => c.courseId === courseId
-      );
+    if (chaptersFromStore) {
+      const belongsToCurrent =
+        chaptersFromStore.length === 0
+          ? true
+          : chaptersFromStore.every((c: any) => c.courseId === courseId);
+
       if (belongsToCurrent) {
         setChaptersLocal(chaptersFromStore);
         return;
@@ -226,33 +226,13 @@ const EditCourse: React.FC = () => {
     }
   }, [chaptersLocal]);
 
-  const updateChapterName = (chapterId: number, name: string) => {
-    setChaptersLocal((prev) =>
-      prev.map((ch) => (ch.id === chapterId ? { ...ch, name } : ch))
-    );
-  };
-
-  const updateLessonName = (
-    chapterId: number,
-    lessonId: number,
-    name: string
-  ) => {
-    setChaptersLocal((prev) =>
-      prev.map((ch) => {
-        if (ch.id !== chapterId) return ch;
-        return {
-          ...ch,
-          lessons: (ch.lessons ?? []).map((ls: LessonListDto) =>
-            ls.id === lessonId ? { ...ls, name } : ls
-          ),
-        } as ChapterListDto;
-      })
-    );
-  };
-
   const handleAddChapter = async () => {
     if (!courseId)
-      return alert("Mở trang này từ một khóa học để thêm một phần.");
+      return setDialog({
+        open: true,
+        title: "Thiếu thông tin",
+        message: "Vui lòng mở trang này từ một khóa học để thêm một phần.",
+      });
     const tempId = -Date.now();
     const temp: any = {
       id: tempId,
@@ -278,12 +258,35 @@ const EditCourse: React.FC = () => {
     try {
       const res = deleteChapterStore ? await deleteChapterStore(id) : false;
       if (res) {
+        // Optimistically remove from local UI
         setChaptersLocal((prev) => prev.filter((c) => c.id !== id));
-        if (fetchChaptersRef.current) await fetchChaptersRef.current(courseId);
-      } else alert("Xóa thất bại");
+
+        // Refresh lecture store and selected course to keep global state in sync
+        try {
+          if (fetchChaptersRef.current)
+            await fetchChaptersRef.current(courseId);
+        } catch (err) {
+          console.warn("fetchChapters after delete failed", err);
+        }
+        try {
+          if (fetchCourseByIdRef.current)
+            await fetchCourseByIdRef.current(courseId);
+        } catch (err) {
+          console.warn("fetchCourseById after delete failed", err);
+        }
+      } else
+        setDialog({
+          open: true,
+          title: "Thất bại",
+          message: "Xóa thất bại",
+        });
     } catch (err) {
       console.error("delete chapter failed", err);
-      alert("Xóa thất bại");
+      setDialog({
+        open: true,
+        title: "Thất bại",
+        message: "Xóa chương thất bại",
+      });
     }
   };
 
@@ -300,7 +303,11 @@ const EditCourse: React.FC = () => {
     const ok = confirm("Delete this lesson?");
     if (!ok) return;
     if (!deleteLessonStore) {
-      alert("Xóa không khả dụng");
+      setDialog({
+        open: true,
+        title: "Thất bại",
+        message: "Xóa không khả dụng",
+      });
       return;
     }
     try {
@@ -312,13 +319,25 @@ const EditCourse: React.FC = () => {
             lessons: (ch.lessons || []).filter((ls) => ls.id !== lessonId),
           }))
         );
-        alert("Xóa bài giảng thành công");
+        setDialog({
+          open: true,
+          title: "Thành công",
+          message: "Xóa bài giảng thành công",
+        });
       } else {
-        alert("Xóa thất bại");
+        setDialog({
+          open: true,
+          title: "Thất bại",
+          message: "Xóa thất bại",
+        });
       }
     } catch (err) {
       console.error("delete lesson failed", err);
-      alert("Xóa thất bại");
+      setDialog({
+        open: true,
+        title: "Thất bại",
+        message: "Xóa bài giảng thất bại",
+      });
     }
   };
 
@@ -357,7 +376,12 @@ const EditCourse: React.FC = () => {
 
   const saveModalChapter = async () => {
     if (!modalChapter) return;
-    if (!updateChapterStore) return alert("Lưu không khả dụng");
+    if (!updateChapterStore)
+      return setDialog({
+        open: true,
+        title: "Thất bại",
+        message: "Cập nhật không khả dụng",
+      });
     setChapterModalSaving(true);
     try {
       const dto: any = {
@@ -382,7 +406,11 @@ const EditCourse: React.FC = () => {
       };
       if ((modalChapter as any).id < 0) {
         if (!createChapter) {
-          alert("Tạo không khả dụng");
+          setDialog({
+            open: true,
+            title: "Thất bại",
+            message: "Tạo không khả dụng",
+          });
           return;
         }
         const created = await createChapter(dto);
@@ -390,10 +418,18 @@ const EditCourse: React.FC = () => {
           setChaptersLocal((prev) =>
             prev.map((c) => (c.id === (modalChapter as any).id ? created : c))
           );
-          alert("Lưu Chương thành công");
+          setDialog({
+            open: true,
+            title: "Thành công",
+            message: "Tạo thành công",
+          });
           closeChapterModal();
         } else {
-          alert("Tạo thất bại");
+          setDialog({
+            open: true,
+            title: "Thất bại",
+            message: "Tạo thất bại",
+          });
         }
       } else {
         const updated = await updateChapterStore(modalChapter.id, dto);
@@ -401,15 +437,27 @@ const EditCourse: React.FC = () => {
           setChaptersLocal((prev) =>
             prev.map((c) => (c.id === updated.id ? updated : c))
           );
-          alert("Lưu Chương thành công");
+          setDialog({
+            open: true,
+            title: "Thành công",
+            message: "Lưu thành công",
+          });
           closeChapterModal();
         } else {
-          alert("Lưu thất bại");
+          setDialog({
+            open: true,
+            title: "Thất bại",
+            message: "Lưu thất bại",
+          });
         }
       }
     } catch (err) {
       console.error("save chapter failed", err);
-      alert("Lưu thất bại");
+      setDialog({
+        open: true,
+        title: "Thất bại",
+        message: "Lưu thất bại",
+      });
     } finally {
       setChapterModalSaving(false);
     }
@@ -476,7 +524,7 @@ const EditCourse: React.FC = () => {
                     imageUrl:
                       thumbnailPreview ?? selectedCourse?.imageUrl ?? null,
                     price: price ?? 0,
-                    category:
+                    subjectId:
                       typeof subjectId === "number"
                         ? subjectId
                         : Number(subjectId || 0),
@@ -487,18 +535,26 @@ const EditCourse: React.FC = () => {
                     chapters: chaptersPayload,
                     isFeatured: isFeatured,
                     status: status ?? null,
-                    createdAt: selectedCourse?.createdAt ?? new Date(),
+                    startAt: startAt ? new Date(startAt).toISOString() : null,
+                    endAt: endAt ? new Date(endAt).toISOString() : null,
                     updatedAt: new Date().toISOString(),
                     updatedBy: selectedInstructor,
                   };
 
-                  console.log("Updating course with data:", dto);
                   await updateCourse(courseId, dto);
-                  alert("Cập nhật khóa học thành công");
+                  setDialog({
+                    open: true,
+                    title: "Thành công",
+                    message: "Cập nhật khóa học thành công",
+                  });
                   navigate(`/course/teacher/courses`);
                 } catch (err) {
                   console.error("Update failed", err);
-                  alert("Cập nhật không thành công");
+                  setDialog({
+                    open: true,
+                    title: "Thất bại",
+                    message: "Cập nhật không thành công",
+                  });
                 } finally {
                   setSaving(false);
                 }
@@ -590,6 +646,31 @@ const EditCourse: React.FC = () => {
                       </Select>
                     </div>
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Ngày bắt đầu
+                      </Label>
+                      <Input
+                        type="date"
+                        value={startAt}
+                        onChange={(e) => setStartAt(e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Ngày kết thúc
+                      </Label>
+                      <Input
+                        type="date"
+                        value={endAt}
+                        onChange={(e) => setEndAt(e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -619,19 +700,23 @@ const EditCourse: React.FC = () => {
                         key={`${String(ch.id ?? "new")}-${chIndex}`}
                         className="border border-[#E5E5E5] rounded-lg p-4"
                       >
-                        <div className="flex items-center justify-between mb-3">
-                          <input
-                            value={ch.name}
-                            onChange={(e) =>
-                              updateChapterName(ch.id, e.target.value)
-                            }
-                            className="text-base w-full text-[#171717] font-medium border-b pb-1"
-                          />
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="w-full">
+                            {/* Chapter Name */}
+                            <p className="text-base w-full text-[#171717] font-semibold border-b pb-1 mb-1 focus:outline-none">
+                              {ch.name}
+                            </p>
+                            <p className="text-sm w-full text-gray-400 pb-1 focus:outline-none">
+                              {ch.description}
+                            </p>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2 ml-4 mt-1">
                             <button
                               onClick={() => openChapterModal(ch.id, "edit")}
                               className="p-2 border rounded-md hover:bg-muted transition-colors"
-                              title="Edit section"
+                              title="Chỉnh sửa chương"
                             >
                               <Pencil className="w-4 h-4" />
                             </button>
@@ -639,13 +724,15 @@ const EditCourse: React.FC = () => {
                             <button
                               onClick={() => openChapterModal(ch.id, "view")}
                               className="p-2 border rounded-md hover:bg-muted transition-colors"
-                              title="View section"
+                              title="Xem chương"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
+
                             <button
                               onClick={() => handleDeleteChapter(ch.id)}
                               className="p-1 hover:bg-gray-100 rounded"
+                              title="Xóa chương"
                             >
                               <Trash2 className="w-3.5 h-4 text-[#A3A3A3]" />
                             </button>
@@ -658,28 +745,30 @@ const EditCourse: React.FC = () => {
                               key={`${String(l.id ?? "new")}-${String(
                                 ch.id ?? "new"
                               )}-${idx}`}
-                              className="bg-[#FAFAFA] rounded h-9 px-2 gap-2 flex items-center justify-between"
+                              className="bg-[#FAFAFA] rounded h-9 px-2 gap-2 flex items-center justify-between hover:bg-gray-50 transition-colors"
                             >
-                              <div className="flex-1 flex items-center gap-2">
-                                <div className="w-2 h-2  rounded-full bg-[#D9D9D9]" />
-                                <input
-                                  value={l.name}
-                                  onChange={(e) =>
-                                    updateLessonName(
-                                      ch.id,
-                                      l.id,
-                                      e.target.value
-                                    )
-                                  }
-                                  className="text-sm text-[#404040] bg-transparent w-full"
-                                />
+                              {/* === Left: Tên bài học === */}
+                              <div
+                                className="flex-1 flex items-center gap-2 cursor-pointer"
+                                onClick={() =>
+                                  navigate(`/course/teacher/lecture/${l.id}`)
+                                }
+                                title="Xem chi tiết bài giảng"
+                              >
+                                <div className="w-2 h-2 rounded-full bg-[#D9D9D9]" />
+                                <p className="text-sm text-[#404040] bg-transparent w-full hover:text-[#2563EB] transition-colors">
+                                  {l.name}
+                                </p>
                               </div>
+
+                              {/* === Right: Action buttons === */}
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-[#8A8A8A] mr-3">
                                   {l.type}
                                 </span>
+
                                 <button
-                                  title="View"
+                                  title="Xem chi tiết"
                                   onClick={() =>
                                     navigate(`/course/teacher/lecture/${l.id}`)
                                   }
@@ -689,7 +778,7 @@ const EditCourse: React.FC = () => {
                                 </button>
 
                                 <button
-                                  title="Edit"
+                                  title="Chỉnh sửa"
                                   onClick={() =>
                                     navigate(
                                       `/course/teacher/edit-lecture/${l.id}`
@@ -699,8 +788,9 @@ const EditCourse: React.FC = () => {
                                 >
                                   <Edit2 className="w-4 h-4 text-[#525252]" />
                                 </button>
+
                                 <button
-                                  title="Delete"
+                                  title="Xóa bài giảng"
                                   onClick={() => deleteLesson(l.id)}
                                   className="p-1 hover:bg-gray-100 rounded text-rose-600"
                                 >
@@ -815,20 +905,49 @@ const EditCourse: React.FC = () => {
                    transition font-medium"
                         onClick={async () => {
                           if (!thumbnailFile)
-                            return alert("Vui lòng chọn ảnh trước");
+                            return setDialog({
+                              open: true,
+                              title: "Thiếu thông tin",
+                              message: "Vui lòng chọn ảnh trước",
+                            });
                           if (!uploadThumbnail)
-                            return alert("Upload không khả dụng");
+                            return setDialog({
+                              open: true,
+                              title: "Thất bại",
+                              message: "Upload không khả dụng",
+                            });
                           try {
+                            setThumbnailUploading(true);
                             const url = await uploadThumbnail(thumbnailFile);
                             setThumbnailPreview(url);
-                            alert("Tải lên thành công!");
+                            setDialog({
+                              open: true,
+                              title: "Thành công",
+                              message: "Lưu ảnh thành công",
+                            });
                           } catch (err) {
                             console.error("Upload failed", err);
-                            alert("Upload hình thất bại");
+                            setDialog({
+                              open: true,
+                              title: "Thất bại",
+                              message: "Upload hình thất bại",
+                            });
+                          } finally {
+                            setThumbnailUploading(false);
                           }
                         }}
                       >
-                        Tải lên hình ảnh mới
+                        {thumbnailUploading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Đang tải...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4" />
+                            Tải lên
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -842,23 +961,46 @@ const EditCourse: React.FC = () => {
                 <CardContent>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="font-medium text-base text-gray-800">
-                        Giá khóa học
-                      </Label>
-                      <div className="relative mt-1 w-full flex items-center">
-                        <span className="absolute left-3 text-gray-500 text-sm top-1/2 -translate-y-1/2">
-                          VNĐ
-                        </span>
+                      <Label>Giá khóa học</Label>
+                      <Input
+                        type="number"
+                        value={price || ""}
+                        onChange={(e) => setPrice(Number(e.target.value))}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="space-y-4">
+                      <Label>Trạng thái</Label>
+                      <Select
+                        value={status}
+                        onValueChange={(v) => setStatus(v)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Chọn trạng thái" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Mở">Đang mở</SelectItem>
+                          <SelectItem value="Đóng">Đã đóng</SelectItem>
+                          <SelectItem value="Nháp">Nháp</SelectItem>
+                        </SelectContent>
+                      </Select>
 
-                        <Input
-                          type="number"
-                          min={0}
-                          step={1000}
-                          placeholder="0"
-                          className="pl-14 pr-3 py-2 text-right text-base font-semibold text-gray-800 tracking-wide"
-                          value={price || ""}
-                          onChange={(e) => setPrice(Number(e.target.value))}
-                        />
+                      <div className="text-xs text-[#8A8A8A]">
+                        <div>
+                          Cập nhật gần nhất{" "}
+                          <span className="float-right">
+                            {formatDate(
+                              selectedCourse?.updatedAt ??
+                                selectedCourse?.createdAt
+                            )}
+                          </span>
+                        </div>
+                        <div>
+                          Được tạo vào{" "}
+                          <span className="float-right">
+                            {formatDate(selectedCourse?.createdAt)}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -874,44 +1016,8 @@ const EditCourse: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Trạng thái</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <Label>Trạng thái xuất bản</Label>
-                    <Select>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Đã xuất bản" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="draft">Nháp</SelectItem>
-                        <SelectItem value="published">Đã xuất bản</SelectItem>
-                      </SelectContent>
-                    </Select>
 
-                    <div className="text-xs text-[#8A8A8A]">
-                      <div>
-                        Cập nhật gần nhất{" "}
-                        <span className="float-right">
-                          {formatDate(
-                            selectedCourse?.updatedAt ??
-                              selectedCourse?.createdAt
-                          )}
-                        </span>
-                      </div>
-                      <div>
-                        Được tạo vào{" "}
-                        <span className="float-right">
-                          {formatDate(selectedCourse?.createdAt ?? null)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
+              {/* <Card>
                 <CardHeader>
                   <CardTitle>Giảng viên</CardTitle>
                 </CardHeader>
@@ -980,7 +1086,7 @@ const EditCourse: React.FC = () => {
                     )}
                   </div>
                 </CardContent>
-              </Card>
+              </Card> */}
             </div>
           </aside>
         </div>
@@ -1111,6 +1217,26 @@ const EditCourse: React.FC = () => {
                   </Button>
                 )}
               </div>
+              <AlertDialog
+                open={dialog.open}
+                onOpenChange={(open) => setDialog({ ...dialog, open })}
+              >
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{dialog.title}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {dialog.message}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogAction
+                      onClick={() => setDialog({ ...dialog, open: false })}
+                    >
+                      OK
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </div>

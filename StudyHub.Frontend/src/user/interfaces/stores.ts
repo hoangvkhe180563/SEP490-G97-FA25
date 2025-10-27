@@ -12,7 +12,10 @@ interface FilterAppUsersResponse {
   users: AppUser[];
   meta?: Meta;
 }
-
+interface GetAppUserByIdResponse {
+  success: boolean;
+  data: AppUser;
+}
 interface UserState {
   appUsers: AppUser[];
   appUser: AppUser | undefined;
@@ -22,7 +25,7 @@ interface UserState {
   meta?: Meta | null;
 
   filterAppUsers: (query: string) => Promise<FilterAppUsersResponse | null>;
-  getAppUserById: (id: string) => Promise<void | undefined>;
+  getAppUserById: (id: string) => Promise<GetAppUserByIdResponse | null>;
 }
 
 export type { UserState };

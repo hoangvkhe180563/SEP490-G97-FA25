@@ -20,7 +20,7 @@ import {
 } from "@/common/components/ui/select";
 import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
-import { ArrowLeft, Upload } from "lucide-react";
+import { ArrowLeft, Loader2, Upload } from "lucide-react";
 import { documentService } from "@/documentManagement/services/documentService";
 import {
   AlertDialog,
@@ -47,15 +47,16 @@ const AddCourse: React.FC = () => {
   const [description, setDescription] = useState("");
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
   const [price, setPrice] = useState<number | "">("");
   const [grade, setGrade] = useState<number | "">("");
   const [SubjectId, setSubjectId] = useState<number | null>(null);
   const [schoolId, setSchoolId] = useState<number | null>(null);
   const [isFeatured, setIsFeatured] = useState(false);
-  const [status, setStatus] = useState<string>("draft");
+  const [status, setStatus] = useState<string | "">("");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
-  const [createdBy, setCreatedBy] = useState("");
+  // const [createdBy, setCreatedBy] = useState("");
 
   const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
 
@@ -104,7 +105,7 @@ const AddCourse: React.FC = () => {
           ? new Date(startAt).toISOString()
           : new Date().toISOString(),
         endAt: endAt ? new Date(endAt).toISOString() : new Date().toISOString(),
-        createdBy: createdBy || "unknown",
+        createdBy: "d4e5f6a7-b8c9-0123-4567-890abcdef01c",
       };
 
       const created = await createCourse(dto);
@@ -152,7 +153,7 @@ const AddCourse: React.FC = () => {
                 Thêm khóa học
               </h1>
               <p className="text-sm text-[#525252]">
-                Chỉnh sửa thông tin và nội dung khóa học
+                Thêm khóa học mới cho học sinh của bạn
               </p>
             </div>
           </div>
@@ -172,37 +173,49 @@ const AddCourse: React.FC = () => {
         <div className="grid grid-cols-12 gap-8">
           {/* Left Column */}
           <div className="col-span-12 lg:col-span-8">
-            <Card>
+            <Card className="shadow-sm border border-gray-100">
               <CardHeader>
-                <CardTitle>Thông tin cơ bản</CardTitle>
-                <CardDescription>Điền các trường yêu cầu</CardDescription>
+                <CardTitle className="text-lg font-semibold text-[#171717]">
+                  🧾 Thông tin cơ bản
+                </CardTitle>
+                <CardDescription>
+                  Vui lòng điền đầy đủ các trường bên dưới
+                </CardDescription>
               </CardHeader>
+
               <CardContent>
                 <div className="space-y-6">
+                  {/* Tên khóa học */}
                   <div className="space-y-2">
-                    <Label>Tên khóa học</Label>
+                    <Label className="text-sm font-medium">Tên khóa học</Label>
                     <Input
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Mô tả</Label>
-                    <Textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Nhập tên khóa học..."
+                      className="h-10"
                     />
                   </div>
 
-                  {/* Subject + Grade */}
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <Label>Môn học</Label>
+                  {/* Mô tả */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Mô tả</Label>
+                    <Textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Viết mô tả ngắn gọn về khóa học..."
+                      className="min-h-[100px]"
+                    />
+                  </div>
+
+                  {/* Môn học + Khối lớp */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Môn học</Label>
                       <Select
                         value={SubjectId ? String(SubjectId) : ""}
                         onValueChange={(v) => setSubjectId(Number(v))}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Chọn môn học" />
                         </SelectTrigger>
                         <SelectContent>
@@ -215,21 +228,21 @@ const AddCourse: React.FC = () => {
                       </Select>
                     </div>
 
-                    <div>
-                      <Label>Khối lớp</Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Khối lớp</Label>
                       <Select
                         value={String(grade)}
                         onValueChange={(v) =>
                           setGrade(v === "" ? "" : Number(v))
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Chọn khối lớp" />
                         </SelectTrigger>
                         <SelectContent>
                           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((g) => (
                             <SelectItem key={g} value={String(g)}>
-                              {g}
+                              Lớp {g}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -237,22 +250,29 @@ const AddCourse: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Start / End Date */}
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <Label>Ngày bắt đầu</Label>
+                  {/* Ngày bắt đầu / kết thúc */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Ngày bắt đầu
+                      </Label>
                       <Input
                         type="date"
                         value={startAt}
                         onChange={(e) => setStartAt(e.target.value)}
+                        className="w-full"
                       />
                     </div>
-                    <div>
-                      <Label>Ngày kết thúc</Label>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Ngày kết thúc
+                      </Label>
                       <Input
                         type="date"
                         value={endAt}
                         onChange={(e) => setEndAt(e.target.value)}
+                        className="w-full"
                       />
                     </div>
                   </div>
@@ -336,20 +356,43 @@ const AddCourse: React.FC = () => {
                         className="border-[#f28d3d] text-[#f28d3d] hover:bg-[#f28d3d] hover:text-white font-medium transition-all"
                         onClick={async () => {
                           if (!thumbnailFile)
-                            return alert(
-                              "Vui lòng chọn ảnh trước khi tải lên."
-                            );
+                            return setDialog({
+                              open: true,
+                              title: "Quên chưa chọn ảnh",
+                              message: "Vui lòng chọn ảnh trước khi tải lên.",
+                            });
                           try {
+                            setThumbnailUploading(true);
                             const url = await uploadThumbnail(thumbnailFile);
                             setThumbnailPreview(url);
-                            alert("Tải lên thành công!");
+                            setDialog({
+                              open: true,
+                              title: "Thành công",
+                              message: "Tải lên hình ảnh thành công.",
+                            });
                           } catch (err) {
                             console.error("Upload failed", err);
-                            alert("Upload hình thất bại");
+                            setDialog({
+                              open: true,
+                              title: "Thất bại",
+                              message: "Có lỗi xảy ra khi tải lên hình ảnh.",
+                            });
+                          } finally {
+                            setThumbnailUploading(false);
                           }
                         }}
                       >
-                        Tải lên hình ảnh mới
+                        {thumbnailUploading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Đang tải...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4" />
+                            Tải lên
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -366,7 +409,7 @@ const AddCourse: React.FC = () => {
                   <CardTitle>Cài đặt khóa học</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
+                  <div className="space-y-2">
                     <Label>Giá khóa học</Label>
                     <Input
                       type="number"
@@ -376,10 +419,10 @@ const AddCourse: React.FC = () => {
                     />
                   </div>
 
-                  <div>
+                  <div className="space-y-2">
                     <Label>Trạng thái</Label>
                     <Select value={status} onValueChange={(v) => setStatus(v)}>
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Chọn trạng thái" />
                       </SelectTrigger>
                       <SelectContent>

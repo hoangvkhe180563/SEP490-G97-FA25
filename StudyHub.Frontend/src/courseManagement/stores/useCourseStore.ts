@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import courseApi from "../services/courseService";
-import type { CourseListDto, CourseDetailDto } from "../interfaces/types";
+import type {
+  CourseListDto,
+  CourseDetailDto,
+  LessonResource,
+} from "../interfaces/types";
 
 interface CourseState {
   courses: CourseListDto[];
@@ -20,6 +24,13 @@ interface CourseState {
   deleteCourse: (id: number) => Promise<boolean>;
   selectCourse?: (id?: number) => void;
   uploadThumbnail: (file: File) => Promise<string>;
+  getLessonResource?: (id: number) => Promise<LessonResource | null>;
+  createLessonResource?: (dto: { url: string }) => Promise<LessonResource>;
+  updateLessonResource?: (
+    id: number,
+    dto: { url: string }
+  ) => Promise<LessonResource>;
+  deleteLessonResource?: (id: number) => Promise<boolean>;
 }
 
 export const useCourseStore = create<CourseState>((set, get) => ({
@@ -41,7 +52,7 @@ export const useCourseStore = create<CourseState>((set, get) => ({
         pageSize: query.pageSize ?? get().pageSize,
         q: query.q,
         sort: query.sort,
-        subjectId: query.category,
+        subjectId: query.subjectId,
         grade: query.grade,
         duration: query.duration,
         instructor: query.instructor,
@@ -140,6 +151,57 @@ export const useCourseStore = create<CourseState>((set, get) => ({
     } catch (err) {
       console.error("uploadThumbnail failed", err);
       throw err;
+    }
+  },
+  getLessonResource: async (id: number) => {
+    set({ loading: true });
+    try {
+      const resource = await courseApi.getLessonResource(id);
+      set({ loading: false });
+      return resource;
+    } catch (e) {
+      console.error("getLessonResource failed", e);
+      set({ loading: false });
+      return null;
+    }
+  },
+
+  createLessonResource: async (dto: { url: string }) => {
+    set({ loading: true });
+    try {
+      const created = await courseApi.createLessonResource(dto);
+      set({ loading: false });
+      return created;
+    } catch (e) {
+      console.error("createLessonResource failed", e);
+      set({ loading: false });
+      throw e;
+    }
+  },
+
+  updateLessonResource: async (id: number, dto: { url: string }) => {
+    set({ loading: true });
+    try {
+      const updated = await courseApi.updateLessonResource(id, dto);
+      set({ loading: false });
+      return updated;
+    } catch (e) {
+      console.error("updateLessonResource failed", e);
+      set({ loading: false });
+      throw e;
+    }
+  },
+
+  deleteLessonResource: async (id: number) => {
+    set({ loading: true });
+    try {
+      const ok = await courseApi.deleteLessonResource(id);
+      set({ loading: false });
+      return ok;
+    } catch (e) {
+      console.error("deleteLessonResource failed", e);
+      set({ loading: false });
+      return false;
     }
   },
 }));

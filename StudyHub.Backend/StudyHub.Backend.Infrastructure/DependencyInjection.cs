@@ -19,6 +19,7 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<ICourseRepository, CourseRepository>();
             services.AddScoped<IChapterRepository, ChapterRepository>();
             services.AddScoped<ILessonRepository, LessonRepository>();
+            services.AddScoped<ILessonResourceRepository, LessonResourceRepository>();
             services.AddScoped<ILandingPageRepository, LandingPageRepository>();
             services.AddScoped<IDocumentRepository, DocumentRepository>();
             services.AddScoped<ILocationRepository, LocationRepository>();

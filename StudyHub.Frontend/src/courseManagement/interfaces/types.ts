@@ -10,7 +10,7 @@ export type LessonListDto = {
   description?: string | null;
   postDate?: Date | null;
   isPreview: boolean;
-  ResourceId?: number | null;
+  resourceId?: number | null;
 };
 
 export type ChapterListDto = {
@@ -30,6 +30,7 @@ export type CourseListDto = {
   price: number;
   grade: number;
   subjectId: number;
+  subjectName: string;
   schoolId: number | null;
   isFeatured: boolean;
   status: string;
@@ -42,7 +43,12 @@ export type CourseListDto = {
   chapters?: ChapterListDto[];
 };
 
-export type CourseStatus = "Open" | "Closed" | "Draft";
+export type CourseStatus = "Mở" | "Đóng" | "Nháp";
+
+export type LessonResource = {
+  id: number;
+  url: string;
+};
 
 export type LessonDto = {
   name: string;

@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { courseApi } from "@/courseManagement/services/courseService";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
-// card components not used in this file
 import { Input } from "@/common/components/ui/input";
 import { Textarea } from "@/common/components/ui/textarea";
 import {
@@ -14,7 +12,18 @@ import {
 } from "@/common/components/ui/select";
 import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2, Upload, X } from "lucide-react";
+import { useQuill } from "react-quilljs";
+import "quill/dist/quill.snow.css";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+} from "@/common/components/ui/alert-dialog";
 
 const EditLecture: React.FC = () => {
   const navigate = useNavigate();
@@ -31,9 +40,10 @@ const EditLecture: React.FC = () => {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(
     courseIdFromQuery ?? null
   );
+
   // === All lesson fields ===
   const [title, setTitle] = useState("");
-  const [type, setType] = useState<"video" | "document">("video");
+  const [type, setType] = useState<"video" | "reading">("video");
   const [videoUrl, setVideoUrl] = useState("");
   const [useEmbed, setUseEmbed] = useState(false);
   const [embedSrc, setEmbedSrc] = useState("");
@@ -43,21 +53,69 @@ const EditLecture: React.FC = () => {
   const [postDate, setPostDate] = useState("");
   const [isPreview, setIsPreview] = useState(false);
 
-  const [saving, setSaving] = useState(false);
+  // Resource (file) states
+  const [resourceFile, setResourceFile] = useState<File | null>(null);
+  const [resourceUploading, setResourceUploading] = useState(false);
+  const [resourceUrl, setResourceUrl] = useState<string | null>(null);
+  const [resourceId, setResourceId] = useState<number | null>(null);
 
-  const updateLesson = useLectureStore((s: any) => s.updateLesson);
-  const deleteLesson = useLectureStore((s: any) => s.deleteLesson);
+  const [saving, setSaving] = useState(false);
+  const [dialog, setDialog] = useState({
+    open: false,
+    title: "",
+    message: "",
+  });
+
+  const updateLesson = useLectureStore((s) => s.updateLesson);
+  const deleteLesson = useLectureStore((s) => s.deleteLesson);
+  const fetchLesson = useLectureStore((s) => s.fetchLesson);
+  const getLessonResource = useLectureStore((s) => s.getLessonResource);
+  const fetchChapter = useLectureStore((s) => s.fetchChapter);
+  const fetchChapters = useLectureStore((s) => s.fetchChapters);
+  const uploadResource = useLectureStore((s) => s.uploadResource);
+  const createLessonResource = useLectureStore((s) => s.createLessonResource);
+  const updateLessonResource = useLectureStore((s) => s.updateLessonResource);
+  const deleteLessonResource = useLectureStore((s) => s.deleteLessonResource);
+
+  const { quill, quillRef } = useQuill({
+    theme: "snow",
+    modules: {
+      toolbar: [
+        [{ header: [1, 2, 3, false] }],
+        ["bold", "italic", "underline", "strike"],
+        [{ list: "ordered" }, { list: "bullet" }],
+        ["link", "image"],
+        ["clean"],
+      ],
+    },
+    placeholder:
+      "Nhập nội dung tài liệu (có thể định dạng chữ, thêm ảnh, link...)",
+  });
+
+  // Sync quill -> state
+  useEffect(() => {
+    if (!quill) return;
+    quill.on("text-change", () => {
+      setReadingContent(quill.root.innerHTML);
+    });
+  }, [quill]);
+
+  // When readingContent set from load, paste into quill
+  useEffect(() => {
+    if (quill && readingContent && readingContent !== quill.root.innerHTML) {
+      quill.clipboard.dangerouslyPasteHTML(readingContent);
+    }
+  }, [readingContent, quill]);
 
   // === Load lesson data ===
   useEffect(() => {
     if (!lessonId) return;
     (async () => {
       try {
-        const l = await courseApi.getLesson(lessonId);
+        const l = await fetchLesson(lessonId);
         if (!l) return;
-
         setTitle(l.name ?? "");
-        setType(l.type?.toLowerCase() === "video" ? "video" : "document");
+        setType(l.type?.toLowerCase() === "video" ? "video" : "reading");
         setVideoUrl(l.videoUrl ?? "");
         setReadingContent(l.readingContent ?? "");
         setDuration(l.duration ?? "");
@@ -66,6 +124,19 @@ const EditLecture: React.FC = () => {
           l.postDate ? new Date(l.postDate).toISOString().slice(0, 10) : ""
         );
         setIsPreview(!!l.isPreview);
+
+        if (l.resourceId) {
+          setResourceId(l.resourceId);
+          try {
+            if (getLessonResource) {
+              const res = await getLessonResource(l.resourceId);
+              if (res) setResourceUrl(res.url ?? null);
+            }
+          } catch (err) {
+            // ignore but log
+            console.error("failed to fetch lesson resource", err);
+          }
+        }
 
         // initialize embed state if videoUrl looks like an embed
         if (l.videoUrl && typeof l.videoUrl === "string") {
@@ -82,6 +153,7 @@ const EditLecture: React.FC = () => {
             setEmbedSrc("");
           }
         }
+
         // if lesson has chapter and no chapter selected from query, preselect it
         if (l.chapterId && !selectedChapterId && !chapterIdFromQuery) {
           setSelectedChapterId(String(l.chapterId));
@@ -89,17 +161,15 @@ const EditLecture: React.FC = () => {
 
         // fetch chapters if needed
         if ((l.chapterId ?? 0) > 0 && !courseIdFromQuery) {
-          const ch = await courseApi.getChapter(l.chapterId);
+          const ch = await fetchChapter(l.chapterId);
           if (ch && ch.courseId) {
-            const all = await courseApi.getChapters(ch.courseId);
-            setChapters(
-              (all || []).map((c: any) => ({ id: c.id, name: c.name }))
-            );
+            const all = await fetchChapters(ch.courseId);
+            setChapters((all || []).map((c) => ({ id: c.id, name: c.name })));
             if (!selectedChapterId) setSelectedChapterId(String(l.chapterId));
           }
         }
         if (selectedChapterId) {
-          const ch = await courseApi.getChapter(Number(selectedChapterId));
+          const ch = await fetchChapter(Number(selectedChapterId));
           if (ch && (ch as any).courseId) {
             setSelectedCourseId(String((ch as any).courseId));
           }
@@ -108,7 +178,16 @@ const EditLecture: React.FC = () => {
         console.error("Failed to load lesson:", err);
       }
     })();
-  }, [lessonId, chapterIdFromQuery, selectedChapterId, courseIdFromQuery]);
+  }, [
+    lessonId,
+    chapterIdFromQuery,
+    selectedChapterId,
+    courseIdFromQuery,
+    fetchChapter,
+    fetchChapters,
+    fetchLesson,
+    getLessonResource,
+  ]);
 
   // === Fetch chapters when courseId is known ===
   useEffect(() => {
@@ -117,9 +196,9 @@ const EditLecture: React.FC = () => {
     let mounted = true;
     (async () => {
       try {
-        const ch = await courseApi.getChapters(cid);
+        const ch = await fetchChapters(cid);
         if (!mounted) return;
-        setChapters((ch || []).map((c: any) => ({ id: c.id, name: c.name })));
+        setChapters((ch || []).map((c) => ({ id: c.id, name: c.name })));
         if ((ch || []).length > 0 && !selectedChapterId) {
           if (chapterIdFromQuery) setSelectedChapterId(chapterIdFromQuery);
           else setSelectedChapterId(String((ch || [])[0].id));
@@ -131,7 +210,63 @@ const EditLecture: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [courseIdFromQuery, selectedChapterId, chapterIdFromQuery]);
+  }, [courseIdFromQuery, selectedChapterId, chapterIdFromQuery, fetchChapters]);
+
+  // Upload resource (file) -> upload to storage then persist LessonResource row
+  const handleUploadResource = async () => {
+    if (!resourceFile) {
+      setDialog({
+        open: true,
+        title: "Chưa chọn file",
+        message: "Vui lòng chọn file trước khi tải lên.",
+      });
+      return;
+    }
+    setResourceUploading(true);
+    try {
+      const uploadRes = await uploadResource(resourceFile);
+      const url = uploadRes as string;
+
+      let createdOrUpdated = null;
+      if (resourceId) {
+        createdOrUpdated = await updateLessonResource(resourceId, { url });
+      } else {
+        createdOrUpdated = await createLessonResource({ url });
+      }
+
+      setResourceUrl(createdOrUpdated?.url ?? url);
+      setResourceId(createdOrUpdated?.id ?? resourceId ?? null);
+      setResourceFile(null);
+      setDialog({
+        open: true,
+        title: "Thành công",
+        message: "Tải lên tài nguyên thành công.",
+      });
+    } catch (err) {
+      console.error("Upload resource failed", err);
+      setDialog({
+        open: true,
+        title: "Thất bại",
+        message: "Tải lên thất bại.",
+      });
+    } finally {
+      setResourceUploading(false);
+    }
+  };
+
+  const handleDeleteResource = async () => {
+    if (resourceId) {
+      try {
+        if (deleteLessonResource) await deleteLessonResource(resourceId);
+      } catch (err) {
+        // ignore error but log
+        console.error("delete resource failed", err);
+      }
+    }
+    setResourceUrl(null);
+    setResourceId(null);
+    setResourceFile(null);
+  };
 
   // === Save (Update) ===
   const handleSave = async () => {
@@ -141,23 +276,34 @@ const EditLecture: React.FC = () => {
         name: title,
         chapterId: selectedChapterId ? Number(selectedChapterId) : 0,
         status: true,
-        type: type === "video" ? "Video" : "Document",
+        type: type === "video" ? "video" : "reading",
         videoUrl: type === "video" ? (useEmbed ? embedSrc : videoUrl) : null,
         readingContent: type !== "video" ? readingContent : null,
         duration,
         description,
         postDate: postDate ? new Date(postDate) : null,
         isPreview,
+        ResourceId: resourceId ?? null,
       };
 
-      const updated = updateLesson
-        ? await updateLesson(lessonId, dto)
-        : await courseApi.updateLesson(lessonId, dto);
-      if (updated) navigate("/course/teacher/edit-course/" + selectedCourseId);
-      else alert("Cập nhật không thành công");
+      const updated = await updateLesson(lessonId, dto);
+
+      if (updated) {
+        navigate("/course/teacher/edit-course/" + selectedCourseId);
+      } else {
+        setDialog({
+          open: true,
+          title: "Thất bại",
+          message: "Cập nhật bài giảng thất bại.",
+        });
+      }
     } catch (err) {
       console.error("update lesson failed", err);
-      alert("Cập nhật không thành công");
+      setDialog({
+        open: true,
+        title: "Thất bại",
+        message: "Cập nhật không thành công",
+      });
     } finally {
       setSaving(false);
     }
@@ -214,13 +360,22 @@ const EditLecture: React.FC = () => {
                 try {
                   const res = deleteLesson
                     ? await deleteLesson(lessonId)
-                    : await courseApi.deleteLesson(lessonId);
+                    : false;
                   if (res)
                     navigate("/course/teacher/edit-course/" + selectedCourseId);
-                  else alert("Xóa thất bại");
+                  else
+                    setDialog({
+                      open: true,
+                      title: "Thất bại",
+                      message: "Xóa bài giảng thất bại.",
+                    });
                 } catch (err) {
                   console.error("xóa thất bại", err);
-                  alert("Xóa thất bại");
+                  setDialog({
+                    open: true,
+                    title: "Thất bại",
+                    message: "Xóa thất bại",
+                  });
                 }
               }}
             >
@@ -270,7 +425,7 @@ const EditLecture: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="video">Bài giảng video</SelectItem>
-                    <SelectItem value="document">Bài giảng tài liệu</SelectItem>
+                    <SelectItem value="reading">Bài giảng tài liệu</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -369,23 +524,112 @@ const EditLecture: React.FC = () => {
             ) : (
               <div className="space-y-4">
                 <Label>Nội dung đọc</Label>
-                <Textarea
-                  value={readingContent}
-                  onChange={(e) => setReadingContent(e.target.value)}
-                  rows={6}
+                <div
+                  ref={quillRef}
+                  className="bg-white rounded-md min-h-[250px] p-2"
                 />
               </div>
             )}
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                id="isPreview"
-                type="checkbox"
-                checked={isPreview}
-                onChange={(e) => setIsPreview(e.target.checked)}
-                className="w-4 h-4"
-              />
-              <Label htmlFor="isPreview">Đánh dấu là bản xem trước</Label>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <Label className="text-gray-800 font-medium text-sm">
+                  Tài nguyên (File đính kèm)
+                </Label>
+
+                <div className="border border-dashed border-gray-300 rounded-xl p-4 bg-gray-50 hover:bg-gray-100 transition-colors duration-150">
+                  {!resourceUrl ? (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <input
+                        type="file"
+                        accept="*"
+                        onChange={(e) => {
+                          const f = e.target.files && e.target.files[0];
+                          if (f) setResourceFile(f);
+                          else setResourceFile(null);
+                        }}
+                        className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                      />
+
+                      <Button
+                        onClick={handleUploadResource}
+                        disabled={resourceUploading || !resourceFile}
+                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4"
+                      >
+                        {resourceUploading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" /> Đang
+                            tải...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4" /> Tải lên
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div className="flex flex-col">
+                        <p className="text-sm text-gray-700">
+                          <span className="font-medium text-gray-800">
+                            Đã tải:
+                          </span>{" "}
+                          <a
+                            href={resourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 hover:underline break-all"
+                          >
+                            {resourceUrl}
+                          </a>
+                        </p>
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleDeleteResource}
+                        className="flex items-center gap-1 text-rose-600 hover:text-rose-700"
+                      >
+                        <X className="w-4 h-4" /> Xóa
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 mt-6">
+                <input
+                  id="isPreview"
+                  type="checkbox"
+                  checked={isPreview}
+                  onChange={(e) => setIsPreview(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <Label htmlFor="isPreview">Đánh dấu là bản xem trước</Label>
+              </div>
             </div>
+            <AlertDialog
+              open={dialog.open}
+              onOpenChange={(open) => setDialog({ ...dialog, open })}
+            >
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{dialog.title}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {dialog.message}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogAction
+                    onClick={() => setDialog({ ...dialog, open: false })}
+                  >
+                    OK
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </div>

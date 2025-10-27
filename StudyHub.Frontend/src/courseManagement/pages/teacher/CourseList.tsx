@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import CourseItem from "../../components/CourseItem";
 import type { CourseListDto as CourseType } from "@/courseManagement/interfaces/types";
 import {
@@ -22,6 +22,7 @@ import CourseFilterTeacher from "@/courseManagement/components/CourseFilterTeach
 
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import type { CourseListDto } from "@/courseManagement/types/api";
+import { documentService } from "@/documentManagement/services/documentService";
 
 const CourseList: React.FC = () => {
   const courses = useCourseStore((s) => s.courses);
@@ -29,6 +30,9 @@ const CourseList: React.FC = () => {
   const totalCourses = useCourseStore((s) => s.total);
   const page = useCourseStore((s) => s.page);
   const pageSize = useCourseStore((s) => s.pageSize);
+  const [subjectList, setSubjectList] = useState<
+    { id: number; name: string }[]
+  >([]);
 
   const totalPages = useMemo(() => {
     if (totalCourses && pageSize) {
@@ -79,6 +83,13 @@ const CourseList: React.FC = () => {
     }
   };
 
+  const fetchSubjects = async () => {
+    const res = await documentService.getSubjects();
+    if (Array.isArray(res)) {
+      setSubjectList(res.map((s: any) => ({ id: s.id, name: s.name })));
+    }
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -87,6 +98,7 @@ const CourseList: React.FC = () => {
         console.error("Failed to load courses", err);
       }
     })();
+    fetchSubjects();
   }, [fetchCourses, pageSize]);
 
   const shown: CourseType[] = (courses ?? []).map((c: CourseListDto) => ({
@@ -97,6 +109,7 @@ const CourseList: React.FC = () => {
     price: c.price,
     grade: c.grade,
     subjectId: c.subjectId,
+    subjectName: subjectList.find((s) => s.id === c.subjectId)?.name || "",
     schoolId: c.schoolId ?? null,
     isFeatured: c.isFeatured,
     status: c.status,
@@ -117,56 +130,52 @@ const CourseList: React.FC = () => {
     <div className="bg-white rounded-xl shadow-md p-6">
       <CourseFilterTeacher />
 
-      <div className="overflow-hidden rounded-md">
-        <Table>
-          <TableHeader>
+      <div className="w-full overflow-x-auto rounded-md border border-gray-200">
+        <Table className="min-w-full text-sm">
+          <TableHeader className="bg-gray-50">
             <TableRow>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <TableHead className="px-3 py-2 min-w-[180px]">
                 Khóa học
               </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <TableHead className="px-3 py-2 min-w-[120px]">
                 Giảng viên
               </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Chủ đề
-              </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Khối lớp
-              </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Trường
-              </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <TableHead className="px-3 py-2 min-w-[100px]">Chủ đề</TableHead>
+              <TableHead className="px-3 py-2 min-w-[80px]">Khối lớp</TableHead>
+              <TableHead className="px-3 py-2 min-w-[90px]">
                 Trạng thái
               </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <TableHead className="px-3 py-2 min-w-[100px]">
                 Ngày tạo
               </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <TableHead className="px-3 py-2 min-w-[100px]">
                 Ngày bắt đầu
               </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <TableHead className="px-3 py-2 min-w-[100px]">
                 Ngày kết thúc
               </TableHead>
-              <TableHead className="w-36 px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <TableHead className="px-3 py-2 text-center min-w-[90px]">
                 Hành động
               </TableHead>
             </TableRow>
           </TableHeader>
+
           <TableBody>
             {shown.map((c: CourseType) => (
               <CourseItem key={c.id} course={c} />
             ))}
+
             {shown.length < 3 && (
               <TableRow>
-                <TableCell colSpan={9} className="h-20" />
+                <TableCell colSpan={10} className="h-12" />
               </TableRow>
             )}
+
             {shown.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={7}
-                  className="h-20 text-center text-gray-500"
+                  colSpan={10}
+                  className="h-16 text-center text-gray-500"
                 >
                   Không tìm thấy khóa học nào.
                 </TableCell>

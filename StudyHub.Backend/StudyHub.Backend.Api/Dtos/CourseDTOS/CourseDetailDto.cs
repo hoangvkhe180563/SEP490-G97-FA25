@@ -3,22 +3,28 @@ using System.Collections.Generic;
 
 namespace StudyHub.Backend.Api.Dtos.CourseDTOS;
 
-public class CourseDetailDto
+public class CourseDto
 {
     public string Name { get; set; } = null!;
     public string? Information { get; set; }
     public string? ImageUrl { get; set; }
     public uint Price { get; set; }
     public sbyte Grade { get; set; }
-    public short Category { get; set; }
+    public short SubjectId { get; set; }
     public int? SchoolId { get; set; }
     public bool IsFeatured { get; set; }
-    public string Status { get; set; } = null!;
+    public string Status { get; set; }
     public DateTime CreatedAt { get; set; }
-    public Guid InstructorName { get; set; }
+
+    public DateTime StartAt { get; set; }
+
+    public DateTime EndAt { get; set; }
+
     public DateTime? UpdatedAt { get; set; }
+
     public Guid? UpdatedBy { get; set; }
-    public DateTime? DeletedAt { get; set; }
+
+    public Guid CreatedBy { get; set; }
     public List<ChapterDto> Chapters { get; set; } = new();
 }
 
@@ -26,9 +32,10 @@ public class ChapterDto
 {
     public string Name { get; set; } = null!;
     public int CourseId { get; set; }
-    public List<LessonDto> Lessons { get; set; } = new();
     public string? Description { get; set; }
     public DateTime? PostDate { get; set; }
+    public List<LessonDto> Lessons { get; set; } = new();
+
 }
 
 public class LessonDto
@@ -42,6 +49,7 @@ public class LessonDto
     public string? Description { get; set; }
     public DateTime? PostDate { get; set; }
     public bool? IsPreview { get; set; }
+    public int? ResourceId { get; set; }
 }
 
 public class EnrollmentDto

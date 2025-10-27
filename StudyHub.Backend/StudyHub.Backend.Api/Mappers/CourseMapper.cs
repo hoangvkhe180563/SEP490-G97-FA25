@@ -15,40 +15,42 @@ public static class CourseMapper
         ImageUrl = c.ImageUrl,
         Price = c.Price,
         Grade = c.Grade,
-        Category = c.SubjectId,
+        SubjectId = c.SubjectId,
         SchoolId = c.SchoolId,
         IsFeatured = c.IsFeatured,
         Status = c.Status,
         CreatedAt = c.CreatedAt,
-        InstructorName = c.CreatedBy,
+        StartAt = c.StartAt,
+        EndAt = c.EndAt,
         UpdatedAt = c.UpdatedAt,
         UpdatedBy = c.UpdatedBy,
-        DeletedAt = c.DeletedAt,
+        CreatedBy = c.CreatedBy,
         Chapters = c.Chapters?.Select(ch => ch.ToListDto()).ToList() ?? new List<ChapterListDto>()
     };
 
     // ===================== TO DETAIL DTO =====================
-    public static CourseDetailDto ToDetailDto(this Course c) => new CourseDetailDto
+    public static CourseDto ToDto(this Course c) => new CourseDto
     {
         Name = c.Name,
         Information = c.Information,
         ImageUrl = c.ImageUrl,
         Price = c.Price,
         Grade = c.Grade,
-        Category = c.SubjectId,
+        SubjectId = c.SubjectId,
         SchoolId = c.SchoolId,
         IsFeatured = c.IsFeatured,
         Status = c.Status,
         CreatedAt = c.CreatedAt,
-        InstructorName = c.CreatedBy,
+        StartAt = c.StartAt,
+        EndAt = c.EndAt,
         UpdatedAt = c.UpdatedAt,
         UpdatedBy = c.UpdatedBy,
-        DeletedAt = c.DeletedAt,
+        CreatedBy = c.CreatedBy,
         Chapters = c.Chapters?.Select(ch => ch.ToDto()).ToList() ?? new List<ChapterDto>(),
     };
 
     // ===================== TO ENTITY =====================
-    public static Course ToEntity(this CourseDetailDto dto)
+    public static Course ToEntity(this CourseDto dto)
     {
         var course = new Course
         {
@@ -57,15 +59,16 @@ public static class CourseMapper
             ImageUrl = dto.ImageUrl,
             Price = dto.Price,
             Grade = dto.Grade,
-            SubjectId = dto.Category,
+            SubjectId = dto.SubjectId,
             SchoolId = dto.SchoolId,
             IsFeatured = dto.IsFeatured,
             Status = dto.Status,
             CreatedAt = dto.CreatedAt == default ? DateTime.UtcNow : dto.CreatedAt,
-            CreatedBy = dto.InstructorName,
+            StartAt = dto.StartAt,
+            EndAt = dto.EndAt,
             UpdatedAt = dto.UpdatedAt,
             UpdatedBy = dto.UpdatedBy,
-            DeletedAt = dto.DeletedAt,
+            CreatedBy = dto.CreatedBy,
             Chapters = dto.Chapters?.Select(ch => ch.ToEntity()).ToList() ?? new List<Chapter>()
         };
 

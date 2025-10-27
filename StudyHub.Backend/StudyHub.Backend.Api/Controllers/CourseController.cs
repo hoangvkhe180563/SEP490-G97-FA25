@@ -24,7 +24,6 @@ public class CourseController : ControllerBase
     public IActionResult GetAll(
         [FromQuery] string? q,
         [FromQuery] short? subjectId,
-        [FromQuery] string? subjects,
         [FromQuery] sbyte? grade,
         [FromQuery] string? duration,
         [FromQuery] Guid? instructor,
@@ -38,7 +37,6 @@ public class CourseController : ControllerBase
         {
             Q = q,
             SubjectId = subjectId,
-            Subjects = subjects,
             Sort = sort,
             Grade = grade,
             Duration = duration,
@@ -49,7 +47,7 @@ public class CourseController : ControllerBase
             PageSize = pageSize
         };
 
-        var result = _service.SearchCourses(query);
+        var result = _service.GetAllCourses(query);
 
         var dto = new PagedResult<CourseListDto>
         {
@@ -74,22 +72,20 @@ public class CourseController : ControllerBase
 
     // ===================== CREATE =====================
     [HttpPost]
-    public IActionResult Create([FromBody] CourseDetailDto dto)
+    public IActionResult Create([FromBody] CourseDto dto)
     {
         if (dto == null)
             return BadRequest("Course data is required.");
 
         var entity = dto.ToEntity();
-        entity.CreatedAt = DateTime.UtcNow;
-        entity.UpdatedAt = DateTime.UtcNow;
-
         var created = _service.CreateCourse(entity);
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created.ToListDto());
     }
 
     // ===================== UPDATE =====================
+    // ===================== UPDATE =====================
     [HttpPut("{id}")]
-    public IActionResult Update(int id, [FromBody] CourseDetailDto dto)
+    public IActionResult Update(int id, [FromBody] CourseDto dto)
     {
         if (dto == null)
             return BadRequest("Course data is required.");
@@ -104,10 +100,12 @@ public class CourseController : ControllerBase
         existing.ImageUrl = dto.ImageUrl;
         existing.Price = dto.Price;
         existing.Grade = dto.Grade;
-        existing.SubjectId = dto.Category;
+        existing.SubjectId = dto.SubjectId;
         existing.SchoolId = dto.SchoolId;
         existing.IsFeatured = dto.IsFeatured;
         existing.Status = dto.Status;
+        existing.StartAt = dto.StartAt;
+        existing.EndAt = dto.EndAt;
         existing.UpdatedAt = DateTime.UtcNow;
         existing.UpdatedBy = dto.UpdatedBy;
 
@@ -118,7 +116,7 @@ public class CourseController : ControllerBase
         }
 
         var updated = _service.UpdateCourse(existing);
-        return Ok(updated.ToDetailDto());
+        return Ok(updated.ToDto());
     }
 
     // ===================== DELETE =====================
