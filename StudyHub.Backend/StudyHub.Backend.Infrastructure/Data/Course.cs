@@ -37,6 +37,8 @@ public partial class Course
 
     public Guid CreatedBy { get; set; }
 
+    public bool IsApproved { get; set; }
+
     public virtual ICollection<Chapter> Chapters { get; set; } = new List<Chapter>();
 
     public virtual ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
