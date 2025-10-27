@@ -20,11 +20,10 @@ const FeaturedTeachers = ({ data }: { data: IFeaturedTeacher[] }) => {
             {data.map((teacher, index) => (
               <div key={index} className="w-full flex flex-col items-center">
                 <Avatar className="w-40 h-40 mx-auto">
-                  <AvatarImage src={teacher.image} alt="@shadcn" />
+                  <AvatarImage src={teacher.imageUrl} alt={teacher.name} />
                   <AvatarFallback className="text-4xl">{getFirstTwoLetters(teacher.name)}</AvatarFallback>
                 </Avatar>
                 <div className="font-bold text-center mt-2">{teacher.name}</div>
-                <div className="text-center mt-2">{teacher.role}</div>
               </div>
             ))}
           </div>
