@@ -96,6 +96,20 @@ export type ClassWork = {
   deadline?: string | null;
   [key: string]: any;
 };
+export type ClassworkSubmissionFile = {
+  id: number;
+  fileName: string;
+  fileUrl: string;
+};
+
+export type ClassworkSubmission = {
+  id: number;
+  classworkId: number;
+  appUserId: string;
+  firstSubmissionTime: string;
+  latestSubmissionTime: string;
+  files: ClassworkSubmissionFile[];
+};
 export interface ClassState {
   classes: ClassListDto[];
   subjects: Subject[];
@@ -131,4 +145,8 @@ export interface ClassState {
   deleteNotification: (notificationId: number | string) => Promise<boolean>;
   inviteMembers: (classId: number, emails: string[], role?: string) => Promise<any | null>;
   getClassWorks: (classId: number) => Promise<ClassWork[] | null>;
+   createClasswork: (payload: { classId: number; title: string; description?: string; deadline?: string }) => Promise<ClassWork | null>;
+  editClasswork: (payload: { id: number; classId: number; title: string; description?: string; deadline?: string }) => Promise<ClassWork | null>;
+  submitClasswork: (classworkId: number, appUserId: string, files: File[]) => Promise<any | null>;
+  getClassworkSubmissions: (classworkId: number) => Promise<ClassworkSubmission[] | null>;
 }

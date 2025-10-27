@@ -5,6 +5,9 @@ import TeacherLayout from "@/user/components/layouts/TeacherLayout";
 import StudentLayout from "@/user/components/layouts/StudentLayout";
 import ClassRouteConfig from "@/classManagement/constants/ClassRouteConfig";
 import type { RouteObject } from "react-router-dom";
+import { Edit } from "lucide-react";
+import AddEditClassworkForm from "../pages/AddEditClasswork";
+import ClassworkDetail from "../pages/ClassworkDetail";
 
 const teacherClassRoutes = [
   {
@@ -14,6 +17,18 @@ const teacherClassRoutes = [
   {
     path: ClassRouteConfig.TEACHER.CLASS_DETAIL,
     element: <DetailedClassTeacher />
+  },
+  {
+    path: ClassRouteConfig.TEACHER.ADD_CLASSWORK,
+    element:<AddEditClassworkForm />
+  },
+  {
+    path: ClassRouteConfig.TEACHER.EDIT_CLASSWORK,
+    element:<AddEditClassworkForm />
+  },
+  {
+    path: ClassRouteConfig.TEACHER.CLASSWORK_DETAIL,
+    element:<ClassworkDetail />
   }
 ];
 
@@ -25,6 +40,10 @@ const studentClassRoutes = [
   {
     path: ClassRouteConfig.STUDENT.CLASS_DETAIL,
     element: <DetailedClassStudent />
+  },
+  {
+    path: ClassRouteConfig.STUDENT.CLASSWORK_DETAIL,
+    element:<ClassworkDetail />
   }
 ];
 

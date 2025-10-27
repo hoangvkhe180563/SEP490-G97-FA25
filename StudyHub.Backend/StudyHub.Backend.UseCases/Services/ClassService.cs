@@ -125,5 +125,14 @@ namespace StudyHub.Backend.UseCases.Services
         public bool KickMember(Guid userId, int classId)=> _classRepository.KickMember(userId,classId);
         public ClassNotification GetNotificationByID(int notificationid) => _classRepository.getNotificationByID(notificationid);
         public List<Classwork> GetClassworks(int classId)=> _classRepository.GetClassworks(classId);
+        public Classwork CreateClasswork(Classwork classwork) => _classRepository.CreateClasswork(classwork);
+        public Classwork EditClasswork(Classwork classwork)=>_classRepository.EditClasswork(classwork);
+        public ClassworkSubmission SubmitClasswork(ClassworkSubmission submission, List<SubmissionFile> files) => _classRepository.SubmitClasswork(submission, files);
+        public ClassworkSubmission ResubmitClasswork(int submissionId, List<SubmissionFile> files) => _classRepository.ResubmitClasswork(submissionId, files);
+        public Classwork GetClasswork(int classworkId)=>_classRepository.GetClasswork(classworkId);
+        public List<ClassworkSubmission> GetSubmissionsByClassworkId(int classworkId)=>_classRepository.GetSubmissionsByClassworkId(classworkId);
+        public ClassworkSubmission GetSubmissionByUserAndClasswork(int classworkId, Guid userId) => _classRepository.GetSubmissionByUserAndClasswork(classworkId, userId);
+        public SubmissionFile AddSubmissionFile(SubmissionFile file)=>_classRepository.AddSubmissionFile(file);
+
     }
 }

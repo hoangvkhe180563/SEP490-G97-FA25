@@ -15,6 +15,7 @@ import type {
   ClassNotification,
   ClassNotificationFile,
   ClassWork,
+  ClassworkSubmission,
 } from "../interfaces/class";
 import { axiosInstance } from "@/lib/axios";
 
@@ -68,6 +69,8 @@ export const useClassStore = create<ClassState>()(
     (set, get) => ({
       classes: [],
       subjects: [],
+      topics: [],
+      classworks: [],
       isLoading: false,
       success: false,
       message: "",
@@ -405,7 +408,7 @@ export const useClassStore = create<ClassState>()(
       getClassWorks: async (classId: number): Promise<ClassWork[] | null> => {
         set({ isLoading: true });
         try {
-          const res = await axiosInstance.get(`/Class/${classId}/works`);
+          const res = await axiosInstance.get(`/Class/classworks/${classId}`);
           const raw = res?.data ?? null;
 
           if (!raw) {
@@ -423,7 +426,7 @@ export const useClassStore = create<ClassState>()(
 
           const works: ClassWork[] = arr.map((w: any) => ({
             id: w.id ?? w.workId ?? 0,
-            classId: w.classId ?? w.classId ?? classId,
+            classId: w.classId ?? classId,
             title: w.title ?? w.name ?? "",
             description: w.description ?? w.desc ?? "",
             deadline: w.deadline ?? w.dueDate ?? null,
@@ -627,6 +630,107 @@ export const useClassStore = create<ClassState>()(
           return null;
         } finally {
           set({ isLoading: false });
+        }
+      },
+      createClasswork: async (payload: { classId: number; title: string; description?: string; deadline?: string }) => {
+        set({ isLoading: true, message: "" });
+        try {
+          const body = {
+            classId: payload.classId,
+            title: payload.title,
+            description: payload.description ?? "",
+            deadline: payload.deadline ?? null,
+          };
+          const res = await axiosInstance.post(`/Class/classworks`, body);
+          const raw = res?.data ?? null;
+          if (!raw || raw.success === false) {
+            set({ isLoading: false, success: false, message: raw?.message ?? "Tạo bài tập thất bại" });
+            return null;
+          }
+          set({ isLoading: false, success: true, message: raw.message ?? "Tạo bài tập thành công" });
+          return raw.data ?? raw;
+        } catch (err) {
+          set({ isLoading: false, success: false, message: "Tạo bài tập thất bại" });
+          return null;
+        }
+      },
+
+      // Sửa bài tập
+      editClasswork: async (payload: { id: number; classId: number; title: string; description?: string; deadline?: string }) => {
+        set({ isLoading: true, message: "" });
+        try {
+          const body = {
+            classId: payload.classId,
+            title: payload.title,
+            description: payload.description ?? "",
+            deadline: payload.deadline ?? null,
+          };
+          const res = await axiosInstance.put(`/Class/classworks/${payload.id}`, body);
+          const raw = res?.data ?? null;
+          if (!raw || raw.success === false) {
+            set({ isLoading: false, success: false, message: raw?.message ?? "Sửa bài tập thất bại" });
+            return null;
+          }
+          set({ isLoading: false, success: true, message: raw.message ?? "Sửa bài tập thành công" });
+          return raw.data ?? raw;
+        } catch (err) {
+          set({ isLoading: false, success: false, message: "Sửa bài tập thất bại" });
+          return null;
+        }
+      },
+
+      // Nộp bài tập: submitClasswork
+      submitClasswork: async (classworkId: number, appUserId: string, files: File[]) => {
+        set({ isLoading: true, success: false, message: "" });
+        try {
+          const fd = new FormData();
+          fd.append("AppUserId", appUserId);
+          for (let i = 0; i < files.length; i++) {
+            fd.append("Files", files[i], files[i].name);
+          }
+          const res = await axiosInstance.post(`/Class/classworks/${classworkId}/submit`, fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          const raw = res?.data ?? null;
+          if (!raw || raw.success === false) {
+            set({ isLoading: false, success: false, message: raw?.message ?? "Nộp bài thất bại" });
+            return null;
+          }
+          set({ isLoading: false, success: true, message: raw.message ?? "Nộp bài thành công" });
+          return raw.data ?? raw;
+        } catch (err) {
+          set({ isLoading: false, success: false, message: "Nộp bài thất bại" });
+          return null;
+        }
+      },
+
+      // Lấy danh sách các bài nộp cho một bài tập
+      getClassworkSubmissions: async (classworkId: number): Promise<ClassworkSubmission[] | null> => {
+        set({ isLoading: true });
+        try {
+          const res = await axiosInstance.get(`/Class/classworks/${classworkId}/submissions`);
+          const raw = res?.data ?? null;
+          if (!raw || raw.success === false) {
+            set({ isLoading: false });
+            return null;
+          }
+          const subs: ClassworkSubmission[] = (raw.data ?? raw.submissions ?? []).map((s: any) => ({
+            id: s.id,
+            classworkId: s.classworkId,
+            appUserId: s.appUserId,
+            firstSubmissionTime: s.firstSubmissionTime,
+            latestSubmissionTime: s.latestSubmissionTime,
+            files: (s.files ?? []).map((f: any) => ({
+              id: f.id,
+              fileName: f.fileName,
+              fileUrl: f.fileUrl,
+            })),
+          }));
+          set({ isLoading: false });
+          return subs;
+        } catch (err) {
+          set({ isLoading: false });
+          return null;
         }
       },
       deleteNotification: async (notificationId) => {

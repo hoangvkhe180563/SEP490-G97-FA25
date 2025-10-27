@@ -465,6 +465,139 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             });
             return classww.ToList();
         }
-        
+        public Classwork CreateClasswork(Classwork classwork)
+        {
+            var entity = new Data.Classwork
+            {
+                ClassId = classwork.ClassId,
+                Title = classwork.Title,
+                Description = classwork.Description,
+                Deadline = classwork.Deadline
+            };
+            _context.Classworks.Add(entity);
+            _context.SaveChanges();
+            classwork.Id = entity.Id; // gán lại Id cho domain model
+            return classwork;
+        }
+
+        public Classwork EditClasswork(Classwork classwork)
+        {
+            var entity = _context.Classworks.FirstOrDefault(cw => cw.Id == classwork.Id);
+            if (entity == null) return null;
+            entity.Title = classwork.Title;
+            entity.Description = classwork.Description;
+            entity.Deadline = classwork.Deadline;
+            _context.Classworks.Update(entity);
+            _context.SaveChanges();
+            return classwork;
+        }
+        public ClassworkSubmission SubmitClasswork(ClassworkSubmission submission, List<SubmissionFile> files)
+        {
+            // Tạo mới submission
+            var entity = new Data.ClassworkSubmission
+            {
+                ClassworkId = submission.ClassworkId,
+                AppUserId = submission.AppUserId,
+                FirstSubmissionTime = DateTime.Now,
+                LatestSubmissionTime = DateTime.Now
+            };
+            _context.ClassworkSubmissions.Add(entity);
+            _context.SaveChanges();
+
+            submission.Id = entity.Id;
+
+            // Lưu file nộp bài
+            foreach (var file in files)
+            {
+                var fileEntity = new Data.SubmissionFile
+                {
+                    SubmissionId = entity.Id,
+                    FileName = file.FileName,
+                    FileUrl = file.FileUrl
+                };
+                _context.SubmissionFiles.Add(fileEntity);
+            }
+            _context.SaveChanges();
+            return submission;
+        }
+        public ClassworkSubmission ResubmitClasswork(int submissionId, List<SubmissionFile> files)
+        {
+            var entity = _context.ClassworkSubmissions.FirstOrDefault(s => s.Id == submissionId);
+            if (entity == null) return null;
+            entity.LatestSubmissionTime = DateTime.Now;
+            _context.ClassworkSubmissions.Update(entity);
+
+            foreach (var file in files)
+            {
+                var fileEntity = new Data.SubmissionFile
+                {
+                    SubmissionId = submissionId,
+                    FileName = file.FileName,
+                    FileUrl = file.FileUrl
+                };
+                _context.SubmissionFiles.Add(fileEntity);
+            }
+            _context.SaveChanges();
+            return new ClassworkSubmission
+            {
+                Id = submissionId,
+                ClassworkId = entity.ClassworkId,
+                AppUserId = entity.AppUserId,
+                FirstSubmissionTime = entity.FirstSubmissionTime,
+                LatestSubmissionTime = entity.LatestSubmissionTime
+            };
+        }
+        public Classwork GetClasswork(int classworkId)
+        {
+
+            var cw= _context.Classworks.FirstOrDefault(c=>c.Id == classworkId);
+            return new Classwork
+            {
+                Id = cw.Id,
+                ClassId = cw.ClassId,
+                Title = cw.Title,
+                Description = cw.Description,
+                Deadline = cw.Deadline,
+            };
+        }
+        public List<ClassworkSubmission> GetSubmissionsByClassworkId(int classworkId)
+        {
+           return _context.ClassworkSubmissions.Where(c=>c.ClassworkId == classworkId).Select(a=>
+             new ClassworkSubmission
+            {
+                Id = a.Id,
+                ClassworkId=a.ClassworkId,
+                AppUserId = a.AppUserId,
+                FirstSubmissionTime= a.FirstSubmissionTime,
+                LatestSubmissionTime= a.LatestSubmissionTime
+            }).ToList();
+        }
+        public ClassworkSubmission GetSubmissionByUserAndClasswork(int classworkId,Guid userId)
+        {
+            var cs = _context.ClassworkSubmissions.FirstOrDefault(c=>c.ClassworkId==classworkId&&c.AppUserId==userId);
+            return new ClassworkSubmission
+            {
+                Id = cs.Id,
+                ClassworkId = cs.ClassworkId,
+                AppUserId = cs.AppUserId,
+                FirstSubmissionTime = cs.FirstSubmissionTime,
+                LatestSubmissionTime = cs.LatestSubmissionTime
+            };
+        }
+        public SubmissionFile AddSubmissionFile(SubmissionFile file)
+        {
+            var sf = new Data.SubmissionFile
+            {
+                SubmissionId = file.SubmissionId,
+                Id= file.Id,
+                FileName = file.FileName,
+                FileUrl = file.FileUrl,
+                
+            };
+            _context.SubmissionFiles.Add(sf);
+            _context.SaveChanges();
+            file.Id = sf.Id;
+            return file;
+        }
     }
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Api.Dtos.ClassDTOS;
+using StudyHub.Backend.Api.Dtos.ClassworkDTOS;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.Api.Services;
 using StudyHub.Backend.Domain.Entities;
@@ -641,7 +642,117 @@ namespace StudyHub.Backend.Api.Controllers
             };
             return Ok(response);
         }
+        [HttpPost("classworks")]
+        public IActionResult CreateClasswork([FromBody] CreateClassworkDto dto)
+        {
+            if (dto.ClassId <= 0 || string.IsNullOrWhiteSpace(dto.Title))
+                return BadRequest(new { success = false, message = "Thiếu thông tin classId hoặc title" });
+            var entity = dto.ToEntity();
+            var cw = _service.CreateClasswork(entity);
+            return CreatedAtAction(nameof(getClasswork), new { id = cw.ClassId }, cw);
+        }
 
+        // 2. Sửa Classwork
+        [HttpPut("classworks/{id}")]
+        public IActionResult EditClasswork(int id, [FromBody] EditClassworkDto dto)
+        {
+            var cw = _service.GetClasswork(id);
+            if (cw == null)
+                return NotFound(new { success = false, message = "Không tìm thấy classwork" });
+
+            cw.Title = dto.Title;
+            cw.Description = dto.Description;
+            cw.Deadline = dto.Deadline;
+            var updated = _service.EditClasswork(cw);
+            return Ok(new { success = true, message = "Đã update", data = updated });
+        }
+
+        // 3. Lấy chi tiết một Classwork
+        [HttpGet("classworks/{id}/detail")]
+        public IActionResult GetClassworkDetail(int id)
+        {
+            var cw = _service.GetClasswork(id);
+            if (cw == null)
+                return NotFound(new { success = false, message = "Không tìm thấy classwork" });
+            // Nếu cần trả về cả danh sách bài nộp thì có thể lấy thêm submissions ở đây
+            var submissions = _service.GetSubmissionsByClassworkId(id);
+            return Ok(new { success = true, data = cw, submissions });
+        }
+
+        // 4. Nộp bài cho Classwork
+        [HttpPost("classworks/{id}/submit")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> SubmitClasswork(int id, [FromForm] SubmitClassworkDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.AppUserId))
+                return BadRequest(new { success = false, message = "Thiếu thông tin user" });
+
+            Guid userId;
+            if (!Guid.TryParse(dto.AppUserId, out userId))
+                return BadRequest(new { success = false, message = "AppUserId không hợp lệ" });
+
+            var existingSubmission = _service.GetSubmissionByUserAndClasswork(id, userId);
+
+            ClassworkSubmission submission;
+            bool isResubmit = false;
+
+            if (existingSubmission == null)
+            {
+                submission = new ClassworkSubmission
+                {
+                    ClassworkId = id,
+                    AppUserId = userId,
+                    FirstSubmissionTime = DateTime.Now,
+                    LatestSubmissionTime = DateTime.Now
+                };
+                submission = _service.SubmitClasswork(submission, new List<SubmissionFile>()); // Tạo submission rỗng trước để lấy Id
+            }
+            else
+            {
+                submission = existingSubmission;
+                submission.LatestSubmissionTime = DateTime.Now;
+                _service.ResubmitClasswork(submission.Id, new List<SubmissionFile>());
+                isResubmit = true;
+            }
+
+            var filesAdded = new List<SubmissionFile>();
+
+            if (dto.Files != null && dto.Files.Any())
+            {
+                foreach (var formFile in dto.Files)
+                {
+                    if (formFile == null || formFile.Length == 0) continue;
+
+                    try
+                    {
+                        var uploaded = await _service.UploadFileToCloudinary(formFile);
+                        if (uploaded != null)
+                        {
+                            var fileEntity = new SubmissionFile
+                            {
+                                SubmissionId = submission.Id,
+                                FileName = formFile.FileName,
+                                FileUrl = uploaded.ToString()
+                            };
+                            _service.AddSubmissionFile(fileEntity);
+                            filesAdded.Add(fileEntity);
+                        }
+                    }
+                    catch
+                    {
+                        // Có thể log lỗi hoặc trả về lỗi từng file nếu cần
+                    }
+                }
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = isResubmit ? "Đã nộp lại bài" : "Đã nộp bài mới",
+                submissionId = submission.Id,
+                files = filesAdded
+            });
+        }
 
     }
 }

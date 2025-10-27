@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import type { ClassWork } from "@/classManagement/interfaces/class";
 import PostComposer from "@/classManagement/components/ui/postcomposer";
 import PostCard from "@/classManagement/components/ui/postcard";
@@ -41,10 +41,8 @@ const ClassInfoCard: React.FC<{ info: ClassInfo | null }> = ({ info }) => {
       <div className="grid grid-cols-2 gap-3 text-sm text-gray-700">
         <div className="text-xs text-gray-400">Mã lớp:</div>
         <div className="font-medium text-right">{info.id}</div>
-
         <div className="text-xs text-gray-400">Mã môn học:</div>
         <div className="font-medium text-right">{info.subjectId}</div>
-
         <div className="text-xs text-gray-400">Ngày tạo:</div>
         <div className="font-medium text-right">
           {new Date(info.createdAt).toLocaleDateString()}
@@ -54,13 +52,51 @@ const ClassInfoCard: React.FC<{ info: ClassInfo | null }> = ({ info }) => {
   );
 };
 
+// ===== Thành phần hiển thị chi tiết bài tập dưới dạng dropdown =====
+const ClassWorkDropdown: React.FC<{ work: ClassWork }> = ({ work }) => {
+  return (
+    <div className="bg-gray-50 border-t px-4 py-3 text-sm">
+      <div>
+        <span className="font-medium">Tiêu đề:</span> {work.title}
+      </div>
+      <div className="mt-2">
+        <span className="font-medium">Mô tả:</span>{" "}
+        {work.description || "Không có mô tả"}
+      </div>
+      <div className="mt-2">
+        <span className="font-medium">Hạn nộp:</span>{" "}
+        {work.deadline
+          ? new Date(work.deadline).toLocaleString()
+          : "Không xác định"}
+      </div>
+      {work.classId && (
+        <div className="mt-2 text-xs text-gray-400">Mã lớp: {work.classId}</div>
+      )}
+      {/* Thêm các trường khác nếu cần */}
+    </div>
+  );
+};
+
 // ===== Trang chi tiết lớp học =====
 const DetailedClassTeacher: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { getClassInfo, getClassMembers,getClassWorks, currentClass, isLoading, createNotification } =
-    useClassStore();
-  const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(null);
+  const {
+    getClassInfo,
+    getClassMembers,
+    getClassWorks,
+    currentClass,
+    isLoading,
+    createNotification,
+  } = useClassStore();
+  const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(
+    null
+  );
   const [openAddMember, setOpenAddMember] = useState(false);
+
+  // State cho dropdown bài tập
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+
+  const navigate = useNavigate();
 
   const userRole: UserRole = useMemo(() => {
     if (location.pathname.includes("/student")) return "student";
@@ -98,22 +134,29 @@ const DetailedClassTeacher: React.FC = () => {
         getClassMembers(Number(id));
       }
     }
-  }, [activeTab, id, getClassMembers, currentClass?.data?.teacher, currentClass?.data?.students, currentClass?.data?.parents]);
+  }, [
+    activeTab,
+    id,
+    getClassMembers,
+    currentClass?.data?.teacher,
+    currentClass?.data?.students,
+    currentClass?.data?.parents,
+  ]);
 
   const teacher: ClassMemberDto | null = currentClass?.data?.teacher ?? null;
   const students: ClassMemberDto[] = currentClass?.data?.students ?? [];
   const parents: ClassMemberDto[] = currentClass?.data?.parents ?? [];
   const [notifications, setNotifications] = useState<ClassNotification[]>([]);
   useEffect(() => {
-  if (!id) return;
-  if (activeTab === "exercise") {
-    const hasWorks = (currentClass?.data?.works ?? []).length > 0;
-    if (!hasWorks) {
-      // call store action
-      getClassWorks(Number(id));
+    if (!id) return;
+    if (activeTab === "exercise") {
+      const hasWorks = (currentClass?.data?.works ?? []).length > 0;
+      if (!hasWorks) {
+        // call store action
+        getClassWorks(Number(id));
+      }
     }
-  }
-}, [activeTab, id, getClassWorks, currentClass?.data?.works]);
+  }, [activeTab, id, getClassWorks, currentClass?.data?.works]);
   // sync notifications whenever currentClass updates
   useEffect(() => {
     if (currentClass?.data?.notifications) {
@@ -134,7 +177,9 @@ const DetailedClassTeacher: React.FC = () => {
 
     // decide title: use provided composer title when available, otherwise fallback to generated one
     const fallbackTitle =
-      content && content.length > 40 ? `${content.slice(0, 40)}...` : "Thông báo mới";
+      content && content.length > 40
+        ? `${content.slice(0, 40)}...`
+        : "Thông báo mới";
     const titleToSend =
       titleFromComposer && titleFromComposer.trim().length > 0
         ? titleFromComposer.trim()
@@ -168,13 +213,14 @@ const DetailedClassTeacher: React.FC = () => {
       // fallback: just add to local UI (optimistic) - include links as pseudo-file entries
       const fallbackFiles =
         files?.map((f) => ({ id: 0, fileName: f.name, fileUrl: "" })) ??
-        (links?.map((l, idx) => ({
+        links?.map((l, idx) => ({
           id: `link-${Date.now()}-${idx}`,
           fileName: l.title ?? l.url,
           fileUrl: l.url,
           thumbnail: l.thumbnail,
           isExternal: true,
-        })) ?? []);
+        })) ??
+        [];
 
       const fallback: ClassNotification = {
         id: Date.now(),
@@ -191,7 +237,9 @@ const DetailedClassTeacher: React.FC = () => {
   };
 
   const handleMail = (person: ClassMemberDto) => {
-    window.location.href = `mailto:${person.fullname.replace(/\s+/g, ".").toLowerCase()}@example.com`;
+    window.location.href = `mailto:${person.fullname
+      .replace(/\s+/g, ".")
+      .toLowerCase()}@example.com`;
   };
 
   const handleSelect = (p: ClassMemberDto) => setSelectedMember(p);
@@ -210,11 +258,19 @@ const DetailedClassTeacher: React.FC = () => {
   };
 
   if (isLoading) {
-    return <div className="p-6 text-center text-gray-500">Đang tải thông tin lớp học...</div>;
+    return (
+      <div className="p-6 text-center text-gray-500">
+        Đang tải thông tin lớp học...
+      </div>
+    );
   }
 
   if (!currentClass?.success) {
-    return <div className="p-6 text-center text-red-500">Không thể tải thông tin lớp học.</div>;
+    return (
+      <div className="p-6 text-center text-red-500">
+        Không thể tải thông tin lớp học.
+      </div>
+    );
   }
 
   return (
@@ -227,7 +283,9 @@ const DetailedClassTeacher: React.FC = () => {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{classInfo?.name ?? "Chi tiết lớp học"}</BreadcrumbPage>
+            <BreadcrumbPage>
+              {classInfo?.name ?? "Chi tiết lớp học"}
+            </BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -235,8 +293,12 @@ const DetailedClassTeacher: React.FC = () => {
       {/* Header with title and Add member button */}
       <div className="mt-4 mb-4 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">{classInfo?.name ?? "Chi tiết lớp học"}</h1>
-          <div className="text-sm text-gray-500">{classInfo?.description ?? ""}</div>
+          <h1 className="text-2xl font-semibold">
+            {classInfo?.name ?? "Chi tiết lớp học"}
+          </h1>
+          <div className="text-sm text-gray-500">
+            {classInfo?.description ?? ""}
+          </div>
         </div>
         <div>
           <button
@@ -251,7 +313,11 @@ const DetailedClassTeacher: React.FC = () => {
       {/* ===== Lưới bố cục chính ===== */}
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-8">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-4">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full mt-4"
+          >
             <div className="mb-4">
               <TabsList>
                 <TabsTrigger value="notifications">Thông báo</TabsTrigger>
@@ -262,7 +328,6 @@ const DetailedClassTeacher: React.FC = () => {
 
             {/* --- Thông báo --- */}
             <TabsContent value="notifications">
-              {/* PostComposer updated to call onPost(content, files?, links?, title?) */}
               <PostComposer onPost={handlePost} avatarUrl={"/vite.svg"} />
               <div className="mt-4 space-y-4">
                 {notifications.length > 0 ? (
@@ -280,38 +345,70 @@ const DetailedClassTeacher: React.FC = () => {
                     />
                   ))
                 ) : (
-                  <div className="text-gray-500 text-sm">Chưa có thông báo nào.</div>
+                  <div className="text-gray-500 text-sm">
+                    Chưa có thông báo nào.
+                  </div>
                 )}
               </div>
             </TabsContent>
 
             {/* --- Bài tập --- */}
             <TabsContent value="exercise">
-  <div className="mt-2">
-    {worksFromStore.length === 0 ? (
-      <div className="text-gray-500 text-sm">Chưa có bài tập nào.</div>
-    ) : (
-      <div className="space-y-3">
-        {worksFromStore.map((w) => (
-          <div key={w.id} className="bg-white border rounded-lg p-4">
-            <div className="flex justify-between items-start">
-              <div>
-                <div className="text-sm font-semibold text-gray-800">{w.title}</div>
-                <div className="text-sm text-gray-600 mt-1">{w.description}</div>
+              <div className="flex justify-end mb-3">
+                <button
+                  className="bg-blue-600 text-white px-4 py-2 rounded"
+                  onClick={() => navigate(`/class/teacher/${id}/classwork/add`)}
+                >
+                  + Thêm bài tập
+                </button>
               </div>
-              <div className="text-xs text-gray-500 text-right">
-                <div className="text-gray-400">Hạn nộp</div>
-                <div className="font-medium">
-                  {w.deadline ? new Date(w.deadline).toLocaleString() : "Không xác định"}
-                </div>
+              <div className="mt-2">
+                {worksFromStore.length === 0 ? (
+                  <div className="text-gray-500 text-sm">
+                    Chưa có bài tập nào.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {worksFromStore.map((w) => (
+                      <div key={w.id}>
+                        <div
+                          className={`bg-white border rounded-lg p-4 cursor-pointer hover:bg-blue-50 flex justify-between items-start`}
+                          onClick={() =>
+                            navigate(`/class/teacher/${id}/classwork/${w.id}/detail`)
+                          }
+                        >
+                          <div>
+                            <div className="text-sm font-semibold text-gray-800">
+                              {w.title}
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              {w.description}
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500 text-right min-w-[110px]">
+                            <div className="text-gray-400">Hạn nộp</div>
+                            <div className="font-medium">
+                              {w.deadline
+                                ? new Date(w.deadline).toLocaleString()
+                                : "Không xác định"}
+                            </div>
+                            <button
+                              className="ml-4 text-blue-600 underline text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/class/teacher/${id}/classwork/${w.id}/edit`);
+                              }}
+                            >
+                              Sửa
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
-</TabsContent>
+            </TabsContent>
 
             {/* --- Mọi người --- */}
             <TabsContent value="everyone">
@@ -333,7 +430,11 @@ const DetailedClassTeacher: React.FC = () => {
       </div>
 
       {/* ===== Modal chi tiết thành viên ===== */}
-      <MemberDetailModal open={!!selectedMember} member={selectedMember} onClose={handleCloseModal} />
+      <MemberDetailModal
+        open={!!selectedMember}
+        member={selectedMember}
+        onClose={handleCloseModal}
+      />
 
       {/* ===== Add member modal ===== */}
       <AddMemberModal

@@ -34,6 +34,13 @@ namespace StudyHub.Backend.UseCases.Repositories
         bool ConfirmMember(Guid userId, int classId);
         bool KickMember(Guid userId, int classId);
         List<Classwork> GetClassworks(int classId);
-
+        Classwork CreateClasswork(Classwork classwork);
+         Classwork EditClasswork(Classwork classwork);
+        ClassworkSubmission SubmitClasswork(ClassworkSubmission submission, List<SubmissionFile> files);
+        ClassworkSubmission ResubmitClasswork(int submissionId, List<SubmissionFile> files);
+        Classwork GetClasswork(int classworkId);
+        List<ClassworkSubmission> GetSubmissionsByClassworkId(int classworkId);
+        ClassworkSubmission GetSubmissionByUserAndClasswork(int classworkId, Guid userId);
+        SubmissionFile AddSubmissionFile(SubmissionFile file);
     }
 }
