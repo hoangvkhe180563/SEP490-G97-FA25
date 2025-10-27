@@ -9,6 +9,8 @@ public partial class LandingPage
 
     public string BannerUrl { get; set; } = null!;
 
+    public string SchoolLogoUrl { get; set; } = null!;
+
     public string Description { get; set; } = null!;
 
     public virtual ICollection<LandingPageImage> LandingPageImages { get; set; } = new List<LandingPageImage>();
