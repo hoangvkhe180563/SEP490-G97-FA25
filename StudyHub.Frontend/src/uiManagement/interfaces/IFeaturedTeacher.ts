@@ -1,6 +1,5 @@
 export interface IFeaturedTeacher {
   id: number,
-  image: string,
+  imageUrl: string,
   name: string,
-  role: string,
 }

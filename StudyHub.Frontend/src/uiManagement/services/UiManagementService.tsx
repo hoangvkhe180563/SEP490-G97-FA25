@@ -11,6 +11,7 @@ export class UiManagementService {
 
     return {
       bannerImage: data.bannerUrl,
+      logoImage: data.schoolLogoUrl,
       description: data.description,
       introductionImage: data.landingPageImages,
       featuredTeachers: data.featuredTeachers,

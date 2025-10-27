@@ -4,7 +4,7 @@ import type { IFeaturedDocument } from "../interfaces/IFeaturedDocument"
 const FeaturedDocuments = (props: { data: IFeaturedDocument[] }) => {
 
   const textbooks: IFeaturedDocument[] = props.data.filter(item => item.documentCategory === 1);
-  const references: IFeaturedDocument[] = props.data.filter(item => item.documentCategory === 2);
+  const references: IFeaturedDocument[] = props.data.filter(item => item.documentCategory === 4);
 
   return (
     <div className="w-full flex flex-col items-center">
@@ -15,7 +15,7 @@ const FeaturedDocuments = (props: { data: IFeaturedDocument[] }) => {
           <div>
             <h3 className="text-2xl font-semibold mb-6 text-gray-800 text-center">SÁCH GIÁO KHOA</h3>
             <div className="space-y-6">
-              {textbooks.length === 0 && <div className="w-full text-center italic">Không có dữ liệu!</div> }
+              {textbooks.length === 0 && <div className="w-full text-center italic">Không có dữ liệu!</div>}
               {textbooks.map((book) => (
                 <div key={book.id} className="flex items-center gap-4 bg-white p-4 rounded-lg shadow-sm">
                   <img src={book.thumbnail} alt={book.name} className="w-20 h-auto object-cover rounded-md" />

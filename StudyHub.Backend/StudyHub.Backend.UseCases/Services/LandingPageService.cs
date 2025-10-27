@@ -31,7 +31,7 @@ namespace StudyHub.Backend.UseCases.Services
             return landingPage;
         }
 
-        public async Task<string> UpdateLandingPage(LandingPage landingPage, IFormFile? bannerImage, List<string> landingPageDeleteImages, List<IFormFile> landingPageNewFiles)
+        public async Task<string> UpdateLandingPage(LandingPage landingPage, IFormFile? bannerImage, IFormFile? schoolLogoImage, List<string> landingPageDeleteImages, List<IFormFile> landingPageNewFiles)
         {
             if (bannerImage != null)
             {
@@ -41,6 +41,16 @@ namespace StudyHub.Backend.UseCases.Services
                     return "Không tải được banner trường!";
                 }
                 landingPage.BannerUrl = bannerImageUrl;
+            }
+
+            if (schoolLogoImage != null)
+            {
+                string schoolLogoImageUrl = await _cloudRepo.UploadFileAsync(schoolLogoImage, FileConstants.LandingPageLogoUploadPath);
+                if (schoolLogoImageUrl == string.Empty)
+                {
+                    return "Không tải được logo trường!";
+                }
+                landingPage.SchoolLogoUrl = schoolLogoImageUrl;
             }
 
             foreach (var images in landingPageDeleteImages)

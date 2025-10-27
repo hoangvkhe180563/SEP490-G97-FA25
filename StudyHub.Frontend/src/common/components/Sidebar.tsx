@@ -80,8 +80,8 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
         }
       </li>
       <ul className={`overflow-hidden transition-all duration-300 ${isOpen && expanded ? 'max-h-96 opacity-100 w-full' : 'max-h-0 opacity-0 w-0'}`}>
-        {props.children && props.children.map(child => (
-          <li>
+        {props.children && props.children.map((child, index) => (
+          <li key={`nav-${index}`}>
             <Link to={child.link} className={`relative flex items-center py-2 px-3 my-1 ml-3 font-medium rounded-md cursor-pointer transition-colors leading-4 group text-sm
       ${currentUrl === child.link ? "bg-gradient-to-tr from-sky-400 to-sky-100 text-blue-800" : "hover:bg-sky-100 text-gray-600"}
     `}>

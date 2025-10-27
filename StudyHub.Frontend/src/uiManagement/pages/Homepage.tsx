@@ -22,10 +22,17 @@ const Homepage = () => {
         console.log("error", error);
         setData({
           bannerImage: "/src/uiManagement/assets/banner-image.png",
+          logoImage: "/src/common/assets/StudyHubLogo.png",
           description: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book.",
           featuredCourses: [],
           featuredDocuments: [],
-          featuredTeachers: [],
+          featuredTeachers: [
+            {
+              id: 1,
+              imageUrl: "https://github.com/shadcn.png",
+              name: "Giáo viên 1"
+            }
+          ],
           introductionImage: [
             "/src/common/assets/StudyHubLogo.png",
             "/src/common/assets/StudyHubLogo.png",
@@ -39,7 +46,7 @@ const Homepage = () => {
   }, [])
 
   return <div className="w-full h-full overflow-y-auto">
-    <Banner logo="/src/common/assets/StudyHubLogo.png" image={data?.bannerImage} />
+    <Banner logo={data?.logoImage} image={data?.bannerImage} />
     <Introduction description={data?.description} introductionImage={data?.introductionImage} />
     {schoolId !== 0 && <FeaturedTeachers data={data?.featuredTeachers ?? []} />}
     <FeaturedDocuments data={data?.featuredDocuments ?? []} />

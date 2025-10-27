@@ -27,6 +27,7 @@ namespace StudyHub.Backend.Api.Controllers
             var landingPageDto = new LandingPageDisplayDto
             {
                 BannerUrl = landingPage.BannerUrl,
+                SchoolLogoUrl = landingPage.SchoolLogoUrl,
                 Description = landingPage.Description,
                 LandingPageImages = landingPage.LandingPageImages,
                 FeaturedTeachers = landingPage.FeaturedTeachers.Select(ft => new LandingPageTeacherDisplayDto
@@ -63,7 +64,7 @@ namespace StudyHub.Backend.Api.Controllers
                 return NotFound();
             }
             var landingPage = landingPageDto.ToLandingPage();
-            string msg = await _service.UpdateLandingPage(landingPage, landingPageDto.BannerFile, landingPageDto.LandingPageDeleteImages, landingPageDto.LandingPageNewImages);
+            string msg = await _service.UpdateLandingPage(landingPage, landingPageDto.BannerFile, landingPageDto.SchoolLogoFile, landingPageDto.LandingPageDeleteImages, landingPageDto.LandingPageNewImages);
 
             return msg == string.Empty ? Ok("Cập nhật thành công!") : BadRequest(msg);
         }
