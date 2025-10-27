@@ -13,7 +13,7 @@ public partial class Progress
 
     public DateTime CompletionDate { get; set; }
 
-    public Enrollment Enrollment { get; set; } = null!;
+    public virtual Enrollment Enrollment { get; set; } = null!;
 
-    public Lesson Lesson { get; set; } = null!;
+    public virtual Lesson Lesson { get; set; } = null!;
 }

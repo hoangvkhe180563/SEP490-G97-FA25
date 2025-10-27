@@ -9,5 +9,5 @@ public partial class LessonResource
 
     public string Url { get; set; } = null!;
 
-    public List<Lesson> Lessons { get; set; } = new List<Lesson>();
+    public virtual ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
 }
