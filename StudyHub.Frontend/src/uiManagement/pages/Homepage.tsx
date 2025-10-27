@@ -38,7 +38,7 @@ const Homepage = () => {
     fetchData().catch(console.error);
   }, [])
 
-  return <div className="w-full overflow-hidden">
+  return <div className="w-full h-full overflow-y-auto">
     <Banner logo="/src/common/assets/StudyHubLogo.png" image={data?.bannerImage} />
     <Introduction description={data?.description} introductionImage={data?.introductionImage} />
     {schoolId !== 0 && <FeaturedTeachers data={data?.featuredTeachers ?? []} />}

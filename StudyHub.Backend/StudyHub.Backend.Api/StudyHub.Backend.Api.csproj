@@ -34,8 +34,4 @@
     <ProjectReference Include="..\StudyHub.Backend.UseCases\StudyHub.Backend.UseCases.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="wwwroot\" />
-  </ItemGroup>
-
 </Project>
