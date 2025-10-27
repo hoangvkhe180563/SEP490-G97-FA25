@@ -1,21 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
-import type { Document } from "@/documentManagement/interfaces/document";
+import type {
+  Document,
+  FilterState,
+  AvailableFilters,
+} from "@/documentManagement/interfaces/document";
 
-interface FilterState {
-  selectedGrades: number[];
-  selectedSubjects: string[];
-  selectedCategories: string[];
-  selectedAccessTypes: string[];
-  approvalStatus: string;
-}
-
-interface AvailableFilters {
-  grades: number[];
-  subjects: string[];
-  categories: string[];
-  accessTypes: string[];
-}
+const STORAGE_KEY = "ownedDocuments_filters";
 
 export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
   const {
@@ -43,12 +34,22 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("newest");
 
-  const [filters, setFilters] = useState<FilterState>({
-    selectedGrades: [],
-    selectedSubjects: [],
-    selectedCategories: [],
-    selectedAccessTypes: [],
-    approvalStatus: "all",
+  const [filters, setFilters] = useState<FilterState>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (error) {
+      console.error("Error loading saved filters:", error);
+    }
+    return {
+      selectedGrades: [],
+      selectedSubjects: [],
+      selectedCategories: [],
+      selectedAccessTypes: [],
+      approvalStatus: "all",
+    };
   });
 
   const hasFetchedRef = useRef(false);
@@ -65,6 +66,14 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
     getCategories();
     getSubjects();
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
+    } catch (error) {
+      console.error("Error saving filters:", error);
+    }
+  }, [filters]);
 
   const getAccessType = (doc: Document): string => {
     if (!doc.schoolId && doc.isInClass === false) return "public";
@@ -170,6 +179,18 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
     [searchQuery, filters]
   );
 
+  const clearFilters = useCallback(() => {
+    const defaultFilters = {
+      selectedGrades: [],
+      selectedSubjects: [],
+      selectedCategories: [],
+      selectedAccessTypes: [],
+      approvalStatus: "all",
+    };
+    setFilters(defaultFilters);
+    setSearchQuery("");
+  }, []);
+
   useEffect(() => {
     if (!creatorId || hasFetchedRef.current) return;
 
@@ -247,5 +268,6 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
     setSearchQuery,
     setSortBy,
     getAccessType,
+    clearFilters,
   };
 };

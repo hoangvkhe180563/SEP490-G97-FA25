@@ -8,7 +8,7 @@ import {
   CollapsibleTrigger,
 } from "@/common/components/ui/collapsible";
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface DocumentFilterSidebarProps {

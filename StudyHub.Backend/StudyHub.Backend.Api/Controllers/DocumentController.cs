@@ -3,6 +3,7 @@ using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Api.Dtos.AuthDTOS;
 using StudyHub.Backend.Api.Dtos.ClassDTOS;
 using StudyHub.Backend.Api.Mappers;
+using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Services;
 using System;
 using System.Linq;
@@ -446,11 +447,21 @@ namespace StudyHub.Backend.Api.Controllers
 
             return Ok(new { success = true, data = result });
         }
-
         [HttpGet("by-subject/{subjectId:int}")]
         public IActionResult GetDocumentsBySubject(int subjectId)
         {
-            var documents = _documentService.GetDocumentsBySubject(subjectId);
+            var currentUser = GetCurrentUser();
+
+            List<Document> documents;
+            if (currentUser != null && currentUser.SchoolId.HasValue)
+            {
+                documents = _documentService.GetDocumentsBySubjectForSchool(subjectId, currentUser.SchoolId.Value);
+            }
+            else
+            {
+                documents = _documentService.GetDocumentsBySubjectForPublic(subjectId);
+            }
+
             var dtos = documents.Select(d => d.ToListDto()).ToList();
             return Ok(new { success = true, data = dtos });
         }

@@ -65,7 +65,7 @@ function DocumentPreview({
     </Card>
   );
 }
-
+import { axiosInstance } from "@/lib/axios";
 function DocumentHeader({
   document,
   onView,
@@ -243,9 +243,16 @@ function RelatedDocumentCard({
 }) {
   return (
     <Card
-      className="cursor-pointer hover:shadow-lg transition-shadow"
+      className="cursor-pointer hover:shadow-lg transition-shadow relative"
       onClick={onClick}
     >
+      {document.schoolId && (
+        <div className="absolute top-2 right-2 z-10">
+          <span className="px-2.5 py-1 bg-purple-600 text-white text-xs font-semibold rounded-full shadow-sm">
+            Tài liệu trường
+          </span>
+        </div>
+      )}
       <CardContent className="p-4">
         <div className="flex gap-3">
           <div className="w-14 h-14 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -274,69 +281,38 @@ function RelatedDocumentCard({
 }
 
 function RelatedDocumentsSection({
-  subjectName,
-  schoolId,
+  subjectId,
   currentDocId,
 }: {
-  subjectName?: string;
-  schoolId?: number | null;
+  subjectId?: number;
   currentDocId: number;
 }) {
-  const { fetchPublicDocuments, fetchSchoolDocuments } = useDocumentStore();
   const [relatedDocs, setRelatedDocs] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [api, setApi] = useState<any>();
+  const [current, setCurrent] = useState(0);
 
   useEffect(() => {
+    if (!api) return;
+
+    setCurrent(api.selectedScrollSnap());
+
+    api.on("select", () => {
+      setCurrent(api.selectedScrollSnap());
+    });
+  }, [api]);
+  useEffect(() => {
     const fetchRelatedDocs = async () => {
-      if (!subjectName) return;
+      if (!subjectId) return;
 
       setIsLoading(true);
       try {
-        let allDocs: Document[] = [];
+        const response = await axiosInstance.get(
+          `/Document/by-subject/${subjectId}`
+        );
 
-        if (schoolId) {
-          await fetchPublicDocuments(
-            undefined,
-            undefined,
-            undefined,
-            subjectName,
-            undefined,
-            1,
-            999
-          );
-
-          const publicDocsFromStore = useDocumentStore.getState().documents;
-          allDocs = [...publicDocsFromStore];
-
-          await fetchSchoolDocuments(
-            schoolId.toString(),
-            undefined,
-            undefined,
-            undefined,
-            subjectName,
-            undefined,
-            1,
-            999
-          );
-
-          const schoolDocsFromStore = useDocumentStore.getState().documents;
-          allDocs = [...allDocs, ...schoolDocsFromStore];
-        } else {
-          await fetchPublicDocuments(
-            undefined,
-            undefined,
-            undefined,
-            subjectName,
-            undefined,
-            1,
-            999
-          );
-
-          allDocs = useDocumentStore.getState().documents;
-        }
-
-        const filtered = allDocs
-          .filter((d) => d.id !== currentDocId)
+        const filtered = response.data.data
+          .filter((d: Document) => d.id !== currentDocId)
           .sort(() => Math.random() - 0.5)
           .slice(0, 7);
 
@@ -349,13 +325,7 @@ function RelatedDocumentsSection({
     };
 
     fetchRelatedDocs();
-  }, [
-    subjectName,
-    schoolId,
-    currentDocId,
-    fetchPublicDocuments,
-    fetchSchoolDocuments,
-  ]);
+  }, [subjectId, currentDocId]);
 
   const handleDocumentClick = (docId: number) => {
     window.location.href = `/document/student/details/${docId}`;
@@ -399,6 +369,7 @@ function RelatedDocumentsSection({
       </p>
 
       <Carousel
+        setApi={setApi}
         opts={{
           align: "start",
           loop: relatedDocs.length > 3,
@@ -415,9 +386,26 @@ function RelatedDocumentsSection({
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious />
-        <CarouselNext />
+        <CarouselPrevious className="-left-12" />
+        <CarouselNext className="-right-12" />
       </Carousel>
+
+      <div className="flex justify-center gap-2 mt-4">
+        {Array.from({ length: Math.ceil(relatedDocs.length / 3) }).map(
+          (_, index) => (
+            <button
+              key={index}
+              onClick={() => api?.scrollTo(index * 3)}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                Math.floor(current / 3) === index
+                  ? "bg-blue-600 w-8"
+                  : "bg-gray-300 hover:bg-gray-400"
+              }`}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          )
+        )}
+      </div>
     </div>
   );
 }
@@ -534,8 +522,7 @@ export default function DocumentDetails() {
         </div>
 
         <RelatedDocumentsSection
-          subjectName={document.subjectName}
-          schoolId={document.schoolId}
+          subjectId={document.subjectId}
           currentDocId={document.id}
         />
       </div>

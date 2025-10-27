@@ -1,5 +1,5 @@
-//src/documentManagement/constants/ForumRouteCOnfig.ts
-const ForumRouteCOnfig = {
+//src/forumManagement/constants/ForumRouteConfig.ts
+const ForumRouteConfig = {
   TEACHER: {
     INDEX: "teacher",
   },
@@ -9,7 +9,8 @@ const ForumRouteCOnfig = {
   STUDENT: {
     INDEX: "student",
     FORUMS: "forums",
+    POST_DETAIL: "forums/details/:postId",
   },
 };
 
-export default ForumRouteCOnfig;
+export default ForumRouteConfig;

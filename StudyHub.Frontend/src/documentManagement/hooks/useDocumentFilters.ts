@@ -11,6 +11,28 @@ interface FilterState {
   selectedCategories: number[];
 }
 
+const STORAGE_KEY = "document-list-state";
+
+const loadState = () => {
+  try {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error("Error loading state:", error);
+  }
+  return null;
+};
+
+const saveState = (state: any) => {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.error("Error saving state:", error);
+  }
+};
+
 export const useDocumentFilters = () => {
   const { user } = useAuthStore();
   const {
@@ -24,25 +46,24 @@ export const useDocumentFilters = () => {
     fetchSchoolDocuments,
     getCategories,
     getSubjects,
-    setCurrentPage: setStoreCurrentPage,
     isLoading,
   } = useDocumentStore();
 
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState("newest");
+  const savedState = loadState();
+
+  const [searchQuery, setSearchQuery] = useState(savedState?.searchQuery || "");
+  const [sortBy, setSortBy] = useState(savedState?.sortBy || "newest");
+  const [currentPage, setCurrentPage] = useState(savedState?.currentPage || 1);
   const pageSize = 9;
 
-  const [filters, setFilters] = useState<FilterState>({
-    showSchoolDocs: false,
-    selectedGrades: [],
-    selectedSubjects: [],
-    selectedCategories: [],
-  });
+  const [filters, setFilters] = useState<FilterState>(
+    savedState?.filters || {
+      showSchoolDocs: false,
+      selectedGrades: [],
+      selectedSubjects: [],
+      selectedCategories: [],
+    }
+  );
 
   const userSchoolId = user?.schoolId;
 
@@ -51,25 +72,16 @@ export const useDocumentFilters = () => {
     getSubjects();
   }, []);
 
-  const applySorting = (docs: Document[]) => {
-    if (sortBy === "oldest") {
-      docs.sort(
-        (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
-    } else if (sortBy === "name") {
-      docs.sort((a, b) => a.name.localeCompare(b.name));
-    } else {
-      docs.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-    }
-  };
+  useEffect(() => {
+    saveState({
+      searchQuery,
+      sortBy,
+      currentPage,
+      filters,
+    });
+  }, [searchQuery, sortBy, currentPage, filters]);
 
   const fetchDocuments = useCallback(async () => {
-    setError(null);
-
     try {
       const gradeParam =
         filters.selectedGrades.length === 1
@@ -85,27 +97,16 @@ export const useDocumentFilters = () => {
           : undefined;
 
       if (filters.showSchoolDocs && userSchoolId) {
-        await Promise.all([
-          fetchPublicDocuments(
-            searchQuery || undefined,
-            categoryParam,
-            gradeParam,
-            subjectParam,
-            undefined,
-            1,
-            999
-          ),
-          fetchSchoolDocuments(
-            userSchoolId,
-            searchQuery || undefined,
-            categoryParam,
-            gradeParam,
-            subjectParam,
-            undefined,
-            1,
-            999
-          ),
-        ]);
+        await fetchSchoolDocuments(
+          userSchoolId.toString(),
+          searchQuery || undefined,
+          categoryParam,
+          gradeParam,
+          subjectParam,
+          undefined,
+          currentPage,
+          pageSize
+        );
       } else {
         await fetchPublicDocuments(
           searchQuery || undefined,
@@ -113,13 +114,12 @@ export const useDocumentFilters = () => {
           gradeParam,
           subjectParam,
           undefined,
-          1,
-          999
+          currentPage,
+          pageSize
         );
       }
     } catch (err) {
-      setError("Không thể tải danh sách tài liệu");
-      console.error(err);
+      console.error("Error fetching documents:", err);
     }
   }, [
     currentPage,
@@ -128,66 +128,6 @@ export const useDocumentFilters = () => {
     userSchoolId,
     fetchPublicDocuments,
     fetchSchoolDocuments,
-  ]);
-
-  useEffect(() => {
-    if (isLoading) return;
-
-    let allDocs: Document[] = [];
-
-    if (filters.showSchoolDocs && userSchoolId) {
-      const publicDocs = storeDocuments.map((d) => ({
-        ...d,
-        isSchoolDocument: false,
-      }));
-      const schoolDocs = storeDocuments.map((d) => ({
-        ...d,
-        isSchoolDocument: true,
-      }));
-      allDocs = [...publicDocs, ...schoolDocs];
-    } else {
-      allDocs = storeDocuments.map((d) => ({
-        ...d,
-        isSchoolDocument: false,
-      }));
-    }
-
-    if (filters.selectedGrades.length > 1) {
-      allDocs = allDocs.filter((d) =>
-        filters.selectedGrades.includes(Number(d.grade))
-      );
-    }
-
-    if (filters.selectedSubjects.length > 1) {
-      allDocs = allDocs.filter((d) =>
-        filters.selectedSubjects.includes(d.subjectName || "")
-      );
-    }
-
-    if (filters.selectedCategories.length > 1) {
-      allDocs = allDocs.filter((d) =>
-        filters.selectedCategories.includes(Number(d.documentCategoryId))
-      );
-    }
-
-    applySorting(allDocs);
-
-    const total = allDocs.length;
-    const pages = Math.ceil(total / pageSize);
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    const paginatedDocs = allDocs.slice(startIndex, endIndex);
-
-    setDocuments(paginatedDocs);
-    setTotalPages(pages);
-    setTotalCount(total);
-  }, [
-    storeDocuments,
-    currentPage,
-    sortBy,
-    filters,
-    isLoading,
-    userSchoolId,
     pageSize,
   ]);
 
@@ -205,15 +145,49 @@ export const useDocumentFilters = () => {
     fetchDocuments();
   }, [fetchDocuments]);
 
+  const sortedDocuments = [...storeDocuments].sort((a, b) => {
+    if (sortBy === "oldest") {
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    } else if (sortBy === "name") {
+      return a.name.localeCompare(b.name);
+    } else {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+  });
+
+  const filteredDocuments = sortedDocuments.filter((doc) => {
+    if (filters.selectedGrades.length > 1) {
+      if (!filters.selectedGrades.includes(Number(doc.grade))) {
+        return false;
+      }
+    }
+
+    if (filters.selectedSubjects.length > 1) {
+      if (!filters.selectedSubjects.includes(doc.subjectName || "")) {
+        return false;
+      }
+    }
+
+    if (filters.selectedCategories.length > 1) {
+      if (
+        !filters.selectedCategories.includes(Number(doc.documentCategoryId))
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
   return {
-    documents,
+    documents: filteredDocuments,
     subjects,
     categories,
     loading: isLoading,
-    error,
+    error: null,
     currentPage,
-    totalPages,
-    totalCount,
+    totalPages: storeTotalPages,
+    totalCount: storeTotalCount,
     pageSize,
     searchQuery,
     sortBy,

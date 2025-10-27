@@ -198,3 +198,56 @@ interface HTMLFlipBookProps {
   showPageCorners?: boolean;
   disableFlipByClick?: boolean;
 }
+export interface FilterState {
+  selectedGrades: number[];
+  selectedSubjects: string[];
+  selectedCategories: string[];
+  selectedAccessTypes: string[];
+  approvalStatus: string;
+}
+
+export interface AvailableFilters {
+  grades: number[];
+  subjects: string[];
+  categories: string[];
+  accessTypes: string[];
+}
+
+export interface FilterSidebarProps {
+  availableFilters: AvailableFilters;
+  filters: FilterState;
+  setFilters: (filters: FilterState) => void;
+  onClearFilters: () => void;
+}
+
+export interface DocumentHeaderProps {
+  viewMode: "grid" | "list";
+  setViewMode: (mode: "grid" | "list") => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  sortBy: string;
+  setSortBy: (sort: string) => void;
+  approvalStatus: string;
+  setApprovalStatus: (status: string) => void;
+  onCreateDocument: () => void;
+}
+
+export interface DocumentGridProps {
+  documents: Document[];
+  loading: boolean;
+  viewMode: "grid" | "list";
+  onSelectDocument: (id: number) => void;
+  onEditDocument: (id: number) => void;
+  getAccessType: (doc: Document) => string;
+  onPreviewDocument?: (id: number) => void;
+  hasDetailPanel: boolean;
+}
+
+export interface DocumentDetailProps {
+  document: Document;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onPreview: () => void;
+  getAccessType: (doc: Document) => string;
+}
