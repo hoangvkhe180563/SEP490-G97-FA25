@@ -37,7 +37,7 @@ export const useCourseStore = create<CourseState>((set, get) => ({
   courses: [],
   total: 0,
   page: 1,
-  pageSize: 5,
+  pageSize: 6,
   loading: false,
   selectedCourse: undefined,
   selectedCourseId: undefined,
@@ -54,10 +54,12 @@ export const useCourseStore = create<CourseState>((set, get) => ({
         sort: query.sort,
         subjectId: query.subjectId,
         grade: query.grade,
-        duration: query.duration,
+        minDuration: query.minDuration,
+        maxDuration: query.maxDuration,
         instructor: query.instructor,
         status: query.status,
         isFeatured: query.isFeatured,
+        isApproved: query.isApproved,
       });
 
       set({
@@ -115,6 +117,8 @@ export const useCourseStore = create<CourseState>((set, get) => ({
                 category:
                   (updated as any).subjectId ?? (c as any).category ?? null,
                 grade: updated.grade ?? c.grade,
+                isApproved:
+                  (updated as any).isApproved ?? (c as any).isApproved, // Update isApproved when a course is updated
               } as CourseListDto)
             : c
         ),

@@ -30,7 +30,8 @@ export const courseApi = {
       items: data.items,
       total: data.total,
       page: data.page,
-      pageSize: data.pageSize ?? 5,
+      // prefer backend-provided pageSize, fallback to 6 to match UI default
+      pageSize: data.pageSize ?? 6,
     };
     console.log("Fetched courses:", mapped.items);
     return mapped;

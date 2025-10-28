@@ -12,18 +12,11 @@ import {
 } from "@/common/components/ui/select";
 import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
-import { ArrowLeft, Loader2, Upload, X } from "lucide-react";
+import { ArrowLeft, Loader2, Upload, X, HelpCircle } from "lucide-react";
 import { useQuill } from "react-quilljs";
 import "quill/dist/quill.snow.css";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogAction,
-} from "@/common/components/ui/alert-dialog";
+import type { DialogProps } from "@/courseManagement/components/AppDialog";
+import { AppDialog } from "@/courseManagement/components/AppDialog";
 
 const EditLecture: React.FC = () => {
   const navigate = useNavigate();
@@ -60,7 +53,7 @@ const EditLecture: React.FC = () => {
   const [resourceId, setResourceId] = useState<number | null>(null);
 
   const [saving, setSaving] = useState(false);
-  const [dialog, setDialog] = useState({
+  const [dialog, setDialog] = useState<DialogProps>({
     open: false,
     title: "",
     message: "",
@@ -259,7 +252,6 @@ const EditLecture: React.FC = () => {
       try {
         if (deleteLessonResource) await deleteLessonResource(resourceId);
       } catch (err) {
-        // ignore error but log
         console.error("delete resource failed", err);
       }
     }
@@ -289,7 +281,12 @@ const EditLecture: React.FC = () => {
       const updated = await updateLesson(lessonId, dto);
 
       if (updated) {
-        navigate("/course/teacher/edit-course/" + selectedCourseId);
+        setDialog({
+          open: true,
+          title: "Thành công",
+          message: "Cập nhật bài giảng thành công.",
+          navigateTo: "/course/teacher/edit-course/" + selectedCourseId,
+        });
       } else {
         setDialog({
           open: true,
@@ -310,329 +307,364 @@ const EditLecture: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 overflow-auto bg-white">
-      <div className="max-w-[1200px] mx-auto px-8 py-6">
-        {/* Breadcrumb */}
-        <div className="text-sm text-[#525252] mb-3">
-          Bài giảng / Chỉnh sửa bài giảng
+    <div className="max-w-[1200px] mx-auto px-8 py-6 h-full flex flex-col">
+      {/* Breadcrumb */}
+      <div className="text-sm text-[#525252] mb-3">
+        Bài giảng / Chỉnh sửa bài giảng
+      </div>
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() =>
+              navigate("/course/teacher/edit-course/" + selectedCourseId)
+            }
+            className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
+          >
+            <ArrowLeft className="w-4 h-4 text-[#525252]" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-normal text-[#171717]">
+              Chỉnh sửa bài giảng
+            </h1>
+            <p className="text-sm text-[#525252]">
+              Chỉnh sửa thông tin và nội dung bài giảng
+            </p>
+          </div>
         </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() =>
-                navigate("/course/teacher/edit-course/" + selectedCourseId)
-              }
-              className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
-            >
-              <ArrowLeft className="w-4 h-4 text-[#525252]" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-normal text-[#171717]">
-                Chỉnh sửa bài giảng
-              </h1>
-              <p className="text-sm text-[#525252]">
-                Chỉnh sửa thông tin và nội dung bài giảng
-              </p>
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={() =>
-                navigate("/course/teacher/edit-course/" + selectedCourseId)
-              }
-            >
-              Hủy
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={async () => {
-                if (
-                  !confirm(
-                    "Xóa bài giảng này? Hành động này không thể hoàn tác."
-                  )
-                )
-                  return;
-                try {
-                  const res = deleteLesson
-                    ? await deleteLesson(lessonId)
-                    : false;
-                  if (res)
-                    navigate("/course/teacher/edit-course/" + selectedCourseId);
-                  else
+        {/* Action buttons */}
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() =>
+              navigate("/course/teacher/edit-course/" + selectedCourseId)
+            }
+          >
+            Hủy
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              setDialog({
+                open: true,
+                title: "Xóa bài giảng",
+                message:
+                  "Bạn có chắc muốn xóa bài giảng này? Hành động này không thể hoàn tác.",
+                onConfirm: async () => {
+                  try {
+                    const res = deleteLesson
+                      ? await deleteLesson(lessonId)
+                      : false;
+                    if (res) {
+                      setDialog({
+                        open: true,
+                        title: "Thành công",
+                        message: "Xóa bài giảng thành công.",
+                        navigateTo: `/course/teacher/edit-course/${selectedCourseId}`,
+                      });
+                    } else {
+                      setDialog({
+                        open: true,
+                        title: "Thất bại",
+                        message: "Xóa bài giảng thất bại.",
+                      });
+                    }
+                  } catch (err) {
+                    console.error("xóa thất bại", err);
                     setDialog({
                       open: true,
                       title: "Thất bại",
-                      message: "Xóa bài giảng thất bại.",
+                      message: "Xóa thất bại.",
                     });
-                } catch (err) {
-                  console.error("xóa thất bại", err);
-                  setDialog({
-                    open: true,
-                    title: "Thất bại",
-                    message: "Xóa thất bại",
-                  });
-                }
-              }}
-            >
-              Xóa
-            </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Đang lưu..." : "Lưu bài giảng"}
-            </Button>
-          </div>
+                  }
+                },
+              });
+            }}
+          >
+            Xóa
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Đang lưu..." : "Lưu bài giảng"}
+          </Button>
         </div>
+      </div>
 
-        {/* Main Form */}
-        <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-12 space-y-4">
-            {/* Chapter & Type */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-4">
-                <Label>Chương</Label>
-                {chapters.length > 0 ? (
-                  <Select
-                    value={selectedChapterId ?? undefined}
-                    onValueChange={(v) => setSelectedChapterId(v)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Chọn chương" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {chapters.map((c) => (
-                        <SelectItem key={c.id} value={String(c.id)}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="text-sm text-[#6b6b6b]">
-                    Không tìm thấy chương nào cho khóa học này.
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                <Label>Loại bài giảng</Label>
-                <Select value={type} onValueChange={(v) => setType(v as any)}>
+      {/* Main Form */}
+      <div className="grid grid-cols-12 gap-4 overflow-y-auto flex-1 scrollbar-hide my-3">
+        <div className="col-span-12 space-y-4">
+          {/* Chapter & Type */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
+              <Label>Chương</Label>
+              {chapters.length > 0 ? (
+                <Select
+                  value={selectedChapterId ?? undefined}
+                  onValueChange={(v) => setSelectedChapterId(v)}
+                >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Chọn loại bài giảng" />
+                    <SelectValue placeholder="Chọn chương" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="video">Bài giảng video</SelectItem>
-                    <SelectItem value="reading">Bài giảng tài liệu</SelectItem>
+                    {chapters.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-              </div>
+              ) : (
+                <div className="text-sm text-[#6b6b6b]">
+                  Không tìm thấy chương nào cho khóa học này.
+                </div>
+              )}
             </div>
 
-            {/* Title */}
             <div className="space-y-4">
-              <Label>Tiêu đề bài giảng</Label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+              <Label>Loại bài giảng</Label>
+              <Select value={type} onValueChange={(v) => setType(v as any)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Chọn loại bài giảng" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="video">Bài giảng video</SelectItem>
+                  <SelectItem value="reading">Bài giảng tài liệu</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+          </div>
 
-            {/* Description */}
+          {/* Title */}
+          <div className="space-y-4">
+            <Label>Tiêu đề bài giảng</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+          </div>
+
+          {/* Description */}
+          <div className="space-y-4">
+            <Label>Mô tả</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          {/* Duration & PostDate */}
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-4">
-              <Label>Mô tả</Label>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
+              <Label>Thời lượng (phút)</Label>
+              <Input
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
               />
             </div>
-
-            {/* Duration & PostDate */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-4">
-                <Label>Thời lượng (phút)</Label>
-                <Input
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                />
-              </div>
-              <div className="space-y-4">
-                <Label>Ngày đăng</Label>
-                <Input
-                  type="date"
-                  value={postDate}
-                  onChange={(e) => setPostDate(e.target.value)}
-                />
-              </div>
+            <div className="space-y-4">
+              <Label>Ngày đăng</Label>
+              <Input
+                type="date"
+                value={postDate}
+                onChange={(e) => setPostDate(e.target.value)}
+              />
             </div>
+          </div>
 
-            {/* Content / URL */}
-            {type === "video" ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Label>Video URL</Label>
-                  <div className="flex items-center gap-2 text-sm">
-                    <input
-                      id="use-embed-edit"
-                      type="checkbox"
-                      checked={useEmbed}
-                      onChange={(e) => setUseEmbed(e.target.checked)}
-                      className="w-4 h-4"
-                    />
-                    <label htmlFor="use-embed-edit">Embed (iframe)</label>
+          {/* Content / URL */}
+          {type === "video" ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Label>Video URL</Label>
+                <div className="flex items-center gap-2 text-sm">
+                  <input
+                    id="use-embed-edit"
+                    type="checkbox"
+                    checked={useEmbed}
+                    onChange={(e) => setUseEmbed(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="use-embed-edit">Embed (iframe)</label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDialog({
+                        open: true,
+                        title: "Hướng dẫn lấy link nhúng YouTube",
+                        message: (
+                          <div className="space-y-2 text-sm">
+                            <p>
+                              📹 <strong>Các bước thực hiện:</strong>
+                            </p>
+                            <ol className="list-decimal ml-5">
+                              <li>
+                                <strong>Tải video lên YouTube</strong> - Đăng
+                                nhập → Tạo → Tải video lên
+                              </li>
+                              <li>
+                                <strong>Lấy mã nhúng (Embed)</strong> - Chia sẻ
+                                → Nhúng → Sao chép{" "}
+                                <code>&lt;iframe&gt;...&lt;/iframe&gt;</code>{" "}
+                                hoặc URL:
+                                <br />
+                                <a
+                                  href="https://www.youtube.com/embed/VIDEO_ID"
+                                  target="_blank"
+                                  className="text-blue-600 underline"
+                                >
+                                  https://www.youtube.com/embed/VIDEO_ID
+                                </a>
+                              </li>
+                              <li>
+                                <strong>Dán vào hệ thống</strong> - Quay lại
+                                form → dán vào ô Embed
+                              </li>
+                            </ol>
+                            <p className="italic text-gray-500">
+                              💡 Gợi ý: Để video không công khai, đặt chế độ
+                              “Không công khai (Unlisted)”.
+                            </p>
+                          </div>
+                        ),
+                      })
+                    }
+                    className="ml-2 text-gray-500 hover:text-gray-700"
+                    aria-label="Hướng dẫn embed YouTube"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {!useEmbed ? (
+                <Input
+                  placeholder="https://example.com/video.mp4"
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                />
+              ) : (
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Dán link embed YouTube (vd: https://www.youtube.com/embed/...)"
+                    value={embedSrc}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const match = val.match(/src="([^"]+)"/);
+                      setEmbedSrc(match ? match[1] : val);
+                    }}
+                  />
+
+                  <div className="border rounded overflow-hidden mt-2">
+                    {embedSrc ? (
+                      <iframe
+                        title="embed-preview"
+                        src={embedSrc}
+                        className="w-full aspect-video rounded-md border border-gray-200"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerPolicy="strict-origin-when-cross-origin"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <div className="p-3 text-sm text-gray-500">
+                        Nhập link embed (ví dụ YouTube embed URL) để xem trước
+                      </div>
+                    )}
                   </div>
                 </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <Label>Nội dung đọc</Label>
+              <div
+                ref={quillRef}
+                className="bg-white rounded-md min-h-[250px] p-2"
+              />
+            </div>
+          )}
 
-                {!useEmbed ? (
-                  <Input
-                    placeholder="https://example.com/video.mp4"
-                    value={videoUrl}
-                    onChange={(e) => setVideoUrl(e.target.value)}
-                  />
-                ) : (
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Dán link embed YouTube (vd: https://www.youtube.com/embed/...)"
-                      value={embedSrc}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <Label className="text-gray-800 font-medium text-sm">
+                Tài nguyên (File đính kèm)
+              </Label>
+
+              <div className="border border-dashed border-gray-300 rounded-xl p-4 bg-gray-50 hover:bg-gray-100 transition-colors duration-150">
+                {!resourceUrl ? (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <input
+                      type="file"
+                      accept="*"
                       onChange={(e) => {
-                        const val = e.target.value;
-                        const match = val.match(/src="([^"]+)"/);
-                        setEmbedSrc(match ? match[1] : val);
+                        const f = e.target.files && e.target.files[0];
+                        if (f) setResourceFile(f);
+                        else setResourceFile(null);
                       }}
+                      className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                     />
 
-                    <div className="border rounded overflow-hidden mt-2">
-                      {embedSrc ? (
-                        <iframe
-                          title="embed-preview"
-                          src={embedSrc}
-                          className="w-full aspect-video rounded-md border border-gray-200"
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          referrerPolicy="strict-origin-when-cross-origin"
-                          allowFullScreen
-                        />
+                    <Button
+                      onClick={handleUploadResource}
+                      disabled={resourceUploading || !resourceFile}
+                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4"
+                    >
+                      {resourceUploading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" /> Đang
+                          tải...
+                        </>
                       ) : (
-                        <div className="p-3 text-sm text-gray-500">
-                          Nhập link embed (ví dụ YouTube embed URL) để xem trước
-                        </div>
+                        <>
+                          <Upload className="w-4 h-4" /> Tải lên
+                        </>
                       )}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex flex-col">
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium text-gray-800">
+                          Đã tải:
+                        </span>{" "}
+                        <a
+                          href={resourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 hover:underline break-all"
+                        >
+                          {resourceUrl}
+                        </a>
+                      </p>
                     </div>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleDeleteResource}
+                      className="flex items-center gap-1 text-rose-600 hover:text-rose-700"
+                    >
+                      <X className="w-4 h-4" /> Xóa
+                    </Button>
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="space-y-4">
-                <Label>Nội dung đọc</Label>
-                <div
-                  ref={quillRef}
-                  className="bg-white rounded-md min-h-[250px] p-2"
-                />
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-3">
-                <Label className="text-gray-800 font-medium text-sm">
-                  Tài nguyên (File đính kèm)
-                </Label>
-
-                <div className="border border-dashed border-gray-300 rounded-xl p-4 bg-gray-50 hover:bg-gray-100 transition-colors duration-150">
-                  {!resourceUrl ? (
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                      <input
-                        type="file"
-                        accept="*"
-                        onChange={(e) => {
-                          const f = e.target.files && e.target.files[0];
-                          if (f) setResourceFile(f);
-                          else setResourceFile(null);
-                        }}
-                        className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                      />
-
-                      <Button
-                        onClick={handleUploadResource}
-                        disabled={resourceUploading || !resourceFile}
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4"
-                      >
-                        {resourceUploading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" /> Đang
-                            tải...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="w-4 h-4" /> Tải lên
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                      <div className="flex flex-col">
-                        <p className="text-sm text-gray-700">
-                          <span className="font-medium text-gray-800">
-                            Đã tải:
-                          </span>{" "}
-                          <a
-                            href={resourceUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-blue-600 hover:underline break-all"
-                          >
-                            {resourceUrl}
-                          </a>
-                        </p>
-                      </div>
-
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleDeleteResource}
-                        className="flex items-center gap-1 text-rose-600 hover:text-rose-700"
-                      >
-                        <X className="w-4 h-4" /> Xóa
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 mt-6">
-                <input
-                  id="isPreview"
-                  type="checkbox"
-                  checked={isPreview}
-                  onChange={(e) => setIsPreview(e.target.checked)}
-                  className="w-4 h-4"
-                />
-                <Label htmlFor="isPreview">Đánh dấu là bản xem trước</Label>
-              </div>
             </div>
-            <AlertDialog
-              open={dialog.open}
-              onOpenChange={(open) => setDialog({ ...dialog, open })}
-            >
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>{dialog.title}</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {dialog.message}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogAction
-                    onClick={() => setDialog({ ...dialog, open: false })}
-                  >
-                    OK
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+
+            <div className="flex items-center gap-2 mt-6">
+              <input
+                id="isPreview"
+                type="checkbox"
+                checked={isPreview}
+                onChange={(e) => setIsPreview(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <Label htmlFor="isPreview">Đánh dấu là bản xem trước</Label>
+            </div>
           </div>
         </div>
       </div>
+      <AppDialog dialog={dialog} setDialog={setDialog} />
     </div>
   );
 };

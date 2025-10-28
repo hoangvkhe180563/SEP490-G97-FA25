@@ -104,257 +104,255 @@ const LectureDetails: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 overflow-auto bg-white">
-      <div className="max-w-[1100px] mx-auto px-6 py-6">
-        {/* === Header navigation === */}
-        <div className="flex items-center gap-4 mb-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
-          >
-            <ArrowLeft className="w-4 h-4 text-[#525252]" />
-          </button>
-          <div className="text-sm text-[#525252]">
-            {selectedCourse?.name || "Khóa học"} /{" "}
-            {currentChapter?.name || "Chương"} /{" "}
-            {currentLesson?.name || "Bài học"}
-          </div>
+    <div className="max-w-[1200px] mx-auto px-6 py-6 h-full overflow-y-auto scrollbar-hide">
+      {/* === Header navigation === */}
+      <div className="flex items-center gap-4 mb-4">
+        <button
+          onClick={() => navigate(-1)}
+          className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
+        >
+          <ArrowLeft className="w-4 h-4 text-[#525252]" />
+        </button>
+        <div className="text-sm text-[#525252]">
+          {selectedCourse?.name || "Khóa học"} /{" "}
+          {currentChapter?.name || "Chương"} /{" "}
+          {currentLesson?.name || "Bài học"}
+        </div>
+      </div>
+
+      {/* === Title + Info === */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-[#171717]">
+            {currentLesson?.name ?? "Bài học"}
+          </h1>
+          <p className="text-sm text-[#525252]">
+            {teacherCreated?.fullname || "Giảng viên"} •{" "}
+            {currentLesson?.postDate
+              ? new Date(currentLesson.postDate).toLocaleDateString()
+              : "Chưa cập nhật"}
+          </p>
         </div>
 
-        {/* === Title + Info === */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold text-[#171717]">
-              {currentLesson?.name ?? "Bài học"}
-            </h1>
-            <p className="text-sm text-[#525252]">
-              {teacherCreated?.fullname || "Giảng viên"} •{" "}
-              {currentLesson?.postDate
-                ? new Date(currentLesson.postDate).toLocaleDateString()
-                : "Chưa cập nhật"}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {resources.length > 0 && (
-              <Button variant="outline" asChild>
-                <a href={resources[0].url} download>
-                  <Download className="w-4 h-4 mr-2" /> Tải xuống
-                </a>
-              </Button>
-            )}
-            <Button variant="outline">
-              <Bookmark className="w-4 h-4 mr-2" /> Đánh dấu
+        <div className="flex items-center gap-3">
+          {resources.length > 0 && (
+            <Button variant="outline" asChild>
+              <a href={resources[0].url} download>
+                <Download className="w-4 h-4 mr-2" /> Tải xuống
+              </a>
             </Button>
+          )}
+          <Button variant="outline">
+            <Bookmark className="w-4 h-4 mr-2" /> Đánh dấu
+          </Button>
+        </div>
+      </div>
+
+      {/* === Main Layout === */}
+      <div className="grid grid-cols-12 gap-6">
+        {/* === MAIN CONTENT === */}
+        <div className="col-span-12 lg:col-span-8">
+          <div
+            className="bg-black rounded-lg overflow-hidden flex justify-center items-center"
+            style={{ aspectRatio: "16/9" }}
+          >
+            {currentLesson?.type === "Video" && currentLesson.videoUrl ? (
+              <iframe
+                src={currentLesson.videoUrl}
+                title={currentLesson.name}
+                className="w-full h-full"
+                allowFullScreen
+              />
+            ) : currentLesson?.type === "Reading" &&
+              currentLesson.readingContent ? (
+              <div className="bg-[#fafafa] w-full h-full overflow-y-auto p-8">
+                <div
+                  className="bg-white shadow-lg rounded-lg p-6 prose prose-slate max-w-none"
+                  dangerouslySetInnerHTML={{
+                    __html: currentLesson.readingContent,
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="text-white text-lg">
+                Không có nội dung cho bài học này.
+              </div>
+            )}
           </div>
+
+          {currentLesson?.description && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Mô tả bài học</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-[#404040] whitespace-pre-line">
+                  {currentLesson.description}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
-        {/* === Main Layout === */}
-        <div className="grid grid-cols-12 gap-6">
-          {/* === MAIN CONTENT === */}
-          <div className="col-span-12 lg:col-span-8">
-            <div
-              className="bg-black rounded-lg overflow-hidden flex justify-center items-center"
-              style={{ aspectRatio: "16/9" }}
-            >
-              {currentLesson?.type === "Video" && currentLesson.videoUrl ? (
-                <iframe
-                  src={currentLesson.videoUrl}
-                  title={currentLesson.name}
-                  className="w-full h-full"
-                  allowFullScreen
-                />
-              ) : currentLesson?.type === "Reading" &&
-                currentLesson.readingContent ? (
-                <div className="bg-[#fafafa] w-full h-full overflow-y-auto p-8">
-                  <div
-                    className="bg-white shadow-lg rounded-lg p-6 prose prose-slate max-w-none"
-                    dangerouslySetInnerHTML={{
-                      __html: currentLesson.readingContent,
-                    }}
-                  />
+        {/* === SIDEBAR === */}
+        <aside className="col-span-12 lg:col-span-4 space-y-4">
+          {/* === Outline === */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Chương trình khóa học</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {selectedCourse?.chapters?.length ? (
+                <div className="space-y-2">
+                  {selectedCourse.chapters.map((ch: any) => (
+                    <details key={ch.id} open={ch.id === currentChapter?.id}>
+                      <summary className="cursor-pointer font-semibold text-sm text-[#171717]">
+                        {ch.name}
+                      </summary>
+                      <ul className="mt-1 pl-4 text-sm text-[#404040]">
+                        {ch.lessons?.map((l: any) => (
+                          <li
+                            key={l.id}
+                            className={`py-1 cursor-pointer ${
+                              l.id === lessonId
+                                ? "font-semibold text-blue-600"
+                                : "hover:text-blue-600"
+                            }`}
+                            onClick={() =>
+                              navigate(`/course/teacher/lecture/${l.id}`)
+                            }
+                          >
+                            {l.name}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  ))}
                 </div>
               ) : (
-                <div className="text-white text-lg">
-                  Không có nội dung cho bài học này.
-                </div>
+                <p className="text-sm text-gray-500">
+                  Chưa có chương trình học
+                </p>
               )}
-            </div>
+            </CardContent>
+          </Card>
+          {/* === Resources === */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Tài nguyên</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {resources.length ? (
+                <ul className="space-y-2 text-sm">
+                  {resources.map((r) => (
+                    <li key={r.id} className="flex items-center gap-2">
+                      <File className="w-4 h-4 text-blue-600" />
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-blue-600 hover:underline truncate"
+                      >
+                        {r.url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500 italic">
+                  Không có tài nguyên
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
-            {currentLesson?.description && (
-              <Card className="mt-6">
-                <CardHeader>
-                  <CardTitle>Mô tả bài học</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-[#404040] whitespace-pre-line">
-                    {currentLesson.description}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* === SIDEBAR === */}
-          <aside className="col-span-12 lg:col-span-4 space-y-4">
-            {/* === Outline === */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Chương trình khóa học</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {selectedCourse?.chapters?.length ? (
-                  <div className="space-y-2">
-                    {selectedCourse.chapters.map((ch: any) => (
-                      <details key={ch.id} open={ch.id === currentChapter?.id}>
-                        <summary className="cursor-pointer font-semibold text-sm text-[#171717]">
-                          {ch.name}
-                        </summary>
-                        <ul className="mt-1 pl-4 text-sm text-[#404040]">
-                          {ch.lessons?.map((l: any) => (
-                            <li
-                              key={l.id}
-                              className={`py-1 cursor-pointer ${
-                                l.id === lessonId
-                                  ? "font-semibold text-blue-600"
-                                  : "hover:text-blue-600"
-                              }`}
-                              onClick={() =>
-                                navigate(`/course/teacher/lecture/${l.id}`)
-                              }
-                            >
-                              {l.name}
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500">
-                    Chưa có chương trình học
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-            {/* === Resources === */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Tài nguyên</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {resources.length ? (
-                  <ul className="space-y-2 text-sm">
-                    {resources.map((r) => (
-                      <li key={r.id} className="flex items-center gap-2">
-                        <File className="w-4 h-4 text-blue-600" />
-                        <a
-                          href={r.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-600 hover:underline truncate"
-                        >
-                          {r.url}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-500 italic">
-                    Không có tài nguyên
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* === Course Info (sidebar similar to CourseDetail) === */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Thông tin khóa học</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm text-[#404040] space-y-1">
-                  <div className="flex justify-between">
-                    <span>Trạng thái</span>
-                    <span>{selectedCourse?.status ?? "Không xác định"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Giá</span>
-                    <span>
-                      {selectedCourse?.price
-                        ? `${selectedCourse.price.toLocaleString()}₫`
-                        : "Miễn phí"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Môn học</span>
-                    <span>{categoryLabel(selectedCourse?.subjectId)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Khối lớp</span>
-                    <span>{selectedCourse?.grade ?? "-"}</span>
-                  </div>
+          {/* === Course Info (sidebar similar to CourseDetail) === */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Thông tin khóa học</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-[#404040] space-y-1">
+                <div className="flex justify-between">
+                  <span>Trạng thái</span>
+                  <span>{selectedCourse?.status ?? "Không xác định"}</span>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex justify-between">
+                  <span>Giá</span>
+                  <span>
+                    {selectedCourse?.price
+                      ? `${selectedCourse.price.toLocaleString()}₫`
+                      : "Miễn phí"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Môn học</span>
+                  <span>{categoryLabel(selectedCourse?.subjectId)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Khối lớp</span>
+                  <span>{selectedCourse?.grade ?? "-"}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* === Instructor (created/updated) === */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Giảng viên</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 rounded-full bg-[#171717] text-white flex items-center justify-center font-semibold shadow-sm">
-                    {(() => {
-                      const name = teacherCreated?.fullname || "GV";
-                      return name
-                        .split(" ")
-                        .slice(-2)
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase();
-                    })()}
+          {/* === Instructor (created/updated) === */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Giảng viên</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-full bg-[#171717] text-white flex items-center justify-center font-semibold shadow-sm">
+                  {(() => {
+                    const name = teacherCreated?.fullname || "GV";
+                    return name
+                      .split(" ")
+                      .slice(-2)
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase();
+                  })()}
+                </div>
+                <div className="flex-1 text-sm text-[#404040]">
+                  <div className="flex justify-between mb-1">
+                    <span className="font-medium text-[#171717]">
+                      Giảng viên:
+                    </span>
+                    <span>{teacherCreated?.fullname || "GV - Chính"}</span>
                   </div>
-                  <div className="flex-1 text-sm text-[#404040]">
+                  {selectedCourse?.createdAt && (
                     <div className="flex justify-between mb-1">
                       <span className="font-medium text-[#171717]">
-                        Giảng viên:
+                        Tạo ngày:
                       </span>
-                      <span>{teacherCreated?.fullname || "GV - Chính"}</span>
+                      <span>
+                        {new Date(selectedCourse.createdAt).toLocaleString(
+                          "vi-VN",
+                          {
+                            hour12: false,
+                          }
+                        )}
+                      </span>
                     </div>
-                    {selectedCourse?.createdAt && (
-                      <div className="flex justify-between mb-1">
-                        <span className="font-medium text-[#171717]">
-                          Tạo ngày:
-                        </span>
-                        <span>
-                          {new Date(selectedCourse.createdAt).toLocaleString(
-                            "vi-VN",
-                            {
-                              hour12: false,
-                            }
-                          )}
-                        </span>
-                      </div>
-                    )}
-                    <div className="mt-4 flex gap-2">
-                      <Button
-                        variant="outline"
-                        className="w-1/2 border-[#D1D5DB] hover:bg-gray-100 text-[#171717]"
-                      >
-                        Xem hồ sơ
-                      </Button>
-                      <Button className="w-1/2 bg-[#171717] hover:bg-[#2D2D2D] text-white">
-                        Nhắn tin
-                      </Button>
-                    </div>
+                  )}
+                  <div className="mt-4 flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="w-1/2 border-[#D1D5DB] hover:bg-gray-100 text-[#171717]"
+                    >
+                      Xem hồ sơ
+                    </Button>
+                    <Button className="w-1/2 bg-[#171717] hover:bg-[#2D2D2D] text-white">
+                      Nhắn tin
+                    </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </aside>
-        </div>
+              </div>
+            </CardContent>
+          </Card>
+        </aside>
       </div>
     </div>
   );

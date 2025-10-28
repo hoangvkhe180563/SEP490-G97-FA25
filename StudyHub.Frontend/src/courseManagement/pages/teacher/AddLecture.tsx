@@ -12,20 +12,13 @@ import {
 } from "@/common/components/ui/select";
 import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
-import { ArrowLeft, Loader2, Upload, X } from "lucide-react";
+import { ArrowLeft, Loader2, Upload, X, HelpCircle } from "lucide-react";
 import { courseApi } from "@/courseManagement/services/courseService";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { useQuill } from "react-quilljs";
 import "quill/dist/quill.snow.css";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogAction,
-} from "@/common/components/ui/alert-dialog";
+import { AppDialog } from "@/courseManagement/components/AppDialog";
+import type { DialogProps } from "@/courseManagement/components/AppDialog";
 
 const AddLecture: React.FC = () => {
   const navigate = useNavigate();
@@ -56,12 +49,11 @@ const AddLecture: React.FC = () => {
   const [resourceId, setResourceId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [dialog, setDialog] = useState({
+  const [dialog, setDialog] = useState<DialogProps>({
     open: false,
     title: "",
     message: "",
   });
-
   const createLesson = useLectureStore((s: any) => s.createLesson);
 
   const { quill, quillRef } = useQuill({
@@ -210,8 +202,8 @@ const AddLecture: React.FC = () => {
           open: true,
           title: "Thành công",
           message: "Tạo bài giảng thành công.",
+          navigateTo: `/course/teacher/edit-course/${courseIdFromQuery}`,
         });
-        navigate(`/course/teacher/edit-course/${courseIdFromQuery}`);
       } else {
         setDialog({
           open: true,
@@ -232,7 +224,7 @@ const AddLecture: React.FC = () => {
   };
 
   return (
-    <div className="max-w-[1200px] px-8">
+    <div className="max-w-[1200px] px-8 h-full flex flex-col">
       <div className="text-sm text-[#525252] my-3">
         Bài giảng / Thêm bài giảng
       </div>
@@ -273,7 +265,7 @@ const AddLecture: React.FC = () => {
         </div>
       </div>
 
-      <Card>
+      <Card className="overflow-y-auto flex-1 scrollbar-hide my-3">
         <CardContent>
           <div className="grid grid-cols-12 gap-6">
             <div className="col-span-12 space-y-4">
@@ -312,7 +304,7 @@ const AddLecture: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="video">Bài giảng video</SelectItem>
-                    <SelectItem value="Reading">Tài liệu đọc</SelectItem>
+                    <SelectItem value="reading">Tài liệu đọc</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -352,6 +344,56 @@ const AddLecture: React.FC = () => {
                         className="w-4 h-4"
                       />
                       <label htmlFor="use-embed">Embed (iframe)</label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDialog({
+                            open: true,
+                            title: "Hướng dẫn lấy link nhúng YouTube",
+                            message: (
+                              <div className="space-y-2 text-sm">
+                                <p>
+                                  📹 <strong>Các bước thực hiện:</strong>
+                                </p>
+                                <ol className="list-decimal ml-5">
+                                  <li>
+                                    <strong>Tải video lên YouTube</strong> -
+                                    Đăng nhập → Tạo → Tải video lên
+                                  </li>
+                                  <li>
+                                    <strong>Lấy mã nhúng (Embed)</strong> - Chia
+                                    sẻ → Nhúng → Sao chép{" "}
+                                    <code>
+                                      &lt;iframe&gt;...&lt;/iframe&gt;
+                                    </code>{" "}
+                                    hoặc URL:
+                                    <br />
+                                    <a
+                                      href="https://www.youtube.com/embed/VIDEO_ID"
+                                      target="_blank"
+                                      className="text-blue-600 underline"
+                                    >
+                                      https://www.youtube.com/embed/VIDEO_ID
+                                    </a>
+                                  </li>
+                                  <li>
+                                    <strong>Dán vào hệ thống</strong> - Quay lại
+                                    form → dán vào ô Embed
+                                  </li>
+                                </ol>
+                                <p className="italic text-gray-500">
+                                  💡 Gợi ý: Để video không công khai, đặt chế độ
+                                  “Không công khai (Unlisted)”.
+                                </p>
+                              </div>
+                            ),
+                          })
+                        }
+                        className="ml-2 text-gray-500 hover:text-gray-700"
+                        aria-label="Hướng dẫn embed YouTube"
+                      >
+                        <HelpCircle className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
 
@@ -394,7 +436,7 @@ const AddLecture: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-2">
                   <Label>Nội dung đọc</Label>
                   <div
                     ref={quillRef}
@@ -509,24 +551,8 @@ const AddLecture: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-      <AlertDialog
-        open={dialog.open}
-        onOpenChange={(open) => setDialog({ ...dialog, open })}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{dialog.title}</AlertDialogTitle>
-            <AlertDialogDescription>{dialog.message}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction
-              onClick={() => setDialog({ ...dialog, open: false })}
-            >
-              OK
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Global dialog for create/upload actions */}
+      <AppDialog dialog={dialog} setDialog={setDialog} />
     </div>
   );
 };

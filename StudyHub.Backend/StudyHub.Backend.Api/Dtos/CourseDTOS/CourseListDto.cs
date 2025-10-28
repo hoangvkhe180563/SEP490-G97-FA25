@@ -23,6 +23,7 @@ public class CourseListDto
     public Guid? UpdatedBy { get; set; }
 
     public Guid CreatedBy { get; set; }
+    public bool IsApproved { get; set; }
     public List<ChapterListDto> Chapters { get; set; } = new();
 }
 

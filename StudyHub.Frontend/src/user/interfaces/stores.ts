@@ -9,7 +9,7 @@ interface Meta {
 
 interface FilterAppUsersResponse {
   success: boolean;
-  users: AppUser[];
+  data: AppUser[];
   meta?: Meta;
 }
 interface GetAppUserByIdResponse {

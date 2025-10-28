@@ -25,6 +25,7 @@ public class CourseDto
     public Guid? UpdatedBy { get; set; }
 
     public Guid CreatedBy { get; set; }
+    public bool IsApproved { get; set; }
     public List<ChapterDto> Chapters { get; set; } = new();
 }
 

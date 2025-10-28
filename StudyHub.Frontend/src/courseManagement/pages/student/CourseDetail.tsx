@@ -2,8 +2,9 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/common/components/ui/button";
 import CourseNavSidebar from "@/courseManagement/components/CourseDetailFiltersStudent";
-import CourseContentItem from "@/courseManagement/components/CourseContentItem";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
+import { Calendar, ChevronDown, Check } from "lucide-react";
+import CourseContentItem from "@/courseManagement/components/CourseContentItem";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
@@ -11,6 +12,8 @@ import type {
   ChapterListDto,
   LessonListDto,
 } from "@/courseManagement/types/api";
+import { Clock } from "lucide-react";
+import { Progress } from "@/common/components/ui/progress";
 
 const CourseDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -18,13 +21,18 @@ const CourseDetail: React.FC = () => {
   const courseId = Number(id || 0);
 
   // Use separate selectors to avoid returning a new object each render
-  const selectedCourse = useCourseStore((s: any) => s.selectedCourse);
-  const fetchCourseById = useCourseStore((s: any) => s.fetchCourseById);
+  const selectedCourse = useCourseStore((s) => s.selectedCourse);
+  const fetchCourseById = useCourseStore((s) => s.fetchCourseById);
 
-  const chapters = useLectureStore((s: any) => s.chapters);
-  const fetchChapters = useLectureStore((s: any) => s.fetchChapters);
-  const fetchLessons = useLectureStore((s: any) => s.fetchLessons);
-  const [expandedChapter, setExpandedChapter] = useState<number | null>(null);
+  const chapters = useLectureStore((s) => s.chapters);
+  const fetchChapters = useLectureStore((s) => s.fetchChapters);
+  const fetchLessons = useLectureStore((s) => s.fetchLessons);
+  // allow multiple chapters to be expanded at once
+  const [expandedChapters, setExpandedChapters] = useState<Set<number>>(
+    new Set()
+  );
+  // when there are many chapters, show only the first 10 by default
+  const [showAllChapters, setShowAllChapters] = useState<boolean>(false);
   const [lessonsByChapter, setLessonsByChapter] = useState<
     Record<number, LessonListDto[]>
   >({});
@@ -57,7 +65,7 @@ const CourseDetail: React.FC = () => {
         );
         const res = await documentService.getSubjects();
         if (mounted && Array.isArray(res)) {
-          setSubjects(res.map((s: any) => ({ id: s.id, name: s.name })));
+          setSubjects(res.map((s) => ({ id: s.id, name: s.name })));
         }
       } catch (err) {
         // ignore
@@ -65,8 +73,10 @@ const CourseDetail: React.FC = () => {
     })();
     (async () => {
       try {
-        const r = await filterAppUsers("role=Teacher&page=1&limit=200");
-        if (mounted) setTeachers(r?.users ?? []);
+        const r = await filterAppUsers(
+          "role=00000000-0000-0000-0000-000000000003&page=1"
+        );
+        if (mounted) setTeachers(r?.data ?? []);
       } catch (err) {
         // ignore
       }
@@ -76,32 +86,61 @@ const CourseDetail: React.FC = () => {
     };
   }, [filterAppUsers]);
 
-  // enrollment state for current user via store
-  const currentUser = useAppUserStore((s: any) => s.appUser);
-  const fetchEnrollmentsByUser = useEnrollmentStore((s: any) => s.fetchByUser);
+  const currentUser = useAppUserStore((s) => s.appUser);
+  const effectiveUser = currentUser ?? {
+    id: "b2c3d4e5-f6a7-8901-2345-67890abcdef0",
+    fullname: "Demo Student",
+  };
+  const fetchEnrollmentsByUser = useEnrollmentStore((s) => s.fetchByUser);
   const getEnrollmentForCourse = useEnrollmentStore(
-    (s: any) => s.getEnrollmentForCourse
+    (s) => s.getEnrollmentForCourse
   );
-  const enrollAction = useEnrollmentStore((s: any) => s.enroll);
+  const enrollAction = useEnrollmentStore((s) => s.enroll);
+  const fetchProgresses = useEnrollmentStore((s) => s.fetchProgresses);
   const enrollment = getEnrollmentForCourse(courseId);
+
+  const getLessonCompleted = useEnrollmentStore((s) => s.getLessonCompleted);
 
   useEffect(() => {
     (async () => {
-      if (!currentUser) return;
       try {
-        await fetchEnrollmentsByUser(String(currentUser.id));
+        await fetchEnrollmentsByUser(String(effectiveUser.id));
       } catch (err) {
         // ignore
       }
     })();
-  }, [currentUser, fetchEnrollmentsByUser]);
+  }, [effectiveUser.id, fetchEnrollmentsByUser]);
+
+  // ensure per-lesson progresses are loaded when we arrive on the course detail
+  useEffect(() => {
+    (async () => {
+      try {
+        // ensure enrollments are loaded first
+        await fetchEnrollmentsByUser(String(effectiveUser.id));
+        const found = getEnrollmentForCourse(courseId);
+        if (found?.id) {
+          try {
+            await fetchProgresses(found.id);
+          } catch {
+            // ignore
+          }
+        }
+      } catch (err) {
+        // ignore
+      }
+    })();
+  }, [
+    effectiveUser.id,
+    fetchEnrollmentsByUser,
+    getEnrollmentForCourse,
+    fetchProgresses,
+    courseId,
+  ]);
 
   useEffect(() => {
     if (courseId) {
       (async () => {
-        // load course meta
         fetchCourseById(courseId);
-        // fetch chapters and then fetch lessons for each so UI shows items
         try {
           const chs = await fetchChapters(courseId);
           if (Array.isArray(chs) && chs.length > 0) {
@@ -126,12 +165,19 @@ const CourseDetail: React.FC = () => {
   }, [courseId, fetchCourseById, fetchChapters, fetchLessons]);
 
   const toggleChapter = async (ch: ChapterListDto) => {
-    if (expandedChapter === ch.id) {
-      setExpandedChapter(null);
-      return;
-    }
-    setExpandedChapter(ch.id);
-    // if cached, no need to fetch
+    // compute whether we're opening (true) or closing (false)
+    const willOpen = !expandedChapters.has(ch.id);
+
+    // update the expanded set
+    setExpandedChapters((prev) => {
+      const next = new Set(prev);
+      if (next.has(ch.id)) next.delete(ch.id);
+      else next.add(ch.id);
+      return next;
+    });
+
+    // only fetch lessons when opening and not already cached
+    if (!willOpen) return;
     if (lessonsByChapter[ch.id]) return;
     try {
       const lessons = await fetchLessons(ch.id);
@@ -141,24 +187,25 @@ const CourseDetail: React.FC = () => {
     } catch (err) {
       // ignore
     }
+
     // fetch teachers (small one-time list) so we can resolve instructor id -> name
     try {
-      const r = await filterAppUsers("role=Teacher&page=1&limit=200");
-      setTeachers(r?.users ?? []);
+      const r = await filterAppUsers(
+        "role=00000000-0000-0000-0000-000000000003&page=1"
+      );
+      setTeachers(r?.data ?? []);
     } catch (err) {
       // ignore
     }
   };
 
-  // helper: map course.category (id) -> subject name
   const subjectLabel = (() => {
-    const id = (selectedCourse as any)?.category;
+    const id = (selectedCourse as any)?.subjectId;
     if (id === undefined || id === null) return undefined;
     const found = _subjects.find((s) => s.id === Number(id));
     return found ? found.name : String(id);
   })();
 
-  // helper: sort lessons according to contentSort
   const sortLessons = (lessons: LessonListDto[] = []) => {
     const arr = [...lessons];
     switch (contentSort) {
@@ -166,13 +213,30 @@ const CourseDetail: React.FC = () => {
         arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
         break;
       case "duration": {
-        // parse numeric duration (extract digits) and compare; fallback to 0
-        const parseDur = (d: string | null | undefined) => {
+        // sort by parsed duration (in minutes)
+        const parseDurationToMinutes = (d: string | null | undefined) => {
           if (!d) return 0;
-          const m = d.match(/(\d+(?:\.\d+)?)/);
-          return m ? Number(m[0]) : 0;
+          const s = String(d).toLowerCase();
+          // hours with unit
+          const hr = s.match(/(\d+(?:\.\d+)?)\s*(h|giờ|hour|hours|hr)\b/);
+          if (hr) return Number(hr[1]) * 60;
+          // minutes with unit
+          const mn = s.match(/(\d+(?:\.\d+)?)\s*(m|phút|min|minutes)\b/);
+          if (mn) return Number(mn[1]);
+          // fallback: numeric value
+          const num = s.match(/(\d+(?:\.\d+)?)/);
+          if (num) {
+            const n = Number(num[1]);
+            // heuristic: if small number (<=5) treat as hours, else minutes
+            return n <= 5 ? n * 60 : n;
+          }
+          return 0;
         };
-        arr.sort((a, b) => parseDur(a.duration) - parseDur(b.duration));
+        arr.sort(
+          (a, b) =>
+            parseDurationToMinutes(a.duration) -
+            parseDurationToMinutes(b.duration)
+        );
         break;
       }
       default:
@@ -184,10 +248,13 @@ const CourseDetail: React.FC = () => {
   // helper: filter lessons according to sidebar controls
   const filterLesson = (ls: LessonListDto) => {
     // progress filter
+    // Use enrollment store for completed status (server-side completion)
+    const isCompleted = getLessonCompleted(ls.id);
+    // Fall back to lesson.progress (client-side) for inProgress / notStarted
     const prog = (ls as any).progress ?? 0;
-    const isCompleted = prog >= 100;
-    const isInProgress = prog > 0 && prog < 100;
-    const isNotStarted = prog === 0;
+    const isInProgress = !isCompleted && prog > 0 && prog < 100;
+    const isNotStarted =
+      !isCompleted && (prog === 0 || prog === null || prog === undefined);
 
     const pf = progressFilters;
     // if any progress filters are enabled, the lesson must match at least one
@@ -222,18 +289,28 @@ const CourseDetail: React.FC = () => {
       }
     }
 
-    // duration filter
+    // duration filter (values are minute-based ranges)
     if (durationFilter && durationFilter !== "all") {
-      const parseDur = (d: string | null | undefined) => {
+      const parseDurationToMinutes = (d: string | null | undefined) => {
         if (!d) return 0;
-        const m = d.match(/(\d+(?:\.\d+)?)/);
-        return m ? Number(m[0]) : 0;
+        const s = String(d).toLowerCase();
+        const hr = s.match(/(\d+(?:\.\d+)?)\s*(h|giờ|hour|hours|hr)\b/);
+        if (hr) return Number(hr[1]) * 60;
+        const mn = s.match(/(\d+(?:\.\d+)?)\s*(m|phút|min|minutes)\b/);
+        if (mn) return Number(mn[1]);
+        const num = s.match(/(\d+(?:\.\d+)?)/);
+        if (num) {
+          const n = Number(num[1]);
+          return n <= 5 ? n * 60 : n;
+        }
+        return 0;
       };
-      const hours = parseDur(ls.duration);
-      if (durationFilter === "0-5" && !(hours >= 0 && hours <= 5)) return false;
-      if (durationFilter === "5-20" && !(hours > 5 && hours <= 20))
+      const minutes = parseDurationToMinutes(ls.duration);
+      if (durationFilter === "0-15m" && !(minutes >= 0 && minutes <= 15))
         return false;
-      if (durationFilter === "20+" && !(hours > 20)) return false;
+      if (durationFilter === "15-60m" && !(minutes > 15 && minutes <= 60))
+        return false;
+      if (durationFilter === "60m+" && !(minutes > 60)) return false;
     }
 
     return true;
@@ -258,18 +335,32 @@ const CourseDetail: React.FC = () => {
     for (const ch of chapters) {
       const lessons = lessonsByChapter[ch.id] ?? ch.lessons ?? [];
       for (const l of lessons) {
-        // naive: treat lessons with progress === 100 as completed
-        const prog = (l as any).progress ?? 0;
-        if (prog >= 100) completed++;
+        // use enrollment store's progresses map (getLessonCompleted) when available
+        const isCompleted = getLessonCompleted(l.id);
+        if (isCompleted) completed++;
         else remaining++;
       }
     }
     return { completed, remaining };
   })();
 
+  const completionPercent = (() => {
+    const totalLessons = stats.completed + stats.remaining;
+    return totalLessons === 0
+      ? 0
+      : Math.round((stats.completed / totalLessons) * 100);
+  })();
+
+  const [expandedDesc, setExpandedDesc] = useState<boolean>(false);
+  const courseDescription =
+    (selectedCourse as any)?.information ||
+    (selectedCourse as any)?.description ||
+    (selectedCourse as any)?.content ||
+    null;
+
   return (
-    <div className="w-full bg-white">
-      <div className="max-w-screen-xl mx-auto">
+    <div className="w-full bg-gray-50 min-h-screen py-8 h-full overflow-y-auto scrollbar-hide">
+      <div className="max-w-screen-xl mx-auto px-4">
         <div className="text-sm text-gray-500 mb-4">
           Khóa học của tôi / Khóa học
         </div>
@@ -277,13 +368,18 @@ const CourseDetail: React.FC = () => {
         <div className="flex items-center gap-4 mb-4">
           <button
             onClick={() => navigate("/course/student/courses")}
-            className="w-8 h-8 flex items-center justify-center border rounded"
+            className="w-9 h-9 flex items-center justify-center border rounded-md bg-white shadow-sm"
             aria-label="Go back"
           >
             ←
           </button>
-          <div className="text-lg font-medium">
-            {selectedCourse?.name ?? "Course Detail"}
+          <div className="flex-1">
+            <div className="text-2xl font-semibold text-gray-900">
+              {selectedCourse?.name ?? "Course Detail"}
+            </div>
+            <div className="text-sm text-gray-600 mt-1">
+              {selectedCourse?.information}
+            </div>
           </div>
         </div>
 
@@ -310,99 +406,206 @@ const CourseDetail: React.FC = () => {
                 });
                 setDurationFilter("all");
               }}
-              stats={stats}
+              stats={enrollment ? stats : undefined}
             />
           </aside>
 
-          <main className="col-span-12 lg:col-span-9">
-            <div className="bg-white rounded-md border p-4 mb-6 flex items-start justify-between">
-              <div>
-                <div className="text-lg font-medium">
-                  {selectedCourse?.name}
-                </div>
-                <div className="text-sm text-gray-500 mt-1">
-                  {selectedCourse?.information}
-                </div>
-                <div className="text-sm text-gray-500 mt-1">{subjectLabel}</div>
-
-                <div className="flex items-center gap-4 text-sm text-gray-600 mt-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs">
-                      {(selectedCourse?.instructorName &&
-                        (
-                          teachers.find(
-                            (t) =>
-                              String(t.id) ===
-                              String(selectedCourse.instructorName)
-                          )?.fullname || String(selectedCourse.instructorName)
-                        ).slice(0, 1)) ||
-                        "G"}
-                    </div>
-                    <span>
-                      {selectedCourse?.instructorName &&
-                      teachers.find(
-                        (t) =>
-                          String(t.id) === String(selectedCourse.instructorName)
-                      )
-                        ? teachers.find(
-                            (t) =>
-                              String(t.id) ===
-                              String(selectedCourse.instructorName)
-                          )?.fullname
-                        : selectedCourse?.instructorName ?? "Giáo viên"}
-                    </span>
+          <main className="col-span-12 lg:col-span-9 mb-6">
+            <div className="bg-white rounded-lg border p-6 mb-6 shadow-sm">
+              <div className="flex flex-col lg:flex-row items-start gap-6">
+                <div className="flex-1">
+                  <div className="inline-block bg-blue-100 text-blue-800 text-lg font-semibold px-4 py-2 rounded-full shadow-sm">
+                    {subjectLabel}
                   </div>
 
-                  <div>Khối Lớp: {selectedCourse?.grade ?? "-"}</div>
-                  <div>Giá: {fmtPrice(selectedCourse?.price)}</div>
-                </div>
-              </div>
+                  <div className="flex items-center gap-4 mt-4 text-base text-gray-800">
+                    <div className="flex items-center gap-4">
+                      {/* Avatar chữ cái */}
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-lg font-bold text-blue-700 shadow-sm border border-blue-50">
+                        {(selectedCourse?.createdBy &&
+                          (
+                            teachers.find(
+                              (t) =>
+                                String(t.id) ===
+                                String(selectedCourse.createdBy)
+                            )?.fullname || String(selectedCourse.createdBy)
+                          ).slice(0, 1)) ||
+                          "G"}
+                      </div>
 
-              <div className="flex flex-col items-center gap-3 w-40">
-                {/* Ảnh khóa học */}
-                <div className="w-36 h-24 rounded-md overflow-hidden bg-gray-100 shadow-sm flex items-center justify-center">
-                  {selectedCourse?.imageUrl ? (
-                    <img
-                      src={selectedCourse.imageUrl}
-                      alt="Course image"
-                      className="w-full h-full object-cover"
-                      onError={(e) =>
-                        (e.currentTarget.src =
-                          "https://placehold.co/150x100?text=No+Image")
-                      }
-                    />
-                  ) : (
-                    <span className="text-sm text-gray-400">
-                      Không có hình ảnh
-                    </span>
-                  )}
+                      {/* Thông tin giáo viên */}
+                      <div>
+                        <div className="font-semibold text-gray-900 text-lg leading-snug">
+                          {selectedCourse?.createdBy &&
+                          teachers.find(
+                            (t) =>
+                              String(t.id) === String(selectedCourse.createdBy)
+                          )
+                            ? teachers.find(
+                                (t) =>
+                                  String(t.id) ===
+                                  String(selectedCourse.createdBy)
+                              )?.fullname
+                            : selectedCourse?.createdBy ?? "Giáo viên"}
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
+                          <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 font-medium shadow-sm">
+                            Khối {selectedCourse?.grade ?? "-"}
+                          </span>
+                          <span className="text-gray-400">|</span>
+                          <span className="text-gray-500">
+                            Giáo viên phụ trách
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="ml-auto text-right">
+                      <div className="text-sm text-gray-500">Thời gian</div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {selectedCourse?.startAt && selectedCourse?.endAt ? (
+                          <>
+                            <Calendar
+                              className="inline-block w-4 h-4 mr-1 text-gray-500"
+                              aria-hidden
+                            />
+                            {`${new Date(
+                              selectedCourse.startAt
+                            ).toLocaleDateString()} - ${new Date(
+                              selectedCourse.endAt
+                            ).toLocaleDateString()}`}
+                          </>
+                        ) : (
+                          "-"
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {enrollment ? (
+                    <div className="mt-6 p-5 border border-gray-100 rounded-xl bg-white shadow-sm">
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 rounded-md bg-sky-100 text-sky-600">
+                            <Clock className="w-4 h-4" />
+                          </div>
+                          <span className="text-base font-semibold text-gray-800">
+                            Tiến độ khóa học
+                          </span>
+                        </div>
+
+                        <span className="text-sm font-medium text-sky-700">
+                          {completionPercent}% hoàn thành
+                        </span>
+                      </div>
+
+                      <Progress
+                        value={completionPercent}
+                        className="h-3 bg-gray-100 [&>div]:bg-sky-500"
+                      />
+
+                      {/* Thông tin chi tiết */}
+                      <div className="flex justify-between mt-3 text-sm text-gray-600">
+                        <span className="font-medium text-gray-700">
+                          {stats.completed} bài hoàn thành
+                        </span>
+                        <span>{stats.remaining} bài còn lại</span>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
-                {/* Nút Enroll */}
-                <Button
-                  onClick={async () => {
-                    if (!currentUser) {
-                      navigate(`/login`);
-                      return;
-                    }
-                    try {
-                      const payload = {
-                        appUserId: String(currentUser.id),
-                        courseId,
-                      };
-                      await enrollAction(payload);
-                    } catch (err) {
-                      // ignore
-                    }
-                  }}
-                  className="w-28 bg-[#111827] text-white hover:bg-[#1f2937] transition-colors duration-200"
-                >
-                  {enrollment ? "Enrolled" : "Enroll"}
-                </Button>
+                <div className="w-full lg:w-44 flex-shrink-0">
+                  <div className="w-full rounded-md overflow-hidden bg-gray-100 shadow-sm">
+                    {selectedCourse?.imageUrl ? (
+                      <img
+                        src={selectedCourse.imageUrl}
+                        alt="Course image"
+                        className="w-full h-36 object-cover"
+                        onError={(e) =>
+                          (e.currentTarget.src =
+                            "https://placehold.co/300x200?text=No+Image")
+                        }
+                      />
+                    ) : (
+                      <div className="w-full h-36 flex items-center justify-center text-sm text-gray-400">
+                        Không có hình ảnh
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-4">
+                    <div className="text-sm text-gray-500">Giá</div>
+                    <div className="text-xl font-semibold text-gray-900">
+                      {fmtPrice(selectedCourse?.price)}
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <Button
+                      onClick={async () => {
+                        try {
+                          const payload = {
+                            appUserId: String(effectiveUser.id),
+                            courseId,
+                          };
+                          await enrollAction(payload);
+                          try {
+                            await fetchEnrollmentsByUser(
+                              String(effectiveUser.id)
+                            );
+                            const found = getEnrollmentForCourse(courseId);
+                            if (found?.id) {
+                              try {
+                                await fetchProgresses(found.id);
+                              } catch {
+                                // ignore
+                              }
+                            }
+                          } catch {
+                            // ignore
+                          }
+                        } catch (err) {
+                          // ignore
+                        }
+                      }}
+                      className={`w-full py-2 text-white rounded-md ${
+                        enrollment
+                          ? "bg-gray-400 cursor-not-allowed"
+                          : "bg-sky-600 hover:bg-sky-700"
+                      }`}
+                    >
+                      {enrollment ? "Đã đăng ký" : "Đăng ký ngay"}
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-md border p-4">
+            {/* Course description: show more/less for long texts */}
+            {courseDescription && (
+              <div className="bg-white rounded-lg border p-6 mb-6">
+                <div className="text-lg font-medium mb-3">Mô tả khóa học</div>
+                <div className="text-sm text-gray-700 leading-relaxed">
+                  {expandedDesc || courseDescription.length <= 600
+                    ? courseDescription
+                    : `${courseDescription.slice(0, 600)}...`}
+                </div>
+                {courseDescription.length > 600 && (
+                  <div className="mt-3">
+                    <button
+                      onClick={() => setExpandedDesc((s) => !s)}
+                      className="text-sm text-sky-600 hover:underline"
+                    >
+                      {expandedDesc ? "Thu gọn" : "Xem thêm"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="bg-white rounded-lg border p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="text-lg font-medium">Nội dung khóa học</div>
                 <div className="flex items-center gap-3">
@@ -441,98 +644,118 @@ const CourseDetail: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                {chapters.map((ch: ChapterListDto) => {
-                  const lessons = sortLessons(
-                    lessonsByChapter[ch.id] ?? ch.lessons ?? []
-                  ).filter((l) => filterLesson(l));
-                  console.log("Chapter:", ch.name, "Lessons:", lessons);
-                  return (
-                    <div key={ch.id}>
-                      <div className="flex items-center justify-between">
-                        <button
-                          className="w-full text-left font-medium text-base"
-                          onClick={() => toggleChapter(ch)}
+                {/** show only first 10 chapters by default, allow expanding to view all */}
+                {(() => {
+                  const visibleChapters = showAllChapters
+                    ? chapters
+                    : chapters.slice(0, 10);
+                  return visibleChapters.map((ch: ChapterListDto) => {
+                    const allLessons =
+                      lessonsByChapter[ch.id] ?? ch.lessons ?? [];
+                    const lessons = sortLessons(allLessons).filter((l) =>
+                      filterLesson(l)
+                    );
+                    const chapterCompleted =
+                      Array.isArray(allLessons) && allLessons.length > 0
+                        ? allLessons.every((l) => getLessonCompleted(l.id))
+                        : false;
+                    return (
+                      <div key={ch.id} className="mb-4">
+                        <div
+                          className={`bg-white rounded-lg border p-3 shadow-sm`}
                         >
-                          {ch.name}
-                        </button>
-                      </div>
-
-                      {contentView === "list" ? (
-                        <div className="pl-4 mt-2 space-y-1">
-                          {lessons.map((ls: LessonListDto) => (
-                            <div
-                              key={ls.id}
-                              className="cursor-pointer"
-                              onClick={() => {
-                                const isPreview = Boolean(ls.isPreview);
-                                if (!isPreview && !enrollment) return;
-                                navigate(
-                                  `/course/student/courses/${courseId}/lecture/${ls.id}`
-                                );
-                              }}
-                            >
-                              <div className="flex items-center justify-between rounded-lg hover:bg-gray-50 transition">
-                                <div className="flex-1">
-                                  <CourseContentItem
-                                    title={ls.name}
-                                    subtitle={ls.description ?? ""}
-                                    duration={ls.duration ?? ""}
-                                    isPreview={Boolean(ls.isPreview)}
-                                    variant="list"
-                                  />
-                                </div>
-                              </div>
+                          <button
+                            onClick={() => toggleChapter(ch)}
+                            className="w-full flex items-center justify-between text-left"
+                          >
+                            <div className="font-medium text-base truncate flex items-center gap-2">
+                              {chapterCompleted && (
+                                <Check className="w-4 h-4 text-green-600" />
+                              )}
+                              <span className="truncate">{ch.name}</span>
                             </div>
-                          ))}
-                          {lessons.length === 0 && (
-                            <div className="text-sm text-gray-400 mt-2">
-                              Không có bài học nào phù hợp với bộ lọc hiện tại.
+                            <ChevronDown
+                              className={`w-5 h-5 text-gray-400 transform transition-transform ${
+                                expandedChapters.has(ch.id) ? "rotate-180" : ""
+                              }`}
+                            />
+                          </button>
+
+                          {expandedChapters.has(ch.id) && (
+                            <div className="mt-3">
+                              {lessons.length === 0 ? (
+                                <div className="text-sm text-gray-400">
+                                  Không có bài học nào phù hợp với bộ lọc hiện
+                                  tại.
+                                </div>
+                              ) : contentView === "list" ? (
+                                <div className="space-y-2">
+                                  {lessons.map((ls: LessonListDto) => {
+                                    const isPreview = Boolean(ls.isPreview);
+                                    return (
+                                      <CourseContentItem
+                                        key={ls.id}
+                                        title={ls.name}
+                                        subtitle={ls.description ?? ""}
+                                        duration={ls.duration ?? ""}
+                                        isPreview={isPreview}
+                                        isCompleted={getLessonCompleted(ls.id)}
+                                        variant="list"
+                                        onClick={() => {
+                                          if (!isPreview && !enrollment) return;
+                                          navigate(
+                                            `/course/student/courses/${courseId}/lecture/${ls.id}`
+                                          );
+                                        }}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                  {lessons.map((ls: LessonListDto) => {
+                                    const isPreview = Boolean(ls.isPreview);
+                                    return (
+                                      <CourseContentItem
+                                        key={ls.id}
+                                        title={ls.name}
+                                        subtitle={ls.description ?? ""}
+                                        duration={ls.duration ?? ""}
+                                        isPreview={isPreview}
+                                        isCompleted={getLessonCompleted(ls.id)}
+                                        variant="grid"
+                                        onClick={() => {
+                                          if (!isPreview && !enrollment) return;
+                                          navigate(
+                                            `/course/student/courses/${courseId}/lecture/${ls.id}`
+                                          );
+                                        }}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
-                      ) : (
-                        <div className="pl-0 mt-2">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                            {lessons.map((ls: LessonListDto) => (
-                              <div
-                                key={ls.id}
-                                className="cursor-pointer"
-                                onClick={() => {
-                                  const isPreview = Boolean(ls.isPreview);
-                                  if (!isPreview && !enrollment) return;
-                                  navigate(
-                                    `/course/student/courses/${courseId}/lecture/${ls.id}`
-                                  );
-                                }}
-                              >
-                                <div className="relative group rounded-lg border hover:shadow-sm transition">
-                                  <CourseContentItem
-                                    title={ls.name}
-                                    subtitle={ls.description ?? ""}
-                                    duration={ls.duration ?? ""}
-                                    variant="grid"
-                                  />
+                      </div>
+                    );
+                  });
+                })()}
 
-                                  {ls.isPreview && (
-                                    <div className="absolute bottom-2 right-2 text-[11px] font-medium text-blue-600 bg-blue-50 border border-blue-300 px-2 py-0.5 rounded">
-                                      Preview
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                            {lessons.length === 0 && (
-                              <div className="text-sm text-gray-400 mt-2 col-span-full">
-                                Không có bài học nào phù hợp với bộ lọc hiện
-                                tại.
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {/* show/hide more chapters control when there are many chapters */}
+                {chapters.length > 10 && (
+                  <div className="mt-2 text-center">
+                    <button
+                      onClick={() => setShowAllChapters((s) => !s)}
+                      className="px-4 py-2 rounded-md text-sm border bg-white"
+                    >
+                      {showAllChapters
+                        ? "Ẩn bớt chương"
+                        : `Hiện thêm chương (${chapters.length - 10})`}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </main>

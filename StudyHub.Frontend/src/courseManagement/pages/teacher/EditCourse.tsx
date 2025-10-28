@@ -36,22 +36,15 @@ import type {
   ChapterListDto,
   CourseListDto,
 } from "@/courseManagement/types/api";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogAction,
-} from "@/common/components/ui/alert-dialog";
+import type { DialogProps } from "@/courseManagement/components/AppDialog";
+import { AppDialog } from "@/courseManagement/components/AppDialog";
 
 const EditCourse: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const courseId = Number(id || 0);
 
-  const [dialog, setDialog] = useState({
+  const [dialog, setDialog] = useState<DialogProps>({
     open: false,
     title: "",
     message: "",
@@ -90,10 +83,6 @@ const EditCourse: React.FC = () => {
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
   const [chaptersLocal, setChaptersLocal] = useState<ChapterListDto[]>([]);
-  const [teachers, setTeachers] = useState<any[]>([]);
-  const [selectedInstructor, setSelectedInstructor] = useState<string | null>(
-    null
-  );
   const [modalChapter, setModalChapter] = useState<ChapterListDto | undefined>(
     undefined
   );
@@ -110,13 +99,7 @@ const EditCourse: React.FC = () => {
         setSubjects(res.map((s: any) => ({ id: s.id, name: s.name })));
       }
     };
-    const loadTeachers = async () => {
-      const res = await filterAppUsers("role=Teacher&page=1&limit=200");
-      const items = res?.users ?? [];
-      setTeachers(items);
-    };
     fetchSubjects();
-    loadTeachers();
   }, [filterAppUsers]);
 
   useEffect(() => {
@@ -162,7 +145,6 @@ const EditCourse: React.FC = () => {
         setStatus("");
         setIsFeatured(false);
         setChaptersLocal([]);
-        setSelectedInstructor("");
         setStartAt("");
         setEndAt("");
       }
@@ -176,9 +158,6 @@ const EditCourse: React.FC = () => {
       );
       setStatus(selectedCourse.status ?? undefined);
       setIsFeatured((selectedCourse as any).isFeatured ?? false);
-      setSelectedInstructor(
-        selectedCourse.updatedBy ?? selectedCourse.createdBy ?? ""
-      );
       setStartAt(formatDate(selectedCourse.startAt));
       setEndAt(formatDate(selectedCourse.endAt));
     }
@@ -227,17 +206,19 @@ const EditCourse: React.FC = () => {
   }, [chaptersLocal]);
 
   const handleAddChapter = async () => {
-    if (!courseId)
+    if (!courseId) {
       return setDialog({
         open: true,
         title: "Thiếu thông tin",
         message: "Vui lòng mở trang này từ một khóa học để thêm một phần.",
       });
+    }
+
     const tempId = -Date.now();
     const temp: any = {
       id: tempId,
       courseId,
-      name: "New Section",
+      name: "Phần mới",
       numberOfLessons: 0,
       description: "",
       duration: "",
@@ -246,99 +227,121 @@ const EditCourse: React.FC = () => {
       resourceUrl: "",
       lessons: [],
     };
+
     setChaptersLocal((prev) => [...prev, temp]);
     setModalChapter(temp);
     setModalChapterMode("edit");
     setIsChapterModalOpen(true);
   };
 
-  const handleDeleteChapter = async (id: number) => {
-    const ok = confirm("Delete this section and all its lessons?");
-    if (!ok) return;
-    try {
-      const res = deleteChapterStore ? await deleteChapterStore(id) : false;
-      if (res) {
-        // Optimistically remove from local UI
-        setChaptersLocal((prev) => prev.filter((c) => c.id !== id));
+  const handleDeleteChapter = (id: number) => {
+    setDialog({
+      open: true,
+      title: "Xóa chương",
+      message: "Bạn có chắc chắn muốn xóa chương này?",
+      onConfirm: async () => {
+        try {
+          const res = deleteChapterStore ? await deleteChapterStore(id) : false;
+          if (res) {
+            // Xóa local
+            setChaptersLocal((prev) => prev.filter((c) => c.id !== id));
 
-        // Refresh lecture store and selected course to keep global state in sync
-        try {
-          if (fetchChaptersRef.current)
-            await fetchChaptersRef.current(courseId);
+            // Đồng bộ dữ liệu
+            try {
+              if (fetchChaptersRef.current)
+                await fetchChaptersRef.current(courseId);
+            } catch (err) {
+              console.warn("fetchChapters after delete failed", err);
+            }
+            try {
+              if (fetchCourseByIdRef.current)
+                await fetchCourseByIdRef.current(courseId);
+            } catch (err) {
+              console.warn("fetchCourseById after delete failed", err);
+            }
+
+            // Thông báo thành công
+            setDialog({
+              open: true,
+              title: "Thành công",
+              message: "Đã xóa chương thành công.",
+            });
+          } else {
+            setDialog({
+              open: true,
+              title: "Thất bại",
+              message: "Xóa chương thất bại.",
+            });
+          }
         } catch (err) {
-          console.warn("fetchChapters after delete failed", err);
+          console.error("delete chapter failed", err);
+          setDialog({
+            open: true,
+            title: "Lỗi",
+            message: "Đã xảy ra lỗi khi xóa chương.",
+          });
         }
-        try {
-          if (fetchCourseByIdRef.current)
-            await fetchCourseByIdRef.current(courseId);
-        } catch (err) {
-          console.warn("fetchCourseById after delete failed", err);
-        }
-      } else
-        setDialog({
-          open: true,
-          title: "Thất bại",
-          message: "Xóa thất bại",
-        });
-    } catch (err) {
-      console.error("delete chapter failed", err);
-      setDialog({
-        open: true,
-        title: "Thất bại",
-        message: "Xóa chương thất bại",
-      });
-    }
+      },
+    });
   };
 
   const handleAddLessonToChapter = async (chapterId: number) => {
     const qp = new URLSearchParams();
     if (courseId) qp.set("courseId", String(courseId));
     if (chapterId) qp.set("chapterId", String(chapterId));
-    qp.set("type", "video");
+    qp.set("type", "reading");
     navigate(`/course/teacher/add-lecture?${qp.toString()}`);
   };
 
-  const deleteLesson = async (lessonId: number) => {
-    console.log("delete lesson", lessonId);
-    const ok = confirm("Delete this lesson?");
-    if (!ok) return;
-    if (!deleteLessonStore) {
-      setDialog({
-        open: true,
-        title: "Thất bại",
-        message: "Xóa không khả dụng",
-      });
-      return;
-    }
-    try {
-      const res = await deleteLessonStore(lessonId);
-      if (res) {
-        setChaptersLocal((prev) =>
-          prev.map((ch) => ({
-            ...ch,
-            lessons: (ch.lessons || []).filter((ls) => ls.id !== lessonId),
-          }))
-        );
-        setDialog({
-          open: true,
-          title: "Thành công",
-          message: "Xóa bài giảng thành công",
-        });
-      } else {
-        setDialog({
-          open: true,
-          title: "Thất bại",
-          message: "Xóa thất bại",
-        });
-      }
-    } catch (err) {
-      console.error("delete lesson failed", err);
-      setDialog({
-        open: true,
-        title: "Thất bại",
-        message: "Xóa bài giảng thất bại",
-      });
-    }
+  const deleteLesson = (lessonId: number) => {
+    setDialog({
+      open: true,
+      title: "Xóa bài giảng",
+      message: "Bạn có chắc chắn muốn xóa bài giảng này?",
+      onConfirm: async () => {
+        if (!deleteLessonStore) {
+          setDialog({
+            open: true,
+            title: "Thất bại",
+            message: "Xóa không khả dụng",
+          });
+          return;
+        }
+
+        try {
+          const res = await deleteLessonStore(lessonId);
+          if (res) {
+            // Cập nhật UI local
+            setChaptersLocal((prev) =>
+              prev.map((ch) => ({
+                ...ch,
+                lessons: (ch.lessons || []).filter((ls) => ls.id !== lessonId),
+              }))
+            );
+
+            // Hiển thị thông báo thành công
+            setDialog({
+              open: true,
+              title: "Thành công",
+              message: "Xóa bài giảng thành công",
+            });
+          } else {
+            setDialog({
+              open: true,
+              title: "Thất bại",
+              message: "Xóa thất bại",
+            });
+          }
+        } catch (err) {
+          console.error("delete lesson failed", err);
+          setDialog({
+            open: true,
+            title: "Thất bại",
+            message: "Xóa bài giảng thất bại",
+          });
+        }
+      },
+    });
   };
 
   const openChapterModal = async (
@@ -464,9 +467,8 @@ const EditCourse: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 overflow-auto bg-white">
-      <div className="max-w-[1200px] mx-auto px-8 py-6">
-        {/* Breadcrumb */}
+    <div className="bg-white h-full">
+      <div className="max-w-[1200px] mx-auto px-8 py-6 h-full flex flex-col">
         <div className="text-sm text-[#525252] mb-3">
           Khóa học / Chỉnh sửa khóa học
         </div>
@@ -538,7 +540,7 @@ const EditCourse: React.FC = () => {
                     startAt: startAt ? new Date(startAt).toISOString() : null,
                     endAt: endAt ? new Date(endAt).toISOString() : null,
                     updatedAt: new Date().toISOString(),
-                    updatedBy: selectedInstructor,
+                    isApproved: selectedCourse?.isApproved,
                   };
 
                   await updateCourse(courseId, dto);
@@ -546,8 +548,8 @@ const EditCourse: React.FC = () => {
                     open: true,
                     title: "Thành công",
                     message: "Cập nhật khóa học thành công",
+                    navigateTo: `/course/teacher/courses`,
                   });
-                  navigate(`/course/teacher/courses`);
                 } catch (err) {
                   console.error("Update failed", err);
                   setDialog({
@@ -565,8 +567,7 @@ const EditCourse: React.FC = () => {
             </Button>
           </div>
         </div>
-
-        <div className="grid grid-cols-12 gap-8">
+        <div className="grid grid-cols-12 gap-8 overflow-y-auto flex-1 scrollbar-hide">
           {/* Left Column */}
           <div className="col-span-12 lg:col-span-8">
             <Card>
@@ -970,20 +971,27 @@ const EditCourse: React.FC = () => {
                       />
                     </div>
                     <div className="space-y-4">
-                      <Label>Trạng thái</Label>
-                      <Select
-                        value={status}
-                        onValueChange={(v) => setStatus(v)}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Chọn trạng thái" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Mở">Đang mở</SelectItem>
-                          <SelectItem value="Đóng">Đã đóng</SelectItem>
-                          <SelectItem value="Nháp">Nháp</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {status === "Đóng" ? (
+                        <p className="text-sm text-gray-500 mt-1 italic">
+                          ⚠️ Khóa học đã đóng — không thể thay đổi trạng thái.
+                        </p>
+                      ) : (
+                        <>
+                          <Label>Trạng thái</Label>
+                          <Select
+                            value={status}
+                            onValueChange={(v) => setStatus(v)}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Chọn trạng thái" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Mở">Đang mở</SelectItem>
+                              <SelectItem value="Nháp">Nháp</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </>
+                      )}
 
                       <div className="text-xs text-[#8A8A8A]">
                         <div>
@@ -1016,77 +1024,6 @@ const EditCourse: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-
-              {/* <Card>
-                <CardHeader>
-                  <CardTitle>Giảng viên</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="space-y-4">
-                      <Label>Giảng viên chính</Label>
-                      <Select
-                        value={selectedInstructor ?? ""}
-                        onValueChange={(v) => setSelectedInstructor(v || null)}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Chọn giảng viên" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {teachers.map((t) => (
-                            <SelectItem key={t.id} value={String(t.id)}>
-                              {t.fullname ?? t.username ?? t.email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {selectedInstructor ? (
-                      <div className="bg-[#FAFAFA] rounded-lg p-3 flex items-center gap-3">
-                        <img
-                          src={
-                            teachers.find(
-                              (t) => String(t.id) === selectedInstructor
-                            )?.avatarUrl ??
-                            "https://api.builder.io/api/v1/image/assets/TEMP/ad7da240b72ac1157e7a1043cd1b1821bb4369b1?width=80"
-                          }
-                          alt="Instructor"
-                          className="w-10 h-10 rounded-full"
-                        />
-                        <div>
-                          <div className="text-sm text-[#171717]">
-                            {teachers.find(
-                              (t) => String(t.id) === selectedInstructor
-                            )?.fullname ?? "Giảng viên"}
-                          </div>
-                          <div className="text-xs text-[#737373]">
-                            {teachers.find(
-                              (t) => String(t.id) === selectedInstructor
-                            )?.bio ?? "Giảng viên"}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="bg-[#FAFAFA] rounded-lg p-3 flex items-center gap-3">
-                        <img
-                          src="https://api.builder.io/api/v1/image/assets/TEMP/ad7da240b72ac1157e7a1043cd1b1821bb4369b1?width=80"
-                          alt="Chọn giảng viên"
-                          className="w-10 h-10 rounded-full opacity-70"
-                        />
-                        <div>
-                          <div className="text-sm font-medium text-[#171717]">
-                            Hãy chọn giảng viên
-                          </div>
-                          <div className="text-xs text-[#737373]">
-                            Chưa có giảng viên được chọn
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card> */}
             </div>
           </aside>
         </div>
@@ -1217,30 +1154,11 @@ const EditCourse: React.FC = () => {
                   </Button>
                 )}
               </div>
-              <AlertDialog
-                open={dialog.open}
-                onOpenChange={(open) => setDialog({ ...dialog, open })}
-              >
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>{dialog.title}</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {dialog.message}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogAction
-                      onClick={() => setDialog({ ...dialog, open: false })}
-                    >
-                      OK
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
             </div>
           </div>
         </div>
       )}
+      <AppDialog dialog={dialog} setDialog={setDialog} />
     </div>
   );
 };

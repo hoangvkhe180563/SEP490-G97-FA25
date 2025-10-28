@@ -18,35 +18,27 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var q = _context.Courses.AsQueryable();
+                var q = _context.Courses
+                    .Include(c => c.Chapters)
+                        .ThenInclude(ch => ch.Lessons)
+                    .AsQueryable();
 
                 if (!string.IsNullOrWhiteSpace(query.Q))
                 {
-                    var t = query.Q.Trim().ToLower();
-                    q = q.Where(c => c.Name.ToLower().Contains(t)
-                        || (c.Information != null && c.Information.ToLower().Contains(t)));
+                    var keyword = query.Q.Trim().ToLower();
+                    q = q.Where(c =>
+                        c.Name.ToLower().Contains(keyword) ||
+                        (c.Information != null && c.Information.ToLower().Contains(keyword)));
                 }
 
                 if (query.SubjectId.HasValue)
-                {
                     q = q.Where(c => c.SubjectId == query.SubjectId.Value);
-                }
 
                 if (query.Grade.HasValue)
-                {
                     q = q.Where(c => c.Grade == query.Grade.Value);
-                }
 
-                if (query.Instructor != null)
-                {
-                    var t = query.Instructor;
-                    q = q.Where(c => c.CreatedBy == t);
-                }
-
-                //if (!string.IsNullOrWhiteSpace(query.Duration))
-                //{
-                //    q = q.Where(c => c.Duration == query.Duration);
-                //}
+                if (query.Instructor.HasValue)
+                    q = q.Where(c => c.CreatedBy == query.Instructor);
 
                 if (!string.IsNullOrEmpty(query.Status))
                     q = q.Where(c => c.Status.Equals(query.Status));
@@ -54,48 +46,69 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (query.IsFeatured.HasValue)
                     q = q.Where(c => c.IsFeatured == query.IsFeatured.Value);
 
-                switch ((query.Sort ?? string.Empty).ToLower())
-                {
-                    case "priceasc":
-                        q = q.OrderBy(c => c.Price);
-                        break;
-                    case "pricedesc":
-                        q = q.OrderByDescending(c => c.Price);
-                        break;
-                    case "newest":
-                        q = q.OrderByDescending(c => c.CreatedAt);
-                        break;
-                    default:
-                        q = q.OrderByDescending(c => c.CreatedAt);
-                        break;
-                }
+                if (query.IsApproved.HasValue)
+                    q = q.Where(c => c.IsApproved == query.IsApproved.Value);
 
-                var total = q.Count();
+                var courses = q.AsEnumerable()
+                                .Where(c =>
+                                {
+                                    int totalDuration = c.Chapters
+                                        .SelectMany(ch => ch.Lessons)
+                                        .Where(l => !string.IsNullOrWhiteSpace(l.Duration))
+                                        .Sum(l => int.TryParse(l.Duration, out var mins) ? mins : 0);
+
+                                    if (query.minDuration == 0 && query.maxDuration == 0)
+                                        return true;
+
+                                    if (query.minDuration > 0 && totalDuration < query.minDuration)
+                                        return false;
+
+                                    if (query.maxDuration > 0 && totalDuration > query.maxDuration)
+                                        return false;
+
+                                    return true;
+                                })
+                                .ToList();
+
+
+                courses = (query.Sort ?? string.Empty).ToLower() switch
+                    {
+                        "priceasc" => courses.OrderBy(c => c.Price).ToList(),
+                        "pricedesc" => courses.OrderByDescending(c => c.Price).ToList(),
+                        "newest" => courses.OrderByDescending(c => c.CreatedAt).ToList(),
+                        _ => courses.OrderByDescending(c => c.CreatedAt).ToList(),
+                    };
+
+
+                var total = courses.Count;
                 var page = Math.Max(1, query.Page);
                 var pageSize = Math.Max(1, query.PageSize);
                 var totalPages = (int)Math.Ceiling((double)total / pageSize);
 
-                var items = q.Skip((page - 1) * pageSize)
+                var items = courses
+                    .Skip((page - 1) * pageSize)
                     .Take(pageSize)
-                   .Select(c => new Course
-                   {
-                       Id = c.Id,
-                       Name = c.Name,
-                       Information = c.Information,
-                       ImageUrl = c.ImageUrl,
-                       Price = c.Price,
-                       Grade = c.Grade,
-                       SubjectId = c.SubjectId,
-                       SchoolId = c.SchoolId,
-                       IsFeatured = c.IsFeatured,
-                       Status = c.Status,
-                       CreatedAt = c.CreatedAt,
-                       StartAt = c.StartAt,
-                       EndAt = c.EndAt,
-                       UpdatedAt = c.UpdatedAt,
-                       UpdatedBy = c.UpdatedBy,
-                       CreatedBy = c.CreatedBy,
-                   }).ToList();
+                    .Select(c => new Course
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        Information = c.Information,
+                        ImageUrl = c.ImageUrl,
+                        Price = c.Price,
+                        Grade = c.Grade,
+                        SubjectId = c.SubjectId,
+                        SchoolId = c.SchoolId,
+                        IsFeatured = c.IsFeatured,
+                        Status = c.Status,
+                        CreatedAt = c.CreatedAt,
+                        StartAt = c.StartAt,
+                        EndAt = c.EndAt,
+                        UpdatedAt = c.UpdatedAt,
+                        UpdatedBy = c.UpdatedBy,
+                        CreatedBy = c.CreatedBy,
+                        IsApproved = c.IsApproved
+                    })
+                    .ToList();
 
                 return new PagedResult<Course>
                 {
@@ -112,6 +125,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 return new PagedResult<Course>();
             }
         }
+
 
         public Course? GetCourseById(int id)
         {
@@ -146,6 +160,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     UpdatedAt = c.UpdatedAt,
                     UpdatedBy = c.UpdatedBy,
                     CreatedBy = c.CreatedBy,
+                    IsApproved = c.IsApproved,
                     Chapters = c.Chapters.Select(ch => new Chapter
                     {
                         Id = ch.Id,
@@ -203,6 +218,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     StartAt = course.StartAt,
                     EndAt = course.EndAt,
                     CreatedBy = course.CreatedBy,
+                    IsApproved = course.IsApproved
                 };
 
                 _context.Courses.Add(entity);
@@ -238,6 +254,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.EndAt = course.EndAt;
                 entity.UpdatedAt = DateTime.UtcNow;
                 entity.UpdatedBy = course.UpdatedBy;
+                entity.IsApproved = course.IsApproved;
 
                 _context.SaveChanges();
                 return course;

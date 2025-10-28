@@ -30,6 +30,7 @@ const STATUS_MAP: Record<CourseStatus, { label: string; className: string }> = {
 
 const CourseItem: React.FC<Props> = ({ course }) => {
   const deleteCourse = useCourseStore((s) => s.deleteCourse);
+  const updateCourse = useCourseStore((s) => s.updateCourse);
 
   const statusKey =
     course.status === "Mở" ? "Mở" : course.status === "Đóng" ? "Đóng" : "Nháp";
@@ -38,6 +39,55 @@ const CourseItem: React.FC<Props> = ({ course }) => {
 
   const formatDate = (date?: string | null) =>
     date ? new Date(date).toLocaleDateString("vi-VN") : "-";
+
+  const handleDeleteOrClose = async () => {
+    try {
+      if (course.status === "Nháp") {
+        const ok = await deleteCourse?.(Number(course.id));
+        if (!ok) alert("Xóa khóa học thất bại.");
+      } else if (course.status === "Mở") {
+        // Ensure dates are sent as ISO strings (backend expects DateTime)
+        const toIso = (v?: string | null) => {
+          try {
+            if (!v) return new Date().toISOString();
+            const d = new Date(v);
+            if (Number.isNaN(d.getTime())) return new Date().toISOString();
+            return d.toISOString();
+          } catch {
+            return new Date().toISOString();
+          }
+        };
+
+        const dto = {
+          name: course.name,
+          information: course.information,
+          imageUrl: course.imageUrl,
+          price: course.price,
+          grade: course.grade,
+          SubjectId: (course as any).subjectId,
+          schoolId: (course as any).schoolId,
+          isFeatured: course.isFeatured,
+          status: "Đóng",
+          createdAt: toIso(course.createdAt),
+          startAt: toIso(course.startAt),
+          endAt: toIso(course.endAt),
+          updatedAt: course.updatedAt
+            ? toIso(course.updatedAt)
+            : new Date().toISOString(),
+          updatedBy: course.updatedBy,
+          createdBy: course.createdBy,
+          isApproved: course.isApproved,
+        };
+
+        await updateCourse(course.id, dto);
+
+        alert("Khóa học đã được chuyển sang trạng thái 'Đóng'.");
+      }
+    } catch (err) {
+      console.error("Xóa hoặc cập nhật thất bại:", err);
+      alert("Thao tác thất bại!");
+    }
+  };
 
   return (
     <tr className="hover:bg-gray-50 transition-colors border-b">
@@ -58,7 +108,7 @@ const CourseItem: React.FC<Props> = ({ course }) => {
               <span>Không có ảnh</span>
             )}
           </div>
-          <div className="min-w-[8rem]">
+          <div className="max-w-[15rem]">
             <div className="font-medium text-gray-900 group-hover:text-blue-600 transition line-clamp-1">
               {course.name}
             </div>
@@ -84,7 +134,7 @@ const CourseItem: React.FC<Props> = ({ course }) => {
             </span>
           </div>
           <span className="text-sm text-gray-800 truncate max-w-[8rem]">
-            {course.updatedBy ?? course.createdBy ?? "-"}
+            {course.updatedBy || course.createdBy || ""}
           </span>
         </div>
       </td>
@@ -142,42 +192,62 @@ const CourseItem: React.FC<Props> = ({ course }) => {
             <Edit className="w-4 h-4" />
           </Link>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <button
-                title="Xóa"
-                className="p-1.5 hover:bg-gray-100 rounded text-rose-600"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </AlertDialogTrigger>
-
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Bạn có chắc chắn muốn xóa khóa học{" "}
-                  <span className="font-medium text-rose-600">
-                    "{course.name}"
-                  </span>
-                  ?<br />
-                  Hành động này <strong>không thể hoàn tác</strong>.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Hủy</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-rose-600 hover:bg-rose-700 text-white"
-                  onClick={async () => {
-                    const ok = await deleteCourse?.(Number(course.id));
-                    if (!ok) alert("Xóa khóa học thất bại.");
-                  }}
+          {course.status !== "Đóng" && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  title={course.status === "Mở" ? "Đóng khóa học" : "Xóa"}
+                  className={`p-1.5 hover:bg-gray-100 rounded ${
+                    course.status === "Mở" ? "text-amber-600" : "text-rose-600"
+                  }`}
                 >
-                  Xóa
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </AlertDialogTrigger>
+
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {course.status === "Mở" ? "Đóng khóa học" : "Xác nhận xóa"}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {course.status === "Mở" ? (
+                      <>
+                        Khóa học{" "}
+                        <span className="font-medium text-amber-600">
+                          "{course.name}"
+                        </span>{" "}
+                        hiện đang mở. Bạn có muốn{" "}
+                        <b>chuyển sang trạng thái "Đóng"</b> không?
+                      </>
+                    ) : (
+                      <>
+                        Bạn có chắc chắn muốn xóa khóa học{" "}
+                        <span className="font-medium text-rose-600">
+                          "{course.name}"
+                        </span>
+                        ?<br />
+                        Hành động này <strong>không thể hoàn tác</strong>.
+                      </>
+                    )}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Hủy</AlertDialogCancel>
+                  <AlertDialogAction
+                    className={`${
+                      course.status === "Mở"
+                        ? "bg-amber-600 hover:bg-amber-700"
+                        : "bg-rose-600 hover:bg-rose-700"
+                    } text-white`}
+                    onClick={handleDeleteOrClose}
+                  >
+                    {course.status === "Mở" ? "Đóng khóa học" : "Xóa"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </td>
     </tr>

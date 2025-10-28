@@ -23,6 +23,7 @@ import CourseFilterTeacher from "@/courseManagement/components/CourseFilterTeach
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import type { CourseListDto } from "@/courseManagement/types/api";
 import { documentService } from "@/documentManagement/services/documentService";
+import { useAppUserStore } from "@/user/stores/useAppUserStore";
 
 const CourseList: React.FC = () => {
   const courses = useCourseStore((s) => s.courses);
@@ -30,9 +31,9 @@ const CourseList: React.FC = () => {
   const totalCourses = useCourseStore((s) => s.total);
   const page = useCourseStore((s) => s.page);
   const pageSize = useCourseStore((s) => s.pageSize);
-  const [subjectList, setSubjectList] = useState<
-    { id: number; name: string }[]
-  >([]);
+  const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
+  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
 
   const totalPages = useMemo(() => {
     if (totalCourses && pageSize) {
@@ -79,26 +80,44 @@ const CourseList: React.FC = () => {
 
   const goToPage = (p: number) => {
     if (p >= 1 && p <= totalPages) {
-      fetchCourses({ page: p, pageSize: pageSize || 10 });
-    }
-  };
-
-  const fetchSubjects = async () => {
-    const res = await documentService.getSubjects();
-    if (Array.isArray(res)) {
-      setSubjectList(res.map((s: any) => ({ id: s.id, name: s.name })));
+      fetchCourses({ page: p, pageSize: pageSize || 10, isApproved: true });
     }
   };
 
   useEffect(() => {
+    let mounted = true;
     (async () => {
       try {
-        fetchCourses({ page: 1, pageSize: pageSize || 10 });
+        const s = await documentService.getSubjects();
+        if (!mounted) return;
+        setSubjects((s || []).map((x: any) => ({ id: x.id, name: x.name })));
+      } catch (err) {
+        console.error("Failed to load subjects", err);
+      }
+    })();
+    (async () => {
+      try {
+        const r = await filterAppUsers(
+          "role=00000000-0000-0000-0000-000000000003&page=1"
+        );
+        setTeachers(r?.data ?? []);
+      } catch (err) {
+        // ignore
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [filterAppUsers]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        fetchCourses({ page: 1, pageSize: pageSize || 10, isApproved: true });
       } catch (err) {
         console.error("Failed to load courses", err);
       }
     })();
-    fetchSubjects();
   }, [fetchCourses, pageSize]);
 
   const shown: CourseType[] = (courses ?? []).map((c: CourseListDto) => ({
@@ -109,7 +128,7 @@ const CourseList: React.FC = () => {
     price: c.price,
     grade: c.grade,
     subjectId: c.subjectId,
-    subjectName: subjectList.find((s) => s.id === c.subjectId)?.name || "",
+    subjectName: subjects.find((s) => s.id === c.subjectId)?.name || "",
     schoolId: c.schoolId ?? null,
     isFeatured: c.isFeatured,
     status: c.status,
@@ -117,9 +136,10 @@ const CourseList: React.FC = () => {
     startAt: c.startAt ? new Date(c.startAt).toLocaleDateString() : "",
     endAt: c.endAt ? new Date(c.endAt).toLocaleDateString() : "",
     updatedAt: c.updatedAt ? new Date(c.updatedAt).toLocaleDateString() : null,
-    updatedBy: c.updatedBy ?? null,
-    createdBy: c.createdBy,
+    updatedBy: teachers.find((t) => t.id === c.updatedBy)?.fullname || "",
+    createdBy: teachers.find((t) => t.id === c.createdBy)?.fullname || "",
     chapters: c.chapters ?? [],
+    isApproved: c.isApproved,
   }));
 
   const startRange = page && pageSize ? (page - 1) * pageSize + 1 : 0;

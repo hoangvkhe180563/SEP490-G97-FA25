@@ -25,6 +25,7 @@ public static class CourseMapper
         UpdatedAt = c.UpdatedAt,
         UpdatedBy = c.UpdatedBy,
         CreatedBy = c.CreatedBy,
+        IsApproved = c.IsApproved,
         Chapters = c.Chapters?.Select(ch => ch.ToListDto()).ToList() ?? new List<ChapterListDto>()
     };
 
@@ -46,6 +47,7 @@ public static class CourseMapper
         UpdatedAt = c.UpdatedAt,
         UpdatedBy = c.UpdatedBy,
         CreatedBy = c.CreatedBy,
+        IsApproved = c.IsApproved,
         Chapters = c.Chapters?.Select(ch => ch.ToDto()).ToList() ?? new List<ChapterDto>(),
     };
 
@@ -69,6 +71,7 @@ public static class CourseMapper
             UpdatedAt = dto.UpdatedAt,
             UpdatedBy = dto.UpdatedBy,
             CreatedBy = dto.CreatedBy,
+            IsApproved = dto.IsApproved,
             Chapters = dto.Chapters?.Select(ch => ch.ToEntity()).ToList() ?? new List<Chapter>()
         };
 

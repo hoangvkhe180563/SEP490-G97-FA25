@@ -25,10 +25,12 @@ public class CourseController : ControllerBase
         [FromQuery] string? q,
         [FromQuery] short? subjectId,
         [FromQuery] sbyte? grade,
-        [FromQuery] string? duration,
+        [FromQuery] int? minDuration,
+        [FromQuery] int? maxDuration,
         [FromQuery] Guid? instructor,
         [FromQuery] string? status,
         [FromQuery] bool? isFeatured,
+        [FromQuery] bool? isApproved,
         [FromQuery] string? sort,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10)
@@ -39,10 +41,12 @@ public class CourseController : ControllerBase
             SubjectId = subjectId,
             Sort = sort,
             Grade = grade,
-            Duration = duration,
+            minDuration = minDuration,
+            maxDuration = maxDuration,
             Instructor = instructor,
             Status = status,
             IsFeatured = isFeatured,
+            IsApproved = isApproved,
             Page = page,
             PageSize = pageSize
         };
@@ -83,7 +87,6 @@ public class CourseController : ControllerBase
     }
 
     // ===================== UPDATE =====================
-    // ===================== UPDATE =====================
     [HttpPut("{id}")]
     public IActionResult Update(int id, [FromBody] CourseDto dto)
     {
@@ -108,6 +111,7 @@ public class CourseController : ControllerBase
         existing.EndAt = dto.EndAt;
         existing.UpdatedAt = DateTime.UtcNow;
         existing.UpdatedBy = dto.UpdatedBy;
+        existing.IsApproved = dto.IsApproved;
 
         // Chapters
         if (dto.Chapters != null && dto.Chapters.Any())

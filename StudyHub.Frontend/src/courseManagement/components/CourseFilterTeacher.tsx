@@ -35,10 +35,11 @@ const CourseFilterTeacher: React.FC = () => {
     const handler = setTimeout(() => {
       fetchCourses({
         page: 1,
-        pageSize: 5,
+        pageSize: 6,
         q: q.trim() || undefined,
         subjectId: subjects !== "all" ? Number(subjects) : undefined,
         status: status !== "all" ? status : undefined,
+        isApproved: true,
       });
     }, 300);
 

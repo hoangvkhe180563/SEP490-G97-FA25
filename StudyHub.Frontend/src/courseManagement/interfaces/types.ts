@@ -1,3 +1,17 @@
+export type ProgressListDto = {
+  Id: number;
+  EnrollmentId: number;
+  LessonId: number;
+  CompletionDate: Date;
+};
+
+export type EnrollmentListDto = {
+  Id: number;
+  AppUserId: string;
+  CourseId: number;
+  EnrollmentDate: Date;
+};
+
 export type LessonListDto = {
   id: number;
   name: string;
@@ -40,14 +54,35 @@ export type CourseListDto = {
   updatedAt?: string | null;
   updatedBy?: string | null;
   createdBy: string;
+  isApproved: boolean;
   chapters?: ChapterListDto[];
 };
+
+export interface DialogState {
+  open: boolean;
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+  navigateTo?: string;
+}
 
 export type CourseStatus = "Mở" | "Đóng" | "Nháp";
 
 export type LessonResource = {
   id: number;
   url: string;
+};
+
+export type ProgressDto = {
+  EnrollmentId: number;
+  LessonId: number;
+  CompletionDate: Date;
+};
+
+export type EnrollmentDto = {
+  AppUserId: string;
+  CourseId: number;
+  EnrollmentDate: Date;
 };
 
 export type LessonDto = {
@@ -88,5 +123,6 @@ export type CourseDetailDto = {
   updatedAt?: string | null;
   updatedBy?: string | null;
   createdBy: string;
+  isApproved: boolean;
   chapters?: ChapterDto[];
 };
