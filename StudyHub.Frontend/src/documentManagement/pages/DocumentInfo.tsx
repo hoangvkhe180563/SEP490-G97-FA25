@@ -1,7 +1,9 @@
-//StudyHub.Frontend/src/documentManagement/pages/DocumentViewer.tsx
+//StudyHub.Frontend/src/documentManagement/pages/DocumentInfo.tsx
 import type React from "react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import {
   Download,
   ZoomIn,
@@ -71,6 +73,7 @@ interface FlipBookRef {
 
 export default function DocumentViewer() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string>("");
@@ -508,6 +511,10 @@ export default function DocumentViewer() {
         <div className="bg-white border-b border-gray-200 px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                Quay lại
+              </Button>
               <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
                 <FileText className="w-5 h-5 text-gray-600" />
               </div>

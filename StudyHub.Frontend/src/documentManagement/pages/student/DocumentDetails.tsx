@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/common/components/ui/button";
+import Autoplay from "embla-carousel-autoplay";
 import {
   Card,
   CardContent,
@@ -30,6 +31,7 @@ import {
   FolderOpen,
   User,
   Loader2,
+  ArrowLeft,
 } from "lucide-react";
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
 import type {
@@ -56,8 +58,8 @@ function DocumentPreview({
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center space-y-3">
-          <FileText className="w-16 h-16 text-gray-400" />
-          <p className="text-sm font-medium text-gray-600">
+          <FileText className="w-16 h-16 text-white-400" />
+          <p className="text-sm font-medium text-white-600">
             {fileType || "PDF"}
           </p>
         </div>
@@ -374,6 +376,11 @@ function RelatedDocumentsSection({
           align: "start",
           loop: relatedDocs.length > 3,
         }}
+        plugins={[
+          Autoplay({
+            delay: 3000,
+          }),
+        ]}
         className="w-full"
       >
         <CarouselContent>
@@ -399,7 +406,7 @@ function RelatedDocumentsSection({
               className={`w-2 h-2 rounded-full transition-all duration-300 ${
                 Math.floor(current / 3) === index
                   ? "bg-blue-600 w-8"
-                  : "bg-gray-300 hover:bg-gray-400"
+                  : "bg-white-300 hover:bg-white-400"
               }`}
               aria-label={`Go to slide ${index + 1}`}
             />
@@ -414,6 +421,7 @@ export default function DocumentDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+
   const { document, isLoading, getDocumentById, downloadDocument } =
     useDocumentStore();
   const [isDownloading, setIsDownloading] = useState(false);
@@ -494,8 +502,12 @@ export default function DocumentDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white-50">
       <div className="container mx-auto p-6 max-w-7xl">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Quay lại
+        </Button>
         <div className="flex gap-6 mb-6">
           <DocumentPreview
             thumbnail={document.thumbnail}

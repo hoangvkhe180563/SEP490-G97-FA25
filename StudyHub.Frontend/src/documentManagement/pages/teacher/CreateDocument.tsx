@@ -7,6 +7,8 @@ import { Card } from "@/common/components/ui/card";
 import { Input } from "@/common/components/ui/input";
 import { Textarea } from "@/common/components/ui/textarea";
 import { Button } from "@/common/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -80,9 +82,13 @@ interface ToastMessage {
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export default function CreateDocument() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const { categories, subjects, getCategories, getSubjects } =
     useDocumentStore();
+  const [editingDocumentId, setEditingDocumentId] = useState<string | null>(
+    null
+  );
 
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
@@ -98,7 +104,36 @@ export default function CreateDocument() {
   const [isUploading, setIsUploading] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [classSearch, setClassSearch] = useState("");
+  const loadDocumentToEdit = (doc: PendingDocument) => {
+    setEditingDocumentId(doc.id);
 
+    form.setValue("name", doc.name);
+    form.setValue("subject", doc.subjectId.toString());
+    form.setValue("grade", doc.grade);
+    form.setValue("type", doc.categoryId.toString());
+    form.setValue(
+      "access",
+      doc.access === "Công khai"
+        ? "public"
+        : doc.access === "Trường"
+        ? "school"
+        : "class"
+    );
+    form.setValue("description", doc.description || "");
+    form.setValue("classes", doc.classes || []);
+
+    setDocumentFile(doc.documentFile);
+    if (doc.thumbnailFile) {
+      setThumbnailFile(doc.thumbnailFile);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setThumbnailPreview(reader.result as string);
+      };
+      reader.readAsDataURL(doc.thumbnailFile);
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -179,6 +214,7 @@ export default function CreateDocument() {
     setDocumentFile(null);
     setThumbnailFile(null);
     setThumbnailPreview(null);
+    setEditingDocumentId(null);
   };
 
   const onAddToList = (data: FormValues) => {
@@ -208,8 +244,8 @@ export default function CreateDocument() {
         ? "Trường"
         : "Lớp";
 
-    const newDocument: PendingDocument = {
-      id: `${Date.now()}-${Math.random()}`,
+    const documentData: PendingDocument = {
+      id: editingDocumentId || `${Date.now()}-${Math.random()}`,
       name: data.name,
       subject: subject?.name || "",
       grade: data.grade,
@@ -225,9 +261,18 @@ export default function CreateDocument() {
       isInClass,
     };
 
-    setPendingDocuments((prev) => [...prev, newDocument]);
+    if (editingDocumentId) {
+      setPendingDocuments((prev) =>
+        prev.map((doc) => (doc.id === editingDocumentId ? documentData : doc))
+      );
+      showToast("success", "Đã cập nhật tài liệu");
+      setEditingDocumentId(null);
+    } else {
+      setPendingDocuments((prev) => [...prev, documentData]);
+      showToast("success", "Đã thêm tài liệu vào danh sách");
+    }
+
     resetForm();
-    showToast("success", "Đã thêm tài liệu vào danh sách");
   };
 
   const onDocumentFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -271,7 +316,22 @@ export default function CreateDocument() {
       return newSet;
     });
   };
+  const uploadSingleDocument = async (docId: string) => {
+    const doc = pendingDocuments.find((d) => d.id === docId);
+    if (!doc) return;
 
+    setIsUploading(true);
+    const success = await uploadDocument(doc);
+
+    if (success) {
+      removeDocument(docId);
+      showToast("success", "Đã tải lên tài liệu thành công");
+    } else {
+      showToast("error", "Tải lên tài liệu thất bại");
+    }
+
+    setIsUploading(false);
+  };
   const toggleSelectAll = () => {
     if (selectedDocuments.size === pendingDocuments.length) {
       setSelectedDocuments(new Set());
@@ -453,12 +513,17 @@ export default function CreateDocument() {
 
   return (
     <div>
+      <div className="max-w-7xl mx-auto mb-4">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="gap-2">
+          <ArrowLeft className="w-4 h-4" />
+          Quay lại
+        </Button>
+      </div>{" "}
       <div className="fixed top-4 right-4 z-50 space-y-2">
         {toasts.map((toast) => (
           <Toast key={toast.id} toast={toast} />
         ))}
       </div>
-
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           <div className="lg:col-span-3">
@@ -847,6 +912,7 @@ export default function CreateDocument() {
                   <div
                     key={doc.id}
                     className="flex items-start gap-3 p-3 rounded-lg border hover:bg-gray-50 transition-colors"
+                    onDoubleClick={() => loadDocumentToEdit(doc)}
                   >
                     <Checkbox
                       id={`doc-${doc.id}`}
@@ -861,9 +927,10 @@ export default function CreateDocument() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-sm font-medium text-gray-900 truncate">
-                            {doc.name}
-                          </h3>
+                          <h3
+                            className="text-sm font-medium text-gray-900 truncate"
+                            dangerouslySetInnerHTML={{ __html: doc.name }}
+                          />
                           <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
                             <span>{doc.subject}</span>
                             <span>•</span>
@@ -880,14 +947,25 @@ export default function CreateDocument() {
                         {doc.access}
                       </Badge>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => removeDocument(doc.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => uploadSingleDocument(doc.id)}
+                        disabled={isUploading}
+                      >
+                        <Upload className="h-4 w-4 text-blue-600" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => removeDocument(doc.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
                 {pendingDocuments.length === 0 && (

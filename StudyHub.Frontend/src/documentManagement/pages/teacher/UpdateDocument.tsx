@@ -8,6 +8,7 @@ import { Card } from "@/common/components/ui/card";
 import { Input } from "@/common/components/ui/input";
 import { Textarea } from "@/common/components/ui/textarea";
 import { Button } from "@/common/components/ui/button";
+
 import {
   Select,
   SelectContent,
@@ -26,6 +27,7 @@ import {
   Eye,
   Download,
   AlertCircle,
+  ArrowLeft,
 } from "lucide-react";
 import {
   Form,
@@ -450,7 +452,14 @@ export default function UpdateDocument() {
             </AlertDescription>
           </Alert>
         )}
-
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          className="mb-4 gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Quay lại
+        </Button>
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-2">
           <div className="lg:col-span-4">
             <Card className="p-6">
