@@ -38,15 +38,19 @@ namespace StudyHub.Backend.UseCases.Repositories
             int? pageSize = null);
 
         (List<Document> documents, int totalCount) GetManagerPublicDocuments(
-            string? query = null,
-            int? categoryId = null,
-            int? grade = null,
-            string? subject = null,
-            int? classId = null,
-            bool? isApproved = null,
-            bool? status = null,
-            int? pageNumber = null,
-            int? pageSize = null);
+       string? query = null,
+       int? categoryId = null,
+       int? grade = null,
+       string? subject = null,
+       int? classId = null,
+       bool? isApproved = null,
+       bool? status = null,
+       DateTime? createdFrom = null,
+       DateTime? createdTo = null,
+       DateTime? updatedFrom = null,
+       DateTime? updatedTo = null,
+       int? pageNumber = null,
+       int? pageSize = null);
 
         (List<Document> documents, int totalCount) GetManagerSchoolDocuments(
             int schoolId,
@@ -57,6 +61,10 @@ namespace StudyHub.Backend.UseCases.Repositories
             int? classId = null,
             bool? isApproved = null,
             bool? status = null,
+            DateTime? createdFrom = null,
+            DateTime? createdTo = null,
+            DateTime? updatedFrom = null,
+            DateTime? updatedTo = null,
             int? pageNumber = null,
             int? pageSize = null);
         List<Document> GetDocumentsBySubject(int subjectId);
@@ -64,6 +72,8 @@ namespace StudyHub.Backend.UseCases.Repositories
         List<Document> GetDocumentsBySubjectForSchool(int subjectId, int schoolId);
         Document CreateDocument(Document document);
         Document UpdateDocument(Document document);
+        List<Document> GetDocumentsByClass(int classId);
+        List<Class> GetClassesByDocument(int documentId);
         bool DeleteDocument(int id);
     }
 }

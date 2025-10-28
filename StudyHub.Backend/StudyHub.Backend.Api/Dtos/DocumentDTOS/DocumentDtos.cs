@@ -23,6 +23,8 @@ namespace StudyHub.Backend.Api.Dtos
         public bool IsFeatured { get; set; }
         public bool? IsApproved { get; set; }
         public bool Status { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public Guid? UpdatedBy { get; set; }
         public string? FileType { get; set; }
         public string? UploaderName { get; set; }
         public string? UploaderUrl { get; set; }
@@ -131,9 +133,15 @@ namespace StudyHub.Backend.Api.Dtos
         public Guid? UploaderId { get; set; }
         public bool? IsFeatured { get; set; }
         public bool? IsApproved { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public Guid? UpdatedBy { get; set; }
         public bool? Status { get; set; } = true;
         public bool? IsPendingApproval { get; set; }
         public bool IncludeUnapproved { get; set; }
+        public DateTime? CreatedFrom { get; set; }
+        public DateTime? CreatedTo { get; set; }
+        public DateTime? UpdatedFrom { get; set; }
+        public DateTime? UpdatedTo { get; set; }
         public List<ClassListDto> classes { get; set; } = new();
 
         public int PageNumber { get; set; } = 1;
