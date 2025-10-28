@@ -428,7 +428,59 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 return false;
             }
         }
+        public List<Document> GetDocumentsBySubjectForPublic(int subjectId)
+        {
+            try
+            {
+                var documents = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Where(d => d.SubjectId == subjectId
+                             && d.IsApproved == true
+                             && d.Status == true
+                             && d.DeletedAt == null
+                             && d.SchoolId == null
+                             && d.IsInClass == false)
+                    .OrderByDescending(d => d.CreatedAt)
+                    .Select(d => MapToEntity(d))
+                    .ToList();
 
+                return documents;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetDocumentsBySubjectForPublic failed. Inner error: " + ex.Message).LogError();
+                return new List<Document>();
+            }
+        }
+
+        public List<Document> GetDocumentsBySubjectForSchool(int subjectId, int schoolId)
+        {
+            try
+            {
+                var documents = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Where(d => d.SubjectId == subjectId
+                             && d.IsApproved == true
+                             && d.Status == true
+                             && d.DeletedAt == null
+                             && d.IsInClass == false
+                             && (d.SchoolId == null || d.SchoolId == schoolId))
+                    .OrderByDescending(d => d.CreatedAt)
+                    .Select(d => MapToEntity(d))
+                    .ToList();
+
+                return documents;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetDocumentsBySubjectForSchool failed. Inner error: " + ex.Message).LogError();
+                return new List<Document>();
+            }
+        }
         private static Document MapToEntity(Data.Document d)
         {
             return new Document

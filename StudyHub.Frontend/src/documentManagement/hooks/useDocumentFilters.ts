@@ -1,11 +1,7 @@
 // src/documentManagement/hooks/useDocumentFilters.ts
 import { useState, useEffect, useCallback } from "react";
-import { documentService } from "@/documentManagement/services/documentService";
+import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
 import type { Document } from "@/documentManagement/interfaces/document";
-import type {
-  Subject,
-  DocumentCategory,
-} from "@/documentManagement/interfaces/masterData";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 interface FilterState {
@@ -15,65 +11,77 @@ interface FilterState {
   selectedCategories: number[];
 }
 
+const STORAGE_KEY = "document-list-state";
+
+const loadState = () => {
+  try {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error("Error loading state:", error);
+  }
+  return null;
+};
+
+const saveState = (state: any) => {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.error("Error saving state:", error);
+  }
+};
+
 export const useDocumentFilters = () => {
   const { user } = useAuthStore();
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [categories, setCategories] = useState<DocumentCategory[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState("newest");
+  const {
+    documents: storeDocuments,
+    categories,
+    subjects,
+    totalPages: storeTotalPages,
+    totalCount: storeTotalCount,
+    currentPage: storeCurrentPage,
+    fetchPublicDocuments,
+    fetchSchoolDocuments,
+    getCategories,
+    getSubjects,
+    isLoading,
+  } = useDocumentStore();
+
+  const savedState = loadState();
+
+  const [searchQuery, setSearchQuery] = useState(savedState?.searchQuery || "");
+  const [sortBy, setSortBy] = useState(savedState?.sortBy || "newest");
+  const [currentPage, setCurrentPage] = useState(savedState?.currentPage || 1);
   const pageSize = 9;
 
-  const [filters, setFilters] = useState<FilterState>({
-    showSchoolDocs: false,
-    selectedGrades: [],
-    selectedSubjects: [],
-    selectedCategories: [],
-  });
+  const [filters, setFilters] = useState<FilterState>(
+    savedState?.filters || {
+      showSchoolDocs: false,
+      selectedGrades: [],
+      selectedSubjects: [],
+      selectedCategories: [],
+    }
+  );
 
   const userSchoolId = user?.schoolId;
 
   useEffect(() => {
-    const fetchMasterData = async () => {
-      try {
-        const [subjectsData, categoriesData] = await Promise.all([
-          documentService.getSubjects(),
-          documentService.getDocumentCategories(),
-        ]);
-        setSubjects(subjectsData);
-        setCategories(categoriesData);
-      } catch (err) {
-        console.error("Failed to fetch master data", err);
-      }
-    };
-    fetchMasterData();
+    getCategories();
+    getSubjects();
   }, []);
 
-  const applySorting = (docs: Document[]) => {
-    if (sortBy === "oldest") {
-      docs.sort(
-        (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
-    } else if (sortBy === "name") {
-      docs.sort((a, b) => a.name.localeCompare(b.name));
-    } else {
-      docs.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-    }
-  };
+  useEffect(() => {
+    saveState({
+      searchQuery,
+      sortBy,
+      currentPage,
+      filters,
+    });
+  }, [searchQuery, sortBy, currentPage, filters]);
 
   const fetchDocuments = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
     try {
       const gradeParam =
         filters.selectedGrades.length === 1
@@ -89,122 +97,39 @@ export const useDocumentFilters = () => {
           : undefined;
 
       if (filters.showSchoolDocs && userSchoolId) {
-        const [publicResponse, schoolResponse] = await Promise.all([
-          documentService.getPublicDocuments(
-            searchQuery || undefined,
-            categoryParam,
-            gradeParam,
-            subjectParam,
-            undefined,
-            1,
-            999
-          ),
-          documentService.getSchoolDocuments(
-            userSchoolId,
-            searchQuery || undefined,
-            categoryParam,
-            gradeParam,
-            subjectParam,
-            undefined,
-            1,
-            999
-          ),
-        ]);
-
-        const publicDocs = publicResponse.data.items.map((d) => ({
-          ...d,
-          isSchoolDocument: false,
-        }));
-        const schoolDocs = schoolResponse.data.items.map((d) => ({
-          ...d,
-          isSchoolDocument: true,
-        }));
-
-        let allDocs = [...publicDocs, ...schoolDocs];
-
-        if (filters.selectedGrades.length > 1) {
-          allDocs = allDocs.filter((d) =>
-            filters.selectedGrades.includes(Number(d.grade))
-          );
-        }
-
-        if (filters.selectedSubjects.length > 1) {
-          allDocs = allDocs.filter((d) =>
-            filters.selectedSubjects.includes(d.subjectName || "")
-          );
-        }
-
-        if (filters.selectedCategories.length > 1) {
-          allDocs = allDocs.filter((d) =>
-            filters.selectedCategories.includes(Number(d.documentCategoryId))
-          );
-        }
-
-        applySorting(allDocs);
-
-        const total = allDocs.length;
-        const pages = Math.ceil(total / pageSize);
-        const startIndex = (currentPage - 1) * pageSize;
-        const endIndex = startIndex + pageSize;
-        const paginatedDocs = allDocs.slice(startIndex, endIndex);
-
-        setDocuments(paginatedDocs);
-        setTotalPages(pages);
-        setTotalCount(total);
-      } else {
-        const response = await documentService.getPublicDocuments(
+        await fetchSchoolDocuments(
+          userSchoolId.toString(),
           searchQuery || undefined,
           categoryParam,
           gradeParam,
           subjectParam,
           undefined,
-          1,
-          999
+          currentPage,
+          pageSize
         );
-
-        let filteredDocs = response.data.items.map((d) => ({
-          ...d,
-          isSchoolDocument: false,
-        }));
-
-        if (filters.selectedGrades.length > 1) {
-          filteredDocs = filteredDocs.filter((d) =>
-            filters.selectedGrades.includes(Number(d.grade))
-          );
-        }
-
-        if (filters.selectedSubjects.length > 1) {
-          filteredDocs = filteredDocs.filter((d) =>
-            filters.selectedSubjects.includes(d.subjectName || "")
-          );
-        }
-
-        if (filters.selectedCategories.length > 1) {
-          filteredDocs = filteredDocs.filter((d) =>
-            filters.selectedCategories.includes(Number(d.documentCategoryId))
-          );
-        }
-
-        applySorting(filteredDocs);
-
-        const total = filteredDocs.length;
-        const pages = Math.ceil(total / pageSize);
-        const startIndex = (currentPage - 1) * pageSize;
-        const endIndex = startIndex + pageSize;
-        const paginatedDocs = filteredDocs.slice(startIndex, endIndex);
-
-        setDocuments(paginatedDocs);
-        setTotalPages(pages);
-        setTotalCount(total);
+      } else {
+        await fetchPublicDocuments(
+          searchQuery || undefined,
+          categoryParam,
+          gradeParam,
+          subjectParam,
+          undefined,
+          currentPage,
+          pageSize
+        );
       }
     } catch (err) {
-      setError("Không thể tải danh sách tài liệu");
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.error("Error fetching documents:", err);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, searchQuery, sortBy, filters, userSchoolId]);
+  }, [
+    currentPage,
+    searchQuery,
+    filters,
+    userSchoolId,
+    fetchPublicDocuments,
+    fetchSchoolDocuments,
+    pageSize,
+  ]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -220,15 +145,49 @@ export const useDocumentFilters = () => {
     fetchDocuments();
   }, [fetchDocuments]);
 
+  const sortedDocuments = [...storeDocuments].sort((a, b) => {
+    if (sortBy === "oldest") {
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    } else if (sortBy === "name") {
+      return a.name.localeCompare(b.name);
+    } else {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+  });
+
+  const filteredDocuments = sortedDocuments.filter((doc) => {
+    if (filters.selectedGrades.length > 1) {
+      if (!filters.selectedGrades.includes(Number(doc.grade))) {
+        return false;
+      }
+    }
+
+    if (filters.selectedSubjects.length > 1) {
+      if (!filters.selectedSubjects.includes(doc.subjectName || "")) {
+        return false;
+      }
+    }
+
+    if (filters.selectedCategories.length > 1) {
+      if (
+        !filters.selectedCategories.includes(Number(doc.documentCategoryId))
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
   return {
-    documents,
+    documents: filteredDocuments,
     subjects,
     categories,
-    loading,
-    error,
+    loading: isLoading,
+    error: null,
     currentPage,
-    totalPages,
-    totalCount,
+    totalPages: storeTotalPages,
+    totalCount: storeTotalCount,
     pageSize,
     searchQuery,
     sortBy,
