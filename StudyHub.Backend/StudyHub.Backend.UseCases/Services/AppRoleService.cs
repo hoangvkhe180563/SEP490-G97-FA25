@@ -30,5 +30,32 @@ namespace StudyHub.Backend.UseCases.Services
         {
             return _roleRepository.GetRoleByName(roleName);
         }
+
+        public List<AppRole> GetAllRoles(string? search = null)
+        {
+            return _roleRepository.GetAllRoles(search).ToList();
+        }
+
+        public AppRole? GetRoleById(Guid roleId)
+        {
+            return _roleRepository.GetRoleById(roleId);
+        }
+
+        public List<AppPolicy> GetPoliciesForRole(Guid roleId)
+        {
+            return _roleRepository.GetPoliciesForRole(roleId).ToList();
+        }
+
+        public void UpdateRolePolicies(Guid roleId, List<AppPolicy> addPolicies, List<(int ResourceId, string ActionType)> removeKeys)
+        {
+            if (addPolicies != null && addPolicies.Any())
+            {
+                _roleRepository.AddPoliciesToRole(roleId, addPolicies);
+            }
+            if (removeKeys != null && removeKeys.Any())
+            {
+                _roleRepository.RemovePoliciesFromRole(roleId, removeKeys);
+            }
+        }
     }
 }

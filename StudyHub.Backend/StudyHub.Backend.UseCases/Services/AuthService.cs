@@ -13,6 +13,7 @@ using System.Text.Json;
 using StudyHub.Backend.Api.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -22,18 +23,22 @@ namespace StudyHub.Backend.UseCases.Services
         public IAppUserRepository _userRepository;
         public IAppRoleRepository _roleRepository;
         public IEmailService _emailService;
+        public IHttpContextAccessor _httpContextAccessor;
         private readonly IConfiguration _configuration;
         private const int SALT_ROUNDS = 12; // BCrypt salt rounds for hashing
         private const int DEFAULT_EXPIRES_MINUTES = 60; // default 60 minutes
         private const int DEFAULT_REFRESH_EXPIRES_MINUTES = 60 * 24 * 7; // default 7 days
 
-        public AuthService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, IEmailService emailService, IConfiguration configuration)
+        public AuthService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, IEmailService emailService, IHttpContextAccessor httpContextAccessor, IConfiguration configuration)
         {
             _userRepository = userRepository;
             _roleRepository = roleRepository;
             _emailService = emailService;
+            _httpContextAccessor = httpContextAccessor;
             _configuration = configuration;
         }
+
+
 
         /// <summary>
         /// Attempts to log in a user with the given email and password.
@@ -45,16 +50,16 @@ namespace StudyHub.Backend.UseCases.Services
         // error == null => success
         // error == "unverified" => user exists but not verified
         // error == "invalid" => credentials invalid
-        public (LoginResult? result, string? error) Login(string? emailOrUsername, string password)
+        public (LoginResult? result, string? error) Login(string email, string username, string password)
         {
             // allow login by email or username
             Domain.Entities.AppUser? user = null;
-            if (!string.IsNullOrEmpty(emailOrUsername))
+            if (!string.IsNullOrEmpty(email))
             {
-                user = _userRepository.GetByEmail(emailOrUsername);
+                user = _userRepository.GetByEmail(email);
                 if (user == null)
                 {
-                    user = _userRepository.GetByUsername(emailOrUsername);
+                    user = _userRepository.GetByUsername(username);
                 }
             }
 
@@ -620,6 +625,19 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 return null;
             }
+        }
+        public AppUser GetCurrentUser()
+        {
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext == null) throw new InvalidOperationException("No HttpContext available");
+            var user = httpContext.User;
+            if (user == null) throw new InvalidOperationException("No user in HttpContext");
+            var userIdClaim = user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+            if (userIdClaim == null) throw new InvalidOperationException("No NameIdentifier claim in user");
+            if (!Guid.TryParse(userIdClaim.Value, out var userId)) throw new InvalidOperationException("Invalid user id in NameIdentifier claim");
+            var appUser = _userRepository.GetById(userId);
+            if (appUser == null) throw new InvalidOperationException("User not found");
+            return appUser;
         }
     }
 }

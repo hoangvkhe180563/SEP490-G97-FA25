@@ -1,4 +1,5 @@
-﻿using CloudinaryDotNet.Actions;
+﻿using System.Data;
+using CloudinaryDotNet.Actions;
 using Microsoft.EntityFrameworkCore;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Data;
@@ -87,7 +88,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         }
 
-        public (List<Domain.Entities.AppUser>, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page = DEFAULT_CURRENT_PAGE, int limit = DEFAULT_PAGE_SIZE)
+        public (List<Domain.Entities.AppUser>, int, int, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page, int limit)
         {
             try
             {
@@ -117,17 +118,17 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 }
 
                 var total = users.Count();
+                if (page < 1) page = DEFAULT_CURRENT_PAGE;
+                if (limit < 1) limit = DEFAULT_PAGE_SIZE;
                 var totalPages = (int)Math.Ceiling(total / (double)limit);
-                if (page < 1) page = 1;
-                if (limit < 1) limit = 10;
                 var paged = users.Skip((page - 1) * limit).Take(limit).ToList();
                 var result = paged.Select(u => ToDomain(u)).ToList();
-                return (result, total, totalPages);
+                return (result, total, totalPages, page, limit);
             }
             catch (Exception ex)
             {
                 new InfrastructureException("AppUserRepository", "GetAppUsersBySearchAndFilter failed. Inner error: " + ex.Message).LogError();
-                return (new List<Domain.Entities.AppUser>(), 0, 0);
+                return (new List<Domain.Entities.AppUser>(), 0, 0, 0, 0);
             }
         }
 
@@ -177,28 +178,50 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         if (existing != null)
                         {
                             var roles = _context.AppRoles.Where(r => roleIds.Contains(r.Id)).ToList();
-                            foreach (var r in roles)
+                            var subjectIds = GetUserSubjectIds(existing.Id); // Có thể null hoặc empty
+                            var classIds = GetUserClassIds(existing.Id);
+                            if ((subjectIds == null || !subjectIds.Any()) && (classIds == null || !classIds.Any()))
                             {
-                                var subjectIds = GetUserSubjectIds(existing.Id); // Implement hàm này
-                                var classIds = GetUserClassIds(existing.Id);     // Implement hàm này
-
-                                foreach (var subjectId in subjectIds)
+                                foreach (var r in roles)
                                 {
-                                    foreach (var classId in classIds)
+                                    if (!existing.AppClaims.Any(c => c.RoleId == r.Id
+                                                                  && c.SubjectId == 0
+                                                                  && c.ClassId == 0))
                                     {
-                                        if (!existing.AppClaims.Any(c => c.RoleId == r.Id
-                                                                      && c.SubjectId == subjectId
-                                                                      && c.ClassId == classId))
+                                        var claim = new Data.AppClaim
                                         {
-                                            var claim = new Data.AppClaim
+                                            UserId = existing.Id,
+                                            RoleId = r.Id,
+                                            SubjectId = 0,
+                                            ClassId = 0
+                                        };
+                                        _context.AppClaims.Add(claim);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                var subjects = (subjectIds == null || !subjectIds.Any()) ? new List<short> { 0 } : subjectIds.Cast<short>().ToList();
+                                var classes = (classIds == null || !classIds.Any()) ? new List<int> { 0 } : classIds.Cast<int>().ToList();
+                                foreach (var r in roles)
+                                {
+                                    foreach (var subjectId in subjects)
+                                    {
+                                        foreach (var classId in classes)
+                                        {
+                                            if (!existing.AppClaims.Any(c => c.RoleId == r.Id
+                                                                          && c.SubjectId == subjectId
+                                                                          && c.ClassId == classId))
                                             {
-                                                UserId = existing.Id,
-                                                RoleId = r.Id,
-                                                SubjectId = subjectId,
-                                                ClassId = classId
-                                            };
-
-                                            _context.AppClaims.Add(claim);
+                                                var claim = new Data.AppClaim
+                                                {
+                                                    UserId = existing.Id,
+                                                    RoleId = r.Id,
+                                                    SubjectId = subjectId,
+                                                    ClassId = classId
+                                                };
+                                                _context.AppClaims.Add(claim);
+                                            }
                                         }
                                     }
                                 }
@@ -358,44 +381,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             existing.EmailVerificationExpire = expire;
             _context.AppUsers.Update(existing);
             _context.SaveChanges();
-        }
-
-        public string? GetSchoolName(int? schoolId)
-        {
-            if (!schoolId.HasValue) return null;
-            var s = _context.Schools.Find(schoolId.Value);
-            return s?.Name;
-        }
-
-        public string? GetCommuneName(int? communeId)
-        {
-            if (!communeId.HasValue) return null;
-            var c = _context.Communes.Find(communeId.Value);
-            return c?.Name;
-        }
-
-        public string? GetProvinceName(short? provinceId)
-        {
-            if (!provinceId.HasValue) return null;
-            var p = _context.Provinces.Find(provinceId.Value);
-            return p?.Name;
-        }
-
-        public string? GetCityName(sbyte? cityId)
-        {
-            if (!cityId.HasValue) return null;
-            var c = _context.Cities.Find(cityId.Value);
-            return c?.Name;
-        }
-
-        public (string? provinceName, string? cityName) GetProvinceAndCityNamesByCommuneId(int? communeId)
-        {
-            if (!communeId.HasValue) return (null, null);
-            var commune = _context.Communes.Include(c => c.Province).ThenInclude(p => p.City).FirstOrDefault(c => c.Id == communeId.Value);
-            if (commune == null) return (null, null);
-            var provinceName = commune.Province?.Name;
-            var cityName = commune.Province?.City?.Name;
-            return (provinceName, cityName);
         }
 
         // Lấy tất cả SubjectId mà user đã có claims

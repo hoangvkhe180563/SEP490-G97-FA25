@@ -2,6 +2,7 @@
 {
     public class AppUserListDto
     {
+        public bool Success { get; set; } = true;
         public string Message { get; set; } = null!;
         public List<UseCases.Dtos.AppUserListDto> Data { get; set; } = new List<UseCases.Dtos.AppUserListDto>();
 

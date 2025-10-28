@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download } from "lucide-react";
+import { AlertCircle, Download, Inbox, Loader2 } from "lucide-react";
 import { Input } from "@/common/components/ui/input";
 import {
   Select,
@@ -21,7 +21,6 @@ import {
 import AccountItem from "../../components/AccountItem";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import type { AppUser } from "@/user/interfaces/app-user";
-import type { User } from "@/user/interfaces/user";
 
 import {
   Pagination,
@@ -32,6 +31,7 @@ import {
   PaginationPrevious,
 } from "@/common/components/ui/pagination";
 import { Link } from "react-router-dom";
+import { useAppRoleStore } from "@/user/stores/useRoleStore";
 const AccountList = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -39,13 +39,21 @@ const AccountList = () => {
   const [statusFilter, setStatusFilter] = useState<string | "all">("all");
   const [page, setPage] = useState(1);
 
-  const { appUsers, meta, isLoading, filterAppUsers } = useAppUserStore();
-  const [localUsers, setLocalUsers] = useState<User[]>([]);
-
+  const {
+    appUsers,
+    setAppUsers,
+    meta,
+    isLoading,
+    success,
+    message,
+    filterAppUsers,
+  } = useAppUserStore();
+  const { appRoles, getAppRoles } = useAppRoleStore();
   // Map frontend status to backend expected values (Active/Inactive)
   const statusColor: Record<AppUser["status"], string> = {
-    Active: "bg-emerald-100 text-emerald-800",
-    Inactive: "bg-rose-100 text-rose-800",
+    Active:
+      "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 focus:ring-green-300",
+    Inactive: "bg-rose-100 text-rose-800 hover:bg-rose-200 focus:ring-rose-300",
   };
 
   // Debounce search input
@@ -59,7 +67,8 @@ const AccountList = () => {
     const params = new URLSearchParams();
     // role is expected as an int by the backend requirement; if 'all' skip
     if (roleFilter && roleFilter !== "all") params.set("role", roleFilter);
-    if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
+    if (statusFilter && statusFilter !== "all")
+      params.set("status", statusFilter);
     if (debouncedSearch) params.set("search", debouncedSearch);
     params.set("page", String(page));
     params.set("limit", "6");
@@ -69,22 +78,10 @@ const AccountList = () => {
   useEffect(() => {
     // Fetch when query changes
     filterAppUsers(query).catch((err) => console.error(err));
-  }, [query, filterAppUsers]);
+    // Fetch roles for the role filter dropdown
+    getAppRoles().catch((err) => console.error(err));
+  }, [query, filterAppUsers, getAppRoles]);
 
-  // keep a local copy for UI edits (status toggle etc.)
-  useEffect(() => {
-    // Map AppUser (new shape) to old User shape used by AccountItem component
-    const mapped: User[] = (appUsers ?? []).map((u) => ({
-      id: u.id,
-      name: u.fullName ?? (u.username as string) ?? u.email,
-      email: u.email,
-      role: u.roles && u.roles.length > 0 ? u.roles[0] : "",
-      avatar: undefined,
-      createdAt: u.createdAt,
-      status: u.status,
-    }));
-    setLocalUsers(mapped);
-  }, [appUsers]);
   const total = meta?.total ?? 0;
   const currentPage = meta?.page ?? page;
   const limit = meta?.limit ?? 6;
@@ -95,81 +92,141 @@ const AccountList = () => {
     <div className="bg-white rounded-xl shadow-md p-6">
       <div className="flex items-center gap-4 mb-6">
         <Input
-          placeholder="Search accounts..."
-          className="max-w-xs"
+          placeholder="Tìm kiếm tài khoản..."
+          className="max-w-xs bg-zinc-100 hover:bg-zinc-200 transition-all"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
             setPage(1);
           }}
         />
-        <Select onValueChange={(v) => { setRoleFilter(v as string); setPage(1); }}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Select role" />
+        <Select
+          onValueChange={(v) => {
+            setRoleFilter(v as string);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-40 bg-zinc-100 hover:bg-zinc-200 transition-all">
+            <SelectValue placeholder="Chọn vai trò" />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectItem value="all">All Roles</SelectItem>
-              <SelectItem value="teacher">Teacher</SelectItem>
-              <SelectItem value="student">Student</SelectItem>
+              <SelectItem value="all">Tất cả vai trò</SelectItem>
+              {appRoles.map((role) => (
+                <SelectItem key={role.id} value={String(role.id)}>
+                  {role.name}
+                </SelectItem>
+              ))}
             </SelectGroup>
           </SelectContent>
         </Select>
-        <Select onValueChange={(v) => { setStatusFilter(v as string); setPage(1); }}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Select status" />
+        <Select
+          onValueChange={(v) => {
+            setStatusFilter(v as string);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-40 bg-zinc-100 hover:bg-zinc-200 transition-all">
+            <SelectValue placeholder="Chọn trạng thái" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="all">Tất cả trạng thái</SelectItem>
             <SelectItem value="Active">Active</SelectItem>
             <SelectItem value="Inactive">Inactive</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" className="ml-auto flex items-center gap-2" disabled={isLoading}>
+        <Button
+          variant="outline"
+          className="ml-auto flex items-center gap-2"
+          disabled={isLoading}
+        >
           <Download className="w-4 h-4" /> Export
         </Button>
         <Button className="bg-black text-white flex items-center gap-2">
-          <Link to="/manager/add-account">+ Add Account</Link>
+          <Link to="/user/manager/add-account">+ Thêm tài khoản</Link>
         </Button>
       </div>
       <div className="overflow-hidden rounded-md ">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-12 px-4 py-3 text-left text-xs font-medium text-gray-500">
-                <input type="checkbox" className="w-4 h-4" />
+              <TableHead className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Người dùng
               </TableHead>
               <TableHead className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                User
+                Vai trò
               </TableHead>
               <TableHead className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Role
+                Ngày tạo
               </TableHead>
               <TableHead className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Created
-              </TableHead>
-              <TableHead className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
+                Trạng thái
               </TableHead>
               <TableHead className="w-36 px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
+                Hành động
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {localUsers.length > 0 ? (
-              localUsers.map((user, idx) => (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-40 text-center">
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <Loader2 className="h-10 w-10 animate-spin text-zinc-600" />
+                    <p className="text-sm text-gray-500">Đang tải dữ liệu...</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : !success ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-40 text-center">
+                  <div className="flex flex-col items-center justify-center gap-3 pt-5">
+                    <div className="rounded-full bg-red-100 p-3">
+                      <AlertCircle className="h-6 w-6 text-red-600" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        Đã có lỗi xảy ra khi tải dữ liệu
+                      </p>
+                      <p className="text-sm text-gray-500">{message}</p>
+                    </div>
+                    <Button
+                      onClick={() => window.location.reload()}
+                      className="px-4 py-2 bg-zinc-600 text-white text-sm rounded-lg hover:bg-zinc-700 transition-colors"
+                    >
+                      Thử lại
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : appUsers.length > 0 ? (
+              appUsers.map((user, idx) => (
                 <AccountItem
                   key={user.id}
                   user={user}
                   idx={idx}
-                  setUsers={setLocalUsers}
+                  setUsers={setAppUsers}
                   statusColor={statusColor}
                 />
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-20" />
+                <TableCell colSpan={6} className="h-40 text-center">
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <div className="rounded-full bg-gray-100 p-3">
+                      <Inbox className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        Không tìm thấy tài khoản nào phù hợp
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm của bạn để
+                        tìm kiếm kết quả khác.
+                      </p>
+                    </div>
+                  </div>
+                </TableCell>
               </TableRow>
             )}
           </TableBody>
@@ -177,7 +234,7 @@ const AccountList = () => {
       </div>
       <div className="flex items-center justify-between mt-4 px-2">
         <span className="text-sm text-gray-600">
-          Showing {start} to {end} of {total} results
+          Hiển thị từ {start} đến {end} trong {total} kết quả
         </span>
         <div>
           <Pagination>
