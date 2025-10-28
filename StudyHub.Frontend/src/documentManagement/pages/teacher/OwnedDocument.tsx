@@ -38,7 +38,6 @@ import { useOwnedDocuments } from "@/documentManagement/hooks/useOwnedDocuments"
 import OwnedDocumentItem from "@/documentManagement/components/OwnedDocumentItem";
 import OwnedDocumentListItem from "@/documentManagement/components/OwnedDocumentListItem";
 import type {
-  Document,
   FilterSidebarProps,
   DocumentHeaderProps,
   DocumentGridProps,

@@ -1,5 +1,5 @@
 // src/documentManagement/pages/manager/VerifyDocument.tsx
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/common/components/ui/input";
 import { Button } from "@/common/components/ui/button";
@@ -150,7 +150,6 @@ const ManagerDocumentApprovalList = () => {
   const {
     documents,
     totalPages,
-    currentPage: storeCurrentPage,
     isLoading,
     fetchManagerPublicDocuments,
     fetchManagerSchoolDocuments,
@@ -158,7 +157,6 @@ const ManagerDocumentApprovalList = () => {
     rejectDocument,
     revokeApproval,
     softDeleteDocument,
-    setCurrentPage: setStoreCurrentPage,
     getCategories,
     getSubjects,
     categories: storeCategoriesRaw,
@@ -252,14 +250,13 @@ const ManagerDocumentApprovalList = () => {
         pageSize
       );
     } else {
-      const schoolIdNum = parseInt(managerSchoolId!);
-      if (isNaN(schoolIdNum)) {
+      if (!managerSchoolId) {
         setErrorMessage("School ID không hợp lệ");
         return;
       }
 
       fetchManagerSchoolDocuments(
-        managerSchoolId!,
+        managerSchoolId!.toString(),
         searchQuery || undefined,
         selectedCategories.length > 0
           ? parseInt(selectedCategories[0])

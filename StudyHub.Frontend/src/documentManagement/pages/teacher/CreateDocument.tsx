@@ -170,6 +170,7 @@ export default function CreateDocument() {
     if (accessValue === "class" && user?.id) {
       fetchUserClasses();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessValue, user?.id]);
 
   if (!user) {
@@ -226,7 +227,7 @@ export default function CreateDocument() {
     const subject = subjects.find((s) => s.id.toString() === data.subject);
     const category = categories.find((c) => c.id.toString() === data.type);
 
-    let schoolId: string | null = null;
+    let schoolId: number | null = null;
     let isInClass: boolean | undefined = undefined;
 
     if (data.access === "school") {
@@ -257,7 +258,7 @@ export default function CreateDocument() {
       classes: data.classes,
       subjectId: parseInt(data.subject),
       categoryId: parseInt(data.type),
-      schoolId: schoolId ? parseInt(schoolId) : null,
+      schoolId: schoolId ? schoolId : null,
       isInClass,
     };
 

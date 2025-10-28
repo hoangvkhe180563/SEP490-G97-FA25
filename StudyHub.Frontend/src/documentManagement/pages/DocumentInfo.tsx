@@ -1,10 +1,9 @@
-//StudyHub.Frontend/src/documentManagement/pages/DocumentInfo.tsx
 import type React from "react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
 import {
+  ArrowLeft,
   Download,
   ZoomIn,
   ZoomOut,
@@ -17,6 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  Hand,
+  MousePointer2,
 } from "lucide-react";
 import { Button } from "@/common/components/ui/button";
 import {
@@ -62,6 +63,7 @@ interface PdfJs {
 }
 
 type ViewMode = "normal" | "flipbook";
+type InteractionMode = "pointer" | "hand";
 
 interface FlipBookRef {
   pageFlip: () => {
@@ -89,6 +91,11 @@ export default function DocumentViewer() {
   const [isContentLoading, setIsContentLoading] = useState(true);
   const [flipbookRotation, setFlipbookRotation] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [interactionMode, setInteractionMode] =
+    useState<InteractionMode>("pointer");
 
   const {
     document,
@@ -101,6 +108,7 @@ export default function DocumentViewer() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const flipBookRef = useRef<FlipBookRef | null>(null);
   const pageObserverRef = useRef<IntersectionObserver | null>(null);
+  const flipbookContainerRef = useRef<HTMLDivElement>(null);
 
   const isPdf = document?.fileType?.toLowerCase().includes("pdf");
   const isOfficeFile =
@@ -232,7 +240,7 @@ export default function DocumentViewer() {
       ) {
         const pagesToLoad = Math.min(3, numPages);
         const promises = [];
-        const baseScale = viewMode === "normal" ? (zoom / 100) * 1.5 : 1.5;
+        const baseScale = viewMode === "normal" ? (zoom / 100) * 1.2 : 1.5;
 
         for (let i = 1; i <= pagesToLoad; i++) {
           promises.push(renderPdfPageToCanvas(i, baseScale));
@@ -289,7 +297,7 @@ export default function DocumentViewer() {
 
         for (let i = start; i <= end; i++) {
           if (!pageImages[i - 1]) {
-            const img = await renderPdfPageToCanvas(i, (zoom / 100) * 1.5);
+            const img = await renderPdfPageToCanvas(i, (zoom / 100) * 1.2);
             setPageImages((prev) => {
               const newImages = [...prev];
               newImages[i - 1] = img;
@@ -380,6 +388,33 @@ export default function DocumentViewer() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentPage, numPages]);
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (viewMode === "flipbook" && interactionMode === "hand") {
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - dragOffset.x,
+        y: e.clientY - dragOffset.y,
+      });
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && viewMode === "flipbook" && interactionMode === "hand") {
+      setDragOffset({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y,
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
   const handleZoomIn = () => {
     setZoom((prev) => Math.min(prev + 10, 200));
   };
@@ -431,6 +466,12 @@ export default function DocumentViewer() {
     setViewMode((prev) => (prev === "normal" ? "flipbook" : "normal"));
     setRotation(0);
     setFlipbookRotation(0);
+    setInteractionMode("pointer");
+    setDragOffset({ x: 0, y: 0 });
+  };
+
+  const toggleInteractionMode = () => {
+    setInteractionMode((prev) => (prev === "pointer" ? "hand" : "pointer"));
   };
 
   const handlePageChange = useCallback(
@@ -503,6 +544,24 @@ export default function DocumentViewer() {
           max-width: 100%;
           max-height: 100%;
           object-fit: contain;
+          user-select: none;
+          pointer-events: none;
+        }
+        .stf__wrapper {
+          overflow: hidden !important;
+        }
+        .stf__parent {
+          overflow: hidden !important;
+        }
+        .stf__block {
+          pointer-events: auto !important;
+        }
+        .stf__item {
+          pointer-events: auto !important;
+        }
+        .stf__hardShadow,
+        .stf__softShadow {
+          display: none !important;
         }
       `}</style>
 
@@ -564,6 +623,21 @@ export default function DocumentViewer() {
               {isPdf && (
                 <>
                   <Separator orientation="vertical" className="h-6" />
+                  {viewMode === "flipbook" && (
+                    <Button
+                      variant={
+                        interactionMode === "hand" ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={toggleInteractionMode}
+                    >
+                      {interactionMode === "pointer" ? (
+                        <Hand className="w-4 h-4" />
+                      ) : (
+                        <MousePointer2 className="w-4 h-4" />
+                      )}
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" onClick={handleRotate}>
                     <RotateCw className="w-4 h-4" />
                   </Button>
@@ -639,7 +713,8 @@ export default function DocumentViewer() {
         <div className="flex flex-1 overflow-hidden">
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto bg-gray-100 flex justify-center p-4"
+            className="flex-1 bg-gray-100 flex justify-center p-4"
+            style={{ overflow: viewMode === "flipbook" ? "hidden" : "auto" }}
           >
             {isContentLoading ? (
               <div className="flex items-center justify-center w-full h-full">
@@ -652,92 +727,123 @@ export default function DocumentViewer() {
               </div>
             ) : isPdf ? (
               viewMode === "normal" ? (
-                <div className="w-full max-w-6xl space-y-4">
+                <div
+                  className="w-full max-w-5xl"
+                  style={{
+                    transform: `scale(${zoom / 100})`,
+                    transformOrigin: "top center",
+                  }}
+                >
                   {Array.from({ length: numPages }, (_, i) => i + 1).map(
                     (pageNum) => (
-                      <div
-                        key={pageNum}
-                        data-page={pageNum}
-                        className="bg-white shadow-lg mx-auto relative"
-                        style={{
-                          minHeight: "800px",
-                          transform: `scale(${
-                            zoom / 100
-                          }) rotate(${rotation}deg)`,
-                          transformOrigin: "center center",
-                          marginBottom: `${Math.abs(zoom - 100) * 2}px`,
-                        }}
-                      >
-                        {pageImages[pageNum - 1] ? (
-                          <img
-                            src={pageImages[pageNum - 1] || "/placeholder.svg"}
-                            alt={`Page ${pageNum}`}
-                            className="w-full"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
-                          </div>
-                        )}
+                      <div key={pageNum} data-page={pageNum} className="mb-6">
+                        <div
+                          className="bg-white shadow-lg mx-auto relative"
+                          style={{
+                            minHeight: "600px",
+                            transform: `rotate(${rotation}deg)`,
+                            transformOrigin: "center center",
+                          }}
+                        >
+                          {pageImages[pageNum - 1] ? (
+                            <img
+                              src={
+                                pageImages[pageNum - 1] || "/placeholder.svg"
+                              }
+                              alt={`Page ${pageNum}`}
+                              className="w-full"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )
                   )}
                 </div>
               ) : (
                 <div
-                  className="w-full max-w-6xl flex items-center justify-center"
+                  ref={flipbookContainerRef}
+                  className="w-full h-full flex items-center justify-center overflow-hidden"
                   style={{
-                    transform: `scale(${
-                      zoom / 100
-                    }) rotate(${flipbookRotation}deg)`,
-                    transformOrigin: "center center",
+                    cursor:
+                      interactionMode === "hand"
+                        ? isDragging
+                          ? "grabbing"
+                          : "grab"
+                        : "default",
                   }}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseLeave}
                 >
                   {numPages === 0 ? (
                     <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
                   ) : (
-                    <HTMLFlipBook
-                      width={550}
-                      height={733}
-                      size="stretch"
-                      minWidth={315}
-                      maxWidth={1000}
-                      minHeight={400}
-                      maxHeight={1533}
-                      maxShadowOpacity={0.5}
-                      showCover={true}
-                      mobileScrollSupport={true}
-                      onFlip={handleFlipbookFlip}
-                      className="shadow-2xl"
-                      startPage={currentPage - 1}
-                      ref={flipBookRef}
-                      style={{}}
-                      drawShadow={true}
-                      flippingTime={1000}
-                      usePortrait={false}
-                      startZIndex={0}
-                      autoSize={true}
-                      clickEventForward={true}
-                      useMouseEvents={true}
-                      swipeDistance={30}
-                      showPageCorners={true}
-                      disableFlipByClick={false}
+                    <div
+                      style={{
+                        transform: `translate(${dragOffset.x}px, ${
+                          dragOffset.y
+                        }px) scale(${
+                          zoom / 100
+                        }) rotate(${flipbookRotation}deg)`,
+                        transformOrigin: "center center",
+                        transition: isDragging
+                          ? "none"
+                          : "transform 0.1s ease-out",
+                        pointerEvents:
+                          interactionMode === "hand" ? "none" : "auto",
+                      }}
                     >
-                      {Array.from({ length: numPages }, (_, idx) => (
-                        <div key={idx} className="page">
-                          {pageImages[idx] ? (
-                            <img
-                              src={pageImages[idx] || "/placeholder.svg"}
-                              alt={`Page ${idx + 1}`}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                              <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </HTMLFlipBook>
+                      <HTMLFlipBook
+                        width={550}
+                        height={733}
+                        size="fixed"
+                        minWidth={315}
+                        maxWidth={1000}
+                        minHeight={400}
+                        maxHeight={1533}
+                        maxShadowOpacity={0.5}
+                        showCover={false}
+                        mobileScrollSupport={false}
+                        onFlip={handleFlipbookFlip}
+                        className="shadow-2xl"
+                        startPage={currentPage - 1}
+                        ref={flipBookRef}
+                        style={{
+                          pointerEvents:
+                            interactionMode === "pointer" ? "auto" : "none",
+                        }}
+                        drawShadow={true}
+                        flippingTime={600}
+                        usePortrait={false}
+                        startZIndex={0}
+                        autoSize={false}
+                        clickEventForward={false}
+                        useMouseEvents={interactionMode === "pointer"}
+                        swipeDistance={50}
+                        showPageCorners={false}
+                        disableFlipByClick={true}
+                      >
+                        {Array.from({ length: numPages }, (_, idx) => (
+                          <div key={idx} className="page">
+                            {pageImages[idx] ? (
+                              <img
+                                src={pageImages[idx] || "/placeholder.svg"}
+                                alt={`Page ${idx + 1}`}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                                <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </HTMLFlipBook>
+                    </div>
                   )}
                 </div>
               )
@@ -762,7 +868,7 @@ export default function DocumentViewer() {
             ) : (
               <div className="w-full max-w-6xl">
                 {!previewUrl ? (
-                  <div className="flex items-center justify-center h-full">
+                  <div className="flex items-center justifycenter h-full">
                     <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
                   </div>
                 ) : (
