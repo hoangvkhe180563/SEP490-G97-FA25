@@ -1,14 +1,17 @@
+export type UserStatus = "Active" | "Inactive";
+
 interface AppUser {
   id: string;
+  avatar?: string;
   email: string;
   username: string;
-  fullName: string;
+  fullname?: string;
   address: string;
-  status: "Active" | "Inactive";
+  status: UserStatus;
   createdAt: string;
   updatedAt: string;
   schoolName: string;
-  roles: string[];
+  roles?: string[];
   communeName: string;
 }
 

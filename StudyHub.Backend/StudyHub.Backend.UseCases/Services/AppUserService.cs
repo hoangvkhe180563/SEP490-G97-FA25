@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Http;
+using System.IO;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Repositories;
@@ -13,18 +15,20 @@ namespace StudyHub.Backend.UseCases.Services
         public IAppUserRepository _userRepository;
         public IAppRoleRepository _roleRepository;
         private readonly IConfiguration _configuration;
+        private readonly ICloudinaryRepository _cloudinary;
         private const int SALT_ROUNDS = 12; // BCrypt salt rounds for hashing
 
-        public AppUserService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, IConfiguration configuration)
+        public AppUserService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, IConfiguration configuration, StudyHub.Backend.UseCases.Repositories.ICloudinaryRepository cloudinary)
         {
             _userRepository = userRepository;
             _roleRepository = roleRepository;
             _configuration = configuration;
+            _cloudinary = cloudinary;
         }
 
         public PagedResult<AppUserListDto> GetAppUsers(string? status, string? role, string? search, int page, int limit)
         {
-            var (users, total, totalPages) = _userRepository.GetAppUsersBySearchAndFilter(status, role, search, page, limit);
+            var (users, total, totalPages, pageResult, limitResult) = _userRepository.GetAppUsersBySearchAndFilter(status, role, search, page, limit);
 
             var items = new List<AppUserListDto>();
             foreach (var u in users)
@@ -37,6 +41,7 @@ namespace StudyHub.Backend.UseCases.Services
                     Email = u.Email,
                     Username = u.Username,
                     Fullname = u.Fullname,
+                    Avatar = u.Avatar,
                     Status = (u.Status == true) ? "Active" : "Inactive",
                     CreatedAt = u.CreatedAt.ToString("yyyy/MM/dd"),
                     Roles = roles,
@@ -47,8 +52,8 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 Items = items,
                 Total = total,
-                Page = page,
-                Limit = limit,
+                Page = pageResult,
+                Limit = limitResult,
                 TotalPages = totalPages
             };
         }
@@ -61,6 +66,117 @@ namespace StudyHub.Backend.UseCases.Services
             return user;
         }
         public AppUser? GetUserByEmail(string email)=> _userRepository.GetByEmail(email);
+
+        // Async create account with optional avatar upload handled here (clean architecture: business logic in service)
+        public async Task<AppUser> CreateAccountAsync(string email, string password, string username, IEnumerable<Guid>? roleIds, int communeId, string? fullname = null, IFormFile? avatarFile = null, int gender = 0)
+        {
+            var existing = _userRepository.GetByEmail(email);
+            if (existing != null) throw new InvalidOperationException("Email already exists");
+
+            string hash = BCrypt.Net.BCrypt.HashPassword(password, SALT_ROUNDS);
+
+            string? uploadedUrl = null;
+            if (avatarFile != null && avatarFile.Length > 0)
+            {
+                // validate
+                var ext = Path.GetExtension(avatarFile.FileName)?.ToLowerInvariant();
+                if (string.IsNullOrEmpty(ext) || !FileConstants.AllowedImageExtensions.Contains(ext))
+                    throw new InvalidOperationException("Định dạng ảnh không được hỗ trợ");
+                if (avatarFile.Length > FileConstants.MaxImageSize)
+                    throw new InvalidOperationException("Kích thước ảnh vượt quá giới hạn");
+
+                uploadedUrl = await _cloudinary.UploadImageAsync(avatarFile, FileConstants.AvatarUploadPath);
+                if (string.IsNullOrEmpty(uploadedUrl)) uploadedUrl = null;
+            }
+
+            var user = new AppUser
+            {
+                Id = Guid.NewGuid(),
+                Email = email,
+                PasswordHash = hash,
+                Username = username,
+                Fullname = fullname,
+                CommuneId = communeId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                Status = true,
+                Avatar = uploadedUrl,
+                Gender = (gender == 1)
+            };
+
+            try
+            {
+                _userRepository.CreateUser(user, roleIds);
+                return user;
+            }
+            catch (Exception ex)
+            {
+                // if upload succeeded but DB failed, try to cleanup uploaded image
+                if (!string.IsNullOrEmpty(uploadedUrl))
+                {
+                    try { await _cloudinary.DeleteImageAsync(uploadedUrl); } catch { }
+                }
+                throw new InvalidOperationException("Failed to create account: " + ex.Message, ex);
+            }
+        }
+
+        // Async edit account with optional avatar upload and old-avatar deletion
+        public async Task<AppUser?> EditAccountAsync(Guid id, string? email = null, string? username = null, string? fullname = null, int? communeId = null, bool? status = null, IFormFile? avatarFile = null, int? gender = null, IEnumerable<Guid>? roleIds = null)
+        {
+            var user = _userRepository.GetById(id);
+            if (user == null) return null;
+
+            if (!string.IsNullOrEmpty(email)) user.Email = email;
+            if (!string.IsNullOrEmpty(username)) user.Username = username;
+            if (!string.IsNullOrEmpty(fullname)) user.Fullname = fullname;
+            if (communeId.HasValue) user.CommuneId = communeId.Value;
+            if (status.HasValue) user.Status = status.Value;
+            if (gender.HasValue) user.Gender = (gender.Value == 1);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            string? oldAvatar = user.Avatar;
+            string? uploadedUrl = null;
+
+            if (avatarFile != null && avatarFile.Length > 0)
+            {
+                var ext = Path.GetExtension(avatarFile.FileName)?.ToLowerInvariant();
+                if (string.IsNullOrEmpty(ext) || !FileConstants.AllowedImageExtensions.Contains(ext))
+                    throw new InvalidOperationException("Định dạng ảnh không được hỗ trợ");
+                if (avatarFile.Length > FileConstants.MaxImageSize)
+                    throw new InvalidOperationException("Kích thước ảnh vượt quá giới hạn");
+
+                uploadedUrl = await _cloudinary.UploadImageAsync(avatarFile, FileConstants.AvatarUploadPath);
+                if (string.IsNullOrEmpty(uploadedUrl)) uploadedUrl = null;
+                user.Avatar = uploadedUrl;
+            }
+            else if (avatarFile == null)
+            {
+                user.Avatar = oldAvatar;
+            }
+
+            try
+            {
+                _userRepository.UpdateUser(user, roleIds);
+
+                // after success, if avatar changed and we uploaded a new one, delete old
+                if (!string.IsNullOrEmpty(oldAvatar) && !string.IsNullOrEmpty(uploadedUrl) && !string.Equals(oldAvatar, uploadedUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    try { await _cloudinary.DeleteImageAsync(oldAvatar); } catch { }
+                }
+
+                return user;
+            }
+            catch (Exception ex)
+            {
+                // if update failed and we uploaded a new avatar, delete the uploaded to avoid orphan
+                if (!string.IsNullOrEmpty(uploadedUrl) && !string.Equals(oldAvatar, uploadedUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    try { await _cloudinary.DeleteImageAsync(uploadedUrl); } catch { }
+                }
+                throw new InvalidOperationException("Failed to update account: " + ex.Message, ex);
+            }
+        }
+
         public AppUser CreateAccount(string email, string password, string username, IEnumerable<Guid>? roleIds, int communeId, string? fullname = null, string? avatar = null, int gender = 0)
         {
             var existing = _userRepository.GetByEmail(email);

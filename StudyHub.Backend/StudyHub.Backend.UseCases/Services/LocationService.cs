@@ -23,8 +23,15 @@ namespace StudyHub.Backend.UseCases.Services
 
         public List<School> GetSchoolsByCommuneId(int communeId) => _locationRepository.GetSchoolsByCommuneId(communeId);
 
-        public School GetSchoolById(int schoolId)=> _locationRepository.GetSchoolByID(schoolId);
+        public School? GetSchoolById(int? schoolId) => _locationRepository.GetSchoolById(schoolId);
 
-        public Commune GetCommuneById(int communeId)=> _locationRepository.CommuneByID(communeId);
+        public Commune? GetCommuneById(int? communeId) => _locationRepository.GetCommuneById(communeId);
+        public Province? GetProvinceById(short? provinceId) => _locationRepository.GetProvinceById(provinceId);
+        public City? GetCityById(short? cityId) => _locationRepository.GetCityById(cityId);
+        public (Province? ProvinceName, City? CityName) GetProvinceAndCityByCommuneId(int? communeId)
+        {
+            var (province, city) = _locationRepository.GetProvinceAndCityByCommuneId(communeId);
+            return (province, city);
+        }
     }
 }

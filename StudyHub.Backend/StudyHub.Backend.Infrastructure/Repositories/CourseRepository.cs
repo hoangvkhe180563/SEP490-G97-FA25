@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Dtos;
@@ -179,7 +179,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var courses = _context.Courses.Include(c => c.Subject).Where(c => c.SchoolId == schoolId && c.Status.Equals("M?"))
+                var courses = _context.Courses.Include(c => c.Subject).Where(c => c.SchoolId == schoolId && c.Status.Equals("Mở"))
                     .Select(c => new Course
                     {
                         Id = c.Id,

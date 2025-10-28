@@ -68,29 +68,78 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 }).ToList();
         }
 
-        public DomainEntities.School GetSchoolByID(int schoolId)
+        
+
+       
+        public DomainEntities.School? GetSchoolById(int? schoolId)
         {
-            var school= _context.Schools.FirstOrDefault(c => c.Id == schoolId);
+            var school = _context.Schools.Find(schoolId);
+            if (school == null) return null;
             return new DomainEntities.School
             {
-                Id = schoolId,
+                Id = (sbyte)school.Id,
                 Name = school.Name,
-                CommuneId = school.CommuneId,
-                Address = school.Address,
-                
             };
         }
 
-        public DomainEntities.Commune CommuneByID(int communeId)
+        public DomainEntities.Commune? GetCommuneById(int? communeId)
         {
-            var commune = _context.Communes.FirstOrDefault(c=>c.Id== communeId);
+            var commune = _context.Communes.Find(communeId);
+            if (commune == null) return null;
             return new DomainEntities.Commune
             {
-                Id = communeId,
+                Id = commune.Id,
                 Name = commune.Name,
-                ProvinceId = commune.ProvinceId,
-
+                ProvinceId = commune.ProvinceId
             };
+        }
+        public DomainEntities.Province? GetProvinceById(short? provinceId)
+        {
+            var province = _context.Provinces.Find(provinceId);
+            if (province == null) return null;
+            return new DomainEntities.Province
+            {
+                Id = province.Id,
+                Name = province.Name,
+                CityId = province.CityId
+            };
+        }
+        public DomainEntities.City? GetCityById(short? cityId)
+        {
+            var city = _context.Cities.Find(cityId);
+            if (city == null) return null;
+            return new DomainEntities.City
+            {
+                Id = (sbyte)city.Id,
+                Name = city.Name
+            };
+        }
+        public (DomainEntities.Province?, DomainEntities.City?) GetProvinceAndCityByCommuneId(int? communeId)
+        {
+            var commune = _context.Communes.Find(communeId);
+            if (commune == null) return (null, null);
+            var province = _context.Provinces.Find(commune.ProvinceId);
+            DomainEntities.Province? provinceEntity = null;
+            DomainEntities.City? cityEntity = null;
+            if (province != null)
+            {
+                provinceEntity = new DomainEntities.Province
+                {
+                    Id = province.Id,
+                    Name = province.Name,
+                    CityId = province.CityId
+                };
+                var city = _context.Cities.Find(province.CityId);
+                if (city != null)
+                {
+                    cityEntity = new DomainEntities.City
+                    {
+                        Id = (sbyte)city.Id,
+                        Name = city.Name
+                    };
+                }
+            }
+            return (provinceEntity, cityEntity);
         }
     }
 }

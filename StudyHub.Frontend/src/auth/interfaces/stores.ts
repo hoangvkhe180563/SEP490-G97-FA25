@@ -9,6 +9,7 @@ interface AuthState {
   googleRedirectURL: string;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isCheckingAuth: boolean;
   error: string | null;
   message: string;
   loginMessage: string;

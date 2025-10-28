@@ -35,7 +35,8 @@ namespace StudyHub.Backend.Api.Mappers
         {
             return new Dtos.AppUserDTOS.AppUserListDto
             {
-                Message = "Success",
+                Success = true,
+                Message = "Lấy danh sách người dùng thành công",
                 Data = result.Items,
                 Meta = new Meta
                 {

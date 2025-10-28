@@ -1,5 +1,4 @@
 using StudyHub.Backend.Domain.Entities;
-using System.Collections.Generic;
 
 namespace StudyHub.Backend.UseCases.Repositories
 {
@@ -10,7 +9,10 @@ namespace StudyHub.Backend.UseCases.Repositories
         List<Commune> GetCommunesByProvinceId(short provinceId);
         List<School> GetAllSchools();
         List<School> GetSchoolsByCommuneId(int communeId);
-        School GetSchoolByID(int schoolId);
-        Commune CommuneByID(int communeId);
+        School? GetSchoolById(int? schoolId);
+        Commune? GetCommuneById(int? communeId);
+        Province? GetProvinceById(short? provinceId);
+        City? GetCityById(short? cityId);
+        (Province?, City?) GetProvinceAndCityByCommuneId(int? communeId);
     }
 }

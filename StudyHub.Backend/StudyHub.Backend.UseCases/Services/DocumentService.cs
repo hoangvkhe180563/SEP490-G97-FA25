@@ -245,6 +245,14 @@ namespace StudyHub.Backend.UseCases.Services
         {
             return _repo.GetDocumentsBySubject(subjectId);
         }
+        public List<Document> GetDocumentsBySubjectForPublic(int subjectId)
+        {
+            return _repo.GetDocumentsBySubjectForPublic(subjectId);
+        }
+        public List<Document> GetDocumentsBySubjectForSchool(int subjectId, int schoolId)
+        {
+            return _repo.GetDocumentsBySubjectForSchool(subjectId, schoolId);
+        }
         public async Task<Stream> StreamDocumentAsync(Document document)
         {
             if (string.IsNullOrEmpty(document.DocumentUrl))

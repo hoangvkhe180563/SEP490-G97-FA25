@@ -7,6 +7,7 @@ namespace StudyHub.Backend.Api.Controllers
         [Required]
         public int SchoolId { get; set; }
         public IFormFile? BannerFile { get; set; }
+        public IFormFile? SchoolLogoFile { get; set; }
         [Required]
         [MaxLength(500)]
         public string Description { get; set; } = string.Empty;
