@@ -376,7 +376,6 @@ export default function DocumentViewer() {
         handlePageChange(currentPage + 1);
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentPage, numPages]);
