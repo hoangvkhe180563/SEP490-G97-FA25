@@ -67,5 +67,75 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Name = s.Name,
                 }).ToList();
         }
+        public DomainEntities.School? GetSchoolById(int? schoolId)
+        {
+            var school = _context.Schools.Find(schoolId);
+            if (school == null) return null;
+            return new DomainEntities.School
+            {
+                Id = (sbyte)school.Id,
+                Name = school.Name,
+            };
+        }
+
+        public DomainEntities.Commune? GetCommuneById(int? communeId)
+        {
+            var commune = _context.Communes.Find(communeId);
+            if (commune == null) return null;
+            return new DomainEntities.Commune
+            {
+                Id = commune.Id,
+                Name = commune.Name,
+                ProvinceId = commune.ProvinceId
+            };
+        }
+        public DomainEntities.Province? GetProvinceById(short? provinceId)
+        {
+            var province = _context.Provinces.Find(provinceId);
+            if (province == null) return null;
+            return new DomainEntities.Province
+            {
+                Id = province.Id,
+                Name = province.Name,
+                CityId = province.CityId
+            };
+        }
+        public DomainEntities.City? GetCityById(short? cityId)
+        {
+            var city = _context.Cities.Find(cityId);
+            if (city == null) return null;
+            return new DomainEntities.City
+            {
+                Id = (sbyte)city.Id,
+                Name = city.Name
+            };
+        }
+        public (DomainEntities.Province?, DomainEntities.City?) GetProvinceAndCityByCommuneId(int? communeId)
+        {
+            var commune = _context.Communes.Find(communeId);
+            if (commune == null) return (null, null);
+            var province = _context.Provinces.Find(commune.ProvinceId);
+            DomainEntities.Province? provinceEntity = null;
+            DomainEntities.City? cityEntity = null;
+            if (province != null)
+            {
+                provinceEntity = new DomainEntities.Province
+                {
+                    Id = province.Id,
+                    Name = province.Name,
+                    CityId = province.CityId
+                };
+                var city = _context.Cities.Find(province.CityId);
+                if (city != null)
+                {
+                    cityEntity = new DomainEntities.City
+                    {
+                        Id = (sbyte)city.Id,
+                        Name = city.Name
+                    };
+                }
+            }
+            return (provinceEntity, cityEntity);
+        }
     }
 }

@@ -1,4 +1,10 @@
+import type { AppRole } from "./app-role";
 import type { AppUser } from "./app-user";
+import type { City } from "./city";
+import type { Commune } from "./commune";
+import type { CreateAccountDto } from "./dtos";
+import type { Province } from "./province";
+import type { School } from "./school";
 
 interface Meta {
   total: number;
@@ -8,12 +14,13 @@ interface Meta {
 }
 
 interface FilterAppUsersResponse {
-  success: boolean;
-  users: AppUser[];
+  message?: string;
+  data: AppUser[];
   meta?: Meta;
+  success: boolean;
 }
 
-interface UserState {
+interface AppUserState {
   appUsers: AppUser[];
   appUser: AppUser | undefined;
   success: boolean;
@@ -22,7 +29,45 @@ interface UserState {
   meta?: Meta | null;
 
   filterAppUsers: (query: string) => Promise<FilterAppUsersResponse | null>;
-  getAppUserById: (id: string) => Promise<void | undefined>;
+  // Accept either an array or a functional updater like React's setState
+  setAppUsers: (users: AppUser[] | ((prev: AppUser[]) => AppUser[])) => void;
+  getAppUserById: (id: string) => Promise<any>;
+  // Update a user's status (Active / Inactive). Returns true when update succeeded.
+  updateUserStatus: (id: string, status: AppUser["status"]) => Promise<boolean>;
+  // Create a new account using DTO containing fields and optional avatarFile
+  createAccount: (
+    dto: CreateAccountDto,
+    successCallback?: () => void,
+    errorCallback?: () => void
+  ) => Promise<any>;
 }
 
-export type { UserState };
+interface AppRoleState {
+  appRoles: AppRole[];
+  isLoading: boolean;
+  success: boolean;
+  message: string;
+  getAppRoles: () => Promise<void>;
+}
+
+interface LocationState {
+  isLoading: boolean;
+  cities: City[];
+  fetchCities: () => Promise<void>;
+  provinces: Province[];
+  fetchProvinces: (id: number) => Promise<void>;
+  communes: Commune[];
+  fetchCommunes: (id: number) => Promise<void>;
+  schools: School[];
+  fetchSchools: (id: number) => Promise<void>;
+  selectedCity: City | null;
+  selectedProvince: Province | null;
+  selectedCommune: Commune | null;
+  selectedSchool: School | null;
+  setSelectedCity: (city: City) => void;
+  setSelectedProvince: (province: Province) => void;
+  setSelectedCommune: (commune: Commune) => void;
+  setSelectedSchool: (school: School) => void;
+}
+
+export type { AppUserState, AppRoleState, LocationState };

@@ -6,9 +6,9 @@ namespace StudyHub.Backend.UseCases.Repositories
     {
         public List<AppUser> GetAllUsers();
 
-        public (List<AppUser>, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page, int limit);
+        public (List<AppUser>, int, int, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page, int limit);
         public AppUser? GetByEmail(string email);
-    public AppUser? GetByUsername(string username);
+        public AppUser? GetByUsername(string username);
         public AppUser? GetById(Guid id);
         public void CreateUser(AppUser user, IEnumerable<Guid>? roleIds = null);
         public void UpdateUser(AppUser user, IEnumerable<Guid>? roleIds = null);
@@ -16,10 +16,6 @@ namespace StudyHub.Backend.UseCases.Repositories
         // get user-specific claims/assignments (classes, subjects)
         public List<AppClaim> GetClaimsForUser(Guid userId);
         // helper to get related names
-        public string? GetSchoolName(int? schoolId);
-        public string? GetCommuneName(int? communeId);
-        // get province and city names given a commune id
-        public (string? provinceName, string? cityName) GetProvinceAndCityNamesByCommuneId(int? communeId);
 
         // find user by refresh token
         public AppUser? GetByRefreshToken(string refreshToken);
