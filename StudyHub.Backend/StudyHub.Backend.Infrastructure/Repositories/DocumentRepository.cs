@@ -107,8 +107,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         public (List<Document> documents, int totalCount) GetManagerPublicDocuments(
-            string? query = null, int? categoryId = null, int? grade = null, string? subject = null,
-            int? classId = null, bool? isApproved = null, bool? status = null, int? pageNumber = null, int? pageSize = null)
+       string? query = null, int? categoryId = null, int? grade = null, string? subject = null,
+       int? classId = null, bool? isApproved = null, bool? status = null,
+       DateTime? createdFrom = null, DateTime? createdTo = null,
+       DateTime? updatedFrom = null, DateTime? updatedTo = null,
+       int? pageNumber = null, int? pageSize = null)
         {
             try
             {
@@ -118,7 +121,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.School)
                     .Include(d => d.Classes)
                     .Where(d => d.DeletedAt == null && d.SchoolId == null && d.IsInClass == false);
-                return ExecuteManagerQuery(dbQuery, query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
+                return ExecuteManagerQuery(dbQuery, query, categoryId, grade, subject, classId, isApproved, status, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
             }
             catch (Exception ex)
             {
@@ -128,8 +131,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         public (List<Document> documents, int totalCount) GetManagerSchoolDocuments(
-            int schoolId, string? query = null, int? categoryId = null, int? grade = null, string? subject = null,
-            int? classId = null, bool? isApproved = null, bool? status = null, int? pageNumber = null, int? pageSize = null)
+      int schoolId, string? query = null, int? categoryId = null, int? grade = null, string? subject = null,
+      int? classId = null, bool? isApproved = null, bool? status = null,
+      DateTime? createdFrom = null, DateTime? createdTo = null,
+      DateTime? updatedFrom = null, DateTime? updatedTo = null,
+      int? pageNumber = null, int? pageSize = null)
         {
             try
             {
@@ -140,7 +146,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.Classes)
                     .Where(d => d.DeletedAt == null && d.SchoolId == schoolId && d.IsInClass == false);
 
-                return ExecuteManagerQuery(dbQuery, query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
+                return ExecuteManagerQuery(dbQuery, query, categoryId, grade, subject, classId, isApproved, status, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
             }
             catch (Exception ex)
             {
@@ -150,11 +156,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         private (List<Document>, int) ExecuteManagerQuery(
-            IQueryable<Data.Document> dbQuery, string? query, int? categoryId, int? grade,
-            string? subject, int? classId, bool? isApproved, bool? status,
-            int? pageNumber, int? pageSize)
+    IQueryable<Data.Document> dbQuery, string? query, int? categoryId, int? grade,
+    string? subject, int? classId, bool? isApproved, bool? status,
+    DateTime? createdFrom, DateTime? createdTo, DateTime? updatedFrom, DateTime? updatedTo,
+    int? pageNumber, int? pageSize)
         {
-            dbQuery = ApplyManagerFilters(dbQuery, query, categoryId, grade, subject, classId, isApproved, status);
+            dbQuery = ApplyManagerFilters(dbQuery, query, categoryId, grade, subject, classId, isApproved, status, createdFrom, createdTo, updatedFrom, updatedTo);
             var totalCount = dbQuery.Count();
 
             dbQuery = dbQuery.OrderByDescending(d => d.CreatedAt);
@@ -180,7 +187,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         private IQueryable<Data.Document> ApplyManagerFilters(
-            IQueryable<Data.Document> query, string? searchQuery, int? categoryId, int? grade, string? subject, int? classId, bool? isApproved, bool? status)
+     IQueryable<Data.Document> query, string? searchQuery, int? categoryId, int? grade,
+     string? subject, int? classId, bool? isApproved, bool? status,
+     DateTime? createdFrom, DateTime? createdTo, DateTime? updatedFrom, DateTime? updatedTo)
         {
             if (!string.IsNullOrWhiteSpace(searchQuery))
             {
@@ -218,6 +227,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
             if (status.HasValue)
                 query = query.Where(d => d.Status == status.Value);
+
+            if (createdFrom.HasValue)
+                query = query.Where(d => d.CreatedAt >= createdFrom.Value);
+
+            if (createdTo.HasValue)
+                query = query.Where(d => d.CreatedAt <= createdTo.Value);
+
+            if (updatedFrom.HasValue)
+                query = query.Where(d => d.UpdatedAt.HasValue && d.UpdatedAt >= updatedFrom.Value);
+
+            if (updatedTo.HasValue)
+                query = query.Where(d => d.UpdatedAt.HasValue && d.UpdatedAt <= updatedTo.Value);
 
             return query;
         }
@@ -428,7 +449,113 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 return false;
             }
         }
+        public List<Document> GetDocumentsBySubjectForPublic(int subjectId)
+        {
+            try
+            {
+                var documents = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Where(d => d.SubjectId == subjectId
+                             && d.IsApproved == true
+                             && d.Status == true
+                             && d.DeletedAt == null
+                             && d.SchoolId == null
+                             && d.IsInClass == false)
+                    .OrderByDescending(d => d.CreatedAt)
+                    .Select(d => MapToEntity(d))
+                    .ToList();
 
+                return documents;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetDocumentsBySubjectForPublic failed. Inner error: " + ex.Message).LogError();
+                return new List<Document>();
+            }
+        }
+
+        public List<Document> GetDocumentsBySubjectForSchool(int subjectId, int schoolId)
+        {
+            try
+            {
+                var documents = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Where(d => d.SubjectId == subjectId
+                             && d.IsApproved == true
+                             && d.Status == true
+                             && d.DeletedAt == null
+                             && d.IsInClass == false
+                             && (d.SchoolId == null || d.SchoolId == schoolId))
+                    .OrderByDescending(d => d.CreatedAt)
+                    .Select(d => MapToEntity(d))
+                    .ToList();
+
+                return documents;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetDocumentsBySubjectForSchool failed. Inner error: " + ex.Message).LogError();
+                return new List<Document>();
+            }
+        }
+        public List<Document> GetDocumentsByClass(int classId)
+        {
+            try
+            {
+                var documents = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Include(d => d.Classes)
+                    .Where(d => d.DeletedAt == null && d.Classes.Any(c => c.Id == classId))
+                    .OrderByDescending(d => d.CreatedAt)
+                    .ToList();
+
+                var creatorIds = documents.Select(d => d.CreatedBy).Distinct().ToList();
+                var users = _context.AppUsers.Where(u => creatorIds.Contains(u.Id))
+                    .Select(u => new { u.Id, u.Username, u.Fullname }).ToList();
+
+                var result = documents.Select(d =>
+                {
+                    var doc = MapToEntity(d);
+                    var user = users.FirstOrDefault(u => u.Id == d.CreatedBy);
+                    if (user != null)
+                        doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
+                    return doc;
+                }).ToList();
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetDocumentsByClass failed: " + ex.Message).LogError();
+                return new List<Document>();
+            }
+        }
+
+        public List<Class> GetClassesByDocument(int documentId)
+        {
+            try
+            {
+                var document = _context.Documents
+                    .Include(d => d.Classes)
+                    .FirstOrDefault(d => d.Id == documentId && d.DeletedAt == null);
+
+                if (document == null)
+                    return new List<Class>();
+
+                return document.Classes.Select(c => new Class { Id = c.Id, Name = c.Name }).ToList();
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetClassesByDocument failed: " + ex.Message).LogError();
+                return new List<Class>();
+            }
+        }
         private static Document MapToEntity(Data.Document d)
         {
             return new Document

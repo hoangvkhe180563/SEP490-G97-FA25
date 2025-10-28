@@ -17,7 +17,7 @@ const FeaturedCourses = (props: { data: IFeaturedCourse[] }) => {
               key={course.id}
               className="flex items-center gap-6 p-6 bg-white rounded-lg shadow-md"
             >
-              <div className="flex-shrink-0 w-32 h-20 bg-gray-200 rounded-md flex items-center justify-center text-sm font-semibold text-gray-600">
+              <div className="flex-shrink-0 w-32 h-20 bg-gray-200 rounded-md flex items-center justify-center text-sm font-semibold text-gray-600 overflow-hidden">
                 <img className="h-full w-full" src={course.thumbnail} alt="" />
               </div>
               <div className="flex-grow">

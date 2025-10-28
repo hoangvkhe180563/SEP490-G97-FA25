@@ -19,15 +19,12 @@ const MultipleFilesCommand: React.FC<IMultiSearchSelectProps<IDocumentItem | ICo
 }) => {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState<string>('');
-  // const [debouncedSearchValue] = useDebounce<string>(searchValue, 1000);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isSelected = useCallback((id: number) => {
     return selectedItems.some((itemId) => itemId === id);
   }, [selectedItems]);
-
-  // const filteredItems = debouncedSearchValue ? items.filter(item => item.name.toLowerCase().includes(debouncedSearchValue.toLowerCase())) : items;
 
   const handleToggle = (item: IDocumentItem | ICourseItem) => {
     if (isSelected(item.id)) {

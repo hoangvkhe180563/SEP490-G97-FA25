@@ -37,37 +37,20 @@ import {
 import { useOwnedDocuments } from "@/documentManagement/hooks/useOwnedDocuments";
 import OwnedDocumentItem from "@/documentManagement/components/OwnedDocumentItem";
 import OwnedDocumentListItem from "@/documentManagement/components/OwnedDocumentListItem";
-import type { Document } from "@/documentManagement/interfaces/document";
+import type {
+  FilterSidebarProps,
+  DocumentHeaderProps,
+  DocumentGridProps,
+  DocumentDetailProps,
+} from "@/documentManagement/interfaces/document";
 
 const ITEMS_PER_PAGE = 12;
-
-interface FilterSidebarProps {
-  availableFilters: {
-    grades: number[];
-    subjects: string[];
-    categories: string[];
-    accessTypes: string[];
-  };
-  filters: {
-    selectedGrades: number[];
-    selectedSubjects: string[];
-    selectedCategories: string[];
-    selectedAccessTypes: string[];
-    approvalStatus: string;
-  };
-  setFilters: (filters: {
-    selectedGrades: number[];
-    selectedSubjects: string[];
-    selectedCategories: string[];
-    selectedAccessTypes: string[];
-    approvalStatus: string;
-  }) => void;
-}
 
 function FilterBar({
   availableFilters,
   filters,
   setFilters,
+  onClearFilters,
 }: FilterSidebarProps) {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
 
@@ -119,7 +102,8 @@ function FilterBar({
     filters.selectedGrades.length > 0 ||
     filters.selectedSubjects.length > 0 ||
     filters.selectedCategories.length > 0 ||
-    filters.selectedAccessTypes.length > 0;
+    filters.selectedAccessTypes.length > 0 ||
+    filters.approvalStatus !== "all";
 
   const getFilterLabel = (type: string, count: number) => {
     const labels: Record<string, string> = {
@@ -320,15 +304,7 @@ function FilterBar({
             variant="ghost"
             size="sm"
             className="h-9 text-sm text-slate-600 hover:text-slate-900"
-            onClick={() =>
-              setFilters({
-                selectedGrades: [],
-                selectedSubjects: [],
-                selectedCategories: [],
-                selectedAccessTypes: [],
-                approvalStatus: "all",
-              })
-            }
+            onClick={onClearFilters}
           >
             Xóa bộ lọc
           </Button>
@@ -336,18 +312,6 @@ function FilterBar({
       </div>
     </div>
   );
-}
-
-interface DocumentHeaderProps {
-  viewMode: "grid" | "list";
-  setViewMode: (mode: "grid" | "list") => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  sortBy: string;
-  setSortBy: (sort: string) => void;
-  approvalStatus: string;
-  setApprovalStatus: (status: string) => void;
-  onCreateDocument: () => void;
 }
 
 function DocumentHeader({
@@ -443,17 +407,6 @@ function DocumentHeader({
   );
 }
 
-interface DocumentGridProps {
-  documents: Document[];
-  loading: boolean;
-  viewMode: "grid" | "list";
-  onSelectDocument: (id: number) => void;
-  onEditDocument: (id: number) => void;
-  getAccessType: (doc: Document) => string;
-  onPreviewDocument?: (id: number) => void;
-  hasDetailPanel: boolean;
-}
-
 function DocumentGrid({
   documents,
   loading,
@@ -526,15 +479,6 @@ function DocumentGrid({
       </div>
     </ScrollArea>
   );
-}
-
-interface DocumentDetailProps {
-  document: Document;
-  onClose: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onPreview: () => void;
-  getAccessType: (doc: Document) => string;
 }
 
 function DocumentDetail({
@@ -749,6 +693,7 @@ export default function OwnedDocument() {
     setSortBy,
     setCurrentPage,
     getAccessType,
+    clearFilters,
   } = useOwnedDocuments(user?.id || "", ITEMS_PER_PAGE);
 
   const selectedDoc = documents.find((doc) => doc.id === selectedDocument);
@@ -782,9 +727,11 @@ export default function OwnedDocument() {
       console.log("Delete document:", selectedDoc.id);
     }
   };
+
   const handlePreview = (docId: number) => {
     navigate(`/document/student/doc-info/${docId}`);
   };
+
   const handleApprovalStatusChange = (status: string) => {
     setFilters({
       ...filters,
@@ -813,6 +760,7 @@ export default function OwnedDocument() {
         availableFilters={availableFilters}
         filters={filters}
         setFilters={setFilters}
+        onClearFilters={clearFilters}
       />
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <DocumentGrid

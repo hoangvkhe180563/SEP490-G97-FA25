@@ -3,6 +3,7 @@ using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Api.Dtos.AuthDTOS;
 using StudyHub.Backend.Api.Dtos.ClassDTOS;
 using StudyHub.Backend.Api.Mappers;
+using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Services;
 using System;
 using System.Linq;
@@ -122,19 +123,23 @@ namespace StudyHub.Backend.Api.Controllers
 
         [HttpGet("manager/public")]
         public IActionResult GetManagerPublicDocuments(
-            [FromQuery] string? query = null,
-            [FromQuery] int? categoryId = null,
-            [FromQuery] int? grade = null,
-            [FromQuery] string? subject = null,
-            [FromQuery] int? classId = null,
-            [FromQuery] bool? isApproved = null,
-            [FromQuery] bool? status = null,
-            [FromQuery] bool? isPending = null,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10)
+     [FromQuery] string? query = null,
+     [FromQuery] int? categoryId = null,
+     [FromQuery] int? grade = null,
+     [FromQuery] string? subject = null,
+     [FromQuery] int? classId = null,
+     [FromQuery] bool? isApproved = null,
+     [FromQuery] bool? status = null,
+     [FromQuery] bool? isPending = null,
+     [FromQuery] DateTime? createdFrom = null,
+     [FromQuery] DateTime? createdTo = null,
+     [FromQuery] DateTime? updatedFrom = null,
+     [FromQuery] DateTime? updatedTo = null,
+     [FromQuery] int pageNumber = 1,
+     [FromQuery] int pageSize = 10)
         {
             var (documents, totalCount) = _documentService.GetManagerPublicDocuments(
-                query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
+                query, categoryId, grade, subject, classId, isApproved, status, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
             return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
         }
 
@@ -149,6 +154,10 @@ namespace StudyHub.Backend.Api.Controllers
             [FromQuery] bool? isApproved = null,
             [FromQuery] bool? status = null,
             [FromQuery] bool? isPending = null,
+            [FromQuery] DateTime? createdFrom = null,
+            [FromQuery] DateTime? createdTo = null,
+            [FromQuery] DateTime? updatedFrom = null,
+            [FromQuery] DateTime? updatedTo = null,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
@@ -160,7 +169,7 @@ namespace StudyHub.Backend.Api.Controllers
                 return Forbid();
 
             var (documents, totalCount) = _documentService.GetManagerSchoolDocuments(
-                schoolId, query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
+                schoolId, query, categoryId, grade, subject, classId, isApproved, status, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
             return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
         }
 
@@ -446,11 +455,36 @@ namespace StudyHub.Backend.Api.Controllers
 
             return Ok(new { success = true, data = result });
         }
+        [HttpGet("GetAllDocumentByClassId/{classId:int}")]
+        public IActionResult GetDocumentsByClass(int classId)
+        {
+            var documents = _documentService.GetDocumentsByClass(classId);
+            var dtos = documents.Select(d => d.ToListDto()).ToList();
+            return Ok(new { success = true, data = dtos });
+        }
 
+        [HttpGet("GetAllClassesByDocumentId/{documentId:int}/classes")]
+        public IActionResult GetClassesByDocument(int documentId)
+        {
+            var classes = _documentService.GetClassesByDocument(documentId);
+            var dtos = classes.Select(c => new ClassListDto { Id = c.Id, Name = c.Name }).ToList();
+            return Ok(new { success = true, data = dtos });
+        }
         [HttpGet("by-subject/{subjectId:int}")]
         public IActionResult GetDocumentsBySubject(int subjectId)
         {
-            var documents = _documentService.GetDocumentsBySubject(subjectId);
+            var currentUser = GetCurrentUser();
+
+            List<Document> documents;
+            if (currentUser != null && currentUser.SchoolId.HasValue)
+            {
+                documents = _documentService.GetDocumentsBySubjectForSchool(subjectId, currentUser.SchoolId.Value);
+            }
+            else
+            {
+                documents = _documentService.GetDocumentsBySubjectForPublic(subjectId);
+            }
+
             var dtos = documents.Select(d => d.ToListDto()).ToList();
             return Ok(new { success = true, data = dtos });
         }

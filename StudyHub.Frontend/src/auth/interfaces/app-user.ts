@@ -5,9 +5,9 @@ interface AppUser {
   fullname: string;
   roles: string[];
   permissions: string[];
-  classIds: string[];
-  subjectIds: string[];
-  schoolId: string;
+  classIds: number[];
+  subjectIds: number[];
+  schoolId: number;
 }
 
 export type { AppUser };

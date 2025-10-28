@@ -198,6 +198,7 @@ namespace StudyHub.Backend.UseCases.Utils
             catch
             {
                 // invalid token
+                throw new UnauthorizedAccessException("Invalid or expired verification token");
             }
             return null;
         }

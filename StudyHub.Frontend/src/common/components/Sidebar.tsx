@@ -37,7 +37,7 @@ export const SidebarItem = (props: ISidebarItem) => {
       ${currentUrl === props.link ? "bg-gradient-to-tr from-sky-500 to-sky-200 text-blue-800" : "hover:bg-sky-200 text-gray-600"}
     `}>
         {props.icon}
-        <span className={`whitespace-nowrap overflow-hidden transition-all ${expanded ? 'w-40 ml-3' : 'w-0'}`}>{props.text}</span>
+        <span className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${expanded ? 'w-40 ml-3' : 'w-0'}`}>{props.text}</span>
 
         {
           !expanded && <div className={`absolute left-full rounded-md px-2 py-1 ml-6 text-sm bg-sky-200 text-gray-600 invisible -translate-x-3 transition-all opacity-20 whitespace-nowrap group-hover:visible group-hover:opacity-100 group-hover:translate-x-0`}>
@@ -65,7 +65,7 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
       <li className={`relative flex items-center py-2 px-3 my-1 font-medium rounded-md cursor-pointer transition-colors leading-4 group hover:bg-sky-200 text-gray-600`}
         onClick={handleToggle}>
         {props.icon}
-        <span className={`whitespace-nowrap overflow-hidden transition-all ${expanded ? 'w-40 ml-3' : 'w-0'}`}>{props.text}</span>
+        <span className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${expanded ? 'w-40 ml-3' : 'w-0'}`}>{props.text}</span>
 
         {expanded && (
           <span className='ml-auto transition-transform'>
@@ -79,14 +79,14 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
           </div>
         }
       </li>
-      <ul className={`overflow-hidden transition-all duration-300 ${isOpen && expanded ? 'max-h-96 opacity-100 w-full' : 'max-h-0 opacity-0 w-0'}`}>
-        {props.children && props.children.map(child => (
-          <li>
+      <ul className={`transition-all duration-300 ${isOpen && expanded ? 'max-h-96 opacity-100 w-full' : 'max-h-0 opacity-0 w-0'}`}>
+        {props.children && props.children.map((child, index) => (
+          <li key={`nav-${index}`}>
             <Link to={child.link} className={`relative flex items-center py-2 px-3 my-1 ml-3 font-medium rounded-md cursor-pointer transition-colors leading-4 group text-sm
       ${currentUrl === child.link ? "bg-gradient-to-tr from-sky-400 to-sky-100 text-blue-800" : "hover:bg-sky-100 text-gray-600"}
     `}>
               {child.icon}
-              <span className={`whitespace-nowrap overflow-hidden transition-all ${expanded ? 'w-36 ml-3' : 'w-0'}`}>{child.text}</span>
+              <span className={`transition-all ${expanded ? 'w-36 ml-3' : 'w-0'}`}>{child.text}</span>
             </Link>
           </li>
         ))}

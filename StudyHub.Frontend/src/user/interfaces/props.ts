@@ -1,8 +1,8 @@
-import type { User } from "./user";
+import type { AppUser } from "./app-user";
 
 export interface AccountItemProps {
-  user: User;
+  user: AppUser;
   idx: number;
-  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
-  statusColor: Record<User["status"], string>;
+  setUsers: React.Dispatch<React.SetStateAction<AppUser[]>>;
+  statusColor: Record<AppUser["status"], string>;
 }

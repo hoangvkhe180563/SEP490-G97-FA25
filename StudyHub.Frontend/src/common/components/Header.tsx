@@ -3,15 +3,26 @@ import { Input } from "./ui/input";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
+import { axiosInstance } from "@/lib/axios";
 
 const Header = (props: {isLoggedIn: boolean}) => {
+
+  const logout = async () => {
+    await axiosInstance.post("/auth/logout")
+      .then(res => {
+        if (res.status === 200) {
+          location.reload();
+        }else{
+          console.error("Lỗi không logout được! (tại Thành)");
+        }
+      })
+  }
+
   return (
     <header className="h-[65px] flex items-center justify-between px-3 bg-sky-300 text-white">
-      {/* Logo */}
       <div className="flex items-center">
         <a href="/"><img src="/src/common/assets/StudyHubLogo.png" className="w-32" /></a>
       </div>
-      {/* Search */}
       <div className="flex-1 mx-6 flex justify-center relative">
         <div className="relative flex items-center">
           <Search className="absolute left-2.5 h-4 w-4 text-muted-foreground" />
@@ -22,7 +33,6 @@ const Header = (props: {isLoggedIn: boolean}) => {
           />
         </div>
       </div>
-      {/* User Info */}
       {props.isLoggedIn ? (
         <div className="flex items-center max-w-[250px] justify-between space-x-3">
           <div className="flex justify-center items-center space-x-3 overflow-x-hidden">
@@ -46,14 +56,14 @@ const Header = (props: {isLoggedIn: boolean}) => {
               <DropdownMenuItem>
                 <CircleUser className="mr-2 h-4 w-4" /> Thông tin cá nhân
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-red-600">
-                <LogOut className="mr-2 h-4 w-4 stroke-red-600" /> <span className="ư-full hover:text-red-600">Đăng xuất</span>
+              <DropdownMenuItem className="text-red-600" onClick={logout}>
+                <LogOut className="mr-2 h-4 w-4 stroke-red-600" /> <span className="w-full hover:text-red-600">Đăng xuất</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       ) : (
-        <Button className="bg-sky-400 border-2 border-sky-600 hover:bg-sky-500 hover:text-sky-700">
+          <Button className="bg-sky-400 border-2 border-sky-600 hover:bg-sky-500 hover:text-sky-700" onClick={() => location.href = '/auth/login'}>
           Đăng nhập
         </Button>
       )}

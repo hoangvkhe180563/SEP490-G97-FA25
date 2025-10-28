@@ -35,14 +35,19 @@ namespace StudyHub.Backend.UseCases.Services
 
         public (List<Document> documents, int totalCount) GetManagerPublicDocuments(
             string? query = null, int? categoryId = null, int? grade = null, string? subject = null,
-            int? classId = null, bool? isApproved = null, bool? status = null, int pageNumber = 1, int pageSize = 10)
-            => _repo.GetManagerPublicDocuments(query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
+            int? classId = null, bool? isApproved = null, bool? status = null,
+            DateTime? createdFrom = null, DateTime? createdTo = null,
+            DateTime? updatedFrom = null, DateTime? updatedTo = null,
+            int pageNumber = 1, int pageSize = 10)
+            => _repo.GetManagerPublicDocuments(query, categoryId, grade, subject, classId, isApproved, status, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
 
         public (List<Document> documents, int totalCount) GetManagerSchoolDocuments(
             int schoolId, string? query = null, int? categoryId = null, int? grade = null, string? subject = null,
-            int? classId = null, bool? isApproved = null, bool? status = null, int pageNumber = 1, int pageSize = 10)
-            => _repo.GetManagerSchoolDocuments(schoolId, query, categoryId, grade, subject, classId, isApproved, status, pageNumber, pageSize);
-
+            int? classId = null, bool? isApproved = null, bool? status = null,
+            DateTime? createdFrom = null, DateTime? createdTo = null,
+            DateTime? updatedFrom = null, DateTime? updatedTo = null,
+            int pageNumber = 1, int pageSize = 10)
+            => _repo.GetManagerSchoolDocuments(schoolId, query, categoryId, grade, subject, classId, isApproved, status, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
         public async Task<Document> CreateDocumentAsync(Document document, IFormFile documentFile, IFormFile? thumbnailFile = null)
         {
             ValidateDocumentFile(documentFile);
@@ -245,6 +250,14 @@ namespace StudyHub.Backend.UseCases.Services
         {
             return _repo.GetDocumentsBySubject(subjectId);
         }
+        public List<Document> GetDocumentsBySubjectForPublic(int subjectId)
+        {
+            return _repo.GetDocumentsBySubjectForPublic(subjectId);
+        }
+        public List<Document> GetDocumentsBySubjectForSchool(int subjectId, int schoolId)
+        {
+            return _repo.GetDocumentsBySubjectForSchool(subjectId, schoolId);
+        }
         public async Task<Stream> StreamDocumentAsync(Document document)
         {
             if (string.IsNullOrEmpty(document.DocumentUrl))
@@ -252,6 +265,9 @@ namespace StudyHub.Backend.UseCases.Services
 
             return await _fileStorage.ReadFileStreamAsync(document.DocumentUrl);
         }
+        public List<Document> GetDocumentsByClass(int classId) => _repo.GetDocumentsByClass(classId);
+
+        public List<Class> GetClassesByDocument(int documentId) => _repo.GetClassesByDocument(documentId);
         private string GetContentType(string filePath)
         {
             var extension = Path.GetExtension(filePath).ToLowerInvariant();

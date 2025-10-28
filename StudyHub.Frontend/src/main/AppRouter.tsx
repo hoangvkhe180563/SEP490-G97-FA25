@@ -1,6 +1,6 @@
 import classRoutes from "@/classManagement/routes/ClassRoutes";
 import documentRoutes from "@/documentManagement/routes/DocumentRoutes";
-
+import forumRoutes from "@/forumManagement/routes/ForumRoutes";
 import RouteConfig from "@/common/constants/RouteConfig";
 import uiManagementRoutes from "@/uiManagement/routes/UiManagementRoutes";
 import userRoutes from "@/user/routes/UserRoutes";
@@ -77,6 +77,11 @@ const AppRouter = () => {
         />
       ),
       children: courseRoutes,
+    },
+    {
+      path: RouteConfig.FORUM_MANAGEMENT,
+      element: <Outlet />,
+      children: forumRoutes,
     },
   ];
 

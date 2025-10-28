@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+// src/documentManagement/pages/manager/VerifyDocument.tsx
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/common/components/ui/input";
 import { Button } from "@/common/components/ui/button";
@@ -62,39 +63,77 @@ import {
   CollapsibleTrigger,
 } from "@/common/components/ui/collapsible";
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
-import { documentService } from "@/documentManagement/services/documentService";
 import type {
-  Subject,
-  DocumentCategory,
-} from "@/documentManagement/interfaces/masterData";
-import type { Document } from "@/documentManagement/interfaces/document";
+  SubjectDto,
+  DocumentCategoryDto,
+  Document,
+} from "@/documentManagement/interfaces/document";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 type SortField = "createdAt" | "updatedAt" | "name" | null;
 type SortOrder = "asc" | "desc";
 
+const STORAGE_KEY = "manager-document-verification-state";
+
+const loadState = () => {
+  try {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error("Error loading state:", error);
+  }
+  return null;
+};
+
+const saveState = (state: any) => {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.error("Error saving state:", error);
+  }
+};
+
 const ManagerDocumentApprovalList = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const [statusFilter, setStatusFilter] = useState<string>("pending");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
-  const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [pageSize, setPageSize] = useState(5);
-  const [sortField, setSortField] = useState<SortField>(null);
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const savedState = loadState();
 
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [categories, setCategories] = useState<DocumentCategory[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>(
+    savedState?.statusFilter || "pending"
+  );
+  const [searchQuery, setSearchQuery] = useState(savedState?.searchQuery || "");
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(
+    savedState?.selectedSubjects || []
+  );
+  const [selectedGrades, setSelectedGrades] = useState<string[]>(
+    savedState?.selectedGrades || []
+  );
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    savedState?.selectedCategories || []
+  );
+  const [pageSize, setPageSize] = useState(savedState?.pageSize || 5);
+  const [sortField, setSortField] = useState<SortField>(
+    savedState?.sortField || null
+  );
+  const [sortOrder, setSortOrder] = useState<SortOrder>(
+    savedState?.sortOrder || "desc"
+  );
+  const [currentPage, setCurrentPage] = useState(savedState?.currentPage || 1);
+
+  const [subjects, setSubjects] = useState<SubjectDto[]>([]);
+  const [categories, setCategories] = useState<DocumentCategoryDto[]>([]);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [openSections, setOpenSections] = useState<{ [key: string]: boolean }>({
-    status: true,
-    subject: false,
-    grade: false,
-    category: false,
-  });
+  const [openSections, setOpenSections] = useState<{ [key: string]: boolean }>(
+    savedState?.openSections || {
+      status: true,
+      subject: false,
+      grade: false,
+      category: false,
+    }
+  );
 
   const [dialogState, setDialogState] = useState<{
     open: boolean;
@@ -111,7 +150,6 @@ const ManagerDocumentApprovalList = () => {
   const {
     documents,
     totalPages,
-    currentPage,
     isLoading,
     fetchManagerPublicDocuments,
     fetchManagerSchoolDocuments,
@@ -119,27 +157,64 @@ const ManagerDocumentApprovalList = () => {
     rejectDocument,
     revokeApproval,
     softDeleteDocument,
-    setCurrentPage,
+    getCategories,
+    getSubjects,
+    categories: storeCategoriesRaw,
+    subjects: storeSubjectsRaw,
   } = useDocumentStore();
 
   const managerSchoolId = user?.schoolId;
   const isPublicManager = !managerSchoolId;
 
   useEffect(() => {
+    saveState({
+      statusFilter,
+      searchQuery,
+      selectedSubjects,
+      selectedGrades,
+      selectedCategories,
+      pageSize,
+      sortField,
+      sortOrder,
+      currentPage,
+      openSections,
+    });
+  }, [
+    statusFilter,
+    searchQuery,
+    selectedSubjects,
+    selectedGrades,
+    selectedCategories,
+    pageSize,
+    sortField,
+    sortOrder,
+    currentPage,
+    openSections,
+  ]);
+
+  useEffect(() => {
     const fetchMasterData = async () => {
       try {
-        const [subjectsData, categoriesData] = await Promise.all([
-          documentService.getSubjects(),
-          documentService.getDocumentCategories(),
-        ]);
-        setSubjects(subjectsData);
-        setCategories(categoriesData);
+        await getCategories();
+        await getSubjects();
       } catch (err) {
         console.error("Failed to fetch master data", err);
       }
     };
     fetchMasterData();
-  }, []);
+  }, [getCategories, getSubjects]);
+
+  useEffect(() => {
+    if (storeSubjectsRaw && storeSubjectsRaw.length > 0) {
+      setSubjects(storeSubjectsRaw);
+    }
+  }, [storeSubjectsRaw]);
+
+  useEffect(() => {
+    if (storeCategoriesRaw && storeCategoriesRaw.length > 0) {
+      setCategories(storeCategoriesRaw);
+    }
+  }, [storeCategoriesRaw]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -149,25 +224,9 @@ const ManagerDocumentApprovalList = () => {
     selectedCategories,
     selectedGrades,
     selectedSubjects,
-    setCurrentPage,
   ]);
 
-  useEffect(() => {
-    fetchDocuments();
-  }, [
-    statusFilter,
-    searchQuery,
-    selectedCategories,
-    selectedGrades,
-    selectedSubjects,
-    currentPage,
-    pageSize,
-    sortField,
-    sortOrder,
-    managerSchoolId,
-  ]);
-
-  const fetchDocuments = () => {
+  const fetchDocuments = useCallback(() => {
     let isApproved: boolean | undefined = undefined;
 
     if (statusFilter === "approved") {
@@ -191,14 +250,13 @@ const ManagerDocumentApprovalList = () => {
         pageSize
       );
     } else {
-      const schoolIdNum = parseInt(managerSchoolId!);
-      if (isNaN(schoolIdNum)) {
+      if (!managerSchoolId) {
         setErrorMessage("School ID không hợp lệ");
         return;
       }
 
       fetchManagerSchoolDocuments(
-        managerSchoolId!,
+        managerSchoolId!.toString(),
         searchQuery || undefined,
         selectedCategories.length > 0
           ? parseInt(selectedCategories[0])
@@ -212,7 +270,23 @@ const ManagerDocumentApprovalList = () => {
         pageSize
       );
     }
-  };
+  }, [
+    statusFilter,
+    searchQuery,
+    selectedCategories,
+    selectedGrades,
+    selectedSubjects,
+    currentPage,
+    pageSize,
+    isPublicManager,
+    managerSchoolId,
+    fetchManagerPublicDocuments,
+    fetchManagerSchoolDocuments,
+  ]);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   const sortedDocuments = [...documents].sort((a, b) => {
     if (!sortField) return 0;
@@ -257,6 +331,7 @@ const ManagerDocumentApprovalList = () => {
     setSelectedGrades([]);
     setSelectedCategories([]);
     setStatusFilter("pending");
+    setCurrentPage(1);
   };
 
   const toggleSubject = (subjectName: string) => {

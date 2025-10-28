@@ -1,96 +1,275 @@
-// src/documentManagement/interfaces/document.ts (cập nhật)
+// src/documentManagement/interfaces/document.ts
 export interface Document {
-  id: number
-  name: string
-  subjectId: number
-  subjectName?: string 
-  gradeId: number
-  grade: number  
-  documentCategoryId: number
-  categoryName?: string 
-  accessibilityId?: number
-  documentUrl: string
-  createdAt: string
-  createdBy: string
-  updatedAt: string | null
-  updatedBy: string | null
-  deletedAt: string | null
-  isApproved: boolean | null
-  status: boolean
-  description: string
-  uploaderName: string
-  uploaderFullname?: string
-  uploaderUrl?: string
-  thumbnail: string
-  schoolId: number | null
-  schoolName?: string  
-  isFeatured: boolean
-  price?: number
-  isSchoolDocument?: boolean
-  fileType?: string  
-  classId?: number
-  isInClass?: boolean
-  classes?: Array<{ id: number; name?: string }>
+  id: number;
+  name: string;
+  subjectId: number;
+  subjectName?: string;
+  gradeId: number;
+  grade: number;
+  documentCategoryId: number;
+  categoryName?: string;
+  accessibilityId?: number;
+  documentUrl: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string | null;
+  updatedBy: string | null;
+  deletedAt: string | null;
+  isApproved: boolean | null;
+  status: boolean;
+  description: string;
+  uploaderName: string;
+  uploaderFullname?: string;
+  uploaderUrl?: string;
+  thumbnail: string;
+  schoolId: number | null;
+  schoolName?: string;
+  isFeatured: boolean;
+  price?: number;
+  isSchoolDocument?: boolean;
+  fileType?: string;
+  classId?: number;
+  isInClass?: boolean;
+  classes?: Array<{ id: number; name?: string }>;
 }
 
 export interface DocumentFilterParams {
-  query?: string
-  categoryId?: number
-  gradeId?: number
-  schoolId?: number
-  subject?: string
-  accessibility?: number
-  pageNumber?: number
-  pageSize?: number
+  query?: string;
+  categoryId?: number;
+  gradeId?: number;
+  schoolId?: number;
+  subject?: string;
+  accessibility?: number;
+  pageNumber?: number;
+  pageSize?: number;
 }
 
 export interface PaginationInfo {
-  currentPage: number
-  pageSize: number
-  totalCount: number
-  totalPages: number
+  currentPage: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
 }
-export interface Any {
- updatedBy: string 
-}
+
 export interface PagedDocumentResponse {
-  items: Document[]
-  total: number
-  page: number
-  limit: number
-  totalPages: number
+  items: Document[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 export interface DocumentSearchResponse {
-  success: boolean
-  data: Document[]
-  pagination: PaginationInfo
+  success: boolean;
+  data: Document[];
+  pagination: PaginationInfo;
 }
 
 export interface DocumentCategory {
-  id: number
-  name: string
+  id: number;
+  name: string;
 }
 
 export interface Grade {
-  id: number
-  name: string
-  gradeLevel?: number
+  id: number;
+  name: string;
+  gradeLevel?: number;
 }
 
 export interface Subject {
-  id: number
-  name: string
-  code?: string
+  id: number;
+  name: string;
+  code?: string;
 }
 
 export interface ApiResponse<T> {
-  success: boolean
-  data: T
-  message?: string
+  success: boolean;
+  data: T;
+  message?: string;
 }
 
 export interface DocumentsBySubjectResponse {
-  success: boolean
-  data: Document[]
+  success: boolean;
+  data: Document[];
+}
+
+export interface DocumentDetailDto {
+  id: number;
+  name: string;
+  subjectId: number;
+  subjectName?: string;
+  gradeId: number;
+  grade: number;
+  documentCategoryId: number;
+  categoryName?: string;
+  accessibilityId?: number;
+  documentUrl: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string | null;
+  updatedBy: string | null;
+  deletedAt: string | null;
+  isApproved: boolean | null;
+  status: boolean;
+  description: string;
+  uploaderName: string;
+  uploaderFullname?: string;
+  uploaderUrl?: string;
+  thumbnail: string;
+  schoolId: number | null;
+  schoolName?: string;
+  isFeatured: boolean;
+  price?: number;
+  isSchoolDocument?: boolean;
+  fileType?: string;
+  classId?: number;
+  isInClass?: boolean;
+  classes?: Array<{ id: number; name?: string }>;
+}
+
+export interface DocumentListDto {
+  id: number;
+  name: string;
+  subjectId: number;
+  subjectName?: string;
+  gradeId: number;
+  grade: number;
+  documentCategoryId: number;
+  categoryName?: string;
+  accessibilityId: number;
+  documentUrl: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string | null;
+  updatedBy: string | null;
+  deletedAt: string | null;
+  isApproved: boolean;
+  status: boolean;
+  description: string;
+  uploaderName: string;
+  thumbnail: string;
+  schoolId: number;
+  schoolName?: string;
+  isFeatured: boolean;
+  price: number;
+  isSchoolDocument: boolean;
+  fileType?: string;
+  classId?: number;
+}
+
+export interface DocumentCategoryDto {
+  id: number;
+  name: string;
+}
+
+export interface GradeDto {
+  id: number;
+  name: string;
+}
+
+export interface SubjectDto {
+  id: number;
+  name: string;
+}
+
+export interface FilterState {
+  selectedGrades: number[];
+  selectedSubjects: string[];
+  selectedCategories: string[];
+  selectedAccessTypes: string[];
+  approvalStatus: string;
+}
+
+export interface AvailableFilters {
+  grades: number[];
+  subjects: string[];
+  categories: string[];
+  accessTypes: string[];
+}
+
+export interface FilterSidebarProps {
+  availableFilters: AvailableFilters;
+  filters: FilterState;
+  setFilters: (filters: FilterState) => void;
+  onClearFilters: () => void;
+}
+
+export interface DocumentHeaderProps {
+  viewMode: "grid" | "list";
+  setViewMode: (mode: "grid" | "list") => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  sortBy: string;
+  setSortBy: (sort: string) => void;
+  approvalStatus: string;
+  setApprovalStatus: (status: string) => void;
+  onCreateDocument: () => void;
+}
+
+export interface DocumentGridProps {
+  documents: Document[];
+  loading: boolean;
+  viewMode: "grid" | "list";
+  onSelectDocument: (id: number) => void;
+  onEditDocument: (id: number) => void;
+  getAccessType: (doc: Document) => string;
+  onPreviewDocument?: (id: number) => void;
+  hasDetailPanel: boolean;
+}
+
+export interface DocumentDetailProps {
+  document: Document;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onPreview: () => void;
+  getAccessType: (doc: Document) => string;
+}
+export interface PdfOutlineItem {
+  title: string;
+  page: number;
+}
+
+export interface PdfPage {
+  getViewport: (params: { scale: number; rotation?: number }) => {
+    width: number;
+    height: number;
+  };
+  render: (params: {
+    canvasContext: CanvasRenderingContext2D;
+    viewport: { width: number; height: number };
+  }) => {
+    promise: Promise<void>;
+  };
+}
+
+export interface PdfDocument {
+  numPages: number;
+  getOutline: () => Promise<Array<{ title: string; dest: unknown }> | null>;
+  getPage: (num: number) => Promise<PdfPage>;
+}
+
+export interface PdfJs {
+  getDocument: (params: { data: ArrayBuffer }) => {
+    promise: Promise<PdfDocument>;
+  };
+  GlobalWorkerOptions: { workerSrc: string };
+}
+
+export type ViewMode = "normal" | "flipbook";
+
+export interface FlipBookRef {
+  pageFlip: () => {
+    flip: (page: number) => void;
+    flipNext: () => void;
+    flipPrev: () => void;
+  };
+}
+export interface DocumentDetailProps {
+  document: Document;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onPreview: () => void;
+  getAccessType: (doc: Document) => string;
 }

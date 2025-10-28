@@ -60,8 +60,7 @@ builder.Services.AddSwaggerGen(c =>
         Format = "binary"
     });
 });
-
-builder.Services.AddSwaggerGen();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {

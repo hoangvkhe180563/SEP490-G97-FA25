@@ -48,7 +48,7 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequest req)
         {
-            var (result, error) = _authService.Login(string.IsNullOrEmpty(req.Email) ? req.Username : req.Email, req.Password);
+            var (result, error) = _authService.Login(req.Email, req.Username, req.Password);
             if (result == null)
             {
                 if (error == "unverified")
