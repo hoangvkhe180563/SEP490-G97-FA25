@@ -1,7 +1,6 @@
 // src/documentManagement/hooks/useDocumentFilters.ts
 import { useState, useEffect, useCallback } from "react";
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
-import type { Document } from "@/documentManagement/interfaces/document";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 interface FilterState {
@@ -41,7 +40,6 @@ export const useDocumentFilters = () => {
     subjects,
     totalPages: storeTotalPages,
     totalCount: storeTotalCount,
-    currentPage: storeCurrentPage,
     fetchPublicDocuments,
     fetchSchoolDocuments,
     getCategories,
@@ -70,6 +68,7 @@ export const useDocumentFilters = () => {
   useEffect(() => {
     getCategories();
     getSubjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
