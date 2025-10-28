@@ -60,7 +60,7 @@ namespace StudyHub.Backend.UseCases.Services
             var user = _userRepository.GetById(id);
             return user;
         }
-
+        public AppUser? GetUserByEmail(string email)=> _userRepository.GetByEmail(email);
         public AppUser CreateAccount(string email, string password, string username, IEnumerable<Guid>? roleIds, int communeId, string? fullname = null, string? avatar = null, int gender = 0)
         {
             var existing = _userRepository.GetByEmail(email);

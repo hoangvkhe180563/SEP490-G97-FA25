@@ -9,7 +9,7 @@ namespace StudyHub.Backend.UseCases.Repositories
 {
     public interface IClassRepository
     {
-        List<Class> GetAllClasses();
+        List<Class> GetAllClasses(Guid? userid);
         List<Subject> GetAllSubject();
         List<AppUser> GetAllTeacher();
         List<Class> GetClassesByTeacherId(string teacherId);

@@ -8,6 +8,8 @@ import type { RouteObject } from "react-router-dom";
 import { Edit } from "lucide-react";
 import AddEditClassworkForm from "../pages/AddEditClasswork";
 import ClassworkDetail from "../pages/ClassworkDetail";
+import ConfirmInvite from "../pages/ConfirmInvite";
+import ClassRedirect from "../components/redirect/ClassRedirect";
 
 const teacherClassRoutes = [
   {
@@ -29,6 +31,10 @@ const teacherClassRoutes = [
   {
     path: ClassRouteConfig.TEACHER.CLASSWORK_DETAIL,
     element:<ClassworkDetail />
+  },
+  {
+    path: ClassRouteConfig.TEACHER.CONFIRM_INVITE,
+    element:<ConfirmInvite/>
   }
 ];
 
@@ -39,11 +45,15 @@ const studentClassRoutes = [
   },
   {
     path: ClassRouteConfig.STUDENT.CLASS_DETAIL,
-    element: <DetailedClassStudent />
+    element: <DetailedClassTeacher />
   },
   {
     path: ClassRouteConfig.STUDENT.CLASSWORK_DETAIL,
     element:<ClassworkDetail />
+  },
+  {
+    path: ClassRouteConfig.TEACHER.CONFIRM_INVITE,
+    element:<ConfirmInvite/>
   }
 ];
 
@@ -57,6 +67,12 @@ const classRoutes: RouteObject[] = [
     path: ClassRouteConfig.STUDENT.INDEX,
     element: <StudentLayout />,
     children: studentClassRoutes
+  }
+  ,
+  {
+    path:"",
+    "element":<ClassRedirect/>,
+
   }
 ];
 

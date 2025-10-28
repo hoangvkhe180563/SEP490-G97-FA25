@@ -2,11 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 import { useNavigate, useParams } from "react-router-dom";
 import type { ClassInfo } from "@/classManagement/interfaces/class";
+import type { UserRole } from "@/classManagement/components/ui/classcard";
 
 const AttachmentButton: React.FC<{ label: string }> = ({ label }) => (
   <div className="flex flex-col items-center text-xs text-gray-600">
     <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-2">
-      {/* placeholder icon */}
       <svg className="w-5 h-5 text-gray-700" viewBox="0 0 24 24" fill="none">
         <path d="M12 2v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
         <path d="M19 21H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
@@ -66,15 +66,13 @@ const ClassInfoCard: React.FC<{ info: ClassInfo | null }> = ({ info }) => {
 };
 
 const AddEditClassworkForm: React.FC = () => {
-  const { id, classworkId } = useParams<{ id?: string; classworkId?: string }>();
-  const isEdit = !!classworkId;
-  const {
-    createClasswork,
-    editClasswork,
-    getClassWorks,
-    getClassInfo,
-    currentClass,
-  } = useClassStore();
+  const params = useParams<{ role?: string; id?: string; classworkId?: string }>();
+  const roleParam = params.role;
+  const id = params.id ?? "";
+  const role = (roleParam === "student" ? "student" : "teacher") as UserRole;
+
+  const isEdit = !!params.classworkId;
+  const { createClasswork, editClasswork, getClassWorks, getClassInfo, currentClass } = useClassStore();
   const navigate = useNavigate();
 
   const [title, setTitle] = useState("");
@@ -82,9 +80,17 @@ const AddEditClassworkForm: React.FC = () => {
   const [deadline, setDeadline] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // only teachers allowed to access this page
   useEffect(() => {
-    if (isEdit && classworkId && currentClass?.data?.works) {
-      const cw = currentClass.data.works.find((w) => String(w.id) === String(classworkId));
+    if (role !== "teacher") {
+      // redirect students back to class page (they shouldn't edit/create)
+      navigate(`/class/${role}/${id}`);
+    }
+  }, [role, id, navigate]);
+
+  useEffect(() => {
+    if (isEdit && params.classworkId && currentClass?.data?.works) {
+      const cw = currentClass.data.works.find((w) => String(w.id) === String(params.classworkId));
       if (cw) {
         setTitle(cw.title ?? "");
         setDescription(cw.description ?? "");
@@ -98,22 +104,22 @@ const AddEditClassworkForm: React.FC = () => {
         }
       }
     }
-  }, [isEdit, classworkId, currentClass?.data?.works]);
+  }, [isEdit, params.classworkId, currentClass?.data?.works]);
 
   useEffect(() => {
     if (id) getClassInfo(Number(id));
   }, [id, getClassInfo]);
 
-  const handleCancel = () => navigate(`/class/${id}?tab=exercise`);
+  const handleCancel = () => navigate(`/class/${role}/${id}?tab=exercise`);
 
   const handleSave = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setLoading(true);
     try {
       const deadlineIso = deadline ? new Date(deadline).toISOString() : undefined;
-      if (isEdit && classworkId) {
+      if (isEdit && params.classworkId) {
         await editClasswork({
-          id: Number(classworkId),
+          id: Number(params.classworkId),
           classId: Number(id),
           title: title.trim(),
           description: description?.trim(),
@@ -129,7 +135,7 @@ const AddEditClassworkForm: React.FC = () => {
       }
       await getClassWorks(Number(id));
       await getClassInfo(Number(id));
-      navigate(`/class/${id}?tab=exercise`);
+      navigate(`/class/${role}/${id}?tab=exercise`);
     } catch (err) {
       console.error("Save error", err);
     } finally {
@@ -141,25 +147,17 @@ const AddEditClassworkForm: React.FC = () => {
 
   return (
     <div className="p-6">
-      {/* Top bar similar to classroom: back icon + title + save button */}
+      {/* Top bar */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-100">
-            ←
-          </button>
+          <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-100">←</button>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white">📝</div>
             <div className="text-lg font-medium">Bài tập</div>
           </div>
         </div>
         <div>
-          <button
-            onClick={() => handleSave()}
-            disabled={loading}
-            className="bg-blue-600 text-white px-4 py-2 rounded"
-          >
-            Lưu
-          </button>
+          <button onClick={() => handleSave()} disabled={loading} className="bg-blue-600 text-white px-4 py-2 rounded">Lưu</button>
         </div>
       </div>
 
@@ -168,20 +166,10 @@ const AddEditClassworkForm: React.FC = () => {
         <div className="col-span-12 lg:col-span-8">
           <div className="bg-white border rounded-lg p-6 mb-4">
             <div className="mb-2 text-sm text-gray-600">Tiêu đề*</div>
-            <input
-              className="w-full border-b pb-2 mb-4 text-lg outline-none"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Tiêu đề"
-            />
+            <input className="w-full border-b pb-2 mb-4 text-lg outline-none" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Tiêu đề" />
 
             <div className="mb-2 text-sm text-gray-600">Hướng dẫn (không bắt buộc)</div>
-            <textarea
-              className="w-full border rounded p-3 min-h-[160px] mb-4"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Nhập hướng dẫn cho học viên..."
-            />
+            <textarea className="w-full border rounded p-3 min-h-[160px] mb-4" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Nhập hướng dẫn cho học viên..." />
 
             <div className="rounded-lg border p-6">
               <div className="text-sm font-medium mb-4">Đính kèm</div>

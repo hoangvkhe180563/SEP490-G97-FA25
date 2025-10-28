@@ -41,12 +41,13 @@ namespace StudyHub.Backend.Api.Controllers
          [FromQuery] string? query,
          [FromQuery] string? subject,
          [FromQuery] string? status,
+         [FromQuery] Guid? memberid,
          [FromQuery] int page = 1,
          [FromQuery] int limit = 10
      )
         {
 
-            var allClasses = _service.GetClasses();
+            var allClasses = _service.GetClasses(memberid);
 
             var filteredClasses = allClasses
 
@@ -215,7 +216,7 @@ namespace StudyHub.Backend.Api.Controllers
         public IActionResult GetCommentsByNotification(int notificationId)
         {
             var comments = _service.GetCommentsByNotificationId(notificationId)
-                .Select(c => c.ToCommentDto(_aUserService.GetUserById(c.AppUserId))) // mapping dto (tạo mapper nếu chưa có)
+                .Select(c => c.ToCommentDto(_aUserService.GetUserById(c.AppUserId)))
                 .ToList();
 
             return Ok(new
@@ -506,21 +507,21 @@ namespace StudyHub.Backend.Api.Controllers
                     return BadRequest(new { success = false, message = "Cần cung cấp ít nhất một email để mời." });
 
                 var results = new List<object>();
-                var baseFrontendUrl = _config["Frontend:BaseUrl"]?.TrimEnd('/') ?? $"{Request.Scheme}://{Request.Host}";
+                var baseFrontendUrl = _config["App:BaseUrl"]?.TrimEnd('/') ?? $"{Request.Scheme}://{Request.Host}";
 
                 foreach (var raw in request.Emails.Select(e => e?.Trim()).Where(e => !string.IsNullOrWhiteSpace(e)).Distinct(StringComparer.OrdinalIgnoreCase))
                 {
                     var email = raw!;
                     // Try find user by email via AppUserService
-                    var user = TryGetUserByEmail(email);
+                    var user = _aUserService.GetUserByEmail(email);
 
                     if (user != null)
                     {
                         // Existing user: create/update class_members with status = 'invited'
                         var invited = _service.InviteMember(user.Id, id);
-
+                        
                         // Build frontend accept URL (frontend should call confirm)
-                        var acceptUrl = $"{baseFrontendUrl}/class/{id}?invite=true";
+                        var acceptUrl = $"{baseFrontendUrl}/class/{request.Role.ToLower()}/{id}/invite/confirm";
 
                         // send invitation email (only here)
                         await _emailService.SendClassInvitationEmailAsync(email, cls.Name ?? "Class", acceptUrl, inviterName: _aUserService.GetUserById(cls.CreatedBy)?.Fullname ?? "", customMessage: request.Message);
@@ -599,35 +600,8 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        // ---------------- Helpers ----------------
 
-        // Try to resolve user by email using AppUserService. Uses reflection fallback if method name differs.
-        private AppUser? TryGetUserByEmail(string email)
-        {
-            try
-            {
-                // Prefer a direct method call if available
-                var mi = _aUserService.GetType().GetMethod("GetUserByEmail");
-                if (mi != null)
-                {
-                    var res = mi.Invoke(_aUserService, new object[] { email });
-                    return res as AppUser;
-                }
-
-                // fallback: attempt GetAllUsers and find
-                var allMethod = _aUserService.GetType().GetMethod("GetAllUsers");
-                if (allMethod != null)
-                {
-                    var list = allMethod.Invoke(_aUserService, Array.Empty<object>()) as IEnumerable<AppUser>;
-                    return list?.FirstOrDefault(u => string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase));
-                }
-            }
-            catch
-            {
-                // ignore and return null
-            }
-            return null;
-        }
+        
         [HttpGet("classworks/{id}")]
         public IActionResult getClasswork(int id)
         {
@@ -652,7 +626,6 @@ namespace StudyHub.Backend.Api.Controllers
             return CreatedAtAction(nameof(getClasswork), new { id = cw.ClassId }, cw);
         }
 
-        // 2. Sửa Classwork
         [HttpPut("classworks/{id}")]
         public IActionResult EditClasswork(int id, [FromBody] EditClassworkDto dto)
         {
@@ -667,19 +640,16 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(new { success = true, message = "Đã update", data = updated });
         }
 
-        // 3. Lấy chi tiết một Classwork
         [HttpGet("classworks/{id}/detail")]
         public IActionResult GetClassworkDetail(int id)
         {
             var cw = _service.GetClasswork(id);
             if (cw == null)
                 return NotFound(new { success = false, message = "Không tìm thấy classwork" });
-            // Nếu cần trả về cả danh sách bài nộp thì có thể lấy thêm submissions ở đây
             var submissions = _service.GetSubmissionsByClassworkId(id);
             return Ok(new { success = true, data = cw, submissions });
         }
 
-        // 4. Nộp bài cho Classwork
         [HttpPost("classworks/{id}/submit")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> SubmitClasswork(int id, [FromForm] SubmitClassworkDto dto)

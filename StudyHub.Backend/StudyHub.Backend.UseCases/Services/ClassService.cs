@@ -16,9 +16,9 @@ namespace StudyHub.Backend.UseCases.Services
             _fileStorage = fileStorage;
             _userRepository = userRepository;
         }
-        public List<Class> GetClasses()
+        public List<Class> GetClasses(Guid? userid)
         {
-            return _classRepository.GetAllClasses();
+            return _classRepository.GetAllClasses(userid);
         }
         public List<Subject> GetSubjects()
         {

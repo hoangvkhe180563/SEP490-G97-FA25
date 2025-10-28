@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 import { useNavigate, useParams } from "react-router-dom";
+import type { UserRole } from "@/classManagement/components/ui/classcard";
 
 const AddEditClassworkForm: React.FC = () => {
-  const { id, classworkId } = useParams<{ id?: string; classworkId?: string }>();
+  // include role in params so navigation can produce /class/{role}/{id}
+  const params = useParams<{ role?: string; id?: string; classworkId?: string }>();
+  const { role: roleParam, id: idParam, classworkId } = params;
+  // normalize role to UserRole (default to 'teacher' when missing/unknown)
+  const role = (roleParam === "student" ? "student" : "teacher") as UserRole;
+
   const isEdit = !!classworkId;
   const { createClasswork, editClasswork, getClassWorks, currentClass } = useClassStore();
   const navigate = useNavigate();
@@ -26,25 +32,35 @@ const AddEditClassworkForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    if (isEdit && classworkId) {
-      await editClasswork({
-        id: Number(classworkId),
-        classId: Number(id),
-        title,
-        description,
-        deadline,
-      });
-    } else {
-      await createClasswork({
-        classId: Number(id),
-        title,
-        description,
-        deadline,
-      });
+    try {
+      if (isEdit && classworkId) {
+        await editClasswork({
+          id: Number(classworkId),
+          classId: Number(idParam),
+          title,
+          description,
+          deadline,
+        });
+      } else {
+        await createClasswork({
+          classId: Number(idParam),
+          title,
+          description,
+          deadline,
+        });
+      }
+      await getClassWorks(Number(idParam));
+      // navigate back to class list with role-aware URL
+      navigate(`/class/${role}/${idParam}?tab=exercise`);
+    } catch (err) {
+      console.error("Error creating/updating classwork", err);
+    } finally {
+      setLoading(false);
     }
-    await getClassWorks(Number(id));
-    setLoading(false);
-    navigate(`/class/${id}?tab=exercise`);
+  };
+
+  const handleCancel = () => {
+    navigate(`/class/${role}/${idParam}?tab=exercise`);
   };
 
   return (
@@ -53,19 +69,48 @@ const AddEditClassworkForm: React.FC = () => {
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
           <label className="block text-sm font-medium mb-1">Tiêu đề</label>
-          <input value={title} onChange={e => setTitle(e.target.value)} required className="w-full border rounded px-2 py-1" />
+          <input
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            required
+            className="w-full border rounded px-2 py-1"
+          />
         </div>
         <div className="mb-3">
           <label className="block text-sm font-medium mb-1">Mô tả</label>
-          <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full border rounded px-2 py-1" />
+          <textarea
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            className="w-full border rounded px-2 py-1"
+          />
         </div>
         <div className="mb-3">
           <label className="block text-sm font-medium mb-1">Hạn nộp</label>
-          <input type="datetime-local" value={deadline} onChange={e => setDeadline(e.target.value)} className="w-full border rounded px-2 py-1" />
+          <input
+            type="datetime-local"
+            value={deadline}
+            onChange={e => setDeadline(e.target.value)}
+            className="w-full border rounded px-2 py-1"
+          />
         </div>
-        <button type="submit" disabled={loading} className="bg-blue-600 text-white px-4 py-2 rounded">
-          {isEdit ? "Cập nhật" : "Thêm mới"}
-        </button>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-blue-600 text-white px-4 py-2 rounded"
+          >
+            {isEdit ? "Cập nhật" : "Thêm mới"}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-4 py-2 rounded border"
+          >
+            Hủy
+          </button>
+        </div>
       </form>
     </div>
   );

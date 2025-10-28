@@ -20,15 +20,14 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // simple debounce (if you don't have useDebounce hook): we'll implement inline
+ 
   const [debounced, setDebounced] = useState(query);
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query), 250);
     return () => clearTimeout(t);
   }, [query]);
 
-  // Example: fetch suggestions from backend: GET /User/search?query={q}
-  // If you don't have an endpoint, you can leave suggestions empty and accept typed emails.
+  
   useEffect(() => {
     const q = debounced.trim();
     if (!q) {

@@ -77,43 +77,70 @@ export const useClassStore = create<ClassState>()(
       meta: null,
       currentClass: defaultCurrentClass,
 
-      getClasses: async (query: string) => {
-        set({ isLoading: true, success: false, message: "" });
-        try {
-          const response = await axiosInstance.get<GetClassesResponse>(
-            `/Class?${query}`
-          );
-          const data = response.data;
-          console.log("API trả về số lớp:", data.classes.length);
+getClasses: async (query?: string, memberId?: string) => {
+  set({ isLoading: true, success: false, message: "" });
+  try {
+    // Build URL and query parameters safely.
+    const base = "/Class";
+    const params = new URLSearchParams();
 
-          const mappedClasses: ClassListDto[] = data.classes.map((c) => ({
-            id: c.id,
-            name: c.name,
-            subjectName: c.subjectName,
-            instructorName: c.instructorName,
-            description: c.description,
-            subjectId: c.subjectId,
-          }));
-
-          set({
-            classes: mappedClasses,
-            meta: data.meta ?? null,
-            success: data.success,
-            message: data.message,
-          });
-
-          return data;
-        } catch (error) {
-          set({
-            success: false,
-            message: "Failed to fetch classes (Lỗi khi tải danh sách lớp)",
-          });
-          console.error(error);
-          return null;
-        } finally {
-          set({ isLoading: false });
+    // If caller provided a query string (e.g. "page=1&limit=6&query=abc"), merge it into params
+    if (query && query.trim().length > 0) {
+      // Accept either a raw query string or already-encoded; URLSearchParams handles both.
+      const incoming = new URLSearchParams(query);
+      incoming.forEach((v, k) => {
+        // don't overwrite an explicit memberid from query (caller might already include it)
+        if (k.toLowerCase() === "memberid" || k.toLowerCase() === "memberuserid") {
+          // normalize to memberid if caller provided memberUserId key previously
+          params.set("memberid", v);
+        } else {
+          // append other params (page, limit, query, subject,...)
+          params.append(k, v);
         }
-      },
+      });
+    }
+
+    // Add memberId param only if not already present
+    if (memberId && !params.has("memberid")) {
+      params.append("memberid", memberId);
+    }
+
+    const url = params.toString() ? `${base}?${params.toString()}` : base;
+
+    const response = await axiosInstance.get<GetClassesResponse>(url);
+    // some backends return data directly or wrapped in .data - prefer response.data
+    const data = response?.data ?? null;
+
+    const classesArray: any[] = (data?.classes ?? data?.classes ?? data) as any[];
+
+    const mappedClasses: ClassListDto[] = (Array.isArray(classesArray) ? classesArray : []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      subjectName: c.subjectName ?? c.subject_name ?? c.subject?.name ?? "",
+      instructorName: c.instructorName ?? c.instructor_name ?? c.instructor ?? "",
+      description: c.description,
+      subjectId: c.subjectId ?? c.subject_id ?? (c.subject ? c.subject.id ?? 0 : 0),
+    }));
+
+    set({
+      classes: mappedClasses,
+      meta: data?.meta ?? null,
+      success: data?.success ?? true,
+      message: data?.message ?? "",
+    });
+
+    return data;
+  } catch (error) {
+    console.error("getClasses error", error);
+    set({
+      success: false,
+      message: "Failed to fetch classes (Lỗi khi tải danh sách lớp)",
+    });
+    return null;
+  } finally {
+    set({ isLoading: false });
+  }
+},
 
       addClass: async (payload: {
         title: string;
@@ -680,29 +707,35 @@ export const useClassStore = create<ClassState>()(
       },
 
       // Nộp bài tập: submitClasswork
-      submitClasswork: async (classworkId: number, appUserId: string, files: File[]) => {
-        set({ isLoading: true, success: false, message: "" });
-        try {
-          const fd = new FormData();
-          fd.append("AppUserId", appUserId);
-          for (let i = 0; i < files.length; i++) {
-            fd.append("Files", files[i], files[i].name);
-          }
-          const res = await axiosInstance.post(`/Class/classworks/${classworkId}/submit`, fd, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-          const raw = res?.data ?? null;
-          if (!raw || raw.success === false) {
-            set({ isLoading: false, success: false, message: raw?.message ?? "Nộp bài thất bại" });
-            return null;
-          }
-          set({ isLoading: false, success: true, message: raw.message ?? "Nộp bài thành công" });
-          return raw.data ?? raw;
-        } catch (err) {
-          set({ isLoading: false, success: false, message: "Nộp bài thất bại" });
+      submitClasswork: async (classworkId: number, appUserId: string, files: File[], links?: LinkPayload[]) => {
+      set({ isLoading: true, success: false, message: "" });
+      try {
+        const fd = new FormData();
+        fd.append("AppUserId", appUserId);
+        for (let i = 0; i < files.length; i++) {
+          fd.append("Files", files[i], files[i].name);
+        }
+        if (links && links.length > 0) {
+          // append LinksJson so backend can parse
+          fd.append("LinksJson", JSON.stringify(links));
+        }
+
+        const res = await axiosInstance.post(`/Class/classworks/${classworkId}/submit`, fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        const raw = res?.data ?? null;
+        if (!raw || raw.success === false) {
+          set({ isLoading: false, success: false, message: raw?.message ?? "Nộp bài thất bại" });
           return null;
         }
-      },
+        set({ isLoading: false, success: true, message: raw.message ?? "Nộp bài thành công" });
+        return raw.data ?? raw;
+      } catch (err) {
+        set({ isLoading: false, success: false, message: "Nộp bài thất bại" });
+        console.error("submitClasswork error", err);
+        return null;
+      }
+    },
 
       // Lấy danh sách các bài nộp cho một bài tập
       getClassworkSubmissions: async (classworkId: number): Promise<ClassworkSubmission[] | null> => {

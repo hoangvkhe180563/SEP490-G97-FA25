@@ -48,10 +48,25 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             throw new NotImplementedException();
         }
 
-        public List<Class> GetAllClasses()
+        public List<Class> GetAllClasses(Guid? userid)
         {
+            if(userid == null)
+            {
+                return _context.Classes.Include(c => c.ClassMembers).Where(c => c.DeletedAt == null).Select(c => new Class
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    SubjectId = c.SubjectId,
+                    Description = c.Description,
+                    CreatedAt = c.CreatedAt,
+                    CreatedBy = c.CreatedBy,
+                    UpdatedAt = c.UpdatedAt,
+                    UpdatedBy = c.UpdatedBy,
+                    DeletedAt = c.DeletedAt
+                }).OrderByDescending(c => c.CreatedAt).ToList();
+            }
             // Chỉ trả về các Class entity
-            return _context.Classes.Where(c => c.DeletedAt == null).Select(c => new Class
+            return _context.Classes.Include(c=>c.ClassMembers).Where(c => c.DeletedAt == null&& c.ClassMembers.FirstOrDefault(b=>b.UserId==userid)!=null).Select(c => new Class
             {
                 Id = c.Id,
                 Name = c.Name,
@@ -366,12 +381,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 // Nếu đã có record:
                 var existing = _context.ClassMembers.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
+                
                 if (existing != null)
                 {
                     // nếu đã joined, không đổi; nếu bị kicked hoặc invited, set lại invited and null JoinDate
                     existing.Status = "invited";
                     existing.JoinDate = DateTime.Now;
                     _context.ClassMembers.Update(existing);
+
                     _context.SaveChanges();
                     return true;
                 }

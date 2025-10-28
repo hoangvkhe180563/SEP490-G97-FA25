@@ -119,7 +119,7 @@ export interface ClassState {
   message: string;
   meta?: Meta | null;
 
-  getClasses: (query: string) => Promise<GetClassesResponse | null>;
+  getClasses: (query: string,memberUserId?: string) => Promise<GetClassesResponse | null>;
   addClass: (payload: { title: string; subject: number; description?: string }) => Promise<any | null>;
   getAllSubjects: () => Promise<Subject[]>;
   updateClass: (payload: { id: number; title: string; subject: number; description?: string }) => Promise<any | null>;
@@ -147,6 +147,6 @@ export interface ClassState {
   getClassWorks: (classId: number) => Promise<ClassWork[] | null>;
    createClasswork: (payload: { classId: number; title: string; description?: string; deadline?: string }) => Promise<ClassWork | null>;
   editClasswork: (payload: { id: number; classId: number; title: string; description?: string; deadline?: string }) => Promise<ClassWork | null>;
-  submitClasswork: (classworkId: number, appUserId: string, files: File[]) => Promise<any | null>;
+  submitClasswork: (classworkId: number, appUserId: string, files: File[],links?: LinkPayload[]) => Promise<any | null>;
   getClassworkSubmissions: (classworkId: number) => Promise<ClassworkSubmission[] | null>;
 }

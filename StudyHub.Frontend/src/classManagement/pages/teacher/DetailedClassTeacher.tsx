@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import type { ClassWork } from "@/classManagement/interfaces/class";
 import PostComposer from "@/classManagement/components/ui/postcomposer";
@@ -72,14 +72,18 @@ const ClassWorkDropdown: React.FC<{ work: ClassWork }> = ({ work }) => {
       {work.classId && (
         <div className="mt-2 text-xs text-gray-400">Mã lớp: {work.classId}</div>
       )}
-      {/* Thêm các trường khác nếu cần */}
     </div>
   );
 };
 
 // ===== Trang chi tiết lớp học =====
 const DetailedClassTeacher: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  // read role and id from URL: /class/:role/:id
+  const params = useParams<{ role?: string; id?: string }>();
+  const roleParam = params.role;
+  const id = params.id ?? "";
+  const role = (roleParam === "student" ? "student" : "teacher") as UserRole;
+
   const {
     getClassInfo,
     getClassMembers,
@@ -98,18 +102,15 @@ const DetailedClassTeacher: React.FC = () => {
 
   const navigate = useNavigate();
 
-  const userRole: UserRole = useMemo(() => {
-    if (location.pathname.includes("/student")) return "student";
-    return "teacher";
-  }, [location.pathname]);
-
   // ✅ Gọi API lấy thông tin lớp + notifications khi mount
   useEffect(() => {
     if (id) {
       getClassInfo(Number(id));
     }
   }, [id, getClassInfo]);
+
   const worksFromStore: ClassWork[] = currentClass?.data?.works ?? [];
+
   // Tab đang hoạt động
   const [activeTab, setActiveTab] = useState("notifications");
   const [searchParams] = useSearchParams();
@@ -125,7 +126,6 @@ const DetailedClassTeacher: React.FC = () => {
   useEffect(() => {
     if (!id) return;
     if (activeTab === "everyone") {
-      // Only fetch if we don't already have loaded members (avoid refetching every open)
       const hasTeacher = !!currentClass?.data?.teacher;
       const hasStudents = (currentClass?.data?.students ?? []).length > 0;
       const hasParents = (currentClass?.data?.parents ?? []).length > 0;
@@ -147,16 +147,17 @@ const DetailedClassTeacher: React.FC = () => {
   const students: ClassMemberDto[] = currentClass?.data?.students ?? [];
   const parents: ClassMemberDto[] = currentClass?.data?.parents ?? [];
   const [notifications, setNotifications] = useState<ClassNotification[]>([]);
+
   useEffect(() => {
     if (!id) return;
     if (activeTab === "exercise") {
       const hasWorks = (currentClass?.data?.works ?? []).length > 0;
       if (!hasWorks) {
-        // call store action
         getClassWorks(Number(id));
       }
     }
   }, [activeTab, id, getClassWorks, currentClass?.data?.works]);
+
   // sync notifications whenever currentClass updates
   useEffect(() => {
     if (currentClass?.data?.notifications) {
@@ -166,7 +167,7 @@ const DetailedClassTeacher: React.FC = () => {
 
   const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
 
-  // handlePost now accepts title and links from PostComposer and forwards them to the store
+  // handlePost accepts title and links from PostComposer and forwards them to the store
   const handlePost = async (
     content: string,
     files?: File[],
@@ -175,7 +176,6 @@ const DetailedClassTeacher: React.FC = () => {
   ) => {
     if (!id) return;
 
-    // decide title: use provided composer title when available, otherwise fallback to generated one
     const fallbackTitle =
       content && content.length > 40
         ? `${content.slice(0, 40)}...`
@@ -185,12 +185,10 @@ const DetailedClassTeacher: React.FC = () => {
         ? titleFromComposer.trim()
         : fallbackTitle;
 
-    // createdBy must be a GUID string that backend accepts.
-    // Replace with actual current user id when available.
-    const createdByGuid = "d4e5f6a7-b8c9-0123-4567-890abcdef014";
+    const createdByGuid =
+      localStorage.getItem("currentUserId") ??
+      "d4e5f6a7-b8c9-0123-4567-890abcdef014";
 
-    // Call store action to create notification
-    // Include links if provided (store should append LinksJson or send appropriately)
     const created = await createNotification({
       classId: Number(id),
       title: titleToSend,
@@ -201,16 +199,13 @@ const DetailedClassTeacher: React.FC = () => {
     });
 
     if (created) {
-      // Refresh notifications from API to get server-generated fields
       const refreshed = await getClassInfo(Number(id));
       if (refreshed && refreshed.data?.notifications) {
         setNotifications(refreshed.data.notifications);
       } else {
-        // fallback: prepend created item if refresh failed
         setNotifications((prev) => [created, ...prev]);
       }
     } else {
-      // fallback: just add to local UI (optimistic) - include links as pseudo-file entries
       const fallbackFiles =
         files?.map((f) => ({ id: 0, fileName: f.name, fileUrl: "" })) ??
         links?.map((l, idx) => ({
@@ -249,11 +244,9 @@ const DetailedClassTeacher: React.FC = () => {
   const handleOpenAdd = () => setOpenAddMember(true);
   const handleCloseAdd = () => setOpenAddMember(false);
   const handleInvited = (res?: any) => {
-    // refresh members if needed (store inviteMembers already attempts getClassMembers)
     if (id) {
       getClassMembers(Number(id));
     }
-    // close modal handled by AddMemberModal caller or parent
     handleCloseAdd();
   };
 
@@ -275,11 +268,11 @@ const DetailedClassTeacher: React.FC = () => {
 
   return (
     <div className="p-6">
-      {/* ===== Breadcrumb ===== */}
+      {/* Breadcrumb */}
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href={"/class/" + userRole}>Lớp học</BreadcrumbLink>
+            <BreadcrumbLink href={`/class/${role}`}>Lớp học</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
@@ -290,7 +283,7 @@ const DetailedClassTeacher: React.FC = () => {
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* Header with title and Add member button */}
+      {/* Header */}
       <div className="mt-4 mb-4 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">
@@ -300,17 +293,9 @@ const DetailedClassTeacher: React.FC = () => {
             {classInfo?.description ?? ""}
           </div>
         </div>
-        <div>
-          <button
-            onClick={handleOpenAdd}
-            className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded"
-          >
-            Thêm thành viên
-          </button>
-        </div>
       </div>
 
-      {/* ===== Lưới bố cục chính ===== */}
+      {/* Main grid */}
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-8">
           <Tabs
@@ -326,7 +311,7 @@ const DetailedClassTeacher: React.FC = () => {
               </TabsList>
             </div>
 
-            {/* --- Thông báo --- */}
+            {/* Notifications */}
             <TabsContent value="notifications">
               <PostComposer onPost={handlePost} avatarUrl={"/vite.svg"} />
               <div className="mt-4 space-y-4">
@@ -352,16 +337,22 @@ const DetailedClassTeacher: React.FC = () => {
               </div>
             </TabsContent>
 
-            {/* --- Bài tập --- */}
+            {/* Exercise */}
             <TabsContent value="exercise">
               <div className="flex justify-end mb-3">
-                <button
-                  className="bg-blue-600 text-white px-4 py-2 rounded"
-                  onClick={() => navigate(`/class/teacher/${id}/classwork/add`)}
-                >
-                  + Thêm bài tập
-                </button>
+                {/* only show Add classwork when teacher */}
+                {role === "teacher" && (
+                  <button
+                    className="bg-blue-600 text-white px-4 py-2 rounded"
+                    onClick={() =>
+                      navigate(`/class/${role}/${id}/classwork/add`)
+                    }
+                  >
+                    + Thêm bài tập
+                  </button>
+                )}
               </div>
+
               <div className="mt-2">
                 {worksFromStore.length === 0 ? (
                   <div className="text-gray-500 text-sm">
@@ -374,7 +365,14 @@ const DetailedClassTeacher: React.FC = () => {
                         <div
                           className={`bg-white border rounded-lg p-4 cursor-pointer hover:bg-blue-50 flex justify-between items-start`}
                           onClick={() =>
-                            navigate(`/class/teacher/${id}/classwork/${w.id}/detail`)
+                            // students go to detail; teachers go to edit page
+                            role === "student"
+                              ? navigate(
+                                  `/class/${role}/${id}/classwork/${w.id}/detail`
+                                )
+                              : navigate(
+                                  `/class/${role}/${id}/classwork/${w.id}/edit`
+                                )
                           }
                         >
                           <div>
@@ -392,17 +390,26 @@ const DetailedClassTeacher: React.FC = () => {
                                 ? new Date(w.deadline).toLocaleString()
                                 : "Không xác định"}
                             </div>
-                            <button
-                              className="ml-4 text-blue-600 underline text-xs"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/class/teacher/${id}/classwork/${w.id}/edit`);
-                              }}
-                            >
-                              Sửa
-                            </button>
+                            {/* show Edit link only for teacher */}
+                            {role === "teacher" && (
+                              <button
+                                className="ml-4 text-blue-600 underline text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(
+                                    `/class/${role}/${id}/classwork/${w.id}/edit`
+                                  );
+                                }}
+                              >
+                                Sửa
+                              </button>
+                            )}
                           </div>
                         </div>
+                        {/* optional dropdown */}
+                        {openDropdownId === w.id && (
+                          <ClassWorkDropdown work={w} />
+                        )}
                       </div>
                     ))}
                   </div>
@@ -410,8 +417,19 @@ const DetailedClassTeacher: React.FC = () => {
               </div>
             </TabsContent>
 
-            {/* --- Mọi người --- */}
+            {/* Everyone */}
             <TabsContent value="everyone">
+              <div>
+                {/* show Add member only for teachers */}
+                {role === "teacher" && (
+                  <button
+                    onClick={handleOpenAdd}
+                    className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded"
+                  >
+                    Thêm thành viên
+                  </button>
+                )}
+              </div>
               <EveryoneListTC
                 teacher={teacher ?? undefined}
                 students={students}
@@ -423,20 +441,18 @@ const DetailedClassTeacher: React.FC = () => {
           </Tabs>
         </div>
 
-        {/* ===== Cột bên phải ===== */}
+        {/* Right column: hide class info for students */}
         <aside className="col-span-12 lg:col-span-4">
-          <ClassInfoCard info={classInfo} />
+          {role === "teacher" && <ClassInfoCard info={classInfo} />}
         </aside>
       </div>
 
-      {/* ===== Modal chi tiết thành viên ===== */}
+      {/* Modals */}
       <MemberDetailModal
         open={!!selectedMember}
         member={selectedMember}
         onClose={handleCloseModal}
       />
-
-      {/* ===== Add member modal ===== */}
       <AddMemberModal
         open={openAddMember}
         classId={id ? Number(id) : 0}

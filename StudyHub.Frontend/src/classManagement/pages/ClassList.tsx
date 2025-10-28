@@ -6,6 +6,8 @@ import CreateClassModal from "@/classManagement/components/ui/createclassmodal";
 import EditClassModal from "@/classManagement/components/ui/editclassmodal";
 
 import { useClassStore } from "@/classManagement/stores/useClassStore";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { mapToCoarseRole } from "@/classManagement/utils/roleutil";
 import type { ClassListDto } from "@/classManagement/interfaces/class";
 
 type ClassItem = ClassListDto & {
@@ -15,11 +17,11 @@ type ClassItem = ClassListDto & {
   description?: string;
 };
 
-export const ClassList: React.FC = () => {
+const ClassList: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Zustand store
+  // Zustand stores
   const {
     classes: apiClasses,
     isLoading,
@@ -30,26 +32,31 @@ export const ClassList: React.FC = () => {
     subjects,
   } = useClassStore();
 
-  // Trạng thái lọc dữ liệu
+  const { user } = useAuthStore();
+
+  // UI state
   const [query, setQuery] = useState("");
   const [subject, setSubject] = useState("all");
 
-  // Trạng thái modal
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editing, setEditing] = useState<ClassItem | undefined>(undefined);
 
-  // Phân trang
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
 
-  // Lấy vai trò người dùng từ URL
-  const userRole: UserRole = useMemo(() => {
+  // derive coarse role from stored user roles (if available), otherwise fallback to path heuristic
+  const userRoleFromPath: UserRole = useMemo(() => {
     if (location.pathname.includes("/student")) return "student";
     return "teacher";
   }, [location.pathname]);
 
-  // Tạo query string khi filter hoặc phân trang
+  const coarseRole = mapToCoarseRole(user?.roles);
+  const userRole: UserRole = (coarseRole === "student" ? "student" : userRoleFromPath) as UserRole;
+
+  // current user id from auth store (assume GUID or string)
+  const currentUserId = user?.id ?? "";
+
   const buildQuery = () => {
     const params = new URLSearchParams();
     if (query.trim()) params.append("query", query.trim());
@@ -59,12 +66,15 @@ export const ClassList: React.FC = () => {
     return params.toString();
   };
 
-  // Gọi API khi filter hoặc phân trang thay đổi
+  // Fetch classes when filters/paging or auth info changes
   useEffect(() => {
-    getClasses(buildQuery());
-  }, [query, subject, currentPage, pageSize, getClasses]);
+    const q = buildQuery();
+    const memberIdToPass = currentUserId ? currentUserId : undefined;
+    getClasses(q, memberIdToPass);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, subject, currentPage, pageSize, getClasses, userRole, currentUserId]);
 
-  // Map dữ liệu từ API sang UI
+  // Map API classes for UI
   const classItems: ClassItem[] = useMemo(
     () =>
       apiClasses.map((c) => ({
@@ -76,32 +86,24 @@ export const ClassList: React.FC = () => {
     [apiClasses]
   );
 
-  // Tính tổng trang
   const total = meta?.total ?? 0;
   const totalPages = meta?.totalPages ?? 1;
 
-  // Reset về trang đầu nếu tổng trang nhỏ hơn currentPage
   useEffect(() => {
     if (currentPage > totalPages && currentPage !== 1) {
       setCurrentPage(1);
     }
   }, [totalPages, currentPage]);
 
-  // Load danh sách môn học
   useEffect(() => {
     getAllSubjects();
   }, [getAllSubjects]);
 
-  // Xử lý xem chi tiết lớp
-  const handleView = (id: number | string, role: UserRole) => {
-    navigate(`/class/${role}/${id}`);
+  const handleView = (id: number | string, roleParam: UserRole) => {
+    navigate(`/class/${roleParam}/${id}`);
   };
 
-  // Xử lý menu 3 chấm
-  const handleMenu = (
-    action: "viewClassworks" | "viewStudents" | "edit",
-    id: number | string
-  ) => {
+  const handleMenu = (action: "viewClassworks" | "viewStudents" | "edit", id: number | string) => {
     if (action === "edit") {
       const item = classItems.find((c) => c.id === id);
       if (item) {
@@ -118,32 +120,26 @@ export const ClassList: React.FC = () => {
     }
   };
 
-  // Xử lý tạo lớp học
-  const handleCreate = async (payload: {
-    title: string;
-    subject: number;
-    description?: string;
-  }) => {
-    console.log("Tạo lớp học:", payload);
+  const handleCreate = async (payload: { title: string; subject: number; description?: string }) => {
     const created = await addClass(payload);
     if (created) {
       setShowCreate(false);
       setCurrentPage(1);
-      getClasses(buildQuery());
+      const q = buildQuery();
+      const memberIdToPass = userRole === "student" && currentUserId ? currentUserId : undefined;
+      getClasses(q, memberIdToPass);
     }
   };
 
-  // Hàm chuyển trang
   const gotoPage = (p: number) => {
     if (p < 1) p = 1;
     if (p > totalPages) p = totalPages;
     setCurrentPage(p);
   };
 
-  // Giao diện
   return (
     <div className="p-6">
-      {/* Bộ lọc & nút tạo lớp */}
+      {/* Filters & create */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 mb-4">
         <div className="flex-1 flex gap-3 items-center">
           <input
@@ -174,24 +170,19 @@ export const ClassList: React.FC = () => {
 
         <div className="mt-3 sm:mt-0 ml-auto">
           {userRole === "teacher" && (
-            <button
-              onClick={() => setShowCreate(true)}
-              className="bg-black text-white px-4 py-2 rounded-md"
-            >
+            <button onClick={() => setShowCreate(true)} className="bg-black text-white px-4 py-2 rounded-md">
               + Tạo lớp học
             </button>
           )}
         </div>
       </div>
 
-      {/* Danh sách lớp học */}
+      {/* Class grid */}
       <div className="border-2 border-blue-400 rounded-md p-4 min-h-[260px]">
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm text-gray-600">
-            Hiển thị {total === 0 ? 0 : (currentPage - 1) * pageSize + 1} -{" "}
-            {Math.min(currentPage * pageSize, total)} trên tổng số {total} lớp
+            Hiển thị {total === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, total)} trên tổng số {total} lớp
           </div>
-
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600">Số lớp / trang</label>
             <select
@@ -210,75 +201,41 @@ export const ClassList: React.FC = () => {
         </div>
 
         {isLoading ? (
-          <div className="col-span-full text-center py-8 text-blue-500">
-            Đang tải danh sách lớp học...
-          </div>
+          <div className="col-span-full text-center py-8 text-blue-500">Đang tải danh sách lớp học...</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {classItems.map((c) => (
-              <ClassCard
-                key={c.id}
-                id={c.id}
-                title={c.title}
-                teacher={c.teacher}
-                subject={c.subjectName}
-                userRole={userRole}
-                onView={handleView}
-                onMenu={handleMenu}
-              />
+              <ClassCard key={c.id} id={c.id} title={c.title} teacher={c.teacher} subject={c.subjectName} userRole={userRole} onView={handleView} onMenu={handleMenu} />
             ))}
 
-            {classItems.length === 0 && (
-              <div className="col-span-full text-center py-8 text-gray-500">
-                Không tìm thấy lớp học nào.
-              </div>
-            )}
+            {classItems.length === 0 && <div className="col-span-full text-center py-8 text-gray-500">Không tìm thấy lớp học nào.</div>}
           </div>
         )}
 
-        {/* Điều khiển phân trang */}
+        {/* Pagination */}
         <div className="mt-4 flex items-center justify-center gap-2">
-          <button
-            onClick={() => gotoPage(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="px-3 py-1 border rounded disabled:opacity-50"
-          >
+          <button onClick={() => gotoPage(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 border rounded disabled:opacity-50">
             Trước
           </button>
-
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button
-              key={p}
-              onClick={() => gotoPage(p)}
-              className={`px-3 py-1 border rounded ${
-                p === currentPage ? "bg-slate-900 text-white" : ""
-              }`}
-            >
+            <button key={p} onClick={() => gotoPage(p)} className={`px-3 py-1 border rounded ${p === currentPage ? "bg-slate-900 text-white" : ""}`}>
               {p}
             </button>
           ))}
-
-          <button
-            onClick={() => gotoPage(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="px-3 py-1 border rounded disabled:opacity-50"
-          >
+          <button onClick={() => gotoPage(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1 border rounded disabled:opacity-50">
             Sau
           </button>
         </div>
       </div>
 
-      {/* Modal tạo & sửa lớp */}
-      <CreateClassModal
-        open={showCreate}
-        onClose={() => setShowCreate(false)}
-        onCreate={handleCreate}
-      />
+      <CreateClassModal open={showCreate} onClose={() => setShowCreate(false)} onCreate={handleCreate} />
       <EditClassModal
         open={showEdit}
         classItem={editing}
         onClose={() => {
-          getClasses(buildQuery());
+          const q = buildQuery();
+          const memberIdToPass = userRole === "student" && currentUserId ? currentUserId : undefined;
+          getClasses(q, memberIdToPass);
           setShowEdit(false);
         }}
       />
