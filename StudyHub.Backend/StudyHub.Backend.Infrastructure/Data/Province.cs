@@ -11,7 +11,7 @@ public partial class Province
 
     public sbyte CityId { get; set; }
 
-    public City City { get; set; } = null!;
+    public virtual City City { get; set; } = null!;
 
-    public List<Commune> Communes { get; set; } = new List<Commune>();
+    public virtual ICollection<Commune> Communes { get; set; } = new List<Commune>();
 }

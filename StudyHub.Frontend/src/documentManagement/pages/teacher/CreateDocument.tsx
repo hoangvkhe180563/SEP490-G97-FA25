@@ -1,4 +1,4 @@
-//documentManagement/pages/teacher/CreateDocument.tsx
+// src/documentManagement/pages/teacher/CreateDocument.tsx
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,6 +7,8 @@ import { Card } from "@/common/components/ui/card";
 import { Input } from "@/common/components/ui/input";
 import { Textarea } from "@/common/components/ui/textarea";
 import { Button } from "@/common/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -33,13 +35,10 @@ import {
   FormControl,
   FormMessage,
 } from "@/common/components/ui/form";
-import { documentService } from "@/documentManagement/services/documentService";
-import { axiosInstance } from "@/lib/axios";
-import type {
-  DocumentCategoryDto,
-  SubjectDto,
-} from "@/documentManagement/interfaces/documentApi";
+import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { axiosInstance } from "@/lib/axios";
+
 const schema = z.object({
   name: z.string().min(1, "Tên tài liệu là bắt buộc"),
   subject: z.string().min(1, "Vui lòng chọn môn học"),
@@ -83,7 +82,14 @@ interface ToastMessage {
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export default function CreateDocument() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { categories, subjects, getCategories, getSubjects } =
+    useDocumentStore();
+  const [editingDocumentId, setEditingDocumentId] = useState<string | null>(
+    null
+  );
+
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
@@ -93,15 +99,41 @@ export default function CreateDocument() {
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(
     new Set()
   );
-  const [categories, setCategories] = useState<DocumentCategoryDto[]>([]);
-  const [subjects, setSubjects] = useState<SubjectDto[]>([]);
   const [classes, setClasses] = useState<ClassDto[]>([]);
-  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
-  const [isLoadingSubjects, setIsLoadingSubjects] = useState(false);
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [classSearch, setClassSearch] = useState("");
+  const loadDocumentToEdit = (doc: PendingDocument) => {
+    setEditingDocumentId(doc.id);
 
+    form.setValue("name", doc.name);
+    form.setValue("subject", doc.subjectId.toString());
+    form.setValue("grade", doc.grade);
+    form.setValue("type", doc.categoryId.toString());
+    form.setValue(
+      "access",
+      doc.access === "Công khai"
+        ? "public"
+        : doc.access === "Trường"
+        ? "school"
+        : "class"
+    );
+    form.setValue("description", doc.description || "");
+    form.setValue("classes", doc.classes || []);
+
+    setDocumentFile(doc.documentFile);
+    if (doc.thumbnailFile) {
+      setThumbnailFile(doc.thumbnailFile);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setThumbnailPreview(reader.result as string);
+      };
+      reader.readAsDataURL(doc.thumbnailFile);
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -130,33 +162,16 @@ export default function CreateDocument() {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoadingCategories(true);
-      setIsLoadingSubjects(true);
-      try {
-        const [categoriesData, subjectsData] = await Promise.all([
-          documentService.getDocumentCategories(),
-          documentService.getSubjects(),
-        ]);
-        setCategories(categoriesData);
-        setSubjects(subjectsData);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        showToast("error", "Không thể tải dữ liệu môn học và loại tài liệu");
-      } finally {
-        setIsLoadingCategories(false);
-        setIsLoadingSubjects(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+    getCategories();
+    getSubjects();
+  }, [getCategories, getSubjects]);
 
   useEffect(() => {
-    if (accessValue === "class") {
+    if (accessValue === "class" && user?.id) {
       fetchUserClasses();
     }
-  }, [accessValue]);
+  }, [accessValue, user?.id]);
+
   if (!user) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -169,20 +184,13 @@ export default function CreateDocument() {
       </div>
     );
   }
-  const fetchUserClasses = async () => {
-    if (!user?.id) return;
 
+  const fetchUserClasses = async () => {
     setIsLoadingClasses(true);
     try {
       const response = await axiosInstance.get(`/Document/my-class/${user.id}`);
       const classesData = response.data?.data || response.data || [];
-      if (Array.isArray(classesData)) {
-        setClasses(classesData);
-      } else {
-        console.error("Classes data is not an array:", classesData);
-        setClasses([]);
-        showToast("error", "Dữ liệu lớp học không đúng định dạng");
-      }
+      setClasses(Array.isArray(classesData) ? classesData : []);
     } catch (error) {
       console.error("Error fetching classes:", error);
       setClasses([]);
@@ -206,6 +214,7 @@ export default function CreateDocument() {
     setDocumentFile(null);
     setThumbnailFile(null);
     setThumbnailPreview(null);
+    setEditingDocumentId(null);
   };
 
   const onAddToList = (data: FormValues) => {
@@ -235,8 +244,8 @@ export default function CreateDocument() {
         ? "Trường"
         : "Lớp";
 
-    const newDocument: PendingDocument = {
-      id: `${Date.now()}-${Math.random()}`,
+    const documentData: PendingDocument = {
+      id: editingDocumentId || `${Date.now()}-${Math.random()}`,
       name: data.name,
       subject: subject?.name || "",
       grade: data.grade,
@@ -252,9 +261,18 @@ export default function CreateDocument() {
       isInClass,
     };
 
-    setPendingDocuments((prev) => [...prev, newDocument]);
+    if (editingDocumentId) {
+      setPendingDocuments((prev) =>
+        prev.map((doc) => (doc.id === editingDocumentId ? documentData : doc))
+      );
+      showToast("success", "Đã cập nhật tài liệu");
+      setEditingDocumentId(null);
+    } else {
+      setPendingDocuments((prev) => [...prev, documentData]);
+      showToast("success", "Đã thêm tài liệu vào danh sách");
+    }
+
     resetForm();
-    showToast("success", "Đã thêm tài liệu vào danh sách");
   };
 
   const onDocumentFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -298,7 +316,22 @@ export default function CreateDocument() {
       return newSet;
     });
   };
+  const uploadSingleDocument = async (docId: string) => {
+    const doc = pendingDocuments.find((d) => d.id === docId);
+    if (!doc) return;
 
+    setIsUploading(true);
+    const success = await uploadDocument(doc);
+
+    if (success) {
+      removeDocument(docId);
+      showToast("success", "Đã tải lên tài liệu thành công");
+    } else {
+      showToast("error", "Tải lên tài liệu thất bại");
+    }
+
+    setIsUploading(false);
+  };
   const toggleSelectAll = () => {
     if (selectedDocuments.size === pendingDocuments.length) {
       setSelectedDocuments(new Set());
@@ -401,7 +434,7 @@ export default function CreateDocument() {
 
   const Toast = ({ toast }: { toast: ToastMessage }) => (
     <div
-      className={`flex items-center gap-3 px-4 py-3  shadow-lg animate-in slide-in-from-right ${
+      className={`flex items-center gap-3 px-4 py-3 shadow-lg animate-in slide-in-from-right ${
         toast.type === "success"
           ? "bg-green-50 border border-green-200"
           : "bg-red-50 border border-red-200"
@@ -480,15 +513,19 @@ export default function CreateDocument() {
 
   return (
     <div>
+      <div className="max-w-7xl mx-auto mb-4">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="gap-2">
+          <ArrowLeft className="w-4 h-4" />
+          Quay lại
+        </Button>
+      </div>{" "}
       <div className="fixed top-4 right-4 z-50 space-y-2">
         {toasts.map((toast) => (
           <Toast key={toast.id} toast={toast} />
         ))}
       </div>
-
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {/* LEFT: form (spans 3 cols on lg) */}
           <div className="lg:col-span-3">
             <Card className="p-6">
               <Form {...form}>
@@ -496,7 +533,6 @@ export default function CreateDocument() {
                   onSubmit={form.handleSubmit(onAddToList)}
                   className="space-y-6"
                 >
-                  {/* Tên tài liệu */}
                   <FormField
                     control={form.control}
                     name="name"
@@ -564,7 +600,6 @@ export default function CreateDocument() {
                               <Select
                                 onValueChange={field.onChange}
                                 value={field.value}
-                                disabled={isLoadingSubjects}
                               >
                                 <FormControl>
                                   <SelectTrigger className="w-full">
@@ -572,23 +607,14 @@ export default function CreateDocument() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {isLoadingSubjects ? (
-                                    <SelectItem value="loading" disabled>
-                                      <div className="flex items-center gap-2">
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Đang tải...
-                                      </div>
+                                  {subjects.map((subject) => (
+                                    <SelectItem
+                                      key={subject.id}
+                                      value={subject.id.toString()}
+                                    >
+                                      {subject.name}
                                     </SelectItem>
-                                  ) : (
-                                    subjects.map((subject) => (
-                                      <SelectItem
-                                        key={subject.id}
-                                        value={subject.id.toString()}
-                                      >
-                                        {subject.name}
-                                      </SelectItem>
-                                    ))
-                                  )}
+                                  ))}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -640,7 +666,6 @@ export default function CreateDocument() {
                               <Select
                                 onValueChange={field.onChange}
                                 value={field.value}
-                                disabled={isLoadingCategories}
                               >
                                 <FormControl>
                                   <SelectTrigger className="w-full">
@@ -648,23 +673,14 @@ export default function CreateDocument() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {isLoadingCategories ? (
-                                    <SelectItem value="loading" disabled>
-                                      <div className="flex items-center gap-2">
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Đang tải...
-                                      </div>
+                                  {categories.map((category) => (
+                                    <SelectItem
+                                      key={category.id}
+                                      value={category.id.toString()}
+                                    >
+                                      {category.name}
                                     </SelectItem>
-                                  ) : (
-                                    categories.map((category) => (
-                                      <SelectItem
-                                        key={category.id}
-                                        value={category.id.toString()}
-                                      >
-                                        {category.name}
-                                      </SelectItem>
-                                    ))
-                                  )}
+                                  ))}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -707,7 +723,7 @@ export default function CreateDocument() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Chọn lớp</FormLabel>
-                              <div className="border rounded-md p-4">
+                              <div className="border rounded-md p-2">
                                 {isLoadingClasses ? (
                                   <div className="flex items-center gap-2 text-sm text-gray-500">
                                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -718,37 +734,53 @@ export default function CreateDocument() {
                                     Không có lớp nào
                                   </div>
                                 ) : (
-                                  <div className="flex flex-wrap gap-2">
-                                    {classes.map((cls) => (
-                                      <Button
-                                        key={cls.id}
-                                        type="button"
-                                        variant={
-                                          field.value?.includes(cls.id)
-                                            ? "default"
-                                            : "outline"
-                                        }
-                                        size="sm"
-                                        className={`transition-all ${
-                                          field.value?.includes(cls.id)
-                                            ? "bg-blue-600 hover:bg-blue-700 text-white"
-                                            : "hover:border-blue-400"
-                                        }`}
-                                        onClick={() => {
-                                          const current = field.value || [];
-                                          field.onChange(
-                                            current.includes(cls.id)
-                                              ? current.filter(
-                                                  (id) => id !== cls.id
-                                                )
-                                              : [...current, cls.id]
-                                          );
-                                        }}
-                                      >
-                                        {cls.name}
-                                      </Button>
-                                    ))}
-                                  </div>
+                                  <>
+                                    <Input
+                                      placeholder="Tìm kiếm lớp..."
+                                      value={classSearch}
+                                      onChange={(e) =>
+                                        setClassSearch(e.target.value)
+                                      }
+                                      className="mb-3"
+                                    />
+                                    <div className="max-h-[60px] overflow-y-auto flex flex-wrap gap-1">
+                                      {classes
+                                        .filter((cls) =>
+                                          cls.name
+                                            .toLowerCase()
+                                            .includes(classSearch.toLowerCase())
+                                        )
+                                        .map((cls) => (
+                                          <Button
+                                            key={cls.id}
+                                            type="button"
+                                            variant={
+                                              field.value?.includes(cls.id)
+                                                ? "default"
+                                                : "outline"
+                                            }
+                                            size="sm"
+                                            className={`transition-all ${
+                                              field.value?.includes(cls.id)
+                                                ? "bg-blue-600 hover:bg-blue-700 text-white"
+                                                : "hover:border-blue-400"
+                                            }`}
+                                            onClick={() => {
+                                              const current = field.value || [];
+                                              field.onChange(
+                                                current.includes(cls.id)
+                                                  ? current.filter(
+                                                      (id) => id !== cls.id
+                                                    )
+                                                  : [...current, cls.id]
+                                              );
+                                            }}
+                                          >
+                                            {cls.name}
+                                          </Button>
+                                        ))}
+                                    </div>
+                                  </>
                                 )}
                               </div>
                               <FormMessage />
@@ -759,7 +791,6 @@ export default function CreateDocument() {
                     </div>
                   </div>
 
-                  {/* Mô tả */}
                   <FormField
                     control={form.control}
                     name="description"
@@ -778,7 +809,6 @@ export default function CreateDocument() {
                     )}
                   />
 
-                  {/* File upload zone */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
                       Tập tài liệu *
@@ -794,7 +824,6 @@ export default function CreateDocument() {
                     />
                   </div>
 
-                  {/* Buttons */}
                   <div className="flex gap-3 pt-2">
                     <Button
                       variant="outline"
@@ -816,7 +845,6 @@ export default function CreateDocument() {
             </Card>
           </div>
 
-          {/* RIGHT: pending list (spans 2 cols on lg) */}
           <div className="lg:col-span-2">
             <Card className="p-4">
               <div className="flex items-center justify-between mb-4">
@@ -884,6 +912,7 @@ export default function CreateDocument() {
                   <div
                     key={doc.id}
                     className="flex items-start gap-3 p-3 rounded-lg border hover:bg-gray-50 transition-colors"
+                    onDoubleClick={() => loadDocumentToEdit(doc)}
                   >
                     <Checkbox
                       id={`doc-${doc.id}`}
@@ -898,9 +927,10 @@ export default function CreateDocument() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-sm font-medium text-gray-900 truncate">
-                            {doc.name}
-                          </h3>
+                          <h3
+                            className="text-sm font-medium text-gray-900 truncate"
+                            dangerouslySetInnerHTML={{ __html: doc.name }}
+                          />
                           <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
                             <span>{doc.subject}</span>
                             <span>•</span>
@@ -917,14 +947,25 @@ export default function CreateDocument() {
                         {doc.access}
                       </Badge>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => removeDocument(doc.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => uploadSingleDocument(doc.id)}
+                        disabled={isUploading}
+                      >
+                        <Upload className="h-4 w-4 text-blue-600" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => removeDocument(doc.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
                 {pendingDocuments.length === 0 && (

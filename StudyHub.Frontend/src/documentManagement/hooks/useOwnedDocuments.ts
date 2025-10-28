@@ -1,39 +1,32 @@
-// src/documentManagement/hooks/useOwnedDocuments.ts
-import { useState, useEffect, useCallback } from "react";
-import { documentService } from "@/documentManagement/services/documentService";
-import type { Document } from "@/documentManagement/interfaces/document";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
 import type {
-  Subject,
-  DocumentCategory,
-} from "@/documentManagement/interfaces/masterData";
+  Document,
+  FilterState,
+  AvailableFilters,
+} from "@/documentManagement/interfaces/document";
 
-interface FilterState {
-  selectedGrades: number[];
-  selectedSubjects: string[];
-  selectedCategories: string[];
-  selectedAccessTypes: string[];
-  approvalStatus: string;
-}
-
-interface AvailableFilters {
-  grades: number[];
-  subjects: string[];
-  categories: string[];
-  accessTypes: string[];
-}
+const STORAGE_KEY = "ownedDocuments_filters";
 
 export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
+  const {
+    documents: storeDocuments,
+    categories,
+    subjects,
+    fetchOwnedDocuments,
+    getCategories,
+    getSubjects,
+    isLoading,
+  } = useDocumentStore();
+
   const [documents, setDocuments] = useState<Document[]>([]);
   const [allDocuments, setAllDocuments] = useState<Document[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [categories, setCategories] = useState<DocumentCategory[]>([]);
   const [availableFilters, setAvailableFilters] = useState<AvailableFilters>({
     grades: [],
     subjects: [],
     categories: [],
     accessTypes: [],
   });
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -41,29 +34,46 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("newest");
 
-  const [filters, setFilters] = useState<FilterState>({
-    selectedGrades: [],
-    selectedSubjects: [],
-    selectedCategories: [],
-    selectedAccessTypes: [],
-    approvalStatus: "all",
+  const [filters, setFilters] = useState<FilterState>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (error) {
+      console.error("Error loading saved filters:", error);
+    }
+    return {
+      selectedGrades: [],
+      selectedSubjects: [],
+      selectedCategories: [],
+      selectedAccessTypes: [],
+      approvalStatus: "all",
+    };
   });
 
+  const hasFetchedRef = useRef(false);
+  const previousCreatorIdRef = useRef(creatorId);
+
   useEffect(() => {
-    const fetchMasterData = async () => {
-      try {
-        const [subjectsData, categoriesData] = await Promise.all([
-          documentService.getSubjects(),
-          documentService.getDocumentCategories(),
-        ]);
-        setSubjects(subjectsData);
-        setCategories(categoriesData);
-      } catch (err) {
-        console.error("Failed to fetch master data", err);
-      }
-    };
-    fetchMasterData();
+    if (previousCreatorIdRef.current !== creatorId) {
+      hasFetchedRef.current = false;
+      previousCreatorIdRef.current = creatorId;
+    }
+  }, [creatorId]);
+
+  useEffect(() => {
+    getCategories();
+    getSubjects();
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
+    } catch (error) {
+      console.error("Error saving filters:", error);
+    }
+  }, [filters]);
 
   const getAccessType = (doc: Document): string => {
     if (!doc.schoolId && doc.isInClass === false) return "public";
@@ -72,7 +82,7 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
     return "public";
   };
 
-  const calculateAvailableFilters = (docs: Document[]) => {
+  const calculateAvailableFilters = useCallback((docs: Document[]) => {
     const grades = Array.from(new Set(docs.map((d) => d.grade))).sort(
       (a, b) => a - b
     );
@@ -90,124 +100,129 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
       categories: categoryNames,
       accessTypes,
     });
-  };
+  }, []);
 
-  const applySorting = (docs: Document[]) => {
-    const sorted = [...docs];
-    if (sortBy === "oldest") {
-      sorted.sort(
-        (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
-    } else if (sortBy === "name-asc") {
-      sorted.sort((a, b) => a.name.localeCompare(b.name, "vi"));
-    } else if (sortBy === "name-desc") {
-      sorted.sort((a, b) => b.name.localeCompare(a.name, "vi"));
-    } else {
-      sorted.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-    }
-    return sorted;
-  };
+  const applySorting = useCallback(
+    (docs: Document[]) => {
+      const sorted = [...docs];
+      if (sortBy === "oldest") {
+        sorted.sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      } else if (sortBy === "name-asc") {
+        sorted.sort((a, b) => a.name.localeCompare(b.name, "vi"));
+      } else if (sortBy === "name-desc") {
+        sorted.sort((a, b) => b.name.localeCompare(a.name, "vi"));
+      } else {
+        sorted.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      }
+      return sorted;
+    },
+    [sortBy]
+  );
 
-  const applyFilters = (docs: Document[]) => {
-    let filtered = [...docs];
+  const applyFilters = useCallback(
+    (docs: Document[]) => {
+      let filtered = [...docs];
 
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (d) =>
-          d.name.toLowerCase().includes(query) ||
-          d.description?.toLowerCase().includes(query) ||
-          d.uploaderName?.toLowerCase().includes(query)
-      );
-    }
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        filtered = filtered.filter(
+          (d) =>
+            d.name.toLowerCase().includes(query) ||
+            d.description?.toLowerCase().includes(query) ||
+            d.uploaderName?.toLowerCase().includes(query)
+        );
+      }
 
-    if (filters.selectedGrades.length > 0) {
-      filtered = filtered.filter((d) =>
-        filters.selectedGrades.includes(d.grade)
-      );
-    }
+      if (filters.selectedGrades.length > 0) {
+        filtered = filtered.filter((d) =>
+          filters.selectedGrades.includes(d.grade)
+        );
+      }
 
-    if (filters.selectedSubjects.length > 0) {
-      filtered = filtered.filter(
-        (d) => d.subjectName && filters.selectedSubjects.includes(d.subjectName)
-      );
-    }
+      if (filters.selectedSubjects.length > 0) {
+        filtered = filtered.filter(
+          (d) =>
+            d.subjectName && filters.selectedSubjects.includes(d.subjectName)
+        );
+      }
 
-    if (filters.selectedCategories.length > 0) {
-      filtered = filtered.filter(
-        (d) =>
-          d.categoryName && filters.selectedCategories.includes(d.categoryName)
-      );
-    }
+      if (filters.selectedCategories.length > 0) {
+        filtered = filtered.filter(
+          (d) =>
+            d.categoryName &&
+            filters.selectedCategories.includes(d.categoryName)
+        );
+      }
 
-    if (filters.selectedAccessTypes.length > 0) {
-      filtered = filtered.filter((d) =>
-        filters.selectedAccessTypes.includes(getAccessType(d))
-      );
-    }
+      if (filters.selectedAccessTypes.length > 0) {
+        filtered = filtered.filter((d) =>
+          filters.selectedAccessTypes.includes(getAccessType(d))
+        );
+      }
 
-    if (filters.approvalStatus === "approved") {
-      filtered = filtered.filter((d) => d.isApproved === true);
-    } else if (filters.approvalStatus === "pending") {
-      filtered = filtered.filter((d) => d.isApproved === null);
-    } else if (filters.approvalStatus === "rejected") {
-      filtered = filtered.filter((d) => d.isApproved === false);
-    }
+      if (filters.approvalStatus === "approved") {
+        filtered = filtered.filter((d) => d.isApproved === true);
+      } else if (filters.approvalStatus === "pending") {
+        filtered = filtered.filter((d) => d.isApproved === null);
+      } else if (filters.approvalStatus === "rejected") {
+        filtered = filtered.filter((d) => d.isApproved === false);
+      }
 
-    return filtered;
-  };
+      return filtered;
+    },
+    [searchQuery, filters]
+  );
 
-  const fetchDocuments = useCallback(async () => {
-    if (!creatorId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await documentService.getOwnedDocuments(
-        creatorId,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        1,
-        9999
-      );
-
-      const allDocs = response.data.items;
-      setAllDocuments(allDocs);
-      calculateAvailableFilters(allDocs);
-
-      let filteredDocs = applyFilters(allDocs);
-      filteredDocs = applySorting(filteredDocs);
-
-      const total = filteredDocs.length;
-      const pages = Math.ceil(total / pageSize);
-      const startIndex = (currentPage - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      const paginatedDocs = filteredDocs.slice(startIndex, endIndex);
-
-      setDocuments(paginatedDocs);
-      setTotalPages(pages);
-      setTotalCount(total);
-    } catch (err) {
-      setError("Không thể tải danh sách tài liệu");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [creatorId, pageSize]);
+  const clearFilters = useCallback(() => {
+    const defaultFilters = {
+      selectedGrades: [],
+      selectedSubjects: [],
+      selectedCategories: [],
+      selectedAccessTypes: [],
+      approvalStatus: "all",
+    };
+    setFilters(defaultFilters);
+    setSearchQuery("");
+  }, []);
 
   useEffect(() => {
+    if (!creatorId || hasFetchedRef.current) return;
+
+    const fetchDocuments = async () => {
+      setError(null);
+      try {
+        await fetchOwnedDocuments(
+          creatorId,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          1,
+          9999
+        );
+        hasFetchedRef.current = true;
+      } catch (err) {
+        setError("Không thể tải danh sách tài liệu");
+        console.error(err);
+      }
+    };
+
     fetchDocuments();
-  }, [fetchDocuments]);
+  }, [creatorId, fetchOwnedDocuments]);
+
+  useEffect(() => {
+    if (storeDocuments.length > 0) {
+      setAllDocuments(storeDocuments);
+      calculateAvailableFilters(storeDocuments);
+    }
+  }, [storeDocuments, calculateAvailableFilters]);
 
   useEffect(() => {
     if (allDocuments.length > 0) {
@@ -215,7 +230,7 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
       filteredDocs = applySorting(filteredDocs);
 
       const total = filteredDocs.length;
-      const pages = Math.ceil(total / pageSize);
+      const pages = Math.ceil(total / pageSize) || 1;
       const startIndex = (currentPage - 1) * pageSize;
       const endIndex = startIndex + pageSize;
       const paginatedDocs = filteredDocs.slice(startIndex, endIndex);
@@ -223,8 +238,12 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
       setDocuments(paginatedDocs);
       setTotalPages(pages);
       setTotalCount(total);
+    } else {
+      setDocuments([]);
+      setTotalPages(1);
+      setTotalCount(0);
     }
-  }, [currentPage, searchQuery, sortBy, filters, allDocuments, pageSize]);
+  }, [currentPage, allDocuments, pageSize, applyFilters, applySorting]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -235,7 +254,7 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
     subjects,
     categories,
     availableFilters,
-    loading,
+    loading: isLoading,
     error,
     currentPage,
     totalPages,
@@ -249,5 +268,6 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
     setSearchQuery,
     setSortBy,
     getAccessType,
+    clearFilters,
   };
 };

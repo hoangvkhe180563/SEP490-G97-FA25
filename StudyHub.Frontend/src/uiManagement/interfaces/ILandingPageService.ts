@@ -4,6 +4,7 @@ import type { IFeaturedTeacher } from "./IFeaturedTeacher";
 
 export interface ILandingPageService {
   bannerImage: string;
+  logoImage: string;
   description: string;
   introductionImage: string[];
   featuredTeachers: IFeaturedTeacher[],

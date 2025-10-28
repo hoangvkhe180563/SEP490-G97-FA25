@@ -3,6 +3,7 @@
     public class LandingPageDisplayDto
     {
         public string BannerUrl { get; set; } = string.Empty;
+        public string SchoolLogoUrl { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public List<string> LandingPageImages { get; set; } = new();
         public List<LandingPageTeacherDisplayDto> FeaturedTeachers { get; set; } = new();

@@ -15,39 +15,24 @@ namespace StudyHub.Backend.Api.Controllers
             _service = service;
         }
 
+        [HttpGet]
+        public IActionResult GetGeneralLandingPage()
+        {
+            var landingPage = _service.GetGeneralLandingPage();
+            var landingPageDto = landingPage.ToLandingPageDisplay();
+            return Ok(landingPageDto);
+        }
+
         [HttpGet("{id:int}")]
         public IActionResult GetLandingPage(int id)
         {
-            var landingPage = _service.GetLandingPage(id);
+            var landingPage = _service.GetSchoolLandingPage(id);
             if (landingPage == null)
             {
                 return NotFound();
             }
 
-            var landingPageDto = new LandingPageDisplayDto
-            {
-                BannerUrl = landingPage.BannerUrl,
-                Description = landingPage.Description,
-                LandingPageImages = landingPage.LandingPageImages,
-                FeaturedTeachers = [],
-                FeaturedDocuments = landingPage.FeaturedDocuments.Select(fd => new LandingPageDocumentDisplayDto
-                {
-                    Id = fd.Id,
-                    Name = fd.Name,
-                    Grade = fd.Grade,
-                    SubjectName = fd.Subject.Name,
-                    Thumbnail = fd.Thumbnail,
-                    DocumentCategory = fd.DocumentCategoryId
-                }).ToList(),
-                FeaturedCourses = landingPage.FeaturedCourses.Select(fc => new LandingPageCourseDisplayDto
-                {
-                    Id = fc.Id,
-                    Name = fc.Name,
-                    Grade = fc.Grade,
-                    SubjectName = fc.Subject.Name,
-                    Thumbnail = fc.ImageUrl
-                }).ToList()
-            };
+            var landingPageDto = landingPage.ToLandingPageDisplay();
             return Ok(landingPageDto);
         }
 
@@ -59,9 +44,23 @@ namespace StudyHub.Backend.Api.Controllers
                 return NotFound();
             }
             var landingPage = landingPageDto.ToLandingPage();
-            string msg = await _service.UpdateLandingPage(landingPage, landingPageDto.BannerFile, landingPageDto.LandingPageDeleteImages, landingPageDto.LandingPageNewImages);
+            string msg = await _service.UpdateLandingPage(landingPage, landingPageDto.BannerFile, landingPageDto.SchoolLogoFile, landingPageDto.LandingPageDeleteImages, landingPageDto.LandingPageNewImages);
 
             return msg == string.Empty ? Ok("Cập nhật thành công!") : BadRequest(msg);
+        }
+
+        [HttpGet("list")]
+        public IActionResult GetLandingPageList()
+        {
+            var landingPages = _service.GetLandingPageList();
+            if (landingPages.Count == 0)
+            {
+                return NotFound("Không có danh sách trang chủ!");
+            }
+            else
+            {
+                return Ok(landingPages.Select(lp => lp.ToLandingPageListItem()).ToList());
+            }
         }
     }
 }

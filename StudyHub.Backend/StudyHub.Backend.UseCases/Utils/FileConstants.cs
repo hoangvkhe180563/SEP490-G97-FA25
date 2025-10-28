@@ -22,5 +22,6 @@ public static class FileConstants
     public const string CourseThumbnailUploadPath = "Courses/Thumbnails";
     public const string AvatarUploadPath = "Users/Avatars";
     public const string LandingPageBannerUploadPath = "LandingPage/Banner";
+    public const string LandingPageLogoUploadPath = "LandingPage/Logo";
     public const string LandingPageImagesUploadPath = "LandingPage/Introduction";
 }

@@ -4,8 +4,6 @@ namespace StudyHub.Backend.Infrastructure.Exceptions
 {
     public class InfrastructureException
     {
-        //khi throw exception thì throw nó vào đây.
-        //vd cách dùng: new InfrastructureException("AppUserRepository", "không kết nối được DB").LogError();
         public string ErrorLocation { get; set; }
         public string ErrorMessage { get; set; }
         public InfrastructureException(string location, string message)

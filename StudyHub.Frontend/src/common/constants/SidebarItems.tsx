@@ -50,7 +50,7 @@ export const uiManagerSidebarItems: ISidebarItem[] = [
       {
         icon: <Users size={20} />,
         text: 'Tùy chỉnh giao diện',
-        link: '/ui/landing-page'
+        link: '/ui/landing-pages'
       }
     ]
   }
