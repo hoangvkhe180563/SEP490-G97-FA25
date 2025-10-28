@@ -79,7 +79,7 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
     {
         public Guid Id { get; set; }
         public string Email { get; set; } = null!;
-        public string Username { get; set; } = null!;
+        public string? Username { get; set; }
         public List<string> Roles { get; set; } = new();
         public List<string> Permissions { get; set; } = new();
         public List<int> ClassIds { get; set; } = new();
@@ -95,8 +95,8 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
         public string Username { get; set; } = null!;
         public List<Guid> RoleIds { get; set; } = new();
         public int CommuneId { get; set; }
+        public IFormFile? AvatarFile { get; set; }
         public string? Fullname { get; set; }
-        public string? Avatar { get; set; }
         // Gender: 1 -> Male, 0 -> Female
         public int Gender { get; set; }
     }
@@ -109,7 +109,7 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
         public List<Guid>? RoleIds { get; set; }
         public int? CommuneId { get; set; }
         public bool? Status { get; set; }
-        public string? Avatar { get; set; }
+        public IFormFile? AvatarFile { get; set; }
         // Gender: 1 -> Male, 0 -> Female
         public int? Gender { get; set; }
     }

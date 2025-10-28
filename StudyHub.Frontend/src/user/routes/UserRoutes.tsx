@@ -2,7 +2,6 @@ import UserRouteConfig from "../constants/UserRouteConfig";
 import TeacherLayout from "@/user/components/layouts/TeacherLayout";
 import TeacherProfile from "../pages/teacher/TeacherProfile";
 import ManagerLayout from "../components/layouts/ManagerLayout";
-import ManagerProfile from "../pages/manager/ManagerProfile";
 import StudentLayout from "../components/layouts/StudentLayout";
 import ParentLayout from "../components/layouts/ParentLayout";
 import StudentProfile from "../pages/student/StudentProfile";
@@ -26,10 +25,6 @@ const managerRoutes = [
   {
     index: true,
     element: <div>Dashboard</div>,
-  },
-  {
-    path: UserRouteConfig.MANAGER.PROFILE,
-    element: <ManagerProfile />,
   },
   {
     path: UserRouteConfig.MANAGER.ACCOUNT_LIST,
