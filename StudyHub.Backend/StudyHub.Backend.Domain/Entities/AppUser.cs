@@ -42,4 +42,5 @@ public class AppUser : IAuditTrail
     public bool IsLoginWithGoogle { get; set; }
 
     public bool? Status { get; set; }
+    public List<AppRole> Roles { get; set; } = new List<AppRole>();
 }

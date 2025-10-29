@@ -52,8 +52,8 @@ const CourseDetail: React.FC = () => {
     assignment: false,
     quiz: false,
   });
-  const [teachers, setTeachers] = useState<any[]>([]);
-  const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
+  const [teacher, setTeacher] = useState<any>();
+  const getAppUserById = useAppUserStore((s) => s.getAppUserById);
   const [durationFilter, setDurationFilter] = useState<string>("all");
 
   useEffect(() => {
@@ -73,10 +73,10 @@ const CourseDetail: React.FC = () => {
     })();
     (async () => {
       try {
-        const r = await filterAppUsers(
-          "role=00000000-0000-0000-0000-000000000003&page=1"
-        );
-        if (mounted) setTeachers(r?.data ?? []);
+        if (!selectedCourse?.createdBy) return;
+        const r = await getAppUserById(selectedCourse?.createdBy);
+
+        if (mounted) setTeacher(r?.data.fullname);
       } catch (err) {
         // ignore
       }
@@ -84,13 +84,9 @@ const CourseDetail: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [filterAppUsers]);
+  }, [getAppUserById, selectedCourse?.createdBy]);
 
   const currentUser = useAppUserStore((s) => s.appUser);
-  const effectiveUser = currentUser ?? {
-    id: "b2c3d4e5-f6a7-8901-2345-67890abcdef0",
-    fullname: "Demo Student",
-  };
   const fetchEnrollmentsByUser = useEnrollmentStore((s) => s.fetchByUser);
   const getEnrollmentForCourse = useEnrollmentStore(
     (s) => s.getEnrollmentForCourse
@@ -102,21 +98,23 @@ const CourseDetail: React.FC = () => {
   const getLessonCompleted = useEnrollmentStore((s) => s.getLessonCompleted);
 
   useEffect(() => {
+    if (!currentUser?.id) return;
     (async () => {
       try {
-        await fetchEnrollmentsByUser(String(effectiveUser.id));
+        await fetchEnrollmentsByUser(String(currentUser.id));
       } catch (err) {
         // ignore
       }
     })();
-  }, [effectiveUser.id, fetchEnrollmentsByUser]);
+  }, [currentUser?.id, fetchEnrollmentsByUser]);
 
   // ensure per-lesson progresses are loaded when we arrive on the course detail
   useEffect(() => {
+    if (!currentUser?.id) return;
     (async () => {
       try {
         // ensure enrollments are loaded first
-        await fetchEnrollmentsByUser(String(effectiveUser.id));
+        await fetchEnrollmentsByUser(String(currentUser.id));
         const found = getEnrollmentForCourse(courseId);
         if (found?.id) {
           try {
@@ -130,7 +128,7 @@ const CourseDetail: React.FC = () => {
       }
     })();
   }, [
-    effectiveUser.id,
+    currentUser?.id,
     fetchEnrollmentsByUser,
     getEnrollmentForCourse,
     fetchProgresses,
@@ -188,15 +186,14 @@ const CourseDetail: React.FC = () => {
       // ignore
     }
 
-    // fetch teachers (small one-time list) so we can resolve instructor id -> name
-    try {
-      const r = await filterAppUsers(
-        "role=00000000-0000-0000-0000-000000000003&page=1"
-      );
-      setTeachers(r?.data ?? []);
-    } catch (err) {
-      // ignore
-    }
+    if (!currentUser?.id) return;
+    (async () => {
+      try {
+        await fetchEnrollmentsByUser(String(currentUser.id));
+      } catch (err) {
+        // ignore
+      }
+    })();
   };
 
   const subjectLabel = (() => {
@@ -422,31 +419,13 @@ const CourseDetail: React.FC = () => {
                     <div className="flex items-center gap-4">
                       {/* Avatar chữ cái */}
                       <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-lg font-bold text-blue-700 shadow-sm border border-blue-50">
-                        {(selectedCourse?.createdBy &&
-                          (
-                            teachers.find(
-                              (t) =>
-                                String(t.id) ===
-                                String(selectedCourse.createdBy)
-                            )?.fullname || String(selectedCourse.createdBy)
-                          ).slice(0, 1)) ||
-                          "G"}
+                        {teacher ? teacher.charAt(0).toUpperCase() : "G"}
                       </div>
 
                       {/* Thông tin giáo viên */}
                       <div>
                         <div className="font-semibold text-gray-900 text-lg leading-snug">
-                          {selectedCourse?.createdBy &&
-                          teachers.find(
-                            (t) =>
-                              String(t.id) === String(selectedCourse.createdBy)
-                          )
-                            ? teachers.find(
-                                (t) =>
-                                  String(t.id) ===
-                                  String(selectedCourse.createdBy)
-                              )?.fullname
-                            : selectedCourse?.createdBy ?? "Giáo viên"}
+                          {teacher ?? "Giáo viên"}
                         </div>
 
                         <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
@@ -455,7 +434,7 @@ const CourseDetail: React.FC = () => {
                           </span>
                           <span className="text-gray-400">|</span>
                           <span className="text-gray-500">
-                            Giáo viên phụ trách
+                            {teacher ?? "Giáo viên"}
                           </span>
                         </div>
                       </div>
@@ -546,14 +525,15 @@ const CourseDetail: React.FC = () => {
                     <Button
                       onClick={async () => {
                         try {
+                          if (!currentUser?.id) return;
                           const payload = {
-                            appUserId: String(effectiveUser.id),
+                            appUserId: String(currentUser.id),
                             courseId,
                           };
                           await enrollAction(payload);
                           try {
                             await fetchEnrollmentsByUser(
-                              String(effectiveUser.id)
+                              String(currentUser.id)
                             );
                             const found = getEnrollmentForCourse(courseId);
                             if (found?.id) {

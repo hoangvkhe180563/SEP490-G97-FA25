@@ -27,7 +27,6 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
   );
 
   useEffect(() => {
-    console.log("fetchEnrollmentsByUser", currentUser?.id);
     if (!currentUser?.id) return;
     const userId = String(currentUser.id);
     if (enrollment) return;

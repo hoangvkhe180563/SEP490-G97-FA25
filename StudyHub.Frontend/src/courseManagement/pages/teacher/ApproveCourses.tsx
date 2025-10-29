@@ -22,6 +22,7 @@ import { Button } from "@/common/components/ui/button";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { format } from "date-fns";
 import { documentService } from "@/documentManagement/services/documentService";
+import { useAppUserStore } from "@/user/stores/useAppUserStore";
 
 const ApproveCourses: React.FC = () => {
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ const ApproveCourses: React.FC = () => {
   const fetchCourseById = useCourseStore((s) => s.fetchCourseById);
   const updateCourse = useCourseStore((s) => s.updateCourse);
   const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
+  const currentUser = useAppUserStore((s) => s.appUser);
 
   const [query, setQuery] = useState("");
   const load = async () => {
@@ -69,6 +71,7 @@ const ApproveCourses: React.FC = () => {
       const dto: any = {
         ...selected,
         updatedAt: new Date().toISOString(),
+        updatedBy: currentUser?.id ?? null,
         isApproved: true,
       };
 
@@ -95,6 +98,7 @@ const ApproveCourses: React.FC = () => {
       const dto: any = {
         ...selected,
         updatedAt: new Date().toISOString(),
+        updatedBy: currentUser?.id ?? null,
         isApproved: false,
         status: "Đóng",
       };

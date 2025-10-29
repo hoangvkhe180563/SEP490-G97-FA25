@@ -64,6 +64,7 @@ const EditCourse: React.FC = () => {
   const fetchChapter = useLectureStore((s) => s.fetchChapter);
   const deleteLessonStore = useLectureStore((s) => s.deleteLesson);
   const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
+  const currentUser = useAppUserStore((s) => s.appUser);
 
   const fetchCourseByIdRef = useRef(fetchCourseById);
   const fetchChaptersRef = useRef(fetchChapters);
@@ -506,6 +507,12 @@ const EditCourse: React.FC = () => {
                 setSaving(true);
                 try {
                   if (!updateCourse) return;
+                  if (!currentUser?.id)
+                    return setDialog({
+                      open: true,
+                      title: "Thiếu thông tin",
+                      message: "Bạn chưa đăng nhập.",
+                    });
                   const chaptersPayload = (chaptersLocal || []).map((ch) => ({
                     name: ch.name,
                     courseId: ch.courseId ?? courseId,
@@ -540,6 +547,7 @@ const EditCourse: React.FC = () => {
                     startAt: startAt ? new Date(startAt).toISOString() : null,
                     endAt: endAt ? new Date(endAt).toISOString() : null,
                     updatedAt: new Date().toISOString(),
+                    UpdatedBy: currentUser?.id,
                     isApproved: selectedCourse?.isApproved,
                   };
 

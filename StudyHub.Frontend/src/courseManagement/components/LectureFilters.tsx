@@ -22,10 +22,6 @@ const LectureFilters: React.FC = () => {
   }, [cid, fetchChapters]);
 
   const currentUser = useAppUserStore((s) => s.appUser);
-  const effectiveUser = currentUser ?? {
-    id: "b2c3d4e5-f6a7-8901-2345-67890abcdef0",
-    fullname: "Demo Student",
-  };
   const fetchEnrollmentsByUser = useEnrollmentStore((s) => s.fetchByUser);
   const getEnrollmentForCourse = useEnrollmentStore(
     (s) => s.getEnrollmentForCourse
@@ -38,9 +34,10 @@ const LectureFilters: React.FC = () => {
   const [enrollment, setEnrollment] = useState<any | null>(null);
 
   useEffect(() => {
+    if (!currentUser?.id) return;
     (async () => {
       try {
-        await fetchEnrollmentsByUser(String(effectiveUser.id));
+        await fetchEnrollmentsByUser(String(currentUser.id));
         const found = getEnrollmentForCourse(cid);
         setEnrollment(found);
         // if already enrolled, fetch progresses to populate completion map
@@ -56,7 +53,7 @@ const LectureFilters: React.FC = () => {
       }
     })();
   }, [
-    effectiveUser.id,
+    currentUser?.id,
     fetchEnrollmentsByUser,
     getEnrollmentForCourse,
     cid,
@@ -71,20 +68,20 @@ const LectureFilters: React.FC = () => {
     <div className="space-y-4">
       {/* Enroll CTA when logged in but not enrolled */}
       {currentUser && !enrollment && (
-        <div className="bg-white rounded-2xl p-4 shadow border border-gray-100 flex items-center justify-between">
-          <div>
-            <div className="text-sm font-medium text-gray-800">
-              Bạn chưa đăng ký khóa học này
-            </div>
-            <div className="text-xs text-gray-500">
-              Đăng ký để xem đầy đủ nội dung
-            </div>
-          </div>
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 flex flex-col items-center text-center">
+          <h3 className="text-base font-semibold text-gray-900">
+            Bạn chưa đăng ký khóa học này
+          </h3>
+          <p className="text-sm text-gray-500 mt-1 mb-4 leading-relaxed">
+            Đăng ký ngay để xem đầy đủ nội dung và tài nguyên học tập.
+          </p>
+
           <button
             onClick={async () => {
               try {
+                if (!currentUser?.id) return;
                 await enrollAction({
-                  appUserId: String(effectiveUser.id),
+                  appUserId: String(currentUser.id),
                   courseId: cid,
                 });
                 const found = getEnrollmentForCourse(cid);
@@ -100,12 +97,13 @@ const LectureFilters: React.FC = () => {
                 // ignore
               }
             }}
-            className="bg-black text-white px-3 py-2 rounded"
+            className="mt-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg shadow-sm transition-all"
           >
-            Đăng ký
+            Đăng ký ngay
           </button>
         </div>
       )}
+
       <div className="bg-white rounded-2xl p-4 shadow border border-gray-100">
         <div className="text-sm font-medium text-gray-800">
           {useCourseStore.getState().selectedCourse?.name ?? "Khóa học"}

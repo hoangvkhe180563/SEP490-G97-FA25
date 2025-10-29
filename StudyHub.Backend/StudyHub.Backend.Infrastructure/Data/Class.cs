@@ -23,7 +23,7 @@ public partial class Class
 
     public DateTime? DeletedAt { get; set; }
 
-    public virtual ICollection<AppClaim> AppClaims { get; set; } = new List<AppClaim>();
+    public virtual ICollection<AppUsersubjectclass> AppUsersubjectclasses { get; set; } = new List<AppUsersubjectclass>();
 
     public virtual ICollection<ClassMember> ClassMembers { get; set; } = new List<ClassMember>();
 

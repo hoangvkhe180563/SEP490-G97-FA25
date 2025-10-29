@@ -10,7 +10,6 @@ import MainLayout from "@/common/pages/MainLayout";
 import Homepage from "@/uiManagement/pages/Homepage";
 import {
   guestSidebarItems,
-  TeacherSidebarItems,
   uiManagerSidebarItems,
 } from "@/common/constants/SidebarItems";
 import authRoutes from "@/auth/routes/AuthRoutes";
@@ -89,12 +88,7 @@ const AppRouter = () => {
     },
     {
       path: RouteConfig.COURSE_MANAGEMENT,
-      element: (
-        <MainLayout
-          isLoggedIn={isLoggedIn}
-          sidebarItems={TeacherSidebarItems}
-        />
-      ),
+      element: <Outlet />,
       children: courseRoutes,
     },
     {

@@ -37,10 +37,6 @@ const LecturePlayer: React.FC = () => {
   const [_durationSec, setDurationSec] = useState<number>(0);
   const ytPlayerRef = useRef<any | null>(null);
   const currentUser = useAppUserStore((s: any) => s.appUser);
-  const effectiveUser = currentUser ?? {
-    id: "b2c3d4e5-f6a7-8901-2345-67890abcdef0",
-    fullname: "Demo Student",
-  };
   const fetchEnrollmentsByUser = useEnrollmentStore((s: any) => s.fetchByUser);
   const getEnrollmentForCourse = useEnrollmentStore(
     (s: any) => s.getEnrollmentForCourse
@@ -131,7 +127,9 @@ const LecturePlayer: React.FC = () => {
     void _enrollAction;
     (async () => {
       try {
-        await fetchEnrollmentsByUser(String(effectiveUser.id));
+        if (currentUser?.id) {
+          await fetchEnrollmentsByUser(String(currentUser.id));
+        }
       } catch (err) {
         // ignore
       }
@@ -148,7 +146,7 @@ const LecturePlayer: React.FC = () => {
   }, [
     cid,
     lid,
-    effectiveUser.id,
+    currentUser?.id,
     fetchChapters,
     fetchLesson,
     fetchEnrollmentsByUser,
@@ -186,6 +184,12 @@ const LecturePlayer: React.FC = () => {
   useEffect(() => {
     const src = String(selectedLesson?.videoUrl || "").toLowerCase();
     const isYouTube = /youtube|youtu\.be/.test(src);
+
+    // If this is a video lesson and the user is not enrolled, do not track progress or auto-complete.
+    // The player/iframe will still render so guests can watch, but we won't record progress.
+    if (selectedLesson?.type === "Video" && !enrollmentId) {
+      return;
+    }
 
     // helper to merge intervals
     const mergeIntervals = (arr: Array<[number, number]>) => {
@@ -776,20 +780,22 @@ const LecturePlayer: React.FC = () => {
                   />
                 </div>
                 <div className="p-4 flex justify-end">
-                  <Button
-                    onClick={async () => {
-                      if (!selectedLesson?.id) return;
-                      try {
-                        await saveProgress(100);
-                        setLocalProgress(100);
-                        if (enrollmentId) await fetchProgresses(enrollmentId);
-                      } catch {
-                        // ignore
-                      }
-                    }}
-                  >
-                    Đánh dấu hoàn thành
-                  </Button>
+                  {enrollment ? (
+                    <Button
+                      onClick={async () => {
+                        if (!selectedLesson?.id) return;
+                        try {
+                          await saveProgress(100);
+                          setLocalProgress(100);
+                          if (enrollmentId) await fetchProgresses(enrollmentId);
+                        } catch {
+                          // ignore
+                        }
+                      }}
+                    >
+                      Đánh dấu hoàn thành
+                    </Button>
+                  ) : null}
                 </div>
               </div>
             ) : (

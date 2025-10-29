@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
+import { useAppUserStore } from "@/user/stores/useAppUserStore";
 
 import {
   Card,
@@ -35,6 +36,7 @@ const AddCourse: React.FC = () => {
   });
   const createCourse = useCourseStore((s) => s.createCourse);
   const uploadThumbnail = useCourseStore((s) => s.uploadThumbnail);
+  const currentUser = useAppUserStore((s) => s.appUser);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -81,6 +83,13 @@ const AddCourse: React.FC = () => {
         message: "Vui lòng chọn môn học.",
       });
 
+    if (!currentUser?.id)
+      return setDialog({
+        open: true,
+        title: "Thiếu thông tin",
+        message: "Bạn chưa đăng nhập.",
+      });
+
     setSaving(true);
     try {
       const dto = {
@@ -98,7 +107,7 @@ const AddCourse: React.FC = () => {
           ? new Date(startAt).toISOString()
           : new Date().toISOString(),
         endAt: endAt ? new Date(endAt).toISOString() : new Date().toISOString(),
-        createdBy: "d4e5f6a7-b8c9-0123-4567-890abcdef01c",
+        createdBy: String(currentUser.id),
         isApproved: status === "Mở" ? false : true,
       };
 
