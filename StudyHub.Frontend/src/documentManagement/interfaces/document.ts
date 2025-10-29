@@ -171,33 +171,7 @@ export interface SubjectDto {
   id: number;
   name: string;
 }
-interface HTMLFlipBookProps {
-  width: number;
-  height: number;
-  size?: string;
-  minWidth?: number;
-  maxWidth?: number;
-  minHeight?: number;
-  maxHeight?: number;
-  maxShadowOpacity?: number;
-  showCover?: boolean;
-  mobileScrollSupport?: boolean;
-  onFlip?: (e: { data: number }) => void;
-  className?: string;
-  startPage?: number;
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-  drawShadow?: boolean;
-  flippingTime?: number;
-  usePortrait?: boolean;
-  startZIndex?: number;
-  autoSize?: boolean;
-  clickEventForward?: boolean;
-  useMouseEvents?: boolean;
-  swipeDistance?: number;
-  showPageCorners?: boolean;
-  disableFlipByClick?: boolean;
-}
+
 export interface FilterState {
   selectedGrades: number[];
   selectedSubjects: string[];
@@ -243,6 +217,54 @@ export interface DocumentGridProps {
   hasDetailPanel: boolean;
 }
 
+export interface DocumentDetailProps {
+  document: Document;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onPreview: () => void;
+  getAccessType: (doc: Document) => string;
+}
+export interface PdfOutlineItem {
+  title: string;
+  page: number;
+}
+
+export interface PdfPage {
+  getViewport: (params: { scale: number; rotation?: number }) => {
+    width: number;
+    height: number;
+  };
+  render: (params: {
+    canvasContext: CanvasRenderingContext2D;
+    viewport: { width: number; height: number };
+  }) => {
+    promise: Promise<void>;
+  };
+}
+
+export interface PdfDocument {
+  numPages: number;
+  getOutline: () => Promise<Array<{ title: string; dest: unknown }> | null>;
+  getPage: (num: number) => Promise<PdfPage>;
+}
+
+export interface PdfJs {
+  getDocument: (params: { data: ArrayBuffer }) => {
+    promise: Promise<PdfDocument>;
+  };
+  GlobalWorkerOptions: { workerSrc: string };
+}
+
+export type ViewMode = "normal" | "flipbook";
+
+export interface FlipBookRef {
+  pageFlip: () => {
+    flip: (page: number) => void;
+    flipNext: () => void;
+    flipPrev: () => void;
+  };
+}
 export interface DocumentDetailProps {
   document: Document;
   onClose: () => void;

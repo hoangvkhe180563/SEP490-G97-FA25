@@ -15,7 +15,7 @@ export const Sidebar = (props: { children: React.ReactNode }) => {
   return (
     <aside className='transition-all max-w-[250px] inline-flex flex-col border-r border-gray-300 shadow-lg bg-slate-200'>
       <div className='p-4 pb-2 flex justify-between items-center'>
-        <p className={`transition-all text-center font-bold text-lg ${expanded ? 'flex-1 w-32' : 'w-0'}`}>Danh mục</p>
+        <p className={`overflow-hidden transition-all text-center font-bold text-lg ${expanded ? 'flex-1 w-32' : 'w-0'}`}>Danh mục</p>
         <Button className='cursor-pointer' onClick={() => setExpanded(curr => !curr)} variant='secondary' size='icon'>{expanded ? <ChevronFirst className='size-6' /> : <Menu className='size-6' />}</Button>
       </div>
 
@@ -37,7 +37,7 @@ export const SidebarItem = (props: ISidebarItem) => {
       ${currentUrl === props.link ? "bg-gradient-to-tr from-sky-500 to-sky-200 text-blue-800" : "hover:bg-sky-200 text-gray-600"}
     `}>
         {props.icon}
-        <span className={`transition-all ${expanded ? 'w-40 ml-3' : 'w-0'}`}>{props.text}</span>
+        <span className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${expanded ? 'w-40 ml-3' : 'w-0'}`}>{props.text}</span>
 
         {
           !expanded && <div className={`absolute left-full rounded-md px-2 py-1 ml-6 text-sm bg-sky-200 text-gray-600 invisible -translate-x-3 transition-all opacity-20 whitespace-nowrap group-hover:visible group-hover:opacity-100 group-hover:translate-x-0`}>
@@ -65,7 +65,7 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
       <li className={`relative flex items-center py-2 px-3 my-1 font-medium rounded-md cursor-pointer transition-colors leading-4 group hover:bg-sky-200 text-gray-600`}
         onClick={handleToggle}>
         {props.icon}
-        <span className={`transition-all ${expanded ? 'w-40 ml-3' : 'w-0'}`}>{props.text}</span>
+        <span className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${expanded ? 'w-40 ml-3' : 'w-0'}`}>{props.text}</span>
 
         {expanded && (
           <span className='ml-auto transition-transform'>
@@ -79,7 +79,7 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
           </div>
         }
       </li>
-      <ul className={`overflow-hidden transition-all duration-300 ${isOpen && expanded ? 'max-h-96 opacity-100 w-full' : 'max-h-0 opacity-0 w-0'}`}>
+      <ul className={`transition-all duration-300 ${isOpen && expanded ? 'max-h-96 opacity-100 w-full' : 'max-h-0 opacity-0 w-0'}`}>
         {props.children && props.children.map((child, index) => (
           <li key={`nav-${index}`}>
             <Link to={child.link} className={`relative flex items-center py-2 px-3 my-1 ml-3 font-medium rounded-md cursor-pointer transition-colors leading-4 group text-sm

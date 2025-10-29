@@ -50,6 +50,7 @@ const DocumentList = () => {
     if (locationState) {
       window.history.replaceState({}, document.title);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleGradeChange = (gradeId: number) => {

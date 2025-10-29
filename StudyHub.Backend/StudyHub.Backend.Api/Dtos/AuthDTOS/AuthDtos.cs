@@ -87,43 +87,10 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
         public int? SchoolId { get; set; }
     }
 
-    // DTOs for admin account management
-    public class CreateAccountRequest
-    {
-        public string Email { get; set; } = null!;
-        public string Password { get; set; } = null!;
-        public string Username { get; set; } = null!;
-        public List<Guid> RoleIds { get; set; } = new();
-        public int CommuneId { get; set; }
-        public IFormFile? AvatarFile { get; set; }
-        public string? Fullname { get; set; }
-        // Gender: 1 -> Male, 0 -> Female
-        public int Gender { get; set; }
-    }
-
-    public class EditAccountRequest
-    {
-        public string? Email { get; set; }
-        public string? Username { get; set; }
-        public string? Fullname { get; set; }
-        public List<Guid>? RoleIds { get; set; }
-        public int? CommuneId { get; set; }
-        public bool? Status { get; set; }
-        public IFormFile? AvatarFile { get; set; }
-        // Gender: 1 -> Male, 0 -> Female
-        public int? Gender { get; set; }
-    }
-
     public class GenericResponse
     {
         public bool Success { get; set; }
         public string Message { get; set; } = null!;
         public UserInfoResponse? Data { get; set; }
-    }
-
-    public class CreateGoogleAccountRequest
-    {
-        public string Username { get; set; } = null!;
-        public int CommuneId { get; set; }
     }
 }

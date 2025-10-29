@@ -11,16 +11,16 @@ namespace StudyHub.Backend.Api.Dtos.AppUserDTOS
         public string? Username { get; set; }
         public string? Fullname { get; set; }
         // Gender friendly string: "Male" or "Female"
-        public string? Gender { get; set; }
+        public bool? Gender { get; set; }
         public string? Avatar { get; set; }
         public string? Address { get; set; }
-        public string Status { get; set; } = null!; // Active/Inactive
+        public bool? Status { get; set; } // Active/Inactive
         public string CreatedAt { get; set; } = null!;
         public string? UpdatedAt { get; set; }
-        public string? SchoolName { get; set; }
-        public string? CityName { get; set; }
-        public string? ProvinceName { get; set; }
+        public int? SchoolId { get; set; }
+        public int? CityId { get; set; }
+        public int? ProvinceId { get; set; }
         public List<string> Roles { get; set; } = new();
-        public string? CommuneName { get; set; }
+        public int? CommuneId { get; set; }
     }
 }

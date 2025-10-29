@@ -30,9 +30,9 @@ export const courseApi = {
       items: data.items,
       total: data.total,
       page: data.page,
-      pageSize: data.pageSize ?? 5,
+      // prefer backend-provided pageSize, fallback to 6 to match UI default
+      pageSize: data.pageSize ?? 6,
     };
-    console.log("Fetched courses:", mapped.items);
     return mapped;
   },
 
@@ -167,6 +167,40 @@ export const courseApi = {
       headers: { "Content-Type": "multipart/form-data" },
     });
     return res.data as { url: string };
+  },
+
+  async uploadResource(file: File) {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await axiosInstance.post(`/lecture/upload-resource`, fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data as { url: string };
+  },
+
+  // Lesson resource endpoints
+  async getLessonResource(id: number) {
+    const res = await axiosInstance.get(`/lessonresource/${id}`);
+    return res.data?.data as { id: number; url: string } | null;
+  },
+
+  async createLessonResource(dto: { url: string }) {
+    const res = await axiosInstance.post(`/lessonresource/create`, dto);
+    return res.data?.data as { id: number; url: string };
+  },
+
+  async updateLessonResource(id: number, dto: { url: string }) {
+    const payload = { id, url: dto.url };
+    const res = await axiosInstance.put(
+      `/lessonresource/update/${id}`,
+      payload
+    );
+    return res.data?.data as { id: number; url: string };
+  },
+
+  async deleteLessonResource(id: number) {
+    await axiosInstance.delete(`/lessonresource/${id}`);
+    return true;
   },
 };
 

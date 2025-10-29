@@ -7,7 +7,7 @@ namespace StudyHub.Backend.Api.Mappers
     {
 
         // Map a domain AppUser to API AppUserDetailDto. The caller should provide role names and school/commune names if available.
-        public static AppUserDetailDto ToAppUserDetail(Domain.Entities.AppUser user, IEnumerable<string>? roles = null, string? schoolName = null, string? communeName = null, string? cityName = null, string? provinceName = null)
+        public static AppUserDetailDto ToAppUserDetail(Domain.Entities.AppUser user, IEnumerable<string>? roles = null, int? schoolId = null, int? communeId = null, int? cityId = null, int? provinceId = null)
         {
             return new AppUserDetailDto
             {
@@ -15,17 +15,17 @@ namespace StudyHub.Backend.Api.Mappers
                 Email = user.Email,
                 Username = user.Username,
                 Fullname = user.Fullname,
-                Gender = user.Gender.HasValue ? (user.Gender.Value ? "Male" : "Female") : null,
+                Gender = user.Gender,
                 Avatar = user.Avatar,
                 Address = user.Address,
-                Status = (user.Status == true) ? "Active" : "Inactive",
+                Status = user.Status,
                 CreatedAt = user.CreatedAt.ToString("yyyy/MM/dd"),
                 UpdatedAt = user.UpdatedAt?.ToString("yyyy/MM/dd"),
-                SchoolName = schoolName,
-                CityName = cityName,
-                ProvinceName = provinceName,
+                SchoolId = schoolId,
+                CityId = cityId,
+                ProvinceId = provinceId,
                 Roles = roles?.ToList() ?? new List<string>(),
-                CommuneName = communeName
+                CommuneId = communeId
             };
         }
 

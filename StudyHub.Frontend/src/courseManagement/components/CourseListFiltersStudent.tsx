@@ -1,62 +1,66 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Input } from "@/common/components/ui/input";
-import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
 import { documentService } from "@/documentManagement/services/documentService";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/common/components/ui/select";
 
-type Props = {
-  filters?: Record<string, any>;
-  teachers?: any[];
-  onApply?: (next: Record<string, any>) => void;
-  onReset?: () => void;
+type FiltersShape = {
+  subjectId?: number | string;
+  grade?: number | string;
+  level?: number | string;
+  instructor?: string | number;
+  isFeatured?: boolean;
+  minDuration?: number;
+  maxDuration?: number;
 };
 
-const CourseFilters: React.FC<Props> = ({
+type Teacher = {
+  id: number | string;
+  fullname?: string;
+  username?: string;
+  email?: string;
+};
+
+type Props = {
+  filters?: FiltersShape;
+  teachers?: Teacher[];
+  onApply?: (f: Record<string, any>) => void;
+};
+
+const CourseListFiltersStudent: React.FC<Props> = ({
   filters = {},
   teachers = [],
   onApply,
-  onReset,
 }) => {
   const [local, setLocal] = useState<Record<string, any>>({
-    category: filters.category ?? undefined,
+    subjectId: filters.subjectId ?? undefined,
     grade: filters.grade ?? filters.level ?? undefined,
-    duration: filters.duration ?? undefined,
-    // 'instructor' here will store the id to send to backend
     instructor: filters.instructor ?? undefined,
-    // displayInstructor stores the visible text shown in the input (teacher name)
     displayInstructor: undefined,
     isFeatured: filters.isFeatured ?? undefined,
+    duration: undefined,
+    minDuration: filters.minDuration ?? undefined,
+    maxDuration: filters.maxDuration ?? undefined,
   });
 
   const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
   const [grades, setGrades] = useState<{ id: number; name: string }[]>([]);
 
-  useEffect(() => {
-    suppressApply.current = true;
-    setLocal((l) => ({
-      ...l,
-      ...filters,
-      grade: filters.grade ?? filters.level ?? l.grade,
-      // if filters.instructor is an id, try to show the teacher name
-      displayInstructor:
-        filters.instructor && Array.isArray(teachers)
-          ? teachers.find(
-              (t: any) => String(t.id) === String(filters.instructor)
-            )?.fullname ?? String(filters.instructor)
-          : filters.instructor ?? l.displayInstructor,
-    }));
-  }, [filters, teachers]);
-
   const debounceRef = useRef<number | null>(null);
-  const firstRun = useRef(true);
   const suppressApply = useRef(false);
-  // keep a stable ref to onApply so changes in parent's function identity
-  // won't retrigger this effect and cause loops
+  const firstRun = useRef(true);
   const onApplyRef = useRef<typeof onApply | undefined>(onApply);
   useEffect(() => {
     onApplyRef.current = onApply;
   }, [onApply]);
 
+  // Auto-apply on change
   useEffect(() => {
     if (firstRun.current) {
       firstRun.current = false;
@@ -70,7 +74,14 @@ const CourseFilters: React.FC<Props> = ({
 
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(() => {
-      if (onApplyRef.current) onApplyRef.current(local);
+      if (onApplyRef.current) {
+        const { duration, ...payloadRaw } = local;
+        const payload: Record<string, any> = { ...(payloadRaw as any) };
+        if (payload.subjectId === "all") {
+          delete payload.subjectId;
+        }
+        onApplyRef.current(payload);
+      }
     }, 300) as unknown as number;
 
     return () => {
@@ -78,6 +89,7 @@ const CourseFilters: React.FC<Props> = ({
     };
   }, [local]);
 
+  // Load subjects & grades
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -99,129 +111,109 @@ const CourseFilters: React.FC<Props> = ({
     };
   }, []);
 
-  const doReset = () => {
-    setLocal({});
-    if (onReset) onReset();
+  const toggleSingle = (field: string, id: any) => {
+    setLocal((prev) => ({
+      ...prev,
+      [field]: prev[field] === id ? undefined : id,
+    }));
   };
 
   return (
     <aside className="bg-white rounded-md p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-medium text-[#171717]">Bộ lọc</h3>
-        <button
-          onClick={doReset}
-          className="text-sm text-gray-500 hover:underline"
-        >
-          Xóa tất cả
-        </button>
-      </div>
+      <h3 className="text-lg font-semibold text-[#171717] mb-4">Bộ lọc</h3>
 
       <div className="space-y-6">
+        {/* Chủ đề */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <Label className="text-sm">Chủ đề</Label>
-          </div>
-          <div className="space-y-2 mt-2">
-            {subjects.map((cat) => (
-              <label key={cat.id} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={
-                    Array.isArray(local.category)
-                      ? local.category.includes(cat.id)
-                      : local.category === cat.id
-                  }
-                  onChange={(e) => {
-                    if (Array.isArray(local.category)) {
-                      const set = new Set(local.category);
-                      if (e.target.checked) set.add(cat.id);
-                      else set.delete(cat.id);
-                      setLocal({ ...local, category: Array.from(set) });
-                    } else {
-                      setLocal({
-                        ...local,
-                        category: e.target.checked ? cat.id : undefined,
-                      });
-                    }
-                  }}
-                />
-                <span>{cat.name}</span>
-              </label>
-            ))}
-          </div>
+          <Label className="text-sm font-medium">Chủ đề</Label>
+          <Select
+            value={local.subjectId ?? "all"}
+            onValueChange={(value) => {
+              if (value === "all") {
+                // selecting "all" should clear the subject filter
+                setLocal((prev) => ({ ...prev, subjectId: undefined }));
+                return;
+              }
+              toggleSingle("subjectId", value);
+            }}
+          >
+            <SelectTrigger className="mt-2 w-full">
+              <SelectValue placeholder="Chọn môn học" />
+            </SelectTrigger>
+            <SelectContent className="max-h-40 overflow-y-auto">
+              <SelectItem value="all">Tất cả môn học</SelectItem>
+              {subjects.map((cat) => (
+                <SelectItem key={cat.id} value={String(cat.id)}>
+                  {cat.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-
+        {/* Khối */}
         <div>
-          <Label className="text-sm">Khối</Label>
-          <div className="space-y-2 mt-2 text-sm">
+          <Label className="text-sm font-medium">Khối</Label>
+          <div className="grid grid-cols-4 gap-2 mt-2">
             {grades.map((g) => (
-              <label key={g.id} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4"
-                  checked={
-                    Array.isArray(local.grade)
-                      ? local.grade.includes(g.id)
-                      : local.grade === g.id
-                  }
-                  onChange={(e) => {
-                    if (Array.isArray(local.grade)) {
-                      const set = new Set(local.grade);
-                      if (e.target.checked) set.add(g.id);
-                      else set.delete(g.id);
-                      setLocal({ ...local, grade: Array.from(set) });
-                    } else {
-                      setLocal({
-                        ...local,
-                        grade: e.target.checked ? [g.id] : [],
-                      });
-                    }
-                  }}
-                />
-                <span>{g.name}</span>
-              </label>
+              <button
+                key={g.id}
+                onClick={() => toggleSingle("grade", g.id)}
+                className={`px-2 py-1 text-sm rounded-md border transition ${
+                  local.grade === g.id
+                    ? "bg-sky-600 text-white border-sky-600"
+                    : "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700"
+                }`}
+              >
+                {g.name}
+              </button>
             ))}
           </div>
         </div>
 
+        {/* Khoảng thời gian */}
         <div>
-          <Label className="text-sm">Khoảng thời gian</Label>
-          <div className="space-y-2 mt-2 text-sm">
+          <Label className="text-sm font-medium">Khoảng thời gian</Label>
+          <div className="flex flex-wrap gap-2 mt-2">
             {[
-              { id: "0-5", label: "0-5 giờ" },
-              { id: "5-20", label: "5-20 giờ" },
-              { id: "20+", label: "20+ giờ" },
+              { id: "0-5", label: "0–5 giờ", min: 0, max: 5 * 60 },
+              { id: "5-20", label: "5–20 giờ", min: 5 * 60, max: 20 * 60 },
+              { id: "20+", label: "20+ giờ", min: 20 * 60, max: undefined },
             ].map((d) => (
-              <label key={d.id} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={
-                    Array.isArray(local.duration)
-                      ? local.duration.includes(d.id)
-                      : local.duration === d.id
-                  }
-                  onChange={(e) => {
-                    if (Array.isArray(local.duration)) {
-                      const set = new Set(local.duration);
-                      if (e.target.checked) set.add(d.id);
-                      else set.delete(d.id);
-                      setLocal({ ...local, duration: Array.from(set) });
-                    } else {
-                      setLocal({
-                        ...local,
-                        duration: e.target.checked ? d.id : undefined,
-                      });
+              <button
+                key={d.id}
+                onClick={() =>
+                  setLocal((prev) => {
+                    if (prev.duration === d.id) {
+                      return {
+                        ...prev,
+                        duration: undefined,
+                        minDuration: undefined,
+                        maxDuration: undefined,
+                      };
                     }
-                  }}
-                />
-                <span>{d.label}</span>
-              </label>
+                    return {
+                      ...prev,
+                      duration: d.id,
+                      minDuration: d.min,
+                      maxDuration: d.max,
+                    };
+                  })
+                }
+                className={`px-3 py-1.5 text-sm rounded-md border transition ${
+                  local.duration === d.id
+                    ? "bg-sky-600 text-white border-sky-600"
+                    : "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700"
+                }`}
+              >
+                {d.label}
+              </button>
             ))}
           </div>
         </div>
 
+        {/* Giáo viên */}
         <div>
-          <Label className="text-sm">Giáo viên</Label>
+          <Label className="text-sm font-medium">Giáo viên</Label>
           <Input
             placeholder="Tìm kiếm giáo viên..."
             className="mt-2"
@@ -229,7 +221,6 @@ const CourseFilters: React.FC<Props> = ({
             value={local.displayInstructor ?? ""}
             onChange={(e) => {
               const v = e.target.value || undefined;
-              // try to find an exact match by fullname/username/email
               const found = teachers.find(
                 (t: any) =>
                   String(t.fullname ?? t.username ?? t.email).toLowerCase() ===
@@ -238,7 +229,6 @@ const CourseFilters: React.FC<Props> = ({
               setLocal({
                 ...local,
                 displayInstructor: v,
-                // only set instructor id when an exact match is found
                 instructor: found ? String(found.id) : undefined,
               });
             }}
@@ -249,15 +239,9 @@ const CourseFilters: React.FC<Props> = ({
             ))}
           </datalist>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Button className="bg-black text-white" onClick={doReset}>
-            Đặt lại
-          </Button>
-        </div>
       </div>
     </aside>
   );
 };
 
-export default CourseFilters;
+export default CourseListFiltersStudent;

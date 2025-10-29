@@ -65,6 +65,7 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
   useEffect(() => {
     getCategories();
     getSubjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

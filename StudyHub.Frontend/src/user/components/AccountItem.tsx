@@ -11,7 +11,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/common/components/ui/select";
-import { Eye, Edit2 } from "lucide-react";
+import { Edit2 } from "lucide-react";
 import type { AccountItemProps as Props } from "@/user/interfaces/props";
 import type { AppUser } from "@/user/interfaces/app-user";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
@@ -24,6 +24,7 @@ import {
 } from "@/common/components/ui/tooltip";
 import { createFallBack } from "../utils/avatarUtils";
 import { formatDate } from "../utils/dateUtils";
+import toast from "react-hot-toast";
 
 const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
   const { updateUserStatus } = useAppUserStore();
@@ -100,7 +101,13 @@ const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
               try {
                 const ok = await updateUserStatus(
                   user.id,
-                  val as AppUser["status"]
+                  val as AppUser["status"],
+                  (message?: string) => {
+                    toast.success(message || "Cập nhật trạng thái thành công");
+                  },
+                  (message?: string) => {
+                    toast.error(message || "Cập nhật trạng thái thất bại");
+                  }
                 );
                 if (!ok) {
                   // revert on failure
@@ -135,19 +142,12 @@ const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
         </div>
       </TableCell>
       <TableCell className="px-6 py-4 text-right text-gray-600">
-        <div className="flex items-center justify-end gap-3">
-          <button
-            title="View"
-            className="p-1 text-gray-500 hover:text-gray-700"
-          >
-            <Eye />
-          </button>
-          <div className="w-px h-5 bg-gray-300" />
+        <div className="flex items-center justify-center gap-3">
           <button
             title="Edit"
             className="p-1 text-gray-500 hover:text-gray-700"
           >
-            <Link to="/manager/update-account">
+            <Link to={`/user/manager/update-account/${user.id}`}>
               <Edit2 />
             </Link>
           </button>

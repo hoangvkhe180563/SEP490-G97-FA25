@@ -1,7 +1,9 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
+import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
+import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
+import { documentService } from "@/documentManagement/services/documentService";
 import { Button } from "@/common/components/ui/button";
 import {
   Card,
@@ -9,287 +11,348 @@ import {
   CardHeader,
   CardTitle,
 } from "@/common/components/ui/card";
-import { ArrowLeft, Download, Bookmark } from "lucide-react";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
-import courseApi from "@/courseManagement/services/courseService";
+import { ArrowLeft, Bookmark, Download, File } from "lucide-react";
+import type { AppUser } from "@/auth/interfaces/app-user";
+import type { CourseListDto } from "@/courseManagement/types/api";
 
 const LectureDetails: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const lid = Number(id || 0);
-  const selectedLesson = useLectureStore((s: any) => s.selectedLesson);
-  const fetchLesson = useLectureStore((s: any) => s.fetchLesson);
-  const chapters = useLectureStore((s: any) => s.chapters);
-  const fetchChapters = useLectureStore((s: any) => s.fetchChapters);
+  const lessonId = Number(id || 0);
 
-  const selectedCourse = useCourseStore((s: any) => s.selectedCourse);
-  const fetchCourseById = useCourseStore((s: any) => s.fetchCourseById);
+  const selectedCourse = useCourseStore(
+    (s) => s.selectedCourse as CourseListDto
+  );
+  const [teacherCreated, setTeacherCreated] = useState<Partial<AppUser> | null>(
+    null
+  );
+  const [resources, setResources] = useState<{ id: number; url: string }[]>([]);
+  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
+
   const getAppUserById = useAppUserStore((s) => s.getAppUserById);
-
-  const [instructor, setInstructor] = React.useState<any | null>(null);
+  const getLessonById = useLectureStore((s) => s.fetchLesson);
+  const getChapterById = useLectureStore((s) => s.fetchChapter);
+  const getLessonResource = useCourseStore((s) => s.getLessonResource);
+  const fetchCourseById = useCourseStore((s) => s.fetchCourseById);
 
   useEffect(() => {
-    if (lid) fetchLesson(lid);
-  }, [lid, fetchLesson]);
-
-  // If we know the course from selectedLesson, fetch course and chapters
-  useEffect(() => {
-    const courseId = selectedLesson?.courseId;
-    if (courseId) {
-      fetchCourseById(courseId);
-      fetchChapters(courseId);
-    }
-  }, [selectedLesson, fetchCourseById, fetchChapters]);
-
-  // Resolve instructor by following lessonId -> chapter -> course chain
-  useEffect(() => {
-    const loadInstructorFromLesson = async () => {
-      const lessonId = selectedLesson?.id ?? lid;
+    (async () => {
       if (!lessonId) return;
 
       try {
-        // get lesson to read chapterId
-        const lesson = await courseApi.getLesson(lessonId);
-        const chapterId = lesson?.chapterId;
-        if (!chapterId) return;
+        const subs = await documentService.getSubjects();
+        if (Array.isArray(subs))
+          setSubjects(subs.map((s: any) => ({ id: s.id, name: s.name })));
 
-        // get chapter to read courseId
-        const chapter = await courseApi.getChapter(chapterId);
-        const courseId = chapter?.courseId;
-        if (!courseId) return;
+        const lessonData = await getLessonById(lessonId);
+        if (!lessonData) return;
 
-        // get course to read instructorName
-        const course = await courseApi.getCourseById(courseId);
-        const instructorId = course?.instructorName ?? null;
-        if (!instructorId) {
-          setInstructor(null);
-          return;
+        const chapterData = await getChapterById(lessonData.chapterId);
+        if (!chapterData) return;
+
+        if (chapterData.courseId) {
+          await fetchCourseById(chapterData.courseId);
+          const courseData = useCourseStore.getState().selectedCourse;
+          if (courseData?.createdBy) {
+            const res = await getAppUserById(String(courseData.createdBy));
+            if (res?.success && res.data) setTeacherCreated(res.data);
+          }
         }
 
-        // fetch instructor user
-        try {
-          const res: any = await getAppUserById(String(instructorId));
-          setInstructor(res?.user ?? null);
-        } catch (err) {
-          console.error("Failed to fetch instructor user", err);
-          setInstructor(null);
+        const resourceId =
+          (lessonData as any).ResourceId ??
+          (lessonData as any).resourceId ??
+          null;
+        if (resourceId) {
+          try {
+            if (getLessonResource) {
+              const resourceData = await getLessonResource(resourceId);
+              if (resourceData) setResources([resourceData]);
+            }
+          } catch (err) {
+            console.error("failed to load lesson resource", err);
+          }
         }
       } catch (err) {
-        console.error(
-          "Failed to resolve instructor from lesson -> chapter -> course",
-          err
-        );
+        console.error("Lỗi tải dữ liệu bài giảng:", err);
       }
-    };
+    })();
+  }, [
+    lessonId,
+    getLessonById,
+    getChapterById,
+    getAppUserById,
+    fetchCourseById,
+    getLessonResource,
+  ]);
 
-    loadInstructorFromLesson();
-  }, [selectedLesson?.id, lid, getAppUserById]);
+  const { currentLesson, currentChapter } = useMemo(() => {
+    const course = selectedCourse;
+    if (!course) return { currentLesson: null, currentChapter: null };
 
-  const l = selectedLesson;
+    for (const ch of course.chapters || []) {
+      const l = ch.lessons?.find((ls) => ls.id === lessonId);
+      if (l) return { currentLesson: l, currentChapter: ch };
+    }
+    return { currentLesson: null, currentChapter: null };
+  }, [selectedCourse, lessonId]);
+
+  const categoryLabel = (id?: number | null) => {
+    if (id === undefined || id === null) return "-";
+    const found = subjects.find((s) => s.id === Number(id));
+    return found ? found.name : String(id);
+  };
 
   return (
-    <div className="flex-1 overflow-auto bg-white">
-      <div className="max-w-[1100px] mx-auto px-6 py-6">
-        {/* === Breadcrumb === */}
-        <div className="text-sm text-[#525252] mb-3">
-          Khóa học / Bài giảng / {l?.name ?? "Đang tải..."}
+    <div className="max-w-[1200px] mx-auto px-6 py-6 h-full overflow-y-auto scrollbar-hide">
+      {/* === Header navigation === */}
+      <div className="flex items-center gap-4 mb-4">
+        <button
+          onClick={() => navigate(-1)}
+          className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
+        >
+          <ArrowLeft className="w-4 h-4 text-[#525252]" />
+        </button>
+        <div className="text-sm text-[#525252]">
+          {selectedCourse?.name || "Khóa học"} /{" "}
+          {currentChapter?.name || "Chương"} /{" "}
+          {currentLesson?.name || "Bài học"}
+        </div>
+      </div>
+
+      {/* === Title + Info === */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-[#171717]">
+            {currentLesson?.name ?? "Bài học"}
+          </h1>
+          <p className="text-sm text-[#525252]">
+            {teacherCreated?.fullname || "Giảng viên"} •{" "}
+            {currentLesson?.postDate
+              ? new Date(currentLesson.postDate).toLocaleDateString()
+              : "Chưa cập nhật"}
+          </p>
         </div>
 
-        {/* === Header === */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate(-1)}
-              className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
-            >
-              <ArrowLeft className="w-4 h-4 text-[#525252]" />
-            </button>
-
-            <div>
-              <h1 className="text-2xl font-semibold text-[#171717]">
-                {l?.name ?? "Lecture"}
-              </h1>
-              <p className="text-sm text-[#525252]">
-                {l?.type ?? ""} •{" "}
-                {instructor?.fullname ?? l?.teacherName ?? "Unknown Teacher"} •{" "}
-                {l?.postDate
-                  ? new Date(l.postDate).toLocaleDateString()
-                  : "No post date"}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {l?.fileUrl && (
-              <Button variant="outline" asChild>
-                <a href={l.fileUrl} download>
-                  <Download className="w-4 h-4 mr-2" /> Tải xuống tệp
-                </a>
-              </Button>
-            )}
-            <Button variant="outline">
-              <Bookmark className="w-4 h-4 mr-2" /> Đánh dấu
+        <div className="flex items-center gap-3">
+          {resources.length > 0 && (
+            <Button variant="outline" asChild>
+              <a href={resources[0].url} download>
+                <Download className="w-4 h-4 mr-2" /> Tải xuống
+              </a>
             </Button>
-          </div>
+          )}
+          <Button variant="outline">
+            <Bookmark className="w-4 h-4 mr-2" /> Đánh dấu
+          </Button>
         </div>
+      </div>
 
-        {/* === MAIN & SIDEBAR === */}
-        <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-12 lg:col-span-8">
-            <div
-              className="bg-black rounded-lg overflow-hidden flex justify-center items-center"
-              style={{ aspectRatio: "16/9" }}
-            >
-              {l?.type === "Video" && l?.videoUrl ? (
-                <iframe
-                  src={l.videoUrl}
-                  title={l.name}
-                  className="w-full h-full"
-                  allowFullScreen
+      {/* === Main Layout === */}
+      <div className="grid grid-cols-12 gap-6">
+        {/* === MAIN CONTENT === */}
+        <div className="col-span-12 lg:col-span-8">
+          <div
+            className="bg-black rounded-lg overflow-hidden flex justify-center items-center"
+            style={{ aspectRatio: "16/9" }}
+          >
+            {currentLesson?.type === "Video" && currentLesson.videoUrl ? (
+              <iframe
+                src={currentLesson.videoUrl}
+                title={currentLesson.name}
+                className="w-full h-full"
+                allowFullScreen
+              />
+            ) : currentLesson?.type === "Reading" &&
+              currentLesson.readingContent ? (
+              <div className="bg-[#fafafa] w-full h-full overflow-y-auto p-8">
+                <div
+                  className="bg-white shadow-lg rounded-lg p-6 prose prose-slate max-w-none"
+                  dangerouslySetInnerHTML={{
+                    __html: currentLesson.readingContent,
+                  }}
                 />
-              ) : l?.type === "Đọc" && l?.readingContent ? (
-                <div className="bg-[#fafafa] w-full h-full flex justify-center items-start overflow-y-auto p-8">
-                  <div className="bg-white shadow-lg rounded-lg w-full max-w-[800px] p-8 leading-relaxed text-[#1f1f1f] text-[15px] tracking-[0.015em] font-[400] prose prose-sm prose-slate overflow-y-auto max-h-full">
-                    <div className="whitespace-pre-wrap">
-                      {l.readingContent}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-white text-2xl">
-                  Không có nội dung nào cho bài giảng này.
-                </div>
-              )}
-            </div>
-            {/* Description */}
-            {l?.description && (
-              <div className="mt-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Mô tả</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-[#404040] leading-relaxed whitespace-pre-line">
-                      {l.description}
-                    </p>
-                  </CardContent>
-                </Card>
+              </div>
+            ) : (
+              <div className="text-white text-lg">
+                Không có nội dung cho bài học này.
               </div>
             )}
           </div>
 
-          {/* Right column */}
-          <aside className="col-span-12 lg:col-span-4">
-            <div className="space-y-4">
-              {/* Course Outline */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Điều hướng khóa học</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {chapters && chapters.length > 0 ? (
-                      chapters.map((ch: any) => (
-                        <div key={ch.id} className="mb-2">
-                          <div className="text-sm font-medium">{ch.name}</div>
-                          <div className="pl-3 mt-1">
-                            {(ch.lessons || []).map((ls: any) => (
-                              <div
-                                key={ls.id}
-                                className={`flex items-center gap-2 text-sm py-1 ${
-                                  ls.id === l?.id ? "font-semibold" : ""
-                                }`}
-                              >
-                                <div
-                                  className={`w-2 h-2 rounded-full ${
-                                    ls.id === l?.id
-                                      ? "bg-slate-700"
-                                      : "bg-gray-300"
-                                  }`}
-                                />
-                                <div>{ls.name}</div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-sm text-gray-500">No outline</div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Resources */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Tài nguyên</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {l?.readingContent ? (
-                      <a
-                        href={l.readingContent}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block text-sm text-[#171717]"
-                      >
-                        Lecture Notes
-                      </a>
-                    ) : (
-                      <p className="text-sm text-gray-500 italic">
-                        Không có tài nguyên nào
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Instructor card */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Giảng viên</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center text-base font-medium text-gray-700">
-                      {instructor?.avatarUrl ? (
-                        <img
-                          src={instructor.avatarUrl}
-                          alt={instructor.fullname ?? "Instructor"}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-lg">
-                          {(
-                            instructor?.fullname ??
-                            selectedCourse?.instructorName ??
-                            "T"
-                          )
-                            .charAt(0)
-                            .toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-gray-900">
-                        {instructor?.fullname ??
-                          selectedCourse?.instructorName ??
-                          "Instructor Name"}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {instructor?.bio ??
-                          selectedCourse?.instructorBio ??
-                          "Professor Bio"}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </aside>
+          {currentLesson?.description && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Mô tả bài học</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-[#404040] whitespace-pre-line">
+                  {currentLesson.description}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
+
+        {/* === SIDEBAR === */}
+        <aside className="col-span-12 lg:col-span-4 space-y-4">
+          {/* === Outline === */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Chương trình khóa học</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {selectedCourse?.chapters?.length ? (
+                <div className="space-y-2">
+                  {selectedCourse.chapters.map((ch: any) => (
+                    <details key={ch.id} open={ch.id === currentChapter?.id}>
+                      <summary className="cursor-pointer font-semibold text-sm text-[#171717]">
+                        {ch.name}
+                      </summary>
+                      <ul className="mt-1 pl-4 text-sm text-[#404040]">
+                        {ch.lessons?.map((l: any) => (
+                          <li
+                            key={l.id}
+                            className={`py-1 cursor-pointer ${
+                              l.id === lessonId
+                                ? "font-semibold text-blue-600"
+                                : "hover:text-blue-600"
+                            }`}
+                            onClick={() =>
+                              navigate(`/course/teacher/lecture/${l.id}`)
+                            }
+                          >
+                            {l.name}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  Chưa có chương trình học
+                </p>
+              )}
+            </CardContent>
+          </Card>
+          {/* === Resources === */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Tài nguyên</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {resources.length ? (
+                <ul className="space-y-2 text-sm">
+                  {resources.map((r) => (
+                    <li key={r.id} className="flex items-center gap-2">
+                      <File className="w-4 h-4 text-blue-600" />
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-blue-600 hover:underline truncate"
+                      >
+                        {r.url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500 italic">
+                  Không có tài nguyên
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* === Course Info (sidebar similar to CourseDetail) === */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Thông tin khóa học</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-[#404040] space-y-1">
+                <div className="flex justify-between">
+                  <span>Trạng thái</span>
+                  <span>{selectedCourse?.status ?? "Không xác định"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Giá</span>
+                  <span>
+                    {selectedCourse?.price
+                      ? `${selectedCourse.price.toLocaleString()}₫`
+                      : "Miễn phí"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Môn học</span>
+                  <span>{categoryLabel(selectedCourse?.subjectId)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Khối lớp</span>
+                  <span>{selectedCourse?.grade ?? "-"}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* === Instructor (created/updated) === */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Giảng viên</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-full bg-[#171717] text-white flex items-center justify-center font-semibold shadow-sm">
+                  {(() => {
+                    const name = teacherCreated?.fullname || "GV";
+                    return name
+                      .split(" ")
+                      .slice(-2)
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase();
+                  })()}
+                </div>
+                <div className="flex-1 text-sm text-[#404040]">
+                  <div className="flex justify-between mb-1">
+                    <span className="font-medium text-[#171717]">
+                      Giảng viên:
+                    </span>
+                    <span>{teacherCreated?.fullname || "GV - Chính"}</span>
+                  </div>
+                  {selectedCourse?.createdAt && (
+                    <div className="flex justify-between mb-1">
+                      <span className="font-medium text-[#171717]">
+                        Tạo ngày:
+                      </span>
+                      <span>
+                        {new Date(selectedCourse.createdAt).toLocaleString(
+                          "vi-VN",
+                          {
+                            hour12: false,
+                          }
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  <div className="mt-4 flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="w-1/2 border-[#D1D5DB] hover:bg-gray-100 text-[#171717]"
+                    >
+                      Xem hồ sơ
+                    </Button>
+                    <Button className="w-1/2 bg-[#171717] hover:bg-[#2D2D2D] text-white">
+                      Nhắn tin
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </aside>
       </div>
     </div>
   );

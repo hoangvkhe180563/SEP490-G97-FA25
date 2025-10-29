@@ -12,4 +12,20 @@ interface CreateAccountDto {
   gender: number;
 }
 
-export type { CreateAccountDto };
+interface EditAccountDto {
+  // optional fields for partial updates
+  email?: string | null;
+  username?: string | null;
+  fullname?: string | null;
+  // backend expects GUIDs for role ids
+  roleIds?: Array<string> | null;
+  // backend expects integer commune id
+  communeId?: number | null;
+  schoolId?: number | null;
+  status?: boolean | null;
+  avatarFile?: File | null;
+  // Gender as integer (1 -> Male, 0 -> Female)
+  gender?: number | null;
+}
+
+export type { CreateAccountDto, EditAccountDto };
