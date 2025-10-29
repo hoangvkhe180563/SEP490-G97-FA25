@@ -9,7 +9,7 @@ public partial class AppRole
 
     public string Name { get; set; } = null!;
 
-    public virtual ICollection<AppClaim> AppClaims { get; set; } = new List<AppClaim>();
-
     public virtual ICollection<AppPolicy> AppPolicies { get; set; } = new List<AppPolicy>();
+
+    public virtual ICollection<AppUser> Users { get; set; } = new List<AppUser>();
 }

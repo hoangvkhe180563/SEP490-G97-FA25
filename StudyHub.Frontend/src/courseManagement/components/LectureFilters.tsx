@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
+import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import type { ChapterListDto, LessonListDto } from "../types/api";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
@@ -14,9 +15,6 @@ const LectureFilters: React.FC = () => {
   const selectedLesson = useLectureStore(
     (s) => s.selectedLesson as LessonListDto | undefined
   );
-  const fetchLesson = useLectureStore((s) => s.fetchLesson);
-
-  const navigate = useNavigate();
   const [openChapters, setOpenChapters] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
@@ -31,11 +29,13 @@ const LectureFilters: React.FC = () => {
   const enrollAction = useEnrollmentStore((s) => s.enroll);
   const fetchProgresses = useEnrollmentStore((s) => s.fetchProgresses);
   const getLessonCompleted = useEnrollmentStore((s) => s.getLessonCompleted);
+  // subscribe to progresses map so component re-renders when progresses update
+  const progresses = useEnrollmentStore((s) => s.progresses);
   const [enrollment, setEnrollment] = useState<any | null>(null);
 
   useEffect(() => {
+    if (!currentUser?.id) return;
     (async () => {
-      if (!currentUser) return;
       try {
         await fetchEnrollmentsByUser(String(currentUser.id));
         const found = getEnrollmentForCourse(cid);
@@ -53,7 +53,7 @@ const LectureFilters: React.FC = () => {
       }
     })();
   }, [
-    currentUser,
+    currentUser?.id,
     fetchEnrollmentsByUser,
     getEnrollmentForCourse,
     cid,
@@ -68,18 +68,18 @@ const LectureFilters: React.FC = () => {
     <div className="space-y-4">
       {/* Enroll CTA when logged in but not enrolled */}
       {currentUser && !enrollment && (
-        <div className="bg-white rounded-2xl p-4 shadow border border-gray-100 flex items-center justify-between">
-          <div>
-            <div className="text-sm font-medium text-gray-800">
-              Bạn chưa đăng ký khóa học này
-            </div>
-            <div className="text-xs text-gray-500">
-              Đăng ký để xem đầy đủ nội dung
-            </div>
-          </div>
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 flex flex-col items-center text-center">
+          <h3 className="text-base font-semibold text-gray-900">
+            Bạn chưa đăng ký khóa học này
+          </h3>
+          <p className="text-sm text-gray-500 mt-1 mb-4 leading-relaxed">
+            Đăng ký ngay để xem đầy đủ nội dung và tài nguyên học tập.
+          </p>
+
           <button
             onClick={async () => {
               try {
+                if (!currentUser?.id) return;
                 await enrollAction({
                   appUserId: String(currentUser.id),
                   courseId: cid,
@@ -97,19 +97,47 @@ const LectureFilters: React.FC = () => {
                 // ignore
               }
             }}
-            className="bg-black text-white px-3 py-2 rounded"
+            className="mt-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg shadow-sm transition-all"
           >
-            Đăng ký
+            Đăng ký ngay
           </button>
         </div>
       )}
+
       <div className="bg-white rounded-2xl p-4 shadow border border-gray-100">
         <div className="text-sm font-medium text-gray-800">
-          Toán học nâng cao
+          {useCourseStore.getState().selectedCourse?.name ?? "Khóa học"}
         </div>
-        <div className="text-xs text-gray-500 mt-2">Tiến độ: 65%</div>
+        <div className="text-xs text-gray-500 mt-2">
+          Tiến độ:{" "}
+          {(() => {
+            const allLessons: any[] = chapters.flatMap((c) => c.lessons ?? []);
+            const total = allLessons.length;
+            const completed = allLessons.filter((l) =>
+              Boolean(progresses?.[Number(l.id)])
+            ).length;
+            const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
+            return `${pct}%`;
+          })()}
+        </div>
         <div className="w-full bg-gray-100 h-2 rounded mt-3 overflow-hidden">
-          <div className="bg-black h-2 w-2/3 rounded" />
+          <div
+            className="bg-black h-2 rounded"
+            style={{
+              width: `${(() => {
+                const allLessons: any[] = chapters.flatMap(
+                  (c) => c.lessons ?? []
+                );
+                const total = allLessons.length;
+                const completed = allLessons.filter((l) =>
+                  Boolean(progresses?.[Number(l.id)])
+                ).length;
+                const pct =
+                  total === 0 ? 0 : Math.round((completed / total) * 100);
+                return pct;
+              })()}%`,
+            }}
+          />
         </div>
       </div>
 
@@ -140,29 +168,18 @@ const LectureFilters: React.FC = () => {
                   return (
                     <div
                       key={l.id}
-                      onClick={() => {
-                        // block clicks for locked lessons
-                        if (isLocked) return;
-                        try {
-                          fetchLesson(l.id);
-                        } catch (err) {
-                          console.debug("fetchLesson failed", err);
-                        }
-                        navigate(
-                          `/course/student/courses/${cid}/lecture/${l.id}`
-                        );
-                      }}
-                      className={`flex items-center justify-between text-sm rounded-lg p-2 cursor-pointer transition-all ${
+                      // navigation disabled on lesson name click per request
+                      className={`flex items-center justify-between text-sm rounded-lg p-2 ${
                         isActive
                           ? "bg-black text-white shadow-sm"
                           : isLocked
                           ? "opacity-50 cursor-not-allowed"
-                          : "hover:bg-gray-50 text-gray-700"
+                          : "text-gray-700"
                       }`}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <div
-                          className={`w-5 h-5 rounded-full flex items-center justify-center text-xs border ${
+                          className={`flex-none w-5 h-5 rounded-full flex items-center justify-center text-xs border ${
                             isActive
                               ? "bg-white text-black border-black"
                               : l.isPreview && l.id !== ch.lessons?.[0]?.id
@@ -175,8 +192,12 @@ const LectureFilters: React.FC = () => {
                           {isCompleted ? "✓" : "●"}
                         </div>
 
-                        <div className={`${isActive ? "font-semibold" : ""}`}>
-                          {l.name}
+                        <div
+                          className={`flex-1 min-w-0 ${
+                            isActive ? "font-semibold" : ""
+                          }`}
+                        >
+                          <div className="truncate">{l.name}</div>
                         </div>
                       </div>
                       <div

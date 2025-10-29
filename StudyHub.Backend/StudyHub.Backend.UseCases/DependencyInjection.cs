@@ -12,6 +12,7 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<AuthService>();
             services.AddScoped<CourseService>();
             services.AddScoped<LectureService>();
+            services.AddScoped<LessonResourceService>();
             services.AddScoped<DocumentService>();
             services.AddScoped<CloudFileStorageService>();
             //services.AddScoped<LocalFileStorageService>();

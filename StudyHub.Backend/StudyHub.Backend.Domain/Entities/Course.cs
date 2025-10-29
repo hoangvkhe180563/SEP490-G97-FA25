@@ -23,7 +23,7 @@ public class Course : IAuditTrail
     public string Status { get; set; } = null!; 
     public DateTime StartAt { get; set; }
     public DateTime EndAt { get; set; }
-
+    public bool IsApproved { get; set; }
     public Subject Subject { get; set; } = null!;
 
     public List<Chapter> Chapters { get; set; } = new();

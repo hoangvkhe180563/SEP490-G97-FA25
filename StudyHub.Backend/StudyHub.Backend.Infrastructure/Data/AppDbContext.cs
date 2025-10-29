@@ -11,8 +11,6 @@ public partial class AppDbContext : DbContext
     {
     }
 
-    public virtual DbSet<AppClaim> AppClaims { get; set; }
-
     public virtual DbSet<AppPolicy> AppPolicies { get; set; }
 
     public virtual DbSet<AppResource> AppResources { get; set; }
@@ -20,6 +18,8 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<AppRole> AppRoles { get; set; }
 
     public virtual DbSet<AppUser> AppUsers { get; set; }
+
+    public virtual DbSet<AppUsersubjectclass> AppUsersubjectclasses { get; set; }
 
     public virtual DbSet<Chapter> Chapters { get; set; }
 
@@ -55,6 +55,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<Lesson> Lessons { get; set; }
 
+    public virtual DbSet<LessonComment> LessonComments { get; set; }
+
     public virtual DbSet<LessonReading> LessonReadings { get; set; }
 
     public virtual DbSet<LessonResource> LessonResources { get; set; }
@@ -78,41 +80,6 @@ public partial class AppDbContext : DbContext
         modelBuilder
             .UseCollation("utf8mb4_0900_ai_ci")
             .HasCharSet("utf8mb4");
-
-        modelBuilder.Entity<AppClaim>(entity =>
-        {
-            entity.HasKey(e => new { e.UserId, e.RoleId, e.SubjectId, e.ClassId })
-                .HasName("PRIMARY")
-                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0, 0, 0 });
-
-            entity.ToTable("app_claims");
-
-            entity.HasIndex(e => e.ClassId, "ClassId");
-
-            entity.HasIndex(e => e.RoleId, "RoleId");
-
-            entity.HasIndex(e => e.SubjectId, "SubjectId");
-
-            entity.HasOne(d => d.Class).WithMany(p => p.AppClaims)
-                .HasForeignKey(d => d.ClassId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("app_claims_ibfk_4");
-
-            entity.HasOne(d => d.Role).WithMany(p => p.AppClaims)
-                .HasForeignKey(d => d.RoleId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("app_claims_ibfk_1");
-
-            entity.HasOne(d => d.Subject).WithMany(p => p.AppClaims)
-                .HasForeignKey(d => d.SubjectId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("app_claims_ibfk_3");
-
-            entity.HasOne(d => d.User).WithMany(p => p.AppClaims)
-                .HasForeignKey(d => d.UserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("app_claims_ibfk_2");
-        });
 
         modelBuilder.Entity<AppPolicy>(entity =>
         {
@@ -201,6 +168,49 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Commune).WithMany(p => p.AppUsers)
                 .HasForeignKey(d => d.CommuneId)
                 .HasConstraintName("app_users_ibfk_1");
+
+            entity.HasMany(d => d.Roles).WithMany(p => p.Users)
+                .UsingEntity<Dictionary<string, object>>(
+                    "AppUserrole",
+                    r => r.HasOne<AppRole>().WithMany()
+                        .HasForeignKey("RoleId")
+                        .HasConstraintName("app_userrole_ibfk_2"),
+                    l => l.HasOne<AppUser>().WithMany()
+                        .HasForeignKey("UserId")
+                        .HasConstraintName("app_userrole_ibfk_1"),
+                    j =>
+                    {
+                        j.HasKey("UserId", "RoleId")
+                            .HasName("PRIMARY")
+                            .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+                        j.ToTable("app_userrole");
+                        j.HasIndex(new[] { "RoleId" }, "RoleId");
+                    });
+        });
+
+        modelBuilder.Entity<AppUsersubjectclass>(entity =>
+        {
+            entity.HasKey(e => new { e.UserId, e.SubjectId, e.ClassId })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0, 0 });
+
+            entity.ToTable("app_usersubjectclass");
+
+            entity.HasIndex(e => e.ClassId, "ClassId");
+
+            entity.HasIndex(e => e.SubjectId, "SubjectId");
+
+            entity.HasOne(d => d.Class).WithMany(p => p.AppUsersubjectclasses)
+                .HasForeignKey(d => d.ClassId)
+                .HasConstraintName("app_usersubjectclass_ibfk_3");
+
+            entity.HasOne(d => d.Subject).WithMany(p => p.AppUsersubjectclasses)
+                .HasForeignKey(d => d.SubjectId)
+                .HasConstraintName("app_usersubjectclass_ibfk_2");
+
+            entity.HasOne(d => d.User).WithMany(p => p.AppUsersubjectclasses)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("app_usersubjectclass_ibfk_1");
         });
 
         modelBuilder.Entity<Chapter>(entity =>
@@ -591,6 +601,33 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.ResourceId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("lessons_ibfk_2");
+        });
+
+        modelBuilder.Entity<LessonComment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("lesson_comments");
+
+            entity.HasIndex(e => e.AppUserId, "FK_LessonComments_AppUser");
+
+            entity.HasIndex(e => e.LessonId, "FK_LessonComments_Lesson");
+
+            entity.Property(e => e.Content).HasMaxLength(2000);
+            entity.Property(e => e.CreatedAt)
+                .HasMaxLength(6)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+            entity.Property(e => e.DeletedAt).HasMaxLength(6);
+            entity.Property(e => e.UpdatedAt).HasMaxLength(6);
+
+            entity.HasOne(d => d.AppUser).WithMany(p => p.LessonComments)
+                .HasForeignKey(d => d.AppUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_LessonComments_AppUser");
+
+            entity.HasOne(d => d.Lesson).WithMany(p => p.LessonComments)
+                .HasForeignKey(d => d.LessonId)
+                .HasConstraintName("FK_LessonComments_Lesson");
         });
 
         modelBuilder.Entity<LessonReading>(entity =>
