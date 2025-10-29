@@ -15,7 +15,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/common/components/ui/popover";
-import { Progress } from "@/common/components/ui/progress";
+// Progress UI removed for Video lessons; keep setters used by auto-complete logic
 
 const LecturePlayer: React.FC = () => {
   const params = useParams();
@@ -32,9 +32,9 @@ const LecturePlayer: React.FC = () => {
   const fetchLesson = useLectureStore((s: any) => s.fetchLesson);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [localProgress, setLocalProgress] = useState<number>(0);
-  const [currentTime, setCurrentTime] = useState<number>(0);
-  const [durationSec, setDurationSec] = useState<number>(0);
+  const [_localProgress, setLocalProgress] = useState<number>(0);
+  const [_currentTime, setCurrentTime] = useState<number>(0);
+  const [_durationSec, setDurationSec] = useState<number>(0);
   const ytPlayerRef = useRef<any | null>(null);
   const currentUser = useAppUserStore((s: any) => s.appUser);
   const effectiveUser = currentUser ?? {
@@ -616,12 +616,7 @@ const LecturePlayer: React.FC = () => {
 
   // LecturePlayer no longer fetches or displays resources; sidebar component handles resources.
 
-  const formatTime = (s: number) => {
-    if (!s || isNaN(s)) return "0:00";
-    const mm = Math.floor(s / 60);
-    const ss = Math.max(0, s % 60);
-    return `${mm}:${String(ss).padStart(2, "0")}`;
-  };
+  // formatTime removed — time display for videos is no longer shown in the player UI
 
   return (
     <div className="w-full bg-gray-50 min-h-screen py-8 h-full overflow-y-auto scrollbar-hide">
@@ -770,7 +765,7 @@ const LecturePlayer: React.FC = () => {
               </div>
             ) : selectedLesson?.type === "Reading" ? (
               <div className="bg-white w-full rounded-lg mb-4 overflow-hidden shadow-lg">
-                <div className="p-4 max-h-[480px] overflow-auto prose prose-slate">
+                <div className="p-4 max-h-[320px] overflow-auto prose prose-slate">
                   <div
                     dangerouslySetInnerHTML={{
                       __html:
@@ -806,45 +801,6 @@ const LecturePlayer: React.FC = () => {
             )}
 
             <div className="grid grid-cols-1 gap-4">
-              {selectedLesson?.type === "Video" && (
-                <div className="bg-white border rounded p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <h4 className="font-medium">Tiến độ</h4>
-                      <div className="text-sm text-gray-600">
-                        {localProgress}%
-                      </div>
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {formatTime(currentTime)} / {formatTime(durationSec)}
-                    </div>
-                  </div>
-
-                  <Progress
-                    value={localProgress}
-                    className="h-3 bg-gray-100 [&>div]:bg-sky-600 transition-all"
-                  />
-
-                  <div className="flex items-center justify-end gap-2 mt-4">
-                    <Button
-                      onClick={async () => {
-                        if (!selectedLesson?.id) return;
-                        try {
-                          await saveProgress(100);
-                          setLocalProgress(100);
-                          if (enrollmentId) await fetchProgresses(enrollmentId);
-                        } catch {
-                          // ignore
-                        }
-                      }}
-                      disabled={localProgress < 90 || isLessonCompleted}
-                    >
-                      Đánh dấu hoàn thành
-                    </Button>
-                  </div>
-                </div>
-              )}
-
               <div className="bg-white border rounded p-4 mb-10">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-medium">Nội dung bài giảng</h4>

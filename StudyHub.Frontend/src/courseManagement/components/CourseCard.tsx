@@ -22,21 +22,14 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
   const enrollAction = useEnrollmentStore((s: any) => s.enroll);
   const fetchProgresses = useEnrollmentStore((s: any) => s.fetchProgresses);
   const fetchEnrollmentsByUser = useEnrollmentStore((s: any) => s.fetchByUser);
-  // subscribe to the actual enrollment for this course so component updates
-  // when the store's enrollments change
   const enrollment = useEnrollmentStore((s) =>
     s.getEnrollmentForCourse(course.id)
   );
 
-  const effectiveUser = currentUser ?? {
-    id: "b2c3d4e5-f6a7-8901-2345-67890abcdef0",
-    fullname: "Demo Student",
-  };
-
   useEffect(() => {
-    // ensure enrollments are loaded so getEnrollmentForCourse can return a value
-    // but only call the API once per user (to avoid N requests when rendering a list)
-    const userId = String(effectiveUser.id);
+    console.log("fetchEnrollmentsByUser", currentUser?.id);
+    if (!currentUser?.id) return;
+    const userId = String(currentUser.id);
     if (enrollment) return;
     if (_enrollFetchRequested.has(userId)) return;
     _enrollFetchRequested.add(userId);
@@ -47,7 +40,7 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
         // ignore
       }
     })();
-  }, [fetchEnrollmentsByUser, effectiveUser.id, enrollment, course.id]);
+  }, [fetchEnrollmentsByUser, currentUser?.id, enrollment, course.id]);
 
   const formatDate = (d?: string | null) => {
     if (!d) return "—";
@@ -202,8 +195,9 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
               onClick={async (e) => {
                 e.stopPropagation();
                 try {
+                  if (!currentUser?.id) return;
                   const created = await enrollAction({
-                    appUserId: String(effectiveUser.id),
+                    appUserId: String(currentUser.id),
                     courseId: course.id,
                   });
                   if (created?.id) {

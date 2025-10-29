@@ -22,11 +22,7 @@ const CourseList: React.FC = () => {
   const [teachers, setTeachers] = useState<any[]>([]);
   const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
 
-  // pageSize from store (used as fallback)
   const pageSize = useCourseStore((s) => s.pageSize);
-
-  // Helper: central load function to keep fetch logic consistent and avoid
-  // repeating parameters across handlers.
   const effectivePageSize = selectedPageSize ?? pageSize ?? 6;
 
   const load = (p: number = 1, opts: Record<string, any> = {}) => {

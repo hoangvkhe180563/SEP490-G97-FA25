@@ -33,7 +33,6 @@ export const courseApi = {
       // prefer backend-provided pageSize, fallback to 6 to match UI default
       pageSize: data.pageSize ?? 6,
     };
-    console.log("Fetched courses:", mapped.items);
     return mapped;
   },
 
