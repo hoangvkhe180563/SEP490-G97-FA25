@@ -21,22 +21,30 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public List<Domain.Entities.AppRole> GetRolesForUser(Guid userId)
         {
-            var roles = _context.AppClaims
-                .Where(ac => ac.UserId == userId)
-                .Include(ac => ac.Role)
-                .Distinct()
-                .Select(ac => new Domain.Entities.AppRole
-                {
-                    Id = ac.Role.Id,
-                    Name = ac.Role.Name
-                })
-                .ToList();
-            foreach (var role in roles)
+            var result = new List<Domain.Entities.AppRole>();
+
+            var infraUser = _context.AppUsers
+                .Include(u => u.Roles)
+                .FirstOrDefault(u => u.Id == userId);
+
+            if (infraUser == null) return result;
+
+            foreach (var r in infraUser.Roles)
             {
-                var policies = _context.AppPolicies.Where(p => p.RoleId == role.Id).ToList();
+                var roleDomain = new Domain.Entities.AppRole
+                {
+                    Id = r.Id,
+                    Name = r.Name
+                };
+
+                var policies = _context.AppPolicies
+                    .Where(p => p.RoleId == r.Id)
+                    .Include(p => p.Resource)
+                    .ToList();
+
                 foreach (var p in policies)
                 {
-                    role.AppPolicies.Add(new Domain.Entities.AppPolicy
+                    roleDomain.AppPolicies.Add(new Domain.Entities.AppPolicy
                     {
                         RoleId = p.RoleId,
                         ResourceId = p.ResourceId,
@@ -45,15 +53,17 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         Description = p.Description,
                         Resource = new Domain.Entities.AppResource
                         {
-                            Id = p.Resource.Id,
-                            Name = p.Resource.Name,
-                            ResourceType = p.Resource.ResourceType
+                            Id = p.Resource != null ? p.Resource.Id : p.ResourceId,
+                            Name = p.Resource != null ? p.Resource.Name ?? string.Empty : string.Empty,
+                            ResourceType = p.Resource != null ? p.Resource.ResourceType ?? string.Empty : string.Empty
                         }
                     });
                 }
+
+                result.Add(roleDomain);
             }
 
-            return roles;
+            return result;
         }
 
         public List<Domain.Entities.AppRole> GetAllRoles(string? search = null)
@@ -88,9 +98,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Description = p.Description,
                     Resource = new Domain.Entities.AppResource
                     {
-                        Id = p.Resource.Id,
-                        Name = p.Resource.Name,
-                        ResourceType = p.Resource.ResourceType
+                        Id = p.Resource != null ? p.Resource.Id : p.ResourceId,
+                        Name = p.Resource != null ? p.Resource.Name ?? string.Empty : string.Empty,
+                        ResourceType = p.Resource != null ? p.Resource.ResourceType ?? string.Empty : string.Empty
                     }
                 })
                 .ToList();

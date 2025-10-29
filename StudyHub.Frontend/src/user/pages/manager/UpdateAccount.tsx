@@ -724,7 +724,7 @@ const UpdateAccount: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <Button variant="ghost" type="button" onClick={() => navigate(-1)}>
-              Huỷ bỏ
+              Quay lại
             </Button>
             <Button
               type="submit"

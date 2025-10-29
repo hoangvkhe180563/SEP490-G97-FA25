@@ -107,7 +107,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     // Parse roleId to Guid
                     if (Guid.TryParse(roleId, out Guid parsedRoleId))
                     {
-                        users = users.Where(u => u.AppClaims.Any(c => c.RoleId == parsedRoleId));
+                        // filter by user's roles (AppClaims table removed)
+                        users = users.Where(u => u.Roles.Any(r => r.Id == parsedRoleId));
                     }
                 }
 
@@ -172,60 +173,21 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     try
                     {
+                        // Attach roles to the newly created user (role assignments are global on user)
                         var existing = _context.AppUsers
-                                    .Include(u => u.AppClaims)
+                                    .Include(u => u.Roles)
                                     .FirstOrDefault(u => u.Id == d.Id);
                         if (existing != null)
                         {
                             var roles = _context.AppRoles.Where(r => roleIds.Contains(r.Id)).ToList();
-                            var subjectIds = GetUserSubjectIds(existing.Id); // Có thể null hoặc empty
-                            var classIds = GetUserClassIds(existing.Id);
-                            if ((subjectIds == null || !subjectIds.Any()) && (classIds == null || !classIds.Any()))
+                            foreach (var r in roles)
                             {
-                                foreach (var r in roles)
+                                if (!existing.Roles.Any(rr => rr.Id == r.Id))
                                 {
-                                    if (!existing.AppClaims.Any(c => c.RoleId == r.Id
-                                                                  && c.SubjectId == 0
-                                                                  && c.ClassId == 0))
-                                    {
-                                        var claim = new Data.AppClaim
-                                        {
-                                            UserId = existing.Id,
-                                            RoleId = r.Id,
-                                            SubjectId = 0,
-                                            ClassId = 0
-                                        };
-                                        _context.AppClaims.Add(claim);
-                                    }
+                                    existing.Roles.Add(r);
                                 }
                             }
-                            else
-                            {
-                                var subjects = (subjectIds == null || !subjectIds.Any()) ? new List<short> { 0 } : subjectIds.Cast<short>().ToList();
-                                var classes = (classIds == null || !classIds.Any()) ? new List<int> { 0 } : classIds.Cast<int>().ToList();
-                                foreach (var r in roles)
-                                {
-                                    foreach (var subjectId in subjects)
-                                    {
-                                        foreach (var classId in classes)
-                                        {
-                                            if (!existing.AppClaims.Any(c => c.RoleId == r.Id
-                                                                          && c.SubjectId == subjectId
-                                                                          && c.ClassId == classId))
-                                            {
-                                                var claim = new Data.AppClaim
-                                                {
-                                                    UserId = existing.Id,
-                                                    RoleId = r.Id,
-                                                    SubjectId = subjectId,
-                                                    ClassId = classId
-                                                };
-                                                _context.AppClaims.Add(claim);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            _context.AppUsers.Update(existing);
                             _context.SaveChanges();
                         }
                     }
@@ -248,8 +210,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             try
             {
                 var existing = _context.AppUsers
-                                .Include(u => u.AppClaims)
-                                .ThenInclude(c => c.Role)
+                                .Include(u => u.Roles)
+                                .Include(u => u.AppUsersubjectclasses)
                                 .FirstOrDefault(u => u.Id == user.Id);
 
                 if (existing == null) return;
@@ -275,37 +237,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 if (roleIds != null && roleIds.Any())
                 {
-                    // Lấy tất cả claims hiện tại của user
-                    var existingClaims = _context.AppClaims
-                        .Where(c => c.UserId == user.Id)
-                        .ToList();
-
-                    // Lấy danh sách các cặp SubjectId-ClassId hiện tại
-                    var currentSubjectClassPairs = existingClaims
-                        .Select(c => new { c.SubjectId, c.ClassId })
-                        .Distinct()
-                        .ToList();
-
-                    // Xóa chỉ các claims có RoleId trong danh sách roleIds cần update
-                    var claimsToRemove = existingClaims
-                        .Where(c => roleIds.Contains(c.RoleId))
-                        .ToList();
-                    _context.AppClaims.RemoveRange(claimsToRemove);
-
-                    // Thêm lại claims mới với roles từ roleIds
-                    foreach (var roleId in roleIds)
+                    // Update user's global roles (AppClaim removed). We will replace user's roles with the provided set.
+                    var roles = _context.AppRoles.Where(r => roleIds.Contains(r.Id)).ToList();
+                    // clear existing roles and attach new ones
+                    existing.Roles.Clear();
+                    foreach (var r in roles)
                     {
-                        foreach (var pair in currentSubjectClassPairs)
-                        {
-                            var claim = new Data.AppClaim
-                            {
-                                UserId = user.Id,
-                                RoleId = roleId,
-                                SubjectId = pair.SubjectId,
-                                ClassId = pair.ClassId
-                            };
-                            _context.AppClaims.Add(claim);
-                        }
+                        existing.Roles.Add(r);
                     }
                 }
 
@@ -319,27 +257,27 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
-        public List<Domain.Entities.AppClaim> GetClaimsForUser(Guid userId)
+    public List<Domain.Entities.AppUsersubjectclass> GetClaimsForUser(Guid userId)
         {
-            var claims = _context.AppClaims
-                .Where(c => c.UserId == userId)
-                .Include(c => c.Class)
-                .Include(c => c.Role)
-                .Include(c => c.Subject)
+            // AppClaim table removed. Build subject-class assignments from AppUsersubjectclass table.
+            var assignments = _context.AppUsersubjectclasses
+                .Where(a => a.UserId == userId)
+                .Include(a => a.Class)
+                .Include(a => a.Subject)
+                .Include(a => a.User)
                 .ToList();
-            var result = new List<Domain.Entities.AppClaim>();
-            foreach (var c in claims)
+
+            var result = new List<Domain.Entities.AppUsersubjectclass>();
+            foreach (var a in assignments)
             {
-                result.Add(new Domain.Entities.AppClaim
+                result.Add(new Domain.Entities.AppUsersubjectclass
                 {
-                    UserId = c.UserId,
-                    RoleId = c.RoleId,
-                    SubjectId = c.SubjectId,
-                    ClassId = c.ClassId,
-                    Class = new Domain.Entities.Class { Id = c.Class.Id, Name = c.Class.Name },
-                    Role = new Domain.Entities.AppRole { Id = c.Role.Id, Name = c.Role.Name },
-                    Subject = new Domain.Entities.Subject { Id = c.Subject.Id, Name = c.Subject.Name },
-                    User = ToDomain(c.User)
+                    UserId = a.UserId,
+                    SubjectId = a.SubjectId,
+                    ClassId = a.ClassId,
+                    Class = new Domain.Entities.Class { Id = a.Class.Id, Name = a.Class.Name },
+                    Subject = new Domain.Entities.Subject { Id = a.Subject.Id, Name = a.Subject.Name },
+                    User = ToDomain(a.User)
                 });
             }
             return result;
@@ -386,9 +324,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         // Lấy tất cả SubjectId mà user đã có claims
         private List<short> GetUserSubjectIds(Guid userId)
         {
-            var subjectIds = _context.AppClaims
-                .Where(c => c.UserId == userId)
-                .Select(c => c.SubjectId)
+            var subjectIds = _context.AppUsersubjectclasses
+                .Where(a => a.UserId == userId)
+                .Select(a => a.SubjectId)
                 .Distinct()
                 .ToList();
 
@@ -398,9 +336,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         // Lấy tất cả ClassId mà user đã có claims
         private List<int> GetUserClassIds(Guid userId)
         {
-            var classIds = _context.AppClaims
-                .Where(c => c.UserId == userId)
-                .Select(c => c.ClassId)
+            var classIds = _context.AppUsersubjectclasses
+                .Where(a => a.UserId == userId)
+                .Select(a => a.ClassId)
                 .Distinct()
                 .ToList();
 

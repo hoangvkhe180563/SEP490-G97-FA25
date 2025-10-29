@@ -74,9 +74,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
         public List<AppUser> GetAllTeacher()
         {
-            var teachers = _context.AppClaims
-                .Where(c => c.Role.Name.Contains("Teacher"))
-                .Select(c => c.User)
+            var teacherRoleIds = _context.AppRoles
+                .Where(r => r.Name.Contains("Teacher"))
+                .Select(r => r.Id)
+                .ToList();
+
+            var teachers = _context.AppUsers
+                .Where(u => u.Roles.Any(r => teacherRoleIds.Contains(r.Id)))
                 .Distinct()
                 .ToList();
 
