@@ -64,7 +64,9 @@ const AppRouter = () => {
     },
     {
       path: RouteConfig.DOCUMENT_MANAGEMENT,
-      element: <Outlet />,
+      element: (
+        <MainLayout isLoggedIn={isLoggedIn} sidebarItems={guestSidebarItems} />
+      ),
       children: documentRoutes,
     },
     {

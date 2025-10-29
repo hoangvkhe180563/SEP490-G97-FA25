@@ -386,6 +386,7 @@ export default function DocumentViewer() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, numPages]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
