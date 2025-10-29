@@ -99,6 +99,7 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
         public string? Fullname { get; set; }
         // Gender: 1 -> Male, 0 -> Female
         public int Gender { get; set; }
+        public int SchoolId { get; set; }
     }
 
     public class EditAccountRequest
@@ -112,6 +113,8 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
         public IFormFile? AvatarFile { get; set; }
         // Gender: 1 -> Male, 0 -> Female
         public int? Gender { get; set; }
+        public int? SchoolId { get; set; }
+
     }
 
     public class GenericResponse

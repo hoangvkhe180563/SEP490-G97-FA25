@@ -8,7 +8,7 @@ const UserRouteConfig = {
     PROFILE: "profile",
     ACCOUNT_LIST: "accounts",
     ADD_ACCOUNT: "add-account",
-    UPDATE_ACCOUNT: "update-account",
+    UPDATE_ACCOUNT: "update-account/:id",
   },
   STUDENT: {
     INDEX: "student",

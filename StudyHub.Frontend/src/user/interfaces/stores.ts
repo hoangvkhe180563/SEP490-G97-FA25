@@ -2,7 +2,7 @@ import type { AppRole } from "./app-role";
 import type { AppUser } from "./app-user";
 import type { City } from "./city";
 import type { Commune } from "./commune";
-import type { CreateAccountDto } from "./dtos";
+import type { CreateAccountDto, EditAccountDto } from "./dtos";
 import type { Province } from "./province";
 import type { School } from "./school";
 
@@ -33,12 +33,23 @@ interface AppUserState {
   setAppUsers: (users: AppUser[] | ((prev: AppUser[]) => AppUser[])) => void;
   getAppUserById: (id: string) => Promise<any>;
   // Update a user's status (Active / Inactive). Returns true when update succeeded.
-  updateUserStatus: (id: string, status: AppUser["status"]) => Promise<boolean>;
+  updateUserStatus: (
+    id: string,
+    status: AppUser["status"],
+    successCallback?: (message?: string) => void,
+    errorCallback?: (message?: string) => void
+  ) => Promise<boolean>;
   // Create a new account using DTO containing fields and optional avatarFile
   createAccount: (
     dto: CreateAccountDto,
-    successCallback?: () => void,
-    errorCallback?: () => void
+    successCallback?: (message?: string) => void,
+    errorCallback?: (message?: string) => void
+  ) => Promise<any>;
+  updateAccount: (
+    id: string,
+    dto: EditAccountDto,
+    successCallback?: (message?: string) => void,
+    errorCallback?: (message?: string) => void
   ) => Promise<any>;
 }
 

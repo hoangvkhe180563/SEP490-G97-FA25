@@ -53,7 +53,9 @@ interface AuthState {
   ) => Promise<void>;
   checkAuth: () => Promise<void>;
   refreshToken: () => Promise<void>;
-  logout: () => void;
+  // If `remote` is false, only perform a local logout (clear local state).
+  // Returns a Promise so callers can await the server call when desired.
+  logout: (remote?: boolean) => Promise<void>;
 }
 
 interface LocationState {
