@@ -66,69 +66,6 @@ namespace StudyHub.Backend.UseCases.Utils
             return new AccessTokenResult { Token = accessToken, Expires = expires };
         }
 
-        // Deprecated: use CreateAccessToken with includePermissions=true instead.
-        // Build claims from user and optional roles. If includePermissions=true and roles contain AppPermissions,
-        // permissions will be serialized into a single JSON claim with type "perm".
-        // Also includes class and subject ids from user claims.
-        public static List<Claim> BuildClaims(AppUser user, IEnumerable<AppRole>? roles = null, IEnumerable<AppClaim>? userClaims = null, bool includePermissions = false)
-        {
-            var claims = new List<Claim>
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
-                new Claim(ClaimTypes.Name, user.Username ?? string.Empty),
-                // include user's primary RoleId for compatibility
-                new Claim("role_ids", roles != null ? string.Join(",", roles.Select(r => r.ToString())) : string.Empty)
-            };
-            // include role names (many roles) if provided
-            if (roles != null)
-            {
-                var roleNames = roles.Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
-                if (roleNames.Any())
-                    claims.Add(new Claim("roles", JsonSerializer.Serialize(roleNames)));
-            }
-
-            // optional fields
-            if (user.SchoolId.HasValue)
-                claims.Add(new Claim("sch", user.SchoolId.Value.ToString()));
-
-            if (user.CommuneId.HasValue && user.CommuneId.Value > 0)
-                claims.Add(new Claim("com", user.CommuneId.Value.ToString()));
-
-            // aggregate permissions across roles
-            if (includePermissions && roles != null)
-            {
-                var permissions = new List<string>();
-                foreach (var role in roles)
-                {
-                    if (role?.AppPolicies == null) continue;
-                    foreach (var p in role.AppPolicies)
-                    {
-                        var res = p.Resource?.Name ?? p.ResourceId.ToString();
-                        var act = p.ActionType;
-                        permissions.Add($"{res}:{act}");
-                    }
-                }
-
-                if (permissions.Any())
-                    claims.Add(new Claim("perm", JsonSerializer.Serialize(permissions)));
-            }
-
-            // include class ids and subject ids from userClaims
-            if (userClaims != null)
-            {
-                var classIds = userClaims.Where(c => c.ClassId > 0).Select(c => c.ClassId).Distinct().ToList();
-                var subjectIds = userClaims.Where(c => c.SubjectId > 0).Select(c => c.SubjectId).Distinct().ToList();
-
-                if (classIds.Any())
-                    claims.Add(new Claim("class_ids", JsonSerializer.Serialize(classIds)));
-                if (subjectIds.Any())
-                    claims.Add(new Claim("subject_ids", JsonSerializer.Serialize(subjectIds)));
-            }
-
-            return claims;
-        }
-
         // Provide TokenValidationParameters for authentication setup in Program.cs
         public static TokenValidationParameters GetTokenValidationParameters(IConfiguration configuration)
         {
