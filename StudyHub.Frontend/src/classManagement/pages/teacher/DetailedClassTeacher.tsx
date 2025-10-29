@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { useParams, useSearchParams, useNavigate } from "react-router-dom";
+import React, { useEffect, useState, useMemo } from "react";
+import { useParams, useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import type { ClassWork } from "@/classManagement/interfaces/class";
 import PostComposer from "@/classManagement/components/ui/postcomposer";
 import PostCard from "@/classManagement/components/ui/postcard";
@@ -23,11 +23,15 @@ import {
   TabsContent,
 } from "@/common/components/ui/tabs";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { mapToCoarseRole } from "@/classManagement/utils/roleutil";
 import type {
   ClassInfo,
   ClassMemberDto,
   ClassNotification,
 } from "@/classManagement/interfaces/class";
+
+import { axiosInstance } from "@/lib/axios"; // <-- dùng để gọi API đếm
 
 // local type for links coming from PostComposer
 type LinkPayload = { url: string; title?: string; thumbnail?: string };
@@ -53,7 +57,12 @@ const ClassInfoCard: React.FC<{ info: ClassInfo | null }> = ({ info }) => {
 };
 
 // ===== Thành phần hiển thị chi tiết bài tập dưới dạng dropdown =====
-const ClassWorkDropdown: React.FC<{ work: ClassWork }> = ({ work }) => {
+const ClassWorkDropdown: React.FC<{
+  work: ClassWork;
+  submitted?: number | null;
+  total?: number | null;
+  onViewDetails?: () => void;
+}> = ({ work, submitted, total, onViewDetails }) => {
   return (
     <div className="bg-gray-50 border-t px-4 py-3 text-sm">
       <div>
@@ -65,24 +74,55 @@ const ClassWorkDropdown: React.FC<{ work: ClassWork }> = ({ work }) => {
       </div>
       <div className="mt-2">
         <span className="font-medium">Hạn nộp:</span>{" "}
-        {work.deadline
-          ? new Date(work.deadline).toLocaleString()
-          : "Không xác định"}
+        {work.deadline ? new Date(work.deadline).toLocaleString() : "Không xác định"}
       </div>
       {work.classId && (
         <div className="mt-2 text-xs text-gray-400">Mã lớp: {work.classId}</div>
       )}
+      <div className="mt-3 text-sm text-gray-700 flex items-center justify-between">
+        <div>
+          <span className="font-medium">Đã nộp:</span>{" "}
+          <span className="font-medium text-gray-800">{submitted ?? "—"}</span>{" "}
+          /{" "}
+          <span className="font-medium text-gray-800">{total ?? "—"}</span>{" "}
+          học sinh
+        </div>
+        {onViewDetails && (
+          <button
+            onClick={onViewDetails}
+            className="ml-4 text-xs bg-blue-600 text-white px-3 py-1 rounded"
+          >
+            Xem chi tiết
+          </button>
+        )}
+      </div>
     </div>
   );
 };
 
 // ===== Trang chi tiết lớp học =====
 const DetailedClassTeacher: React.FC = () => {
-  // read role and id from URL: /class/:role/:id
-  const params = useParams<{ role?: string; id?: string }>();
-  const roleParam = params.role;
+  // read id from URL only (we no longer read role from URL/path)
+  const params = useParams<{ id?: string; role?: string }>();
   const id = params.id ?? "";
-  const role = (roleParam === "student" ? "student" : "teacher") as UserRole;
+
+  // Get role only from auth store (do NOT read from URL/path)
+  const { user } = useAuthStore();
+  const coarseRole = mapToCoarseRole(user?.roles);
+
+  // Determine role strictly from auth info (with a safe fallback)
+  let role: UserRole;
+  if (coarseRole === "student") role = "student";
+  else if (coarseRole === "teacher") role = "teacher";
+  else {
+    const stored = localStorage.getItem("currentUserRole");
+    role = stored === "teacher" ? "teacher" : "student";
+    console.warn(
+      `DetailedClassTeacher: role not found in auth store; falling back to stored/current default role='${role}'`
+    );
+  }
+
+  console.log("Role (from auth store only):", role, "Class ID:", id);
 
   const {
     getClassInfo,
@@ -92,13 +132,15 @@ const DetailedClassTeacher: React.FC = () => {
     isLoading,
     createNotification,
   } = useClassStore();
-  const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(
-    null
-  );
+  const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(null);
   const [openAddMember, setOpenAddMember] = useState(false);
 
-  // State cho dropdown bài tập
+  // State cho dropdown bài tập: lưu id bài tập đang mở dropdown (teacher)
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+
+  // NEW: lưu số đã nộp và tổng theo workId
+  const [submissionCounts, setSubmissionCounts] = useState<Record<number, number | null>>({});
+  const [memberCounts, setMemberCounts] = useState<Record<number, number | null>>({});
 
   const navigate = useNavigate();
 
@@ -110,6 +152,63 @@ const DetailedClassTeacher: React.FC = () => {
   }, [id, getClassInfo]);
 
   const worksFromStore: ClassWork[] = currentClass?.data?.works ?? [];
+
+  // Nếu members đã load trên currentClass, cập nhật memberCounts cho tất cả work có sẵn
+  useEffect(() => {
+    const students = currentClass?.data?.students ?? [];
+    if (students && students.length > 0 && worksFromStore.length > 0) {
+      const count = students.length;
+      setMemberCounts((prev) => {
+        const next = { ...prev };
+        worksFromStore.forEach((w) => {
+          if (next[w.id] === undefined || next[w.id] === null) {
+            next[w.id] = count;
+          }
+        });
+        return next;
+      });
+    }
+  }, [currentClass?.data?.students, worksFromStore]);
+
+  // Khi teacher mở dropdown cho 1 work: gọi API lấy counts (nếu chưa có)
+  const fetchCountsForWork = async (workId: number) => {
+    const students = currentClass?.data?.students ?? [];
+    if (students && Array.isArray(students) && students.length > 0) {
+      setMemberCounts((prev) => ({ ...prev, [workId]: students.length }));
+    } else if (memberCounts[workId] === undefined) {
+      try {
+        const memRes = await axiosInstance.get(`/Class/classworks/membercount/${workId}`);
+        const memRaw = memRes?.data ?? null;
+        let memCount: number | null = null;
+        if (memRaw !== null) {
+          if (typeof memRaw === "number") memCount = memRaw;
+          else if (typeof memRaw?.data === "number") memCount = memRaw.data;
+          else if (typeof memRaw?.count === "number") memCount = memRaw.count;
+        }
+        setMemberCounts((prev) => ({ ...prev, [workId]: memCount }));
+      } catch (err) {
+        console.error("fetch membercount error:", err);
+        setMemberCounts((prev) => ({ ...prev, [workId]: null }));
+      }
+    }
+
+    if (submissionCounts[workId] === undefined) {
+      try {
+        const subRes = await axiosInstance.get(`/Class/classworks/submissioncount/${workId}`);
+        const subRaw = subRes?.data ?? null;
+        let subCount: number | null = null;
+        if (subRaw !== null) {
+          if (typeof subRaw === "number") subCount = subRaw;
+          else if (typeof subRaw?.data === "number") subCount = subRaw.data;
+          else if (typeof subRaw?.count === "number") subCount = subRaw.count;
+        }
+        setSubmissionCounts((prev) => ({ ...prev, [workId]: subCount }));
+      } catch (err) {
+        console.error("fetch submissioncount error:", err);
+        setSubmissionCounts((prev) => ({ ...prev, [workId]: null }));
+      }
+    }
+  };
 
   // Tab đang hoạt động
   const [activeTab, setActiveTab] = useState("notifications");
@@ -364,16 +463,23 @@ const DetailedClassTeacher: React.FC = () => {
                       <div key={w.id}>
                         <div
                           className={`bg-white border rounded-lg p-4 cursor-pointer hover:bg-blue-50 flex justify-between items-start`}
-                          onClick={() =>
-                            // students go to detail; teachers go to edit page
-                            role === "student"
-                              ? navigate(
-                                  `/class/${role}/${id}/classwork/${w.id}/detail`
-                                )
-                              : navigate(
-                                  `/class/${role}/${id}/classwork/${w.id}/edit`
-                                )
-                          }
+                          onClick={() => {
+                            // New logic:
+                            // - If student: navigate to detail page
+                            // - If teacher: toggle dropdown for this work (show more info)
+                            if (role === "student") {
+                              navigate(
+                                `/class/${role}/${id}/classwork/${w.id}/detail`
+                              );
+                            } else {
+                              const next = openDropdownId === w.id ? null : w.id;
+                              setOpenDropdownId(next);
+                              // when opening dropdown, fetch counts if not present
+                              if (next === w.id) {
+                                fetchCountsForWork(w.id);
+                              }
+                            }
+                          }}
                         >
                           <div>
                             <div className="text-sm font-semibold text-gray-800">
@@ -406,9 +512,14 @@ const DetailedClassTeacher: React.FC = () => {
                             )}
                           </div>
                         </div>
-                        {/* optional dropdown */}
+                        {/* dropdown only rendered when openDropdownId matches */}
                         {openDropdownId === w.id && (
-                          <ClassWorkDropdown work={w} />
+                          <ClassWorkDropdown
+                            work={w}
+                            submitted={submissionCounts[w.id]}
+                            total={memberCounts[w.id]}
+                            onViewDetails={() => navigate(`/class/${role}/${id}/classwork/${w.id}/submissions`)}
+                          />
                         )}
                       </div>
                     ))}

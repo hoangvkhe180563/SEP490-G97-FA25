@@ -133,6 +133,8 @@ namespace StudyHub.Backend.UseCases.Services
         public List<ClassworkSubmission> GetSubmissionsByClassworkId(int classworkId)=>_classRepository.GetSubmissionsByClassworkId(classworkId);
         public ClassworkSubmission GetSubmissionByUserAndClasswork(int classworkId, Guid userId) => _classRepository.GetSubmissionByUserAndClasswork(classworkId, userId);
         public SubmissionFile AddSubmissionFile(SubmissionFile file)=>_classRepository.AddSubmissionFile(file);
-
+        public List<SubmissionFile> GetSubmissionFiles(int submissionId)=> _classRepository.GetSubmissionFiles(submissionId);
+        public int GetMemberCount(int classworkId)=>_classRepository.GetMemberCount(classworkId);
+        public int GetSubmissionCount(int classworkId)=>_classRepository.GetSubmissionCount(classworkId);
     }
 }

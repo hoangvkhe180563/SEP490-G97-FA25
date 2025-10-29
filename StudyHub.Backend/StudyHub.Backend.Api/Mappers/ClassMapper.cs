@@ -1,6 +1,7 @@
 ﻿using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Api.Dtos.AppUserDTOS;
 using StudyHub.Backend.Api.Dtos.ClassDTOS;
+using StudyHub.Backend.Api.Dtos.ClassworkDTOS;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Dtos;
 using System.Runtime.CompilerServices;
@@ -144,6 +145,18 @@ namespace StudyHub.Backend.Api.Mappers
                 CreatedAt = comment.CreatedAt,
                 UserFullname = user?.Fullname ?? "Unknown",
                 ImageUrl = user.Avatar
+            };
+        }
+        public static SubmissionFIleDto ToSubmissionDto(this ClassworkSubmission sub, List<SubmissionFile> file)
+        {
+            return new SubmissionFIleDto
+            {
+                Id = sub.Id,
+                ClassworkId = sub.ClassworkId,
+                AppUserId = sub.AppUserId,
+                FirstSubmissionTime = sub.FirstSubmissionTime,
+                LatestSubmissionTime = sub.LatestSubmissionTime,
+                SubmissionFiles = file
             };
         }
     }

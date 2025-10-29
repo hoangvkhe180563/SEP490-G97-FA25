@@ -80,6 +80,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }).OrderByDescending(c=>c.CreatedAt).ToList();
                 
         }
+
         public List<Subject> GetAllSubject()
         {
             return _context.Subjects.Select(c => new Subject
@@ -540,17 +541,20 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public ClassworkSubmission ResubmitClasswork(int submissionId, List<SubmissionFile> files)
         {
             var entity = _context.ClassworkSubmissions.FirstOrDefault(s => s.Id == submissionId);
+            var file = _context.SubmissionFiles.Where(f=>f.SubmissionId == submissionId).ToList();
             if (entity == null) return null;
             entity.LatestSubmissionTime = DateTime.Now;
             _context.ClassworkSubmissions.Update(entity);
+            _context.SubmissionFiles.RemoveRange(file);
+            _context.SaveChanges(true);
 
-            foreach (var file in files)
+            foreach (var fil in files)
             {
                 var fileEntity = new Data.SubmissionFile
                 {
                     SubmissionId = submissionId,
-                    FileName = file.FileName,
-                    FileUrl = file.FileUrl
+                    FileName = fil.FileName,
+                    FileUrl = fil.FileUrl
                 };
                 _context.SubmissionFiles.Add(fileEntity);
             }
@@ -592,6 +596,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public ClassworkSubmission GetSubmissionByUserAndClasswork(int classworkId,Guid userId)
         {
             var cs = _context.ClassworkSubmissions.FirstOrDefault(c=>c.ClassworkId==classworkId&&c.AppUserId==userId);
+            if (cs == null) return null;
             return new ClassworkSubmission
             {
                 Id = cs.Id,
@@ -616,5 +621,43 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             file.Id = sf.Id;
             return file;
         }
+        public List<SubmissionFile> GetSubmissionFiles(int submissionId)
+        {
+            var fs = _context.SubmissionFiles.Where(a=>a.SubmissionId==submissionId).Select(b=>new SubmissionFile
+            {
+                SubmissionId = b.SubmissionId,
+                Id= b.Id,
+                FileName = b.FileName,
+                FileUrl = b.FileUrl,
+            });
+            return fs.ToList();
+        }
+        public int GetSubmissionCount(int classworkId)
+        {
+            var submit = _context.ClassworkSubmissions.Where(c => c.ClassworkId == classworkId).Count();
+            return submit;
+        }
+       public int GetMemberCount(int classworkId)
+        {
+            var classworkEntity = _context.Classworks
+                .Include(c => c.Class)
+                .FirstOrDefault(c => c.Id == classworkId);
+
+            if (classworkEntity == null)
+                return 0;
+            var user = _context.AppClaims.Include(c => c.User).Include(c => c.Role).Where(a=>a.Role.Name.Contains("Student")).ToList();
+            var classEntity = _context.ClassMembers.Include(c => c.Class).Include(c=>c.User).Where(c=>c.ClassId== classworkEntity.ClassId).ToList();
+            List<Data.ClassMember> members = new List<Data.ClassMember>();
+            foreach(Data.ClassMember mb in classEntity)
+            {
+                if (user.FirstOrDefault(a => a.UserId == mb.UserId) != null && mb.Status.Equals("joined"))
+                {
+                    members.Add(mb);
+                }
+            }
+            return members.Count();
+        }
+      
+
     }
 }

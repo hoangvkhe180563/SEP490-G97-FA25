@@ -1,3 +1,4 @@
+// (updated) Type definitions for class management state and DTOs
 import type { Subject } from "@/classManagement/interfaces/subject";
 import type { PostComment } from "../components/ui/postcard";
 
@@ -149,4 +150,7 @@ export interface ClassState {
   editClasswork: (payload: { id: number; classId: number; title: string; description?: string; deadline?: string }) => Promise<ClassWork | null>;
   submitClasswork: (classworkId: number, appUserId: string, files: File[],links?: LinkPayload[]) => Promise<any | null>;
   getClassworkSubmissions: (classworkId: number) => Promise<ClassworkSubmission[] | null>;
+
+  // NEW: fetch a single submission for a given user + classwork
+  getSubmissionByUserAndClasswork: (classworkId: number, appUserId: string) => Promise<ClassworkSubmission | null>;
 }

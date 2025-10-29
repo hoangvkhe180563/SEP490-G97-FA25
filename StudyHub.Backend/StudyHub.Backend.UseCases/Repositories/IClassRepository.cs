@@ -42,5 +42,8 @@ namespace StudyHub.Backend.UseCases.Repositories
         List<ClassworkSubmission> GetSubmissionsByClassworkId(int classworkId);
         ClassworkSubmission GetSubmissionByUserAndClasswork(int classworkId, Guid userId);
         SubmissionFile AddSubmissionFile(SubmissionFile file);
+        List<SubmissionFile> GetSubmissionFiles(int submissionId);
+        int GetSubmissionCount(int classworkId);
+        int GetMemberCount(int classworkId);
     }
 }

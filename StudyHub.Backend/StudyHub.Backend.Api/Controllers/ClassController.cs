@@ -723,6 +723,30 @@ namespace StudyHub.Backend.Api.Controllers
                 files = filesAdded
             });
         }
+        [HttpGet("classworks/submission")]
+        public IActionResult GetSubmissionfile(int classworkID, Guid userid)
+        {
+            var submitFile = _service.GetSubmissionByUserAndClasswork(classworkID, userid);
+            var fi = _service.GetSubmissionFiles(submitFile.Id);
+            if(submitFile == null)
+            {
+                return NotFound(new { success = false, message = "Không tìm thấy classwork" });
+            }
+            return Ok(new {success=true, data=submitFile.ToSubmissionDto(fi)});
+
+        }
+        [HttpGet("classworks/submissioncount/{classworkID}")]
+        public IActionResult GetSubmissionCount(int classworkID)
+        {
+            var numberSubmission = _service.GetSubmissionCount(classworkID);
+            return Ok(numberSubmission);
+        }
+        [HttpGet("classworks/membercount/{classworkID}")]
+        public IActionResult GetMemberCount(int classworkID)
+        {
+            var numberMember = _service.GetMemberCount(classworkID);
+            return Ok(numberMember);
+        }
 
     }
 }

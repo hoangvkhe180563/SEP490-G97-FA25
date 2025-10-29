@@ -49,7 +49,7 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         // PUT api/approle/{roleId}/policies
-        //[Authorize(Roles = "School Manager")]
+        [Authorize(Roles = "School Manager")]
         [HttpPut("{roleId:guid}/policies")]
         public IActionResult UpdateRolePolicies([FromRoute] Guid roleId, [FromBody] UpdateRolePoliciesRequest req)
         {

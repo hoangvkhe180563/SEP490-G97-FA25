@@ -5,7 +5,8 @@ const ClassRouteConfig = {
     ADD_CLASSWORK:":id/classwork/add",
     EDIT_CLASSWORK:":id/classwork/:classworkId/edit", // The path is relative to the TeacherLayout route
     CLASSWORK_DETAIL:":id/classwork/:classworkId/detail",
-    CONFIRM_INVITE:":id/invite/confirm"
+    CONFIRM_INVITE:":id/invite/confirm",
+    SUBMISSION_PAGE:":id/classwork/:classworkId/submissions"
   },
   STUDENT: {
     INDEX: "student",

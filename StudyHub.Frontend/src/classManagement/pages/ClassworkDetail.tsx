@@ -1,7 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
-import type { ClassWork, ClassworkSubmission } from "@/classManagement/interfaces/class";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { mapToCoarseRole } from "@/classManagement/utils/roleutil";
+import type {
+  ClassWork,
+  ClassworkSubmission,
+  LinkPayload,
+  ClassworkSubmissionFile,
+} from "@/classManagement/interfaces/class";
+import { isPastDeadline } from "../utils/dateutil";
 
 const AvatarIcon: React.FC = () => (
   <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center text-white text-xl shadow">📝</div>
@@ -21,41 +29,130 @@ const Icon: React.FC<{ name: "drive" | "link" | "file" | string }> = ({ name }) 
 };
 
 const ClassworkDetail: React.FC = () => {
-  // read role param so we can restrict to students
-  const params = useParams<{ role?: string; id?: string; classworkId?: string }>();
-  const roleParam = params.role;
-  const id = params.id;
-  const classworkId = params.classworkId;
-  const role = roleParam === "student" ? "student" : "teacher";
-
-  const { getClassWorks, submitClasswork, getClassworkSubmissions, getClassInfo, currentClass } = useClassStore();
-  const [classwork, setClasswork] = useState<ClassWork | null>(null);
-  const [files, setFiles] = useState<File[]>([]);
-  const [linkAttachments, setLinkAttachments] = useState<{ title?: string; url: string }[]>([]);
-  const [submissions, setSubmissions] = useState<ClassworkSubmission[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const params = useParams<Record<string, string | undefined>>();
+  const location = useLocation();
   const navigate = useNavigate();
 
-  // If not student, redirect teacher to edit page (teachers shouldn't access student detail view)
+  const id = params.id;
+
+  const classworkIdResolved =
+    params.classworkId ??
+    (() => {
+      const segments = location.pathname.split("/").filter(Boolean);
+      const idx = segments.findIndex((s) => s.toLowerCase() === "classwork");
+      if (idx !== -1 && segments.length > idx + 1) {
+        return segments[idx + 1];
+      }
+      return undefined;
+    })();
+
+  const { user } = useAuthStore();
+  const coarseRole = mapToCoarseRole(user?.roles);
+  const role = coarseRole === "student" ? "student" : "teacher";
+
+  const {
+    getClassWorks,
+    submitClasswork,
+    getClassworkSubmissions,
+    getClassInfo,
+    getSubmissionByUserAndClasswork,
+    currentClass,
+  } = useClassStore();
+
+  const [classwork, setClasswork] = useState<ClassWork | null | undefined>(undefined);
+
+  // files user selects (raw), links
+  const [files, setFiles] = useState<File[]>([]);
+  const [linkAttachments, setLinkAttachments] = useState<LinkPayload[]>([]);
+  // all submissions for this classwork (from store)
+  const [submissions, setSubmissions] = useState<ClassworkSubmission[]>([]);
+  // the current user's submission (if any)
+  const [userSubmission, setUserSubmission] = useState<ClassworkSubmission | null>(null);
+
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editingSubmission, setEditingSubmission] = useState(false); // NEW: whether user is editing/resubmitting
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // avoid redirect to edit while still loading/resolving classwork
   useEffect(() => {
-    if (role !== "student" && id && classworkId) {
-      navigate(`/class/${role}/${id}/classwork/${classworkId}/edit`);
+    if (!role || !id || !classworkIdResolved) return;
+    if (classwork !== undefined && classwork !== null && role === "teacher") {
+      if (!location.pathname.includes("/edit")) {
+        navigate(`/class/${role}/${id}/classwork/${classworkIdResolved}/edit`);
+      }
     }
-  }, [role, id, classworkId, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, id, classworkIdResolved, classwork]);
 
   useEffect(() => {
-    if (!id || !classworkId) return;
+    if (!id) return;
     getClassInfo(Number(id));
-    getClassWorks(Number(id)).then((works) => {
-      const cw = works?.find((w) => String(w.id) === String(classworkId));
-      setClasswork(cw ?? null);
-    });
-    getClassworkSubmissions(Number(classworkId)).then((data) => setSubmissions(data ?? []));
-  }, [id, classworkId, getClassWorks, getClassworkSubmissions, getClassInfo]);
+    try {
+      const maybePromise = getClassWorks(Number(id)) as any;
+      if (maybePromise && typeof maybePromise.then === "function") {
+        maybePromise.catch((err: any) => console.error("getClassWorks error:", err));
+      }
+    } catch (e) {
+      console.error("getClassWorks call error:", e);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  // sync classwork from store
+  useEffect(() => {
+    const works = currentClass?.data?.works ?? [];
+    if (!classworkIdResolved) {
+      setClasswork(null);
+      return;
+    }
+    const found = works.find((w) => String(w.id) === String(classworkIdResolved));
+    if (found) setClasswork(found);
+    else {
+      if (works.length > 0) setClasswork(null);
+      else setClasswork(undefined);
+    }
+  }, [currentClass?.data?.works, classworkIdResolved]);
+
+  // load submissions list and derive userSubmission (use dedicated endpoint for current user)
+  useEffect(() => {
+    if (!classwork || !classwork.id) {
+      setSubmissions([]);
+      setUserSubmission(null);
+      return;
+    }
+
+    // load all submissions (for list display)
+    (async () => {
+      try {
+        const all = await getClassworkSubmissions(Number(classwork.id));
+        setSubmissions(all ?? []);
+      } catch (err) {
+        console.error("getClassworkSubmissions error", err);
+        setSubmissions([]);
+      }
+    })();
+
+    // load current user's submission via dedicated endpoint
+    (async () => {
+      try {
+        const currentUserId = user?.id ?? localStorage.getItem("currentUserId") ?? "";
+        if (!currentUserId) {
+          setUserSubmission(null);
+          return;
+        }
+        const mine = await getSubmissionByUserAndClasswork(Number(classwork.id), currentUserId);
+        setUserSubmission(mine);
+        // if user already has a submission, ensure editing is off by default
+        setEditingSubmission(false);
+      } catch (err) {
+        console.error("getSubmissionByUserAndClasswork error", err);
+        setUserSubmission(null);
+      }
+    })();
+  }, [classwork, getClassworkSubmissions, getSubmissionByUserAndClasswork, user?.id]);
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
@@ -69,57 +166,78 @@ const ClassworkDetail: React.FC = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = Array.from(e.target.files ?? []);
+    if (newFiles.length === 0) return;
     setFiles((prev) => [...prev, ...newFiles]);
     setMenuOpen(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleAddLink = async (kind: "drive" | "link") => {
     const url = window.prompt(`${kind === "drive" ? "Drive URL" : "Nhập đường liên kết"}`);
     if (!url) return;
-    const title = window.prompt("Tiêu đề hiển thị (không bắt buộc)");
-    setLinkAttachments((prev) => [...prev, { title: title ?? undefined, url }]);
+    const rawTitle = window.prompt("Tiêu đề hiển thị (không bắt buộc)");
+    const title = rawTitle ?? undefined;
+    setLinkAttachments((prev) => [...prev, { url, title }]);
     setMenuOpen(false);
   };
 
   const removeFileAt = (index: number) => setFiles((prev) => prev.filter((_, i) => i !== index));
   const removeLinkAt = (index: number) => setLinkAttachments((prev) => prev.filter((_, i) => i !== index));
 
+  // submitClasswork signature: (classworkId, appUserId, files: File[], links?)
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!classworkId) return;
-    setLoading(true);
+    if (!classwork?.id) return;
+    // if user clicked "Nộp lại" but hasn't picked new files yet, open upload UI instead of submitting.
+    if (hasSubmittedAndNotEditing() && files.length === 0 && linkAttachments.length === 0) {
+      // open upload UI for adding new files
+      setEditingSubmission(true);
+      setMenuOpen(true);
+      // focus will be on menu; user can choose files then press Nộp lại to submit (now with files)
+      return;
+    }
+
+    setLoadingSubmit(true);
     try {
-      const appUserId = localStorage.getItem("currentUserId") ?? "";
-      await submitClasswork(Number(classworkId), appUserId, files, linkAttachments);
+      const appUserId = user?.id ?? localStorage.getItem("currentUserId") ?? "";
+      // call store submit (it expects File[] per your interface)
+      await submitClasswork(Number(classwork.id), appUserId, files, linkAttachments);
+
+      // refresh user's submission only (faster) using dedicated endpoint
+      const mine = await getSubmissionByUserAndClasswork(Number(classwork.id), appUserId);
+      setUserSubmission(mine);
+
+      // also refresh overall submissions list
+      const updated = await getClassworkSubmissions(Number(classwork.id));
+      setSubmissions(updated ?? []);
+
+      // clear local files/links that were just submitted
       setFiles([]);
       setLinkAttachments([]);
-      const updated = await getClassworkSubmissions(Number(classworkId));
-      setSubmissions(updated ?? []);
       setMenuOpen(false);
+      // after successful resubmit, exit editing mode
+      setEditingSubmission(false);
     } catch (err) {
       console.error("Submit error", err);
+      alert("Nộp bài thất bại. Vui lòng thử lại.");
     } finally {
-      setLoading(false);
+      setLoadingSubmit(false);
     }
   };
 
   const classInfo = currentClass?.data?.classInfo ?? null;
 
-  const formatDeadlineShort = (iso?: string | null) => {
-    if (!iso) return "Không xác định";
-    const d = new Date(iso);
-    const day = d.getDate();
-    const monthNames = ["thg 1","thg 2","thg 3","thg 4","thg 5","thg 6","thg 7","thg 8","thg 9","thg 10","thg 11","thg 12"];
-    return `Đến hạn ${day} ${monthNames[d.getMonth()]}`;
-  };
-
-  const isPastDeadline = (iso?: string | null) => {
-    if (!iso) return false;
-    try { return new Date() > new Date(iso); } catch { return false; }
-  };
-
-  if (!classwork) {
+  if (classwork === undefined) {
     return <div className="p-6"><div className="text-gray-500">Đang tải thông tin bài tập...</div></div>;
+  }
+
+  if (classwork === null) {
+    return <div className="p-6"><div className="text-gray-500">Không tìm thấy bài tập này.</div></div>;
+  }
+
+  const hasSubmitted = !!userSubmission;
+  function hasSubmittedAndNotEditing() {
+    return hasSubmitted && !editingSubmission;
   }
 
   return (
@@ -127,6 +245,13 @@ const ClassworkDetail: React.FC = () => {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-start gap-4">
+          <button
+            onClick={() => navigate(-1)}
+            aria-label="Quay lại"
+            className="p-2 rounded-full hover:bg-gray-100"
+          >
+            ←
+          </button>
           <AvatarIcon />
           <div>
             <h1 className="text-2xl font-semibold">{classwork.title}</h1>
@@ -136,7 +261,13 @@ const ClassworkDetail: React.FC = () => {
             <div className="mt-3 text-sm text-gray-700">100 điểm</div>
           </div>
         </div>
-        <div className="text-sm text-gray-600">{formatDeadlineShort(classwork.deadline)}</div>
+        <div className="text-sm text-gray-600">{(() => {
+          if (!classwork.deadline) return "Không xác định";
+          const d = new Date(classwork.deadline);
+          const day = d.getDate();
+          const monthNames = ["thg 1","thg 2","thg 3","thg 4","thg 5","thg 6","thg 7","thg 8","thg 9","thg 10","thg 11","thg 12"];
+          return `Đến hạn ${day} ${monthNames[d.getMonth()]}`;
+        })()}</div>
       </div>
 
       <div className="grid grid-cols-12 gap-6">
@@ -167,29 +298,82 @@ const ClassworkDetail: React.FC = () => {
 
         {/* Right */}
         <aside className="col-span-12 lg:col-span-4">
-          <RightCard title="Bài tập của bạn">
+          <RightCard title={hasSubmitted ? "Bài bạn đã nộp" : "Bài tập của bạn"}>
             <div className="flex flex-col gap-3">
-              <div className="relative" ref={menuRef}>
-                <button onClick={() => setMenuOpen((s) => !s)} className="w-full border rounded-full py-2 text-sm flex items-center justify-center gap-2"><span className="text-lg">+</span> Thêm hoặc tạo</button>
-                {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded shadow-lg border z-20">
-                    <button className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50" onClick={() => handleAddLink("drive")}><div className="w-6"><Icon name="drive" /></div><div>Google Drive</div></button>
-                    <button className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50" onClick={() => handleAddLink("link")}><div className="w-6"><Icon name="link" /></div><div>Đường liên kết</div></button>
-                    <button className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50" onClick={() => { setMenuOpen(false); fileInputRef.current?.click(); }}><div className="w-6"><Icon name="file" /></div><div>Tệp</div></button>
+              {hasSubmitted && userSubmission && !editingSubmission ? (
+                <>
+                  <div className="text-sm text-gray-600">Đã nộp: {new Date(userSubmission.latestSubmissionTime).toLocaleString()}</div>
+                  <div className="space-y-2">
+                    {userSubmission.files.length === 0 ? (
+                      <div className="text-gray-500 text-sm">Không có tệp đính kèm.</div>
+                    ) : (
+                      userSubmission.files.map((f: ClassworkSubmissionFile) => (
+                        <div key={f.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-sm">📎</div>
+                            <div className="text-sm"><a href={f.fileUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">{f.fileName}</a></div>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
-                )}
-              </div>
+                  <div className="text-xs text-gray-400">Bạn có thể nộp lại nếu muốn thêm tệp.</div>
+                </>
+              ) : (
+                <>
+                  {/* Upload UI (used for new submit and editing/resubmit) */}
+                  <div className="relative" ref={menuRef}>
+                    <button onClick={() => setMenuOpen((s) => !s)} className="w-full border rounded-full py-2 text-sm flex items-center justify-center gap-2"><span className="text-lg">+</span> Thêm hoặc tạo</button>
+                    {menuOpen && (
+                      <div className="absolute right-0 mt-2 w-64 bg-white rounded shadow-lg border z-20">
+                        <button className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50" onClick={() => handleAddLink("drive")}><div className="w-6"><Icon name="drive" /></div><div>Google Drive</div></button>
+                        <button className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50" onClick={() => handleAddLink("link")}><div className="w-6"><Icon name="link" /></div><div>Đường liên kết</div></button>
+                        <button className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50" onClick={() => { setMenuOpen(false); fileInputRef.current?.click(); }}><div className="w-6"><Icon name="file" /></div><div>Tệp</div></button>
+                      </div>
+                    )}
+                  </div>
 
-              <div className="space-y-2">
-                {files.length === 0 && linkAttachments.length === 0 ? (<div className="text-gray-500 text-sm">Chưa có tệp hoặc liên kết nào được thêm.</div>) : (<>
-                  {files.map((f, idx) => (<div key={idx} className="flex items-center justify-between bg-gray-50 p-2 rounded"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-sm">{f.name?.slice(0,1).toUpperCase()}</div><div className="text-sm">{f.name}</div></div><button onClick={() => removeFileAt(idx)} className="text-xs text-red-500">Xóa</button></div>))}
-                  {linkAttachments.map((l, idx) => (<div key={`link-${idx}`} className="flex items-center justify-between bg-gray-50 p-2 rounded"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-sm">🔗</div><div className="text-sm"><a href={l.url} target="_blank" rel="noreferrer" className="text-blue-600 underline">{l.title ?? l.url}</a></div></div><button onClick={() => removeLinkAt(idx)} className="text-xs text-red-500">Xóa</button></div>))}
-                </>)}
-              </div>
+                  <div className="space-y-2">
+                    {files.length === 0 && linkAttachments.length === 0 ? (<div className="text-gray-500 text-sm">Chưa có tệp hoặc liên kết nào được thêm.</div>) : (<>
+                      {files.map((f, idx) => (<div key={idx} className="flex items-center justify-between bg-gray-50 p-2 rounded"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-sm">{f.name?.slice(0,1).toUpperCase()}</div><div className="text-sm">{f.name}</div></div><button onClick={() => removeFileAt(idx)} className="text-xs text-red-500">Xóa</button></div>))}
+                      {linkAttachments.map((l, idx) => (<div key={`link-${idx}`} className="flex items-center justify-between bg-gray-50 p-2 rounded"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-sm">🔗</div><div className="text-sm"><a href={l.url} target="_blank" rel="noreferrer" className="text-blue-600 underline">{l.title ?? l.url}</a></div></div><button onClick={() => removeLinkAt(idx)} className="text-xs text-red-500">Xóa</button></div>))}
+                    </>)}
+                  </div>
+                </>
+              )}
 
               <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />
 
-              <button disabled={isPastDeadline(classwork.deadline) || loading} onClick={handleSubmit} className={`w-full py-2 rounded text-white ${isPastDeadline(classwork.deadline) ? "bg-gray-300" : "bg-blue-600"}`}>Đánh dấu là đã hoàn thành</button>
+              {/* Button behavior:
+                  - If user has submitted and is not editing: clicking this will enable editing and open upload UI (handled earlier in handleSubmit early-return).
+                  - If editing or user hasn't submitted: clicking will actually submit (handleSubmit).
+              */}
+              <div className="flex gap-2">
+                <button
+                  disabled={isPastDeadline(classwork.deadline) || loadingSubmit}
+                  onClick={handleSubmit}
+                  className={`flex-1 py-2 rounded text-white ${isPastDeadline(classwork.deadline) ? "bg-gray-300" : "bg-blue-600"}`}
+                >
+                  {loadingSubmit ? "Đang nộp..." : (hasSubmitted ? (editingSubmission ? "Nộp lại" : "Nộp lại") : "Đánh dấu là đã hoàn thành")}
+                </button>
+
+                {/* If editing, show Cancel button to abandon resubmit */}
+                {editingSubmission && (
+                  <button
+                    onClick={() => {
+                      // cancel editing/resubmit
+                      setEditingSubmission(false);
+                      setFiles([]);
+                      setLinkAttachments([]);
+                      setMenuOpen(false);
+                    }}
+                    className="px-3 py-2 rounded border"
+                  >
+                    Hủy
+                  </button>
+                )}
+              </div>
+
               <div className="text-xs text-gray-400 mt-1">{isPastDeadline(classwork.deadline) ? "Không thể nộp bài tập sau ngày đến hạn" : "Bạn có thể nộp trước hạn nộp"}</div>
             </div>
           </RightCard>

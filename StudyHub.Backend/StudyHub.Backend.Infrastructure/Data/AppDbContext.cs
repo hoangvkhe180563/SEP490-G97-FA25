@@ -275,7 +275,9 @@ public partial class AppDbContext : DbContext
             entity.HasIndex(e => e.ClassId, "ClassId");
 
             entity.Property(e => e.ClassId).HasColumnType("int(11)");
-            entity.Property(e => e.JoinDate).HasColumnType("datetime");
+            entity.Property(e => e.JoinDate)
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("datetime");
             entity.Property(e => e.Status)
                 .HasDefaultValueSql("'joined'")
                 .HasColumnType("enum('invited','joined','kicked')");

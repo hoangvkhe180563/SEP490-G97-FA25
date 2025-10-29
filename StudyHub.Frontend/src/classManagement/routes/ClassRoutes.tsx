@@ -10,6 +10,7 @@ import AddEditClassworkForm from "../pages/AddEditClasswork";
 import ClassworkDetail from "../pages/ClassworkDetail";
 import ConfirmInvite from "../pages/ConfirmInvite";
 import ClassRedirect from "../components/redirect/ClassRedirect";
+import ClassworkSubmissionsPage from "../pages/ClassSubmission";
 
 const teacherClassRoutes = [
   {
@@ -35,6 +36,10 @@ const teacherClassRoutes = [
   {
     path: ClassRouteConfig.TEACHER.CONFIRM_INVITE,
     element:<ConfirmInvite/>
+  },
+  {
+    path: ClassRouteConfig.TEACHER.SUBMISSION_PAGE,
+    element:<ClassworkSubmissionsPage/>
   }
 ];
 
@@ -55,6 +60,7 @@ const studentClassRoutes = [
     path: ClassRouteConfig.TEACHER.CONFIRM_INVITE,
     element:<ConfirmInvite/>
   }
+  
 ];
 
 const classRoutes: RouteObject[] = [
