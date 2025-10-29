@@ -1,7 +1,7 @@
 // StudyHub.Frontend/src/forumManagement/pages/postdetail.tsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
+import { CardContent, CardHeader } from "@/common/components/ui/card";
 import { Input } from "@/common/components/ui/input";
 import { Badge } from "@/common/components/ui/badge";
 import { Button } from "@/common/components/ui/button";

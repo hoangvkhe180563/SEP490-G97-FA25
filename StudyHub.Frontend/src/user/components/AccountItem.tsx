@@ -24,6 +24,7 @@ import {
 } from "@/common/components/ui/tooltip";
 import { createFallBack } from "../utils/avatarUtils";
 import { formatDate } from "../utils/dateUtils";
+import toast from "react-hot-toast";
 
 const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
   const { updateUserStatus } = useAppUserStore();
@@ -100,7 +101,13 @@ const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
               try {
                 const ok = await updateUserStatus(
                   user.id,
-                  val as AppUser["status"]
+                  val as AppUser["status"],
+                  (message?: string) => {
+                    toast.success(message || "Cập nhật trạng thái thành công");
+                  },
+                  (message?: string) => {
+                    toast.error(message || "Cập nhật trạng thái thất bại");
+                  }
                 );
                 if (!ok) {
                   // revert on failure

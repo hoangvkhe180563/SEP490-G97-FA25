@@ -1,5 +1,5 @@
 // StudyHub.Frontend/src/forumManagement/pages/forummain.tsx
-import React, { useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
 import { Input } from "@/common/components/ui/input";
 import { Badge } from "@/common/components/ui/badge";

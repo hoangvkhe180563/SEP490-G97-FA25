@@ -16,92 +16,92 @@ import type { RouteObject } from "react-router-dom";
 const managerRoutes = [
   {
     index: true,
-    element: <div>Manager Dashboard</div>
+    element: <div>Manager Dashboard</div>,
   },
   {
     path: DocumentRouteConfig.MANAGER.VERIFY,
-    element: <VerifyDocument />
+    element: <VerifyDocument />,
   },
   {
     path: DocumentRouteConfig.MANAGER.DETAILS,
-    element: <DocumentDetails />
+    element: <DocumentDetails />,
   },
   {
     path: DocumentRouteConfig.MANAGER.INFO,
-    element: <StudentDocumentInfo />
-  }
-]
+    element: <StudentDocumentInfo />,
+  },
+];
 
 const teacherRoutes = [
   {
     index: true,
-    element: <div>Teacher Dashboard</div>
+    element: <div>Teacher Dashboard</div>,
   },
   {
     path: DocumentRouteConfig.TEACHER.INFO,
-    element: <TeacherDocumentInfo />
+    element: <TeacherDocumentInfo />,
   },
   {
     path: DocumentRouteConfig.TEACHER.DETAILS,
-    element: <DocumentDetails />
+    element: <DocumentDetails />,
   },
   {
     path: DocumentRouteConfig.TEACHER.MYDOCUMENTS,
-    element: <OwnedDocument />
+    element: <OwnedDocument />,
   },
   {
     path: DocumentRouteConfig.TEACHER.ADD,
-    element: <CreateDocument />
+    element: <CreateDocument />,
   },
-  { 
+  {
     path: DocumentRouteConfig.TEACHER.EDIT,
-    element: <UpdateDocument />
+    element: <UpdateDocument />,
   },
-  { 
+  {
     path: DocumentRouteConfig.TEACHER.DOCUMENTS,
-    element: <DocumentList />
+    element: <DocumentList />,
   },
-]
+];
 
 const studentRoutes = [
   {
     index: true,
-    element: <div>Student Dashboard</div>
+    element: <div>Student Dashboard</div>,
   },
   {
     path: DocumentRouteConfig.STUDENT.DETAILS,
-    element: <DocumentDetails />
+    element: <DocumentDetails />,
   },
   {
     path: DocumentRouteConfig.STUDENT.INFO,
-    element: <StudentDocumentInfo />
+    element: <StudentDocumentInfo />,
   },
   {
     path: DocumentRouteConfig.STUDENT.DOCUMENTS,
-    element: <DocumentList />
-  }
-]
+    element: <DocumentList />,
+  },
+];
 
 const documentRoutes: RouteObject[] = [
   {
     path: DocumentRouteConfig.MANAGER.INDEX,
     element: <ManagerLayout />,
-    children: managerRoutes
+    children: managerRoutes,
   },
   {
     path: DocumentRouteConfig.TEACHER.INDEX,
     element: <TeacherLayout />,
-    children: teacherRoutes
+    children: teacherRoutes,
   },
   {
     path: DocumentRouteConfig.STUDENT.INDEX,
     element: <StudentLayout />,
-    children: studentRoutes
+    children: studentRoutes,
   },
   {
     path: "documents",
-    element: <DocumentList />
-  }
+    element: <DocumentList />,
+  },
 ];
 
 export default documentRoutes;
