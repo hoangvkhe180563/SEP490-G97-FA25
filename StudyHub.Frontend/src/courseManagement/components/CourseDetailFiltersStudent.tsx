@@ -37,138 +37,129 @@ const CourseNavSidebar: React.FC<Props> = ({
   setContentTypes,
   duration,
   setDuration,
-  onClear,
-  stats,
 }) => {
+  const toggleProgress = (key: keyof ProgressFilters) => {
+    setFilters({ ...filters, [key]: !filters[key] });
+  };
+
+  const toggleContentType = (key: keyof ContentTypes) => {
+    setContentTypes({ ...contentTypes, [key]: !contentTypes[key] });
+  };
+
+  const setDurationSingle = (d: string) => setDuration(d);
+
+  // define progress filter options once, keep them static and typed
+  const PROGRESS_ITEMS: ReadonlyArray<{
+    key: keyof ProgressFilters;
+    label: string;
+    title?: string;
+  }> = [
+    {
+      key: "completed",
+      label: "Đã hoàn thành",
+      title: "Hiển thị các bài đã hoàn thành",
+    },
+    {
+      key: "inProgress",
+      label: "Đang tiến hành",
+      title: "Hiển thị các bài đang học",
+    },
+    {
+      key: "notStarted",
+      label: "Chưa bắt đầu",
+      title: "Hiển thị các bài chưa bắt đầu",
+    },
+  ];
+
+  const contentTypeItems: { key: keyof ContentTypes; label: string }[] = [
+    { key: "video", label: "Video" },
+    { key: "reading", label: "Tài liệu đọc" },
+    { key: "assignment", label: "Bài kiểm tra" },
+  ];
+
+  const durationItems = [
+    { id: "all", label: "Tất cả" },
+    { id: "0-15m", label: "0–15 phút" },
+    { id: "15-60m", label: "15–60 phút" },
+    { id: "60m+", label: "60+ phút" },
+  ];
+
+  const progressClass =
+    PROGRESS_ITEMS.length === 3
+      ? "flex flex-col gap-2 mb-3"
+      : "grid grid-cols-2 gap-2 mb-3";
+  const contentClass =
+    contentTypeItems.length === 4
+      ? "grid grid-cols-2 gap-2 mt-2 mb-3"
+      : "flex flex-col gap-2 mt-2 mb-3";
+  const durationClass =
+    durationItems.length === 4
+      ? "grid grid-cols-2 gap-2 mt-2"
+      : "flex items-center gap-2 flex-wrap mt-2";
+
   return (
     <aside className="space-y-6">
       <div className="bg-white rounded-md p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-3">
           <h4 className="text-sm font-medium">Điều hướng khóa học</h4>
-          <button className="text-xs text-gray-400" onClick={onClear}>
-            Xóa
-          </button>
         </div>
 
         <div className="text-sm text-gray-600 mb-2">Bộ lọc tiến độ</div>
-        <div className="space-y-2 text-sm">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={filters.completed}
-              onChange={(e) =>
-                setFilters({ ...filters, completed: e.target.checked })
-              }
-            />
-            <span>Đã hoàn thành</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={filters.inProgress}
-              onChange={(e) =>
-                setFilters({ ...filters, inProgress: e.target.checked })
-              }
-            />
-            <span>Đang tiến hành</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={filters.notStarted}
-              onChange={(e) =>
-                setFilters({ ...filters, notStarted: e.target.checked })
-              }
-            />
-            <span>Chưa bắt đầu</span>
-          </label>
+        <div className={progressClass} role="group" aria-label="Bộ lọc tiến độ">
+          {PROGRESS_ITEMS.map((it) => {
+            const active = Boolean(filters[it.key]);
+            return (
+              <button
+                key={it.key}
+                type="button"
+                title={it.title}
+                aria-pressed={active}
+                onClick={() => toggleProgress(it.key)}
+                className={`px-3 py-1.5 text-sm rounded-md border transition focus:outline-none focus:ring-2 focus:ring-sky-300 ${
+                  active
+                    ? "bg-sky-600 text-white border-sky-600"
+                    : "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700"
+                }`}
+              >
+                {it.label}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="mt-4 text-sm text-gray-600">Loại nội dung</div>
-        <div className="space-y-2 text-sm mt-2">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={contentTypes.video}
-              onChange={(e) =>
-                setContentTypes({ ...contentTypes, video: e.target.checked })
-              }
-            />
-            <span>Video</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={contentTypes.reading}
-              onChange={(e) =>
-                setContentTypes({ ...contentTypes, reading: e.target.checked })
-              }
-            />
-            <span>Tài liệu đọc</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={contentTypes.assignment}
-              onChange={(e) =>
-                setContentTypes({
-                  ...contentTypes,
-                  assignment: e.target.checked,
-                })
-              }
-            />
-            <span>Bài tập</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={contentTypes.quiz}
-              onChange={(e) =>
-                setContentTypes({ ...contentTypes, quiz: e.target.checked })
-              }
-            />
-            <span>Câu đố</span>
-          </label>
+        <div className="mt-2 text-sm text-gray-600">Loại nội dung</div>
+        <div className={contentClass}>
+          {contentTypeItems.map((it) => (
+            <button
+              key={it.key}
+              onClick={() => toggleContentType(it.key)}
+              className={`px-3 py-1.5 text-sm rounded-md border transition ${
+                contentTypes[it.key]
+                  ? "bg-sky-600 text-white border-sky-600"
+                  : "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700"
+              }`}
+            >
+              {it.label}
+            </button>
+          ))}
         </div>
 
-        <div className="mt-4">
-          <Label className="text-sm">Thời gian</Label>
-          <select
-            className="w-full mt-2 border rounded px-2 py-1 text-sm"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-          >
-            <option value="all">Tất cả thời gian</option>
-            <option value="0-5">0-5 giờ</option>
-            <option value="5-20">5-20 giờ</option>
-            <option value="20+">20+ giờ</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-md p-4 shadow-sm">
-        <h4 className="text-sm font-medium mb-2">Thống kê khóa học</h4>
-        <div className="text-sm text-gray-600">Tiến độ tổng thể</div>
-        <div className="w-full bg-gray-100 h-3 rounded mt-2 overflow-hidden">
-          <div
-            className="bg-gray-700 h-3"
-            style={{
-              width: stats
-                ? `${Math.round(
-                    (stats.completed /
-                      Math.max(1, stats.completed + stats.remaining)) *
-                      100
-                  )}%`
-                : "0%",
-            }}
-          />
-        </div>
-        <div className="flex items-center justify-between text-sm text-gray-500 mt-3">
-          <div>
-            {stats ? `${stats.completed} Đã hoàn thành` : "0 Đã hoàn thành"}
-          </div>
-          <div>
-            {stats ? `${stats.remaining} Chưa hoàn thành` : "0 Chưa hoàn thành"}
+        <div className="mt-2">
+          <Label className="text-sm">Thời lượng</Label>
+          <div className={durationClass}>
+            {durationItems.map((d) => (
+              <button
+                key={d.id}
+                onClick={() => setDurationSingle(String(d.id))}
+                className={`px-3 py-1.5 text-sm rounded-md border transition ${
+                  duration === d.id
+                    ? "bg-sky-600 text-white border-sky-600"
+                    : "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700"
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>

@@ -1,5 +1,4 @@
 ﻿using StudyHub.Backend.Domain.Entities;
-using Data = StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using Microsoft.EntityFrameworkCore;

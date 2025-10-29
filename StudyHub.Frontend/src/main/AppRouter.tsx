@@ -14,14 +14,33 @@ import {
 } from "@/common/constants/SidebarItems";
 import authRoutes from "@/auth/routes/AuthRoutes";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useEffect } from "react";
 
 const AppRouter = () => {
   const { isAuthenticated: isLoggedIn, checkAuth } = useAuthStore();
 
   useEffect(() => {
-    // On app load, check if user is authenticated
-    checkAuth();
+    // On app load, check if user is authenticated and populate appUser store
+    (async () => {
+      try {
+        await checkAuth();
+        // if authenticated, ensure the app user details are loaded into useAppUserStore
+        const authUser = useAuthStore.getState().user;
+        if (authUser && authUser.id) {
+          // call getAppUserById from the app-user store to populate appUser
+          try {
+            await useAppUserStore
+              .getState()
+              .getAppUserById(String(authUser.id));
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        // ignore
+      }
+    })();
   }, [checkAuth]);
 
   const appRoutes = [

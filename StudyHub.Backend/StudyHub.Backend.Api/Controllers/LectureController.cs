@@ -11,10 +11,12 @@ namespace StudyHub.Backend.Api.Controllers
     public class LectureController : ControllerBase
     {
         private readonly LectureService _service;
+        private readonly CloudFileStorageService _fileStorage;
 
-        public LectureController(LectureService service)
+        public LectureController(LectureService service, CloudFileStorageService fileStorage)
         {
             _service = service;
+            _fileStorage = fileStorage;
         }
 
         // ==============================
@@ -121,6 +123,7 @@ namespace StudyHub.Backend.Api.Controllers
             existing.Description = l.Description;
             existing.PostDate = l.PostDate;
             existing.IsPreview = l.IsPreview;
+            existing.ResourceId = l.ResourceId;
 
             // Update LessonVideo
             if (!string.IsNullOrEmpty(l.VideoUrl))
@@ -158,6 +161,29 @@ namespace StudyHub.Backend.Api.Controllers
             var ok = _service.DeleteLesson(id);
             if (!ok) return NotFound();
             return NoContent();
+        }
+
+        [HttpPost("upload-resource")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadThumbnail([FromForm] UploadResourceDto dto)
+        {
+            var file = dto.File;
+            if (file == null || file.Length == 0)
+                return BadRequest("File is required");
+
+            try
+            {
+                var path = UseCases.Utils.FileConstants.CourseResourceUploadPath;
+                var url = await _fileStorage.UploadDocumentAsync(file, path);
+                if (string.IsNullOrEmpty(url))
+                    return StatusCode(500, "Upload failed");
+
+                return Ok(new { url });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
     }
 }

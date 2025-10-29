@@ -13,9 +13,9 @@ namespace StudyHub.Backend.Api.Mappers
             Id = ch.Id,
             Name = ch.Name,
             CourseId = ch.CourseId,
-            Lessons = ch.Lessons?.Select(l => l.ToListDto()).ToList() ?? new List<LessonListDto>(),
             Description = ch.Description,
             PostDate = ch.PostDate,
+            Lessons = ch.Lessons?.Select(l => l.ToListDto()).ToList() ?? new List<LessonListDto>(),
         };
 
         // ======================
@@ -32,7 +32,8 @@ namespace StudyHub.Backend.Api.Mappers
             Duration = l.Duration,
             Description = l.Description,
             PostDate = l.PostDate,
-            IsPreview = l.IsPreview
+            IsPreview = l.IsPreview,
+            ResourceId = l.ResourceId
         };
 
         // ======================
@@ -60,7 +61,8 @@ namespace StudyHub.Backend.Api.Mappers
             Duration = l.Duration,
             Description = l.Description,
             PostDate = l.PostDate,
-            IsPreview = l.IsPreview
+            IsPreview = l.IsPreview,
+            ResourceId = l.ResourceId
         };
 
         // ======================
@@ -70,9 +72,9 @@ namespace StudyHub.Backend.Api.Mappers
         {
             Name = dto.Name,
             CourseId = dto.CourseId,
-            Lessons = dto.Lessons?.Select(l => l.ToEntity()).ToList() ?? new List<Lesson>(),
             Description = dto.Description,
-            PostDate = dto.PostDate
+            PostDate = dto.PostDate,
+            Lessons = dto.Lessons?.Select(l => l.ToEntity()).ToList() ?? new List<Lesson>(),
         };
 
         // ======================
@@ -83,9 +85,9 @@ namespace StudyHub.Backend.Api.Mappers
             Id = dto.Id,
             Name = dto.Name,
             CourseId = dto.CourseId,
-            Lessons = dto.Lessons?.Select(l => l.ToEntity()).ToList() ?? new List<Lesson>(),
             Description = dto.Description,
-            PostDate = dto.PostDate
+            PostDate = dto.PostDate,
+            Lessons = dto.Lessons?.Select(l => l.ToEntity()).ToList() ?? new List<Lesson>(),
         };
 
         // ======================
@@ -103,7 +105,8 @@ namespace StudyHub.Backend.Api.Mappers
                 Duration = dto.Duration,
                 Description = dto.Description,
                 PostDate = dto.PostDate,
-                IsPreview = dto.IsPreview
+                IsPreview = dto.IsPreview,
+                ResourceId = dto.ResourceId
             };
 
             if (!string.IsNullOrEmpty(dto.VideoUrl))
@@ -131,7 +134,8 @@ namespace StudyHub.Backend.Api.Mappers
                 Duration = dto.Duration,
                 Description = dto.Description,
                 PostDate = dto.PostDate,
-                IsPreview = dto.IsPreview
+                IsPreview = dto.IsPreview,
+                ResourceId = dto.ResourceId
             };
 
             if (!string.IsNullOrEmpty(dto.VideoUrl))

@@ -19,7 +19,10 @@ interface FilterAppUsersResponse {
   meta?: Meta;
   success: boolean;
 }
-
+interface GetAppUserByIdResponse {
+  success: boolean;
+  data: AppUser;
+}
 interface AppUserState {
   appUsers: AppUser[];
   appUser: AppUser | undefined;
