@@ -18,7 +18,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         Class UpdateClass(Class classEntity);
         bool DeleteClass(int id);
         Class? GetClassDetailById(int id);
-        List<ClassMember> GetClassMembers(int classId);
+        List<AppUsersubjectclass> GetClassMembers(int classId);
         List<Class> GetClassByUserId(Guid userid);
         List<ClassNotification> GetClassNotifications(int classId);
         ClassNotification CreateNotification(ClassNotification notification);

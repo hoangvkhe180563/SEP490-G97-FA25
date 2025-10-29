@@ -46,7 +46,7 @@ const ClassInfoCard: React.FC<{ info: ClassInfo | null }> = ({ info }) => {
         <div className="text-xs text-gray-400">Mã lớp:</div>
         <div className="font-medium text-right">{info.id}</div>
         <div className="text-xs text-gray-400">Mã môn học:</div>
-        <div className="font-medium text-right">{info.subjectId}</div>
+        
         <div className="text-xs text-gray-400">Ngày tạo:</div>
         <div className="font-medium text-right">
           {new Date(info.createdAt).toLocaleDateString()}

@@ -11,6 +11,10 @@ public partial class AppUsersubjectclass
 
     public int ClassId { get; set; }
 
+    public DateTime JoinDate { get; set; }
+
+    public string Status { get; set; } = null!;
+
     public virtual Class Class { get; set; } = null!;
 
     public virtual Subject Subject { get; set; } = null!;

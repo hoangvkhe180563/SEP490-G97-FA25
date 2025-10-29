@@ -23,7 +23,6 @@ import { axiosInstance } from "@/lib/axios";
 const defaultClassInfo: ClassInfo = {
   id: 0,
   name: "",
-  subjectId: 0,
   description: "",
   createdAt: new Date().toISOString(),
 };
@@ -157,14 +156,12 @@ export const useClassStore = create<ClassState>()(
 
       addClass: async (payload: {
         title: string;
-        subject: number;
         description?: string;
       }) => {
         set({ isLoading: true, success: false, message: "" });
         try {
           const body = {
             name: payload.title,
-            subjectId: payload.subject,
             description: payload.description,
             createdBy: "2",
           };
@@ -176,10 +173,8 @@ export const useClassStore = create<ClassState>()(
             ? {
                 id: created.id ?? created.classId,
                 name: created.name ?? payload.title,
-                subjectName: created.subjectName ?? payload.subject,
                 instructorName: created.instructorName ?? "",
                 description: created.description ?? payload.description,
-                subjectId: created.subjectId ?? payload.subject,
               }
             : null;
 
@@ -574,7 +569,6 @@ export const useClassStore = create<ClassState>()(
               classInfo: {
                 id: data.id,
                 name: data.name,
-                subjectId: data.subjectId,
                 description: data.description,
                 createdAt: data.createdAt,
               },
@@ -872,6 +866,7 @@ export const useClassStore = create<ClassState>()(
             firstSubmissionTime: d.firstSubmissionTime,
             latestSubmissionTime: d.latestSubmissionTime,
             files,
+            score: 50, // default score if not provided
           };
           set({ isLoading: false });
           return submission;

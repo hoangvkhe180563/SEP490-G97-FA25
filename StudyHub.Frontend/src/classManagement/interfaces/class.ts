@@ -5,8 +5,6 @@ import type { PostComment } from "../components/ui/postcard";
 export interface ClassListDto {
   id: number;
   name: string; 
-  subjectName: string; 
-  subjectId: number;
   instructorName: string; 
   description?: string;
 }
@@ -14,7 +12,6 @@ export interface ClassListDto {
 export type ClassInfo = {
   id: number;
   name: string;
-  subjectId: number;
   description: string;
   createdAt: string;
 };
@@ -110,6 +107,8 @@ export type ClassworkSubmission = {
   firstSubmissionTime: string;
   latestSubmissionTime: string;
   files: ClassworkSubmissionFile[];
+  score: number | string | null;
+  feedback?: string | null;
 };
 export interface ClassState {
   classes: ClassListDto[];
@@ -121,9 +120,9 @@ export interface ClassState {
   meta?: Meta | null;
 
   getClasses: (query: string,memberUserId?: string) => Promise<GetClassesResponse | null>;
-  addClass: (payload: { title: string; subject: number; description?: string }) => Promise<any | null>;
+  addClass: (payload: { title: string; description?: string }) => Promise<any | null>;
   getAllSubjects: () => Promise<Subject[]>;
-  updateClass: (payload: { id: number; title: string; subject: number; description?: string }) => Promise<any | null>;
+  updateClass: (payload: { id: number; title: string; description?: string }) => Promise<any | null>;
 
  
   getClassInfo: (id: number) => Promise<ClassDetailResponse | null>;

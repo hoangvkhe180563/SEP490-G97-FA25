@@ -39,7 +39,6 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet]
         public IActionResult GetClasses(
          [FromQuery] string? query,
-         [FromQuery] string? subject,
          [FromQuery] string? status,
          [FromQuery] Guid? memberid,
          [FromQuery] int page = 1,
@@ -75,14 +74,10 @@ namespace StudyHub.Backend.Api.Controllers
             var classListDtos = pagedClasses.Select(c =>
             {
                 Subject? subjectEntity = null;
-                if (c.SubjectId.HasValue)
-                {
-                    allSubjects.TryGetValue(c.SubjectId.Value, out subjectEntity);
-                }
-
+               
                 allTeachers.TryGetValue(c.CreatedBy, out AppUser? teacher);
 
-                return c.ToListClassDto(teacher, subjectEntity);
+                return c.ToListClassDto(teacher);
             }).ToList();
 
 
@@ -90,7 +85,7 @@ namespace StudyHub.Backend.Api.Controllers
             {
                 success = true,
                 message = "Danh sách lớp học được tải thành công.",
-                classes = subject != null ? classListDtos.Where(c => c.SubjectName.Contains(subject, StringComparison.OrdinalIgnoreCase)) : classListDtos,
+                classes =  classListDtos,
                 meta = new
                 {
                     total = totalItems,
@@ -123,7 +118,6 @@ namespace StudyHub.Backend.Api.Controllers
             if (existing == null) return NotFound();
             existing.Name = dto.Name;
             existing.Description = dto.Description;
-            existing.SubjectId = dto.SubjectId;
             var updated = _service.UpdateClass(existing);
             return Ok(updated.ToDetailDto());
         }
@@ -727,11 +721,12 @@ namespace StudyHub.Backend.Api.Controllers
         public IActionResult GetSubmissionfile(int classworkID, Guid userid)
         {
             var submitFile = _service.GetSubmissionByUserAndClasswork(classworkID, userid);
-            var fi = _service.GetSubmissionFiles(submitFile.Id);
+            
             if(submitFile == null)
             {
                 return NotFound(new { success = false, message = "Không tìm thấy classwork" });
             }
+            var fi = _service.GetSubmissionFiles(submitFile.Id);
             return Ok(new {success=true, data=submitFile.ToSubmissionDto(fi)});
 
         }

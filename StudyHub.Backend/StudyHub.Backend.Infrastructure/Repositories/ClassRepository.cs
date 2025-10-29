@@ -26,7 +26,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     Id = classEntity.Id,
                     Name = classEntity.Name,
-                    SubjectId = classEntity.SubjectId,
                     Description = classEntity.Description,
                     CreatedBy = classEntity.CreatedBy,
                 };
@@ -52,11 +51,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             if(userid == null)
             {
-                return _context.Classes.Include(c => c.ClassMembers).Where(c => c.DeletedAt == null).Select(c => new Class
+                return _context.Classes.Include(c => c.AppUsersubjectclasses).Where(c => c.DeletedAt == null).Select(c => new Class
                 {
                     Id = c.Id,
                     Name = c.Name,
-                    SubjectId = c.SubjectId,
                     Description = c.Description,
                     CreatedAt = c.CreatedAt,
                     CreatedBy = c.CreatedBy,
@@ -66,11 +64,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 }).OrderByDescending(c => c.CreatedAt).ToList();
             }
             // Chỉ trả về các Class entity
-            return _context.Classes.Include(c=>c.ClassMembers).Where(c => c.DeletedAt == null&& c.ClassMembers.FirstOrDefault(b=>b.UserId==userid)!=null).Select(c => new Class
+            return _context.Classes.Include(c=>c.AppUsersubjectclasses).Where(c => c.DeletedAt == null&& c.AppUsersubjectclasses.FirstOrDefault(b=>b.UserId==userid)!=null).Select(c => new Class
             {
                 Id = c.Id,
                 Name = c.Name,
-                SubjectId = c.SubjectId,
                 Description = c.Description,
                 CreatedAt = c.CreatedAt,
                 CreatedBy = c.CreatedBy,
@@ -137,7 +134,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Id = id,
                 Name = clas.Name,
                 Description = clas.Description,
-                SubjectId = clas.SubjectId,
                 CreatedAt = clas.CreatedAt,
                 CreatedBy = clas.CreatedBy,
                 UpdatedAt = clas.UpdatedAt,
@@ -157,7 +153,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             clas.Name = classEntity.Name;
             clas.Description = classEntity.Description;
             clas.UpdatedAt = classEntity.UpdatedAt;
-            clas.SubjectId = classEntity.SubjectId;
 
             _context.Classes.Update(clas);
             _context.SaveChanges();
@@ -173,7 +168,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Id = c.Id,
                 Name = c.Name,
                 Description = c.Description,
-                SubjectId = c.SubjectId,
                 CreatedAt = c.CreatedAt,
                 CreatedBy = c.CreatedBy,
                 UpdatedAt = c.UpdatedAt,
@@ -182,17 +176,20 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             };
         }
 
-        public List<ClassMember> GetClassMembers(int classId)
+        public List<AppUsersubjectclass> GetClassMembers(int classId)
         {
-            return _context.ClassMembers
-                .Where(m => m.ClassId == classId && m.Status.Equals("joined"))
-                .Select(m => new ClassMember
-                {
-                    UserId = m.UserId,
-                    ClassId = m.ClassId,
-                    JoinDate = m.JoinDate,
-                    Status = m.Status,
-                }).ToList();
+            var member= _context.AppUsersubjectclasses
+       .Where(m => m.ClassId == classId)
+       .GroupBy(m => m.UserId)
+       .Select(g => g.FirstOrDefault()) // lấy bản ghi đầu tiên mỗi UserId
+       .ToList();
+            return member.Select(m => new AppUsersubjectclass
+            {
+                UserId = m.UserId,
+                ClassId = m.ClassId,
+                JoinDate = m.JoinDate,
+                Status = m.Status,
+            }).ToList();
         }
 
         public List<ClassNotification> GetClassNotifications(int classId)
@@ -322,12 +319,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public List<Class> GetClassByUserId(Guid userid)
         {
-           var classes = _context.ClassMembers.Include(a=>a.Class).Where(a=>a.UserId.Equals(userid)).Select(
+           var classes = _context.AppUsersubjectclasses.Include(a=>a.Class).Where(a=>a.UserId.Equals(userid)).Select(
                c => new Class
                {
                    Id = c.Class.Id,
                    Name = c.Class.Name,
-                   SubjectId = c.Class.SubjectId,
                    Description = c.Class.Description,
                    CreatedAt = c.Class.CreatedAt,
                    CreatedBy = c.Class.CreatedBy,
@@ -385,28 +381,28 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             try
             {
                 // Nếu đã có record:
-                var existing = _context.ClassMembers.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
+                var existing = _context.AppUsersubjectclasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
                 
                 if (existing != null)
                 {
                     // nếu đã joined, không đổi; nếu bị kicked hoặc invited, set lại invited and null JoinDate
                     existing.Status = "invited";
                     existing.JoinDate = DateTime.Now;
-                    _context.ClassMembers.Update(existing);
+                    _context.AppUsersubjectclasses.Update(existing);
 
                     _context.SaveChanges();
                     return true;
                 }
 
                 // tạo record mới với status invited (JoinDate null)
-                var newMember = new Data.ClassMember
+                var newMember = new Data.AppUsersubjectclass
                 {
                     UserId = userId,
                     ClassId = classId,
                     JoinDate = DateTime.Now,
                     Status = "invited"
                 };
-                _context.ClassMembers.Add(newMember);
+                _context.AppUsersubjectclasses.Add(newMember);
                 _context.SaveChanges();
                 return true;
             }
@@ -421,18 +417,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var existing = _context.ClassMembers.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
+                var existing = _context.AppUsersubjectclasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
                 if (existing == null)
                 {
                     // nếu chưa có record (hiếm), tạo record mới với joined
-                    var newMember = new Data.ClassMember
+                    var newMember = new Data.AppUsersubjectclass
                     {
                         UserId = userId,
                         ClassId = classId,
                         JoinDate = DateTime.UtcNow,
                         Status = "joined"
                     };
-                    _context.ClassMembers.Add(newMember);
+                    _context.AppUsersubjectclasses.Add(newMember);
                     _context.SaveChanges();
                     return true;
                 }
@@ -440,7 +436,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 // Cập nhật status -> joined và set JoinDate nếu null
                 existing.Status = "joined";
                 existing.JoinDate = existing.JoinDate;
-                _context.ClassMembers.Update(existing);
+                _context.AppUsersubjectclasses.Update(existing);
                 _context.SaveChanges();
                 return true;
             }
@@ -455,7 +451,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var existing = _context.ClassMembers.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
+                var existing = _context.AppUsersubjectclasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
                 if (existing == null)
                 {
                     // Nếu chưa tồn tại, không cần tạo record; trả về false (không có gì để kick)
@@ -464,7 +460,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 existing.Status = "kicked";
                 // Optional: bạn có thể giữ JoinDate để audit hoặc set null
-                _context.ClassMembers.Update(existing);
+                _context.AppUsersubjectclasses.Update(existing);
                 _context.SaveChanges();
                 return true;
             }
@@ -641,7 +637,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             var submit = _context.ClassworkSubmissions.Where(c => c.ClassworkId == classworkId).Count();
             return submit;
         }
-       public int GetMemberCount(int classworkId)
+        public int GetMemberCount(int classworkId)
         {
             var classworkEntity = _context.Classworks
                 .Include(c => c.Class)
@@ -649,19 +645,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
             if (classworkEntity == null)
                 return 0;
-            var user = _context.AppClaims.Include(c => c.User).Include(c => c.Role).Where(a=>a.Role.Name.Contains("Student")).ToList();
-            var classEntity = _context.ClassMembers.Include(c => c.Class).Include(c=>c.User).Where(c=>c.ClassId== classworkEntity.ClassId).ToList();
-            List<Data.ClassMember> members = new List<Data.ClassMember>();
-            foreach(Data.ClassMember mb in classEntity)
-            {
-                if (user.FirstOrDefault(a => a.UserId == mb.UserId) != null && mb.Status.Equals("joined"))
-                {
-                    members.Add(mb);
-                }
-            }
-            return members.Count();
+            var classEntity = _context.AppUsersubjectclasses.Include(c => c.Class).Include(c => c.User)
+                .Where(c => c.ClassId == classworkEntity.ClassId 
+                && c.User.Roles.Where(r=>r.Name.Contains("Student")).Any()).GroupBy(a=>a.UserId).ToList();
+            
+            return classEntity.Count();
         }
-      
+
 
     }
 }

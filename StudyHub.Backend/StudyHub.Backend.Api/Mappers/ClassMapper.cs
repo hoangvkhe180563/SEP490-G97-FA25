@@ -10,15 +10,13 @@ namespace StudyHub.Backend.Api.Mappers
 {
     public static class ClassMapper
     {
-        public static ClassListDto ToListClassDto(this Class c, AppUser? t, Subject? s) => new ClassListDto
+        public static ClassListDto ToListClassDto(this Class c, AppUser? t) => new ClassListDto
         {
             Id = c.Id,
             Name = c.Name,
 
-            SubjectName = s?.Name ?? "N/A",
             InstructorName = t?.Fullname ?? "Không rõ",
             Description = c.Description,
-            SubjectId = c.SubjectId
         };
 
         public static Class ToEntity(this CreateClassDto dto)
@@ -26,7 +24,6 @@ namespace StudyHub.Backend.Api.Mappers
             return new Class
             {
                 Name = dto.Name,
-                SubjectId = dto.SubjectId,
                 Description = dto.Description,
                 CreatedAt = DateTime.UtcNow
             };
@@ -36,7 +33,6 @@ namespace StudyHub.Backend.Api.Mappers
             return new Class
             {
                 Name = dto.Name,
-                SubjectId = dto.SubjectId,
                 Description = dto.Description,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -45,7 +41,6 @@ namespace StudyHub.Backend.Api.Mappers
         {
             Id = c.Id,
             Name = c.Name,
-            SubjectId = c.SubjectId,
             Description = c.Description,
             CreatedAt = c.CreatedAt,
             CreatedBy = c.CreatedBy,
@@ -61,7 +56,6 @@ namespace StudyHub.Backend.Api.Mappers
             {
                 Id = c.Id,
                 Name = c.Name,
-                SubjectId = c.SubjectId,
                 Description = c.Description,
                 CreatedAt = c.CreatedAt,
 
@@ -69,7 +63,7 @@ namespace StudyHub.Backend.Api.Mappers
             };
         }
 
-        public static MemberDto ToMemberDto(this ClassMember member, AppUser? user, List<string> roles, School school, Commune commune)
+        public static MemberDto ToMemberDto(this AppUsersubjectclass member, AppUser? user, List<string> roles, School school, Commune commune)
         {
             return new MemberDto
             {

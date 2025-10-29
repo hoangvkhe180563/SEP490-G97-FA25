@@ -33,7 +33,6 @@ namespace StudyHub.Backend.UseCases.Services
             var entity = new Class
             {
                 Name = dto.Name.Trim(),
-                SubjectId = dto.SubjectId,
                 Description = dto.Description,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = dto.CreatedBy
@@ -54,7 +53,7 @@ namespace StudyHub.Backend.UseCases.Services
         {
             return _classRepository.GetClassDetailById(id);
         }
-        public List<ClassMember> GetClassMembers(int id)
+        public List<AppUsersubjectclass> GetClassMembers(int id)
         {
             return _classRepository.GetClassMembers(id);
         }

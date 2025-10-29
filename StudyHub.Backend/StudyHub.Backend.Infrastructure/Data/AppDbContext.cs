@@ -27,8 +27,6 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<Class> Classes { get; set; }
 
-    public virtual DbSet<ClassMember> ClassMembers { get; set; }
-
     public virtual DbSet<ClassNotification> ClassNotifications { get; set; }
 
     public virtual DbSet<ClassNotificationComment> ClassNotificationComments { get; set; }
@@ -205,6 +203,15 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.SubjectId, "SubjectId");
 
+            entity.Property(e => e.SubjectId).HasColumnType("smallint(6)");
+            entity.Property(e => e.ClassId).HasColumnType("int(11)");
+            entity.Property(e => e.JoinDate)
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'joined'")
+                .HasColumnType("enum('invited','joined','kicked')");
+
             entity.HasOne(d => d.Class).WithMany(p => p.AppUsersubjectclasses)
                 .HasForeignKey(d => d.ClassId)
                 .HasConstraintName("app_usersubjectclass_ibfk_3");
@@ -254,8 +261,6 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("classes");
 
-            entity.HasIndex(e => e.SubjectId, "SubjectId");
-
             entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("current_timestamp()")
@@ -263,41 +268,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.Name).HasMaxLength(200);
-            entity.Property(e => e.SubjectId).HasColumnType("smallint(6)");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
-
-            entity.HasOne(d => d.Subject).WithMany(p => p.Classes)
-                .HasForeignKey(d => d.SubjectId)
-                .HasConstraintName("classes_ibfk_1");
-        });
-
-        modelBuilder.Entity<ClassMember>(entity =>
-        {
-            entity.HasKey(e => new { e.UserId, e.ClassId })
-                .HasName("PRIMARY")
-                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
-
-            entity.ToTable("class_members");
-
-            entity.HasIndex(e => e.ClassId, "ClassId");
-
-            entity.Property(e => e.ClassId).HasColumnType("int(11)");
-            entity.Property(e => e.JoinDate)
-                .HasDefaultValueSql("current_timestamp()")
-                .HasColumnType("datetime");
-            entity.Property(e => e.Status)
-                .HasDefaultValueSql("'joined'")
-                .HasColumnType("enum('invited','joined','kicked')");
-
-            entity.HasOne(d => d.Class).WithMany(p => p.ClassMembers)
-                .HasForeignKey(d => d.ClassId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("class_members_ibfk_2");
-
-            entity.HasOne(d => d.User).WithMany(p => p.ClassMembers)
-                .HasForeignKey(d => d.UserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("class_members_ibfk_1");
         });
 
         modelBuilder.Entity<ClassNotification>(entity =>
@@ -662,11 +633,13 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.LessonId, "FK_LessonComments_Lesson");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.Content).HasMaxLength(2000);
             entity.Property(e => e.CreatedAt)
                 .HasMaxLength(6)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+                .HasDefaultValueSql("current_timestamp(6)");
             entity.Property(e => e.DeletedAt).HasMaxLength(6);
+            entity.Property(e => e.LessonId).HasColumnType("int(11)");
             entity.Property(e => e.UpdatedAt).HasMaxLength(6);
 
             entity.HasOne(d => d.AppUser).WithMany(p => p.LessonComments)

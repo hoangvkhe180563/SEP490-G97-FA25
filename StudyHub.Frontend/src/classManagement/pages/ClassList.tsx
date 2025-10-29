@@ -13,7 +13,6 @@ import type { ClassListDto } from "@/classManagement/interfaces/class";
 type ClassItem = ClassListDto & {
   title: string;
   teacher: string;
-  subject: number;
   description?: string;
 };
 
@@ -81,7 +80,6 @@ const ClassList: React.FC = () => {
         ...c,
         title: c.name,
         teacher: c.instructorName,
-        subject: c.subjectId,
       })),
     [apiClasses]
   );
@@ -107,7 +105,7 @@ const ClassList: React.FC = () => {
     if (action === "edit") {
       const item = classItems.find((c) => c.id === id);
       if (item) {
-        setEditing({ ...item, subject: Number(item.subject) });
+        setEditing({ ...item });
         setShowEdit(true);
       }
       return;
@@ -205,7 +203,7 @@ const ClassList: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {classItems.map((c) => (
-              <ClassCard key={c.id} id={c.id} title={c.title} teacher={c.teacher} subject={c.subjectName} userRole={userRole} onView={handleView} onMenu={handleMenu} />
+              <ClassCard key={c.id} id={c.id} title={c.title} teacher={c.teacher}  userRole={userRole} onView={handleView} onMenu={handleMenu} />
             ))}
 
             {classItems.length === 0 && <div className="col-span-full text-center py-8 text-gray-500">Không tìm thấy lớp học nào.</div>}

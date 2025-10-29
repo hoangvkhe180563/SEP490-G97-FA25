@@ -4,13 +4,12 @@ import { useClassStore } from "@/classManagement/stores/useClassStore";
 export type EditClassPayload = {
   id: number | string;
   title: string;
-  subject: number;
   description?: string;
 };
 
 type Props = {
   open: boolean;
-  classItem?: { id: number; title: string; subject?: number; description?: string };
+  classItem?: { id: number; title: string; description?: string };
   onClose: () => void;
 };
 
@@ -30,7 +29,6 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
   useEffect(() => {
     if (open && classItem) {
       setTitle(classItem.title ?? "");
-      setSubject(classItem.subject ?? 0);
       setDescription(classItem.description ?? "");
     }
   }, [open, classItem, subjects]);
@@ -46,7 +44,6 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
     await updateClass({
       id: classItem.id,
       title: title.trim(),
-      subject,
       description: description.trim(),
     });
 
@@ -81,24 +78,6 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
               placeholder="Nhập tên lớp học"
               className="w-full border rounded px-3 py-2"
             />
-          </div>
-
-          <div>
-            <label className="text-sm block mb-1">
-              Môn học <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={subject}
-              onChange={(e) => setSubject(Number(e.target.value))}
-              className="w-full border rounded px-3 py-2"
-            >
-              <option value={0}>Chọn môn học</option>
-              {subjects.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
           </div>
 
           <div>

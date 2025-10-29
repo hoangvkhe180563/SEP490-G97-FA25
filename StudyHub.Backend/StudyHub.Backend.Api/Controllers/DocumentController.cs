@@ -448,9 +448,8 @@ namespace StudyHub.Backend.Api.Controllers
             var teachers = _classService.GetTeachers();
 
             var result = classes.Select(c => {
-                var subject = subjects.FirstOrDefault(s => s.Id == c.SubjectId);
                 var teacher = teachers.FirstOrDefault(t => t.Id == c.CreatedBy);
-                return c.ToListClassDto(teacher, subject);
+                return c.ToListClassDto(teacher);
             }).ToList();
 
             return Ok(new { success = true, data = result });
