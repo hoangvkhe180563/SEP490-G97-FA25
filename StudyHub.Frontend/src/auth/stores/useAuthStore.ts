@@ -4,7 +4,7 @@ import { devtools } from "zustand/middleware";
 import type { AuthState } from "../interfaces/stores";
 import { axiosInstance, axiosMessageErrorHandler } from "@/lib/axios";
 
-const useAuthStore = create<AuthState>()(
+export const useAuthStore = create<AuthState>()(
   devtools(
     (set) => ({
       user: null,
@@ -48,7 +48,7 @@ const useAuthStore = create<AuthState>()(
           const { data } = res;
           set({
             isAuthenticated: data.success,
-            user: data.user,
+            user: data.data,
             loginMessage: data.message,
           });
           if (data.success) {
@@ -205,7 +205,6 @@ const useAuthStore = create<AuthState>()(
           const { data } = res;
           if (data.success) {
             set({ isAuthenticated: true, user: data.data });
-            console.log("s");
           } else {
             set({ isAuthenticated: false, user: null });
             console.log("s");
@@ -261,7 +260,7 @@ const useAuthStore = create<AuthState>()(
           set({
             handlerGoogleCallbackMessage: data.message,
             isAuthenticated: data.success,
-            user: data.user,
+            user: data.data,
           });
           if (data.success) {
             handlerSuccess();
@@ -278,22 +277,38 @@ const useAuthStore = create<AuthState>()(
           set({ isLoading: false });
         }
       },
-      refreshToken: async () => {
+      // Try to refresh the auth token. If it fails, propagate the error so callers
+      // (e.g. the interceptor) can decide what to do (logout, reject, etc.).
+      refreshToken: async (): Promise<void> => {
         try {
           await axiosInstance.post("/Auth/refresh-token");
         } catch (error) {
-          console.log(error);
+          console.log("refreshToken error:", error);
+          // Rethrow so the interceptor's `await refreshPromise` will reject and
+          // the failure path (logout) executes exactly once.
+          throw error;
         }
       },
-      logout: () => {
+
+      // Logout the user. If `remote` is false, only clear local state and do not
+      // call the server. When we call the server, pass a flag to the request
+      // config so the response interceptor can skip trying to refresh/ retry
+      // on the logout request and avoid recursive behavior.
+      logout: async (remote = true) => {
+        // Clear local state synchronously so UI reacts immediately.
         set({
           user: null,
           isAuthenticated: false,
         });
+
+        if (!remote) return;
+
         try {
-          axiosInstance.post("/Auth/logout");
+          // Add a custom flag to the request config so the interceptor can
+          // detect and skip refresh attempts for this request.
+          await axiosInstance.post("/Auth/logout");
         } catch (error) {
-          console.log(error);
+          console.log("logout error:", error);
         }
       },
     }),
@@ -301,70 +316,65 @@ const useAuthStore = create<AuthState>()(
   )
 );
 
-let refreshPromise: Promise<void> | null = null;
+let refreshTokenPromise: Promise<any> | null = null;
 
 axiosInstance.interceptors.response.use(
-  // Nếu không lỗi, trả về response bình thường
   (response) => response,
-
-  // Nếu có lỗi
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config as any;
 
-    // Nếu không có response (mất mạng, server chết, v.v.)
-    if (!error.response) {
+    // Early returns
+    if (!error.response) return Promise.reject(error);
+    if (error.response.status !== 401) return Promise.reject(error);
+    if (originalRequest._retry) return Promise.reject(error);
+
+    const urlLower = originalRequest?.url?.toString().toLowerCase() ?? "";
+
+    // Skip các path không cần refresh
+    const skipPaths = [
+      `/auth/login`,
+      "/auth/logout",
+      "/auth/signup",
+      "/auth/forgot-password",
+      "/auth/reset-password",
+      "/auth/send-verification",
+      "/auth/google",
+      "/auth/google/callback",
+      "/auth/refresh-token",
+    ];
+
+    if (skipPaths.some((p) => urlLower.includes(p))) {
+      if (urlLower.includes("/auth/refresh-token")) {
+        useAuthStore.getState().logout(false);
+      }
       return Promise.reject(error);
     }
 
-    // Nếu lỗi là 401 và chưa retry
-    if (error.response.status === 401 && !originalRequest._retry) {
-      // Kiểm tra nếu request hiện tại KHÔNG phải là request refresh token
-      const isRefreshRequest = originalRequest.url
-        ?.toString()
-        .toLowerCase()
-        .includes("/auth/refresh-token");
-      if (isRefreshRequest) {
-        // Nếu refresh token cũng 401 => thường logout để tránh vòng lặp.
-        // Tuy nhiên nếu hiện tại có một hành động đăng nhập đang diễn ra (isLoading)
-        // thì không logout ngay — để tránh đấu nhau với flow đăng nhập thành công.
-        const authState = useAuthStore.getState();
-        if (authState.isLoading) {
-          // Có thể là login đang diễn ra; bỏ qua logout ở đây và reject để action hiện tại xử lý
-          return Promise.reject(error);
-        }
+    // Đánh dấu đã retry
+    originalRequest._retry = true;
 
-        useAuthStore.getState().logout();
-        return Promise.reject(error);
+    try {
+      // Nếu chưa có promise refresh, tạo mới
+      // Nếu đã có, tất cả requests sẽ chờ cùng 1 promise này
+      if (!refreshTokenPromise) {
+        refreshTokenPromise = useAuthStore
+          .getState()
+          .refreshToken()
+          .finally(() => {
+            // Sau khi xong (thành công hay thất bại), reset promise
+            refreshTokenPromise = null;
+          });
       }
 
-      originalRequest._retry = true;
+      // Chờ refresh token xong (nhiều requests 401 sẽ chờ chung)
+      await refreshTokenPromise;
 
-      try {
-        // Nếu chưa có refreshPromise, tạo mới
-        if (!refreshPromise) {
-          refreshPromise = useAuthStore
-            .getState()
-            .refreshToken()
-            .finally(() => {
-              refreshPromise = null;
-            });
-        }
-
-        // Chờ refresh token xong
-        await refreshPromise;
-
-        // Sau khi refresh thành công, retry lại request cũ
-        return axiosInstance(originalRequest);
-      } catch (refreshError) {
-        // Nếu refresh thất bại -> logout và reject
-        useAuthStore.getState().logout();
-        return Promise.reject(refreshError);
-      }
+      // Refresh thành công -> retry request với token mới
+      return axiosInstance(originalRequest);
+    } catch (refreshError) {
+      // Refresh thất bại -> logout
+      useAuthStore.getState().logout(false);
+      return Promise.reject(refreshError);
     }
-
-    // Nếu không phải lỗi 401, trả về như cũ
-    return Promise.reject(error);
   }
 );
-
-export { useAuthStore };

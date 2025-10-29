@@ -9,6 +9,7 @@ import ParentProfile from "../pages/parent/ParentProfile";
 import type { RouteObject } from "react-router-dom";
 import CreateAccount from "../pages/manager/CreateAccount";
 import AccountList from "../pages/manager/AccountList";
+import UpdateAccount from "../pages/manager/UpdateAccount";
 
 const teacherRoutes = [
   {
@@ -33,6 +34,10 @@ const managerRoutes = [
   {
     path: UserRouteConfig.MANAGER.ADD_ACCOUNT,
     element: <CreateAccount />,
+  },
+  {
+    path: UserRouteConfig.MANAGER.UPDATE_ACCOUNT,
+    element: <UpdateAccount />,
   },
 ];
 

@@ -11,7 +11,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/common/components/ui/select";
-import { Eye, Edit2 } from "lucide-react";
+import { Edit2 } from "lucide-react";
 import type { AccountItemProps as Props } from "@/user/interfaces/props";
 import type { AppUser } from "@/user/interfaces/app-user";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
@@ -135,19 +135,12 @@ const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
         </div>
       </TableCell>
       <TableCell className="px-6 py-4 text-right text-gray-600">
-        <div className="flex items-center justify-end gap-3">
-          <button
-            title="View"
-            className="p-1 text-gray-500 hover:text-gray-700"
-          >
-            <Eye />
-          </button>
-          <div className="w-px h-5 bg-gray-300" />
+        <div className="flex items-center justify-center gap-3">
           <button
             title="Edit"
             className="p-1 text-gray-500 hover:text-gray-700"
           >
-            <Link to="/manager/update-account">
+            <Link to={`/user/manager/update-account/${user.id}`}>
               <Edit2 />
             </Link>
           </button>
