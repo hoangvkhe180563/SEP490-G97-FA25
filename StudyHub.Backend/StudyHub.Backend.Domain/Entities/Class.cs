@@ -6,7 +6,5 @@ public class Class : IAuditTrail
 
     public string Name { get; set; } = null!;
 
-    public short? SubjectId { get; set; }
-
     public string? Description { get; set; }
 }

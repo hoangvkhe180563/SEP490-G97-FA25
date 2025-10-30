@@ -37,10 +37,10 @@ export const guestSidebarItems: ISidebarItem[] = [
   },
   {
     icon: <Users size={20} />,
-    text: "Lớp học của tôi",
-    link: "/classes",
-  },
-];
+    text: 'Lớp học của tôi',
+    link: '/class'
+  }
+]
 
 export const uiManagerSidebarItems: ISidebarItem[] = [
   {

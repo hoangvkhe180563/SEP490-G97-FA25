@@ -65,6 +65,7 @@ namespace StudyHub.Backend.UseCases.Services
             var user = _userRepository.GetById(id);
             return user;
         }
+        public AppUser? GetUserByEmail(string email)=> _userRepository.GetByEmail(email);
 
         // Async create account with optional avatar upload handled here (clean architecture: business logic in service)
         public async Task<AppUser> CreateAccountAsync(string email, string password, string username, IEnumerable<Guid>? roleIds, int communeId, int schoolId, string? fullname = null, IFormFile? avatarFile = null, int gender = 0)

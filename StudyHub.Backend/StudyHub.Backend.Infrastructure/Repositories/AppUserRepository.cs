@@ -43,7 +43,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 IsLoginWithGoogle = d.IsLoginWithGoogle,
                 Address = d.Address,
                 CommuneId = d.CommuneId,
-                Avatar = d.Avatar
+                Avatar = d.Avatar,
+                PhoneNumber = d.PhoneNumber,
             };
         }
 
@@ -211,7 +212,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 var existing = _context.AppUsers
                                 .Include(u => u.Roles)
-                                .Include(u => u.AppUsersubjectclasses)
+                                .Include(u => u.AppUserSubjectClasses)
                                 .FirstOrDefault(u => u.Id == user.Id);
 
                 if (existing == null) return;
@@ -257,20 +258,20 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
-    public List<Domain.Entities.AppUsersubjectclass> GetClaimsForUser(Guid userId)
+    public List<Domain.Entities.AppUserSubjectClass> GetClaimsForUser(Guid userId)
         {
             // AppClaim table removed. Build subject-class assignments from AppUsersubjectclass table.
-            var assignments = _context.AppUsersubjectclasses
+            var assignments = _context.AppUserSubjectClasses
                 .Where(a => a.UserId == userId)
                 .Include(a => a.Class)
                 .Include(a => a.Subject)
                 .Include(a => a.User)
                 .ToList();
 
-            var result = new List<Domain.Entities.AppUsersubjectclass>();
+            var result = new List<Domain.Entities.AppUserSubjectClass>();
             foreach (var a in assignments)
             {
-                result.Add(new Domain.Entities.AppUsersubjectclass
+                result.Add(new Domain.Entities.AppUserSubjectClass
                 {
                     UserId = a.UserId,
                     SubjectId = a.SubjectId,
@@ -324,7 +325,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         // Lấy tất cả SubjectId mà user đã có claims
         private List<short> GetUserSubjectIds(Guid userId)
         {
-            var subjectIds = _context.AppUsersubjectclasses
+            var subjectIds = _context.AppUserSubjectClasses
                 .Where(a => a.UserId == userId)
                 .Select(a => a.SubjectId)
                 .Distinct()
@@ -336,7 +337,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         // Lấy tất cả ClassId mà user đã có claims
         private List<int> GetUserClassIds(Guid userId)
         {
-            var classIds = _context.AppUsersubjectclasses
+            var classIds = _context.AppUserSubjectClasses
                 .Where(a => a.UserId == userId)
                 .Select(a => a.ClassId)
                 .Distinct()

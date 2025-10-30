@@ -9,8 +9,6 @@ public partial class Class
 
     public string Name { get; set; } = null!;
 
-    public short? SubjectId { get; set; }
-
     public string? Description { get; set; }
 
     public DateTime CreatedAt { get; set; }
@@ -23,15 +21,11 @@ public partial class Class
 
     public DateTime? DeletedAt { get; set; }
 
-    public virtual ICollection<AppUsersubjectclass> AppUsersubjectclasses { get; set; } = new List<AppUsersubjectclass>();
-
-    public virtual ICollection<ClassMember> ClassMembers { get; set; } = new List<ClassMember>();
+    public virtual ICollection<AppUserSubjectClass> AppUserSubjectClasses { get; set; } = new List<AppUserSubjectClass>();
 
     public virtual ICollection<ClassNotification> ClassNotifications { get; set; } = new List<ClassNotification>();
 
     public virtual ICollection<Classwork> Classworks { get; set; } = new List<Classwork>();
-
-    public virtual Subject? Subject { get; set; }
 
     public virtual ICollection<Document> Documents { get; set; } = new List<Document>();
 }

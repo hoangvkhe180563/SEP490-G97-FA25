@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import MemberDetailModal from "@/classManagement/components/ui/memberdetailmodal";
+import React from "react";
 import type { ClassMemberDto } from "@/classManagement/interfaces/class";
 
 type Props = {
@@ -99,12 +98,8 @@ const EveryoneListTC: React.FC<Props> = ({
   onAddPerson,
   onSelect,
 }) => {
-  const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(null);
-  const [open, setOpen] = useState(false);
-
+  // Removed internal modal handling — parent (DetailedClassTeacher) will open modal via onSelect
   const handleClick = (m: ClassMemberDto) => {
-    setSelectedMember(m);
-    setOpen(true);
     onSelect?.(m);
   };
 
@@ -182,9 +177,6 @@ const EveryoneListTC: React.FC<Props> = ({
           </SectionCard>
         </>
       )}
-
-      {/* Modal */}
-      <MemberDetailModal open={open} member={selectedMember} onClose={() => setOpen(false)} />
     </div>
   );
 };
