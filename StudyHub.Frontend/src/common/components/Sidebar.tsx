@@ -1,15 +1,31 @@
 import React, { createContext, useContext, useState } from 'react'
 import { Button } from './ui/button'
-import { ChevronFirst, ChevronDown, ChevronRight, Menu } from 'lucide-react'
+import { ChevronFirst, ChevronDown, ChevronRight, Menu, EllipsisVertical, LogOut, CircleUser } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom';
 import type { ISidebarItem } from '../interfaces/IMainLayoutProps';
+import type { AppUser } from '@/auth/interfaces/app-user';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { axiosInstance } from '@/lib/axios';
 
 interface ISidebarContextProps {
   expanded: boolean
 }
 const SidebarContext = createContext<ISidebarContextProps>({ expanded: true });
 
-export const Sidebar = (props: { children: React.ReactNode }) => {
+export const Sidebar = (props: { children: React.ReactNode, user: AppUser }) => {
+
+  const logout = async () => {
+    await axiosInstance.post("/auth/logout")
+      .then(res => {
+        if (res.status === 200) {
+          location.reload();
+        } else {
+          console.error("Lỗi không logout được!");
+        }
+      })
+  }
+
   const [expanded, setExpanded] = useState<boolean>(true);
 
   return (
@@ -22,6 +38,36 @@ export const Sidebar = (props: { children: React.ReactNode }) => {
       <SidebarContext.Provider value={{ expanded }}>
         <ul className='flex-1 px-3'>{props.children}</ul>
       </SidebarContext.Provider>
+
+      <div className='p-3 text-gray-500 border-t border-gray-300 flex items-center justify-center'>
+        <Avatar className='size-8'>
+          <AvatarImage src='' alt="User Avatar" />
+          <AvatarFallback>{props.user.username.charAt(0).toUpperCase()}</AvatarFallback>
+        </Avatar>
+        {expanded ? (
+          <div className='flex-1 flex items-center ml-3'>
+            <div className='w-32 transition-opacity duration-150'>
+              <p className='font-medium'>{props.user.username}</p>
+              <p className='text-sm text-gray-600 line-clamp-1'>{props.user.email}</p>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className={`hover:bg-sky-400 hover:text-white w-10 ml-3`}>
+                  <EllipsisVertical size={16} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-50 ml-3">
+                <DropdownMenuItem>
+                  <CircleUser className="mr-2 h-4 w-4" /> Thông tin cá nhân
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-red-600" onClick={logout}>
+                  <LogOut className="mr-2 h-4 w-4 stroke-red-600" /> <span className="w-full hover:text-red-600">Đăng xuất</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ) : null}
+      </div>
     </aside>
   )
 }

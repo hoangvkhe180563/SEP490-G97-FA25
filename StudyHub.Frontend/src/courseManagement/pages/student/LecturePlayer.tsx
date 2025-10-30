@@ -127,9 +127,7 @@ const LecturePlayer: React.FC = () => {
     void _enrollAction;
     (async () => {
       try {
-        if (currentUser?.id) {
-          await fetchEnrollmentsByUser(String(currentUser.id));
-        }
+        await fetchEnrollmentsByUser(String(currentUser.id));
       } catch (err) {
         // ignore
       }
@@ -629,7 +627,6 @@ const LecturePlayer: React.FC = () => {
           <aside className="col-span-12 lg:col-span-3">
             <LectureFilters />
           </aside>
-
           <main className="col-span-12 lg:col-span-6">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -821,10 +818,13 @@ const LecturePlayer: React.FC = () => {
               </div>
             </div>
           </main>
-
           <aside className="col-span-12 lg:col-span-3 space-y-4 lg:sticky lg:top-24 mb-10">
             <LectureResources />
-            <LectureDiscussion />
+            <LectureDiscussion
+              key={selectedLesson?.id ?? lid}
+              lessonId={selectedLesson?.id ?? lid}
+              courseId={cid}
+            />
             <LectureNextUp />
           </aside>
         </div>
