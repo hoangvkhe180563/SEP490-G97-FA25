@@ -29,6 +29,28 @@ namespace StudyHub.Backend.Api.Mappers
             };
         }
 
+        public static ProfileResponse ToProfile(Domain.Entities.AppUser user, IEnumerable<string>? roles = null, int? schoolId = null, int? communeId = null, int? cityId = null, int? provinceId = null)
+        {
+            return new ProfileResponse
+            {
+                Email = user.Email,
+                Username = user.Username,
+                Fullname = user.Fullname,
+                Password = user.PasswordHash,
+                Gender = user.Gender,
+                Avatar = user.Avatar,
+                Address = user.Address,
+                Status = user.Status,
+                CreatedAt = user.CreatedAt.ToString("yyyy/MM/dd"),
+                UpdatedAt = user.UpdatedAt?.ToString("yyyy/MM/dd"),
+                SchoolId = schoolId,
+                CityId = cityId,
+                ProvinceId = provinceId,
+                Roles = roles?.ToList() ?? new List<string>(),
+                CommuneId = communeId
+            };
+        }
+
 
         // Map a domain AppUser to a compact list item use-case DTO (keeps compatibility with UseCases.PagedResult<AppUserListDto>)
         public static Dtos.AppUserDTOS.AppUserListDto ToAppUserList(PagedResult<UseCases.Dtos.AppUserListDto> result)
