@@ -136,9 +136,9 @@ const ClassList: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-8">
       {/* Filters & create */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 mb-6">
         <div className="flex-1 flex gap-3 items-center">
           <input
             type="text"
@@ -148,14 +148,14 @@ const ClassList: React.FC = () => {
               setQuery(e.target.value);
               setCurrentPage(1);
             }}
-            className="flex-1 border rounded-md px-3 py-2 focus:outline-none"
+            className="flex-1 border rounded-lg px-4 py-3 focus:outline-none text-lg"
           />
           <select
             value={subject}
             onChange={(e) => {
               setSubject(e.target.value);
             }}
-            className="border rounded-md px-3 py-2"
+            className="border rounded-lg px-4 py-3 text-lg"
           >
             <option value="all">Tất cả môn học</option>
             {subjects.map((s) => (
@@ -168,7 +168,7 @@ const ClassList: React.FC = () => {
 
         <div className="mt-3 sm:mt-0 ml-auto">
           {userRole === "teacher" && (
-            <button onClick={() => setShowCreate(true)} className="bg-black text-white px-4 py-2 rounded-md">
+            <button onClick={() => setShowCreate(true)} className="bg-blue-600 text-white px-5 py-3 rounded-lg text-lg shadow">
               + Tạo lớp học
             </button>
           )}
@@ -176,20 +176,20 @@ const ClassList: React.FC = () => {
       </div>
 
       {/* Class grid */}
-      <div className="border-2 border-blue-400 rounded-md p-4 min-h-[260px]">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-sm text-gray-600">
+      <div className="border rounded-xl p-6 min-h-[300px] bg-slate-50">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-sm text-slate-600">
             Hiển thị {total === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, total)} trên tổng số {total} lớp
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Số lớp / trang</label>
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-slate-600">Số lớp / trang</label>
             <select
               value={pageSize}
               onChange={(e) => {
                 setPageSize(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="border rounded-md px-2 py-1"
+              className="border rounded-lg px-3 py-2"
             >
               <option value={3}>3</option>
               <option value={6}>6</option>
@@ -199,28 +199,30 @@ const ClassList: React.FC = () => {
         </div>
 
         {isLoading ? (
-          <div className="col-span-full text-center py-8 text-blue-500">Đang tải danh sách lớp học...</div>
+          <div className="col-span-full text-center py-12 text-blue-600 font-medium">Đang tải danh sách lớp học...</div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {classItems.map((c) => (
-              <ClassCard key={c.id} id={c.id} title={c.title} teacher={c.teacher}  userRole={userRole} onView={handleView} onMenu={handleMenu} />
+              <div key={c.id} className="transform hover:scale-[1.01] transition">
+                <ClassCard key={c.id} id={c.id} title={c.title} teacher={c.teacher}  userRole={userRole} onView={handleView} onMenu={handleMenu} />
+              </div>
             ))}
 
-            {classItems.length === 0 && <div className="col-span-full text-center py-8 text-gray-500">Không tìm thấy lớp học nào.</div>}
+            {classItems.length === 0 && <div className="col-span-full text-center py-12 text-slate-500">Không tìm thấy lớp học nào.</div>}
           </div>
         )}
 
         {/* Pagination */}
-        <div className="mt-4 flex items-center justify-center gap-2">
-          <button onClick={() => gotoPage(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 border rounded disabled:opacity-50">
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <button onClick={() => gotoPage(currentPage - 1)} disabled={currentPage === 1} className="px-4 py-2 border rounded disabled:opacity-50">
             Trước
           </button>
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button key={p} onClick={() => gotoPage(p)} className={`px-3 py-1 border rounded ${p === currentPage ? "bg-slate-900 text-white" : ""}`}>
+            <button key={p} onClick={() => gotoPage(p)} className={`px-4 py-2 border rounded ${p === currentPage ? "bg-slate-900 text-white" : ""}`}>
               {p}
             </button>
           ))}
-          <button onClick={() => gotoPage(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1 border rounded disabled:opacity-50">
+          <button onClick={() => gotoPage(currentPage + 1)} disabled={currentPage === totalPages} className="px-4 py-2 border rounded disabled:opacity-50">
             Sau
           </button>
         </div>

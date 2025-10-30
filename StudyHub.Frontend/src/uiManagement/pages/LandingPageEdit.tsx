@@ -24,6 +24,7 @@ interface ILogo {
 
 const LandingPageEdit = () => {
   const [error, setError] = useState<string[]>([]);
+  const [selectedBanner, setSelectedBanner] = useState<IBanner | null>(null);
   const [selectedLogo, setSelectedLogo] = useState<IBanner | null>(null);
   const [selectedImages, setSelectedImages] = useState<ILogo[]>([]);
   const imgInputRef = useRef<HTMLInputElement>(null);
@@ -35,6 +36,7 @@ const LandingPageEdit = () => {
   const [featuredCourses, setFeaturedCourses] = useState<number[]>([]);
   const [landingPageData, setLandingPageData] = useState<ILandingPageUpdateService>({
     bannerImage: null,
+    logoImage: null,
     description: '',
     featuredCourses: [],
     featuredTeachers: [],
@@ -61,6 +63,7 @@ const LandingPageEdit = () => {
 
         setLandingPageData({
           bannerImage: null,
+          logoImage: null,
           description: landingPageData.description,
           featuredCourses: landingPageData.featuredCourses.map(course => course.id),
           featuredDocuments: landingPageData.featuredDocuments.map(doc => doc.id),
@@ -68,7 +71,8 @@ const LandingPageEdit = () => {
           newLandingPageImages: [],
           deletedLandingPageImages: []
         });
-        setSelectedLogo({ file: null, url: landingPageData.bannerImage });
+        setSelectedBanner({ file: null, url: landingPageData.bannerImage });
+        setSelectedLogo({ file: null, url: landingPageData.logoImage });
         setSelectedImages(landingPageData.introductionImage.map(img => {
           return {
             file: null,
@@ -145,11 +149,24 @@ const LandingPageEdit = () => {
     if (event.target.files && event.target.files.length > 0) {
       const file = event.target.files[0];
       const imgUrl = URL.createObjectURL(file);
-      setSelectedLogo({ file: file, url: imgUrl });
+      setSelectedBanner({ file: file, url: imgUrl });
 
       setLandingPageData(prevData => ({
         ...prevData,
         bannerImage: file
+      }))
+    }
+  }
+
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      const file = event.target.files[0];
+      const imgUrl = URL.createObjectURL(file);
+      setSelectedLogo({ file: file, url: imgUrl });
+
+      setLandingPageData(prevData => ({
+        ...prevData,
+        logoImage: file
       }))
     }
   }
@@ -225,7 +242,21 @@ const LandingPageEdit = () => {
           <div className="md:col-span-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">Banner trường <span className='text-red-500'>*</span></label>
           </div>
-          <Input ref={imgInputRef} type='file' className='md:col-span-2' onChange={handleBannerUpload} />
+          <Input type='file' className='md:col-span-2' onChange={handleBannerUpload} />
+
+          {selectedBanner && (
+            <>
+              <div className="md:col-span-1"></div>
+              <div className='md:col-span-2 shadow-lg rounded-md h-[200px]'>
+                <img src={selectedBanner.url} className='w-full h-full object-contain' alt='No Image' />
+              </div>
+            </>
+          )}
+
+          <div className="md:col-span-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Logo trường <span className='text-red-500'>*</span></label>
+          </div>
+          <Input type='file' className='md:col-span-2' onChange={handleLogoUpload} />
 
           {selectedLogo && (
             <>
@@ -237,7 +268,7 @@ const LandingPageEdit = () => {
           )}
 
           <div className="md:col-span-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Logo giới thiệu trường <span className='text-red-500'>*</span></label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Ảnh giới thiệu trường <span className='text-red-500'>*</span></label>
           </div>
           <Input ref={imgInputRef} type='file' className='md:col-span-2' onChange={handleFileUpload} />
 
@@ -264,8 +295,7 @@ const LandingPageEdit = () => {
 
           <div className="md:col-span-1 mt-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tài liệu nổi bật <br />
-              <span className="text-red-500 text-xs font-normal">(Chọn tối đa 5 tài liệu)</span>
+              Tài liệu nổi bật
             </label>
           </div>
           <div className="md:col-span-2 mt-6">
@@ -276,7 +306,6 @@ const LandingPageEdit = () => {
               onRemove={removeDocument}
               placeholder="Tìm kiếm tài liệu..."
               label="Chọn tài liệu..."
-              maxSelections={5}
             />
             <div className="mt-4 space-y-2">
               {featuredDocuments.map((docId, index) => {
@@ -295,8 +324,7 @@ const LandingPageEdit = () => {
 
           <div className="md:col-span-1 mt-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Khoá học nổi bật <br />
-              <span className="text-red-500 text-xs font-normal">(Chọn tối đa 3 khoá học)</span>
+              Khoá học nổi bật
             </label>
           </div>
           <div className="md:col-span-2 mt-6">
@@ -307,7 +335,6 @@ const LandingPageEdit = () => {
               onRemove={removeCourse}
               placeholder="Tìm kiếm khóa học..."
               label="Chọn khóa học..."
-              maxSelections={3}
             />
             <div className="mt-4 space-y-2">
               {featuredCourses.map((courseId, index) => {

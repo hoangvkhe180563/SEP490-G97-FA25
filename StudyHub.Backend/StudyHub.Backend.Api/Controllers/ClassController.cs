@@ -131,13 +131,10 @@ namespace StudyHub.Backend.Api.Controllers
             var members = _service.GetClassMembers(id)
                  .Select(m =>
                  {
-                     var roles = _aRoleService.GetRolesByUser(m.UserId)
-                                              .Where(r => !string.IsNullOrEmpty(r.Name))
-                                              .Select(r => r.Name!)
-                                              .ToList();
+                     
 
                      var user = _aUserService.GetUserById(m.UserId);
-
+                     var role =_aRoleService.GetRolesByUser(m.UserId);
                      var school = (user?.SchoolId).HasValue
                          ? _locationService.GetSchoolById(user!.SchoolId.Value)
                          : null;
@@ -146,7 +143,7 @@ namespace StudyHub.Backend.Api.Controllers
                          ? _locationService.GetCommuneById(user!.CommuneId.Value)
                          : null;
 
-                     return m.ToMemberDto(user, roles, school, commune);
+                     return m.ToMemberDto(user,role, school, commune);
                  })
                     .ToList();
 
@@ -742,6 +739,11 @@ namespace StudyHub.Backend.Api.Controllers
             var numberMember = _service.GetMemberCount(classworkID);
             return Ok(numberMember);
         }
-
+        [HttpGet("membercount/{classID}")]
+        public IActionResult GetMemberClassCount(int classID)
+        {
+            var numberMember = _service.GetMemberClassCount(classID);
+            return Ok(numberMember);
+        }
     }
 }

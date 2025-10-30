@@ -53,7 +53,7 @@ namespace StudyHub.Backend.UseCases.Services
         {
             return _classRepository.GetClassDetailById(id);
         }
-        public List<AppUsersubjectclass> GetClassMembers(int id)
+        public List<AppUserSubjectClass> GetClassMembers(int id)
         {
             return _classRepository.GetClassMembers(id);
         }
@@ -135,5 +135,6 @@ namespace StudyHub.Backend.UseCases.Services
         public List<SubmissionFile> GetSubmissionFiles(int submissionId)=> _classRepository.GetSubmissionFiles(submissionId);
         public int GetMemberCount(int classworkId)=>_classRepository.GetMemberCount(classworkId);
         public int GetSubmissionCount(int classworkId)=>_classRepository.GetSubmissionCount(classworkId);
+        public int GetMemberClassCount(int classID)=> _classRepository.GetMemberClassCount(classID);
     }
 }

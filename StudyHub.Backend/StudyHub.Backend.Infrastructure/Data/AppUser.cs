@@ -59,7 +59,7 @@ public partial class AppUser
 
     public DateTime? DeletedAt { get; set; }
 
-    public virtual ICollection<AppUsersubjectclass> AppUsersubjectclasses { get; set; } = new List<AppUsersubjectclass>();
+    public virtual ICollection<AppUserSubjectClass> AppUserSubjectClasses { get; set; } = new List<AppUserSubjectClass>();
 
     public virtual ICollection<ClassNotificationComment> ClassNotificationComments { get; set; } = new List<ClassNotificationComment>();
 

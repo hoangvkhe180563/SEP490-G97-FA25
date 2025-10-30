@@ -55,7 +55,6 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
   const communeId = member.communeId ?? member.commune_id ?? null;
   const phoneNumber = member.phoneNumber ?? member.phone ?? null;
   const email = member.email ?? null;
-  const wallet = typeof member.wallet === "number" ? member.wallet : Number(member.wallet ?? 0);
   const avatarUrl = member.avatarUrl ?? member.avatar ?? member.imageUrl ?? null;
 
   const initials =
@@ -105,15 +104,11 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
                   <div className="text-sm text-gray-400 mt-2">Tham gia: {toLocaleDateTime(joinDate)}</div>
                 </div>
 
-                <div className="text-right">
-                  <div className="text-sm text-gray-500">Mã</div>
-                  <div className="text-sm font-medium text-gray-700 break-words">{safeString(userId)}</div>
-                </div>
+                
               </div>
 
               <div className="mt-6 bg-gray-50 rounded-md p-4">
                 <InfoRow label="Họ và tên" value={fullname || "-"} />
-                <InfoRow label="Vai trò" value={roles.length ? roles.join(", ") : "-"} />
                 <InfoRow label="Ngày tham gia" value={toLocaleDateTime(joinDate)} />
                 <InfoRow label="Giới tính" value={gender ?? "-"} />
                 <InfoRow label="Số điện thoại" value={phoneNumber ?? "-"} />
@@ -121,10 +116,7 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
                 <InfoRow label="Địa chỉ" value={address || "-"} />
                 <InfoRow label="Phường/Xã (commune)" value={communes ?? communeId ?? "-"} />
                 <InfoRow label="Tên trường" value={schoolName ?? "-"} />
-                <InfoRow
-                  label="Số dư ví"
-                  value={isNaN(Number(wallet)) ? safeString(member.wallet) : Number(wallet).toLocaleString()}
-                />
+                
               </div>
 
               <div className="mt-4 flex gap-2 justify-end">
@@ -134,19 +126,7 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
                 >
                   Gửi email
                 </a>
-                <button
-                  onClick={() => {
-                    try {
-                      navigator.clipboard.writeText(String(userId ?? ""));
-                    } catch {
-                      // ignore
-                    }
-                  }}
-                  title="Sao chép ID"
-                  className="px-3 py-2 border rounded text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Sao chép ID
-                </button>
+                
                 <button
                   onClick={onClose}
                   className="px-3 py-2 border rounded text-sm text-gray-700 hover:bg-gray-50"

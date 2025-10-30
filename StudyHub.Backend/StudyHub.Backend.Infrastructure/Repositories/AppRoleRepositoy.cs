@@ -24,7 +24,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             var result = new List<Domain.Entities.AppRole>();
 
             var infraUser = _context.AppUsers
-                .Include(u => u.Roles)
+                .Include(a=>a.Roles)
                 .FirstOrDefault(u => u.Id == userId);
 
             if (infraUser == null) return result;

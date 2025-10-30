@@ -63,7 +63,7 @@ namespace StudyHub.Backend.Api.Mappers
             };
         }
 
-        public static MemberDto ToMemberDto(this AppUsersubjectclass member, AppUser? user, List<string> roles, School school, Commune commune)
+        public static MemberDto ToMemberDto(this AppUserSubjectClass member, AppUser? user, List<AppRole> roles, School school, Commune commune)
         {
             return new MemberDto
             {
@@ -71,7 +71,7 @@ namespace StudyHub.Backend.Api.Mappers
                 Fullname = user?.Fullname ?? "Không rõ",
                 JoinDate = member.JoinDate,
                 Email = user.Email,
-                Roles = roles,
+                Roles = roles.Select(a=>a.Name).ToList(),
                 Gender = user.Gender,
                 SchoolId = user.SchoolId,
                 CommuneId=user.CommuneId,

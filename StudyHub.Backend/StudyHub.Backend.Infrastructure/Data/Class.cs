@@ -21,7 +21,7 @@ public partial class Class
 
     public DateTime? DeletedAt { get; set; }
 
-    public virtual ICollection<AppUsersubjectclass> AppUsersubjectclasses { get; set; } = new List<AppUsersubjectclass>();
+    public virtual ICollection<AppUserSubjectClass> AppUserSubjectClasses { get; set; } = new List<AppUserSubjectClass>();
 
     public virtual ICollection<ClassNotification> ClassNotifications { get; set; } = new List<ClassNotification>();
 

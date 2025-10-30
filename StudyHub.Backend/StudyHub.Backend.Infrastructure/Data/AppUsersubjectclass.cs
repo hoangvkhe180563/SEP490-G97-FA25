@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace StudyHub.Backend.Infrastructure.Data;
 
-public partial class AppUsersubjectclass
+public partial class AppUserSubjectClass
 {
     public Guid UserId { get; set; }
 

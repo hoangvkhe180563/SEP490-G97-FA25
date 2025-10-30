@@ -1,5 +1,5 @@
 // Updated mapping to include all member fields returned by the API (address, communeId, phoneNumber, wallet, gender, schoolId, ...)
-// plus new method getSubmissionByUserAndClasswork
+// plus new method getSubmissionByUserAndClasswork and getDocumentsByClassId
 import {
   type Post,
   type PostComment,
@@ -17,6 +17,7 @@ import type {
   ClassNotificationFile,
   ClassWork,
   ClassworkSubmission,
+  DocumentDto,
 } from "../interfaces/class";
 import { axiosInstance } from "@/lib/axios";
 
@@ -76,6 +77,8 @@ export const useClassStore = create<ClassState>()(
       message: "",
       meta: null,
       currentClass: defaultCurrentClass,
+      // store documents per class to avoid repeated calls
+      documentsByClass: {},
 
       getClasses: async (query?: string, memberId?: string) => {
         set({ isLoading: true, success: false, message: "" });
@@ -487,6 +490,7 @@ export const useClassStore = create<ClassState>()(
           set({ isLoading: false });
         }
       },
+
       getClassInfo: async (id: number): Promise<ClassDetailResponse | null> => {
         set({ isLoading: true });
         try {
@@ -588,6 +592,115 @@ export const useClassStore = create<ClassState>()(
         }
       },
 
+      // NEW: lấy số thành viên của lớp (trả về number | null)
+      getMemberCount: async (classId: number): Promise<number | null> => {
+        // do not spam global isLoading for quick count calls; set local flag if needed
+        try {
+          if (!classId) return null;
+          const res = await axiosInstance.get(`/Class/membercount/${classId}`);
+          const raw = res?.data ?? null;
+          let count: number | null = null;
+          if (raw !== null) {
+            if (typeof raw === "number") count = raw;
+            else if (typeof raw?.data === "number") count = raw.data;
+            else if (typeof raw?.count === "number") count = raw.count;
+          }
+          return count;
+        } catch (err) {
+          console.error("getMemberCount error:", err);
+          return null;
+        }
+      },
+
+      // NEW: Lấy documents theo classId và lưu vào store.documentsByClass[classId]
+      getDocumentsByClassId: async (classId: number): Promise<DocumentDto[] | null> => {
+  try {
+    if (!classId) return null;
+
+    // Return cached value if available to avoid unnecessary network calls
+    const cached = get().documentsByClass?.[classId];
+    if (Array.isArray(cached) && cached.length > 0) {
+      return cached as DocumentDto[];
+    }
+
+    // Try primary endpoint first. If backend baseURL/config differs, fallback to /api prefix.
+    const endpoints = [
+      `/Document/GetAllDocumentByClassId/${classId}`,
+      `/api/Document/GetAllDocumentByClassId/${classId}`,
+    ];
+
+    let res: any = null;
+    let raw: any = null;
+    let success = false;
+    for (const ep of endpoints) {
+      try {
+        res = await axiosInstance.get(ep);
+        raw = res?.data ?? null;
+        // if got something plausible, stop trying other endpoints
+        if (raw !== null) {
+          success = true;
+          break;
+        }
+      } catch (e) {
+        // try next endpoint
+        // only log debug-level to avoid noisy errors
+        console.debug(`getDocumentsByClassId: endpoint ${ep} failed, trying next if any`, e);
+      }
+    }
+
+    if (!success || !raw) return null;
+
+    const arr = raw.data ?? raw?.documents ?? raw ?? [];
+    const docs: DocumentDto[] = (Array.isArray(arr) ? arr : []).map((d: any) => {
+      const fileType = (d.fileType ?? "").toString().toLowerCase() || null;
+      // If thumbnail not provided and it's an image, use documentUrl as thumbnail
+      let thumbnail = d.thumbnail ?? null;
+      if (!thumbnail && fileType && /jpg|jpeg|png|gif|bmp|webp/i.test(fileType)) {
+        thumbnail = d.documentUrl ?? null;
+      }
+
+      return {
+        id: d.id,
+        name: d.name ?? d.title ?? "Tài liệu",
+        documentUrl: d.documentUrl ?? d.fileUrl ?? d.url ?? "",
+        thumbnail,
+        description: d.description ?? null,
+        fileType: fileType,
+        uploaderName: d.uploaderName ?? d.uploaderFullname ?? null,
+        createdAt: d.createdAt ?? null,
+        classes: Array.isArray(d.classes) ? d.classes.map((c: any) => ({
+          id: c.id,
+          name: c.name ?? null,
+          subjectName: c.subjectName ?? null,
+          instructorName: c.instructorName ?? null,
+          description: c.description ?? null,
+          subjectId: c.subjectId ?? null,
+        })) : undefined,
+        raw: d,
+      } as DocumentDto;
+    });
+
+    // sort newest first if createdAt available
+    docs.sort((a, b) => {
+      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return tb - ta;
+    });
+
+    // cache into store.documentsByClass
+    set((state) => ({
+      documentsByClass: {
+        ...(state.documentsByClass ?? {}),
+        [classId]: docs,
+      },
+    }));
+
+    return docs;
+  } catch (err) {
+    console.error("getDocumentsByClassId error:", err);
+    return null;
+  }
+},
       // --- addComment: send comment HTML to backend and update state ---
       addComment: async (payload) => {
         // payload: { notificationId, content (HTML), createdBy? }
