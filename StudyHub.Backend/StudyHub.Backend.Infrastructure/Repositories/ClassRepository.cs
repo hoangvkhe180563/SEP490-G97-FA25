@@ -26,7 +26,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     Id = classEntity.Id,
                     Name = classEntity.Name,
-                    SubjectId = classEntity.SubjectId,
+                    Sub = classEntity.SubjectId,
                     Description = classEntity.Description,
                 };
                 _context.Classes.Add(classentity);

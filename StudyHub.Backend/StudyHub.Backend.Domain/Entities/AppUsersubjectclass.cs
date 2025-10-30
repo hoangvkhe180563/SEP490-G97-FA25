@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace StudyHub.Backend.Domain.Entities
 {
-    public class AppUsersubjectclass
+    public class AppUserSubjectClass
     {
         public Guid UserId { get; set; }
 

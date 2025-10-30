@@ -14,7 +14,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         public void UpdateUser(AppUser user, IEnumerable<Guid>? roleIds = null);
 
     // get user-specific subject/class assignments
-        public List<AppUsersubjectclass> GetClaimsForUser(Guid userId);
+        public List<AppUserSubjectClass> GetClaimsForUser(Guid userId);
         // helper to get related names
 
         // find user by refresh token
