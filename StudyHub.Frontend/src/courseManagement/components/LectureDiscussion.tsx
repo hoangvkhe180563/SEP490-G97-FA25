@@ -6,7 +6,6 @@ import {
   CardTitle,
 } from "@/common/components/ui/card";
 import { useLessonCommentStore } from "@/courseManagement/stores/useLessonCommentStore";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import { Clock, Trash2 } from "lucide-react";
@@ -41,9 +40,7 @@ const LectureDiscussion: React.FC<Props> = ({ lessonId, courseId }) => {
   const deleteComment = useLessonCommentStore((s) => s.deleteComment);
   const loading = useLessonCommentStore((s) => s.loading);
 
-  const currentUser = useAppUserStore((s) => s.appUser);
   const authUser = useAuthStore((s) => s.user);
-  const effectiveUserId = currentUser?.id ?? authUser?.id ?? null;
 
   const getEnrollmentForCourse = useEnrollmentStore(
     (s) => s.getEnrollmentForCourse
@@ -82,15 +79,15 @@ const LectureDiscussion: React.FC<Props> = ({ lessonId, courseId }) => {
 
   // ===== LOAD ENROLLMENT =====
   React.useEffect(() => {
-    if (!courseId || !effectiveUserId || enrollmentsLoaded) return;
+    if (!courseId || !authUser?.id || enrollmentsLoaded) return;
     (async () => {
       try {
-        await fetchEnrollmentsByUser(String(effectiveUserId));
+        await fetchEnrollmentsByUser(String(authUser.id));
       } catch (err) {
         console.error(err);
       }
     })();
-  }, [courseId, effectiveUserId, enrollmentsLoaded, fetchEnrollmentsByUser]);
+  }, [courseId, authUser?.id, enrollmentsLoaded, fetchEnrollmentsByUser]);
 
   // ===== HANDLERS =====
   const onSubmit = async () => {
@@ -170,8 +167,8 @@ const LectureDiscussion: React.FC<Props> = ({ lessonId, courseId }) => {
                     </div>
 
                     {/* Xóa */}
-                    {effectiveUserId &&
-                      String(effectiveUserId) === String(c.appUserId) &&
+                    {authUser?.id &&
+                      String(authUser.id) === String(c.appUserId) &&
                       (isEnrolled || !courseId) && (
                         <button
                           onClick={() => onDelete(c.id)}
@@ -186,7 +183,7 @@ const LectureDiscussion: React.FC<Props> = ({ lessonId, courseId }) => {
                   {/* Nội dung / chỉnh sửa inline */}
                   {editingId === c.id ? (
                     <textarea
-                      className="mt-3 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      className="mt-3 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 line-clamp-2 focus:ring-sky-500"
                       value={editingText}
                       autoFocus
                       onChange={(e) => setEditingText(e.target.value)}
@@ -223,11 +220,11 @@ const LectureDiscussion: React.FC<Props> = ({ lessonId, courseId }) => {
                     />
                   ) : (
                     <p
-                      className="mt-3 text-sm text-gray-800 leading-relaxed whitespace-pre-wrap cursor-text hover:bg-gray-50 rounded-md p-1 transition"
+                      className="line-clamp-2 mt-3 text-sm text-gray-800 leading-relaxed whitespace-pre-wrap cursor-text hover:bg-gray-50 rounded-md p-1 transition"
                       onClick={() => {
                         if (
-                          effectiveUserId &&
-                          String(effectiveUserId) === String(c.appUserId) &&
+                          authUser?.id &&
+                          String(authUser.id) === String(c.appUserId) &&
                           (isEnrolled || !courseId)
                         ) {
                           onStartEdit(c);

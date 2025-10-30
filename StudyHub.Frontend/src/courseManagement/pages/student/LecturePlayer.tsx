@@ -7,7 +7,6 @@ import LectureFilters from "@/courseManagement/components/LectureFilters";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import type { LessonListDto } from "@/courseManagement/interfaces/types";
 import { useNavigate, useParams } from "react-router-dom";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import { Check, HelpCircle } from "lucide-react";
 import {
@@ -37,9 +36,7 @@ const LecturePlayer: React.FC = () => {
   const [_currentTime, setCurrentTime] = useState<number>(0);
   const [_durationSec, setDurationSec] = useState<number>(0);
   const ytPlayerRef = useRef<any | null>(null);
-  const currentUser = useAppUserStore((s: any) => s.appUser);
   const authUser = useAuthStore((s) => s.user);
-  const effectiveUserId = currentUser?.id ?? authUser?.id ?? null;
   const fetchEnrollmentsByUser = useEnrollmentStore((s: any) => s.fetchByUser);
   const getEnrollmentForCourse = useEnrollmentStore(
     (s: any) => s.getEnrollmentForCourse
@@ -130,7 +127,8 @@ const LecturePlayer: React.FC = () => {
     void _enrollAction;
     (async () => {
       try {
-        await fetchEnrollmentsByUser(String(effectiveUserId));
+        if (!authUser?.id) return;
+        await fetchEnrollmentsByUser(String(authUser.id));
       } catch (err) {
         // ignore
       }
@@ -147,7 +145,7 @@ const LecturePlayer: React.FC = () => {
   }, [
     cid,
     lid,
-    effectiveUserId,
+    authUser?.id,
     fetchChapters,
     fetchLesson,
     fetchEnrollmentsByUser,

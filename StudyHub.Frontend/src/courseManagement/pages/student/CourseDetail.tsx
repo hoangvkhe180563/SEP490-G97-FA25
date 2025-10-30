@@ -87,9 +87,7 @@ const CourseDetail: React.FC = () => {
     };
   }, [getAppUserById, selectedCourse?.createdBy]);
 
-  const currentUser = useAppUserStore((s) => s.appUser);
   const authUser = useAuthStore((s) => s.user);
-  const effectiveUserId = currentUser?.id ?? authUser?.id ?? null;
 
   const fetchEnrollmentsByUser = useEnrollmentStore((s) => s.fetchByUser);
   // subscribe directly to the enrollment for this course so the component re-renders
@@ -102,10 +100,10 @@ const CourseDetail: React.FC = () => {
   const getLessonCompleted = useEnrollmentStore((s) => s.getLessonCompleted);
 
   useEffect(() => {
-    if (!effectiveUserId || !courseId) return;
+    if (!authUser?.id || !courseId) return;
     (async () => {
       try {
-        await fetchEnrollmentsByUser(String(effectiveUserId));
+        await fetchEnrollmentsByUser(String(authUser.id));
         const newEnrollment = useEnrollmentStore
           .getState()
           .getEnrollmentForCourse(courseId);
@@ -116,7 +114,7 @@ const CourseDetail: React.FC = () => {
         console.error("Load enrollment progress failed", err);
       }
     })();
-  }, [effectiveUserId, courseId, fetchEnrollmentsByUser, fetchProgresses]);
+  }, [authUser?.id, courseId, fetchEnrollmentsByUser, fetchProgresses]);
 
   useEffect(() => {
     if (enrollment?.id) {
@@ -176,10 +174,10 @@ const CourseDetail: React.FC = () => {
     }
 
     // ensure enrollment and progresses are up-to-date when opening a chapter
-    if (!effectiveUserId) return;
+    if (!authUser?.id) return;
     (async () => {
       try {
-        await fetchEnrollmentsByUser(String(effectiveUserId));
+        await fetchEnrollmentsByUser(String(authUser.id));
         const found = useEnrollmentStore
           .getState()
           .getEnrollmentForCourse(courseId);
@@ -525,17 +523,15 @@ const CourseDetail: React.FC = () => {
                     <Button
                       onClick={async () => {
                         try {
-                          if (!effectiveUserId) return;
-                          console.log("Enrolling user", effectiveUserId);
+                          if (!authUser?.id) return;
+                          console.log("Enrolling user", authUser.id);
                           const payload = {
-                            appUserId: String(effectiveUserId),
+                            appUserId: String(authUser.id),
                             courseId,
                           };
                           await enrollAction(payload);
                           try {
-                            await fetchEnrollmentsByUser(
-                              String(effectiveUserId)
-                            );
+                            await fetchEnrollmentsByUser(String(authUser.id));
                             const found = useEnrollmentStore
                               .getState()
                               .getEnrollmentForCourse(courseId);

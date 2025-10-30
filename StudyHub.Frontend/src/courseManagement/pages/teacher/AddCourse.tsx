@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
-
 import {
   Card,
   CardContent,
@@ -37,9 +35,7 @@ const AddCourse: React.FC = () => {
   });
   const createCourse = useCourseStore((s) => s.createCourse);
   const uploadThumbnail = useCourseStore((s) => s.uploadThumbnail);
-  const currentUser = useAppUserStore((s) => s.appUser);
   const authUser = useAuthStore((s) => s.user);
-  const effectiveUserId = currentUser?.id ?? authUser?.id ?? null;
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -86,7 +82,7 @@ const AddCourse: React.FC = () => {
         message: "Vui lòng chọn môn học.",
       });
 
-    if (!effectiveUserId)
+    if (!authUser?.id)
       return setDialog({
         open: true,
         title: "Thiếu thông tin",
@@ -110,7 +106,7 @@ const AddCourse: React.FC = () => {
           ? new Date(startAt).toISOString()
           : new Date().toISOString(),
         endAt: endAt ? new Date(endAt).toISOString() : new Date().toISOString(),
-        createdBy: effectiveUserId,
+        createdBy: authUser?.id,
         isApproved: status === "Mở" ? false : true,
       };
 

@@ -34,6 +34,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (query.SubjectId.HasValue)
                     q = q.Where(c => c.SubjectId == query.SubjectId.Value);
 
+                if(query.SchoolId > 0)
+                    q = q.Where(c => c.SchoolId == query.SchoolId);
+
                 if (query.Grade.HasValue)
                     q = q.Where(c => c.Grade == query.Grade.Value);
 

@@ -24,6 +24,7 @@ import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import type { CourseListDto } from "@/courseManagement/types/api";
 import { documentService } from "@/documentManagement/services/documentService";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const CourseList: React.FC = () => {
   const courses = useCourseStore((s) => s.courses);
@@ -34,6 +35,7 @@ const CourseList: React.FC = () => {
   const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
   const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
+  const authUser = useAuthStore((s) => s.user);
 
   const totalPages = useMemo(() => {
     if (totalCourses && pageSize) {
@@ -80,7 +82,13 @@ const CourseList: React.FC = () => {
 
   const goToPage = (p: number) => {
     if (p >= 1 && p <= totalPages) {
-      fetchCourses({ page: p, pageSize: pageSize || 10, isApproved: true });
+      if (authUser?.schoolId)
+        fetchCourses({
+          page: p,
+          pageSize: pageSize || 10,
+          isApproved: true,
+          schoolId: authUser?.schoolId,
+        });
     }
   };
 
@@ -113,12 +121,18 @@ const CourseList: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        fetchCourses({ page: 1, pageSize: pageSize || 10, isApproved: true });
+        if (authUser?.schoolId)
+          fetchCourses({
+            page: 1,
+            pageSize: pageSize || 10,
+            isApproved: true,
+            schoolId: authUser?.schoolId,
+          });
       } catch (err) {
         console.error("Failed to load courses", err);
       }
     })();
-  }, [fetchCourses, pageSize]);
+  }, [fetchCourses, pageSize, authUser?.schoolId]);
 
   const shown: CourseType[] = (courses ?? []).map((c: CourseListDto) => ({
     id: c.id,

@@ -65,9 +65,7 @@ const EditCourse: React.FC = () => {
   const fetchChapter = useLectureStore((s) => s.fetchChapter);
   const deleteLessonStore = useLectureStore((s) => s.deleteLesson);
   const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
-  const currentUser = useAppUserStore((s) => s.appUser);
   const authUser = useAuthStore((s) => s.user);
-  const effectiveUserId = currentUser?.id ?? authUser?.id ?? null;
 
   const fetchCourseByIdRef = useRef(fetchCourseById);
   const fetchChaptersRef = useRef(fetchChapters);
@@ -510,7 +508,7 @@ const EditCourse: React.FC = () => {
                 setSaving(true);
                 try {
                   if (!updateCourse) return;
-                  if (!effectiveUserId)
+                  if (!authUser?.id)
                     return setDialog({
                       open: true,
                       title: "Thiếu thông tin",
@@ -550,7 +548,7 @@ const EditCourse: React.FC = () => {
                     startAt: startAt ? new Date(startAt).toISOString() : null,
                     endAt: endAt ? new Date(endAt).toISOString() : null,
                     updatedAt: new Date().toISOString(),
-                    UpdatedBy: effectiveUserId,
+                    UpdatedBy: authUser?.id,
                     isApproved: selectedCourse?.isApproved,
                   };
 

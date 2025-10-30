@@ -28,7 +28,7 @@ interface AuthState {
     username: string,
     email: string,
     password: string,
-    handlerSuccess: () => void
+    handlerSuccess: (data: AppUser) => void
   ) => Promise<void>;
   register: (
     username: string,

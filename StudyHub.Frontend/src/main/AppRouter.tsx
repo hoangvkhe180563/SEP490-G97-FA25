@@ -4,64 +4,43 @@ import forumRoutes from "@/forumManagement/routes/ForumRoutes";
 import RouteConfig from "@/common/constants/RouteConfig";
 import uiManagementRoutes from "@/uiManagement/routes/UiManagementRoutes";
 import userRoutes from "@/user/routes/UserRoutes";
-import { Outlet, useRoutes } from "react-router-dom";
+import { Outlet, useLocation, useNavigate, useRoutes } from "react-router-dom";
 import courseRoutes from "@/courseManagement/routes/CourseRoute";
-import MainLayout from "@/common/pages/MainLayout";
 import Homepage from "@/uiManagement/pages/Homepage";
-import {
-  guestSidebarItems,
-  uiManagerSidebarItems,
-} from "@/common/constants/SidebarItems";
 import authRoutes from "@/auth/routes/AuthRoutes";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
-import { useEffect } from "react";
-import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
+import { useEffect, useState } from "react";
+import GuestLayout from "@/common/pages/GuestLayout";
+import RegisteredLayout from "@/common/pages/RegisteredLayout";
 
 const AppRouter = () => {
-  const { isAuthenticated: isLoggedIn, checkAuth } = useAuthStore();
-  // subscribe to auth user so we can populate the app-user store when login happens
-  const authUser = useAuthStore((s) => s.user);
+  const { user, checkAuth } = useAuthStore();
+  const [authChecked, setAuthChecked] = useState<boolean>(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     (async () => {
       try {
         await checkAuth();
       } catch {
-        // ignore
+        console.log("lỗi authorization");
+      } finally {
+        setAuthChecked(true);
       }
     })();
   }, [checkAuth]);
 
   useEffect(() => {
-    if (!authUser || !authUser.id) return;
-    (async () => {
-      try {
-        await useAppUserStore.getState().getAppUserById(String(authUser.id));
-      } catch {
-        // ignore
-      }
-    })();
-  }, [authUser]);
-
-  useEffect(() => {
-    if (!authUser || !authUser.id) return;
-    (async () => {
-      try {
-        // call the store's fetchByUser to populate enrollments globally
-        await useEnrollmentStore.getState().fetchByUser(String(authUser.id));
-      } catch {
-        // ignore
-      }
-    })();
-  }, [authUser]);
+    if (authChecked && !user && !location.pathname.includes("/auth")) {
+      navigate("/");
+    }
+  }, [authChecked]);
 
   const appRoutes = [
     {
       path: "/",
-      element: (
-        <MainLayout isLoggedIn={isLoggedIn} sidebarItems={guestSidebarItems} />
-      ),
+      element: user ? <RegisteredLayout user={user} /> : <GuestLayout />,
       children: [
         {
           index: true,
@@ -76,44 +55,34 @@ const AppRouter = () => {
     },
     {
       path: RouteConfig.USER,
-      element: <Outlet />,
+      element: <RegisteredLayout user={user} />,
       children: userRoutes,
     },
     {
       path: RouteConfig.UI_MANAGEMENT,
-      element: (
-        <MainLayout
-          isLoggedIn={isLoggedIn}
-          sidebarItems={uiManagerSidebarItems}
-        />
-      ),
+      element: <RegisteredLayout user={user} />,
       children: uiManagementRoutes,
     },
     {
       path: RouteConfig.CLASS_MANAGEMENT,
-      element: <Outlet />,
+      element: <RegisteredLayout user={user} />,
       children: classRoutes,
     },
     {
       path: RouteConfig.DOCUMENT_MANAGEMENT,
-      element: <Outlet />,
+      element: <RegisteredLayout user={user} />,
       children: documentRoutes,
     },
     {
       path: RouteConfig.COURSE_MANAGEMENT,
-      element: (
-        <MainLayout
-          isLoggedIn={isLoggedIn}
-          sidebarItems={uiManagerSidebarItems}
-        />
-      ),
+      element: <RegisteredLayout user={user} />,
       children: courseRoutes,
     },
-    // {
-    //   path: RouteConfig.FORUM_MANAGEMENT,
-    //   element: <Outlet />,
-    //   children: forumRoutes,
-    // },
+    {
+      path: RouteConfig.FORUM_MANAGEMENT,
+      element: <RegisteredLayout user={user} />,
+      children: forumRoutes,
+    },
   ];
 
   const routesElement = useRoutes(appRoutes);

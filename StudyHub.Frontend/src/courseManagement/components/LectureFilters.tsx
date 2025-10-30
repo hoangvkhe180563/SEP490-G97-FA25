@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import type { ChapterListDto, LessonListDto } from "../types/api";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import RouteConfig from "@/common/constants/RouteConfig";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
@@ -23,9 +22,7 @@ const LectureFilters: React.FC = () => {
     if (cid) fetchChapters(cid);
   }, [cid, fetchChapters]);
 
-  const currentUser = useAppUserStore((s) => s.appUser);
   const authUser = useAuthStore((s) => s.user);
-  const effectiveUserId = currentUser?.id ?? authUser?.id ?? null;
   const fetchEnrollmentsByUser = useEnrollmentStore((s) => s.fetchByUser);
 
   const enrollAction = useEnrollmentStore((s) => s.enroll);
@@ -41,13 +38,13 @@ const LectureFilters: React.FC = () => {
   );
 
   useEffect(() => {
-    if (!effectiveUserId) return;
+    if (!authUser?.id) return;
 
     (async () => {
       try {
         // fetch enrollments if not already loaded globally
         if (!enrollmentsLoaded) {
-          await fetchEnrollmentsByUser(String(effectiveUserId));
+          await fetchEnrollmentsByUser(String(authUser.id));
         }
 
         // if we already have an enrollment for this course, ensure progresses are loaded
@@ -63,7 +60,7 @@ const LectureFilters: React.FC = () => {
       }
     })();
   }, [
-    effectiveUserId,
+    authUser?.id,
     fetchEnrollmentsByUser,
     enrollment,
     cid,
@@ -91,13 +88,13 @@ const LectureFilters: React.FC = () => {
           <button
             onClick={async () => {
               try {
-                if (!effectiveUserId) {
+                if (!authUser?.id) {
                   // not logged in -> go to login
                   navigate(`${RouteConfig.AUTH}/login`);
                   return;
                 }
                 const created = await enrollAction({
-                  appUserId: String(effectiveUserId),
+                  appUserId: String(authUser.id),
                   courseId: cid,
                 });
                 // enrollAction appends the created enrollment into the store; ensure progresses are loaded

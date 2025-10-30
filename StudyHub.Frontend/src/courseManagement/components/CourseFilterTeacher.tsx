@@ -11,6 +11,7 @@ import {
 } from "@/common/components/ui/select";
 import { Link } from "react-router-dom";
 import { documentService } from "@/documentManagement/services/documentService";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const CourseFilterTeacher: React.FC = () => {
   const [q, setQ] = useState("");
@@ -21,6 +22,7 @@ const CourseFilterTeacher: React.FC = () => {
   const [status, setStatus] = useState<string>("all");
 
   const fetchCourses = useCourseStore((s) => s.fetchCourses);
+  const authUser = useAuthStore((s) => s.user);
 
   const fetchSubjects = async () => {
     const res = await documentService.getSubjects();
@@ -33,18 +35,20 @@ const CourseFilterTeacher: React.FC = () => {
     fetchSubjects();
 
     const handler = setTimeout(() => {
-      fetchCourses({
-        page: 1,
-        pageSize: 6,
-        q: q.trim() || undefined,
-        subjectId: subjects !== "all" ? Number(subjects) : undefined,
-        status: status !== "all" ? status : undefined,
-        isApproved: true,
-      });
+      if (authUser?.schoolId)
+        fetchCourses({
+          page: 1,
+          pageSize: 6,
+          q: q.trim() || undefined,
+          subjectId: subjects !== "all" ? Number(subjects) : undefined,
+          schoolId: authUser?.schoolId,
+          status: status !== "all" ? status : undefined,
+          isApproved: true,
+        });
     }, 300);
 
     return () => clearTimeout(handler);
-  }, [q, subjects, status, fetchCourses]);
+  }, [q, subjects, status, fetchCourses, authUser?.schoolId]);
 
   return (
     <div className="bg-white rounded-md shadow-sm p-4 mb-4">
