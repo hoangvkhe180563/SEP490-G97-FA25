@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
+import { useAppUserStore } from "@/user/stores/useAppUserStore";
 
 import {
   Card,
@@ -20,61 +21,126 @@ import {
 } from "@/common/components/ui/select";
 import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
-import { ArrowLeft, Upload } from "lucide-react";
+import { ArrowLeft, Loader2, Upload } from "lucide-react";
 import { documentService } from "@/documentManagement/services/documentService";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
+import type { DialogProps } from "@/courseManagement/components/AppDialog";
+import { AppDialog } from "@/courseManagement/components/AppDialog";
 
 const AddCourse: React.FC = () => {
   const navigate = useNavigate();
-  const [isPublished, setIsPublished] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [dialog, setDialog] = useState<DialogProps>({
+    open: false,
+    title: "",
+    message: "",
+  });
   const createCourse = useCourseStore((s) => s.createCourse);
   const uploadThumbnail = useCourseStore((s) => s.uploadThumbnail);
+  const currentUser = useAppUserStore((s) => s.appUser);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [saving, setSaving] = useState(false);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
   const [price, setPrice] = useState<number | "">("");
-  const [gradeId, setGradeId] = useState<number | "">("");
-  const [isFeatured, setIsFeatured] = useState<boolean>(false);
-  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
-  const [subjectId, setSubjectId] = useState<number | null>(null);
-  const [teachers, setTeachers] = React.useState<any[]>([]);
-  const [selectedInstructor, setSelectedInstructor] = React.useState<
-    string | null
-  >(null);
-  const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
+  const [grade, setGrade] = useState<number | "">("");
+  const [SubjectId, setSubjectId] = useState<number | null>(null);
+  const [schoolId, setSchoolId] = useState<number | null>(null);
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [status, setStatus] = useState<string | "">("");
+  const [startAt, setStartAt] = useState("");
+  const [endAt, setEndAt] = useState("");
+  // const [createdBy, setCreatedBy] = useState("");
 
-  React.useEffect(() => {
-    const load = async () => {
-      try {
-        const s = await documentService.getSubjects();
-        setSubjects(s || []);
-      } catch (err) {
-        console.error("Failed to load subjects", err);
-      }
-    };
+  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
+
+  const load = async () => {
+    try {
+      const s = await documentService.getSubjects();
+      setSubjects(s || []);
+    } catch (err) {
+      console.error("Failed to load subjects", err);
+    }
+  };
+
+  useEffect(() => {
     load();
   }, []);
 
-  React.useEffect(() => {
-    // load teachers for instructor selection
-    const loadTeachers = async () => {
-      try {
-        const res = await filterAppUsers("role=Teacher&page=1&limit=200");
-        const items = res?.users ?? [];
-        setTeachers(items);
-      } catch (err) {
-        console.error("Failed to load teachers", err);
+  const handleCreate = async () => {
+    if (!title)
+      return setDialog({
+        open: true,
+        title: "Thiếu thông tin",
+        message: "Vui lòng nhập tên khóa học.",
+      });
+
+    if (!SubjectId)
+      return setDialog({
+        open: true,
+        title: "Thiếu thông tin",
+        message: "Vui lòng chọn môn học.",
+      });
+
+    if (!currentUser?.id)
+      return setDialog({
+        open: true,
+        title: "Thiếu thông tin",
+        message: "Bạn chưa đăng nhập.",
+      });
+
+    setSaving(true);
+    try {
+      const dto = {
+        name: title,
+        information: description || null,
+        imageUrl: thumbnailPreview ?? null,
+        price: price ? Number(price) : 0,
+        grade: grade ? Number(grade) : 0,
+        SubjectId: SubjectId,
+        schoolId: schoolId ?? null,
+        isFeatured: isFeatured,
+        status: status,
+        createdAt: new Date().toISOString(),
+        startAt: startAt
+          ? new Date(startAt).toISOString()
+          : new Date().toISOString(),
+        endAt: endAt ? new Date(endAt).toISOString() : new Date().toISOString(),
+        createdBy: String(currentUser.id),
+        isApproved: status === "Mở" ? false : true,
+      };
+
+      const created = await createCourse(dto);
+      if (created && created.id) {
+        setDialog({
+          open: true,
+          title: "Thành công",
+          message: "Tạo khóa học thành công.",
+          navigateTo: "/course/teacher/courses", // chỉ định trang chuyển hướng
+        });
+      } else {
+        setDialog({
+          open: true,
+          title: "Thất bại",
+          message: "Tạo khóa học thất bại. Vui lòng thử lại.",
+        });
       }
-    };
-    loadTeachers();
-  }, [filterAppUsers]);
+    } catch (err) {
+      console.error("create course failed", err);
+      setDialog({
+        open: true,
+        title: "Lỗi hệ thống",
+        message: "Có lỗi xảy ra khi tạo khóa học.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="flex-1 overflow-auto bg-white">
-      <div className="max-w-[1200px] mx-auto px-8 py-6">
+    <div className="max-w-[1200px] mx-auto px-8 py-6 h-full flex flex-col">
+      <div>
         {/* Breadcrumb */}
         <div className="text-sm text-[#525252] mb-3">
           Khóa học / Thêm khóa học
@@ -95,7 +161,7 @@ const AddCourse: React.FC = () => {
                 Thêm khóa học
               </h1>
               <p className="text-sm text-[#525252]">
-                Chỉnh sửa thông tin và nội dung khóa học
+                Thêm khóa học mới cho học sinh của bạn
               </p>
             </div>
           </div>
@@ -107,366 +173,285 @@ const AddCourse: React.FC = () => {
             >
               Hủy
             </Button>
-            <Button
-              onClick={async () => {
-                if (!title)
-                  return alert("Vui lòng cung cấp tiêu đề cho khóa học.");
-                if (!selectedInstructor)
-                  return alert("Vui lòng chọn giảng viên cho khóa học.");
-                setSaving(true);
-                try {
-                  const dto: any = {
-                    name: title,
-                    information: description,
-                    imageUrl: thumbnailPreview ?? "none",
-                    price: price,
-                    grade: gradeId ? Number(gradeId) : 0,
-                    category: subjectId ? Number(subjectId) : 0, // backend dùng "category" thay vì "subjectId"
-                    schoolId: 0,
-                    isFeatured: isFeatured,
-                    status: isPublished,
-                    createdAt: new Date().toISOString(),
-                    instructorName: selectedInstructor, // selected instructor id (guid)
-                    updatedAt: new Date().toISOString(),
-                    updatedBy: selectedInstructor,
-                    deletedAt: new Date().toISOString(),
-                    chapters: [],
-                  };
-
-                  const created = createCourse
-                    ? await createCourse(dto)
-                    : undefined;
-
-                  if (created && created.id) {
-                    navigate(`/course/teacher/courses`);
-                  } else {
-                    alert("Tạo khóa học thất bại");
-                  }
-                } catch (err) {
-                  console.error("create course failed", err);
-                  alert("Tạo khóa học thất bại");
-                } finally {
-                  setSaving(false);
-                }
-              }}
-              disabled={saving}
-            >
+            <Button onClick={handleCreate} disabled={saving}>
               {saving ? "Đang tạo..." : "Tạo khóa học"}
             </Button>
           </div>
         </div>
+      </div>
+      <div className="grid grid-cols-12 gap-8 overflow-y-auto flex-1 scrollbar-hide">
+        {/* Left Column */}
+        <div className="col-span-12 lg:col-span-8">
+          <Card className="shadow-sm border border-gray-100">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-[#171717]">
+                🧾 Thông tin cơ bản
+              </CardTitle>
+              <CardDescription>
+                Vui lòng điền đầy đủ các trường bên dưới
+              </CardDescription>
+            </CardHeader>
 
-        <div className="grid grid-cols-12 gap-8">
-          {/* Left Column */}
-          <div className="col-span-12 lg:col-span-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Thông tin cơ bản</CardTitle>
-                <CardDescription>
-                  Nhập các chi tiết cốt lõi của khóa học
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {/* Course Title */}
+            <CardContent>
+              <div className="space-y-6">
+                {/* Tên khóa học */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Tên khóa học</Label>
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Nhập tên khóa học..."
+                    className="h-10"
+                  />
+                </div>
+
+                {/* Mô tả */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Mô tả</Label>
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Viết mô tả ngắn gọn về khóa học..."
+                    className="min-h-[100px]"
+                  />
+                </div>
+
+                {/* Môn học + Khối lớp */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label>Tên khóa học</Label>
-                    <Input
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Nhập tên khóa học"
-                    />
+                    <Label className="text-sm font-medium">Môn học</Label>
+                    <Select
+                      value={SubjectId ? String(SubjectId) : ""}
+                      onValueChange={(v) => setSubjectId(Number(v))}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Chọn môn học" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {subjects.map((s) => (
+                          <SelectItem key={s.id} value={String(s.id)}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  {/* Description */}
                   <div className="space-y-2">
-                    <Label>Mô tả ngắn</Label>
-                    <Textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Mô tả những gì học sinh sẽ học trong khóa học này"
-                      rows={4}
-                    />
-                  </div>
-
-                  {/* Subject & Grade */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label>Chủ đề</Label>
-                      <Select
-                        value={subjectId ? String(subjectId) : ""}
-                        onValueChange={(value) => setSubjectId(Number(value))}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Chọn chủ đề" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {subjects.map((s) => (
-                            <SelectItem key={s.id} value={String(s.id)}>
-                              {s.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Khối lớp</Label>
-                      <Select
-                        value={String(gradeId)}
-                        onValueChange={(v) =>
-                          setGradeId(v === "" ? "" : Number(v))
-                        }
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Chọn khối lớp" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((g) => (
-                            <SelectItem key={g} value={String(g)}>
-                              {g}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <Label className="text-sm font-medium">Khối lớp</Label>
+                    <Select
+                      value={String(grade)}
+                      onValueChange={(v) => setGrade(v === "" ? "" : Number(v))}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Chọn khối lớp" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((g) => (
+                          <SelectItem key={g} value={String(g)}>
+                            Lớp {g}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>Phương tiện truyền thông khóa học</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div>
-                    <Label className="font-semibold text-base text-gray-800">
-                      Hình thu nhỏ khóa học
-                    </Label>
+                {/* Ngày bắt đầu / kết thúc */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Ngày bắt đầu</Label>
+                    <Input
+                      type="date"
+                      value={startAt}
+                      onChange={(e) => setStartAt(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
 
-                    {/* Vùng xem trước ảnh */}
-                    <div
-                      className={`mt-3 relative flex items-center justify-center rounded-xl border-2 border-dashed 
-        ${thumbnailPreview ? "border-transparent" : "border-gray-300"} 
-        bg-gray-50 hover:bg-gray-100 transition h-52 overflow-hidden`}
-                    >
-                      {thumbnailPreview ? (
-                        <>
-                          <img
-                            src={thumbnailPreview}
-                            alt="Thumbnail preview"
-                            className="h-full w-full object-cover rounded-xl"
-                          />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition flex items-center justify-center">
-                            <p className="text-white text-sm font-medium">
-                              Nhấn “Tải lên hình ảnh mới” để thay đổi
-                            </p>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center text-center">
-                          <Upload className="w-10 h-10 text-gray-400 mb-3" />
-                          <p className="text-gray-600 font-medium">
-                            Chưa có hình thu nhỏ
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            (JPG, PNG, tối đa 5MB)
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Ngày kết thúc</Label>
+                    <Input
+                      type="date"
+                      value={endAt}
+                      onChange={(e) => setEndAt(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Phương tiện truyền thông khóa học</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div>
+                  <Label className="font-semibold text-base text-gray-800">
+                    Hình thu nhỏ khóa học
+                  </Label>
+
+                  {/* Vùng xem trước ảnh */}
+                  <div
+                    className={`mt-3 relative flex items-center justify-center rounded-xl border-2 border-dashed 
+                                ${
+                                  thumbnailPreview
+                                    ? "border-transparent"
+                                    : "border-gray-300"
+                                } 
+                                bg-gray-50 hover:bg-gray-100 transition h-52 overflow-hidden`}
+                  >
+                    {thumbnailPreview ? (
+                      <>
+                        <img
+                          src={thumbnailPreview}
+                          alt="Thumbnail preview"
+                          className="h-full w-full object-cover rounded-xl"
+                        />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition flex items-center justify-center">
+                          <p className="text-white text-sm font-medium">
+                            Nhấn “Tải lên hình ảnh mới” để thay đổi
                           </p>
                         </div>
-                      )}
-                    </div>
-
-                    {/* Input + Button */}
-                    <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-3">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        id="thumbnailInput"
-                        className="block w-full text-sm text-gray-700
-            file:mr-4 file:py-2.5 file:px-4
-            file:rounded-lg file:border-0
-            file:font-medium file:bg-[#f28d3d] file:text-white
-            hover:file:bg-[#e77c1e] cursor-pointer
-            file:transition-all"
-                        onChange={(e) => {
-                          const f = e.target.files && e.target.files[0];
-                          if (f) {
-                            setThumbnailFile(f);
-                            setThumbnailPreview(URL.createObjectURL(f));
-                          } else {
-                            setThumbnailFile(null);
-                            setThumbnailPreview(null);
-                          }
-                        }}
-                      />
-
-                      <Button
-                        variant="outline"
-                        className="border-[#f28d3d] text-[#f28d3d] hover:bg-[#f28d3d] hover:text-white font-medium transition-all"
-                        onClick={async () => {
-                          if (!thumbnailFile)
-                            return alert(
-                              "Vui lòng chọn ảnh trước khi tải lên."
-                            );
-                          try {
-                            const url = await uploadThumbnail(thumbnailFile);
-                            setThumbnailPreview(url);
-                            alert("Tải lên thành công!");
-                          } catch (err) {
-                            console.error("Upload failed", err);
-                            alert("Upload hình thất bại");
-                          }
-                        }}
-                      >
-                        Tải lên hình ảnh mới
-                      </Button>
-                    </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-center">
+                        <Upload className="w-10 h-10 text-gray-400 mb-3" />
+                        <p className="text-gray-600 font-medium">
+                          Chưa có hình thu nhỏ
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          (JPG, PNG, tối đa 5MB)
+                        </p>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Input + Button */}
+                  <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="thumbnailInput"
+                      className="block w-full text-sm text-gray-700
+                                  file:mr-4 file:py-2.5 file:px-4
+                                  file:rounded-lg file:border-0
+                                  file:font-medium file:bg-[#f28d3d] file:text-white
+                                  hover:file:bg-[#e77c1e] cursor-pointer
+                                  file:transition-all"
+                      onChange={(e) => {
+                        const f = e.target.files && e.target.files[0];
+                        if (f) {
+                          setThumbnailFile(f);
+                          setThumbnailPreview(URL.createObjectURL(f));
+                        } else {
+                          setThumbnailFile(null);
+                          setThumbnailPreview(null);
+                        }
+                      }}
+                    />
+
+                    <Button
+                      variant="outline"
+                      className="border-[#f28d3d] text-[#f28d3d] hover:bg-[#f28d3d] hover:text-white font-medium transition-all"
+                      onClick={async () => {
+                        if (!thumbnailFile)
+                          return setDialog({
+                            open: true,
+                            title: "Quên chưa chọn ảnh",
+                            message: "Vui lòng chọn ảnh trước khi tải lên.",
+                          });
+                        try {
+                          setThumbnailUploading(true);
+                          const url = await uploadThumbnail(thumbnailFile);
+                          setThumbnailPreview(url);
+                          setDialog({
+                            open: true,
+                            title: "Thành công",
+                            message: "Tải lên hình ảnh thành công.",
+                          });
+                        } catch (err) {
+                          console.error("Upload failed", err);
+                          setDialog({
+                            open: true,
+                            title: "Thất bại",
+                            message: "Có lỗi xảy ra khi tải lên hình ảnh.",
+                          });
+                        } finally {
+                          setThumbnailUploading(false);
+                        }
+                      }}
+                    >
+                      {thumbnailUploading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Đang tải...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4" />
+                          Tải lên
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column */}
+        <aside className="col-span-12 lg:col-span-4">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Cài đặt khóa học</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Giá khóa học</Label>
+                  <Input
+                    type="number"
+                    value={price || ""}
+                    onChange={(e) => setPrice(Number(e.target.value))}
+                    placeholder="0"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Trạng thái</Label>
+                  <Select value={status} onValueChange={(v) => setStatus(v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Chọn trạng thái" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Mở">Đang mở</SelectItem>
+                      <SelectItem value="Nháp">Nháp</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isFeatured}
+                    onChange={(e) => setIsFeatured(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <Label>Khóa học nổi bật</Label>
                 </div>
               </CardContent>
             </Card>
           </div>
-
-          {/* Right Column */}
-          <aside className="col-span-12 lg:col-span-4">
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Cài đặt khóa học</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="space-y-4">
-                      <Label className="font-medium text-base text-gray-800">
-                        Giá khóa học
-                      </Label>
-                      <div className="relative mt-1 w-full flex items-center">
-                        <span className="absolute left-3 text-gray-500 text-sm top-1/2 -translate-y-1/2">
-                          VNĐ
-                        </span>
-
-                        <Input
-                          type="number"
-                          min={0}
-                          step={1000}
-                          placeholder="0"
-                          className="pl-14 pr-3 py-2 text-right text-base font-semibold text-gray-800 tracking-wide"
-                          value={price || ""}
-                          onChange={(e) => setPrice(Number(e.target.value))}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4"
-                        checked={isFeatured}
-                        onChange={(e) => setIsFeatured(e.target.checked)}
-                      />
-                      <Label>Khóa học nổi bật</Label>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2">
-                      <span className="text-sm text-[#404040]">
-                        Đã xuất bản
-                      </span>
-                      <button
-                        onClick={() => setIsPublished(!isPublished)}
-                        className={`w-12 h-6 rounded-full transition-colors ${
-                          isPublished ? "bg-[#171717]" : "bg-[#D4D4D4]"
-                        }`}
-                      >
-                        <div
-                          className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                            isPublished ? "translate-x-6" : "translate-x-1"
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Giảng viên</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="space-y-4">
-                      <Label>Giảng viên chính</Label>
-                      <Select
-                        value={selectedInstructor ?? ""}
-                        onValueChange={(v) => setSelectedInstructor(v || null)}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Chọn giảng viên" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {teachers.map((t) => (
-                            <SelectItem key={t.id} value={String(t.id)}>
-                              {t.fullname ?? t.username ?? t.email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {selectedInstructor ? (
-                      <div className="bg-[#FAFAFA] rounded-lg p-3 flex items-center gap-3">
-                        <img
-                          src={
-                            teachers.find(
-                              (t) => String(t.id) === selectedInstructor
-                            )?.avatarUrl ??
-                            "https://api.builder.io/api/v1/image/assets/TEMP/ad7da240b72ac1157e7a1043cd1b1821bb4369b1?width=80"
-                          }
-                          alt="Instructor"
-                          className="w-10 h-10 rounded-full"
-                        />
-                        <div>
-                          <div className="text-sm text-[#171717]">
-                            {teachers.find(
-                              (t) => String(t.id) === selectedInstructor
-                            )?.fullname ?? "Giảng viên"}
-                          </div>
-                          <div className="text-xs text-[#737373]">
-                            {teachers.find(
-                              (t) => String(t.id) === selectedInstructor
-                            )?.bio ?? "Giảng viên"}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="bg-[#FAFAFA] rounded-lg p-3 flex items-center gap-3">
-                        <img
-                          src="https://api.builder.io/api/v1/image/assets/TEMP/ad7da240b72ac1157e7a1043cd1b1821bb4369b1?width=80"
-                          alt="Chọn giảng viên"
-                          className="w-10 h-10 rounded-full opacity-70"
-                        />
-                        <div>
-                          <div className="text-sm font-medium text-[#171717]">
-                            Hãy chọn giảng viên
-                          </div>
-                          <div className="text-xs text-[#737373]">
-                            Chưa có giảng viên được chọn
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </aside>
-        </div>
+        </aside>
       </div>
+      <AppDialog dialog={dialog} setDialog={setDialog} />
     </div>
   );
 };
 
 export default AddCourse;
-
-// small helper used in page to navigate to add-lecture

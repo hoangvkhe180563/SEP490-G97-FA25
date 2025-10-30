@@ -24,12 +24,13 @@ public class CourseController : ControllerBase
     public IActionResult GetAll(
         [FromQuery] string? q,
         [FromQuery] short? subjectId,
-        [FromQuery] string? subjects,
         [FromQuery] sbyte? grade,
-        [FromQuery] string? duration,
+        [FromQuery] int? minDuration,
+        [FromQuery] int? maxDuration,
         [FromQuery] Guid? instructor,
         [FromQuery] string? status,
         [FromQuery] bool? isFeatured,
+        [FromQuery] bool? isApproved,
         [FromQuery] string? sort,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10)
@@ -38,18 +39,19 @@ public class CourseController : ControllerBase
         {
             Q = q,
             SubjectId = subjectId,
-            Subjects = subjects,
             Sort = sort,
             Grade = grade,
-            Duration = duration,
+            minDuration = minDuration,
+            maxDuration = maxDuration,
             Instructor = instructor,
             Status = status,
             IsFeatured = isFeatured,
+            IsApproved = isApproved,
             Page = page,
             PageSize = pageSize
         };
 
-        var result = _service.SearchCourses(query);
+        var result = _service.GetAllCourses(query);
 
         var dto = new PagedResult<CourseListDto>
         {
@@ -74,22 +76,19 @@ public class CourseController : ControllerBase
 
     // ===================== CREATE =====================
     [HttpPost]
-    public IActionResult Create([FromBody] CourseDetailDto dto)
+    public IActionResult Create([FromBody] CourseDto dto)
     {
         if (dto == null)
             return BadRequest("Course data is required.");
 
         var entity = dto.ToEntity();
-        entity.CreatedAt = DateTime.UtcNow;
-        entity.UpdatedAt = DateTime.UtcNow;
-
         var created = _service.CreateCourse(entity);
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created.ToListDto());
     }
 
     // ===================== UPDATE =====================
     [HttpPut("{id}")]
-    public IActionResult Update(int id, [FromBody] CourseDetailDto dto)
+    public IActionResult Update(int id, [FromBody] CourseDto dto)
     {
         if (dto == null)
             return BadRequest("Course data is required.");
@@ -104,12 +103,15 @@ public class CourseController : ControllerBase
         existing.ImageUrl = dto.ImageUrl;
         existing.Price = dto.Price;
         existing.Grade = dto.Grade;
-        existing.SubjectId = dto.Category;
+        existing.SubjectId = dto.SubjectId;
         existing.SchoolId = dto.SchoolId;
         existing.IsFeatured = dto.IsFeatured;
         existing.Status = dto.Status;
+        existing.StartAt = dto.StartAt;
+        existing.EndAt = dto.EndAt;
         existing.UpdatedAt = DateTime.UtcNow;
         existing.UpdatedBy = dto.UpdatedBy;
+        existing.IsApproved = dto.IsApproved;
 
         // Chapters
         if (dto.Chapters != null && dto.Chapters.Any())
@@ -118,7 +120,7 @@ public class CourseController : ControllerBase
         }
 
         var updated = _service.UpdateCourse(existing);
-        return Ok(updated.ToDetailDto());
+        return Ok(updated.ToDto());
     }
 
     // ===================== DELETE =====================

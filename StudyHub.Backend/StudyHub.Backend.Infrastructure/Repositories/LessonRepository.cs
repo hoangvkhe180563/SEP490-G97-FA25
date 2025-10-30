@@ -1,5 +1,4 @@
 ﻿using StudyHub.Backend.Domain.Entities;
-using Data = StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using Microsoft.EntityFrameworkCore;
@@ -203,6 +202,137 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 new InfrastructureException("LessonRepository", "DeleteLesson failed. Inner error: " + ex.Message).LogError();
                 return false;
+            }
+        }
+
+        // ==========================
+        // Lesson comment methods
+        // ==========================
+        public List<Domain.Entities.LessonComment> GetCommentsByLessonId(int lessonId)
+        {
+            try
+            {
+                return _context.LessonComments
+                    .Where(c => c.LessonId == lessonId && c.DeletedAt == null)
+                    .OrderByDescending(c => c.CreatedAt)
+                    .Select(c => new Domain.Entities.LessonComment
+                    {
+                        Id = c.Id,
+                        LessonId = c.LessonId,
+                        AppUserId = c.AppUserId,
+                        Content = c.Content,
+                        CreatedAt = c.CreatedAt,
+                        UpdatedAt = c.UpdatedAt,
+                        DeletedAt = c.DeletedAt,
+                        AppUser = new Domain.Entities.AppUser
+                        {
+                            Id = c.AppUser.Id,
+                            Fullname = c.AppUser.Fullname,
+                            Avatar = c.AppUser.Avatar
+                        }
+                    }).ToList();
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("LessonRepository", "GetCommentsByLessonId failed. Inner error: " + ex.Message).LogError();
+                return new List<Domain.Entities.LessonComment>();
+            }
+        }
+
+        public Domain.Entities.LessonComment? GetCommentById(int id)
+        {
+            try
+            {
+                var c = _context.LessonComments.FirstOrDefault(x => x.Id == id && x.DeletedAt == null);
+                if (c == null) return null;
+                return new Domain.Entities.LessonComment
+                {
+                    Id = c.Id,
+                    LessonId = c.LessonId,
+                    AppUserId = c.AppUserId,
+                    Content = c.Content,
+                    CreatedAt = c.CreatedAt,
+                    UpdatedAt = c.UpdatedAt,
+                    DeletedAt = c.DeletedAt,
+                    AppUser = new Domain.Entities.AppUser
+                    {
+                        Id = c.AppUser.Id,
+                        Fullname = c.AppUser.Fullname,
+                        Avatar = c.AppUser.Avatar
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("LessonRepository", "GetCommentById failed. Inner error: " + ex.Message).LogError();
+                return null;
+            }
+        }
+
+        public Domain.Entities.LessonComment CreateComment(Domain.Entities.LessonComment comment)
+        {
+            try
+            {
+                var entity = new Data.LessonComment
+                {
+                    LessonId = comment.LessonId,
+                    AppUserId = comment.AppUserId,
+                    Content = comment.Content,
+                    CreatedAt = comment.CreatedAt == default ? DateTime.UtcNow : comment.CreatedAt
+                };
+
+                _context.LessonComments.Add(entity);
+                _context.SaveChanges();
+
+                comment.Id = entity.Id;
+                comment.CreatedAt = entity.CreatedAt;
+                return comment;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("LessonRepository", "CreateComment failed. Inner error: " + ex.Message).LogError();
+                return comment;
+            }
+        }
+
+        public bool DeleteComment(int id, Guid userId)
+        {
+            try
+            {
+                var entity = _context.LessonComments.FirstOrDefault(c => c.Id == id && c.DeletedAt == null);
+                if (entity == null) return false;
+                if (entity.AppUserId != userId) return false;
+                entity.DeletedAt = DateTime.UtcNow;
+                _context.SaveChanges();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("LessonRepository", "DeleteComment failed. Inner error: " + ex.Message).LogError();
+                return false;
+            }
+        }
+
+        public Domain.Entities.LessonComment UpdateComment(Domain.Entities.LessonComment comment)
+        {
+            try
+            {
+                var entity = _context.LessonComments.FirstOrDefault(c => c.Id == comment.Id && c.DeletedAt == null);
+                if (entity == null) return comment;
+                // do not allow someone else to update (controller should check but double-checking here)
+                if (entity.AppUserId != comment.AppUserId) return comment;
+
+                entity.Content = comment.Content;
+                entity.UpdatedAt = DateTime.UtcNow;
+                _context.SaveChanges();
+
+                comment.UpdatedAt = entity.UpdatedAt;
+                return comment;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("LessonRepository", "UpdateComment failed. Inner error: " + ex.Message).LogError();
+                return comment;
             }
         }
     }

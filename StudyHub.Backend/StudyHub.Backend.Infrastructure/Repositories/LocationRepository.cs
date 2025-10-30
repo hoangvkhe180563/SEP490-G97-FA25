@@ -67,6 +67,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Name = s.Name,
                 }).ToList();
         }
+
+        
+
+       
         public DomainEntities.School? GetSchoolById(int? schoolId)
         {
             var school = _context.Schools.Find(schoolId);

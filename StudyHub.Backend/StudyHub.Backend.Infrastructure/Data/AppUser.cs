@@ -59,9 +59,7 @@ public partial class AppUser
 
     public DateTime? DeletedAt { get; set; }
 
-    public virtual ICollection<AppClaim> AppClaims { get; set; } = new List<AppClaim>();
-
-    public virtual ICollection<ClassMember> ClassMembers { get; set; } = new List<ClassMember>();
+    public virtual ICollection<AppUserSubjectClass> AppUserSubjectClasses { get; set; } = new List<AppUserSubjectClass>();
 
     public virtual ICollection<ClassNotificationComment> ClassNotificationComments { get; set; } = new List<ClassNotificationComment>();
 
@@ -72,4 +70,8 @@ public partial class AppUser
     public virtual Commune? Commune { get; set; }
 
     public virtual ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
+
+    public virtual ICollection<LessonComment> LessonComments { get; set; } = new List<LessonComment>();
+
+    public virtual ICollection<AppRole> Roles { get; set; } = new List<AppRole>();
 }

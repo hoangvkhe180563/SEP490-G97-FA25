@@ -8,4 +8,10 @@ namespace StudyHub.Backend.Api.Dtos.CourseDTOS
         public IFormFile File { get; set; }
     }
 
+    public class UploadResourceDto
+    {
+        [FromForm(Name = "file")]
+        public IFormFile File { get; set; }
+    }
+
 }

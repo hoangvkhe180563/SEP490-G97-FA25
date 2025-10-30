@@ -8,7 +8,6 @@
         public string? Description { get; set; }
         public DateTime CreatedAt { get; set; }
 
-        public List<MemberDto> Members { get; set; } = new();
         public List<NotificationDto> Notifications { get; set; } = new();
     }
 }

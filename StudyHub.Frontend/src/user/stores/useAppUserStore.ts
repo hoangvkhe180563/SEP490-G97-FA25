@@ -3,8 +3,7 @@ import type { AppUserState } from "../interfaces/stores";
 import { axiosInstance, axiosMessageErrorHandler } from "@/lib/axios";
 import { devtools } from "zustand/middleware";
 import type { AppUser } from "../interfaces/app-user";
-import type { CreateAccountDto } from "@/user/interfaces/dtos";
-import toast from "react-hot-toast";
+import type { CreateAccountDto, EditAccountDto } from "@/user/interfaces/dtos";
 
 export const useAppUserStore = create<AppUserState>()(
   devtools(
@@ -138,7 +137,81 @@ export const useAppUserStore = create<AppUserState>()(
           set({ isLoading: false });
         }
       },
-      updateUserStatus: async (id: string, status: AppUser["status"]) => {
+      // Update existing account by id. dto can include avatarFile and optional fields.
+      updateAccount: async (
+        id: string,
+        dto: EditAccountDto,
+        successCallback?: (message?: string) => void,
+        errorCallback?: (message?: string) => void
+      ) => {
+        set({ isLoading: true });
+        try {
+          const formData = new FormData();
+          if (dto.email) formData.append("Email", dto.email);
+          if (dto.username) formData.append("Username", dto.username);
+          if (dto.fullname) formData.append("Fullname", dto.fullname);
+          if (typeof dto.communeId !== "undefined")
+            formData.append("CommuneId", String(dto.communeId));
+          if (typeof dto.schoolId !== "undefined")
+            formData.append("SchoolId", String(dto.schoolId));
+          if (typeof dto.status !== "undefined" && dto.status !== null)
+            formData.append("Status", String(dto.status));
+          if (typeof dto.gender !== "undefined")
+            formData.append("Gender", String(dto.gender));
+          if (dto.roleIds && dto.roleIds.length > 0) {
+            dto.roleIds.forEach((r, i) =>
+              formData.append(`RoleIds[${i}]`, String(r))
+            );
+          }
+          if ((dto as any).avatarFile)
+            formData.append("AvatarFile", (dto as any).avatarFile as File);
+
+          const res = await axiosInstance.put(`/AppUser/${id}`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+
+          const body = res.data;
+          const success = body?.success ?? body?.Success ?? false;
+          if (success) {
+            // update local appUser and appUsers list if present
+            set((state: any) => {
+              const prevList: AppUser[] = Array.isArray(state.appUsers)
+                ? state.appUsers
+                : [];
+              const updated = prevList.map((u: AppUser) =>
+                u.id === id ? { ...u, ...(body?.data ?? {}) } : u
+              );
+              return {
+                appUsers: updated,
+                appUser: body?.data ?? state.appUser,
+                success: true,
+                message: body?.message ?? "",
+              };
+            });
+            successCallback?.(body?.message ?? "Cập nhật tài khoản thành công");
+            return body;
+          }
+          set({
+            success: false,
+            message: body?.message ?? "Cập nhật thất bại",
+          });
+          errorCallback?.(body?.message ?? "Cập nhật thất bại");
+          return body;
+        } catch (error) {
+          set({ success: false, message: axiosMessageErrorHandler(error) });
+          errorCallback?.(axiosMessageErrorHandler(error));
+          console.log(error);
+          return { success: false, message: axiosMessageErrorHandler(error) };
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      updateUserStatus: async (
+        id: string,
+        status: AppUser["status"],
+        successCallback?: (message?: string) => void,
+        errorCallback?: (message?: string) => void
+      ) => {
         set({ isLoading: true });
         try {
           const response = await axiosInstance.patch(`/AppUser/${id}/status`, {
@@ -160,7 +233,9 @@ export const useAppUserStore = create<AppUserState>()(
                 message: data?.message ?? "",
               };
             });
-            toast.success(data?.message ?? "Câp nhật trạng thái thành công");
+            successCallback?.(
+              data?.message ?? "Câp nhật trạng thái thành công"
+            );
             return true;
           }
 
@@ -168,11 +243,11 @@ export const useAppUserStore = create<AppUserState>()(
             success: false,
             message: data?.message ?? "Câp nhật trạng thái thất bại",
           });
-          toast.error(data?.message ?? "Câp nhật trạng thái thất bại");
+          errorCallback?.(data?.message ?? "Câp nhật trạng thái thất bại");
           return false;
         } catch (error) {
           set({ success: false, message: axiosMessageErrorHandler(error) });
-          toast.error(axiosMessageErrorHandler(error));
+          errorCallback?.(axiosMessageErrorHandler(error));
           console.log(error);
           return false;
         } finally {

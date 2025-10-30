@@ -5,16 +5,15 @@ import EditCourse from "@/courseManagement/pages/teacher/EditCourse";
 import AddLecture from "@/courseManagement/pages/teacher/AddLecture";
 import EditLecture from "@/courseManagement/pages/teacher/EditLecture";
 import LectureDetails from "@/courseManagement/pages/teacher/LectureDetails"; // Giả sử component này nằm ở đây
-import TeacherLayout from "@/user/components/layouts/TeacherLayout";
 
 import CourseListStudent from "@/courseManagement/pages/student/CourseList";
 import CourseDetailStudent from "@/courseManagement/pages/student/CourseDetail";
 import LecturePlayer from "@/courseManagement/pages/student/LecturePlayer"; // Giả sử component này nằm ở đây
-import StudentLayout from "@/user/components/layouts/StudentLayout";
 
 // Thay thế ClassRouteConfig bằng CourseRouteConfig
 import CourseRouteConfig from "@/courseManagement/constants/CourseRouteConfig";
-import type { RouteObject } from "react-router-dom";
+import { Outlet, type RouteObject } from "react-router-dom";
+import ApproveCourses from "../pages/teacher/ApproveCourses";
 
 // --- TEACHER ROUTES (Đường dẫn con cho /teacher) ---
 const teacherCourseRoutes: RouteObject[] = [
@@ -42,6 +41,11 @@ const teacherCourseRoutes: RouteObject[] = [
     // path="edit-course" element={<EditCourse />}
     path: CourseRouteConfig.TEACHER.EDIT_COURSE,
     element: <EditCourse />,
+  },
+  {
+    // path="approved-courses" element={<ApprovedCourses />}
+    path: CourseRouteConfig.TEACHER.APPROVED_COURSES,
+    element: <ApproveCourses />,
   },
   {
     // path="add-lecture" element={<AddLecture />}
@@ -87,14 +91,14 @@ const courseRoutes: RouteObject[] = [
   // Cấu hình routes cho Giáo viên (Base path: /teacher)
   {
     path: CourseRouteConfig.TEACHER.INDEX,
-    element: <TeacherLayout />,
+    element: <Outlet />,
     children: teacherCourseRoutes,
   },
 
   // Cấu hình routes cho Học sinh (Base path: /)
   {
     path: CourseRouteConfig.STUDENT.INDEX,
-    element: <StudentLayout />,
+    element: <Outlet />,
     children: studentCourseRoutes,
   },
 ];

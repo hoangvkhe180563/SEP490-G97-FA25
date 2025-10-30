@@ -9,9 +9,7 @@ public partial class Subject
 
     public string Name { get; set; } = null!;
 
-    public virtual ICollection<AppClaim> AppClaims { get; set; } = new List<AppClaim>();
-
-    public virtual ICollection<Class> Classes { get; set; } = new List<Class>();
+    public virtual ICollection<AppUserSubjectClass> AppUserSubjectClasses { get; set; } = new List<AppUserSubjectClass>();
 
     public virtual ICollection<Course> Courses { get; set; } = new List<Course>();
 

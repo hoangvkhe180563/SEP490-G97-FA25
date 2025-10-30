@@ -40,14 +40,19 @@ namespace StudyHub.Backend.Api.Controllers
                 var response = AppUserMapper.ToAppUserList(result);
                 return Ok(response);
             }
+            catch (InvalidOperationException ex)
+            {
+                // business rule / validation error from service (e.g., duplicate email/username)
+                return BadRequest(new { Success = false, Message = ex.Message });
+            }
             catch (Exception ex)
             {
-                return StatusCode(500, new { Success = false, Message = "Tải dữ liệu người dùng không thành công", Error = ex.Message });
+                return StatusCode(500, new { Success = false, Message = "Cập nhật người dùng không thành công", Error = ex.Message });
             }
         }
 
         // Admin: get account detail
-        [Authorize(Roles = "School Manager")]
+        //[Authorize(Roles = "School Manager")]
         [HttpGet("{id}")]
         public IActionResult GetById(Guid id)
         {
@@ -62,7 +67,7 @@ namespace StudyHub.Backend.Api.Controllers
                 var commune = _locationService.GetCommuneById(user.CommuneId);
                 var (province, city) = _locationService.GetProvinceAndCityByCommuneId(user.CommuneId);
 
-                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Name, commune?.Name, city?.Name, province?.Name);
+                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id, province?.Id);
                 return Ok(new { Success = true, Data = dto });
             }
             catch (Exception ex)
@@ -79,7 +84,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var user = await _userService.CreateAccountAsync(req.Email, req.Password, req.Username, req.RoleIds, req.CommuneId, req.Fullname, req.AvatarFile, req.Gender);
+                var user = await _userService.CreateAccountAsync(req.Email, req.Password, req.Username, req.RoleIds, req.CommuneId, req.SchoolId, req.Fullname, req.AvatarFile, req.Gender);
 
                 // map to dto
                 var roles = _roleService.GetRolesByUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
@@ -87,17 +92,18 @@ namespace StudyHub.Backend.Api.Controllers
                 var commune = _locationService.GetCommuneById(user.CommuneId);
                 var (province, city) = _locationService.GetProvinceAndCityByCommuneId(user.CommuneId);
 
-                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Name, commune?.Name, city?.Name, province?.Name);
+                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id, province?.Id);
 
                 return Ok(new { Success = true, Data = dto });
             }
             catch (InvalidOperationException ex)
             {
+                // business rule error (e.g., duplicate email/username)
                 return BadRequest(new { Success = false, Message = ex.Message });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { Success = false, Message = "Tải dữ liệu người dùng không thành công", Error = ex.Message });
+                return StatusCode(500, new { Success = false, Message = "Tạo tài khoản không thành công", Error = ex.Message });
             }
         }
 
@@ -110,7 +116,7 @@ namespace StudyHub.Backend.Api.Controllers
             try
             {
 
-                var user = await _userService.EditAccountAsync(id, req.Email, req.Username, req.Fullname, req.CommuneId, req.Status, req.AvatarFile, req.Gender, req.RoleIds);
+                var user = await _userService.EditAccountAsync(id, req.Email, req.Username, req.Fullname, req.CommuneId, req.Status, req.AvatarFile, req.Gender, req.RoleIds, req.SchoolId);
                 if (user == null) return NotFound(new { Success = false, Message = "Người dùng không tìm thấy" });
 
                 var roles = _roleService.GetRolesByUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
@@ -118,9 +124,12 @@ namespace StudyHub.Backend.Api.Controllers
                 var commune = _locationService.GetCommuneById(user.CommuneId);
                 var (province, city) = _locationService.GetProvinceAndCityByCommuneId(user.CommuneId);
 
-                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Name, commune?.Name, city?.Name, province?.Name);
+                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id, province?.Id);
 
                 return Ok(new { Success = true, Data = dto });
+            }catch (InvalidOperationException ex){
+                // business rule error (e.g., duplicate email/username)
+                return BadRequest(new { Success = false, Message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -129,7 +138,7 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         // Admin: deactivate account (set status to false)
-        [Authorize(Roles = "School Manager")]
+        //[Authorize(Roles = "School Manager")]
         [HttpPatch("{id}/deactivate")]
         public IActionResult Deactivate(Guid id)
         {
@@ -145,7 +154,7 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        [Authorize(Roles = "School Manager")]
+        //[Authorize(Roles = "School Manager")]
         [HttpPatch("{id}/activate")]
         public IActionResult Activate(Guid id)
         {

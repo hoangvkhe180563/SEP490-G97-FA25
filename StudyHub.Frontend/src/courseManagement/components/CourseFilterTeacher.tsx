@@ -10,50 +10,46 @@ import {
   SelectValue,
 } from "@/common/components/ui/select";
 import { Link } from "react-router-dom";
-
-const CATEGORY_OPTIONS = [
-  { value: "1", label: "Toán học" },
-  { value: "2", label: "Ngữ văn" },
-  { value: "3", label: "Tiếng Anh" },
-  { value: "4", label: "Vật lý" },
-  { value: "5", label: "Hóa học" },
-  { value: "6", label: "Sinh học" },
-  { value: "7", label: "Lịch sử" },
-  { value: "8", label: "Địa lý" },
-  { value: "9", label: "Giáo dục công dân" },
-  { value: "10", label: "Công nghệ" },
-  { value: "11", label: "Tin học" },
-  { value: "12", label: "Giáo dục thể chất" },
-];
+import { documentService } from "@/documentManagement/services/documentService";
 
 const CourseFilterTeacher: React.FC = () => {
   const [q, setQ] = useState("");
-  const [category, setCategory] = useState("all");
-  const [status, setStatus] = useState("all");
+  const [subjectList, setSubjectList] = useState<
+    { id: number; name: string }[]
+  >([]);
+  const [subjects, setSubjects] = useState<string>("all");
+  const [status, setStatus] = useState<string>("all");
+
   const fetchCourses = useCourseStore((s) => s.fetchCourses);
 
-  // Debounce typing so we don't call the API on every keystroke immediately
+  const fetchSubjects = async () => {
+    const res = await documentService.getSubjects();
+    if (Array.isArray(res)) {
+      setSubjectList(res.map((s: any) => ({ id: s.id, name: s.name })));
+    }
+  };
+
   useEffect(() => {
+    fetchSubjects();
+
     const handler = setTimeout(() => {
-      const statusBool =
-        status === "all" ? undefined : status === "published" ? true : false;
       fetchCourses({
         page: 1,
-        pageSize: 12,
-        q,
-        status: statusBool,
-        // backend expects subjectId for filtering by subject/category
-        subjectId: category === "all" ? undefined : Number(category),
+        pageSize: 6,
+        q: q.trim() || undefined,
+        subjectId: subjects !== "all" ? Number(subjects) : undefined,
+        status: status !== "all" ? status : undefined,
+        isApproved: true,
       });
-    }, 350);
+    }, 300);
 
     return () => clearTimeout(handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, category, status]);
+  }, [q, subjects, status, fetchCourses]);
 
   return (
     <div className="bg-white rounded-md shadow-sm p-4 mb-4">
       <form className="flex items-center gap-4">
+        {/* Ô tìm kiếm */}
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -61,28 +57,31 @@ const CourseFilterTeacher: React.FC = () => {
           className="max-w-md"
         />
 
-        <Select value={category} onValueChange={(v) => setCategory(v)}>
+        {/* Chọn môn học */}
+        <Select value={subjects} onValueChange={(v) => setSubjects(v)}>
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Tất cả môn học" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất cả môn học</SelectItem>
-            {CATEGORY_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
+            {subjectList.map((opt) => (
+              <SelectItem key={opt.id} value={String(opt.id)}>
+                {opt.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
+        {/* Chọn trạng thái */}
         <Select value={status} onValueChange={(v) => setStatus(v)}>
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Tất cả trạng thái" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất cả trạng thái</SelectItem>
-            <SelectItem value="draft">Nháp</SelectItem>
-            <SelectItem value="published">Đã xuất bản</SelectItem>
+            <SelectItem value="Nháp">Nháp</SelectItem>
+            <SelectItem value="Mở">Đang mở</SelectItem>
+            <SelectItem value="Đóng">Đã đóng</SelectItem>
           </SelectContent>
         </Select>
 
