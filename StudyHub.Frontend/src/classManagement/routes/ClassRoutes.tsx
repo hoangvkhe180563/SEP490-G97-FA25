@@ -1,10 +1,7 @@
 import ClassList from "@/classManagement/pages/ClassList";
-import DetailedClassStudent from "@/classManagement/pages/student/DetailedClassStudent";
 import DetailedClassTeacher from "@/classManagement/pages/teacher/DetailedClassTeacher";
-import TeacherLayout from "@/user/components/layouts/TeacherLayout";
-import StudentLayout from "@/user/components/layouts/StudentLayout";
 import ClassRouteConfig from "@/classManagement/constants/ClassRouteConfig";
-import type { RouteObject } from "react-router-dom";
+import { Outlet, type RouteObject } from "react-router-dom";
 import { Edit } from "lucide-react";
 import AddEditClassworkForm from "../pages/AddEditClasswork";
 import ClassworkDetail from "../pages/ClassworkDetail";
@@ -66,12 +63,12 @@ const studentClassRoutes = [
 const classRoutes: RouteObject[] = [
   {
     path: ClassRouteConfig.TEACHER.INDEX,
-    element: <TeacherLayout />,
+    element: <Outlet />,
     children: teacherClassRoutes
   },
   {
     path: ClassRouteConfig.STUDENT.INDEX,
-    element: <StudentLayout />,
+    element: <Outlet />,
     children: studentClassRoutes
   }
   ,

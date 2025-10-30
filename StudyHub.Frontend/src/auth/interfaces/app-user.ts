@@ -3,6 +3,7 @@ interface AppUser {
   email: string;
   username: string;
   fullname: string;
+  avatar: string;
   roles: string[];
   permissions: string[];
   classIds: number[];
