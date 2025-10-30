@@ -9,7 +9,7 @@ import { useLessonCommentStore } from "@/courseManagement/stores/useLessonCommen
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
-import { Clock } from "lucide-react";
+import { Clock, Trash2 } from "lucide-react";
 import type { CommentDto } from "../types/api";
 
 type Props = {
@@ -175,9 +175,10 @@ const LectureDiscussion: React.FC<Props> = ({ lessonId, courseId }) => {
                       (isEnrolled || !courseId) && (
                         <button
                           onClick={() => onDelete(c.id)}
-                          className="text-xs text-red-600 hover:text-red-700 font-medium"
+                          className="p-1.5 rounded-md text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
+                          aria-label="Xóa"
                         >
-                          Xóa
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       )}
                   </div>

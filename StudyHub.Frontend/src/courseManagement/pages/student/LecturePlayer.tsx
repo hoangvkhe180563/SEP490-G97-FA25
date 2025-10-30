@@ -15,6 +15,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/common/components/ui/popover";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 // Progress UI removed for Video lessons; keep setters used by auto-complete logic
 
 const LecturePlayer: React.FC = () => {
@@ -37,6 +38,8 @@ const LecturePlayer: React.FC = () => {
   const [_durationSec, setDurationSec] = useState<number>(0);
   const ytPlayerRef = useRef<any | null>(null);
   const currentUser = useAppUserStore((s: any) => s.appUser);
+  const authUser = useAuthStore((s) => s.user);
+  const effectiveUserId = currentUser?.id ?? authUser?.id ?? null;
   const fetchEnrollmentsByUser = useEnrollmentStore((s: any) => s.fetchByUser);
   const getEnrollmentForCourse = useEnrollmentStore(
     (s: any) => s.getEnrollmentForCourse
@@ -127,7 +130,7 @@ const LecturePlayer: React.FC = () => {
     void _enrollAction;
     (async () => {
       try {
-        await fetchEnrollmentsByUser(String(currentUser.id));
+        await fetchEnrollmentsByUser(String(effectiveUserId));
       } catch (err) {
         // ignore
       }
@@ -144,12 +147,11 @@ const LecturePlayer: React.FC = () => {
   }, [
     cid,
     lid,
-    currentUser?.id,
+    effectiveUserId,
     fetchChapters,
     fetchLesson,
     fetchEnrollmentsByUser,
     getEnrollmentForCourse,
-    currentUser,
     fetchProgresses,
     _enrollAction,
   ]);

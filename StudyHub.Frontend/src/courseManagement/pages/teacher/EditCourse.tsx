@@ -38,6 +38,7 @@ import type {
 } from "@/courseManagement/types/api";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const EditCourse: React.FC = () => {
   const navigate = useNavigate();
@@ -65,6 +66,8 @@ const EditCourse: React.FC = () => {
   const deleteLessonStore = useLectureStore((s) => s.deleteLesson);
   const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
   const currentUser = useAppUserStore((s) => s.appUser);
+  const authUser = useAuthStore((s) => s.user);
+  const effectiveUserId = currentUser?.id ?? authUser?.id ?? null;
 
   const fetchCourseByIdRef = useRef(fetchCourseById);
   const fetchChaptersRef = useRef(fetchChapters);
@@ -507,7 +510,7 @@ const EditCourse: React.FC = () => {
                 setSaving(true);
                 try {
                   if (!updateCourse) return;
-                  if (!currentUser?.id)
+                  if (!effectiveUserId)
                     return setDialog({
                       open: true,
                       title: "Thiếu thông tin",
@@ -547,7 +550,7 @@ const EditCourse: React.FC = () => {
                     startAt: startAt ? new Date(startAt).toISOString() : null,
                     endAt: endAt ? new Date(endAt).toISOString() : null,
                     updatedAt: new Date().toISOString(),
-                    UpdatedBy: currentUser?.id,
+                    UpdatedBy: effectiveUserId,
                     isApproved: selectedCourse?.isApproved,
                   };
 

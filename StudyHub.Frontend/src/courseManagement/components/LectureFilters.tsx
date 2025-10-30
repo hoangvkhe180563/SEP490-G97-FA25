@@ -6,6 +6,7 @@ import type { ChapterListDto, LessonListDto } from "../types/api";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import RouteConfig from "@/common/constants/RouteConfig";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const LectureFilters: React.FC = () => {
   const { courseId } = useParams();
@@ -23,6 +24,8 @@ const LectureFilters: React.FC = () => {
   }, [cid, fetchChapters]);
 
   const currentUser = useAppUserStore((s) => s.appUser);
+  const authUser = useAuthStore((s) => s.user);
+  const effectiveUserId = currentUser?.id ?? authUser?.id ?? null;
   const fetchEnrollmentsByUser = useEnrollmentStore((s) => s.fetchByUser);
 
   const enrollAction = useEnrollmentStore((s) => s.enroll);
@@ -30,8 +33,7 @@ const LectureFilters: React.FC = () => {
   const getLessonCompleted = useEnrollmentStore((s) => s.getLessonCompleted);
   // subscribe to progresses map so component re-renders when progresses update
   const progresses = useEnrollmentStore((s) => s.progresses);
-  // derive enrollment directly from the global enrollment store so we don't
-  // keep duplicate local state which can become stale across navigation.
+
   const enrollment = useEnrollmentStore((s) => s.getEnrollmentForCourse(cid));
 
   const enrollmentsLoaded = useEnrollmentStore((s: any) =>
@@ -39,13 +41,13 @@ const LectureFilters: React.FC = () => {
   );
 
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!effectiveUserId) return;
 
     (async () => {
       try {
         // fetch enrollments if not already loaded globally
         if (!enrollmentsLoaded) {
-          await fetchEnrollmentsByUser(String(currentUser.id));
+          await fetchEnrollmentsByUser(String(effectiveUserId));
         }
 
         // if we already have an enrollment for this course, ensure progresses are loaded
@@ -61,7 +63,7 @@ const LectureFilters: React.FC = () => {
       }
     })();
   }, [
-    currentUser?.id,
+    effectiveUserId,
     fetchEnrollmentsByUser,
     enrollment,
     cid,
@@ -89,13 +91,13 @@ const LectureFilters: React.FC = () => {
           <button
             onClick={async () => {
               try {
-                if (!currentUser?.id) {
+                if (!effectiveUserId) {
                   // not logged in -> go to login
                   navigate(`${RouteConfig.AUTH}/login`);
                   return;
                 }
                 const created = await enrollAction({
-                  appUserId: String(currentUser.id),
+                  appUserId: String(effectiveUserId),
                   courseId: cid,
                 });
                 // enrollAction appends the created enrollment into the store; ensure progresses are loaded

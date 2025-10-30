@@ -44,7 +44,6 @@ const AppRouter = () => {
     })();
   }, [authUser]);
 
-  // ensure enrollments for the logged-in user are loaded once on auth
   useEffect(() => {
     if (!authUser || !authUser.id) return;
     (async () => {
@@ -102,7 +101,12 @@ const AppRouter = () => {
     },
     {
       path: RouteConfig.COURSE_MANAGEMENT,
-      element: <Outlet />,
+      element: (
+        <MainLayout
+          isLoggedIn={isLoggedIn}
+          sidebarItems={uiManagerSidebarItems}
+        />
+      ),
       children: courseRoutes,
     },
     // {

@@ -6,6 +6,7 @@ import type { CourseListDto as Course } from "@/courseManagement/interfaces/type
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import { CalendarDays } from "lucide-react";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 // module-level cache to avoid repeated fetches when many CourseCard components mount
 const _enrollFetchRequested = new Set<string>();
@@ -19,6 +20,9 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
   const selectedCourseId = useCourseStore((s: any) => s.selectedCourseId);
   const isSelected = selectedCourseId === course.id;
   const currentUser = useAppUserStore((s: any) => s.appUser);
+  const authUser = useAuthStore((s) => s.user);
+  const effectiveUserId = currentUser?.id ?? authUser?.id ?? null;
+
   const enrollAction = useEnrollmentStore((s: any) => s.enroll);
   const fetchProgresses = useEnrollmentStore((s: any) => s.fetchProgresses);
   const fetchEnrollmentsByUser = useEnrollmentStore((s: any) => s.fetchByUser);
@@ -31,8 +35,8 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
   );
 
   useEffect(() => {
-    if (!currentUser?.id) return;
-    const userId = String(currentUser.id);
+    if (!effectiveUserId) return;
+    const userId = String(effectiveUserId);
     if (enrollment) return;
     if (enrollmentsLoaded) return;
 
@@ -45,7 +49,7 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
     })();
   }, [
     fetchEnrollmentsByUser,
-    currentUser?.id,
+    effectiveUserId,
     enrollment,
     course.id,
     enrollmentsLoaded,
@@ -204,9 +208,9 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
               onClick={async (e) => {
                 e.stopPropagation();
                 try {
-                  if (!currentUser?.id) return;
+                  if (!effectiveUserId) return;
                   const created = await enrollAction({
-                    appUserId: String(currentUser.id),
+                    appUserId: String(effectiveUserId),
                     courseId: course.id,
                   });
                   if (created?.id) {
