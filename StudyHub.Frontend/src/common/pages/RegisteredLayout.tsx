@@ -61,7 +61,7 @@ const RegisteredLayout = (props: IRegisteredLayoutProps) => {
     });
 
     setSidebarItems(allSidebarItems);
-  }, [])
+  }, [props.user])
 
   return (
     <div className="h-screen flex">
