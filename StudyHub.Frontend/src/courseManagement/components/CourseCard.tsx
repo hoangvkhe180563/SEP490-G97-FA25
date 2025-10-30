@@ -26,12 +26,16 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
     s.getEnrollmentForCourse(course.id)
   );
 
+  const enrollmentsLoaded = useEnrollmentStore((s: any) =>
+    Array.isArray(s.enrollments) ? s.enrollments.length > 0 : false
+  );
+
   useEffect(() => {
     if (!currentUser?.id) return;
     const userId = String(currentUser.id);
     if (enrollment) return;
-    if (_enrollFetchRequested.has(userId)) return;
-    _enrollFetchRequested.add(userId);
+    if (enrollmentsLoaded) return;
+
     (async () => {
       try {
         await fetchEnrollmentsByUser(userId);
@@ -39,7 +43,13 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
         // ignore
       }
     })();
-  }, [fetchEnrollmentsByUser, currentUser?.id, enrollment, course.id]);
+  }, [
+    fetchEnrollmentsByUser,
+    currentUser?.id,
+    enrollment,
+    course.id,
+    enrollmentsLoaded,
+  ]);
 
   const formatDate = (d?: string | null) => {
     if (!d) return "—";
@@ -200,6 +210,9 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
                     courseId: course.id,
                   });
                   if (created?.id) {
+                    useEnrollmentStore.setState((s) => ({
+                      enrollments: [...(s.enrollments || []), created],
+                    }));
                     await fetchProgresses(created.id);
                     if (selectCourse) selectCourse(course.id);
                     navigate(`/course/student/courses/${course.id}`);

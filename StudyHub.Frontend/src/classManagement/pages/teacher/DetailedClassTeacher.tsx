@@ -478,7 +478,7 @@ const DetailedClassTeacher: React.FC = () => {
   }
 
   return (
-    <div className="p-8 relative">
+    <div className="p-8 relative w-full h-full overflow-y-auto">
       {/* Breadcrumb */}
       <Breadcrumb>
         <BreadcrumbList>
@@ -715,7 +715,7 @@ const DetailedClassTeacher: React.FC = () => {
 
         {/* Right column: show class info and documents (no role distinction) */}
         <aside className="col-span-12 lg:col-span-4">
-          <div className="sticky top-6">
+          <div className="fixed top-6">
             <ClassInfoCard info={classInfo} memberCount={displayMemberCount} />
             <DocumentsBox documents={documents} loading={docsLoading} classId={id} />
           </div>

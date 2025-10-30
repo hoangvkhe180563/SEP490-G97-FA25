@@ -7,4 +7,5 @@ export type {
   LessonDto,
   CourseStatus,
   LessonResource,
+  CommentDto,
 } from "../interfaces/types";
