@@ -10,40 +10,52 @@ import MainLayout from "@/common/pages/MainLayout";
 import Homepage from "@/uiManagement/pages/Homepage";
 import {
   guestSidebarItems,
-  schoolManagerSidebarItems,
-  teacherSidebarItems,
   uiManagerSidebarItems,
 } from "@/common/constants/SidebarItems";
 import authRoutes from "@/auth/routes/AuthRoutes";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useEffect } from "react";
+import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 
 const AppRouter = () => {
   const { isAuthenticated: isLoggedIn, checkAuth } = useAuthStore();
+  // subscribe to auth user so we can populate the app-user store when login happens
+  const authUser = useAuthStore((s) => s.user);
 
   useEffect(() => {
-    // On app load, check if user is authenticated and populate appUser store
     (async () => {
       try {
         await checkAuth();
-        // if authenticated, ensure the app user details are loaded into useAppUserStore
-        const authUser = useAuthStore.getState().user;
-        if (authUser && authUser.id) {
-          // call getAppUserById from the app-user store to populate appUser
-          try {
-            await useAppUserStore
-              .getState()
-              .getAppUserById(String(authUser.id));
-          } catch {
-            // ignore
-          }
-        }
       } catch {
         // ignore
       }
     })();
   }, [checkAuth]);
+
+  useEffect(() => {
+    if (!authUser || !authUser.id) return;
+    (async () => {
+      try {
+        await useAppUserStore.getState().getAppUserById(String(authUser.id));
+      } catch {
+        // ignore
+      }
+    })();
+  }, [authUser]);
+
+  // ensure enrollments for the logged-in user are loaded once on auth
+  useEffect(() => {
+    if (!authUser || !authUser.id) return;
+    (async () => {
+      try {
+        // call the store's fetchByUser to populate enrollments globally
+        await useEnrollmentStore.getState().fetchByUser(String(authUser.id));
+      } catch {
+        // ignore
+      }
+    })();
+  }, [authUser]);
 
   const appRoutes = [
     {
@@ -65,12 +77,7 @@ const AppRouter = () => {
     },
     {
       path: RouteConfig.USER,
-      element: (
-        <MainLayout
-          isLoggedIn={isLoggedIn}
-          sidebarItems={schoolManagerSidebarItems}
-        />
-      ),
+      element: <Outlet />,
       children: userRoutes,
     },
     {

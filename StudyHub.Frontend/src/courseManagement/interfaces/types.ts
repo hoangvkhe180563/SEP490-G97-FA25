@@ -126,3 +126,13 @@ export type CourseDetailDto = {
   isApproved: boolean;
   chapters?: ChapterDto[];
 };
+
+export type CommentDto = {
+  id: number;
+  lessonId: number;
+  appUserId: string;
+  content: string;
+  createdAt: string;
+  userFullname?: string;
+  userAvatar?: string | null;
+};
