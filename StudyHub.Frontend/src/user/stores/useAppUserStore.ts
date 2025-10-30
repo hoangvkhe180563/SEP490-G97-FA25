@@ -3,13 +3,18 @@ import type { AppUserState } from "../interfaces/stores";
 import { axiosInstance, axiosMessageErrorHandler } from "@/lib/axios";
 import { devtools } from "zustand/middleware";
 import type { AppUser } from "../interfaces/app-user";
-import type { CreateAccountDto, EditAccountDto } from "@/user/interfaces/dtos";
+import type {
+  CreateAccountDto,
+  EditAccountDto,
+  UpdateProfileDto,
+} from "@/user/interfaces/dtos";
 
 export const useAppUserStore = create<AppUserState>()(
   devtools(
     (set) => ({
       appUsers: [],
       appUser: undefined,
+      profileUser: undefined,
       success: false,
       message: "",
       isLoading: false,
@@ -137,6 +142,29 @@ export const useAppUserStore = create<AppUserState>()(
           set({ isLoading: false });
         }
       },
+      getProfile: async () => {
+        set({ isLoading: true });
+        try {
+          const response = await axiosInstance.get(`/AppUser/me`);
+          const { data } = response;
+          // API returns { Success, Data }
+          set({
+            profileUser: data?.data ?? undefined,
+            success: data?.success ?? false,
+            message: data?.message ?? "",
+          });
+          return data;
+        } catch (error) {
+          set({
+            success: false,
+            message: axiosMessageErrorHandler(error),
+          });
+          console.log(error);
+          return undefined;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
       // Update existing account by id. dto can include avatarFile and optional fields.
       updateAccount: async (
         id: string,
@@ -189,6 +217,54 @@ export const useAppUserStore = create<AppUserState>()(
               };
             });
             successCallback?.(body?.message ?? "Cập nhật tài khoản thành công");
+            return body;
+          }
+          set({
+            success: false,
+            message: body?.message ?? "Cập nhật thất bại",
+          });
+          errorCallback?.(body?.message ?? "Cập nhật thất bại");
+          return body;
+        } catch (error) {
+          set({ success: false, message: axiosMessageErrorHandler(error) });
+          errorCallback?.(axiosMessageErrorHandler(error));
+          console.log(error);
+          return { success: false, message: axiosMessageErrorHandler(error) };
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      updateProfile: async (
+        dto: UpdateProfileDto,
+        successCallback?: (message?: string) => void,
+        errorCallback?: (message?: string) => void
+      ) => {
+        set({ isLoading: true });
+        try {
+          const formData = new FormData();
+          if (dto.email) formData.append("Email", dto.email);
+          if (dto.username) formData.append("Username", dto.username);
+          if (dto.fullname) formData.append("Fullname", dto.fullname);
+          if (typeof dto.communeId !== "undefined")
+            formData.append("CommuneId", String(dto.communeId));
+          if (typeof dto.schoolId !== "undefined")
+            formData.append("SchoolId", String(dto.schoolId));
+          if (dto.gender) formData.append("Gender", String(dto.gender));
+          if (dto.password) formData.append("Password", dto.password);
+          if ((dto as any).avatarFile)
+            formData.append("AvatarFile", (dto as any).avatarFile as File);
+          const res = await axiosInstance.put(`/AppUser/me`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          const body = res.data;
+          const success = body?.success ?? body?.Success ?? false;
+          if (success) {
+            set({
+              appUser: body?.data ?? undefined,
+              success: true,
+              message: body?.message ?? "",
+            });
+            successCallback?.(body?.message ?? "Cập nhật hồ sơ thành công");
             return body;
           }
           set({

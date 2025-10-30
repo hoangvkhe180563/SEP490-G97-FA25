@@ -72,6 +72,9 @@ export class UiManagementService {
     if (landingPageData.bannerImage) {
       formData.append("BannerFile", landingPageData.bannerImage);
     }
+    if (landingPageData.logoImage) {
+      formData.append("SchoolLogoFile", landingPageData.logoImage);
+    }
     formData.append("Description", landingPageData.description);
     if (landingPageData.newLandingPageImages?.length) {
       for (const file of landingPageData.newLandingPageImages) {

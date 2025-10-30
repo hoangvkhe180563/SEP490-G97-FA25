@@ -80,6 +80,8 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
         public Guid Id { get; set; }
         public string Email { get; set; } = null!;
         public string? Username { get; set; }
+        public string? Fullname { get; set; }
+        public string? Avatar { get; set; }
         public List<string> Roles { get; set; } = new();
         public List<string> Permissions { get; set; } = new();
         public List<int> ClassIds { get; set; } = new();

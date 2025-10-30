@@ -1,8 +1,6 @@
 //src/documentManagement/routes/documentRoutes.tsx
 import DocumentRouteConfig from "@/documentManagement/constants/DocumentRouteConfig";
 import ManagerLayout from "@/user/components/layouts/ManagerLayout";
-import TeacherLayout from "@/user/components/layouts/TeacherLayout";
-import StudentLayout from "@/user/components/layouts/StudentLayout";
 import VerifyDocument from "@/documentManagement/pages/manager/VerifyDocument";
 import CreateDocument from "@/documentManagement/pages/teacher/CreateDocument";
 import TeacherDocumentInfo from "@/documentManagement/pages/teacher/DocumentInfo";
@@ -87,16 +85,6 @@ const documentRoutes: RouteObject[] = [
     path: DocumentRouteConfig.MANAGER.INDEX,
     element: <ManagerLayout />,
     children: managerRoutes,
-  },
-  {
-    path: DocumentRouteConfig.TEACHER.INDEX,
-    element: <TeacherLayout />,
-    children: teacherRoutes,
-  },
-  {
-    path: DocumentRouteConfig.STUDENT.INDEX,
-    element: <StudentLayout />,
-    children: studentRoutes,
   },
   {
     path: "documents",

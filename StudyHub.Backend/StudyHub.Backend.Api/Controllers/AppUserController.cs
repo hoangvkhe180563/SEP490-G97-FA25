@@ -16,15 +16,19 @@ namespace StudyHub.Backend.Api.Controllers
     public class AppUserController : ControllerBase
     {
         private readonly AppUserService _userService;
+        private readonly AuthService _authService;
         private readonly AppRoleService _roleService;
         private readonly LocationService _locationService;
 
-        public AppUserController(AppUserService userService, AppRoleService roleService, LocationService locationService)
+        public AppUserController(AppUserService userService, AuthService authService, AppRoleService roleService, LocationService locationService)
         {
             _userService = userService;
+            _authService = authService;
             _roleService = roleService;
             _locationService = locationService;
         }
+
+
 
         //[Authorize(Roles = "School Manager")]
         [HttpGet]
@@ -127,9 +131,62 @@ namespace StudyHub.Backend.Api.Controllers
                 var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id, province?.Id);
 
                 return Ok(new { Success = true, Data = dto });
-            }catch (InvalidOperationException ex){
+            }
+            catch (InvalidOperationException ex)
+            {
                 // business rule error (e.g., duplicate email/username)
                 return BadRequest(new { Success = false, Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Tải dữ liệu người dùng không thành công", Error = ex.Message });
+            }
+        }
+
+        [HttpPut("me")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UpdateProfile([FromForm] UpdateProfileRequest req)
+        {
+            try
+            {
+                var currentUser = _authService.GetCurrentUser();
+                var user = await _userService.UpdateProfile(currentUser, req.Email, req.Username, req.Fullname, req.CommuneId, req.Password, req.AvatarFile, req.Gender, req.SchoolId);
+                if (user == null) return NotFound(new { Success = false, Message = "Người dùng không tìm thấy" });
+
+                var roles = _roleService.GetRolesByUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+                var school = _locationService.GetSchoolById(user.SchoolId);
+                var commune = _locationService.GetCommuneById(user.CommuneId);
+                var (province, city) = _locationService.GetProvinceAndCityByCommuneId(user.CommuneId);
+
+                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id, province?.Id);
+
+                return Ok(new { Success = true, Data = dto });
+            }
+            catch (InvalidOperationException ex)
+            {
+                // business rule error (e.g., duplicate email/username)
+                return BadRequest(new { Success = false, Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Tải dữ liệu người dùng không thành công", Error = ex.Message });
+            }
+        }
+
+        [HttpGet("me")]
+        public IActionResult GetProfile()
+        {
+            try
+            {
+                var currentUser = _authService.GetCurrentUser();
+                var user = _userService.GetUserById(currentUser.Id);
+                if (user == null) return NotFound(new { Success = false, Message = "Người dùng không tìm thấy" });
+                var roles = _roleService.GetRolesByUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+                var school = _locationService.GetSchoolById(user.SchoolId);
+                var commune = _locationService.GetCommuneById(user.CommuneId);
+                var (province, city) = _locationService.GetProvinceAndCityByCommuneId(user.CommuneId);
+                var dto = AppUserMapper.ToProfile(user, roles, school?.Id, commune?.Id, city?.Id, province?.Id);
+                return Ok(new { Success = true, Data = dto });
             }
             catch (Exception ex)
             {

@@ -28,4 +28,19 @@ interface EditAccountDto {
   gender?: number | null;
 }
 
-export type { CreateAccountDto, EditAccountDto };
+interface UpdateProfileDto {
+  // optional fields for partial updates
+  email?: string | null;
+  username?: string | null;
+  fullname?: string | null;
+  // backend expects GUIDs for role ids
+  password?: string | null;
+  // backend expects integer commune id
+  communeId?: number | null;
+  schoolId?: number | null;
+  avatarFile?: File | null;
+  // Gender as integer (1 -> Male, 0 -> Female)
+  gender?: number | null;
+}
+
+export type { CreateAccountDto, EditAccountDto, UpdateProfileDto };
