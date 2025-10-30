@@ -53,7 +53,7 @@ namespace StudyHub.Backend.UseCases.Services
         {
             return _classRepository.GetClassDetailById(id);
         }
-        public List<AppUsersubjectclass> GetClassMembers(int id)
+        public List<AppUserSubjectClass> GetClassMembers(int id)
         {
             return _classRepository.GetClassMembers(id);
         }

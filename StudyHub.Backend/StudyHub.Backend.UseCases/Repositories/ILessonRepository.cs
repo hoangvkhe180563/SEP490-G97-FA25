@@ -9,5 +9,11 @@ namespace StudyHub.Backend.UseCases.Repositories
         Lesson CreateLesson(Lesson lesson);
         Lesson UpdateLesson(Lesson lesson);
         bool DeleteLesson(int id);
+        // Lesson comment related
+        List<LessonComment> GetCommentsByLessonId(int lessonId);
+        LessonComment? GetCommentById(int id);
+        LessonComment CreateComment(LessonComment comment);
+        LessonComment UpdateComment(LessonComment comment);
+        bool DeleteComment(int id, Guid userId);
     }
 }

@@ -19,7 +19,7 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<AppUser> AppUsers { get; set; }
 
-    public virtual DbSet<AppUsersubjectclass> AppUsersubjectclasses { get; set; }
+    public virtual DbSet<AppUserSubjectClass> AppUserSubjectClasses { get; set; }
 
     public virtual DbSet<Chapter> Chapters { get; set; }
 
@@ -174,30 +174,30 @@ public partial class AppDbContext : DbContext
 
             entity.HasMany(d => d.Roles).WithMany(p => p.Users)
                 .UsingEntity<Dictionary<string, object>>(
-                    "AppUserrole",
+                    "AppUserRole",
                     r => r.HasOne<AppRole>().WithMany()
                         .HasForeignKey("RoleId")
-                        .HasConstraintName("app_userrole_ibfk_2"),
+                        .HasConstraintName("app_user_role_ibfk_2"),
                     l => l.HasOne<AppUser>().WithMany()
                         .HasForeignKey("UserId")
-                        .HasConstraintName("app_userrole_ibfk_1"),
+                        .HasConstraintName("app_user_role_ibfk_1"),
                     j =>
                     {
                         j.HasKey("UserId", "RoleId")
                             .HasName("PRIMARY")
                             .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
-                        j.ToTable("app_userrole");
+                        j.ToTable("app_user_role");
                         j.HasIndex(new[] { "RoleId" }, "RoleId");
                     });
         });
 
-        modelBuilder.Entity<AppUsersubjectclass>(entity =>
+        modelBuilder.Entity<AppUserSubjectClass>(entity =>
         {
             entity.HasKey(e => new { e.UserId, e.SubjectId, e.ClassId })
                 .HasName("PRIMARY")
                 .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0, 0 });
 
-            entity.ToTable("app_usersubjectclass");
+            entity.ToTable("app_user_subject_class");
 
             entity.HasIndex(e => e.ClassId, "ClassId");
 
@@ -212,17 +212,17 @@ public partial class AppDbContext : DbContext
                 .HasDefaultValueSql("'joined'")
                 .HasColumnType("enum('invited','joined','kicked')");
 
-            entity.HasOne(d => d.Class).WithMany(p => p.AppUsersubjectclasses)
+            entity.HasOne(d => d.Class).WithMany(p => p.AppUserSubjectClasses)
                 .HasForeignKey(d => d.ClassId)
-                .HasConstraintName("app_usersubjectclass_ibfk_3");
+                .HasConstraintName("app_user_subject_class_ibfk_3");
 
-            entity.HasOne(d => d.Subject).WithMany(p => p.AppUsersubjectclasses)
+            entity.HasOne(d => d.Subject).WithMany(p => p.AppUserSubjectClasses)
                 .HasForeignKey(d => d.SubjectId)
-                .HasConstraintName("app_usersubjectclass_ibfk_2");
+                .HasConstraintName("app_user_subject_class_ibfk_2");
 
-            entity.HasOne(d => d.User).WithMany(p => p.AppUsersubjectclasses)
+            entity.HasOne(d => d.User).WithMany(p => p.AppUserSubjectClasses)
                 .HasForeignKey(d => d.UserId)
-                .HasConstraintName("app_usersubjectclass_ibfk_1");
+                .HasConstraintName("app_user_subject_class_ibfk_1");
         });
 
         modelBuilder.Entity<Chapter>(entity =>

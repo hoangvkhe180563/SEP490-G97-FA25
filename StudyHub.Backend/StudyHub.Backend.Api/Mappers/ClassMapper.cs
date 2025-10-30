@@ -63,7 +63,7 @@ namespace StudyHub.Backend.Api.Mappers
             };
         }
 
-        public static MemberDto ToMemberDto(this AppUsersubjectclass member, AppUser? user, List<string> roles, School school, Commune commune)
+        public static MemberDto ToMemberDto(this AppUserSubjectClass member, AppUser? user, List<string> roles, School school, Commune commune)
         {
             return new MemberDto
             {

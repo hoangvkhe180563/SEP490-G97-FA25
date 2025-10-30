@@ -49,9 +49,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public List<Class> GetAllClasses(Guid? userid)
         {
-            if(userid == null)
+            if (userid == null)
             {
-                return _context.Classes.Include(c => c.AppUsersubjectclasses).Where(c => c.DeletedAt == null).Select(c => new Class
+                return _context.Classes.Include(c => c.AppUserSubjectClasses).Where(c => c.DeletedAt == null).Select(c => new Class
                 {
                     Id = c.Id,
                     Name = c.Name,
@@ -64,7 +64,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 }).OrderByDescending(c => c.CreatedAt).ToList();
             }
             // Chỉ trả về các Class entity
-            return _context.Classes.Include(c=>c.AppUsersubjectclasses).Where(c => c.DeletedAt == null&& c.AppUsersubjectclasses.FirstOrDefault(b=>b.UserId==userid)!=null).Select(c => new Class
+            return _context.Classes.Include(c => c.AppUserSubjectClasses).Where(c => c.DeletedAt == null && c.AppUserSubjectClasses.FirstOrDefault(b => b.UserId == userid) != null).Select(c => new Class
             {
                 Id = c.Id,
                 Name = c.Name,
@@ -74,8 +74,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 UpdatedAt = c.UpdatedAt,
                 UpdatedBy = c.UpdatedBy,
                 DeletedAt = c.DeletedAt
-            }).OrderByDescending(c=>c.CreatedAt).ToList();
-                
+            }).OrderByDescending(c => c.CreatedAt).ToList();
+
         }
 
         public List<Subject> GetAllSubject()
@@ -176,14 +176,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             };
         }
 
-        public List<AppUsersubjectclass> GetClassMembers(int classId)
+        public List<AppUserSubjectClass> GetClassMembers(int classId)
         {
-            var member= _context.AppUsersubjectclasses
+            var member = _context.AppUserSubjectClasses
        .Where(m => m.ClassId == classId)
        .GroupBy(m => m.UserId)
        .Select(g => g.FirstOrDefault()) // lấy bản ghi đầu tiên mỗi UserId
        .ToList();
-            return member.Select(m => new AppUsersubjectclass
+            return member.Select(m => new AppUserSubjectClass
             {
                 UserId = m.UserId,
                 ClassId = m.ClassId,
@@ -195,18 +195,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public List<ClassNotification> GetClassNotifications(int classId)
         {
             return _context.ClassNotifications
-                .Where(n => n.ClassId == classId&& n.DeletedAt==null)
-                .OrderByDescending(n=>n.CreatedAt)
+                .Where(n => n.ClassId == classId && n.DeletedAt == null)
+                .OrderByDescending(n => n.CreatedAt)
                 .Select(n => new ClassNotification
                 {
                     Id = n.Id,
                     ClassId = n.ClassId,
                     Title = n.Title,
                     Description = n.Description,
-                    CreatedAt= n.CreatedAt,
-                    DeletedAt=n.DeletedAt, 
-                    UpdatedAt= n.UpdatedAt,
-                    AppUserId = n.AppUserId 
+                    CreatedAt = n.CreatedAt,
+                    DeletedAt = n.DeletedAt,
+                    UpdatedAt = n.UpdatedAt,
+                    AppUserId = n.AppUserId
                 }).ToList();
         }
         // ===================== NOTIFICATION =====================
@@ -214,12 +214,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             var classesnoti = new Data.ClassNotification
             {
-                ClassId=notification.ClassId,
-                Title= notification.Title,
-                Description= notification.Description,
+                ClassId = notification.ClassId,
+                Title = notification.Title,
+                Description = notification.Description,
                 CreatedAt = DateTime.Now,
-                
-               
+
+
                 AppUserId = notification.CreatedBy,
             };
             _context.ClassNotifications.Add(classesnoti);
@@ -230,11 +230,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public List<ClassNotification> GetNotificationsByClassId(int classId)
         {
-            var nos= _context.ClassNotifications
+            var nos = _context.ClassNotifications
                 .Where(n => n.ClassId == classId)
-                .Include(n=>n.AppUser)
+                .Include(n => n.AppUser)
                 .OrderByDescending(n => n.Title)
-                .Select(n=> new ClassNotification
+                .Select(n => new ClassNotification
                 {
                     Id = n.Id,
                     ClassId = n.ClassId,
@@ -258,7 +258,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 NotificationId = comment.NotificationId,
                 AppUserId = comment.AppUserId,
                 Content = comment.Content,
-                
+
             };
             _context.ClassNotificationComments.Add(com);
             _context.SaveChanges();
@@ -269,13 +269,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             // Gồm cả comment cha và các reply comment
             var allComments = _context.ClassNotificationComments
-                .Include(c=>c.AppUser)
+                .Include(c => c.AppUser)
                 .Where(c => c.NotificationId == notificationId)
                 .OrderBy(c => c.Content)
                 .ToList();
 
             // Nếu muốn, có thể build cây reply ở tầng Service sau này.
-            return allComments.Select(a=> new ClassNotificationComment
+            return allComments.Select(a => new ClassNotificationComment
             {
                 Id = a.Id,
                 NotificationId = a.NotificationId,
@@ -293,14 +293,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 FileName = file.FileName,
                 FileUrl = file.FileUrl,
-                NotificationId= file.NotificationId,
+                NotificationId = file.NotificationId,
             };
             _context.ClassNotificationFiles.Add(subfile);
             _context.SaveChanges();
-            file.Id=subfile.Id;
+            file.Id = subfile.Id;
             file.FileName = subfile.FileName;
             file.FileUrl = subfile.FileUrl;
-            
+
             return file;
         }
 
@@ -314,24 +314,24 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 NotificationId = a.NotificationId,
                 Id = a.Id
             }).ToList();
-            return files ;
+            return files;
         }
 
         public List<Class> GetClassByUserId(Guid userid)
         {
-           var classes = _context.AppUsersubjectclasses.Include(a=>a.Class).Where(a=>a.UserId.Equals(userid)).Select(
-               c => new Class
-               {
-                   Id = c.Class.Id,
-                   Name = c.Class.Name,
-                   Description = c.Class.Description,
-                   CreatedAt = c.Class.CreatedAt,
-                   CreatedBy = c.Class.CreatedBy,
-                   UpdatedAt = c.Class.UpdatedAt,
-                   UpdatedBy = c.Class.UpdatedBy,
-                   DeletedAt = c.Class.DeletedAt
-               }).OrderByDescending(c => c.CreatedAt).ToList();
-            return classes ;
+            var classes = _context.AppUserSubjectClasses.Include(a => a.Class).Where(a => a.UserId.Equals(userid)).Select(
+                c => new Class
+                {
+                    Id = c.Class.Id,
+                    Name = c.Class.Name,
+                    Description = c.Class.Description,
+                    CreatedAt = c.Class.CreatedAt,
+                    CreatedBy = c.Class.CreatedBy,
+                    UpdatedAt = c.Class.UpdatedAt,
+                    UpdatedBy = c.Class.UpdatedBy,
+                    DeletedAt = c.Class.DeletedAt
+                }).OrderByDescending(c => c.CreatedAt).ToList();
+            return classes;
         }
         public ClassNotificationComment CommentNoti(ClassNotificationComment comment)
         {
@@ -342,7 +342,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Content = comment.Content,
                 CreatedAt = DateTime.Now,
             };
-            _context.ClassNotificationComments.Add( commented );
+            _context.ClassNotificationComments.Add(commented);
             _context.SaveChanges();
             comment.Id = commented.Id;
             return comment;
@@ -353,7 +353,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             var comment = _context.ClassNotifications.FirstOrDefault(c => c.Id == id);
             if (comment != null)
             {
-                comment.DeletedAt= DateTime.Now;
+                comment.DeletedAt = DateTime.Now;
                 _context.ClassNotifications.Update(comment);
                 _context.SaveChanges();
                 return true;
@@ -368,11 +368,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Id = notificationId,
                 ClassId = noti.ClassId,
                 Title = noti.Title,
-                Description=noti.Description,
-                AppUserId=noti.AppUserId,
+                Description = noti.Description,
+                AppUserId = noti.AppUserId,
                 DeletedAt = noti.DeletedAt,
-                CreatedAt=noti.CreatedAt,
-                UpdatedAt=noti.UpdatedAt,
+                CreatedAt = noti.CreatedAt,
+                UpdatedAt = noti.UpdatedAt,
             };
             return noti2;
         }
@@ -381,28 +381,28 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             try
             {
                 // Nếu đã có record:
-                var existing = _context.AppUsersubjectclasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
-                
+                var existing = _context.AppUserSubjectClasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
+
                 if (existing != null)
                 {
                     // nếu đã joined, không đổi; nếu bị kicked hoặc invited, set lại invited and null JoinDate
                     existing.Status = "invited";
                     existing.JoinDate = DateTime.Now;
-                    _context.AppUsersubjectclasses.Update(existing);
+                    _context.AppUserSubjectClasses.Update(existing);
 
                     _context.SaveChanges();
                     return true;
                 }
 
                 // tạo record mới với status invited (JoinDate null)
-                var newMember = new Data.AppUsersubjectclass
+                var newMember = new Data.AppUserSubjectClass
                 {
                     UserId = userId,
                     ClassId = classId,
                     JoinDate = DateTime.Now,
                     Status = "invited"
                 };
-                _context.AppUsersubjectclasses.Add(newMember);
+                _context.AppUserSubjectClasses.Add(newMember);
                 _context.SaveChanges();
                 return true;
             }
@@ -417,18 +417,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var existing = _context.AppUsersubjectclasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
+                var existing = _context.AppUserSubjectClasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
                 if (existing == null)
                 {
                     // nếu chưa có record (hiếm), tạo record mới với joined
-                    var newMember = new Data.AppUsersubjectclass
+                    var newMember = new Data.AppUserSubjectClass
                     {
                         UserId = userId,
                         ClassId = classId,
                         JoinDate = DateTime.UtcNow,
                         Status = "joined"
                     };
-                    _context.AppUsersubjectclasses.Add(newMember);
+                    _context.AppUserSubjectClasses.Add(newMember);
                     _context.SaveChanges();
                     return true;
                 }
@@ -436,7 +436,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 // Cập nhật status -> joined và set JoinDate nếu null
                 existing.Status = "joined";
                 existing.JoinDate = existing.JoinDate;
-                _context.AppUsersubjectclasses.Update(existing);
+                _context.AppUserSubjectClasses.Update(existing);
                 _context.SaveChanges();
                 return true;
             }
@@ -451,7 +451,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var existing = _context.AppUsersubjectclasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
+                var existing = _context.AppUserSubjectClasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
                 if (existing == null)
                 {
                     // Nếu chưa tồn tại, không cần tạo record; trả về false (không có gì để kick)
@@ -460,7 +460,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 existing.Status = "kicked";
                 // Optional: bạn có thể giữ JoinDate để audit hoặc set null
-                _context.AppUsersubjectclasses.Update(existing);
+                _context.AppUserSubjectClasses.Update(existing);
                 _context.SaveChanges();
                 return true;
             }
@@ -473,7 +473,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public List<Classwork> GetClassworks(int classId)
         {
-            var classww= _context.Classworks.Where(c=>c.ClassId== classId).Select(a=> new Classwork
+            var classww = _context.Classworks.Where(c => c.ClassId == classId).Select(a => new Classwork
             {
                 Id = a.Id,
                 ClassId = a.ClassId,
@@ -541,7 +541,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public ClassworkSubmission ResubmitClasswork(int submissionId, List<SubmissionFile> files)
         {
             var entity = _context.ClassworkSubmissions.FirstOrDefault(s => s.Id == submissionId);
-            var file = _context.SubmissionFiles.Where(f=>f.SubmissionId == submissionId).ToList();
+            var file = _context.SubmissionFiles.Where(f => f.SubmissionId == submissionId).ToList();
             if (entity == null) return null;
             entity.LatestSubmissionTime = DateTime.Now;
             _context.ClassworkSubmissions.Update(entity);
@@ -571,7 +571,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public Classwork GetClasswork(int classworkId)
         {
 
-            var cw= _context.Classworks.FirstOrDefault(c=>c.Id == classworkId);
+            var cw = _context.Classworks.FirstOrDefault(c => c.Id == classworkId);
             return new Classwork
             {
                 Id = cw.Id,
@@ -583,19 +583,19 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
         public List<ClassworkSubmission> GetSubmissionsByClassworkId(int classworkId)
         {
-           return _context.ClassworkSubmissions.Where(c=>c.ClassworkId == classworkId).Select(a=>
-             new ClassworkSubmission
-            {
-                Id = a.Id,
-                ClassworkId=a.ClassworkId,
-                AppUserId = a.AppUserId,
-                FirstSubmissionTime= a.FirstSubmissionTime,
-                LatestSubmissionTime= a.LatestSubmissionTime
-            }).ToList();
+            return _context.ClassworkSubmissions.Where(c => c.ClassworkId == classworkId).Select(a =>
+              new ClassworkSubmission
+              {
+                  Id = a.Id,
+                  ClassworkId = a.ClassworkId,
+                  AppUserId = a.AppUserId,
+                  FirstSubmissionTime = a.FirstSubmissionTime,
+                  LatestSubmissionTime = a.LatestSubmissionTime
+              }).ToList();
         }
-        public ClassworkSubmission GetSubmissionByUserAndClasswork(int classworkId,Guid userId)
+        public ClassworkSubmission GetSubmissionByUserAndClasswork(int classworkId, Guid userId)
         {
-            var cs = _context.ClassworkSubmissions.FirstOrDefault(c=>c.ClassworkId==classworkId&&c.AppUserId==userId);
+            var cs = _context.ClassworkSubmissions.FirstOrDefault(c => c.ClassworkId == classworkId && c.AppUserId == userId);
             if (cs == null) return null;
             return new ClassworkSubmission
             {
@@ -611,10 +611,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             var sf = new Data.SubmissionFile
             {
                 SubmissionId = file.SubmissionId,
-                Id= file.Id,
+                Id = file.Id,
                 FileName = file.FileName,
                 FileUrl = file.FileUrl,
-                
+
             };
             _context.SubmissionFiles.Add(sf);
             _context.SaveChanges();
@@ -623,10 +623,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
         public List<SubmissionFile> GetSubmissionFiles(int submissionId)
         {
-            var fs = _context.SubmissionFiles.Where(a=>a.SubmissionId==submissionId).Select(b=>new SubmissionFile
+            var fs = _context.SubmissionFiles.Where(a => a.SubmissionId == submissionId).Select(b => new SubmissionFile
             {
                 SubmissionId = b.SubmissionId,
-                Id= b.Id,
+                Id = b.Id,
                 FileName = b.FileName,
                 FileUrl = b.FileUrl,
             });
@@ -645,10 +645,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
             if (classworkEntity == null)
                 return 0;
-            var classEntity = _context.AppUsersubjectclasses.Include(c => c.Class).Include(c => c.User)
-                .Where(c => c.ClassId == classworkEntity.ClassId 
-                && c.User.Roles.Where(r=>r.Name.Contains("Student")).Any()).GroupBy(a=>a.UserId).ToList();
-            
+            var classEntity = _context.AppUserSubjectClasses.Include(c => c.Class).Include(c => c.User)
+                .Where(c => c.ClassId == classworkEntity.ClassId
+                && c.User.Roles.Where(r => r.Name.Contains("Student")).Any()).GroupBy(a => a.UserId).ToList();
+
             return classEntity.Count();
         }
 
