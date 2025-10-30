@@ -191,6 +191,71 @@ namespace StudyHub.Backend.UseCases.Services
                 throw new InvalidOperationException("Cập nhật dữ liệu không thành công: " + ex.Message, ex);
             }
         }
+        public async Task<AppUser?> UpdateProfile(AppUser user, string? email = null, string? username = null, string? fullname = null, int? communeId = null, string? password = null, IFormFile? avatarFile = null, int? gender = null, int? schoolId = null)
+        {
+
+            if (!string.IsNullOrEmpty(email))
+            {
+                var existing = _userRepository.GetByEmail(email);
+                if (existing != null && email != user.Email) throw new InvalidOperationException("Email đã tồn tại");
+                user.Email = email;
+            }
+            if (!string.IsNullOrEmpty(username))
+            {
+                var existing = _userRepository.GetByUsername(username);
+                if (existing != null && username != user.Username) throw new InvalidOperationException("Username đã tồn tại");
+                user.Username = username;
+            }
+            if (!string.IsNullOrEmpty(fullname)) user.Fullname = fullname;
+            if (communeId.HasValue) user.CommuneId = communeId.Value;
+            if (schoolId.HasValue) user.SchoolId = schoolId.Value;
+
+            if (!string.IsNullOrEmpty(password)) user.PasswordHash = password;
+            if (gender.HasValue) user.Gender = (gender.Value == 1);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            string? oldAvatar = user.Avatar;
+            string? uploadedUrl = null;
+
+            if (avatarFile != null && avatarFile.Length > 0)
+            {
+                var ext = Path.GetExtension(avatarFile.FileName)?.ToLowerInvariant();
+                if (string.IsNullOrEmpty(ext) || !FileConstants.AllowedImageExtensions.Contains(ext))
+                    throw new InvalidOperationException("Định dạng ảnh không được hỗ trợ");
+                if (avatarFile.Length > FileConstants.MaxImageSize)
+                    throw new InvalidOperationException("Kích thước ảnh vượt quá giới hạn");
+
+                uploadedUrl = await _cloudinary.UploadImageAsync(avatarFile, FileConstants.AvatarUploadPath);
+                if (string.IsNullOrEmpty(uploadedUrl)) uploadedUrl = null;
+                user.Avatar = uploadedUrl;
+            }
+            else if (avatarFile == null)
+            {
+                user.Avatar = oldAvatar;
+            }
+
+            try
+            {
+                _userRepository.UpdateUser(user);
+
+                // after success, if avatar changed and we uploaded a new one, delete old
+                if (!string.IsNullOrEmpty(oldAvatar) && !string.IsNullOrEmpty(uploadedUrl) && !string.Equals(oldAvatar, uploadedUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    try { await _cloudinary.DeleteImageAsync(oldAvatar); } catch { }
+                }
+
+                return user;
+            }
+            catch (Exception ex)
+            {
+                // if update failed and we uploaded a new avatar, delete the uploaded to avoid orphan
+                if (!string.IsNullOrEmpty(uploadedUrl) && !string.Equals(oldAvatar, uploadedUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    try { await _cloudinary.DeleteImageAsync(uploadedUrl); } catch { }
+                }
+                throw new InvalidOperationException("Cập nhật dữ liệu không thành công: " + ex.Message, ex);
+            }
+        }
 
         public AppUser CreateAccount(string email, string password, string username, IEnumerable<Guid>? roleIds, int communeId, string? fullname = null, string? avatar = null, int gender = 0)
         {

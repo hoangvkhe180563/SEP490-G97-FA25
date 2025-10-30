@@ -629,14 +629,14 @@ namespace StudyHub.Backend.UseCases.Services
         public AppUser GetCurrentUser()
         {
             var httpContext = _httpContextAccessor.HttpContext;
-            if (httpContext == null) throw new InvalidOperationException("No HttpContext available");
+            if (httpContext == null) throw new InvalidOperationException("HttpContext không tồn tại");
             var user = httpContext.User;
-            if (user == null) throw new InvalidOperationException("No user in HttpContext");
+            if (user == null) throw new InvalidOperationException("Không tìm thấy user");
             var userIdClaim = user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
-            if (userIdClaim == null) throw new InvalidOperationException("No NameIdentifier claim in user");
-            if (!Guid.TryParse(userIdClaim.Value, out var userId)) throw new InvalidOperationException("Invalid user id in NameIdentifier claim");
+            if (userIdClaim == null) throw new InvalidOperationException("Không có NameIdentifer trong claim");
+            if (!Guid.TryParse(userIdClaim.Value, out var userId)) throw new InvalidOperationException("UserId không hợp lệ");
             var appUser = _userRepository.GetById(userId);
-            if (appUser == null) throw new InvalidOperationException("User not found");
+            if (appUser == null) throw new InvalidOperationException("Không tìm thấy người dùng");
             return appUser;
         }
     }
