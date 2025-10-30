@@ -98,42 +98,27 @@ const CourseDetail: React.FC = () => {
   const getLessonCompleted = useEnrollmentStore((s) => s.getLessonCompleted);
 
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id || !courseId) return;
     (async () => {
       try {
         await fetchEnrollmentsByUser(String(currentUser.id));
-      } catch (err) {
-        // ignore
-      }
-    })();
-  }, [currentUser?.id, fetchEnrollmentsByUser]);
-
-  // ensure per-lesson progresses are loaded when we arrive on the course detail
-  useEffect(() => {
-    if (!currentUser?.id) return;
-    (async () => {
-      try {
-        // ensure enrollments are loaded first
-        await fetchEnrollmentsByUser(String(currentUser.id));
-        const found = getEnrollmentForCourse(courseId);
-        if (found?.id) {
-          try {
-            await fetchProgresses(found.id);
-          } catch {
-            // ignore
-          }
+        const newEnrollment = useEnrollmentStore
+          .getState()
+          .getEnrollmentForCourse(courseId);
+        if (newEnrollment?.id) {
+          await fetchProgresses(newEnrollment.id);
         }
       } catch (err) {
-        // ignore
+        console.error("Load enrollment progress failed", err);
       }
     })();
-  }, [
-    currentUser?.id,
-    fetchEnrollmentsByUser,
-    getEnrollmentForCourse,
-    fetchProgresses,
-    courseId,
-  ]);
+  }, [currentUser?.id, courseId, fetchEnrollmentsByUser, fetchProgresses]);
+
+  useEffect(() => {
+    if (enrollment?.id) {
+      fetchProgresses(enrollment.id).catch(() => {});
+    }
+  }, [enrollment?.id, fetchProgresses]);
 
   useEffect(() => {
     if (courseId) {
@@ -186,10 +171,19 @@ const CourseDetail: React.FC = () => {
       // ignore
     }
 
+    // ensure enrollment and progresses are up-to-date when opening a chapter
     if (!currentUser?.id) return;
     (async () => {
       try {
         await fetchEnrollmentsByUser(String(currentUser.id));
+        const found = getEnrollmentForCourse(courseId);
+        if (found?.id) {
+          try {
+            await fetchProgresses(found.id);
+          } catch {
+            // ignore
+          }
+        }
       } catch (err) {
         // ignore
       }

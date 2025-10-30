@@ -72,7 +72,7 @@ export const useAppUserStore = create<AppUserState>()(
           const { data } = response;
           // API returns { Success, Data }
           set({
-            appUser: data?.data ?? undefined,
+            // appUser: data?.data ?? undefined,
             success: data?.success ?? false,
             message: data?.message ?? "",
           });
