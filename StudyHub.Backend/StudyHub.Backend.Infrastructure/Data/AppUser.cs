@@ -61,8 +61,6 @@ public partial class AppUser
 
     public virtual ICollection<AppUsersubjectclass> AppUsersubjectclasses { get; set; } = new List<AppUsersubjectclass>();
 
-    public virtual ICollection<ClassMember> ClassMembers { get; set; } = new List<ClassMember>();
-
     public virtual ICollection<ClassNotificationComment> ClassNotificationComments { get; set; } = new List<ClassNotificationComment>();
 
     public virtual ICollection<ClassNotification> ClassNotifications { get; set; } = new List<ClassNotification>();

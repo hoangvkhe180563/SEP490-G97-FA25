@@ -44,7 +44,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
           <p className="text-sm text-gray-600 mt-1">{teacher}</p>
         </div>
         <div className="text-sm text-gray-600 text-right">
-          <span className="block">Môn:</span>
+          <span className="block">Môn học:</span>
           <span className="font-medium">{subject ?? "---"}</span>
         </div>
       </div>
@@ -54,7 +54,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
           className="bg-slate-900 text-white px-6 py-2 rounded-md text-sm hover:opacity-90"
           onClick={() => onView(id, userRole)}
         >
-          View details...
+          Xem chi tiết
         </button>
 
         <div className="relative ml-3" ref={menuRef}>
@@ -79,7 +79,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                   onMenu?.("viewClassworks", id);
                 }}
               >
-                View classworks
+                Xem bài tập
               </button>
               <button
                 className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
@@ -88,17 +88,19 @@ export const ClassCard: React.FC<ClassCardProps> = ({
                   onMenu?.("viewStudents", id);
                 }}
               >
-                View students list
+                Danh sách học viên
               </button>
-              <button
-                className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
-                onClick={() => {
-                  setOpen(false);
-                  onMenu?.("edit", id);
-                }}
-              >
-                Edit class
-              </button>
+              {userRole === "teacher" && (
+                <button
+                  className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
+                  onClick={() => {
+                    setOpen(false);
+                    onMenu?.("edit", id);
+                  }}
+                >
+                  Chỉnh sửa lớp
+                </button>
+              )}
             </div>
           )}
         </div>

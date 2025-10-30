@@ -6,5 +6,6 @@ namespace StudyHub.Backend.Api.Services
     {
         Task SendResetPasswordEmailAsync(string toEmail, string resetToken);
         Task SendVerificationEmailAsync(string toEmail, string verificationToken);
+        Task SendClassInvitationEmailAsync(string toEmail, string className, string acceptUrl, string inviterName = "", string customMessage = "");
     }
 }
