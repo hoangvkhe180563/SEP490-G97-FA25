@@ -1,8 +1,12 @@
 import type { AppRole } from "./app-role";
-import type { AppUser } from "./app-user";
+import type { AppUser, ProfileResponse } from "./app-user";
 import type { City } from "./city";
 import type { Commune } from "./commune";
-import type { CreateAccountDto, EditAccountDto } from "./dtos";
+import type {
+  CreateAccountDto,
+  EditAccountDto,
+  UpdateProfileDto,
+} from "./dtos";
 import type { Province } from "./province";
 import type { School } from "./school";
 
@@ -19,13 +23,10 @@ interface FilterAppUsersResponse {
   meta?: Meta;
   success: boolean;
 }
-interface GetAppUserByIdResponse {
-  success: boolean;
-  data: AppUser;
-}
 interface AppUserState {
   appUsers: AppUser[];
   appUser: AppUser | undefined;
+  profileUser: ProfileResponse | undefined;
   success: boolean;
   message: string;
   isLoading: boolean;
@@ -51,6 +52,12 @@ interface AppUserState {
   updateAccount: (
     id: string,
     dto: EditAccountDto,
+    successCallback?: (message?: string) => void,
+    errorCallback?: (message?: string) => void
+  ) => Promise<any>;
+  getProfile: () => Promise<any>;
+  updateProfile: (
+    dto: UpdateProfileDto,
     successCallback?: (message?: string) => void,
     errorCallback?: (message?: string) => void
   ) => Promise<any>;

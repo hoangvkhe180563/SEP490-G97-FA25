@@ -15,4 +15,25 @@ interface AppUser {
   communeName: string;
 }
 
-export type { AppUser };
+interface CurrentUser {
+  email: string;
+  username: string;
+  fullname?: string;
+  gender?: boolean;
+  avatar?: string;
+  address?: string;
+  status?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  schoolId: number;
+  cityId: number;
+  provinceId: number;
+  communeId: number;
+  roles?: string[];
+}
+
+interface ProfileResponse extends CurrentUser {
+  password?: string;
+}
+
+export type { AppUser, CurrentUser, ProfileResponse };

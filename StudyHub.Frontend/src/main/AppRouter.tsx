@@ -100,11 +100,11 @@ const AppRouter = () => {
       element: <Outlet />,
       children: courseRoutes,
     },
-    {
-      path: RouteConfig.FORUM_MANAGEMENT,
-      element: <Outlet />,
-      children: forumRoutes,
-    },
+    // {
+    //   path: RouteConfig.FORUM_MANAGEMENT,
+    //   element: <Outlet />,
+    //   children: forumRoutes,
+    // },
   ];
 
   const routesElement = useRoutes(appRoutes);
