@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
-
 import {
   Card,
   CardContent,
@@ -25,6 +23,7 @@ import { ArrowLeft, Loader2, Upload } from "lucide-react";
 import { documentService } from "@/documentManagement/services/documentService";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const AddCourse: React.FC = () => {
   const navigate = useNavigate();
@@ -36,7 +35,7 @@ const AddCourse: React.FC = () => {
   });
   const createCourse = useCourseStore((s) => s.createCourse);
   const uploadThumbnail = useCourseStore((s) => s.uploadThumbnail);
-  const currentUser = useAppUserStore((s) => s.appUser);
+  const authUser = useAuthStore((s) => s.user);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -83,7 +82,7 @@ const AddCourse: React.FC = () => {
         message: "Vui lòng chọn môn học.",
       });
 
-    if (!currentUser?.id)
+    if (!authUser?.id)
       return setDialog({
         open: true,
         title: "Thiếu thông tin",
@@ -107,7 +106,7 @@ const AddCourse: React.FC = () => {
           ? new Date(startAt).toISOString()
           : new Date().toISOString(),
         endAt: endAt ? new Date(endAt).toISOString() : new Date().toISOString(),
-        createdBy: String(currentUser.id),
+        createdBy: authUser?.id,
         isApproved: status === "Mở" ? false : true,
       };
 

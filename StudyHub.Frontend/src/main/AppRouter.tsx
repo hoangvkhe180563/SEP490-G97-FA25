@@ -35,14 +35,12 @@ const AppRouter = () => {
     if (authChecked && !user && !location.pathname.includes("/auth")) {
       navigate("/");
     }
-  }, [authChecked])
+  }, [authChecked]);
 
   const appRoutes = [
     {
       path: "/",
-      element: (
-        user ? <RegisteredLayout user={user} /> : <GuestLayout />
-      ),
+      element: user ? <RegisteredLayout user={user} /> : <GuestLayout />,
       children: [
         {
           index: true,

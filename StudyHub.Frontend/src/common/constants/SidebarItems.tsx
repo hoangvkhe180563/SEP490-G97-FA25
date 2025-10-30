@@ -23,7 +23,7 @@ export const studentSidebarItems: ISidebarItem[] = [
   {
     icon: <BookOpen size={20} />,
     text: "Khóa học",
-    link: "/courses",
+    link: "/course/student/courses",
   },
 ];
 
@@ -36,8 +36,8 @@ export const schoolStudentSidebarItems: ISidebarItem[] = [
   {
     icon: <MessageSquare size={20} />,
     text: "Forum",
-    link: "/forum"
-  }
+    link: "/forum",
+  },
 ];
 
 export const teacherSidebarItems: ISidebarItem[] = [
@@ -54,7 +54,7 @@ export const teacherSidebarItems: ISidebarItem[] = [
   {
     icon: <BookOpen size={20} />,
     text: "Khóa học",
-    link: "/courses",
+    link: "/course/teacher/courses",
   },
   {
     icon: <Users size={20} />,
@@ -64,21 +64,19 @@ export const teacherSidebarItems: ISidebarItem[] = [
   {
     icon: <MessageSquare size={20} />,
     text: "Forum",
-    link: "/forum"
-  }
+    link: "/forum",
+  },
 ];
 
 export const headOfDepartmentTeacherSidebarItems: ISidebarItem[] = [
   {
     icon: <NotebookPen size={20} />,
     text: "Duyệt khoá học",
-    link: "/",
+    link: "/course/teacher/approve-courses",
   },
 ];
 
-export const qAndATeacherSidebarItems: ISidebarItem[] = [
-
-]
+export const qAndATeacherSidebarItems: ISidebarItem[] = [];
 
 export const documentManagerSidebarItems: ISidebarItem[] = [
   {
@@ -98,16 +96,12 @@ export const questionManagerSidebarItems: ISidebarItem[] = [
     icon: <FilePen size={20} />,
     text: "Quản lý bài kiểm tra",
     link: "/",
-  }
-]
-
-export const financialManagerSidebarItems: ISidebarItem[] = [
-
-]
-
-export const uiManagerSidebarItems: ISidebarItem[] = [
-  
+  },
 ];
+
+export const financialManagerSidebarItems: ISidebarItem[] = [];
+
+export const uiManagerSidebarItems: ISidebarItem[] = [];
 
 export const moderatorSidebarItems: ISidebarItem[] = [
   {

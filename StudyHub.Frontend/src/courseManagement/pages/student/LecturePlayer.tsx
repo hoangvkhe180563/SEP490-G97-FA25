@@ -7,7 +7,6 @@ import LectureFilters from "@/courseManagement/components/LectureFilters";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import type { LessonListDto } from "@/courseManagement/interfaces/types";
 import { useNavigate, useParams } from "react-router-dom";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import { Check, HelpCircle } from "lucide-react";
 import {
@@ -15,6 +14,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/common/components/ui/popover";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 // Progress UI removed for Video lessons; keep setters used by auto-complete logic
 
 const LecturePlayer: React.FC = () => {
@@ -36,7 +36,7 @@ const LecturePlayer: React.FC = () => {
   const [_currentTime, setCurrentTime] = useState<number>(0);
   const [_durationSec, setDurationSec] = useState<number>(0);
   const ytPlayerRef = useRef<any | null>(null);
-  const currentUser = useAppUserStore((s: any) => s.appUser);
+  const authUser = useAuthStore((s) => s.user);
   const fetchEnrollmentsByUser = useEnrollmentStore((s: any) => s.fetchByUser);
   const getEnrollmentForCourse = useEnrollmentStore(
     (s: any) => s.getEnrollmentForCourse
@@ -127,7 +127,8 @@ const LecturePlayer: React.FC = () => {
     void _enrollAction;
     (async () => {
       try {
-        await fetchEnrollmentsByUser(String(currentUser.id));
+        if (!authUser?.id) return;
+        await fetchEnrollmentsByUser(String(authUser.id));
       } catch (err) {
         // ignore
       }
@@ -144,12 +145,11 @@ const LecturePlayer: React.FC = () => {
   }, [
     cid,
     lid,
-    currentUser?.id,
+    authUser?.id,
     fetchChapters,
     fetchLesson,
     fetchEnrollmentsByUser,
     getEnrollmentForCourse,
-    currentUser,
     fetchProgresses,
     _enrollAction,
   ]);

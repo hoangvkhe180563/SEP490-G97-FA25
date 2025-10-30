@@ -37,8 +37,10 @@ export const useEnrollmentStore = create<EnrollmentState>((set, get) => ({
   enroll: async (payload) => {
     set({ loading: true });
     try {
-      const created = await enrollmentService.enroll(payload);
-      // append to local list
+      const res = await enrollmentService.enroll(payload);
+      // normalize API response: backend may return { success, data } or { Data }
+      const created = res?.data ?? res?.Data ?? res;
+      // append the actual enrollment object (not wrapper) to local list
       set((s: any) => ({
         enrollments: [...(s.enrollments || []), created],
         loading: false,

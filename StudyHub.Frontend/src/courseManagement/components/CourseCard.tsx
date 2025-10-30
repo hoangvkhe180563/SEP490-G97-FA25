@@ -3,12 +3,12 @@ import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { Button } from "@/common/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import type { CourseListDto as Course } from "@/courseManagement/interfaces/types";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import { CalendarDays } from "lucide-react";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 // module-level cache to avoid repeated fetches when many CourseCard components mount
-const _enrollFetchRequested = new Set<string>();
+// const _enrollFetchRequested = new Set<string>();
 
 const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
   course,
@@ -18,7 +18,7 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
   const selectCourse = useCourseStore((s: any) => s.selectCourse);
   const selectedCourseId = useCourseStore((s: any) => s.selectedCourseId);
   const isSelected = selectedCourseId === course.id;
-  const currentUser = useAppUserStore((s: any) => s.appUser);
+  const authUser = useAuthStore((s) => s.user);
   const enrollAction = useEnrollmentStore((s: any) => s.enroll);
   const fetchProgresses = useEnrollmentStore((s: any) => s.fetchProgresses);
   const fetchEnrollmentsByUser = useEnrollmentStore((s: any) => s.fetchByUser);
@@ -31,8 +31,8 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
   );
 
   useEffect(() => {
-    if (!currentUser?.id) return;
-    const userId = String(currentUser.id);
+    if (!authUser?.id) return;
+    const userId = String(authUser.id);
     if (enrollment) return;
     if (enrollmentsLoaded) return;
 
@@ -45,7 +45,7 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
     })();
   }, [
     fetchEnrollmentsByUser,
-    currentUser?.id,
+    authUser?.id,
     enrollment,
     course.id,
     enrollmentsLoaded,
@@ -204,9 +204,9 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
               onClick={async (e) => {
                 e.stopPropagation();
                 try {
-                  if (!currentUser?.id) return;
+                  if (!authUser?.id) return;
                   const created = await enrollAction({
-                    appUserId: String(currentUser.id),
+                    appUserId: String(authUser.id),
                     courseId: course.id,
                   });
                   if (created?.id) {

@@ -6,6 +6,7 @@ import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import type { CourseListDto } from "@/courseManagement/types/api";
 import type { CourseListDto as Course } from "@/courseManagement/interfaces/types";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const CourseList: React.FC = () => {
   const courses = useCourseStore((s) => s.courses);
@@ -21,16 +22,19 @@ const CourseList: React.FC = () => {
   const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
+  const authUser = useAuthStore((s) => s.user);
 
   const pageSize = useCourseStore((s) => s.pageSize);
   const effectivePageSize = selectedPageSize ?? pageSize ?? 6;
 
   const load = (p: number = 1, opts: Record<string, any> = {}) => {
+    if (!authUser?.schoolId) return;
     const params: Record<string, any> = {
       page: p,
       pageSize: opts.pageSize ?? effectivePageSize,
       status: "Mở",
       isApproved: true,
+      schoolId: authUser?.schoolId,
       q,
       sort,
       ...filters,
@@ -40,13 +44,15 @@ const CourseList: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchCourses({
-      page: 1,
-      pageSize: effectivePageSize,
-      status: "Mở",
-      isApproved: true,
-    });
-  }, [fetchCourses, effectivePageSize]);
+    if (authUser?.schoolId)
+      fetchCourses({
+        page: 1,
+        pageSize: effectivePageSize,
+        status: "Mở",
+        isApproved: true,
+        schoolId: authUser?.schoolId,
+      });
+  }, [fetchCourses, effectivePageSize, authUser?.schoolId]);
 
   useEffect(() => {
     let mounted = true;
@@ -172,15 +178,18 @@ const CourseList: React.FC = () => {
               onChange={(e) => {
                 const next = Number(e.target.value);
                 setSelectedPageSize(next);
-                fetchCourses({
-                  page: 1,
-                  pageSize: next,
-                  q,
-                  sort,
-                  ...filters,
-                  status: "Mở",
-                  isApproved: true,
-                });
+
+                if (authUser?.schoolId)
+                  fetchCourses({
+                    page: 1,
+                    pageSize: next,
+                    q,
+                    sort,
+                    ...filters,
+                    status: "Mở",
+                    isApproved: true,
+                    schoolId: authUser?.schoolId,
+                  });
               }}
             >
               <option value={6}>6 / trang</option>
