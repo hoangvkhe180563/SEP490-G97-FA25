@@ -14,4 +14,6 @@ public partial class Subject
     public virtual ICollection<Course> Courses { get; set; } = new List<Course>();
 
     public virtual ICollection<Document> Documents { get; set; } = new List<Document>();
+
+    public virtual ICollection<QATopic> QATopics { get; set; } = new List<QATopic>();
 }
