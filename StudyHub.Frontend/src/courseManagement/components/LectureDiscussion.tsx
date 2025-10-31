@@ -41,22 +41,14 @@ const LectureDiscussion: React.FC<Props> = ({ lessonId, courseId }) => {
   const loading = useLessonCommentStore((s) => s.loading);
 
   const authUser = useAuthStore((s) => s.user);
-
-  const getEnrollmentForCourse = useEnrollmentStore(
-    (s) => s.getEnrollmentForCourse
-  );
   const fetchEnrollmentsByUser = useEnrollmentStore((s) => s.fetchByUser);
   const enrollmentsLoaded = useEnrollmentStore(
     (s) => Array.isArray(s.enrollments) && s.enrollments.length > 0
   );
 
-  const enrollment = React.useMemo(() => {
-    try {
-      return courseId ? getEnrollmentForCourse(courseId) : null;
-    } catch {
-      return null;
-    }
-  }, [getEnrollmentForCourse, courseId]);
+  const enrollment = useEnrollmentStore((s) =>
+    courseId ? s.getEnrollmentForCourse(courseId) : null
+  );
 
   const isEnrolled = Boolean(courseId && enrollment);
 

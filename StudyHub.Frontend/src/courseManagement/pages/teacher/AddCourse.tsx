@@ -45,7 +45,6 @@ const AddCourse: React.FC = () => {
   const [price, setPrice] = useState<number | "">("");
   const [grade, setGrade] = useState<number | "">("");
   const [SubjectId, setSubjectId] = useState<number | null>(null);
-  const [schoolId, setSchoolId] = useState<number | null>(null);
   const [isFeatured, setIsFeatured] = useState(false);
   const [status, setStatus] = useState<string | "">("");
   const [startAt, setStartAt] = useState("");
@@ -68,45 +67,68 @@ const AddCourse: React.FC = () => {
   }, []);
 
   const handleCreate = async () => {
-    if (!title)
-      return setDialog({
-        open: true,
-        title: "Thiếu thông tin",
-        message: "Vui lòng nhập tên khóa học.",
-      });
+    // Validate inputs
+    const errors: string[] = [];
 
-    if (!SubjectId)
-      return setDialog({
-        open: true,
-        title: "Thiếu thông tin",
-        message: "Vui lòng chọn môn học.",
-      });
+    if (!title || !title.trim()) errors.push("Tên khóa học là bắt buộc.");
+    if (!SubjectId) errors.push("Vui lòng chọn môn học.");
+    if (!authUser?.id) errors.push("Bạn phải đăng nhập để tạo khóa học.");
 
-    if (!authUser?.id)
+    // price: allow empty -> treat as 0, otherwise must be number >= 0
+    if (price !== "" && (isNaN(Number(price)) || Number(price) < 0))
+      errors.push("Giá phải là số >= 0.");
+
+    // grade: must be number between 1-12
+    if (grade === "" || isNaN(Number(grade)))
+      errors.push("Vui lòng chọn khối lớp hợp lệ.");
+    else if (Number(grade) < 1 || Number(grade) > 12)
+      errors.push("Khối lớp phải trong khoảng 1 - 12.");
+
+    // status required
+    if (!status || !String(status).trim())
+      errors.push("Vui lòng chọn trạng thái.");
+
+    // start/end dates: if provided, must be valid and start <= end
+    let startDate: Date | null = null;
+    let endDate: Date | null = null;
+    if (startAt) {
+      startDate = new Date(startAt);
+      if (isNaN(startDate.getTime())) errors.push("Ngày bắt đầu không hợp lệ.");
+    }
+    if (endAt) {
+      endDate = new Date(endAt);
+      if (isNaN(endDate.getTime())) errors.push("Ngày kết thúc không hợp lệ.");
+    }
+    if (startDate && endDate && startDate.getTime() > endDate.getTime())
+      errors.push("Ngày kết thúc phải sau hoặc cùng ngày với ngày bắt đầu.");
+
+    // thumbnail file size limit (optional): 5MB
+    if (thumbnailFile && thumbnailFile.size > 5 * 1024 * 1024)
+      errors.push("Kích thước ảnh thu nhỏ tối đa 5MB.");
+
+    if (errors.length > 0)
       return setDialog({
         open: true,
-        title: "Thiếu thông tin",
-        message: "Bạn chưa đăng nhập.",
+        title: "Lỗi nhập liệu",
+        message: errors.join(" \n"),
       });
 
     setSaving(true);
     try {
       const dto = {
-        name: title,
+        name: title.trim(),
         information: description || null,
         imageUrl: thumbnailPreview ?? null,
-        price: price ? Number(price) : 0,
-        grade: grade ? Number(grade) : 0,
-        SubjectId: SubjectId,
-        schoolId: schoolId ?? null,
+        price: price === "" ? 0 : Number(price),
+        grade: grade === "" ? 0 : Number(grade),
+        SubjectId: Number(SubjectId),
+        schoolId: authUser?.schoolId ?? null,
         isFeatured: isFeatured,
         status: status,
         createdAt: new Date().toISOString(),
-        startAt: startAt
-          ? new Date(startAt).toISOString()
-          : new Date().toISOString(),
-        endAt: endAt ? new Date(endAt).toISOString() : new Date().toISOString(),
-        createdBy: authUser?.id,
+        startAt: startDate ? startDate.toISOString() : new Date().toISOString(),
+        endAt: endDate ? endDate.toISOString() : new Date().toISOString(),
+        createdBy: authUser?.id ?? "",
         isApproved: status === "Mở" ? false : true,
       };
 
@@ -130,7 +152,7 @@ const AddCourse: React.FC = () => {
       setDialog({
         open: true,
         title: "Lỗi hệ thống",
-        message: "Có lỗi xảy ra khi tạo khóa học.",
+        message: (err as any)?.message || "Có lỗi xảy ra khi tạo khóa học.",
       });
     } finally {
       setSaving(false);
