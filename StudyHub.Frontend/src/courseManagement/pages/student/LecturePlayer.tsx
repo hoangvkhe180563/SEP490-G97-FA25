@@ -38,19 +38,15 @@ const LecturePlayer: React.FC = () => {
   const ytPlayerRef = useRef<any | null>(null);
   const authUser = useAuthStore((s) => s.user);
   const fetchEnrollmentsByUser = useEnrollmentStore((s: any) => s.fetchByUser);
-  const getEnrollmentForCourse = useEnrollmentStore(
-    (s: any) => s.getEnrollmentForCourse
-  );
   const recordProgress = useEnrollmentStore((s: any) => s.recordProgress);
   const fetchProgresses = useEnrollmentStore((s: any) => s.fetchProgresses);
   const _enrollAction = useEnrollmentStore((s: any) => s.enroll);
-  const getLessonCompleted = useEnrollmentStore(
-    (s: any) => s.getLessonCompleted
+  // subscribe reactively to the enrollment for this course so UI updates when
+  // another component (LectureFilters) creates the enrollment
+  const enrollment = useEnrollmentStore((s: any) =>
+    s.getEnrollmentForCourse(cid)
   );
-  const enrollment = getEnrollmentForCourse(cid);
-  const [enrollmentId, setEnrollmentId] = useState<number | null>(
-    enrollment?.id ?? null
-  );
+  const enrollmentId = enrollment?.id ?? null;
 
   const localKey = React.useCallback(
     (lessonId: number) => `studyhub_local_progress_${lessonId}`,
@@ -132,11 +128,11 @@ const LecturePlayer: React.FC = () => {
       } catch (err) {
         // ignore
       }
-      const found = getEnrollmentForCourse(cid);
-      if (found) {
-        setEnrollmentId(found.id);
+      // if the enrollment for this course is already present (or becomes present
+      // via the reactive selector), ensure we have progresses loaded
+      if (enrollment?.id) {
         try {
-          await fetchProgresses(found.id);
+          await fetchProgresses(enrollment.id);
         } catch (err) {
           // ignore
         }
@@ -149,9 +145,9 @@ const LecturePlayer: React.FC = () => {
     fetchChapters,
     fetchLesson,
     fetchEnrollmentsByUser,
-    getEnrollmentForCourse,
     fetchProgresses,
     _enrollAction,
+    enrollment?.id,
   ]);
 
   useEffect(() => {
@@ -173,10 +169,11 @@ const LecturePlayer: React.FC = () => {
     }
   }, [selectedLesson, readLocalData]);
 
-  const isLessonCompleted =
-    selectedLesson && selectedLesson.id
-      ? getLessonCompleted(selectedLesson.id)
-      : false;
+  // derive lessonId and subscribe to its completed status reactively
+  const lessonId = selectedLesson?.id ?? lid;
+  const isLessonCompleted = useEnrollmentStore((s: any) =>
+    lessonId ? s.getLessonCompleted(lessonId) : false
+  );
 
   // attach video events (handles both HTML5 <video> and YouTube iframe via IFrame API)
   useEffect(() => {
@@ -779,8 +776,11 @@ const LecturePlayer: React.FC = () => {
                 <div className="p-4 flex justify-end">
                   {enrollment ? (
                     <Button
+                      disabled={isLessonCompleted}
                       onClick={async () => {
                         if (!selectedLesson?.id) return;
+                        // prevent double-action when already completed
+                        if (isLessonCompleted) return;
                         try {
                           await saveProgress(100);
                           setLocalProgress(100);
@@ -790,7 +790,9 @@ const LecturePlayer: React.FC = () => {
                         }
                       }}
                     >
-                      Đánh dấu hoàn thành
+                      {isLessonCompleted
+                        ? "Đã hoàn thành"
+                        : "Đánh dấu hoàn thành"}
                     </Button>
                   ) : null}
                 </div>

@@ -175,6 +175,56 @@ const EditCourse: React.FC = () => {
     return d.toISOString().split("T")[0];
   };
 
+  // Validation for fields before save
+  const validateForm = () => {
+    const errors: string[] = [];
+
+    if (!name || !name.trim()) errors.push("Tiêu đề khóa học là bắt buộc.");
+    if (!information || !information.trim())
+      errors.push("Mô tả ngắn là bắt buộc.");
+
+    if (price === undefined || Number.isNaN(price) || Number(price) < 0)
+      errors.push("Giá khóa học phải là số hợp lệ và lớn hơn hoặc bằng 0.");
+
+    if (subjectId === "" || subjectId === undefined || Number(subjectId) <= 0)
+      errors.push("Vui lòng chọn chủ đề cho khóa học.");
+
+    if (
+      gradeId === "" ||
+      gradeId === undefined ||
+      Number(gradeId) < 1 ||
+      Number(gradeId) > 12
+    )
+      errors.push("Vui lòng chọn khối lớp hợp lệ (1-12).");
+
+    if (!status || (typeof status === "string" && status.trim() === ""))
+      errors.push("Vui lòng chọn trạng thái khóa học.");
+
+    if (startAt && isNaN(new Date(startAt).getTime()))
+      errors.push("Ngày bắt đầu không hợp lệ.");
+    if (endAt && isNaN(new Date(endAt).getTime()))
+      errors.push("Ngày kết thúc không hợp lệ.");
+    if (startAt && endAt && new Date(startAt) > new Date(endAt))
+      errors.push("Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc.");
+
+    // Ensure there is at least one chapter with at least one lesson
+    if (!chaptersLocal || chaptersLocal.length === 0)
+      errors.push("Khóa học nên có ít nhất 1 chương.");
+    else {
+      const hasLesson = chaptersLocal.some((c) => (c.lessons || []).length > 0);
+      if (!hasLesson) errors.push("Ít nhất một chương phải chứa một bài học.");
+    }
+
+    // Optional: thumbnail size check (if user selected a file but not uploaded yet)
+    if (thumbnailFile) {
+      const maxBytes = 5 * 1024 * 1024; // 5MB
+      if (thumbnailFile.size > maxBytes)
+        errors.push("Ảnh thu nhỏ vượt quá 5MB. Vui lòng chọn file nhỏ hơn.");
+    }
+
+    return errors;
+  };
+
   useEffect(() => {
     if (chaptersFromStore) {
       const belongsToCurrent =
@@ -505,6 +555,17 @@ const EditCourse: React.FC = () => {
             </Button>
             <Button
               onClick={async () => {
+                // validate before attempting save
+                const errors = validateForm();
+                if (errors.length) {
+                  setDialog({
+                    open: true,
+                    title: "Thiếu hoặc sai thông tin",
+                    message: errors.join("\n"),
+                  });
+                  return;
+                }
+
                 setSaving(true);
                 try {
                   if (!updateCourse) return;
@@ -528,12 +589,16 @@ const EditCourse: React.FC = () => {
                     })),
                   }));
 
+                  // if course was previously a draft and is now opened, reset approval
+                  const willOpenFromDraft =
+                    selectedCourse?.status === "Nháp" && status === "Mở";
                   const dto: any = {
                     name,
                     information,
                     imageUrl:
                       thumbnailPreview ?? selectedCourse?.imageUrl ?? null,
                     price: price ?? 0,
+                    schoolId: authUser?.schoolId ?? null,
                     subjectId:
                       typeof subjectId === "number"
                         ? subjectId
@@ -549,7 +614,9 @@ const EditCourse: React.FC = () => {
                     endAt: endAt ? new Date(endAt).toISOString() : null,
                     updatedAt: new Date().toISOString(),
                     UpdatedBy: authUser?.id,
-                    isApproved: selectedCourse?.isApproved,
+                    isApproved: willOpenFromDraft
+                      ? false
+                      : selectedCourse?.isApproved,
                   };
 
                   await updateCourse(courseId, dto);
