@@ -36,7 +36,6 @@ namespace StudyHub.Backend.Api.Mappers
                 Email = user.Email,
                 Username = user.Username,
                 Fullname = user.Fullname,
-                Password = user.PasswordHash,
                 Gender = user.Gender,
                 Avatar = user.Avatar,
                 Address = user.Address,

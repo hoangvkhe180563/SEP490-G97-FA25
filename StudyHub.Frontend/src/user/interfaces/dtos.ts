@@ -34,7 +34,8 @@ interface UpdateProfileDto {
   username?: string | null;
   fullname?: string | null;
   // backend expects GUIDs for role ids
-  password?: string | null;
+  oldPassword?: string | null;
+  newPassword?: string | null;
   // backend expects integer commune id
   communeId?: number | null;
   schoolId?: number | null;

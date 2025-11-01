@@ -87,6 +87,7 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
         public List<int> ClassIds { get; set; } = new();
         public List<short> SubjectIds { get; set; } = new();
         public int? SchoolId { get; set; }
+        public bool isLoginWithGoogle { get; set; }
     }
 
     public class GenericResponse

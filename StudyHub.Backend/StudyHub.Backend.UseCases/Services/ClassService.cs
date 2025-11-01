@@ -9,13 +9,17 @@ namespace StudyHub.Backend.UseCases.Services
     {
         private readonly IClassRepository _classRepository;
         private readonly ICloudinaryRepository _fileStorage;
+        private readonly AuthService _authService;
         private readonly IAppUserRepository _userRepository;
-        public ClassService(IClassRepository classRepository, ICloudinaryRepository fileStorage, IAppUserRepository userRepository)
+
+        public ClassService(IClassRepository classRepository, ICloudinaryRepository fileStorage, AuthService authService, IAppUserRepository userRepository)
         {
             _classRepository = classRepository;
             _fileStorage = fileStorage;
+            _authService = authService;
             _userRepository = userRepository;
         }
+
         public List<Class> GetClasses(Guid? userid)
         {
             return _classRepository.GetAllClasses(userid);
@@ -102,38 +106,58 @@ namespace StudyHub.Backend.UseCases.Services
         public ClassNotification CreateNotification(ClassNotification entity)
             => _classRepository.CreateNotification(entity);
 
-        
+
         public List<ClassNotificationFile> GetFileByNotificationId(int notificationid)
-        =>_classRepository.GetFileByNotificationId(notificationid);
+        => _classRepository.GetFileByNotificationId(notificationid);
 
 
-        public ClassNotificationFile CreateFile(ClassNotificationFile entity) => _classRepository.CreateSubmissionFile  (entity);
+        public ClassNotificationFile CreateFile(ClassNotificationFile entity) => _classRepository.CreateSubmissionFile(entity);
 
         public async Task<string> UploadFileToCloudinary(IFormFile file)
             => await _fileStorage.UploadFileAsync(file, FileConstants.ClassNotificationUploadPAth);
 
-        public List<Class> GetClassByUserId(Guid userid)=> _classRepository.GetClassByUserId(userid);
+        public List<Class> GetClassByUserId(Guid userid) => _classRepository.GetClassByUserId(userid);
 
         public ClassNotificationComment CreateNotificationComment(ClassNotificationComment commentEntity)
         {
-           return _classRepository.CommentNoti(commentEntity);
+            return _classRepository.CommentNoti(commentEntity);
         }
-        public bool deleteNoti(int  notificationid) => _classRepository.deleteNotification(notificationid);
-        public bool InviteMember(Guid userId, int classId)=>_classRepository.InviteMember(userId, classId);
-        public bool ConfirmMember(Guid userId, int classId) =>_classRepository.ConfirmMember(userId, classId);
-        public bool KickMember(Guid userId, int classId)=> _classRepository.KickMember(userId,classId);
+        public bool deleteNoti(int notificationid) => _classRepository.deleteNotification(notificationid);
+        public bool InviteMember(Guid userId, int classId) => _classRepository.InviteMember(userId, classId);
+        public bool ConfirmMember(Guid userId, int classId) => _classRepository.ConfirmMember(userId, classId);
+        public bool KickMember(Guid userId, int classId) => _classRepository.KickMember(userId, classId);
         public ClassNotification GetNotificationByID(int notificationid) => _classRepository.getNotificationByID(notificationid);
-        public List<Classwork> GetClassworks(int classId)=> _classRepository.GetClassworks(classId);
+        public List<Classwork> GetClassworks(int classId) => _classRepository.GetClassworks(classId);
         public Classwork CreateClasswork(Classwork classwork) => _classRepository.CreateClasswork(classwork);
-        public Classwork EditClasswork(Classwork classwork)=>_classRepository.EditClasswork(classwork);
+        public Classwork EditClasswork(Classwork classwork) => _classRepository.EditClasswork(classwork);
         public ClassworkSubmission SubmitClasswork(ClassworkSubmission submission, List<SubmissionFile> files) => _classRepository.SubmitClasswork(submission, files);
         public ClassworkSubmission ResubmitClasswork(int submissionId, List<SubmissionFile> files) => _classRepository.ResubmitClasswork(submissionId, files);
-        public Classwork GetClasswork(int classworkId)=>_classRepository.GetClasswork(classworkId);
-        public List<ClassworkSubmission> GetSubmissionsByClassworkId(int classworkId)=>_classRepository.GetSubmissionsByClassworkId(classworkId);
+        public Classwork GetClasswork(int classworkId) => _classRepository.GetClasswork(classworkId);
+        public List<ClassworkSubmission> GetSubmissionsByClassworkId(int classworkId) => _classRepository.GetSubmissionsByClassworkId(classworkId);
         public ClassworkSubmission GetSubmissionByUserAndClasswork(int classworkId, Guid userId) => _classRepository.GetSubmissionByUserAndClasswork(classworkId, userId);
-        public SubmissionFile AddSubmissionFile(SubmissionFile file)=>_classRepository.AddSubmissionFile(file);
-        public List<SubmissionFile> GetSubmissionFiles(int submissionId)=> _classRepository.GetSubmissionFiles(submissionId);
-        public int GetMemberCount(int classworkId)=>_classRepository.GetMemberCount(classworkId);
-        public int GetSubmissionCount(int classworkId)=>_classRepository.GetSubmissionCount(classworkId);
+        public SubmissionFile AddSubmissionFile(SubmissionFile file) => _classRepository.AddSubmissionFile(file);
+        public List<SubmissionFile> GetSubmissionFiles(int submissionId) => _classRepository.GetSubmissionFiles(submissionId);
+        public int GetMemberCount(int classworkId) => _classRepository.GetMemberCount(classworkId);
+        public int GetSubmissionCount(int classworkId) => _classRepository.GetSubmissionCount(classworkId);
+
+        public async Task MarkAllAsReadInClassAsync(int classId)
+        {
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
+            {
+                throw new UnauthorizedAccessException("Bạn không có quyền truy cập.");
+            }
+            await _classRepository.MarkAllAsReadInClassAsync(classId, currentUser.Id);
+        }
+
+        public async Task<int> GetUnreadNotificationCountAsync(int classId)
+        {
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
+            {
+                throw new UnauthorizedAccessException("Bạn không có quyền truy cập.");
+            }
+            return await _classRepository.GetUnreadCountAsync(classId, currentUser.Id);
+        }
     }
 }

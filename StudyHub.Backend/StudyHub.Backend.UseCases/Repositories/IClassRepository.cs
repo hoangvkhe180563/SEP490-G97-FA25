@@ -35,7 +35,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         bool KickMember(Guid userId, int classId);
         List<Classwork> GetClassworks(int classId);
         Classwork CreateClasswork(Classwork classwork);
-         Classwork EditClasswork(Classwork classwork);
+        Classwork EditClasswork(Classwork classwork);
         ClassworkSubmission SubmitClasswork(ClassworkSubmission submission, List<SubmissionFile> files);
         ClassworkSubmission ResubmitClasswork(int submissionId, List<SubmissionFile> files);
         Classwork GetClasswork(int classworkId);
@@ -45,5 +45,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         List<SubmissionFile> GetSubmissionFiles(int submissionId);
         int GetSubmissionCount(int classworkId);
         int GetMemberCount(int classworkId);
+        Task MarkAllAsReadInClassAsync(int classId, Guid userId);
+        Task<int> GetUnreadCountAsync(int classId, Guid userId);
     }
 }

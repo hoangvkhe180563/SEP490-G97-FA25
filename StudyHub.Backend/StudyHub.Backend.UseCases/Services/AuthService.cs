@@ -54,7 +54,7 @@ namespace StudyHub.Backend.UseCases.Services
         {
             // allow login by email or username
             Domain.Entities.AppUser? user = null;
-            if (!string.IsNullOrEmpty(email))
+            if (!string.IsNullOrEmpty(email) || !string.IsNullOrEmpty(username))
             {
                 user = _userRepository.GetByEmail(email);
                 if (user == null)
@@ -333,12 +333,16 @@ namespace StudyHub.Backend.UseCases.Services
                         Username = email.Split('@')[0],
                         Fullname = name,
                         Avatar = picture,
+                        Gender = true,
+                        Status = true,
+                        Wallet = 0,
                         IsLoginWithGoogle = true,
+                        IsVerified = true,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow,
                     };
                     // auto-assign Student role if exists
-                    var studentRole = _roleRepository.GetRoleByName("Student");
+                    var studentRole = _roleRepository.GetRoleByName("External Student");
                     if (studentRole != null)
                     {
                         _userRepository.CreateUser(user, new List<Guid> { studentRole.Id });
@@ -351,7 +355,7 @@ namespace StudyHub.Backend.UseCases.Services
                 else
                 {
                     // ensure flag
-                    user.IsLoginWithGoogle = true;
+                    //user.IsLoginWithGoogle = true;
                     if (!string.IsNullOrEmpty(name)) user.Fullname = name;
                     if (!string.IsNullOrEmpty(picture)) user.Avatar = picture;
                     _userRepository.UpdateUser(user);

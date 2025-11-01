@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Api.Dtos.ClassDTOS;
 using StudyHub.Backend.Api.Dtos.ClassworkDTOS;
+using StudyHub.Backend.Api.Hubs;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.Api.Services;
 using StudyHub.Backend.Domain.Entities;
@@ -24,16 +26,17 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly LocationService _locationService;
         private readonly IConfiguration _config;
         private readonly IEmailService _emailService;
+        private readonly IHubContext<ClassNotificationHub> _hubContext;
 
-
-        public ClassController(ClassService service, AppUserService aUserService, AppRoleService aRoleService, LocationService locationService,IEmailService emailService, IConfiguration config)
+        public ClassController(ClassService service, AppUserService aUserService, AppRoleService aRoleService, LocationService locationService, IConfiguration config, IEmailService emailService, IHubContext<ClassNotificationHub> hubContext)
         {
             _service = service;
             _aUserService = aUserService;
             _aRoleService = aRoleService;
             _locationService = locationService;
-            _emailService = emailService;
             _config = config;
+            _emailService = emailService;
+            _hubContext = hubContext;
         }
 
         [HttpGet]
@@ -74,7 +77,7 @@ namespace StudyHub.Backend.Api.Controllers
             var classListDtos = pagedClasses.Select(c =>
             {
                 Subject? subjectEntity = null;
-               
+
                 allTeachers.TryGetValue(c.CreatedBy, out AppUser? teacher);
 
                 return c.ToListClassDto(teacher);
@@ -85,7 +88,7 @@ namespace StudyHub.Backend.Api.Controllers
             {
                 success = true,
                 message = "Danh sách lớp học được tải thành công.",
-                classes =  classListDtos,
+                classes = classListDtos,
                 meta = new
                 {
                     total = totalItems,
@@ -158,14 +161,14 @@ namespace StudyHub.Backend.Api.Controllers
             });
         }
 
-        
+
         [HttpGet("{id}/detail")]
         public IActionResult GetClassDetail(int id)
         {
             var cls = _service.GetClassById(id);
             if (cls == null)
                 return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
-                        
+
             var notifications = _service.GetClassNotifications(id)
                 .Select(n =>
                 {
@@ -180,8 +183,8 @@ namespace StudyHub.Backend.Api.Controllers
                 })
                 .ToList();
 
-           
-            var dto = cls.ToFullDetailDto( notifications);
+
+            var dto = cls.ToFullDetailDto(notifications);
 
             return Ok(new
             {
@@ -289,7 +292,7 @@ namespace StudyHub.Backend.Api.Controllers
                                                     FileUrl = li.Url
                                                 });
                                             }
-                                            continue; 
+                                            continue;
                                         }
                                     }
                                     catch
@@ -391,6 +394,8 @@ namespace StudyHub.Backend.Api.Controllers
                     {
                     }
                 }
+
+                await _hubContext.Clients.Group($"class_{dto.ClassId}").SendAsync("NewNotification", dto.ClassId, createdNoti.Title);
 
                 return Ok(new
                 {
@@ -513,7 +518,7 @@ namespace StudyHub.Backend.Api.Controllers
                     {
                         // Existing user: create/update class_members with status = 'invited'
                         var invited = _service.InviteMember(user.Id, id);
-                        
+
                         // Build frontend accept URL (frontend should call confirm)
                         var acceptUrl = $"{baseFrontendUrl}/class/{request.Role.ToLower()}/{id}/invite/confirm";
 
@@ -571,7 +576,7 @@ namespace StudyHub.Backend.Api.Controllers
         /// Kick a member from class (set status = 'kicked').
         /// </summary>
         [HttpPost("{id}/members/{userId}/kick")]
-        public IActionResult KickMember(int id, string userId)
+        public async Task<IActionResult> KickMember(int id, string userId)
         {
             try
             {
@@ -586,6 +591,8 @@ namespace StudyHub.Backend.Api.Controllers
                 if (!ok)
                     return StatusCode(500, new { success = false, message = "Không thể kick thành viên." });
 
+                await _hubContext.Clients.Group($"user_{userId}").SendAsync("KickedFromClass", id);
+
                 return Ok(new { success = true, message = "Thành viên đã bị kick (status set to kicked)." });
             }
             catch (Exception ex)
@@ -595,7 +602,7 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
 
-        
+
         [HttpGet("classworks/{id}")]
         public IActionResult getClasswork(int id)
         {
@@ -605,8 +612,8 @@ namespace StudyHub.Backend.Api.Controllers
             {
                 success = true,
                 message = "Danh sách lớp học được tải thành công.",
-                classes =  cw,
-               
+                classes = cw,
+
             };
             return Ok(response);
         }
@@ -721,13 +728,13 @@ namespace StudyHub.Backend.Api.Controllers
         public IActionResult GetSubmissionfile(int classworkID, Guid userid)
         {
             var submitFile = _service.GetSubmissionByUserAndClasswork(classworkID, userid);
-            
-            if(submitFile == null)
+
+            if (submitFile == null)
             {
                 return NotFound(new { success = false, message = "Không tìm thấy classwork" });
             }
             var fi = _service.GetSubmissionFiles(submitFile.Id);
-            return Ok(new {success=true, data=submitFile.ToSubmissionDto(fi)});
+            return Ok(new { success = true, data = submitFile.ToSubmissionDto(fi) });
 
         }
         [HttpGet("classworks/submissioncount/{classworkID}")]
@@ -741,6 +748,32 @@ namespace StudyHub.Backend.Api.Controllers
         {
             var numberMember = _service.GetMemberCount(classworkID);
             return Ok(numberMember);
+        }
+
+        [HttpGet("{classId}/notifications/unread-count")]
+        public async Task<IActionResult> GetUnreadCount(int classId)
+        {
+            var count = await _service.GetUnreadNotificationCountAsync(classId);
+            return Ok(new { unreadCount = count });
+        }
+
+        [HttpPost("{classId}/notifications/read")]
+        public async Task<IActionResult> MarkAllAsReadInClass(int classId)
+        {
+            try
+            {
+                var noti = _service.GetClassNotifications(classId);
+                if (noti == null)
+                {
+                    return NotFound(new { success = false, message = "Các thông báo không tìm thấy" });
+                }
+                await _service.MarkAllAsReadInClassAsync(classId);
+                return Ok(new { success = true, message = "Đã đánh dấu đã đọc tất cả thông báo trong lớp." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = $"Lỗi server: {ex.Message}", error = ex.ToString() });
+            }
         }
 
     }

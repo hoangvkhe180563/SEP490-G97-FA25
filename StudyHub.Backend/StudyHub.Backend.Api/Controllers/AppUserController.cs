@@ -8,6 +8,8 @@ using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.UseCases.Services;
 using StudyHub.Backend.UseCases.Utils;
 using Microsoft.AspNetCore.Authorization;
+using StudyHub.Backend.UseCases.Exceptions;
+using StudyHub.Backend.Api.Filters;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -150,7 +152,7 @@ namespace StudyHub.Backend.Api.Controllers
             try
             {
                 var currentUser = _authService.GetCurrentUser();
-                var user = await _userService.UpdateProfile(currentUser, req.Email, req.Username, req.Fullname, req.CommuneId, req.Password, req.AvatarFile, req.Gender, req.SchoolId);
+                var user = await _userService.UpdateProfile(currentUser, req.Email, req.Username, req.Fullname, req.CommuneId, req.OldPassword, req.NewPassword, req.AvatarFile, req.Gender, req.SchoolId);
                 if (user == null) return NotFound(new { Success = false, Message = "Người dùng không tìm thấy" });
 
                 var roles = _roleService.GetRolesByUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
@@ -162,6 +164,10 @@ namespace StudyHub.Backend.Api.Controllers
 
                 return Ok(new { Success = true, Data = dto });
             }
+            catch (InvalidFieldException ex)
+            {
+                return BadRequest(new { Success = false, Message = ex.Errors });
+            }
             catch (InvalidOperationException ex)
             {
                 // business rule error (e.g., duplicate email/username)
@@ -169,7 +175,7 @@ namespace StudyHub.Backend.Api.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { Success = false, Message = "Tải dữ liệu người dùng không thành công", Error = ex.Message });
+                return StatusCode(500, new { Success = false, Message = "Cập nhật thông tin cá nhân không thành công", Error = ex.Message });
             }
         }
 

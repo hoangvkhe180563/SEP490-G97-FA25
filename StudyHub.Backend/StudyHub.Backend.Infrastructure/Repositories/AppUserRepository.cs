@@ -221,20 +221,24 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 existing.PasswordHash = user.PasswordHash;
                 existing.Username = user.Username;
                 existing.Fullname = user.Fullname;
+                existing.Dob = user.Dob;
                 existing.Gender = user.Gender;
+                existing.Avatar = user.Avatar;
                 existing.SchoolId = user.SchoolId;
-                existing.Status = user.Status;
-                existing.IsVerified = user.IsVerified;
-                existing.UpdatedAt = user.UpdatedAt;
-                existing.RefreshToken = user.RefreshToken;
-                existing.RefreshTokenExpire = user.RefreshTokenExpire;
-                existing.ResetPasswordToken = user.ResetPasswordToken;
-                existing.ResetPasswordExpire = user.ResetPasswordExpire;
-                existing.EmailVerificationToken = user.EmailVerificationToken;
-                existing.EmailVerificationExpire = user.EmailVerificationExpire;
                 existing.Address = user.Address;
                 existing.CommuneId = user.CommuneId;
-                existing.Avatar = user.Avatar;
+                existing.PhoneNumber = user.PhoneNumber;
+                existing.Wallet = user.Wallet;
+                existing.IsVerified = user.IsVerified;
+                existing.RefreshToken = user.RefreshToken;
+                existing.RefreshTokenExpire = user.RefreshTokenExpire;
+                existing.EmailVerificationToken = user.EmailVerificationToken;
+                existing.EmailVerificationExpire = user.EmailVerificationExpire;
+                existing.ResetPasswordToken = user.ResetPasswordToken;
+                existing.ResetPasswordExpire = user.ResetPasswordExpire;
+                existing.IsLoginWithGoogle = user.IsLoginWithGoogle;
+                existing.Status = user.Status;
+                existing.UpdatedAt = user.UpdatedAt;
 
                 if (roleIds != null && roleIds.Any())
                 {
@@ -258,7 +262,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
-    public List<Domain.Entities.AppUserSubjectClass> GetClaimsForUser(Guid userId)
+        public List<Domain.Entities.AppUserSubjectClass> GetClaimsForUser(Guid userId)
         {
             // AppClaim table removed. Build subject-class assignments from AppUsersubjectclass table.
             var assignments = _context.AppUserSubjectClasses

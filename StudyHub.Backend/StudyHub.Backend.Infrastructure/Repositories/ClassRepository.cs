@@ -652,6 +652,60 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return classEntity.Count();
         }
 
+        public async Task MarkAllAsReadInClassAsync(int classId, Guid userId)
+        {
+            // Lấy tất cả thông báo thuộc lớp này
+            //var notifications = await _context.ClassNotifications
+            //    .Where(n => n.ClassId == classId)
+            //    .Select(n => n.Id)
+            //    .ToListAsync();
+
+            //// Lấy các bản ghi đọc cũ
+            //var existingReadStatus = await _context.ClassNotificationReadStatuses
+            //    .Where(r => r.UserId == userId && notifications.Contains(r.NotificationId))
+            //    .ToListAsync();
+
+            //// Thêm hoặc cập nhật trạng thái đọc
+            //foreach (var notificationId in notifications)
+            //{
+            //    var record = existingReadStatus.FirstOrDefault(r => r.NotificationId == notificationId);
+            //    if (record == null)
+            //    {
+            //        _context.ClassNotificationReadStatuses.Add(new ClassNotificationReadStatuses
+            //        {
+            //            Id = Guid.NewGuid(),
+            //            NotificationId = notificationId,
+            //            UserId = userId,
+            //            IsRead = true,
+            //            ReadAt = DateTime.Now
+            //        });
+            //    }
+            //    else if (!record.IsRead)
+            //    {
+            //        record.IsRead = true;
+            //        record.ReadAt = DateTime.Now;
+            //    }
+            //}
+
+            //await _context.SaveChangesAsync();
+        }
+
+        public async Task<int> GetUnreadCountAsync(int classId, Guid userId)
+        {
+            //var all = await _context.ClassNotifications
+            //    .Where(n => n.ClassId == classId)
+            //    .Select(n => n.Id)
+            //    .ToListAsync();
+
+            //var read = await _context.ClassNotificationReadStatuses
+            //    .Where(r => r.UserId == userId && r.IsRead)
+            //    .Select(r => r.NotificationId)
+            //    .ToListAsync();
+
+            //return all.Except(read).Count();
+            return 0;
+        }
+
 
     }
 }

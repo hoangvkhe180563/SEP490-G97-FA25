@@ -5,6 +5,7 @@ using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Utils;
+using StudyHub.Backend.UseCases.Exceptions;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -65,7 +66,7 @@ namespace StudyHub.Backend.UseCases.Services
             var user = _userRepository.GetById(id);
             return user;
         }
-        public AppUser? GetUserByEmail(string email)=> _userRepository.GetByEmail(email);
+        public AppUser? GetUserByEmail(string email) => _userRepository.GetByEmail(email);
 
         // Async create account with optional avatar upload handled here (clean architecture: business logic in service)
         public async Task<AppUser> CreateAccountAsync(string email, string password, string username, IEnumerable<Guid>? roleIds, int communeId, int schoolId, string? fullname = null, IFormFile? avatarFile = null, int gender = 0)
@@ -192,26 +193,49 @@ namespace StudyHub.Backend.UseCases.Services
                 throw new InvalidOperationException("Cập nhật dữ liệu không thành công: " + ex.Message, ex);
             }
         }
-        public async Task<AppUser?> UpdateProfile(AppUser user, string? email = null, string? username = null, string? fullname = null, int? communeId = null, string? password = null, IFormFile? avatarFile = null, int? gender = null, int? schoolId = null)
+        public async Task<AppUser?> UpdateProfile(AppUser user, string? email = null, string? username = null, string? fullname = null, int? communeId = null, string? oldPassword = null, string? newPassword = null, IFormFile? avatarFile = null, int? gender = null, int? schoolId = null)
         {
+            Dictionary<string, string> errors = new Dictionary<string, string>();
 
             if (!string.IsNullOrEmpty(email))
             {
                 var existing = _userRepository.GetByEmail(email);
-                if (existing != null && email != user.Email) throw new InvalidOperationException("Email đã tồn tại");
+                if (existing != null && email != user.Email) errors.Add("Email", "Email đã tồn tại");
                 user.Email = email;
             }
             if (!string.IsNullOrEmpty(username))
             {
                 var existing = _userRepository.GetByUsername(username);
-                if (existing != null && username != user.Username) throw new InvalidOperationException("Username đã tồn tại");
+                if (existing != null && username != user.Username) errors.Add("Username", "Username đã tồn tại");
                 user.Username = username;
             }
             if (!string.IsNullOrEmpty(fullname)) user.Fullname = fullname;
             if (communeId.HasValue) user.CommuneId = communeId.Value;
             if (schoolId.HasValue) user.SchoolId = schoolId.Value;
 
-            if (!string.IsNullOrEmpty(password)) user.PasswordHash = password;
+            if (!string.IsNullOrEmpty(oldPassword) && !string.IsNullOrEmpty(newPassword) && !user.IsLoginWithGoogle)
+            {
+                // verify old password
+                bool verified = BCrypt.Net.BCrypt.Verify(oldPassword, user.PasswordHash ?? "");
+                if (!verified) errors.Add("OldPassword", "Mật khẩu cũ không đúng");
+                // hash new password
+
+                if (oldPassword == newPassword)
+                {
+                    errors.Add("NewPassword", "Mật khẩu mới phải khác mật khẩu cũ");
+                }
+
+                string hash = BCrypt.Net.BCrypt.HashPassword(newPassword, SALT_ROUNDS);
+                user.PasswordHash = hash;
+            }
+
+            if (user.IsLoginWithGoogle && !string.IsNullOrEmpty(newPassword))
+            {
+                // hash new password
+                string hash = BCrypt.Net.BCrypt.HashPassword(newPassword, SALT_ROUNDS);
+                user.PasswordHash = hash;
+                user.IsLoginWithGoogle = false; // chuyển sang đăng nhập bằng mật khẩu
+            }
             if (gender.HasValue) user.Gender = (gender.Value == 1);
             user.UpdatedAt = DateTime.UtcNow;
 
@@ -222,9 +246,9 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 var ext = Path.GetExtension(avatarFile.FileName)?.ToLowerInvariant();
                 if (string.IsNullOrEmpty(ext) || !FileConstants.AllowedImageExtensions.Contains(ext))
-                    throw new InvalidOperationException("Định dạng ảnh không được hỗ trợ");
+                    errors.Add("Avatar", "Định dạng ảnh không được hỗ trợ");
                 if (avatarFile.Length > FileConstants.MaxImageSize)
-                    throw new InvalidOperationException("Kích thước ảnh vượt quá giới hạn");
+                    errors.Add("Avatar", "Kích thước ảnh vượt quá giới hạn");
 
                 uploadedUrl = await _cloudinary.UploadImageAsync(avatarFile, FileConstants.AvatarUploadPath);
                 if (string.IsNullOrEmpty(uploadedUrl)) uploadedUrl = null;
@@ -233,6 +257,11 @@ namespace StudyHub.Backend.UseCases.Services
             else if (avatarFile == null)
             {
                 user.Avatar = oldAvatar;
+            }
+
+            if (errors.Count > 0)
+            {
+                throw new InvalidFieldException(errors);
             }
 
             try
