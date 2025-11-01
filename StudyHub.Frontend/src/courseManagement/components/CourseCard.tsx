@@ -19,8 +19,6 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
   const selectedCourseId = useCourseStore((s: any) => s.selectedCourseId);
   const isSelected = selectedCourseId === course.id;
   const authUser = useAuthStore((s) => s.user);
-  const enrollAction = useEnrollmentStore((s: any) => s.enroll);
-  const fetchProgresses = useEnrollmentStore((s: any) => s.fetchProgresses);
   const fetchEnrollmentsByUser = useEnrollmentStore((s: any) => s.fetchByUser);
   const enrollment = useEnrollmentStore((s) =>
     s.getEnrollmentForCourse(course.id)
@@ -201,22 +199,23 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
           ) : (
             <Button
               className="flex-[1.1] bg-black text-white hover:bg-gray-900 rounded-lg py-2 text-sm shadow-md transition-all"
-              onClick={async (e) => {
+              onClick={(e) => {
                 e.stopPropagation();
                 try {
-                  if (!authUser?.id) return;
-                  const created = await enrollAction({
-                    appUserId: String(authUser.id),
-                    courseId: course.id,
-                  });
-                  if (created?.id) {
-                    useEnrollmentStore.setState((s) => ({
-                      enrollments: [...(s.enrollments || []), created],
-                    }));
-                    await fetchProgresses(created.id);
-                    if (selectCourse) selectCourse(course.id);
-                    navigate(`/course/student/courses/${course.id}`);
+                  if (!authUser?.id) {
+                    navigate(`/auth/login`);
+                    return;
                   }
+                  const params = new URLSearchParams({
+                    courseId: String(course.id),
+                    price: String(course.price ?? 0),
+                    name: String(course.name ?? ""),
+                    userId: String(authUser.id),
+                    schoolId: String(course.schoolId ?? ""),
+                  });
+                  navigate(
+                    `/course/student/payments/checkout?${params.toString()}`
+                  );
                 } catch {
                   /* ignore */
                 }
