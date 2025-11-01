@@ -29,14 +29,13 @@ import {
   Trash2,
   X,
   Plus,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
   Eye,
+  ChevronDown,
 } from "lucide-react";
 import { useOwnedDocuments } from "@/documentManagement/hooks/useOwnedDocuments";
 import OwnedDocumentItem from "@/documentManagement/components/OwnedDocumentItem";
 import OwnedDocumentListItem from "@/documentManagement/components/OwnedDocumentListItem";
+import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination";
 import type {
   FilterSidebarProps,
   DocumentHeaderProps,
@@ -784,36 +783,16 @@ export default function OwnedDocument() {
           />
         )}
       </div>
-      <div className="bg-white border-t border-slate-200 px-4 py-3 flex-shrink-0 flex items-center justify-between">
-        <span className="text-sm text-slate-600">
-          Hiển thị{" "}
-          {documents.length > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0}{" "}
-          đến {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} trong{" "}
-          {totalCount} tài liệu
-        </span>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <span className="text-sm text-slate-600">
-            Trang {currentPage} / {totalPages || 1}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              handlePageChange(Math.min(totalPages, currentPage + 1))
-            }
-            disabled={currentPage === totalPages || totalPages === 0}
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
+      <div className="bg-white border-t border-slate-200 px-4 flex-shrink-0">
+        <DocumentPagination
+          pagination={{
+            currentPage,
+            totalPages,
+            totalCount,
+            pageSize: ITEMS_PER_PAGE,
+          }}
+          onPageChange={handlePageChange}
+        />
       </div>
     </div>
   );

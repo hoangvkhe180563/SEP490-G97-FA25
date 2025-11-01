@@ -55,11 +55,11 @@ const DocumentFilterSidebar = ({
   };
 
   return (
-    <div className="w-72 flex-shrink-0">
-      <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="font-bold text-xl mb-6 text-gray-800 flex items-center gap-2">
+    <div className="w-full">
+      <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 shadow-sm border border-gray-200">
+        <h3 className="font-bold text-lg mb-4 text-gray-800 flex items-center gap-2">
           <svg
-            className="w-5 h-5 text-blue-600"
+            className="w-4 h-4 text-blue-600"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -73,7 +73,6 @@ const DocumentFilterSidebar = ({
           </svg>
           Bộ lọc
         </h3>
-
         {hasSchoolAccess && (
           <div className="mb-6 p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
             <div className="flex items-center space-x-3">
@@ -94,7 +93,6 @@ const DocumentFilterSidebar = ({
             </div>
           </div>
         )}
-
         <Collapsible
           open={openSections.grades}
           onOpenChange={() => toggleSection("grades")}
@@ -142,7 +140,6 @@ const DocumentFilterSidebar = ({
             </div>
           </CollapsibleContent>
         </Collapsible>
-
         <Collapsible
           open={openSections.subjects}
           onOpenChange={() => toggleSection("subjects")}
@@ -192,7 +189,6 @@ const DocumentFilterSidebar = ({
             </div>
           </CollapsibleContent>
         </Collapsible>
-
         <Collapsible
           open={openSections.categories}
           onOpenChange={() => toggleSection("categories")}

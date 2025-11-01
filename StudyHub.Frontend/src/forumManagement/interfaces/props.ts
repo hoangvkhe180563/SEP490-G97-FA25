@@ -1,7 +1,6 @@
-import type { Document } from "./forums";
+// StudyHub.Frontend/src/forumManagement/interfaces/props.ts
+import type { Post } from "./forum";
 
-export interface DocumentItemProps {
-  document: Document;
-  idx: number;
-  setDocuments: React.Dispatch<React.SetStateAction<Document[]>>;
+export interface PostCardProps {
+  post: Post;
 }

@@ -1,15 +1,15 @@
 //src/documentManagement/routes/documentRoutes.tsx
 import DocumentRouteConfig from "@/documentManagement/constants/DocumentRouteConfig";
-import ManagerLayout from "@/user/components/layouts/ManagerLayout";
+
 import VerifyDocument from "@/documentManagement/pages/manager/VerifyDocument";
 import CreateDocument from "@/documentManagement/pages/teacher/CreateDocument";
-import TeacherDocumentInfo from "@/documentManagement/pages/teacher/DocumentInfo";
+// import TeacherDocumentInfo from "@/documentManagement/pages/teacher/DocumentInfo";
 import OwnedDocument from "@/documentManagement/pages/teacher/OwnedDocument";
 import UpdateDocument from "@/documentManagement/pages/teacher/UpdateDocument";
 import DocumentDetails from "@/documentManagement/pages/student/DocumentDetails";
 import StudentDocumentInfo from "@/documentManagement/pages/DocumentInfo";
 import DocumentList from "@/documentManagement/pages/DocumentList";
-import type { RouteObject } from "react-router-dom";
+import { Outlet, type RouteObject } from "react-router-dom";
 
 const managerRoutes = [
   {
@@ -35,10 +35,10 @@ const teacherRoutes = [
     index: true,
     element: <div>Teacher Dashboard</div>,
   },
-  {
-    path: DocumentRouteConfig.TEACHER.INFO,
-    element: <TeacherDocumentInfo />,
-  },
+  // {
+  //   path: DocumentRouteConfig.TEACHER.INFO,
+  //   element: <TeacherDocumentInfo />,
+  // },
   {
     path: DocumentRouteConfig.TEACHER.DETAILS,
     element: <DocumentDetails />,
@@ -83,8 +83,18 @@ const studentRoutes = [
 const documentRoutes: RouteObject[] = [
   {
     path: DocumentRouteConfig.MANAGER.INDEX,
-    element: <ManagerLayout />,
+    element: <Outlet />,
     children: managerRoutes,
+  },
+  {
+    path: DocumentRouteConfig.TEACHER.INDEX,
+    element: <Outlet />,
+    children: teacherRoutes,
+  },
+  {
+    path: DocumentRouteConfig.STUDENT.INDEX,
+    element: <Outlet />,
+    children: studentRoutes,
   },
   {
     path: "documents",
