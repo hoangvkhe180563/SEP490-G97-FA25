@@ -395,11 +395,15 @@ namespace StudyHub.Backend.Api.Controllers
             if (document == null)
                 return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
 
-            var stream = await _documentService.StreamDocumentAsync(document);
-            var contentType = GetContentType(document.DocumentUrl);
-            var fileName = document.Name + Path.GetExtension(document.DocumentUrl);
-
-            return File(stream, contentType, fileName);
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    url = document.DocumentUrl,
+                    fileName = document.Name + Path.GetExtension(document.DocumentUrl)
+                }
+            });
         }
 
         [HttpGet("preview/{id:int}")]
@@ -409,13 +413,16 @@ namespace StudyHub.Backend.Api.Controllers
             if (document == null)
                 return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
 
-            var stream = await _documentService.StreamDocumentAsync(document);
-            var contentType = GetContentType(document.DocumentUrl);
-
-            Response.Headers.Add("Accept-Ranges", "bytes");
-            Response.Headers.Add("Cache-Control", "public, max-age=31536000");
-
-            return File(stream, contentType, enableRangeProcessing: true);
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    url = document.DocumentUrl,
+                    contentType = GetContentType(document.DocumentUrl),
+                    fileName = document.Name + Path.GetExtension(document.DocumentUrl)
+                }
+            });
         }
 
         private string GetContentType(string filePath)
@@ -443,14 +450,18 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("my-class/{userid:guid}")]
         public IActionResult GetClassByUserId(Guid userid)
         {
-            var classes = _classService.GetClassByUserId(userid);
+            var classes = _classService.GetAllClassByUserId(userid);
             var subjects = _classService.GetSubjects();
             var teachers = _classService.GetTeachers();
 
-            var result = classes.Select(c => {
-                var teacher = teachers.FirstOrDefault(t => t.Id == c.CreatedBy);
-                return c.ToListClassDto(teacher);
-            }).ToList();
+            var result = classes
+                .GroupBy(c => c.Id) // Loại bỏ duplicate theo Id
+                .Select(g => g.First()) // Lấy item đầu tiên của mỗi group
+                .Select(c => {
+                    var teacher = teachers.FirstOrDefault(t => t.Id == c.CreatedBy);
+                    return c.ToListClassDto(teacher);
+                })
+                .ToList();
 
             return Ok(new { success = true, data = result });
         }

@@ -20,6 +20,8 @@ namespace StudyHub.Backend.UseCases.Repositories
         Class? GetClassDetailById(int id);
         List<AppUserSubjectClass> GetClassMembers(int classId);
         List<Class> GetClassByUserId(Guid userid);
+        List<Class> GetAllClassByUserId(Guid userid);
+
         List<ClassNotification> GetClassNotifications(int classId);
         ClassNotification CreateNotification(ClassNotification notification);
         ClassNotification getNotificationByID(int notificationId);

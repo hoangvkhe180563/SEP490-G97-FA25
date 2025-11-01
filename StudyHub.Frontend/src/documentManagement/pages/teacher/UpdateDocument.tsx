@@ -435,7 +435,7 @@ export default function UpdateDocument() {
   }
 
   return (
-    <div>
+    <div className="w-full h-full overflow-y-auto p-4 bg-gray-50">
       <div className="fixed top-4 right-4 z-50 space-y-2">
         {toasts.map((toast) => (
           <Toast key={toast.id} toast={toast} />
@@ -460,7 +460,7 @@ export default function UpdateDocument() {
           <ArrowLeft className="w-4 h-4" />
           Quay lại
         </Button>
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-2">
+        <div className="grid grid-cols-1 lg:grid-cols-6 gap-2">
           <div className="lg:col-span-4">
             <Card className="p-6">
               <Form {...form}>

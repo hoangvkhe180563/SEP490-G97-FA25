@@ -364,40 +364,42 @@ function RelatedDocumentsSection({
   }
 
   return (
-    <div className="mt-8">
-      <h2 className="text-2xl font-bold mb-3">Tài liệu cùng môn học</h2>
-      <p className="text-sm text-gray-600 mb-4">
+    <div className="mt-6">
+      <h2 className="text-xl font-bold mb-2">Tài liệu cùng môn học</h2>
+      <p className="text-xs text-gray-600 mb-3">
         Khám phá thêm các tài liệu khác
       </p>
 
-      <Carousel
-        setApi={setApi}
-        opts={{
-          align: "start",
-          loop: relatedDocs.length > 3,
-        }}
-        plugins={[
-          Autoplay({
-            delay: 3000,
-          }),
-        ]}
-        className="w-full"
-      >
-        <CarouselContent>
-          {relatedDocs.map((d) => (
-            <CarouselItem key={d.id} className="md:basis-1/2 lg:basis-1/3">
-              <RelatedDocumentCard
-                document={d}
-                onClick={() => handleDocumentClick(d.id)}
-              />
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-        <CarouselPrevious className="-left-12" />
-        <CarouselNext className="-right-12" />
-      </Carousel>
+      <div className="px-12">
+        <Carousel
+          setApi={setApi}
+          opts={{
+            align: "start",
+            loop: relatedDocs.length > 3,
+          }}
+          plugins={[
+            Autoplay({
+              delay: 3000,
+            }),
+          ]}
+          className="w-full"
+        >
+          <CarouselContent>
+            {relatedDocs.map((d) => (
+              <CarouselItem key={d.id} className="md:basis-1/2 lg:basis-1/3">
+                <RelatedDocumentCard
+                  document={d}
+                  onClick={() => handleDocumentClick(d.id)}
+                />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious />
+          <CarouselNext />
+        </Carousel>
+      </div>
 
-      <div className="flex justify-center gap-2 mt-4">
+      <div className="flex justify-center gap-2 mt-3">
         {Array.from({ length: Math.ceil(relatedDocs.length / 3) }).map(
           (_, index) => (
             <button
@@ -406,7 +408,7 @@ function RelatedDocumentsSection({
               className={`w-2 h-2 rounded-full transition-all duration-300 ${
                 Math.floor(current / 3) === index
                   ? "bg-blue-600 w-8"
-                  : "bg-white-300 hover:bg-white-400"
+                  : "bg-gray-300 hover:bg-gray-400"
               }`}
               aria-label={`Go to slide ${index + 1}`}
             />
@@ -479,7 +481,7 @@ export default function DocumentDetails() {
 
   if (isLoading && !document) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="w-full min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
           <p className="text-gray-600 font-medium">Đang tải tài liệu...</p>
@@ -490,7 +492,7 @@ export default function DocumentDetails() {
 
   if (!document) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="w-full min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-700 font-medium text-lg">
@@ -502,13 +504,14 @@ export default function DocumentDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-white-50">
-      <div className="container mx-auto p-6 max-w-7xl">
+    <div className="w-full h-full overflow-y-auto bg-gray-50">
+      <div className="w-full max-w-7xl mx-auto px-6 py-6">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Quay lại
         </Button>
-        <div className="flex gap-6 mb-6">
+
+        <div className="flex flex-wrap lg:flex-nowrap gap-6 mb-6">
           <DocumentPreview
             thumbnail={document.thumbnail}
             fileType={document.fileType}
@@ -519,12 +522,9 @@ export default function DocumentDetails() {
             onDownload={handleDownload}
             isDownloading={isDownloading}
           />
-          <Button variant="outline" className="self-start">
-            Feedback
-          </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <DocumentDescription description={document.description} />
           <DocumentDetailsInfo document={document} />
           <UserInfo
