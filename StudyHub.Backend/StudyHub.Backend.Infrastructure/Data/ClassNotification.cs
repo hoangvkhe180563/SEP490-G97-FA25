@@ -28,4 +28,6 @@ public partial class ClassNotification
     public virtual ICollection<ClassNotificationComment> ClassNotificationComments { get; set; } = new List<ClassNotificationComment>();
 
     public virtual ICollection<ClassNotificationFile> ClassNotificationFiles { get; set; } = new List<ClassNotificationFile>();
+
+    public virtual ICollection<ClassNotificationReadStatus> ClassNotificationReadStatuses { get; set; } = new List<ClassNotificationReadStatus>();
 }

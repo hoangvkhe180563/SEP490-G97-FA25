@@ -23,7 +23,7 @@ export const studentSidebarItems: ISidebarItem[] = [
   {
     icon: <BookOpen size={20} />,
     text: "Khóa học",
-    link: "/courses",
+    link: "/course/student/courses",
   },
 ];
 
@@ -55,7 +55,7 @@ export const teacherSidebarItems: ISidebarItem[] = [
   {
     icon: <BookOpen size={20} />,
     text: "Khóa học",
-    link: "/courses",
+    link: "/course/teacher/courses",
   },
   {
     icon: <Users size={20} />,
@@ -74,7 +74,7 @@ export const headOfDepartmentTeacherSidebarItems: ISidebarItem[] = [
   {
     icon: <NotebookPen size={20} />,
     text: "Duyệt khoá học",
-    link: "/",
+    link: "/course/teacher/approve-courses",
   },
 ];
 

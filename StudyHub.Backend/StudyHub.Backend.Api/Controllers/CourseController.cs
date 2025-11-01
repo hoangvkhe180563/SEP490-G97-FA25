@@ -24,6 +24,7 @@ public class CourseController : ControllerBase
     public IActionResult GetAll(
         [FromQuery] string? q,
         [FromQuery] short? subjectId,
+        [FromQuery] int schoolId,
         [FromQuery] sbyte? grade,
         [FromQuery] int? minDuration,
         [FromQuery] int? maxDuration,
@@ -39,6 +40,7 @@ public class CourseController : ControllerBase
         {
             Q = q,
             SubjectId = subjectId,
+            SchoolId = schoolId,
             Sort = sort,
             Grade = grade,
             minDuration = minDuration,

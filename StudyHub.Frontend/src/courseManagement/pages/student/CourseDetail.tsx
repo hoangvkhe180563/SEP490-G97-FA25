@@ -14,6 +14,7 @@ import type {
 } from "@/courseManagement/types/api";
 import { Clock } from "lucide-react";
 import { Progress } from "@/common/components/ui/progress";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const CourseDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -86,22 +87,23 @@ const CourseDetail: React.FC = () => {
     };
   }, [getAppUserById, selectedCourse?.createdBy]);
 
-  const currentUser = useAppUserStore((s) => s.appUser);
+  const authUser = useAuthStore((s) => s.user);
+
   const fetchEnrollmentsByUser = useEnrollmentStore((s) => s.fetchByUser);
-  const getEnrollmentForCourse = useEnrollmentStore(
-    (s) => s.getEnrollmentForCourse
+  // subscribe directly to the enrollment for this course so the component re-renders
+  const enrollment = useEnrollmentStore((s) =>
+    s.getEnrollmentForCourse(courseId)
   );
   const enrollAction = useEnrollmentStore((s) => s.enroll);
   const fetchProgresses = useEnrollmentStore((s) => s.fetchProgresses);
-  const enrollment = getEnrollmentForCourse(courseId);
 
   const getLessonCompleted = useEnrollmentStore((s) => s.getLessonCompleted);
 
   useEffect(() => {
-    if (!currentUser?.id || !courseId) return;
+    if (!authUser?.id || !courseId) return;
     (async () => {
       try {
-        await fetchEnrollmentsByUser(String(currentUser.id));
+        await fetchEnrollmentsByUser(String(authUser.id));
         const newEnrollment = useEnrollmentStore
           .getState()
           .getEnrollmentForCourse(courseId);
@@ -112,7 +114,7 @@ const CourseDetail: React.FC = () => {
         console.error("Load enrollment progress failed", err);
       }
     })();
-  }, [currentUser?.id, courseId, fetchEnrollmentsByUser, fetchProgresses]);
+  }, [authUser?.id, courseId, fetchEnrollmentsByUser, fetchProgresses]);
 
   useEffect(() => {
     if (enrollment?.id) {
@@ -172,11 +174,13 @@ const CourseDetail: React.FC = () => {
     }
 
     // ensure enrollment and progresses are up-to-date when opening a chapter
-    if (!currentUser?.id) return;
+    if (!authUser?.id) return;
     (async () => {
       try {
-        await fetchEnrollmentsByUser(String(currentUser.id));
-        const found = getEnrollmentForCourse(courseId);
+        await fetchEnrollmentsByUser(String(authUser.id));
+        const found = useEnrollmentStore
+          .getState()
+          .getEnrollmentForCourse(courseId);
         if (found?.id) {
           try {
             await fetchProgresses(found.id);
@@ -519,17 +523,18 @@ const CourseDetail: React.FC = () => {
                     <Button
                       onClick={async () => {
                         try {
-                          if (!currentUser?.id) return;
+                          if (!authUser?.id) return;
+                          console.log("Enrolling user", authUser.id);
                           const payload = {
-                            appUserId: String(currentUser.id),
+                            appUserId: String(authUser.id),
                             courseId,
                           };
                           await enrollAction(payload);
                           try {
-                            await fetchEnrollmentsByUser(
-                              String(currentUser.id)
-                            );
-                            const found = getEnrollmentForCourse(courseId);
+                            await fetchEnrollmentsByUser(String(authUser.id));
+                            const found = useEnrollmentStore
+                              .getState()
+                              .getEnrollmentForCourse(courseId);
                             if (found?.id) {
                               try {
                                 await fetchProgresses(found.id);

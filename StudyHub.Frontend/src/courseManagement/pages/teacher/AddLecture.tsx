@@ -126,6 +126,50 @@ const AddLecture: React.FC = () => {
     setSearchParams(newParams);
   };
 
+  // Validate lecture fields before create
+  const validateLectureForm = () => {
+    const errors: string[] = [];
+
+    if (!selectedChapterId) errors.push("Vui lòng chọn chương cho bài giảng.");
+    if (!title || !title.trim()) errors.push("Tiêu đề bài giảng là bắt buộc.");
+
+    if (type === "video") {
+      if (!useEmbed) {
+        if (!videoUrl || !videoUrl.trim())
+          errors.push("Vui lòng cung cấp URL video hoặc chọn Embed.");
+        else {
+          try {
+            new URL(videoUrl);
+          } catch (e) {
+            errors.push("URL video không hợp lệ.");
+          }
+        }
+      } else {
+        if (!embedSrc || !embedSrc.trim())
+          errors.push("Vui lòng dán link nhúng (embed) hợp lệ.");
+      }
+    } else {
+      // reading
+      const cleaned = (readingContent || "").replace(/<(.|\n)*?>/g, "").trim();
+      if (!cleaned) errors.push("Nội dung đọc không được bỏ trống.");
+    }
+
+    if (duration && Number.isNaN(Number(duration)))
+      errors.push("Thời lượng phải là một số hợp lệ (phút).");
+
+    if (postDate && isNaN(new Date(postDate).getTime()))
+      errors.push("Ngày đăng không hợp lệ.");
+
+    // resource size limit (if user selected a file but didn't upload)
+    if (resourceFile) {
+      const maxBytes = 50 * 1024 * 1024; // 50MB
+      if (resourceFile.size > maxBytes)
+        errors.push("Tài nguyên quá lớn. Kích thước tối đa 50MB.");
+    }
+
+    return errors;
+  };
+
   // Upload resource (file) -> upload to storage then persist LessonResource row
   const handleUploadResource = async () => {
     if (!resourceFile)
@@ -160,19 +204,12 @@ const AddLecture: React.FC = () => {
 
   // Hàm tạo lecture
   const handleCreate = async () => {
-    if (!title) {
+    const errors = validateLectureForm();
+    if (errors.length) {
       setDialog({
         open: true,
-        title: "Chưa cung cấp tiêu đề",
-        message: "Vui lòng cung cấp tiêu đề cho bài giảng.",
-      });
-      return;
-    }
-    if ((courseIdFromQuery || chapterIdFromQuery) && !selectedChapterId) {
-      setDialog({
-        open: true,
-        title: "Chưa chọn chương",
-        message: "Vui lòng chọn một chương cho bài giảng.",
+        title: "Thiếu hoặc sai thông tin",
+        message: errors.join("\n"),
       });
       return;
     }
