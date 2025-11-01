@@ -92,18 +92,14 @@ export default function DocumentViewer() {
   const [flipbookRotation, setFlipbookRotation] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [flipbookSize, setFlipbookSize] = useState({ width: 550, height: 733 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [interactionMode, setInteractionMode] =
     useState<InteractionMode>("pointer");
 
-  const {
-    document,
-    isLoading,
-    getDocumentById,
-    previewDocument,
-    downloadDocument,
-  } = useDocumentStore();
+  const { document, isLoading, getDocumentById, downloadDocument } =
+    useDocumentStore();
   const pdfDocRef = useRef<PdfDocument | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const flipBookRef = useRef<FlipBookRef | null>(null);
@@ -177,18 +173,24 @@ export default function DocumentViewer() {
   const loadPreview = useCallback(async () => {
     setIsContentLoading(true);
     if (id) {
-      const blob = await previewDocument(Number(id));
-      if (blob) {
-        const url = window.URL.createObjectURL(blob);
-        setPreviewUrl(url);
+      const doc = await getDocumentById(Number(id));
+      if (doc && doc.documentUrl) {
+        try {
+          const response = await fetch(doc.documentUrl);
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          setPreviewUrl(url);
 
-        if (blob.type === "application/pdf") {
-          await loadPdfDocument(blob);
+          if (blob.type === "application/pdf") {
+            await loadPdfDocument(blob);
+          }
+        } catch (error) {
+          console.error("Error loading preview:", error);
         }
       }
     }
     setIsContentLoading(false);
-  }, [id, previewDocument, loadPdfDocument]);
+  }, [id, getDocumentById, loadPdfDocument]);
 
   useEffect(() => {
     const script = window.document.createElement("script");
@@ -345,7 +347,35 @@ export default function DocumentViewer() {
     pageImages,
     renderPdfPageToCanvas,
   ]);
+  useEffect(() => {
+    const calculateFlipbookSize = () => {
+      if (flipbookContainerRef.current && viewMode === "flipbook") {
+        const container = flipbookContainerRef.current;
+        const availableWidth = container.clientWidth;
+        const availableHeight = container.clientHeight;
 
+        // Tính toán kích thước dựa trên tỷ lệ 550:733
+        const ratio = 733 / 550;
+        let width = Math.min(550, availableWidth * 0.8);
+        let height = width * ratio;
+
+        if (height > availableHeight * 0.9) {
+          height = availableHeight * 0.9;
+          width = height / ratio;
+        }
+
+        setFlipbookSize({
+          width: Math.floor(width),
+          height: Math.floor(height),
+        });
+      }
+    };
+
+    calculateFlipbookSize();
+    window.addEventListener("resize", calculateFlipbookSize);
+
+    return () => window.removeEventListener("resize", calculateFlipbookSize);
+  }, [viewMode, isSidebarOpen]); // ADD isSidebarOpen dependency
   useEffect(() => {
     const loadThumbnails = async () => {
       const start = Math.max(0, currentPage - 5);
@@ -711,11 +741,15 @@ export default function DocumentViewer() {
           </div>
         </div>
 
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden relative">
           <div
             ref={scrollContainerRef}
-            className="flex-1 bg-gray-100 flex justify-center p-4"
-            style={{ overflow: viewMode === "flipbook" ? "hidden" : "auto" }}
+            className="bg-gray-100 flex justify-center p-4 relative"
+            style={{
+              overflow: viewMode === "flipbook" ? "hidden" : "auto",
+              flex: 1,
+              minWidth: 0,
+            }}
           >
             {isContentLoading ? (
               <div className="flex items-center justify-center w-full h-full">
@@ -767,7 +801,7 @@ export default function DocumentViewer() {
               ) : (
                 <div
                   ref={flipbookContainerRef}
-                  className="w-full h-full flex items-center justify-center overflow-hidden"
+                  className="h-full flex items-center justify-center overflow-hidden relative"
                   style={{
                     cursor:
                       interactionMode === "hand"
@@ -775,6 +809,8 @@ export default function DocumentViewer() {
                           ? "grabbing"
                           : "grab"
                         : "default",
+                    width: "100%",
+                    maxWidth: "100%", // ADD THIS
                   }}
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
@@ -800,8 +836,8 @@ export default function DocumentViewer() {
                       }}
                     >
                       <HTMLFlipBook
-                        width={550}
-                        height={733}
+                        width={flipbookSize.width}
+                        height={flipbookSize.height}
                         size="fixed"
                         minWidth={315}
                         maxWidth={1000}
@@ -893,10 +929,9 @@ export default function DocumentViewer() {
               </div>
             )}
           </div>
-
           <div
             className={`bg-white border-l border-gray-200 flex flex-col transition-all duration-300 ${
-              isSidebarOpen ? "w-64" : "w-0 overflow-hidden"
+              isSidebarOpen ? "w-64" : "w-0"
             }`}
           >
             {isPdf && (

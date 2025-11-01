@@ -513,8 +513,8 @@ export default function CreateDocument() {
   );
 
   return (
-    <div>
-      <div className="max-w-7xl mx-auto mb-4">
+    <div className="w-full h-full overflow-y-auto p-4 bg-gray-50">
+      <div className="max-w-7xl mx-auto">
         <Button variant="ghost" onClick={() => navigate(-1)} className="gap-2">
           <ArrowLeft className="w-4 h-4" />
           Quay lại

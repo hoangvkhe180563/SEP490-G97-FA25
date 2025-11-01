@@ -1,8 +1,9 @@
 //src/documentManagement/routes/documentRoutes.tsx
 import DocumentRouteConfig from "@/documentManagement/constants/DocumentRouteConfig";
+
 import VerifyDocument from "@/documentManagement/pages/manager/VerifyDocument";
 import CreateDocument from "@/documentManagement/pages/teacher/CreateDocument";
-import TeacherDocumentInfo from "@/documentManagement/pages/teacher/DocumentInfo";
+// import TeacherDocumentInfo from "@/documentManagement/pages/teacher/DocumentInfo";
 import OwnedDocument from "@/documentManagement/pages/teacher/OwnedDocument";
 import UpdateDocument from "@/documentManagement/pages/teacher/UpdateDocument";
 import DocumentDetails from "@/documentManagement/pages/student/DocumentDetails";
@@ -34,10 +35,10 @@ const teacherRoutes = [
     index: true,
     element: <div>Teacher Dashboard</div>,
   },
-  {
-    path: DocumentRouteConfig.TEACHER.INFO,
-    element: <TeacherDocumentInfo />,
-  },
+  // {
+  //   path: DocumentRouteConfig.TEACHER.INFO,
+  //   element: <TeacherDocumentInfo />,
+  // },
   {
     path: DocumentRouteConfig.TEACHER.DETAILS,
     element: <DocumentDetails />,

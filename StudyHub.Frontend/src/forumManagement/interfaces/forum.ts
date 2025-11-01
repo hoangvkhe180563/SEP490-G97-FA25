@@ -16,6 +16,7 @@ export interface Post {
   author_class: string;
   comment_count: number;
   comments: Comment[];
+  image_urls: string;
 }
 
 export interface Subject {

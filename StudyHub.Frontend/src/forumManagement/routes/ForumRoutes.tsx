@@ -1,10 +1,8 @@
-//src/forumManagement/routes/ForumRoutes.tsx
+// src/forumManagement/routes/ForumRoutes.tsx
 import ForumRouteConfig from "@/forumManagement/constants/ForumRouteConfig";
-import ManagerLayout from "@/user/components/layouts/ManagerLayout";
 import ForumMain from "@/forumManagement/pages/forummain";
 import PostDetail from "@/forumManagement/pages/postdetail";
-
-import type { RouteObject } from "react-router-dom";
+import { Outlet, type RouteObject } from "react-router-dom";
 
 const managerRoutes = [
   {
@@ -30,7 +28,7 @@ const studentRoutes = [
     element: <ForumMain />,
   },
   {
-    path: "forums/details/:postId",
+    path: ForumRouteConfig.STUDENT.POST_DETAIL,
     element: <PostDetail />,
   },
 ];
@@ -38,8 +36,17 @@ const studentRoutes = [
 const forumRoutes: RouteObject[] = [
   {
     path: ForumRouteConfig.MANAGER.INDEX,
-    element: <ManagerLayout />,
+    element: <Outlet />,
     children: managerRoutes,
+  },
+  {
+    path: ForumRouteConfig.TEACHER.INDEX,
+    children: teacherRoutes,
+  },
+  {
+    path: ForumRouteConfig.STUDENT.INDEX,
+    element: <Outlet />,
+    children: studentRoutes,
   },
 ];
 

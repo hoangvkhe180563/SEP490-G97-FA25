@@ -1,34 +1,37 @@
-// StudyHub.Frontend/src/forumManagement/components/PostCard.tsx
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
-import { Input } from "@/common/components/ui/input";
+// import { Input } from "@/common/components/ui/input";
 import { Badge } from "@/common/components/ui/badge";
-import { Button } from "@/common/components/ui/button";
+// import { Button } from "@/common/components/ui/button";
 import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/common/components/ui/select";
-import { MessageSquare, ChevronDown, ChevronUp, Send, Eye } from "lucide-react";
+  MessageSquare,
+  // Send,
+  Image as ImageIcon,
+  ExternalLink,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import type { Post } from "../interfaces/forum";
-import type { Comment } from "../interfaces/comment";
 
 interface PostCardProps {
   post: Post;
+  onOpenComments: () => void;
+  onViewDetails: () => void;
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post }) => {
-  const navigate = useNavigate();
-  const [expandedComments, setExpandedComments] = useState(false);
-  const [expandedReplies, setExpandedReplies] = useState<Set<number>>(
-    new Set()
-  );
-  const [replyingTo, setReplyingTo] = useState<number | null>(null);
-  const [commentSort, setCommentSort] = useState("newest");
+const PostCard: React.FC<PostCardProps> = ({
+  post,
+  onOpenComments,
+  onViewDetails,
+}) => {
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [cardImages, setCardImages] = useState<string[]>([]);
+  const [imageZoom, setImageZoom] = useState(1);
+  const images = post.image_urls
+    ? post.image_urls.split(",").filter((url) => url.trim())
+    : [];
 
   const getSubjectColor = (subjectName: string) => {
     const colors: Record<string, string> = {
@@ -67,281 +70,252 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
     }
   };
 
-  const toggleReplies = (commentId: number) => {
-    setExpandedReplies((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(commentId)) {
-        newSet.delete(commentId);
-      } else {
-        newSet.add(commentId);
-      }
-      return newSet;
-    });
+  const handleImageClick = (e: React.MouseEvent, idx: number) => {
+    e.stopPropagation();
+    setCardImages(images);
+    setSelectedImageIndex(idx);
+    setImageZoom(1);
+    setShowImageModal(true);
   };
 
-  const getSortedComments = (comments: Comment[]) => {
-    const topLevelComments = comments.filter((c) => !c.parent_comment_id);
-    switch (commentSort) {
-      case "newest":
-        return [...topLevelComments].sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-      case "oldest":
-        return [...topLevelComments].sort(
-          (a, b) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
-      default:
-        return topLevelComments;
-    }
+  const handleCloseImageModal = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowImageModal(false);
+    setImageZoom(1);
+  };
+
+  const handleZoomIn = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImageZoom((prev) => Math.min(prev + 0.25, 3));
+  };
+
+  const handleZoomOut = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImageZoom((prev) => Math.max(prev - 0.25, 0.5));
   };
 
   const topLevelComments = post.comments.filter((c) => !c.parent_comment_id);
   const previewComments = topLevelComments.slice(0, 2);
-  const hasMoreComments = topLevelComments.length > 2;
 
   return (
-    <Card className="mb-4 hover:shadow-lg transition-all duration-200">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <Avatar className="w-10 h-10">
-              <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold text-sm">
-                {post.author_initials}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <div className="font-semibold">{post.author_name}</div>
-              <div className="text-xs text-gray-500">
-                {formatTimestamp(post.created_at)} • {post.author_class}
-              </div>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Badge
-              className={`${getSubjectColor(post.subject_name)} text-white`}
-            >
-              {post.subject_name}
-            </Badge>
-            <Badge variant="outline" className={getFlairColor(post.flair_name)}>
-              {post.flair_name}
-            </Badge>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent>
-        <div
-          onClick={() =>
-            navigate(`/forum/student/forums/details/${post.post_id}`)
-          }
-          className="cursor-pointer hover:opacity-80 transition-opacity"
-        >
-          <h2 className="text-xl font-bold mb-2">{post.title}</h2>
-          <p className="text-gray-700 mb-4">{post.content}</p>
-        </div>
-
-        <div className="flex items-center gap-4 text-sm text-gray-600 mb-3 pt-2 border-t">
-          <button
-            onClick={() => setExpandedComments(!expandedComments)}
-            className="flex items-center gap-1 hover:text-purple-600 transition-colors"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>{post.comment_count} bình luận</span>
-          </button>
-        </div>
-
-        {!expandedComments && topLevelComments.length > 0 && (
-          <div className="space-y-2 mb-3">
-            {previewComments.map((comment) => (
-              <div
-                key={comment.comment_id}
-                className="flex gap-2 pl-2 border-l-2 border-gray-200"
-              >
-                <Avatar className="w-7 h-7">
-                  <AvatarFallback className="bg-gradient-to-br from-pink-400 to-orange-400 text-white text-xs font-bold">
-                    {comment.author_initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="text-xs">
-                    <span className="font-semibold">{comment.author_name}</span>
-                    <span className="text-gray-600 ml-2">
-                      {comment.content}
-                    </span>
-                  </div>
+    <>
+      <Card className="mb-4 hover:shadow-lg transition-all duration-200">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <Avatar className="w-10 h-10">
+                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold text-sm">
+                  {post.author_initials}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <div className="font-semibold">{post.author_name}</div>
+                <div className="text-xs text-gray-500">
+                  {formatTimestamp(post.created_at)} • {post.author_class}
                 </div>
               </div>
-            ))}
-
-            {hasMoreComments && (
-              <button
-                onClick={() => setExpandedComments(true)}
-                className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 ml-2 hover:underline transition-all"
-              >
-                <ChevronDown className="w-4 h-4" />
-                Xem thêm {topLevelComments.length - 2} bình luận
-              </button>
-            )}
-          </div>
-        )}
-
-        {expandedComments && (
-          <div className="space-y-3 mt-4">
-            <div className="flex items-center justify-between pb-2 border-b">
-              <span className="text-sm font-semibold text-gray-700">
-                {post.comment_count} bình luận
-              </span>
-              <Select value={commentSort} onValueChange={setCommentSort}>
-                <SelectTrigger className="w-32 h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="newest">Mới nhất</SelectItem>
-                  <SelectItem value="oldest">Cũ nhất</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
+            <div className="flex gap-2">
+              <Badge
+                className={`${getSubjectColor(post.subject_name)} text-white`}
+              >
+                {post.subject_name}
+              </Badge>
+              <Badge
+                variant="outline"
+                className={getFlairColor(post.flair_name)}
+              >
+                {post.flair_name}
+              </Badge>
+            </div>
+          </div>
+        </CardHeader>
 
-            {getSortedComments(post.comments).map((comment) => {
-              const isRepliesExpanded = expandedReplies.has(comment.comment_id);
-              const replies = comment.replies || [];
-              return (
-                <div key={comment.comment_id}>
-                  <div className="flex gap-2">
-                    <Avatar className="w-8 h-8">
-                      <AvatarFallback className="bg-gradient-to-br from-pink-400 to-orange-400 text-white text-xs font-bold">
-                        {comment.author_initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="bg-gray-100 rounded-2xl px-3 py-2 hover:bg-gray-200 transition-colors">
-                        <div className="font-semibold text-sm">
-                          {comment.author_name}
-                        </div>
-                        <p className="text-sm">{comment.content}</p>
-                      </div>
-                      <div className="flex gap-3 px-3 mt-1">
-                        <button
-                          className="text-xs text-gray-600 hover:underline font-semibold hover:text-purple-600 transition-colors"
-                          onClick={() =>
-                            setReplyingTo(
-                              replyingTo === comment.comment_id
-                                ? null
-                                : comment.comment_id
-                            )
-                          }
-                        >
-                          Phản hồi
-                        </button>
-                        <span className="text-xs text-gray-500">
-                          {formatTimestamp(comment.created_at)}
-                        </span>
-                      </div>
+        <CardContent>
+          <div className="hover:opacity-80 transition-opacity">
+            <h2 className="text-xl font-bold mb-2">{post.title}</h2>
+            <p className="text-gray-700 mb-4">{post.content}</p>
+          </div>
 
-                      {replies.length > 0 && (
-                        <button
-                          onClick={() => toggleReplies(comment.comment_id)}
-                          className="flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-purple-600 hover:underline mt-2 ml-3 transition-colors"
-                        >
-                          {isRepliesExpanded ? (
-                            <ChevronUp className="w-4 h-4" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4" />
-                          )}
-                          {replies.length} phản hồi
-                        </button>
-                      )}
+          {images.length > 0 && (
+            <div
+              className={`mb-4 ${
+                images.length === 1
+                  ? ""
+                  : images.length === 2
+                  ? "grid grid-cols-2 gap-2"
+                  : "grid grid-cols-2 gap-2"
+              }`}
+            >
+              {images.slice(0, 4).map((img, idx) => (
+                <div
+                  key={idx}
+                  className={`relative rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity ${
+                    images.length === 1 ? "h-64" : "h-40"
+                  }`}
+                  onClick={(e) => handleImageClick(e, idx)}
+                >
+                  <img
+                    src={img}
+                    alt={`${post.title} ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  {idx === 3 && images.length > 4 && (
+                    <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+                      <span className="text-white text-2xl font-bold">
+                        +{images.length - 4}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
-                      {isRepliesExpanded &&
-                        replies.map((reply) => (
-                          <div
-                            key={reply.comment_id}
-                            className="flex gap-2 mt-2 ml-8"
-                          >
-                            <Avatar className="w-7 h-7">
-                              <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-400 text-white text-xs font-bold">
-                                {reply.author_initials}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <div className="bg-gray-100 rounded-2xl px-3 py-2 hover:bg-gray-200 transition-colors">
-                                <div className="font-semibold text-xs">
-                                  {reply.author_name}
-                                </div>
-                                <p className="text-xs">{reply.content}</p>
-                              </div>
-                              <div className="flex gap-3 px-3 mt-1">
-                                <button className="text-xs text-gray-600 hover:underline font-semibold hover:text-purple-600 transition-colors">
-                                  Phản hồi
-                                </button>
-                                <span className="text-xs text-gray-500">
-                                  {formatTimestamp(reply.created_at)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+          <div className="flex items-center gap-4 text-sm text-gray-600 mb-3 pt-2 border-t">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenComments();
+              }}
+              className="flex items-center gap-1 hover:text-purple-600 transition-colors"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>{post.comment_count} bình luận</span>
+            </button>
+            {images.length > 0 && (
+              <div className="flex items-center gap-1 text-gray-500">
+                <ImageIcon className="w-4 h-4" />
+                <span>{images.length} ảnh</span>
+              </div>
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewDetails();
+              }}
+              className="flex items-center gap-1 hover:text-purple-600 transition-colors ml-auto"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <span>Xem chi tiết</span>
+            </button>
+          </div>
 
-                      {replyingTo === comment.comment_id && (
-                        <div className="flex gap-2 mt-2 ml-8 animate-in slide-in-from-top-2 duration-200">
-                          <Avatar className="w-7 h-7">
-                            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
-                              U
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 flex gap-2">
-                            <Input
-                              placeholder="Viết phản hồi..."
-                              className="rounded-full text-sm"
-                            />
-                            <Button
-                              size="sm"
-                              className="rounded-full hover:scale-105 transition-transform"
-                            >
-                              <Send className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      )}
+          {topLevelComments.length > 0 && (
+            <div className="space-y-2 mb-3">
+              {previewComments.map((comment) => (
+                <div
+                  key={comment.comment_id}
+                  className="flex gap-2 pl-2 border-l-2 border-gray-200"
+                >
+                  <Avatar className="w-7 h-7">
+                    <AvatarFallback className="bg-gradient-to-br from-pink-400 to-orange-400 text-white text-xs font-bold">
+                      {comment.author_initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="text-xs">
+                      <span className="font-semibold">
+                        {comment.author_name}
+                      </span>
+                      <span className="text-gray-600 ml-2">
+                        {comment.content}
+                      </span>
                     </div>
                   </div>
                 </div>
-              );
-            })}
+              ))}
 
-            <div className="flex gap-2 mt-4 pt-3 border-t">
-              <Avatar className="w-8 h-8">
-                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
-                  U
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 flex gap-2">
-                <Input
-                  placeholder="Viết bình luận..."
-                  className="rounded-full hover:border-purple-300 transition-colors"
-                />
-                <Button
-                  size="sm"
-                  className="rounded-full hover:scale-105 transition-transform"
+              {topLevelComments.length > 2 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenComments();
+                  }}
+                  className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 ml-2 hover:underline transition-all"
                 >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
+                  Xem thêm {topLevelComments.length - 2} bình luận
+                </button>
+              )}
             </div>
+          )}
+        </CardContent>
+      </Card>
 
+      {showImageModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-95 z-[100] flex items-center justify-center p-4"
+          onClick={handleCloseImageModal}
+        >
+          <button
+            className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 w-12 h-12 flex items-center justify-center"
+            onClick={handleCloseImageModal}
+          >
+            ×
+          </button>
+
+          <div className="absolute top-4 left-4 flex gap-2">
             <button
-              onClick={() => setExpandedComments(false)}
-              className="text-sm text-gray-600 hover:text-purple-600 font-medium flex items-center gap-1 mx-auto hover:underline transition-colors"
+              className="text-white bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70"
+              onClick={handleZoomIn}
             >
-              <ChevronUp className="w-4 h-4" />
-              Thu gọn bình luận
+              <ZoomIn className="w-5 h-5" />
             </button>
+            <button
+              className="text-white bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70"
+              onClick={handleZoomOut}
+            >
+              <ZoomOut className="w-5 h-5" />
+            </button>
+            <span className="text-white bg-black bg-opacity-50 rounded-full px-3 h-10 flex items-center">
+              {Math.round(imageZoom * 100)}%
+            </span>
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          {cardImages.length > 1 && (
+            <>
+              <button
+                className="absolute left-4 text-white text-4xl hover:text-gray-300 w-12 h-12 flex items-center justify-center bg-black bg-opacity-50 rounded-full"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedImageIndex((prev) =>
+                    prev === 0 ? cardImages.length - 1 : prev - 1
+                  );
+                }}
+              >
+                ‹
+              </button>
+              <button
+                className="absolute right-4 text-white text-4xl hover:text-gray-300 w-12 h-12 flex items-center justify-center bg-black bg-opacity-50 rounded-full"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedImageIndex((prev) =>
+                    prev === cardImages.length - 1 ? 0 : prev + 1
+                  );
+                }}
+              >
+                ›
+              </button>
+              <div className="absolute bottom-4 text-white text-sm">
+                {selectedImageIndex + 1} / {cardImages.length}
+              </div>
+            </>
+          )}
+
+          <img
+            src={cardImages[selectedImageIndex]}
+            alt="Full size"
+            className="object-contain transition-transform duration-200"
+            style={{
+              maxWidth: "90vw",
+              maxHeight: "90vh",
+              transform: `scale(${imageZoom})`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+    </>
   );
 };
 

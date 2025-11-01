@@ -9,4 +9,5 @@ export interface Comment {
   author_name: string;
   author_initials: string;
   replies?: Comment[];
+  image_urls: string;
 }
