@@ -31,6 +31,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Fullname = d.Fullname,
                 IsVerified = d.IsVerified,
                 SchoolId = d.SchoolId,
+                TransferId = d.TransferId,
                 Status = d.Status,
                 CreatedAt = d.CreatedAt,
                 UpdatedAt = d.UpdatedAt,
@@ -45,6 +46,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 CommuneId = d.CommuneId,
                 Avatar = d.Avatar,
                 PhoneNumber = d.PhoneNumber,
+                Wallet = d.Wallet,
             };
         }
 
@@ -59,6 +61,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Fullname = d.Fullname,
                 IsVerified = d.IsVerified,
                 SchoolId = d.SchoolId,
+                TransferId = d.TransferId,
                 Status = d.Status,
                 CreatedAt = d.CreatedAt,
                 UpdatedAt = d.UpdatedAt,
@@ -72,6 +75,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Address = d.Address,
                 CommuneId = d.CommuneId,
                 Avatar = d.Avatar
+                ,
+                Wallet = d.Wallet
             };
         }
 
@@ -151,11 +156,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             var d = _context.AppUsers.Find(id);
             return d == null ? null : ToDomain(d);
         }
+        public Domain.Entities.AppUser? GetByTransferId(int transferId)
+        {
+            var d = _context.AppUsers.FirstOrDefault(a => a.TransferId == transferId);
+            return d == null ? null : ToDomain(d);
+        }
 
         public void CreateUser(Domain.Entities.AppUser user, IEnumerable<Guid>? roleIds = null)
         {
             try
             {
+                user.TransferId = GenerateUniqueTransferId();
+
                 var d = ToData(user);
 
                 if (d.CreatedBy == Guid.Empty)
@@ -222,6 +234,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 existing.Username = user.Username;
                 existing.Fullname = user.Fullname;
                 existing.Gender = user.Gender;
+                existing.TransferId = user.TransferId;
                 existing.SchoolId = user.SchoolId;
                 existing.Status = user.Status;
                 existing.IsVerified = user.IsVerified;
@@ -235,6 +248,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 existing.Address = user.Address;
                 existing.CommuneId = user.CommuneId;
                 existing.Avatar = user.Avatar;
+                existing.Wallet = user.Wallet;
 
                 if (roleIds != null && roleIds.Any())
                 {
@@ -258,7 +272,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
-    public List<Domain.Entities.AppUserSubjectClass> GetClaimsForUser(Guid userId)
+        public List<Domain.Entities.AppUserSubjectClass> GetClaimsForUser(Guid userId)
         {
             // AppClaim table removed. Build subject-class assignments from AppUsersubjectclass table.
             var assignments = _context.AppUserSubjectClasses
@@ -344,6 +358,20 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 .ToList();
 
             return classIds;
+        }
+
+        public int GenerateUniqueTransferId()
+        {
+            var random = new Random();
+            int transferId;
+
+            do
+            {
+                transferId = random.Next(100000, 1000000);
+            }
+            while (_context.AppUsers.Any(u => u.TransferId == transferId));
+
+            return transferId;
         }
 
     }

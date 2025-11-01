@@ -24,8 +24,6 @@ const LectureFilters: React.FC = () => {
 
   const authUser = useAuthStore((s) => s.user);
   const fetchEnrollmentsByUser = useEnrollmentStore((s) => s.fetchByUser);
-
-  const enrollAction = useEnrollmentStore((s) => s.enroll);
   const fetchProgresses = useEnrollmentStore((s) => s.fetchProgresses);
   const getLessonCompleted = useEnrollmentStore((s) => s.getLessonCompleted);
   // subscribe to progresses map so component re-renders when progresses update
@@ -86,28 +84,27 @@ const LectureFilters: React.FC = () => {
           </p>
 
           <button
-            onClick={async () => {
-              try {
-                if (!authUser?.id) {
-                  // not logged in -> go to login
-                  navigate(`${RouteConfig.AUTH}/login`);
-                  return;
-                }
-                const created = await enrollAction({
-                  appUserId: String(authUser.id),
-                  courseId: cid,
-                });
-                // enrollAction appends the created enrollment into the store; ensure progresses are loaded
-                if (created?.id) {
-                  try {
-                    await fetchProgresses(created.id);
-                  } catch {
-                    // ignore
-                  }
-                }
-              } catch (err) {
-                // ignore
+            onClick={() => {
+              if (!authUser?.id) {
+                navigate(`${RouteConfig.AUTH}/login`);
+                return;
               }
+              const params = new URLSearchParams({
+                courseId: String(cid),
+                price: String(
+                  useCourseStore.getState().selectedCourse?.price ?? 0
+                ),
+                name: String(
+                  useCourseStore.getState().selectedCourse?.name ?? ""
+                ),
+                userId: String(authUser.id),
+                schoolId: String(
+                  useCourseStore.getState().selectedCourse?.schoolId ?? ""
+                ),
+              });
+              navigate(
+                `/course/student/payments/checkout?${params.toString()}`
+              );
             }}
             className="mt-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg shadow-sm transition-all"
           >

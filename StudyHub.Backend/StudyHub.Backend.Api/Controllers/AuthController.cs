@@ -69,7 +69,8 @@ namespace StudyHub.Backend.Api.Controllers
                 Permissions = result.Permissions ?? new List<string>(),
                 ClassIds = result.ClassIds ?? new List<int>(),
                 SubjectIds = result.SubjectIds ?? new List<short>(),
-                SchoolId = result.User.SchoolId
+                SchoolId = result.User.SchoolId,
+                transferId = result.User.TransferId
             };
 
             return Ok(new GenericResponse { Success = true, Message = "Đăng nhập thành công", Data = userInfo });

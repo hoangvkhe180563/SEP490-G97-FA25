@@ -4,16 +4,17 @@ import AddCourse from "@/courseManagement/pages/teacher/AddCourse";
 import EditCourse from "@/courseManagement/pages/teacher/EditCourse";
 import AddLecture from "@/courseManagement/pages/teacher/AddLecture";
 import EditLecture from "@/courseManagement/pages/teacher/EditLecture";
-import LectureDetails from "@/courseManagement/pages/teacher/LectureDetails"; // Giả sử component này nằm ở đây
+import LectureDetails from "@/courseManagement/pages/teacher/LectureDetails";
 
 import CourseListStudent from "@/courseManagement/pages/student/CourseList";
 import CourseDetailStudent from "@/courseManagement/pages/student/CourseDetail";
-import LecturePlayer from "@/courseManagement/pages/student/LecturePlayer"; // Giả sử component này nằm ở đây
+import LecturePlayer from "@/courseManagement/pages/student/LecturePlayer";
 
-// Thay thế ClassRouteConfig bằng CourseRouteConfig
 import CourseRouteConfig from "@/courseManagement/constants/CourseRouteConfig";
 import { Outlet, type RouteObject } from "react-router-dom";
 import ApproveCourses from "../pages/teacher/ApproveCourses";
+import PaymentCheckout from "../pages/student/PaymentCheckout";
+import PaymentSuccess from "../pages/student/PaymentSuccess";
 
 // --- TEACHER ROUTES (Đường dẫn con cho /teacher) ---
 const teacherCourseRoutes: RouteObject[] = [
@@ -83,6 +84,16 @@ const studentCourseRoutes: RouteObject[] = [
     // path="courses/:courseId/lecture/:lectureId" element={<LecturePlayer />}
     path: CourseRouteConfig.STUDENT.LECTURE_PLAYER,
     element: <LecturePlayer />,
+  },
+  {
+    // path="payments/checkout" element={<PaymentCheckout />}
+    path: CourseRouteConfig.STUDENT.PAYMENT_CHECKOUT,
+    element: <PaymentCheckout />,
+  },
+  {
+    // path="payment-success" element={<PaymentSuccess />}
+    path: CourseRouteConfig.STUDENT.PAYMENT_SUCCESS,
+    element: <PaymentSuccess />,
   },
 ];
 
