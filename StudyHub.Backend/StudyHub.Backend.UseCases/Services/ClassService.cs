@@ -1,7 +1,11 @@
 ﻿using Microsoft.AspNetCore.Http;
+using StudyHub.Backend.Api.Services;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Utils;
+using System.Net;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -11,27 +15,43 @@ namespace StudyHub.Backend.UseCases.Services
         private readonly ICloudinaryRepository _fileStorage;
         private readonly AuthService _authService;
         private readonly IAppUserRepository _userRepository;
+        private readonly SmtpEmailService _emailService;
 
-        public ClassService(IClassRepository classRepository, ICloudinaryRepository fileStorage, AuthService authService, IAppUserRepository userRepository)
+        public ClassService(IClassRepository classRepository, ICloudinaryRepository fileStorage, IAppUserRepository userRepository, AuthService authService, SmtpEmailService emailService)
         {
             _classRepository = classRepository;
             _fileStorage = fileStorage;
             _authService = authService;
             _userRepository = userRepository;
+            _emailService = emailService;
         }
 
-        public List<Class> GetClasses(Guid? userid)
+        // --- Classes listing with filtering + paging ---
+        // Returns domain Class list and paging metadata; no Api DTOs used here.
+        public (List<Class> Classes, int TotalItems, int Page, int Limit, int TotalPages) GetClassesPaged(string? query, string? status, Guid? memberid, int page = 1, int limit = 10)
         {
-            return _classRepository.GetAllClasses(userid);
+            var allClasses = _classRepository.GetAllClasses(memberid);
+
+            var filtered = allClasses
+                .Where(c => (string.IsNullOrEmpty(query) || c.Name.Contains(query, StringComparison.OrdinalIgnoreCase)) && c.DeletedAt == null)
+                .ToList();
+
+            int totalItems = filtered.Count;
+            int totalPages = (int)Math.Ceiling((double)totalItems / Math.Max(1, limit));
+            page = Math.Max(1, Math.Min(page, Math.Max(1, totalPages)));
+
+            var paged = filtered.Skip((page - 1) * limit).Take(limit).ToList();
+
+            return (paged, totalItems, page, limit, totalPages);
         }
-        public List<Subject> GetSubjects()
+        public List<Class> GetClassByUserId(Guid userid)
         {
-            return _classRepository.GetAllSubject();
+            var allClasses = _classRepository.GetAllClasses(userid);
+            return allClasses;
         }
-        public List<AppUser> GetTeachers()
-        {
-            return _classRepository.GetAllTeacher();
-        }
+        public List<Subject> GetSubjects() => _classRepository.GetAllSubject();
+        public List<AppUser> GetTeachers() => _classRepository.GetAllTeacher();
+
         public Class CreateClass(Class dto)
         {
             var entity = new Class
@@ -44,120 +64,28 @@ namespace StudyHub.Backend.UseCases.Services
 
             return _classRepository.CreateClass(entity);
         }
-        public Class UpdateClass(Class dto)
-        {
 
-            return _classRepository.UpdateClass(dto);
-        }
-        public Class GetClassById(int id)
+        public Class UpdateClass(Class dto) => _classRepository.UpdateClass(dto);
+
+       
+        public Class? UpdateClassFromPrimitives(int id, string? name, string? description, Guid? updatedBy)
         {
-            return _classRepository.GetClassById(id);
-        }
-        public Class? GetClassDetail(int id)
-        {
-            return _classRepository.GetClassDetailById(id);
-        }
-        public List<AppUserSubjectClass> GetClassMembers(int id)
-        {
-            return _classRepository.GetClassMembers(id);
-        }
-        public List<ClassNotification> GetClassNotifications(int classId)
-        {
-            return _classRepository.GetClassNotifications(classId);
-        }
-        public List<ClassNotificationComment> GetCommentsByNotificationId(int notificationId)
-        {
-            return _classRepository.GetCommentsByNotificationId(notificationId);
+            var existing = _classRepository.GetClassById(id);
+            if (existing == null) return null;
+            if (!string.IsNullOrWhiteSpace(name)) existing.Name = name;
+            existing.Description = description;
+            existing.UpdatedAt = DateTime.UtcNow;
+            existing.UpdatedBy = updatedBy;
+            return _classRepository.UpdateClass(existing);
         }
 
-        // 2. Tạo notification kèm file
-        public async Task<ClassNotification> CreateNotificationWithFilesAsync(
-            ClassNotification notification,
-            List<IFormFile>? files)
-        {
-            // Tạo notification
-            var createdNoti = _classRepository.CreateNotification(notification);
+        public Class GetClassById(int id) => _classRepository.GetClassById(id);
+        public Class? GetClassDetail(int id) => _classRepository.GetClassDetailById(id);
+       
 
-            // Nếu có file => upload lên storage và tạo bản ghi file gắn với notification
-            if (files != null && files.Count > 0)
-            {
-                foreach (var file in files)
-                {
-                    var fileUrl = await _fileStorage.UploadFileAsync(file, "notification-attachments");
+        // --- Classwork / Submission flow ---
+      
 
-                    var submissionFile = new ClassNotificationFile
-                    {
-                        NotificationId = createdNoti.Id, // gắn trực tiếp vào file record
-                        FileName = file.FileName,
-                        FileUrl = fileUrl
-                    };
-
-                    //var savedFile = _classRepository.CreateSubmissionFile(submissionFile);
-
-                    // Không cần gọi MapFileToNotification vì NotificationId đã được lưu trên ClassNotificationFile
-                }
-            }
-
-            return createdNoti;
-        }
-
-
-
-        public ClassNotification CreateNotification(ClassNotification entity)
-            => _classRepository.CreateNotification(entity);
-
-
-        public List<ClassNotificationFile> GetFileByNotificationId(int notificationid)
-        => _classRepository.GetFileByNotificationId(notificationid);
-
-
-        public ClassNotificationFile CreateFile(ClassNotificationFile entity) => _classRepository.CreateSubmissionFile(entity);
-
-        public async Task<string> UploadFileToCloudinary(IFormFile file)
-            => await _fileStorage.UploadFileAsync(file, FileConstants.ClassNotificationUploadPAth);
-
-        public List<Class> GetClassByUserId(Guid userid) => _classRepository.GetClassByUserId(userid);
-
-        public ClassNotificationComment CreateNotificationComment(ClassNotificationComment commentEntity)
-        {
-            return _classRepository.CommentNoti(commentEntity);
-        }
-        public bool deleteNoti(int notificationid) => _classRepository.deleteNotification(notificationid);
-        public bool InviteMember(Guid userId, int classId) => _classRepository.InviteMember(userId, classId);
-        public bool ConfirmMember(Guid userId, int classId) => _classRepository.ConfirmMember(userId, classId);
-        public bool KickMember(Guid userId, int classId) => _classRepository.KickMember(userId, classId);
-        public ClassNotification GetNotificationByID(int notificationid) => _classRepository.getNotificationByID(notificationid);
-        public List<Classwork> GetClassworks(int classId) => _classRepository.GetClassworks(classId);
-        public Classwork CreateClasswork(Classwork classwork) => _classRepository.CreateClasswork(classwork);
-        public Classwork EditClasswork(Classwork classwork) => _classRepository.EditClasswork(classwork);
-        public ClassworkSubmission SubmitClasswork(ClassworkSubmission submission, List<SubmissionFile> files) => _classRepository.SubmitClasswork(submission, files);
-        public ClassworkSubmission ResubmitClasswork(int submissionId, List<SubmissionFile> files) => _classRepository.ResubmitClasswork(submissionId, files);
-        public Classwork GetClasswork(int classworkId) => _classRepository.GetClasswork(classworkId);
-        public List<ClassworkSubmission> GetSubmissionsByClassworkId(int classworkId) => _classRepository.GetSubmissionsByClassworkId(classworkId);
-        public ClassworkSubmission GetSubmissionByUserAndClasswork(int classworkId, Guid userId) => _classRepository.GetSubmissionByUserAndClasswork(classworkId, userId);
-        public SubmissionFile AddSubmissionFile(SubmissionFile file) => _classRepository.AddSubmissionFile(file);
-        public List<SubmissionFile> GetSubmissionFiles(int submissionId) => _classRepository.GetSubmissionFiles(submissionId);
-        public int GetMemberCount(int classworkId) => _classRepository.GetMemberCount(classworkId);
-        public int GetSubmissionCount(int classworkId) => _classRepository.GetSubmissionCount(classworkId);
-
-        public async Task MarkAllAsReadInClassAsync(int classId)
-        {
-            var currentUser = _authService.GetCurrentUser();
-            if (currentUser == null)
-            {
-                throw new UnauthorizedAccessException("Bạn không có quyền truy cập.");
-            }
-            await _classRepository.MarkAllAsReadInClassAsync(classId, currentUser.Id);
-        }
-
-        public async Task<int> GetUnreadNotificationCountAsync(int classId)
-        {
-            var currentUser = _authService.GetCurrentUser();
-            if (currentUser == null)
-            {
-                throw new UnauthorizedAccessException("Bạn không có quyền truy cập.");
-            }
-            return await _classRepository.GetUnreadCountAsync(classId, currentUser.Id);
-        }
+        
     }
 }

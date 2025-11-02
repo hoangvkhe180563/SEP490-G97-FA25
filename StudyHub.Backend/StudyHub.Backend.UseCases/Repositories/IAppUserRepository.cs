@@ -10,6 +10,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         public AppUser? GetByEmail(string email);
         public AppUser? GetByUsername(string username);
         public AppUser? GetById(Guid id);
+        public AppUser? GetByTransferId(int id);
         public void CreateUser(AppUser user, IEnumerable<Guid>? roleIds = null);
         public void UpdateUser(AppUser user, IEnumerable<Guid>? roleIds = null);
 

@@ -16,36 +16,12 @@ namespace StudyHub.Backend.UseCases.Repositories
         Class? GetClassById(int id);
         Class CreateClass(Class classEntity);
         Class UpdateClass(Class classEntity);
-        bool DeleteClass(int id);
         Class? GetClassDetailById(int id);
-        List<AppUserSubjectClass> GetClassMembers(int classId);
+       
         List<Class> GetClassByUserId(Guid userid);
-        List<ClassNotification> GetClassNotifications(int classId);
-        ClassNotification CreateNotification(ClassNotification notification);
-        ClassNotification getNotificationByID(int notificationId);
-        List<ClassNotification> GetNotificationsByClassId(int classId);
-        ClassNotificationFile CreateSubmissionFile(ClassNotificationFile file);
-        ClassNotificationComment CreateComment(ClassNotificationComment comment);
-        List<ClassNotificationComment> GetCommentsByNotificationId(int notificationId);
-        List<ClassNotificationFile> GetFileByNotificationId(int notificationId);
-        ClassNotificationComment CommentNoti(ClassNotificationComment comment);
-        bool deleteNotification(int id);
-        bool InviteMember(Guid userId, int classId);
-        bool ConfirmMember(Guid userId, int classId);
-        bool KickMember(Guid userId, int classId);
-        List<Classwork> GetClassworks(int classId);
-        Classwork CreateClasswork(Classwork classwork);
-        Classwork EditClasswork(Classwork classwork);
-        ClassworkSubmission SubmitClasswork(ClassworkSubmission submission, List<SubmissionFile> files);
-        ClassworkSubmission ResubmitClasswork(int submissionId, List<SubmissionFile> files);
-        Classwork GetClasswork(int classworkId);
-        List<ClassworkSubmission> GetSubmissionsByClassworkId(int classworkId);
-        ClassworkSubmission GetSubmissionByUserAndClasswork(int classworkId, Guid userId);
-        SubmissionFile AddSubmissionFile(SubmissionFile file);
-        List<SubmissionFile> GetSubmissionFiles(int submissionId);
-        int GetSubmissionCount(int classworkId);
-        int GetMemberCount(int classworkId);
-        Task MarkAllAsReadInClassAsync(int classId, Guid userId);
-        Task<int> GetUnreadCountAsync(int classId, Guid userId);
+        List<Class> GetAllClassByUserId(Guid userid);
+
+       
+      
     }
 }

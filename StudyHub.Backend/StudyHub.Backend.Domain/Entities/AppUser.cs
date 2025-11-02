@@ -18,6 +18,7 @@ public class AppUser : IAuditTrail
     public string? Avatar { get; set; }
 
     public int? SchoolId { get; set; }
+    public int? TransferId { get; set; }
 
     public string? Address { get; set; }
 

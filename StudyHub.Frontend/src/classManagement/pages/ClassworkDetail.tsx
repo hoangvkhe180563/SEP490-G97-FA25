@@ -12,12 +12,12 @@ import type {
 import { isPastDeadline } from "../utils/dateutil";
 
 const AvatarIcon: React.FC = () => (
-  <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center text-white text-xl shadow">📝</div>
+  <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl shadow">📝</div>
 );
 
 const RightCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="bg-white rounded-lg shadow p-4 mb-4">
-    <div className="text-sm font-medium mb-2">{title}</div>
+  <div className="bg-white rounded-xl shadow p-5 mb-4 border">
+    <div className="text-md font-semibold mb-3">{title}</div>
     <div>{children}</div>
   </div>
 );
@@ -228,11 +228,11 @@ const ClassworkDetail: React.FC = () => {
   const classInfo = currentClass?.data?.classInfo ?? null;
 
   if (classwork === undefined) {
-    return <div className="p-6"><div className="text-gray-500">Đang tải thông tin bài tập...</div></div>;
+    return <div className="p-8"><div className="text-slate-500">Đang tải thông tin bài tập...</div></div>;
   }
 
   if (classwork === null) {
-    return <div className="p-6"><div className="text-gray-500">Không tìm thấy bài tập này.</div></div>;
+    return <div className="p-8"><div className="text-slate-500">Không tìm thấy bài tập này.</div></div>;
   }
 
   const hasSubmitted = !!userSubmission;
@@ -241,27 +241,27 @@ const ClassworkDetail: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-8">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex items-start gap-4">
+      <div className="flex items-start justify-between mb-8">
+        <div className="flex items-start gap-5">
           <button
             onClick={() => navigate(-1)}
             aria-label="Quay lại"
-            className="p-2 rounded-full hover:bg-gray-100"
+            className="p-3 rounded-full hover:bg-slate-100 text-lg"
           >
             ←
           </button>
           <AvatarIcon />
           <div>
-            <h1 className="text-2xl font-semibold">{classwork.title}</h1>
-            <div className="text-sm text-gray-500 mt-1">
+            <h1 className="text-3xl font-bold">{classwork.title}</h1>
+            <div className="text-base text-slate-500 mt-1">
               <span>{currentClass?.data?.teacher?.fullname ?? "Giáo viên"} • {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
             </div>
-            <div className="mt-3 text-sm text-gray-700">100 điểm</div>
+            <div className="mt-3 text-base text-slate-700">100 điểm</div>
           </div>
         </div>
-        <div className="text-sm text-gray-600">{(() => {
+        <div className="text-base text-slate-600">{(() => {
           if (!classwork.deadline) return "Không xác định";
           const d = new Date(classwork.deadline);
           const day = d.getDate();
@@ -273,22 +273,22 @@ const ClassworkDetail: React.FC = () => {
       <div className="grid grid-cols-12 gap-6">
         {/* Left */}
         <div className="col-span-12 lg:col-span-8">
-          <div className="bg-white border rounded-lg p-6">
-            <div className="text-gray-700 mb-4">{classwork.description || "Không có mô tả"}</div>
-            <hr className="my-4" />
-            <div className="flex items-center gap-3 text-gray-700 mb-2">
-              <svg className="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path></svg>
-              <div className="font-medium">Nhận xét của lớp học</div>
+          <div className="bg-white border rounded-xl p-6">
+            <div className="text-slate-700 mb-4 text-lg">{classwork.description || "Không có mô tả"}</div>
+            <hr className="my-6" />
+            <div className="flex items-center gap-4 text-slate-700 mb-3">
+              <svg className="w-6 h-6 text-slate-500" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path></svg>
+              <div className="font-semibold">Nhận xét của lớp học</div>
             </div>
-            <div><button className="text-blue-600">Thêm nhận xét về lớp học</button></div>
+            <div><button className="text-blue-600 font-medium">Thêm nhận xét về lớp học</button></div>
 
-            <div className="mt-6">
-              <h4 className="text-sm font-medium mb-2">Danh sách bài đã nộp</h4>
-              <div className="space-y-2">
-                {submissions.length === 0 ? (<div className="text-gray-500 text-sm">Chưa có bài nộp nào.</div>) : submissions.map((sub) => (
-                  <div key={sub.id} className="border rounded p-3 bg-gray-50">
-                    <div className="text-sm text-gray-800">Nộp lần cuối: {new Date(sub.latestSubmissionTime).toLocaleString()}</div>
-                    <div className="flex flex-wrap gap-2 mt-2">{sub.files.map((f) => (<a key={f.id} href={f.fileUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline text-xs">{f.fileName}</a>))}</div>
+            <div className="mt-8">
+              <h4 className="text-lg font-semibold mb-3">Danh sách bài đã nộp</h4>
+              <div className="space-y-3">
+                {submissions.length === 0 ? (<div className="text-slate-500 text-base">Chưa có bài nộp nào.</div>) : submissions.map((sub) => (
+                  <div key={sub.id} className="border rounded-lg p-4 bg-slate-50">
+                    <div className="text-base text-slate-800">Nộp lần cuối: {new Date(sub.latestSubmissionTime).toLocaleString()}</div>
+                    <div className="flex flex-wrap gap-3 mt-3">{(sub.files ?? []).map((f) => (<a key={f.id} href={f.fileUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline text-sm">{f.fileName}</a>))}</div>
                   </div>
                 ))}
               </div>
@@ -299,44 +299,44 @@ const ClassworkDetail: React.FC = () => {
         {/* Right */}
         <aside className="col-span-12 lg:col-span-4">
           <RightCard title={hasSubmitted ? "Bài bạn đã nộp" : "Bài tập của bạn"}>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               {hasSubmitted && userSubmission && !editingSubmission ? (
                 <>
-                  <div className="text-sm text-gray-600">Đã nộp: {new Date(userSubmission.latestSubmissionTime).toLocaleString()}</div>
+                  <div className="text-base text-slate-600">Đã nộp: {new Date(userSubmission.latestSubmissionTime).toLocaleString()}</div>
                   <div className="space-y-2">
-                    {userSubmission.files.length === 0 ? (
-                      <div className="text-gray-500 text-sm">Không có tệp đính kèm.</div>
+                    {(userSubmission.files ?? []).length === 0 ? (
+                      <div className="text-slate-500 text-sm">Không có tệp đính kèm.</div>
                     ) : (
                       userSubmission.files.map((f: ClassworkSubmissionFile) => (
-                        <div key={f.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                        <div key={f.id} className="flex items-center justify-between bg-white p-3 rounded-lg border">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-sm">📎</div>
+                            <div className="w-10 h-10 bg-slate-100 rounded flex items-center justify-center text-sm">📎</div>
                             <div className="text-sm"><a href={f.fileUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">{f.fileName}</a></div>
                           </div>
                         </div>
                       ))
                     )}
                   </div>
-                  <div className="text-xs text-gray-400">Bạn có thể nộp lại nếu muốn thêm tệp.</div>
+                  <div className="text-sm text-slate-400">Bạn có thể nộp lại nếu muốn thêm tệp.</div>
                 </>
               ) : (
                 <>
                   {/* Upload UI (used for new submit and editing/resubmit) */}
                   <div className="relative" ref={menuRef}>
-                    <button onClick={() => setMenuOpen((s) => !s)} className="w-full border rounded-full py-2 text-sm flex items-center justify-center gap-2"><span className="text-lg">+</span> Thêm hoặc tạo</button>
+                    <button onClick={() => setMenuOpen((s) => !s)} className="w-full border rounded-full py-3 text-base flex items-center justify-center gap-3 font-medium"><span className="text-lg">+</span> Thêm hoặc tạo</button>
                     {menuOpen && (
-                      <div className="absolute right-0 mt-2 w-64 bg-white rounded shadow-lg border z-20">
-                        <button className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50" onClick={() => handleAddLink("drive")}><div className="w-6"><Icon name="drive" /></div><div>Google Drive</div></button>
-                        <button className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50" onClick={() => handleAddLink("link")}><div className="w-6"><Icon name="link" /></div><div>Đường liên kết</div></button>
-                        <button className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50" onClick={() => { setMenuOpen(false); fileInputRef.current?.click(); }}><div className="w-6"><Icon name="file" /></div><div>Tệp</div></button>
+                      <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border z-20">
+                        <button className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-slate-50" onClick={() => handleAddLink("drive")}><div className="w-6"><Icon name="drive" /></div><div>Google Drive</div></button>
+                        <button className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-slate-50" onClick={() => handleAddLink("link")}><div className="w-6"><Icon name="link" /></div><div>Đường liên kết</div></button>
+                        <button className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-slate-50" onClick={() => { setMenuOpen(false); fileInputRef.current?.click(); }}><div className="w-6"><Icon name="file" /></div><div>Tệp</div></button>
                       </div>
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    {files.length === 0 && linkAttachments.length === 0 ? (<div className="text-gray-500 text-sm">Chưa có tệp hoặc liên kết nào được thêm.</div>) : (<>
-                      {files.map((f, idx) => (<div key={idx} className="flex items-center justify-between bg-gray-50 p-2 rounded"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-sm">{f.name?.slice(0,1).toUpperCase()}</div><div className="text-sm">{f.name}</div></div><button onClick={() => removeFileAt(idx)} className="text-xs text-red-500">Xóa</button></div>))}
-                      {linkAttachments.map((l, idx) => (<div key={`link-${idx}`} className="flex items-center justify-between bg-gray-50 p-2 rounded"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-sm">🔗</div><div className="text-sm"><a href={l.url} target="_blank" rel="noreferrer" className="text-blue-600 underline">{l.title ?? l.url}</a></div></div><button onClick={() => removeLinkAt(idx)} className="text-xs text-red-500">Xóa</button></div>))}
+                  <div className="space-y-3">
+                    {files.length === 0 && linkAttachments.length === 0 ? (<div className="text-slate-500 text-sm">Chưa có tệp hoặc liên kết nào được thêm.</div>) : (<>
+                      {files.map((f, idx) => (<div key={idx} className="flex items-center justify-between bg-slate-50 p-3 rounded-lg"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-slate-100 rounded flex items-center justify-center text-sm">{f.name?.slice(0,1).toUpperCase()}</div><div className="text-sm">{f.name}</div></div><button onClick={() => removeFileAt(idx)} className="text-xs text-red-500">Xóa</button></div>))}
+                      {linkAttachments.map((l, idx) => (<div key={`link-${idx}`} className="flex items-center justify-between bg-slate-50 p-3 rounded-lg"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-slate-100 rounded flex items-center justify-center text-sm">🔗</div><div className="text-sm"><a href={l.url} target="_blank" rel="noreferrer" className="text-blue-600 underline">{l.title ?? l.url}</a></div></div><button onClick={() => removeLinkAt(idx)} className="text-xs text-red-500">Xóa</button></div>))}
                     </>)}
                   </div>
                 </>
@@ -344,15 +344,11 @@ const ClassworkDetail: React.FC = () => {
 
               <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />
 
-              {/* Button behavior:
-                  - If user has submitted and is not editing: clicking this will enable editing and open upload UI (handled earlier in handleSubmit early-return).
-                  - If editing or user hasn't submitted: clicking will actually submit (handleSubmit).
-              */}
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   disabled={isPastDeadline(classwork.deadline) || loadingSubmit}
                   onClick={handleSubmit}
-                  className={`flex-1 py-2 rounded text-white ${isPastDeadline(classwork.deadline) ? "bg-gray-300" : "bg-blue-600"}`}
+                  className={`flex-1 py-3 rounded-lg text-white ${isPastDeadline(classwork.deadline) ? "bg-gray-300" : "bg-blue-600"}`}
                 >
                   {loadingSubmit ? "Đang nộp..." : (hasSubmitted ? (editingSubmission ? "Nộp lại" : "Nộp lại") : "Đánh dấu là đã hoàn thành")}
                 </button>
@@ -367,19 +363,19 @@ const ClassworkDetail: React.FC = () => {
                       setLinkAttachments([]);
                       setMenuOpen(false);
                     }}
-                    className="px-3 py-2 rounded border"
+                    className="px-4 py-3 rounded-lg border"
                   >
                     Hủy
                   </button>
                 )}
               </div>
 
-              <div className="text-xs text-gray-400 mt-1">{isPastDeadline(classwork.deadline) ? "Không thể nộp bài tập sau ngày đến hạn" : "Bạn có thể nộp trước hạn nộp"}</div>
+              <div className="text-xs text-slate-400 mt-2">{isPastDeadline(classwork.deadline) ? "Không thể nộp bài tập sau ngày đến hạn" : "Bạn có thể nộp trước hạn nộp"}</div>
             </div>
           </RightCard>
 
           <RightCard title="Nhận xét riêng tư">
-            <div className="text-sm text-gray-700"><button className="text-blue-600">Thêm nhận xét cho {currentClass?.data?.teacher?.fullname ?? "học viên"}</button></div>
+            <div className="text-sm text-slate-700"><button className="text-blue-600 font-medium">Thêm nhận xét cho {currentClass?.data?.teacher?.fullname ?? "học viên"}</button></div>
           </RightCard>
         </aside>
       </div>

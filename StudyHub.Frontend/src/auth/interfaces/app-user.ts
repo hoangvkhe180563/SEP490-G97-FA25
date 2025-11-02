@@ -10,6 +10,7 @@ interface AppUser {
   subjectIds: number[];
   schoolId: number;
   isLoginWithGoogle: boolean;
+  transferId: number;
 }
 
 export type { AppUser };

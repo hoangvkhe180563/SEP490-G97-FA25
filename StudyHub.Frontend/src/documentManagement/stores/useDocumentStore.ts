@@ -1,161 +1,13 @@
-// src/documentManagement/stores/useDocumentStore.ts
+//store/documentManagement/stores/useDocumentStore.ts
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { axiosInstance, axiosMessageErrorHandler } from "@/lib/axios";
 import type {
   DocumentDetailDto,
-  Document,
   PagedDocumentResponse,
   ApiResponse,
-  DocumentCategoryDto,
-  SubjectDto,
+  DocumentState,
 } from "@/documentManagement/interfaces/document";
-import type { ClassListDto } from "@/classManagement/interfaces/class";
-
-interface DocumentState {
-  document: DocumentDetailDto | null;
-  documents: Document[];
-  categories: DocumentCategoryDto[];
-  subjects: SubjectDto[];
-  userClasses: ClassListDto[];
-  totalCount: number;
-  totalPages: number;
-  currentPage: number;
-  isLoading: boolean;
-  success: boolean;
-  message: string;
-  error: string | null;
-  getDocumentByIdMessage: string;
-  getDocumentByIdError: string | null;
-  downloadDocumentMessage: string;
-  downloadDocumentError: string | null;
-  previewDocumentMessage: string;
-  previewDocumentError: string | null;
-  fetchPublicDocumentsMessage: string;
-  fetchPublicDocumentsError: string | null;
-  fetchSchoolDocumentsMessage: string;
-  fetchSchoolDocumentsError: string | null;
-  fetchOwnedDocumentsMessage: string;
-  fetchOwnedDocumentsError: string | null;
-  fetchManagerPublicDocumentsMessage: string;
-  fetchManagerPublicDocumentsError: string | null;
-  fetchManagerSchoolDocumentsMessage: string;
-  fetchManagerSchoolDocumentsError: string | null;
-  approveDocumentMessage: string;
-  approveDocumentError: string | null;
-  rejectDocumentMessage: string;
-  rejectDocumentError: string | null;
-  revokeApprovalMessage: string;
-  revokeApprovalError: string | null;
-  softDeleteDocumentMessage: string;
-  softDeleteDocumentError: string | null;
-  createDocumentMessage: string;
-  createDocumentError: string | null;
-  getCategoriesMessage: string;
-  getCategoriesError: string | null;
-  getSubjectsMessage: string;
-  getSubjectsError: string | null;
-  getUserClassesMessage: string;
-  getUserClassesError: string | null;
-
-  getDocumentById: (
-    id: number,
-    handlerSuccess?: () => void
-  ) => Promise<DocumentDetailDto | null>;
-  downloadDocument: (
-    id: number,
-    handlerSuccess?: () => void
-  ) => Promise<Blob | null>;
-  previewDocument: (
-    id: number,
-    handlerSuccess?: () => void
-  ) => Promise<Blob | null>;
-  fetchPublicDocuments: (
-    query?: string,
-    categoryId?: number,
-    gradeId?: number,
-    subject?: string,
-    classId?: number,
-    pageNumber?: number,
-    pageSize?: number,
-    handlerSuccess?: () => void
-  ) => Promise<void>;
-  fetchSchoolDocuments: (
-    schoolId: string,
-    query?: string,
-    categoryId?: number,
-    gradeId?: number,
-    subject?: string,
-    classId?: number,
-    pageNumber?: number,
-    pageSize?: number,
-    handlerSuccess?: () => void
-  ) => Promise<void>;
-  fetchOwnedDocuments: (
-    creatorId: string,
-    query?: string,
-    categoryId?: number,
-    gradeId?: number,
-    subject?: string,
-    classId?: number,
-    pageNumber?: number,
-    pageSize?: number,
-    handlerSuccess?: () => void
-  ) => Promise<void>;
-  fetchManagerPublicDocuments: (
-    query?: string,
-    categoryId?: number,
-    gradeId?: number,
-    subject?: string,
-    classId?: number,
-    isApproved?: boolean,
-    status?: boolean,
-    pageNumber?: number,
-    pageSize?: number,
-    handlerSuccess?: () => void
-  ) => Promise<void>;
-  fetchManagerSchoolDocuments: (
-    schoolId: string,
-    query?: string,
-    categoryId?: number,
-    gradeId?: number,
-    subject?: string,
-    classId?: number,
-    isApproved?: boolean,
-    status?: boolean,
-    pageNumber?: number,
-    pageSize?: number,
-    handlerSuccess?: () => void
-  ) => Promise<void>;
-  approveDocument: (
-    documentId: number,
-    handlerSuccess?: () => void
-  ) => Promise<boolean>;
-  rejectDocument: (
-    documentId: number,
-    handlerSuccess?: () => void
-  ) => Promise<boolean>;
-  revokeApproval: (
-    documentId: number,
-    handlerSuccess?: () => void
-  ) => Promise<boolean>;
-  softDeleteDocument: (
-    documentId: number,
-    handlerSuccess?: () => void
-  ) => Promise<boolean>;
-  createDocument: (
-    formData: FormData,
-    handlerSuccess?: () => void
-  ) => Promise<DocumentDetailDto | null>;
-  getCategories: (handlerSuccess?: () => void) => Promise<void>;
-  getSubjects: (handlerSuccess?: () => void) => Promise<void>;
-  getUserClasses: (
-    userId: string,
-    handlerSuccess?: () => void
-  ) => Promise<void>;
-  setCurrentPage: (page: number) => void;
-}
-
 export const useDocumentStore = create<DocumentState>()(
   devtools(
     (set) => ({
@@ -244,9 +96,17 @@ export const useDocumentStore = create<DocumentState>()(
           downloadDocumentMessage: "",
         });
         try {
-          const response = await axiosInstance.get(`/Document/download/${id}`, {
-            responseType: "blob",
-          });
+          const response = await axiosInstance.get(`/Document/download/${id}`);
+          const { url, fileName } = response.data.data;
+
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = fileName;
+          link.target = "_blank";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
           set({
             success: true,
             downloadDocumentMessage: "Document downloaded successfully",
@@ -254,7 +114,7 @@ export const useDocumentStore = create<DocumentState>()(
           if (handlerSuccess) {
             handlerSuccess();
           }
-          return response.data;
+          return new Blob();
         } catch (error: unknown) {
           set({
             success: false,
@@ -274,9 +134,12 @@ export const useDocumentStore = create<DocumentState>()(
           previewDocumentMessage: "",
         });
         try {
-          const response = await axiosInstance.get(`/Document/preview/${id}`, {
-            responseType: "blob",
-          });
+          const response = await axiosInstance.get(`/Document/preview/${id}`);
+          const { url } = response.data.data;
+
+          const fileResponse = await fetch(url);
+          const blob = await fileResponse.blob();
+
           set({
             success: true,
             previewDocumentMessage: "Document preview loaded",
@@ -284,7 +147,7 @@ export const useDocumentStore = create<DocumentState>()(
           if (handlerSuccess) {
             handlerSuccess();
           }
-          return response.data;
+          return blob;
         } catch (error: unknown) {
           set({
             success: false,

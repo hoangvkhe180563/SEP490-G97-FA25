@@ -1,18 +1,29 @@
 // StudyHub.Frontend/src/documentManagement/components/documents/DocumentSearchBar.tsx
-import { Input } from "@/common/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
-import { Search } from "lucide-react"
+import { Input } from "@/common/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/common/components/ui/select";
+import { Search } from "lucide-react";
 
 interface DocumentSearchHeaderProps {
-  searchQuery: string
-  onSearchChange: (value: string) => void
-  sortBy: string
-  onSortChange: (value: string) => void
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
+  sortBy: string;
+  onSortChange: (value: string) => void;
 }
 
-const DocumentSearchHeader = ({ searchQuery, onSearchChange, sortBy, onSortChange }: DocumentSearchHeaderProps) => {
+const DocumentSearchHeader = ({
+  searchQuery,
+  onSearchChange,
+  sortBy,
+  onSortChange,
+}: DocumentSearchHeaderProps) => {
   return (
-    <div className="mb-6 flex items-center gap-4">
+    <div className="mb-0 flex items-center gap-4">
       <div className="flex-1 relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
         <Input
@@ -34,7 +45,7 @@ const DocumentSearchHeader = ({ searchQuery, onSearchChange, sortBy, onSortChang
         </SelectContent>
       </Select>
     </div>
-  )
-}
+  );
+};
 
-export default DocumentSearchHeader
+export default DocumentSearchHeader;

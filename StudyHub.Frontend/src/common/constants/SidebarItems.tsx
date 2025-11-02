@@ -19,7 +19,7 @@ export const studentSidebarItems: ISidebarItem[] = [
   {
     icon: <LibraryBig size={20} />,
     text: "Tài liệu",
-    link: "/document/textbooks",
+    link: "/document/student/documents",
   },
   {
     icon: <BookOpen size={20} />,
@@ -42,7 +42,8 @@ export const schoolStudentSidebarItems: ISidebarItem[] = [
   {
     icon: <MessageSquare size={20} />,
     text: "Forum",
-    link: "/forum",
+    link: "/forum/student/forums",
+    childrenLinks: ["/forumstudent/forums", "/forum/student/forums/details"],
   },
 ];
 
@@ -55,7 +56,7 @@ export const teacherSidebarItems: ISidebarItem[] = [
   {
     icon: <LibraryBig size={20} />,
     text: "Tài liệu",
-    link: "/document/textbooks",
+    link: "/document/teacher/my-documents",
   },
   {
     icon: <BookOpen size={20} />,
@@ -70,7 +71,8 @@ export const teacherSidebarItems: ISidebarItem[] = [
   {
     icon: <MessageSquare size={20} />,
     text: "Forum",
-    link: "/forum",
+    link: "/forum/student/forums",
+    childrenLinks: ["/forum/student/forums", "/forum/student/forums/details"],
   },
   {
     icon: <MessageCircleQuestionMark size={20} />,
@@ -98,7 +100,7 @@ export const documentManagerSidebarItems: ISidebarItem[] = [
   {
     icon: <LibraryBig size={20} />,
     text: "Quản lý tài liệu",
-    link: "/documents",
+    link: "/document/manager/verify",
   },
 ];
 
