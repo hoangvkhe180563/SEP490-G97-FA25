@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import GuestLayout from "@/common/pages/GuestLayout";
 import RegisteredLayout from "@/common/pages/RegisteredLayout";
 import qaRoutes from "@/qaManagement/routes/QARoutes";
+import examRoutes from "@/exam/routes/ExamRoutes";
 
 const AppRouter = () => {
   const { user, checkAuth } = useAuthStore();
@@ -88,6 +89,11 @@ const AppRouter = () => {
       path: RouteConfig.QA_MANAGEMENT,
       element: <RegisteredLayout user={user} />,
       children: qaRoutes,
+    },
+    {
+      path: RouteConfig.EXAM,
+      element: <RegisteredLayout user={user} />,
+      children: examRoutes,
     },
   ];
 
