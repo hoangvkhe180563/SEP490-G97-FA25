@@ -3,8 +3,15 @@ import CommentComposer from "@/classManagement/components/ui/commentcomposer";
 import DOMPurify from "dompurify";
 import useClassStore from "@/classManagement/stores/useClassStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-import type { PostComment } from "@/classManagement/components/ui/postcard";
-
+export type PostComment = {
+  id: number | string; // allow string for optimistic temp ids
+  notificationId?: number|string;
+  userId?: number | string;
+  userFullname: string;
+  content: string; // HTML content
+  avatarUrl?: string | null;
+  createdAt?: string;
+};
 // ====== Types ======
 export type PostFile = {
   id: number | string;
