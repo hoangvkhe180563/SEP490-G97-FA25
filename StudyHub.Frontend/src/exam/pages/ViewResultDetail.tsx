@@ -25,6 +25,10 @@ const ViewResultDetail = () => {
       try {
         setLoading(true);
         const fetchedResult = await examService.getResultDetail(Number(id));
+        if (fetchedResult.examId === 0) {
+          setError("Không thể tải chi tiết kết quả.");
+          return;
+        }
         setResult(fetchedResult);
 
         const [fetchedExam] = await Promise.all([
@@ -84,10 +88,10 @@ const ViewResultDetail = () => {
   };
 
   const renderCorrectAnswer = (question: Question) => {
-    if (question.type === EXAM_TYPE.MULTI_CHOICE) {
-      return Array.isArray(question.correctAnswer)
-        ? question.correctAnswer.join(', ')
-        : question.correctAnswer;
+    if (question.type === EXAM_TYPE.SINGLE_CHOICE) {
+      return question.options[question.correctAnswer];
+    } else if (question.type === EXAM_TYPE.MULTI_CHOICE) {
+      return question.options.filter((_, index) => question.correctAnswer.includes(index)).join(", ");
     } else if (question.type === EXAM_TYPE.FILL_IN_BLANK) {
       return Array.isArray(question.correctAnswer)
         ? question.correctAnswer.join(', ')

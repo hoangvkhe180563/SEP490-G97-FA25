@@ -14,6 +14,8 @@ const ListExams = () => {
   const [error, setError] = useState<string>('');
   const examService = new ExamService();
 
+  //phân quyền?
+
   useEffect(() => {
     const fetchExamsAndResults = async () => {
       try {
@@ -66,7 +68,7 @@ const ListExams = () => {
                   </span>
                 ) : (
                   <Link
-                    to={`/student/take-exam/${exam.id}`}
+                    to={`/exam/student/take-exam/${exam.id}`}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
                   >
                     Bắt đầu làm bài

@@ -4,7 +4,7 @@ const useDocumentVisibility = () => {
   const [isVisible, setIsVisible] = useState(document.visibilityState === 'visible');
 
   useEffect(() => {
-    const handleVisibilityChange = (e) => {
+    const handleVisibilityChange = (e: Event) => {
       e.stopImmediatePropagation();
       setIsVisible(document.visibilityState === 'visible');
     };

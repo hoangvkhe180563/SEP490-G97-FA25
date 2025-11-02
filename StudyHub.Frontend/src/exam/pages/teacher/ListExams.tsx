@@ -2,6 +2,7 @@ import { useLoading } from '@/common/hooks/useLoading';
 import type { Exam } from '@/exam/interfaces/models/Exam';
 import { ExamService } from '@/exam/services/ExamService';
 import { MOCK_DATA_USERS } from '@/exam/services/MockData';
+import { Pencil } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -40,7 +41,7 @@ const ListExams = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Bài kiểm tra của tôi</h1>
         <Link
-          to="/teacher/create-exam"
+          to="/exam/teacher/create-exam"
           className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300"
         >
           Tạo bài kiểm tra mới
@@ -60,17 +61,17 @@ const ListExams = () => {
                 <span>{exam.duration} phút</span>
               </div>
               <div className="flex justify-end">
-                {/* <Link
-                  to={`/teacher/exams/${exam.id}/edit`} // Optional: edit exam functionality
+                <Link
+                  to={`/exam/teacher/exams/${exam.id}/edit`}
                   className="px-4 py-2 mr-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 text-sm"
                 >
-                  Sửa
-                </Link> */}
+                  <Pencil size={16}/>
+                </Link>
                 <Link
-                  to={`/teacher/exams/${exam.id}/results`} // View results for this specific exam
+                  to={`/exam/teacher/exams/${exam.id}/results`}
                   className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
                 >
-                  Xem đáp án
+                  Xem lịch sử làm bài
                 </Link>
               </div>
             </div>

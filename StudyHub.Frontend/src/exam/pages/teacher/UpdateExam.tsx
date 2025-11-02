@@ -1,9 +1,13 @@
+import { Button } from '@/common/components/ui/button';
+import { Checkbox } from '@/common/components/ui/checkbox';
+import { Label } from '@/common/components/ui/label';
 import { useLoading } from '@/common/hooks/useLoading';
 import { BLANK_PLACEHOLDER, DEFAULT_QUESTION, EXAM_TYPE } from '@/exam/constants/Constants';
 import type { Exam } from '@/exam/interfaces/models/Exam';
 import type { Question } from '@/exam/interfaces/models/Question';
 import { ExamService } from '@/exam/services/ExamService';
 import { MOCK_DATA_USERS } from '@/exam/services/MockData';
+import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
@@ -20,6 +24,8 @@ const UpdateExam = () => {
   const [error, setError] = useState<string>('');
   const [excelFileError, setExcelFileError] = useState<string>('');
   const [hasExam, setHasExam] = useState(false);
+  const [showAnswers, setShowAnswers] = useState<boolean>(true);
+  const [showCorrectAnswers, setShowCorrectAnswers] = useState<boolean>(false);
   const examService = new ExamService();
 
   useEffect(() => {
@@ -333,7 +339,7 @@ const UpdateExam = () => {
     try {
       await examService.updateExam(Number(id), examToUpdate);
       alert('Cập nhật bài kiểm tra thành công!');
-      navigate('/teacher/exams');
+      navigate('/exam/teacher/exams');
     } catch (err) {
       console.error("Failed to create exam:", err);
       setError("Tạo bài kiểm tra thất bại. Vui lòng thử lại.");
@@ -346,7 +352,12 @@ const UpdateExam = () => {
 
   return (
     <div className="container mx-auto mt-8 p-6 bg-white shadow-lg rounded-lg">
-      <h1 className="text-4xl font-bold mb-6 text-gray-800">Tạo bài kiểm tra mới</h1>
+      <Button variant='outline' className='flex items-center' onClick={() => navigate('/exam/teacher/exams')}>
+        <ArrowLeft />
+        <span>Quay lại</span>
+      </Button>
+
+      <h1 className="text-4xl font-bold mb-6 text-gray-800">Chỉnh sửa bài kiểm tra</h1>
 
       {error && <div className="p-3 mb-4 bg-red-100 text-red-700 rounded-lg">{error}</div>}
 
@@ -391,6 +402,21 @@ const UpdateExam = () => {
             min="1"
             required
           />
+        </div>
+
+        <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Khi nộp bài</h2>
+        <div className="flex items-center gap-3 py-3">
+          <Checkbox id="showAnswers" checked={showAnswers} onCheckedChange={(value: boolean) => {
+            setShowAnswers(value);
+            if (value === false) {
+              setShowCorrectAnswers(false);
+            }
+          }} />
+          <Label htmlFor="showAnswers">Hiện các câu hỏi và câu trả lời</Label>
+        </div>
+        <div className="flex items-center gap-3 py-3">
+          <Checkbox id="showCorrectAnswers" checked={showCorrectAnswers} onCheckedChange={(value: boolean) => setShowCorrectAnswers(value)} disabled={!showAnswers} />
+          <Label htmlFor="showCorrectAnswers">Hiện đáp án đúng/sai</Label>
         </div>
 
         <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Câu hỏi</h2>
@@ -456,8 +482,8 @@ const UpdateExam = () => {
                           type="radio"
                           name={`correctAnswer-${q.id}`}
                           value={option}
-                          checked={q.correctAnswer === option}
-                          onChange={() => updateQuestion(q.id, 'correctAnswer', option)}
+                          checked={q.correctAnswer === optIndex}
+                          onChange={() => updateQuestion(q.id, 'correctAnswer', optIndex)}
                           className="mr-2 text-blue-600 form-radio"
                         />
                       )}
@@ -466,8 +492,8 @@ const UpdateExam = () => {
                           type="checkbox"
                           name={`correctAnswer-${q.id}`}
                           value={option}
-                          checked={q.correctAnswer.includes(option)}
-                          onChange={() => updateQuestion(q.id, 'correctAnswerMulti', option)}
+                          checked={q.correctAnswer.includes(optIndex)}
+                          onChange={() => updateQuestion(q.id, 'correctAnswerMulti', optIndex)}
                           className="mr-2 text-blue-600 form-checkbox rounded"
                         />
                       )}
@@ -528,19 +554,6 @@ const UpdateExam = () => {
                     </div>
                   ))}
                 </div>
-              )}
-
-              {q.type === EXAM_TYPE.SINGLE_CHOICE && q.correctAnswer && (
-                <p className="text-sm text-green-700 mt-2">Đáp án đúng: <span className="font-semibold">{q.correctAnswer}</span></p>
-              )}
-              {q.type === EXAM_TYPE.MULTI_CHOICE && q.correctAnswer.length > 0 && (
-                <p className="text-sm text-green-700 mt-2">Đáp án đúng: <span className="font-semibold">{q.correctAnswer.join(', ')}</span></p>
-              )}
-              {q.type === EXAM_TYPE.TEXT_INPUT && q.correctAnswer && (
-                <p className="text-sm text-green-700 mt-2">Đáp án đúng: <span className="font-semibold">{q.correctAnswer}</span></p>
-              )}
-              {q.type === EXAM_TYPE.FILL_IN_BLANK && q.correctAnswer.length > 0 && (
-                <p className="text-sm text-green-700 mt-2">Đáp án đúng: <span className="font-semibold">{q.correctAnswer.join(', ')}</span></p>
               )}
             </div>
           ))}

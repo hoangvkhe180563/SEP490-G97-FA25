@@ -16,7 +16,7 @@ export const DEFAULT_EXAM: Exam = {
   id: 0,
   title: '',
   createdBy: 0,
-  duration: 1,
+  duration: 0,
   description: '',
   questions: []
 }

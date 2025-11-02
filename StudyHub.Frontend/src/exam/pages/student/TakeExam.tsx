@@ -11,6 +11,8 @@ import type { ExamResult } from '@/exam/interfaces/models/ExamResult';
 import { Button } from '@/common/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/common/components/ui/radio-group';
 import { Checkbox } from '@/common/components/ui/checkbox';
+import useDocumentVisibility from '@/exam/hooks/useDocumentVisibility';
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/common/components/ui/alert-dialog';
 
 const TakeExam = () => {
   const { id } = useParams();
@@ -22,7 +24,12 @@ const TakeExam = () => {
   const { setLoading } = useLoading();
   const [error, setError] = useState<string>('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const isVisible = useDocumentVisibility();
   const examService = new ExamService();
+  const [cheatTimes, setCheatTimes] = useState<number>(0);
+  const [cheatDialogOpen, setCheatDialogOpen] = useState<boolean>(false);
+
+  //phân quyền?
 
   useEffect(() => {
     if (!Number(id)) {
@@ -57,21 +64,24 @@ const TakeExam = () => {
   }, [id]);
 
   useEffect(() => {
-    if (exam && timeLeft > 0 && !isSubmitted) {
+    if (exam.duration <= 0) return;
+    if (timeLeft > 0 && !isSubmitted) {
       const timer = setInterval(() => {
         setTimeLeft((prevTime) => prevTime - 1);
       }, 1000);
       return () => clearInterval(timer);
-    } else if (exam && timeLeft === 0 && !isSubmitted) {
+    } else if (timeLeft === 0 && !isSubmitted) {
       handleSubmitExam();
     }
-  }, [timeLeft, isSubmitted, exam]);
+  }, [timeLeft, isSubmitted]);
 
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
+  useEffect(() => {
+    if (isVisible && exam.duration) {
+      setCheatTimes(ct => ct + 1);
+      console.log("backup results: cheatTimes x" + cheatTimes);
+      setCheatDialogOpen(true)
+    }
+  }, [isVisible])
 
   const handleAnswerChange = (questionId: number, value: any, type: string, blankIndex: number | null = null) => {
     setStudentAnswers((prevAnswers) => {
@@ -112,20 +122,22 @@ const TakeExam = () => {
     if (isSubmitted || !exam) return;
     setIsSubmitted(true);
 
-    let score = 0;
+    let rightAnswers = 0;
     const answeredQuestions = exam.questions.map((q) => {
       const studentAns = studentAnswers[q.id];
       let isCorrect = false;
 
-      if (q.type === EXAM_TYPE.SINGLE_CHOICE || q.type === EXAM_TYPE.TEXT_INPUT) {
-        isCorrect = (studentAns?.toString().trim().toLowerCase() === q.correctAnswer?.toString().trim().toLowerCase());
+      if (q.type === EXAM_TYPE.SINGLE_CHOICE) {
+        isCorrect = q.correctAnswer === studentAns;
       } else if (q.type === EXAM_TYPE.MULTI_CHOICE) {
-        const studentAnsArray = Array.isArray(studentAns) ? studentAns.sort() : [];
-        const correctAnsArray = Array.isArray(q.correctAnswer) ? q.correctAnswer.sort() : [];
+        const studentAnsArray = Array.isArray(studentAns) ? studentAns : [];
+        const correctAnsArray = Array.isArray(q.correctAnswer) ? q.correctAnswer : [];
         isCorrect = (
           studentAnsArray.length === correctAnsArray.length &&
-          studentAnsArray.every((val, index) => val === correctAnsArray[index])
+          studentAnsArray.every((val) => correctAnsArray.includes(val))
         );
+      } else if (q.type === EXAM_TYPE.TEXT_INPUT) {
+        isCorrect = (studentAns?.toString().trim().toLowerCase() === q.correctAnswer?.toString().trim().toLowerCase());
       } else if (q.type === EXAM_TYPE.FILL_IN_BLANK) {
         const studentAnsArray = Array.isArray(studentAns) ? studentAns.map(ans => String(ans || '').trim().toLowerCase()) : [];
         const correctAnsArray = Array.isArray(q.correctAnswer) ? q.correctAnswer.map(ans => String(ans || '').trim().toLowerCase()) : [];
@@ -136,7 +148,7 @@ const TakeExam = () => {
       }
 
       if (isCorrect) {
-        score++;
+        rightAnswers++;
       }
 
       return {
@@ -146,12 +158,14 @@ const TakeExam = () => {
       };
     });
 
+    const finalScore = rightAnswers / exam.questions.length * 10;
+
     const resultData: ExamResult = {
       id: 999,
       examId: Number(exam.id),
       studentId: Number(user.id),
       submissionDate: new Date(),
-      score: score,
+      score: parseFloat(finalScore.toFixed(2)),
       totalQuestions: exam.questions.length,
       answers: answeredQuestions,
     };
@@ -159,12 +173,18 @@ const TakeExam = () => {
     try {
       await examService.createResult(resultData);
       alert('Bạn đã nộp bài thành công!');
-      navigate(`/results/${resultData.examId}`);
+      navigate(`/exam/results/${resultData.examId}`);
     } catch (err) {
       console.error("Failed to submit exam:", err);
       setError("Nộp bài thất bại. Vui lòng thử lại.");
       setIsSubmitted(false);
     }
+  };
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   if (error) {
@@ -223,7 +243,7 @@ const TakeExam = () => {
                   const id = `q${question.id}-${optIndex}`;
 
                   return <div key={id} className="flex items-center gap-3">
-                    <RadioGroupItem className="data-[state=checked]:bg-blue-800" id={id} value={id} disabled={isSubmitted} onClick={() => handleAnswerChange(question.id, option, question.type)} />
+                    <RadioGroupItem className="data-[state=checked]:bg-blue-800" id={id} value={id} disabled={isSubmitted} onClick={() => handleAnswerChange(question.id, optIndex, question.type)} />
                     <label className="m-0" htmlFor={id}>{option}</label>
                   </div>
                 }
@@ -237,7 +257,7 @@ const TakeExam = () => {
                   const id = `q${question.id}-${optIndex}`;
 
                   return <div key={id} className="flex items-center gap-3">
-                    <Checkbox id={id} value={id} className="data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white" disabled={isSubmitted} onClick={() => handleAnswerChange(question.id, option, question.type)} />
+                    <Checkbox id={id} value={id} className="data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white" disabled={isSubmitted} onClick={() => handleAnswerChange(question.id, optIndex, question.type)} />
                     <label className="m-0" htmlFor={id}>{option}</label>
                   </div>
                 })}
@@ -284,6 +304,19 @@ const TakeExam = () => {
           </Button>)
         }
       </div>
+      <AlertDialog open={cheatDialogOpen} onOpenChange={setCheatDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className='text-center'>Bạn đã chuyển tab/thu nhỏ màn hình!</AlertDialogTitle>
+            <AlertDialogDescription className='text-center'>
+              Vui lòng KHÔNG chuyển tab/thu nhỏ màn hình khi làm bài thi.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className='mx-auto'>
+            <AlertDialogAction onClick={() => setCheatDialogOpen(false)}>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
