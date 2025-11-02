@@ -10,14 +10,14 @@ using System.Threading.Tasks;
 
 namespace StudyHub.Backend.UseCases.Services
 {
-    public  class ClassMemberService
+    public class ClassMemberService
     {
         private readonly IClassRepository _classRepository;
         private readonly IClassMemberRepository _classMemberRepository;
         private readonly ICloudinaryRepository _fileStorage;
         private readonly IAppUserRepository _userRepository;
-        private readonly IEmailService _emailService;
-        public ClassMemberService(IClassMemberRepository classRepository, ICloudinaryRepository fileStorage, IAppUserRepository userRepository, IEmailService emailService,IClassRepository classes)
+        private readonly SmtpEmailService _emailService;
+        public ClassMemberService(IClassMemberRepository classRepository, ICloudinaryRepository fileStorage, IAppUserRepository userRepository, SmtpEmailService emailService, IClassRepository classes)
         {
             _classMemberRepository = classRepository;
             _fileStorage = fileStorage;

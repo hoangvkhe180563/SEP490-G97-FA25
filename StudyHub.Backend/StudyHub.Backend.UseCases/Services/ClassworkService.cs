@@ -11,13 +11,13 @@ using System.Threading.Tasks;
 
 namespace StudyHub.Backend.UseCases.Services
 {
-    public  class ClassworkService
+    public class ClassworkService
     {
         private readonly IClassworkRepository _classRepository;
         private readonly ICloudinaryRepository _fileStorage;
         private readonly IAppUserRepository _userRepository;
-        private readonly IEmailService _emailService;
-        public ClassworkService(IClassworkRepository classworkRepository, ICloudinaryRepository cloudinary, IAppUserRepository appUser, IEmailService email )
+        private readonly SmtpEmailService _emailService;
+        public ClassworkService(IClassworkRepository classworkRepository, ICloudinaryRepository cloudinary, IAppUserRepository appUser, SmtpEmailService email)
         {
             _classRepository = classworkRepository;
             _fileStorage = cloudinary;
