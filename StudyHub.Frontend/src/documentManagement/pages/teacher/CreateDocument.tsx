@@ -541,7 +541,18 @@ export default function CreateDocument() {
                       <FormItem>
                         <FormLabel>Tên tài liệu</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Nhập tên tài liệu" />
+                          <Input
+                            {...field}
+                            placeholder="Nhập tên tài liệu"
+                            onKeyDown={(e) => {
+                              if (
+                                e.key === " " &&
+                                e.currentTarget.selectionStart === 0
+                              ) {
+                                e.preventDefault();
+                              }
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -743,6 +754,14 @@ export default function CreateDocument() {
                                         setClassSearch(e.target.value)
                                       }
                                       className="mb-3"
+                                      onKeyDown={(e) => {
+                                        if (
+                                          e.key === " " &&
+                                          e.currentTarget.selectionStart === 0
+                                        ) {
+                                          e.preventDefault();
+                                        }
+                                      }}
                                     />
                                     <div className="max-h-[60px] overflow-y-auto flex flex-wrap gap-1">
                                       {classes
@@ -803,6 +822,14 @@ export default function CreateDocument() {
                             {...field}
                             placeholder="Nhập mô tả tài liệu"
                             className="resize-none h-24"
+                            onKeyDown={(e) => {
+                              if (
+                                e.key === " " &&
+                                e.currentTarget.selectionStart === 0
+                              ) {
+                                e.preventDefault();
+                              }
+                            }}
                           />
                         </FormControl>
                         <FormMessage />

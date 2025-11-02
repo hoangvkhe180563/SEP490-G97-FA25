@@ -478,7 +478,14 @@ export default function UpdateDocument() {
                           <Input
                             {...field}
                             placeholder="Nhập tên tài liệu"
-                            disabled={isReadOnly}
+                            onKeyDown={(e) => {
+                              if (
+                                e.key === " " &&
+                                e.currentTarget.selectionStart === 0
+                              ) {
+                                e.preventDefault();
+                              }
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
@@ -698,7 +705,14 @@ export default function UpdateDocument() {
                                         setClassSearch(e.target.value)
                                       }
                                       className="mb-3"
-                                      disabled={isReadOnly}
+                                      onKeyDown={(e) => {
+                                        if (
+                                          e.key === " " &&
+                                          e.currentTarget.selectionStart === 0
+                                        ) {
+                                          e.preventDefault();
+                                        }
+                                      }}
                                     />
                                     <div className="max-h-[100px] overflow-y-auto flex flex-wrap gap-2">
                                       {localClasses
@@ -763,7 +777,14 @@ export default function UpdateDocument() {
                             {...field}
                             placeholder="Nhập mô tả tài liệu"
                             className="resize-none h-24"
-                            disabled={isReadOnly}
+                            onKeyDown={(e) => {
+                              if (
+                                e.key === " " &&
+                                e.currentTarget.selectionStart === 0
+                              ) {
+                                e.preventDefault();
+                              }
+                            }}
                           />
                         </FormControl>
                         <FormMessage />

@@ -7,6 +7,7 @@ import { Label } from "@/common/components/ui/label";
 import { ScrollArea } from "@/common/components/ui/scroll-area";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { Checkbox } from "@/common/components/ui/checkbox";
+import { axiosInstance } from "@/lib/axios";
 import {
   Popover,
   PopoverContent,
@@ -42,7 +43,7 @@ import type {
   DocumentGridProps,
   DocumentDetailProps,
 } from "@/documentManagement/interfaces/document";
-
+import { Check } from "lucide-react";
 const ITEMS_PER_PAGE = 12;
 
 function FilterBar({
@@ -677,7 +678,17 @@ export default function OwnedDocument() {
   const { user } = useAuthStore();
   const [selectedDocument, setSelectedDocument] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [toasts, setToasts] = useState<
+    Array<{ id: string; type: "success" | "error"; message: string }>
+  >([]);
 
+  const showToast = (type: "success" | "error", message: string) => {
+    const id = Date.now().toString();
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 5000);
+  };
   const {
     documents,
     availableFilters,
@@ -720,10 +731,53 @@ export default function OwnedDocument() {
   const handleEdit = (docId: number) => {
     navigate(`/document/teacher/update-document/${docId}`);
   };
+  const Toast = ({
+    toast,
+  }: {
+    toast: { id: string; type: "success" | "error"; message: string };
+  }) => (
+    <div
+      className={`flex items-center gap-3 px-4 py-3 shadow-lg animate-in slide-in-from-right ${
+        toast.type === "success"
+          ? "bg-green-50 border border-green-200"
+          : "bg-red-50 border border-red-200"
+      }`}
+    >
+      <div
+        className={toast.type === "success" ? "text-green-600" : "text-red-600"}
+      >
+        {toast.type === "success" ? (
+          <Check className="h-5 w-5" />
+        ) : (
+          <X className="h-5 w-5" />
+        )}
+      </div>
+      <p
+        className={`text-sm font-medium ${
+          toast.type === "success" ? "text-green-800" : "text-red-800"
+        }`}
+      >
+        {toast.message}
+      </p>
+    </div>
+  );
+  <div className="fixed top-4 right-4 z-50 space-y-2">
+    {toasts.map((toast) => (
+      <Toast key={toast.id} toast={toast} />
+    ))}
+  </div>;
+  const handleDelete = async () => {
+    if (!selectedDoc) return;
 
-  const handleDelete = () => {
-    if (selectedDoc) {
-      console.log("Delete document:", selectedDoc.id);
+    if (!confirm("Bạn có chắc chắn muốn xóa tài liệu này?")) return;
+
+    try {
+      await axiosInstance.delete(`/Document/${selectedDoc.id}`);
+      showToast("success", "Xóa tài liệu thành công");
+      setSelectedDocument(null);
+      window.location.reload();
+    } catch (error) {
+      showToast("error", "Không thể xóa tài liệu");
     }
   };
 
