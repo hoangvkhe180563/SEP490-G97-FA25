@@ -310,9 +310,10 @@ namespace StudyHub.Backend.UseCases.Services
         {
             if (!Guid.TryParse(userId, out var userGuid)) return null;
             var cls = _classRepository.GetClassById(classId);
-            if (cls == null) return false;  
+            if (cls == null) return false;
             return _classRepository.KickMember(userGuid, classId);
         }
+        public List<Class> GetAllClassByUserId(Guid userid) => _classRepository.GetAllClassByUserId(userid);
 
         public ClassNotificationComment CreateNotificationComment(ClassNotificationComment commentEntity)
         {
