@@ -21,23 +21,23 @@ const AppRouter = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // useEffect(() => {
-  //   (async () => {
-  //     try {
-  //       await checkAuth();
-  //     } catch {
-  //       console.log("lỗi authorization");
-  //     } finally {
-  //       setAuthChecked(true);
-  //     }
-  //   })();
-  // }, [checkAuth]);
+  useEffect(() => {
+    (async () => {
+      try {
+        await checkAuth();
+      } catch {
+        console.log("lỗi authorization");
+      } finally {
+        setAuthChecked(true);
+      }
+    })();
+  }, [checkAuth]);
 
-  // useEffect(() => {
-  //   if (authChecked && !user && !location.pathname.includes("/auth")) {
-  //     navigate("/");
-  //   }
-  // }, [authChecked]);
+  useEffect(() => {
+    if (authChecked && !user && !location.pathname.includes("/auth")) {
+      navigate("/");
+    }
+  }, [authChecked]);
 
   const appRoutes = [
     {
