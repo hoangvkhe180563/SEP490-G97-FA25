@@ -10,9 +10,9 @@ namespace StudyHub.Backend.Api.Controllers
     [ApiController]
     public class ClassNotificationController : ControllerBase
     {
-        private readonly ClassService _service;
+        private readonly ClassNotificationService _service;
         private readonly AppUserService _aUserService;
-        public ClassNotificationController(ClassService service, AppUserService aUserService)
+        public ClassNotificationController(ClassNotificationService service, AppUserService aUserService)
         {
             _service = service;
             _aUserService = aUserService;
