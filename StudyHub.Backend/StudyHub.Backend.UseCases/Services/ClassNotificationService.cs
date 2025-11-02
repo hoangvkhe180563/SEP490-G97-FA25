@@ -18,8 +18,8 @@ namespace StudyHub.Backend.UseCases.Services
         private readonly IClassNotificationRepository _classRepository;
         private readonly ICloudinaryRepository _fileStorage;
         private readonly IAppUserRepository _userRepository;
-        private readonly IEmailService _emailService;
-        public ClassNotificationService(IClassNotificationRepository classRepository, ICloudinaryRepository fileStorage, IAppUserRepository userRepository, IEmailService emailService)
+        private readonly SmtpEmailService _emailService;
+        public ClassNotificationService(IClassNotificationRepository classRepository, ICloudinaryRepository fileStorage, IAppUserRepository userRepository, SmtpEmailService emailService)
         {
             _classRepository = classRepository;
             _fileStorage = fileStorage;

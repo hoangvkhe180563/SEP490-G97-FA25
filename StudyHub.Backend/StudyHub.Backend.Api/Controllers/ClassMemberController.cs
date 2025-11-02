@@ -15,9 +15,9 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly AppUserService _aUserService;
         private readonly AppRoleService _aRoleService;
         private readonly LocationService _locationService;
-        private readonly IEmailService _emailService;
+        private readonly SmtpEmailService _emailService;
         private readonly IConfiguration _config;
-        public ClassMemberController(ClassMemberService service, AppUserService aUserService, AppRoleService aRoleService, LocationService locationService, IEmailService emailService, IConfiguration config, ClassService classService)
+        public ClassMemberController(ClassMemberService service, AppUserService aUserService, AppRoleService aRoleService, LocationService locationService, SmtpEmailService emailService, IConfiguration config, ClassService classService)
         {
             _service = service;
             _aUserService = aUserService;
