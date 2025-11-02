@@ -25,7 +25,8 @@ namespace StudyHub.Backend.Api.Mappers
             {
                 Name = dto.Name,
                 Description = dto.Description,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = dto.CreatedBy
             };
         }
         public static Class ToEntity(this EditClassDto dto)
@@ -63,7 +64,7 @@ namespace StudyHub.Backend.Api.Mappers
             };
         }
 
-        public static MemberDto ToMemberDto(this AppUserSubjectClass member, AppUser? user, List<string> roles, School school, Commune commune)
+        public static MemberDto ToMemberDto(this AppUserSubjectClass member, AppUser? user, List<AppRole> roles, School school, Commune commune)
         {
             return new MemberDto
             {
@@ -71,7 +72,7 @@ namespace StudyHub.Backend.Api.Mappers
                 Fullname = user?.Fullname ?? "Không rõ",
                 JoinDate = member.JoinDate,
                 Email = user.Email,
-                Roles = roles,
+                Roles = roles.Select(a=>a.Name).ToList(),
                 Gender = user.Gender,
                 SchoolId = user.SchoolId,
                 CommuneId=user.CommuneId,
@@ -109,7 +110,7 @@ namespace StudyHub.Backend.Api.Mappers
                 ClassId = entity.ClassId,
                 Title = entity.Title,
                 Description = entity.Description,
-                CreatedBy = entity.CreatedBy,
+                CreatedBy = entity.AppUserId,
                 CreatedAt = DateTime.Now,
                 Files = files ?? new List<FileDto>(),
                 Comments = comments ?? new List<CommentDto>(),

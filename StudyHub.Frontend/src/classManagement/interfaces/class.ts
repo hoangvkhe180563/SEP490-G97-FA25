@@ -110,19 +110,57 @@ export type ClassworkSubmission = {
   score: number | string | null;
   feedback?: string | null;
 };
+export interface DocumentClassRef {
+  id: number;
+  name?: string | null;
+  subjectName?: string | null;
+  instructorName?: string | null;
+  description?: string | null;
+  subjectId?: number | null;
+}
+
+export interface DocumentDto {
+  id: number;
+  name: string;
+  documentUrl: string;
+  thumbnail?: string | null;
+  description?: string | null;
+  subjectId?: number | null;
+  subjectName?: string | null;
+  grade?: number | null;
+  documentCategoryId?: number | null;
+  categoryName?: string | null;
+  schoolId?: number | null;
+  schoolName?: string | null;
+  isInClass?: boolean;
+  createdAt?: string | null;
+  isFeatured?: boolean;
+  isApproved?: boolean;
+  status?: boolean;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+  fileType?: string | null;
+  uploaderName?: string | null;
+  uploaderUrl?: string | null;
+  uploaderFullname?: string | null;
+  classes?: DocumentClassRef[];
+  // original raw payload
+  raw?: any;
+}
 export interface ClassState {
   classes: ClassListDto[];
   subjects: Subject[];
   currentClass: ClassDetailResponse; // store keeps a default non-null currentClass
+   documentsByClass?: Record<number, DocumentDto[] | undefined>;
   isLoading: boolean;
   success: boolean;
   message: string;
   meta?: Meta | null;
 
   getClasses: (query: string,memberUserId?: string) => Promise<GetClassesResponse | null>;
-  addClass: (payload: { title: string; description?: string }) => Promise<any | null>;
+  addClass: (payload: { title: string; description?: string ;createdBy:string}) => Promise<any | null>;
   getAllSubjects: () => Promise<Subject[]>;
-  updateClass: (payload: { id: number; title: string; description?: string }) => Promise<any | null>;
+  updateClass: (payload: { id: number; title: string; description?: string; updateBy?:string }) => Promise<any | null>;
 
  
   getClassInfo: (id: number) => Promise<ClassDetailResponse | null>;
@@ -152,4 +190,7 @@ export interface ClassState {
 
   // NEW: fetch a single submission for a given user + classwork
   getSubmissionByUserAndClasswork: (classworkId: number, appUserId: string) => Promise<ClassworkSubmission | null>;
+  getMemberCount:  (classId: number)=> Promise<number | null>;
+
+  getDocumentsByClassId?: (classId: number) => Promise<DocumentDto[] | null>;
 }

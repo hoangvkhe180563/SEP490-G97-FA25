@@ -16,7 +16,6 @@ namespace StudyHub.Backend.UseCases.Repositories
         Class? GetClassById(int id);
         Class CreateClass(Class classEntity);
         Class UpdateClass(Class classEntity);
-        bool DeleteClass(int id);
         Class? GetClassDetailById(int id);
         List<AppUserSubjectClass> GetClassMembers(int classId);
         List<Class> GetClassByUserId(Guid userid);
@@ -24,14 +23,14 @@ namespace StudyHub.Backend.UseCases.Repositories
 
         List<ClassNotification> GetClassNotifications(int classId);
         ClassNotification CreateNotification(ClassNotification notification);
-        ClassNotification getNotificationByID(int notificationId);
+        ClassNotification GetNotificationByID(int notificationId);
         List<ClassNotification> GetNotificationsByClassId(int classId);
         ClassNotificationFile CreateSubmissionFile(ClassNotificationFile file);
         ClassNotificationComment CreateComment(ClassNotificationComment comment);
         List<ClassNotificationComment> GetCommentsByNotificationId(int notificationId);
         List<ClassNotificationFile> GetFileByNotificationId(int notificationId);
         ClassNotificationComment CommentNoti(ClassNotificationComment comment);
-        bool deleteNotification(int id);
+        bool DeleteNotification(int id);
         bool InviteMember(Guid userId, int classId);
         bool ConfirmMember(Guid userId, int classId);
         bool KickMember(Guid userId, int classId);
@@ -47,5 +46,6 @@ namespace StudyHub.Backend.UseCases.Repositories
         List<SubmissionFile> GetSubmissionFiles(int submissionId);
         int GetSubmissionCount(int classworkId);
         int GetMemberCount(int classworkId);
+        int GetMemberClassCount(int classID);
     }
 }

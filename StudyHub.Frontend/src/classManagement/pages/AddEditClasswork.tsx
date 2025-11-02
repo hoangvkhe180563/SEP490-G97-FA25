@@ -93,36 +93,40 @@ const AddEditClassworkForm: React.FC = () => {
 
   // ... render unchanged, using role from auth store ...
   return (
-    <div className="p-6">
+    <div className="p-8">
       {/* Top bar */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-100">←</button>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate(-1)} className="p-3 rounded-full hover:bg-slate-100 text-lg">←</button>
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white">📝</div>
-            <div className="text-lg font-medium">Bài tập</div>
+            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white">📝</div>
+            <div>
+              <div className="text-lg font-semibold">Bài tập</div>
+              <div className="text-sm text-slate-500">{isEdit ? "Chỉnh sửa bài tập" : "Tạo bài tập mới"}</div>
+            </div>
           </div>
         </div>
         <div>
-          <button onClick={() => handleSave()} disabled={loading} className="bg-blue-600 text-white px-4 py-2 rounded">Lưu</button>
+          <button onClick={() => handleSave()} disabled={loading} className="bg-blue-600 text-white px-5 py-3 rounded-lg text-lg">{loading ? "Đang lưu..." : "Lưu"}</button>
         </div>
       </div>
 
       {/* Main layout content (omitted for brevity, unchanged) */}
-      {/* You can paste rest of original JSX here - keep behavior same. */}
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-8">
-          <div className="bg-white border rounded-lg p-6 mb-4">
-            <div className="mb-2 text-sm text-gray-600">Tiêu đề*</div>
-            <input className="w-full border-b pb-2 mb-4 text-lg outline-none" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Tiêu đề" />
+          <div className="bg-white border rounded-xl p-6 mb-4">
+            <div className="mb-2 text-sm text-slate-600">Tiêu đề*</div>
+            <input className="w-full border-b pb-3 mb-4 text-2xl outline-none" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Tiêu đề" />
 
-            <div className="mb-2 text-sm text-gray-600">Hướng dẫn (không bắt buộc)</div>
-            <textarea className="w-full border rounded p-3 min-h-[160px] mb-4" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Nhập hướng dẫn cho học viên..." />
+            <div className="mb-2 text-sm text-slate-600">Hướng dẫn (không bắt buộc)</div>
+            <textarea className="w-full border rounded p-4 min-h-[220px] mb-4 text-base" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Nhập hướng dẫn cho học viên..." />
 
-            <div className="rounded-lg border p-6">
-              <div className="text-sm font-medium mb-4">Đính kèm</div>
+            <div className="rounded-lg border p-5">
+              <div className="text-md font-semibold mb-4">Đính kèm</div>
               <div className="flex gap-6">
                 {/* Attachment buttons */}
+                <button className="px-4 py-2 bg-slate-100 rounded-lg">Thêm tệp</button>
+                <button className="px-4 py-2 bg-slate-100 rounded-lg">Thêm liên kết</button>
               </div>
             </div>
           </div>
@@ -130,9 +134,9 @@ const AddEditClassworkForm: React.FC = () => {
 
         <aside className="col-span-12 lg:col-span-4">
           {/* Sidebar */}
-          <div className="bg-white border rounded-lg p-4"> {/* simplified rendering */}
-            <div className="text-sm font-medium mb-3">Giao cho</div>
-            <div>...sidebar content...</div>
+          <div className="bg-white border rounded-xl p-5">
+            <div className="text-sm font-semibold mb-3">Giao cho</div>
+            <div className="text-base text-slate-600">Tất cả học sinh / Chọn nhóm ...</div>
           </div>
         </aside>
       </div>

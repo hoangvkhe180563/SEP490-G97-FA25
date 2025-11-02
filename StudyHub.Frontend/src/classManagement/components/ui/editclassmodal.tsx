@@ -1,5 +1,7 @@
+// url: (update your local file)
 import React, { useEffect, useState } from "react";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 export type EditClassPayload = {
   id: number | string;
@@ -15,16 +17,11 @@ type Props = {
 
 export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) => {
   const [title, setTitle] = useState("");
-  const [subject, setSubject] = useState<number>(0);
   const [description, setDescription] = useState("");
 
   const { subjects, getAllSubjects, updateClass } = useClassStore();
-
-  useEffect(() => {
-    if (open) {
-      getAllSubjects();
-    }
-  }, [open, getAllSubjects]);
+  const { user } = useAuthStore();
+  const currentUserId = user?.id ?? "";
 
   useEffect(() => {
     if (open && classItem) {
@@ -35,7 +32,7 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
 
   if (!open) return null;
 
-  const valid = title.trim() !== "" && subject !== 0;
+  const valid = title.trim() !== "" ;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +42,7 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
       id: classItem.id,
       title: title.trim(),
       description: description.trim(),
+      updateBy: currentUserId, // pass current user id as updatedBy
     });
 
     onClose();

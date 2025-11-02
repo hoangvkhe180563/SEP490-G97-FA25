@@ -1,13 +1,13 @@
+// url: (update your local file)
 import React, { useEffect, useState } from "react";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 
 export const CreateClassModal: React.FC<{
   open: boolean;
   onClose: () => void;
-  onCreate: (payload: { title: string; subject: number; description?: string }) => Promise<void>;
+  onCreate: (payload: { title: string; description?: string; createdBy?: string }) => Promise<void>;
 }> = ({ open, onClose, onCreate }) => {
   const [title, setTitle] = useState("");
-  const [subject, setSubject] = useState<number>(0);
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -18,14 +18,13 @@ export const CreateClassModal: React.FC<{
       getAllSubjects();
     } else {
       setTitle("");
-      setSubject(0);
       setDescription("");
     }
   }, [open, getAllSubjects]);
 
   if (!open) return null;
 
-  const valid = title.trim() !== "" && subject !== 0;
+  const valid = title.trim() !== "" ;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +34,6 @@ export const CreateClassModal: React.FC<{
     try {
       await onCreate({
         title: title.trim(),
-        subject: subject as unknown as number,
         description: description.trim() || undefined,
       });
       onClose();
@@ -72,23 +70,6 @@ export const CreateClassModal: React.FC<{
             />
           </div>
 
-          <div>
-            <label className="text-sm block mb-1">
-              Môn học <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={subject}
-              onChange={(e) => setSubject(Number(e.target.value))}
-              className="w-full border rounded px-3 py-2"
-            >
-              <option value={0}>Chọn môn học</option>
-              {subjects.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
 
           <div>
             <label className="text-sm block mb-1">Mô tả</label>
