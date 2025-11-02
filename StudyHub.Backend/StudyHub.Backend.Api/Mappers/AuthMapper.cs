@@ -20,7 +20,8 @@ namespace StudyHub.Backend.Api.Mappers
                 ClassIds = result.ClassIds ?? new List<int>(),
                 SubjectIds = result.SubjectIds ?? new List<short>(),
                 SchoolId = result.User.SchoolId,
-                isLoginWithGoogle = result.User.IsLoginWithGoogle,
+                IsLoginWithGoogle = result.User.IsLoginWithGoogle,
+                TransferId = result.User.TransferId
             };
         }
     }
