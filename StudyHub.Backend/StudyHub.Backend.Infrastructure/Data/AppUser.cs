@@ -23,6 +23,8 @@ public partial class AppUser
 
     public int? SchoolId { get; set; }
 
+    public int? TransferId { get; set; }
+
     public string? Address { get; set; }
 
     public int? CommuneId { get; set; }
@@ -63,6 +65,8 @@ public partial class AppUser
 
     public virtual ICollection<ClassNotificationComment> ClassNotificationComments { get; set; } = new List<ClassNotificationComment>();
 
+    public virtual ICollection<ClassNotificationReadStatus> ClassNotificationReadStatuses { get; set; } = new List<ClassNotificationReadStatus>();
+
     public virtual ICollection<ClassNotification> ClassNotifications { get; set; } = new List<ClassNotification>();
 
     public virtual ICollection<ClassworkSubmission> ClassworkSubmissions { get; set; } = new List<ClassworkSubmission>();
@@ -72,6 +76,12 @@ public partial class AppUser
     public virtual ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
 
     public virtual ICollection<LessonComment> LessonComments { get; set; } = new List<LessonComment>();
+
+    public virtual ICollection<QAConversation> QAConversationStudents { get; set; } = new List<QAConversation>();
+
+    public virtual ICollection<QAConversation> QAConversationTeachers { get; set; } = new List<QAConversation>();
+
+    public virtual ICollection<QAMessage> QAMessages { get; set; } = new List<QAMessage>();
 
     public virtual ICollection<AppRole> Roles { get; set; } = new List<AppRole>();
 }

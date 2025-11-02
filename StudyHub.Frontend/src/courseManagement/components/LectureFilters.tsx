@@ -3,9 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import type { ChapterListDto, LessonListDto } from "../types/api";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import RouteConfig from "@/common/constants/RouteConfig";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const LectureFilters: React.FC = () => {
   const { courseId } = useParams();
@@ -22,16 +22,13 @@ const LectureFilters: React.FC = () => {
     if (cid) fetchChapters(cid);
   }, [cid, fetchChapters]);
 
-  const currentUser = useAppUserStore((s) => s.appUser);
+  const authUser = useAuthStore((s) => s.user);
   const fetchEnrollmentsByUser = useEnrollmentStore((s) => s.fetchByUser);
-
-  const enrollAction = useEnrollmentStore((s) => s.enroll);
   const fetchProgresses = useEnrollmentStore((s) => s.fetchProgresses);
   const getLessonCompleted = useEnrollmentStore((s) => s.getLessonCompleted);
   // subscribe to progresses map so component re-renders when progresses update
   const progresses = useEnrollmentStore((s) => s.progresses);
-  // derive enrollment directly from the global enrollment store so we don't
-  // keep duplicate local state which can become stale across navigation.
+
   const enrollment = useEnrollmentStore((s) => s.getEnrollmentForCourse(cid));
 
   const enrollmentsLoaded = useEnrollmentStore((s: any) =>
@@ -39,13 +36,13 @@ const LectureFilters: React.FC = () => {
   );
 
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!authUser?.id) return;
 
     (async () => {
       try {
         // fetch enrollments if not already loaded globally
         if (!enrollmentsLoaded) {
-          await fetchEnrollmentsByUser(String(currentUser.id));
+          await fetchEnrollmentsByUser(String(authUser.id));
         }
 
         // if we already have an enrollment for this course, ensure progresses are loaded
@@ -61,7 +58,7 @@ const LectureFilters: React.FC = () => {
       }
     })();
   }, [
-    currentUser?.id,
+    authUser?.id,
     fetchEnrollmentsByUser,
     enrollment,
     cid,
@@ -87,28 +84,27 @@ const LectureFilters: React.FC = () => {
           </p>
 
           <button
-            onClick={async () => {
-              try {
-                if (!currentUser?.id) {
-                  // not logged in -> go to login
-                  navigate(`${RouteConfig.AUTH}/login`);
-                  return;
-                }
-                const created = await enrollAction({
-                  appUserId: String(currentUser.id),
-                  courseId: cid,
-                });
-                // enrollAction appends the created enrollment into the store; ensure progresses are loaded
-                if (created?.id) {
-                  try {
-                    await fetchProgresses(created.id);
-                  } catch {
-                    // ignore
-                  }
-                }
-              } catch (err) {
-                // ignore
+            onClick={() => {
+              if (!authUser?.id) {
+                navigate(`${RouteConfig.AUTH}/login`);
+                return;
               }
+              const params = new URLSearchParams({
+                courseId: String(cid),
+                price: String(
+                  useCourseStore.getState().selectedCourse?.price ?? 0
+                ),
+                name: String(
+                  useCourseStore.getState().selectedCourse?.name ?? ""
+                ),
+                userId: String(authUser.id),
+                schoolId: String(
+                  useCourseStore.getState().selectedCourse?.schoolId ?? ""
+                ),
+              });
+              navigate(
+                `/course/student/payments/checkout?${params.toString()}`
+              );
             }}
             className="mt-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg shadow-sm transition-all"
           >

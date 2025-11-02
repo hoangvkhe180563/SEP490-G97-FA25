@@ -28,6 +28,7 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
         public int CommuneId { get; set; }
 
         public int? SchoolId { get; set; }
+
     }
 
     public class SignupResponse
@@ -87,6 +88,8 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
         public List<int> ClassIds { get; set; } = new();
         public List<short> SubjectIds { get; set; } = new();
         public int? SchoolId { get; set; }
+        public int? transferId { get; set; }
+
     }
 
     public class GenericResponse

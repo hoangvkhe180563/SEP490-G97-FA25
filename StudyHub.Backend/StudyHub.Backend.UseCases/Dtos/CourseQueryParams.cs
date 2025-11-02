@@ -4,6 +4,7 @@ public class CourseQueryParams
 {
     public string? Q { get; set; }
     public short? SubjectId { get; set; }
+    public int SchoolId { get; set; }
     public string? Sort { get; set; }
     public int? minDuration { get; set; }
     public int? maxDuration { get; set; }

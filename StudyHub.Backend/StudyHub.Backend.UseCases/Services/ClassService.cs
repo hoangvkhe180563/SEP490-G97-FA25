@@ -310,7 +310,7 @@ namespace StudyHub.Backend.UseCases.Services
         {
             if (!Guid.TryParse(userId, out var userGuid)) return null;
             var cls = _classRepository.GetClassById(classId);
-            if (cls == null) return false;
+            if (cls == null) return false;  
             return _classRepository.KickMember(userGuid, classId);
         }
 

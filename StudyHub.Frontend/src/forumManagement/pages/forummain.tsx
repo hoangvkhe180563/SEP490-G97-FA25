@@ -1,28 +1,20 @@
-// StudyHub.Frontend/src/forumManagement/pages/forummain.tsx
-import { useState } from "react";
+// forummain.tsx - Full code
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
 import { Input } from "@/common/components/ui/input";
 import { Badge } from "@/common/components/ui/badge";
 import { Button } from "@/common/components/ui/button";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/common/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
-import {
   Search,
-  MessageSquare,
-  Eye,
   ChevronDown,
   X,
   Filter,
-  TrendingUp,
-  Calendar,
   Users,
-  ChevronUp,
-  Send,
+  ArrowUp,
+  ExternalLink,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -37,308 +29,289 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/common/components/ui/select";
-import { useNavigate } from "react-router-dom";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/common/components/ui/dialog";
+import PostCard from "../components/PostCard";
+import type { Post, Subject, Flair } from "../interfaces/forum";
+import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
+import { MessageSquare, Send, ChevronUp } from "lucide-react";
 
-interface Reply {
-  id: number;
-  author: string;
-  initials: string;
-  time: string;
-  text: string;
-}
-
-interface Comment {
-  id: number;
-  author: string;
-  initials: string;
-  time: string;
-  text: string;
-  replies: Reply[];
-}
-
-interface Post {
-  id: number;
-  author: string;
-  authorInitials: string;
-  class: string;
-  timestamp: string;
-  date: Date;
-  subject: string;
-  flair: string;
-  title: string;
-  content: string;
-  views: number;
-  comments: Comment[];
-  isMyPost: boolean;
-}
-
-const App = () => {
+const ForumMain = () => {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
-  const [selectedFlairs, setSelectedFlairs] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState("newest");
-  const [visiblePosts, setVisiblePosts] = useState(5);
-  const [activeTab, setActiveTab] = useState("all");
-  const [expandedComments, setExpandedComments] = useState<Set<number>>(
-    new Set()
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const observerTarget = useRef<HTMLDivElement>(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [modalImages, setModalImages] = useState<string[]>([]);
+  const [imageZoom, setImageZoom] = useState(1);
+
+  const getInitialState = () => {
+    const saved = sessionStorage.getItem("forumMainState");
+    if (saved && location.state?.fromModal) {
+      const parsed = JSON.parse(saved);
+      return parsed;
+    }
+    return {
+      searchQuery: searchParams.get("q") || "",
+      selectedSubjects: searchParams.get("subjects")
+        ? searchParams.get("subjects")!.split(",").map(Number)
+        : [],
+      selectedFlairs: searchParams.get("flairs")
+        ? searchParams.get("flairs")!.split(",").map(Number)
+        : [],
+      sortBy: searchParams.get("sort") || "newest",
+      visiblePosts: 10,
+      scrollPosition: 0,
+    };
+  };
+
+  const initialState = getInitialState();
+
+  const [searchQuery, setSearchQuery] = useState<string>(
+    initialState.searchQuery
   );
+  const [selectedSubjects, setSelectedSubjects] = useState<number[]>(
+    initialState.selectedSubjects
+  );
+  const [selectedFlairs, setSelectedFlairs] = useState<number[]>(
+    initialState.selectedFlairs
+  );
+  const [sortBy, setSortBy] = useState<string>(initialState.sortBy);
+  const [visiblePosts, setVisiblePosts] = useState(initialState.visiblePosts);
   const [expandedReplies, setExpandedReplies] = useState<Set<number>>(
     new Set()
   );
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
-  const [commentSort, setCommentSort] = useState<{ [key: number]: string }>({});
+  const [commentSort, setCommentSort] = useState("newest");
+  const [hasNewPosts, setHasNewPosts] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const modalPostId = searchParams.get("postId");
+  const isModalOpen = !!modalPostId;
+
+  useEffect(() => {
+    const state = {
+      searchQuery,
+      selectedSubjects,
+      selectedFlairs,
+      sortBy,
+      visiblePosts,
+      scrollPosition: window.scrollY,
+    };
+    sessionStorage.setItem("forumMainState", JSON.stringify(state));
+  }, [searchQuery, selectedSubjects, selectedFlairs, sortBy, visiblePosts]);
+
+  useEffect(() => {
+    if (location.state?.fromModal && initialState.scrollPosition) {
+      window.scrollTo(0, initialState.scrollPosition);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const newSearchParams = new URLSearchParams();
+    if (searchQuery) newSearchParams.set("q", searchQuery);
+    if (selectedSubjects.length > 0)
+      newSearchParams.set("subjects", selectedSubjects.join(","));
+    if (selectedFlairs.length > 0)
+      newSearchParams.set("flairs", selectedFlairs.join(","));
+    if (sortBy !== "newest") newSearchParams.set("sort", sortBy);
+    if (modalPostId) newSearchParams.set("postId", modalPostId);
+
+    setSearchParams(newSearchParams, { replace: true });
+  }, [
+    searchQuery,
+    selectedSubjects,
+    selectedFlairs,
+    sortBy,
+    modalPostId,
+    setSearchParams,
+  ]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0].isIntersecting &&
+          !isLoadingMore &&
+          visiblePosts < filteredPosts.length
+        ) {
+          setIsLoadingMore(true);
+          setTimeout(() => {
+            setVisiblePosts((prev: number) => prev + 5);
+            setIsLoadingMore(false);
+          }, 500);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => {
+      if (observerTarget.current) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        observer.unobserve(observerTarget.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoadingMore, visiblePosts]);
 
   const posts: Post[] = [
     {
-      id: 1,
-      author: "Nguyễn Minh An",
-      authorInitials: "AN",
-      class: "10A1",
-      timestamp: "2 giờ trước",
-      date: new Date("2024-10-23T10:00:00"),
-      subject: "Toán",
-      flair: "Câu hỏi",
+      post_id: 1,
+      subject_id: 1,
+      subject_name: "Toán",
+      flair_id: 1,
+      flair_name: "Câu hỏi",
       title: "Cách giải phương trình bậc hai có dễ không?",
       content:
         "Mình đang học về phương trình bậc hai nhưng vẫn chưa hiểu rõ cách tính delta và các trường hợp nghiệm. Các bạn có thể giải thích chi tiết hơn được không? Đặc biệt là khi nào thì phương trình vô nghiệm ạ?",
-      views: 127,
+      created_at: "2024-10-23T10:00:00",
+      created_by: "user-001",
+      author_name: "Nguyễn Minh An",
+      author_initials: "AN",
+      author_class: "10A1",
+      comment_count: 3,
+      image_urls: "",
       comments: [
         {
-          id: 1,
-          author: "Trần Bảo Hân",
-          initials: "BH",
-          time: "1 giờ trước",
-          text: "Delta = b² - 4ac nha bạn. Nếu delta < 0 thì phương trình vô nghiệm, delta = 0 thì có nghiệm kép, delta > 0 thì có 2 nghiệm phân biệt!",
+          comment_id: 1,
+          post_id: 1,
+          parent_comment_id: null,
+          content:
+            "Delta = b² - 4ac nha bạn. Nếu delta < 0 thì phương trình vô nghiệm, delta = 0 thì có nghiệm kép, delta > 0 thì có 2 nghiệm phân biệt!",
+          created_at: "2024-10-23T11:00:00",
+          created_by: "user-002",
+          author_name: "Trần Bảo Hân",
+          author_initials: "BH",
+          image_urls: "",
           replies: [
             {
-              id: 11,
-              author: "Nguyễn Minh An",
-              initials: "AN",
-              time: "50 phút trước",
-              text: "Cảm ơn bạn nhiều nha! Giờ mình hiểu rồi 😊",
+              comment_id: 11,
+              post_id: 1,
+              parent_comment_id: 1,
+              content: "Cảm ơn bạn nhiều nha! Giờ mình hiểu rồi 😊",
+              created_at: "2024-10-23T11:10:00",
+              created_by: "user-001",
+              author_name: "Nguyễn Minh An",
+              author_initials: "AN",
+              image_urls: "",
             },
           ],
         },
         {
-          id: 2,
-          author: "Lê Tuấn",
-          initials: "TL",
-          time: "45 phút trước",
-          text: "Mình có công thức nghiệm: x = (-b ± √Δ) / 2a. Bạn cứ tính delta trước rồi xét các trường hợp là được nhé!",
+          comment_id: 2,
+          post_id: 1,
+          parent_comment_id: null,
+          content:
+            "Mình có công thức nghiệm: x = (-b ± √Δ) / 2a. Bạn cứ tính delta trước rồi xét các trường hợp là được nhé!",
+          created_at: "2024-10-23T11:15:00",
+          created_by: "user-003",
+          author_name: "Lê Tuấn",
+          author_initials: "TL",
           replies: [],
+          image_urls: "",
         },
         {
-          id: 3,
-          author: "Phạm Mai Hương",
-          initials: "MH",
-          time: "30 phút trước",
-          text: "Mình thấy cô giáo giải trên lớp rất dễ hiểu. Bạn có thể xem lại bài giảng hoặc làm thêm bài tập để quen thuộc công thức hơn 😊",
+          comment_id: 3,
+          post_id: 1,
+          parent_comment_id: null,
+          content:
+            "Mình thấy cô giáo giải trên lớp rất dễ hiểu. Bạn có thể xem lại bài giảng hoặc làm thêm bài tập để quen thuộc công thức hơn 😊",
+          created_at: "2024-10-23T11:30:00",
+          created_by: "user-004",
+          author_name: "Phạm Mai Hương",
+          author_initials: "MH",
           replies: [],
+          image_urls: "",
         },
       ],
-      isMyPost: true,
     },
     {
-      id: 2,
-      author: "Hoàng Đức Long",
-      authorInitials: "DL",
-      class: "11B2",
-      timestamp: "5 giờ trước",
-      date: new Date("2024-10-23T07:00:00"),
-      subject: "Vật Lý",
-      flair: "Câu hỏi",
+      post_id: 2,
+      subject_id: 2,
+      subject_name: "Vật Lý",
+      flair_id: 1,
+      flair_name: "Câu hỏi",
       title: "Ai giải thích định luật Newton thứ ba giúp mình với!",
       content:
         "Mình không hiểu tại sao khi tác dụng một lực lên vật thì vật lại tác dụng trở lại một lực bằng nhau và ngược chiều. Có ví dụ thực tế nào dễ hiểu không các bạn? Cảm ơn nhiều!",
-      views: 289,
+      image_urls:
+        "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=800&h=600&fit=crop",
+      created_at: "2024-10-23T07:00:00",
+      created_by: "user-005",
+      author_name: "Hoàng Đức Long",
+      author_initials: "DL",
+      author_class: "11B2",
+      comment_count: 2,
       comments: [
         {
-          id: 4,
-          author: "Vũ Khánh An",
-          initials: "KA",
-          time: "3 giờ trước",
-          text: "Ví dụ đơn giản nhất là khi bạn đẩy tường, tường cũng đẩy ngược lại bạn với lực bằng nhau. Hoặc khi bạn nhảy, bạn đạp xuống đất và đất đẩy bạn lên trên!",
+          comment_id: 4,
+          post_id: 2,
+          parent_comment_id: null,
+          content:
+            "Ví dụ đơn giản nhất là khi bạn đẩy tường, tường cũng đẩy ngược lại bạn với lực bằng nhau. Hoặc khi bạn nhảy, bạn đạp xuống đất và đất đẩy bạn lên trên!",
+          created_at: "2024-10-23T09:00:00",
+          created_by: "user-006",
+          author_name: "Vũ Khánh An",
+          author_initials: "KA",
+          image_urls: "",
           replies: [
             {
-              id: 41,
-              author: "Hoàng Đức Long",
-              initials: "DL",
-              time: "2 giờ trước",
-              text: "Ví dụ hay quá! Giờ mình hình dung được rồi",
+              comment_id: 41,
+              post_id: 2,
+              parent_comment_id: 4,
+              content: "Ví dụ hay quá! Giờ mình hình dung được rồi",
+              created_at: "2024-10-23T10:00:00",
+              created_by: "user-005",
+              author_name: "Hoàng Đức Long",
+              author_initials: "DL",
+              image_urls: "",
             },
           ],
         },
         {
-          id: 5,
-          author: "Ngô Thanh Tùng",
-          initials: "NT",
-          time: "2 giờ trước",
-          text: "Thêm ví dụ nữa: khi chèo thuyền, bạn dùng mái chèo đẩy nước về phía sau, nước đẩy thuyền về phía trước. Đây chính là định luật 3 Newton đấy!",
+          comment_id: 5,
+          post_id: 2,
+          parent_comment_id: null,
+          content:
+            "Thêm ví dụ nữa: khi chèo thuyền, bạn dùng mái chèo đẩy nước về phía sau, nước đẩy thuyền về phía trước. Đây chính là định luật 3 Newton đấy!",
+          created_at: "2024-10-23T10:00:00",
+          created_by: "user-007",
+          author_name: "Ngô Thanh Tùng",
+          author_initials: "NT",
+          image_urls: "",
           replies: [],
         },
       ],
-      isMyPost: false,
-    },
-    {
-      id: 3,
-      author: "Lý Thảo Phương",
-      authorInitials: "TP",
-      class: "12A3",
-      timestamp: "1 ngày trước",
-      date: new Date("2024-10-22T12:00:00"),
-      subject: "Tiếng Anh",
-      flair: "Câu hỏi",
-      title: "Phân biệt present perfect và past simple như thế nào?",
-      content:
-        "Mình hay bị nhầm lẫn giữa hai thì này. Khi nào thì dùng present perfect và khi nào dùng past simple? Các bạn có thể cho mình vài ví dụ cụ thể được không ạ?",
-      views: 534,
-      comments: [
-        {
-          id: 6,
-          author: "Đỗ Quỳnh Hoa",
-          initials: "QH",
-          time: "20 giờ trước",
-          text: "Present perfect dùng khi hành động xảy ra trong quá khứ nhưng liên quan đến hiện tại. Past simple dùng khi hành động đã hoàn toàn kết thúc trong quá khứ!",
-          replies: [],
-        },
-        {
-          id: 7,
-          author: "Phan Duy Khánh",
-          initials: "DK",
-          time: "18 giờ trước",
-          text: 'Ví dụ: "I have lived here for 5 years" (vẫn đang sống) - Present Perfect. "I lived there for 5 years" (không sống nữa) - Past Simple.',
-          replies: [
-            {
-              id: 71,
-              author: "Lý Thảo Phương",
-              initials: "TP",
-              time: "17 giờ trước",
-              text: "Ví dụ rất rõ ràng, thanks bạn!",
-            },
-          ],
-        },
-        {
-          id: 8,
-          author: "Nguyễn Linh Anh",
-          initials: "LA",
-          time: "15 giờ trước",
-          text: 'Dấu hiệu nhận biết: Present Perfect có "already, yet, just, ever, never, since, for". Past Simple có "yesterday, ago, last week, in 2020".',
-          replies: [],
-        },
-        {
-          id: 9,
-          author: "Trương Minh Bảo",
-          initials: "MB",
-          time: "10 giờ trước",
-          text: "Mình thi thử thấy câu này hay ra lắm. Bạn nên học thuộc các từ nhận biết và làm nhiều bài tập để quen nhé!",
-          replies: [],
-        },
-      ],
-      isMyPost: false,
-    },
-    {
-      id: 4,
-      author: "Nguyễn Minh An",
-      authorInitials: "AN",
-      class: "10A1",
-      timestamp: "3 ngày trước",
-      date: new Date("2024-10-20T15:00:00"),
-      subject: "Hóa học",
-      flair: "Kiến thức",
-      title: "Tổng hợp kiến thức về bảng tuần hoàn",
-      content:
-        "Mình làm bảng tổng hợp các nguyên tố hóa học theo chu kỳ, chia sẻ cho các bạn tham khảo. Bảng tuần hoàn gồm 7 chu kỳ và 18 nhóm, các nguyên tố được sắp xếp theo số hiệu nguyên tử tăng dần.",
-      views: 756,
-      comments: [
-        {
-          id: 10,
-          author: "Võ Minh Tâm",
-          initials: "MT",
-          time: "2 ngày trước",
-          text: "Cảm ơn bạn nhiều! Bảng này rất hữu ích cho việc học thuộc các nguyên tố.",
-          replies: [],
-        },
-        {
-          id: 11,
-          author: "Lê Hải Yến",
-          initials: "HY",
-          time: "2 ngày trước",
-          text: "Bạn có thể chia sẻ thêm về cách ghi nhớ các nguyên tố không?",
-          replies: [
-            {
-              id: 111,
-              author: "Nguyễn Minh An",
-              initials: "AN",
-              time: "1 ngày trước",
-              text: "Mình sẽ làm thêm một bài về các mẹo ghi nhớ nhé!",
-            },
-          ],
-        },
-      ],
-      isMyPost: true,
-    },
-    {
-      id: 5,
-      author: "Trần Quốc Khánh",
-      authorInitials: "QK",
-      class: "11A5",
-      timestamp: "4 ngày trước",
-      date: new Date("2024-10-19T09:00:00"),
-      subject: "Văn",
-      flair: "Thảo luận",
-      title: "Bàn về nhân vật Tràng trong Vợ nhặt",
-      content:
-        "Theo các bạn, nhân vật Tràng có những nét tính cách gì nổi bật? Mình thấy Tràng vừa nghèo khổ nhưng lại rất nhân hậu và tốt bụng.",
-      views: 398,
-      comments: [
-        {
-          id: 12,
-          author: "Phạm Thu Hà",
-          initials: "TH",
-          time: "3 ngày trước",
-          text: "Mình nghĩ Tràng là hiện thân của người nông dân Việt Nam truyền thống - chất phác, nghèo khổ nhưng giàu lòng nhân ái.",
-          replies: [
-            {
-              id: 121,
-              author: "Trần Quốc Khánh",
-              initials: "QK",
-              time: "3 ngày trước",
-              text: "Đồng ý với bạn! Nhân vật này rất điển hình",
-            },
-          ],
-        },
-      ],
-      isMyPost: false,
     },
   ];
 
-  const subjects = [
-    "Toán",
-    "Vật Lý",
-    "Tiếng Anh",
-    "Hóa học",
-    "Văn",
-    "Sinh học",
-    "Lịch sử",
-  ];
-  const flairs = ["Câu hỏi", "Kiến thức", "Thảo luận"];
-
-  const trendingTopics = [
-    { title: "Phương trình bậc hai", count: 45, trending: true },
-    { title: "Định luật Newton", count: 38, trending: true },
-    { title: "Present Perfect", count: 52, trending: true },
-    { title: "Bảng tuần hoàn", count: 31, trending: false },
-    { title: "Công thức lượng giác", count: 29, trending: false },
+  const subjects: Subject[] = [
+    { id: 1, name: "Toán" },
+    { id: 2, name: "Vật Lý" },
+    { id: 3, name: "Tiếng Anh" },
+    { id: 4, name: "Hóa học" },
+    { id: 5, name: "Văn" },
+    { id: 6, name: "Sinh học" },
+    { id: 7, name: "Lịch sử" },
   ];
 
-  const upcomingEvents = [
-    { title: "Kiểm tra giữa kỳ Toán", date: "25/10/2024" },
-    { title: "Thi học kỳ Vật Lý", date: "28/10/2024" },
-    { title: "Nộp bài tập lớn Hóa", date: "30/10/2024" },
+  const flairs: Flair[] = [
+    { id: 1, name: "Câu hỏi" },
+    { id: 2, name: "Kiến thức" },
+    { id: 3, name: "Thảo luận" },
   ];
 
-  const getSubjectColor = (subject: string) => {
+  const getSubjectColor = (subjectName: string) => {
     const colors: Record<string, string> = {
       Toán: "bg-blue-500",
       "Vật Lý": "bg-purple-500",
@@ -348,80 +321,80 @@ const App = () => {
       "Sinh học": "bg-teal-500",
       "Lịch sử": "bg-yellow-600",
     };
-    return colors[subject] || "bg-gray-500";
+    return colors[subjectName] || "bg-gray-500";
   };
 
-  const getFlairColor = (flair: string) => {
+  const getFlairColor = (flairName: string) => {
     const colors: Record<string, string> = {
       "Câu hỏi": "bg-red-100 text-red-700 border-red-300",
       "Kiến thức": "bg-blue-100 text-blue-700 border-blue-300",
       "Thảo luận": "bg-green-100 text-green-700 border-green-300",
     };
-    return colors[flair] || "bg-gray-100 text-gray-700 border-gray-300";
+    return colors[flairName] || "bg-gray-100 text-gray-700 border-gray-300";
   };
 
-  const toggleSubject = (subject: string) => {
-    setSelectedSubjects((prev) =>
-      prev.includes(subject)
-        ? prev.filter((s) => s !== subject)
-        : [...prev, subject]
+  const formatTimestamp = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60 * 60)
+    );
+
+    if (diffInHours < 24) {
+      return `${diffInHours} giờ trước`;
+    } else {
+      const diffInDays = Math.floor(diffInHours / 24);
+      return `${diffInDays} ngày trước`;
+    }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const toggleSubject = (subjectId: number) => {
+    setSelectedSubjects((prev: number[]) =>
+      prev.includes(subjectId)
+        ? prev.filter((s) => s !== subjectId)
+        : [...prev, subjectId]
     );
   };
 
-  const toggleFlair = (flair: string) => {
-    setSelectedFlairs((prev) =>
-      prev.includes(flair) ? prev.filter((f) => f !== flair) : [...prev, flair]
+  const toggleFlair = (flairId: number) => {
+    setSelectedFlairs((prev: number[]) =>
+      prev.includes(flairId)
+        ? prev.filter((f) => f !== flairId)
+        : [...prev, flairId]
     );
   };
 
-  const toggleComments = (postId: number) => {
-    setExpandedComments((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(postId)) {
-        newSet.delete(postId);
-      } else {
-        newSet.add(postId);
-      }
-      return newSet;
-    });
+  const handleSortChange = (value: string) => {
+    setSortBy(value);
   };
 
-  const toggleReplies = (commentId: number) => {
-    setExpandedReplies((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(commentId)) {
-        newSet.delete(commentId);
-      } else {
-        newSet.add(commentId);
-      }
-      return newSet;
-    });
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    setSelectedSubjects([]);
+    setSelectedFlairs([]);
+    setSortBy("newest");
   };
 
   const sortPosts = (posts: Post[]) => {
     switch (sortBy) {
       case "newest":
-        return [...posts].sort((a, b) => b.date.getTime() - a.date.getTime());
+        return [...posts].sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
       case "oldest":
-        return [...posts].sort((a, b) => a.date.getTime() - b.date.getTime());
-      case "mostViewed":
-        return [...posts].sort((a, b) => b.views - a.views);
+        return [...posts].sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
       case "mostCommented":
-        return [...posts].sort((a, b) => b.comments.length - a.comments.length);
+        return [...posts].sort((a, b) => b.comment_count - a.comment_count);
       default:
         return posts;
-    }
-  };
-
-  const getSortedComments = (comments: Comment[], postId: number) => {
-    const sort = commentSort[postId] || "newest";
-    switch (sort) {
-      case "newest":
-        return [...comments].reverse();
-      case "oldest":
-        return [...comments];
-      default:
-        return comments;
     }
   };
 
@@ -432,276 +405,100 @@ const App = () => {
         post.content.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesSubject =
         selectedSubjects.length === 0 ||
-        selectedSubjects.includes(post.subject);
+        selectedSubjects.includes(post.subject_id);
       const matchesFlair =
-        selectedFlairs.length === 0 || selectedFlairs.includes(post.flair);
+        selectedFlairs.length === 0 || selectedFlairs.includes(post.flair_id);
       return matchesSearch && matchesSubject && matchesFlair;
     })
   );
 
-  const myPosts = posts.filter((post) => post.isMyPost);
-
-  const handleLoadMore = () => {
-    setVisiblePosts((prev) => prev + 5);
+  const handleOpenModal = (postId: number) => {
+    const currentParams = new URLSearchParams(window.location.search);
+    currentParams.set("postId", postId.toString());
+    navigate(`?${currentParams.toString()}`, { replace: false });
   };
 
-  const handlePostClick = (postId: number) => {
+  const handleCloseModal = () => {
+    const currentParams = new URLSearchParams(window.location.search);
+    currentParams.delete("postId");
+    navigate(`?${currentParams.toString()}`, { replace: false });
+  };
+
+  const handleViewDetails = (postId: number) => {
     navigate(`/forum/student/forums/details/${postId}`);
   };
 
-  const PostCard = ({ post }: { post: Post }) => {
-    const isCommentsExpanded = expandedComments.has(post.id);
-    const previewComments = post.comments.slice(0, 2);
-    const hasMoreComments = post.comments.length > 2;
-
-    return (
-      <Card className="mb-4 hover:shadow-lg transition-all duration-200">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <Avatar className="w-10 h-10">
-                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold text-sm">
-                  {post.authorInitials}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <div className="font-semibold">{post.author}</div>
-                <div className="text-xs text-gray-500">
-                  {post.timestamp} • {post.class}
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Badge className={`${getSubjectColor(post.subject)} text-white`}>
-                {post.subject}
-              </Badge>
-              <Badge variant="outline" className={getFlairColor(post.flair)}>
-                {post.flair}
-              </Badge>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          <div
-            onClick={() => handlePostClick(post.id)}
-            className="cursor-pointer hover:opacity-80 transition-opacity"
-          >
-            <h2 className="text-xl font-bold mb-2">{post.title}</h2>
-            <p className="text-gray-700 mb-4">{post.content}</p>
-          </div>
-
-          <div className="flex items-center gap-4 text-sm text-gray-600 mb-3 pt-2 border-t">
-            <button
-              onClick={() => toggleComments(post.id)}
-              className="flex items-center gap-1 hover:text-purple-600 transition-colors"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span>{post.comments.length} bình luận</span>
-            </button>
-            <div className="flex items-center gap-1">
-              <Eye className="w-4 h-4" />
-              <span>{post.views} lượt xem</span>
-            </div>
-          </div>
-
-          {!isCommentsExpanded && post.comments.length > 0 && (
-            <div className="space-y-2 mb-3">
-              {previewComments.map((comment) => (
-                <div
-                  key={comment.id}
-                  className="flex gap-2 pl-2 border-l-2 border-gray-200"
-                >
-                  <Avatar className="w-7 h-7">
-                    <AvatarFallback className="bg-gradient-to-br from-pink-400 to-orange-400 text-white text-xs font-bold">
-                      {comment.initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="text-xs">
-                      <span className="font-semibold">{comment.author}</span>
-                      <span className="text-gray-600 ml-2">{comment.text}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {hasMoreComments && (
-                <button
-                  onClick={() => toggleComments(post.id)}
-                  className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 ml-2 hover:underline transition-all"
-                >
-                  <ChevronDown className="w-4 h-4" />
-                  Xem thêm {post.comments.length - 2} bình luận
-                </button>
-              )}
-            </div>
-          )}
-
-          {isCommentsExpanded && (
-            <div className="space-y-3 mt-4">
-              <div className="flex items-center justify-between pb-2 border-b">
-                <span className="text-sm font-semibold text-gray-700">
-                  {post.comments.length} bình luận
-                </span>
-                <Select
-                  value={commentSort[post.id] || "newest"}
-                  onValueChange={(value) =>
-                    setCommentSort((prev) => ({ ...prev, [post.id]: value }))
-                  }
-                >
-                  <SelectTrigger className="w-32 h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="newest">Mới nhất</SelectItem>
-                    <SelectItem value="oldest">Cũ nhất</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {getSortedComments(post.comments, post.id).map((comment) => {
-                const isRepliesExpanded = expandedReplies.has(comment.id);
-                return (
-                  <div key={comment.id}>
-                    <div className="flex gap-2">
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback className="bg-gradient-to-br from-pink-400 to-orange-400 text-white text-xs font-bold">
-                          {comment.initials}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="bg-gray-100 rounded-2xl px-3 py-2 hover:bg-gray-200 transition-colors">
-                          <div className="font-semibold text-sm">
-                            {comment.author}
-                          </div>
-                          <p className="text-sm">{comment.text}</p>
-                        </div>
-                        <div className="flex gap-3 px-3 mt-1">
-                          <button
-                            className="text-xs text-gray-600 hover:underline font-semibold hover:text-purple-600 transition-colors"
-                            onClick={() =>
-                              setReplyingTo(
-                                replyingTo === comment.id ? null : comment.id
-                              )
-                            }
-                          >
-                            Phản hồi
-                          </button>
-                          <span className="text-xs text-gray-500">
-                            {comment.time}
-                          </span>
-                        </div>
-
-                        {comment.replies.length > 0 && (
-                          <button
-                            onClick={() => toggleReplies(comment.id)}
-                            className="flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-purple-600 hover:underline mt-2 ml-3 transition-colors"
-                          >
-                            {isRepliesExpanded ? (
-                              <ChevronUp className="w-4 h-4" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4" />
-                            )}
-                            {comment.replies.length} phản hồi
-                          </button>
-                        )}
-
-                        {isRepliesExpanded &&
-                          comment.replies.map((reply) => (
-                            <div
-                              key={reply.id}
-                              className="flex gap-2 mt-2 ml-8"
-                            >
-                              <Avatar className="w-7 h-7">
-                                <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-400 text-white text-xs font-bold">
-                                  {reply.initials}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1">
-                                <div className="bg-gray-100 rounded-2xl px-3 py-2 hover:bg-gray-200 transition-colors">
-                                  <div className="font-semibold text-xs">
-                                    {reply.author}
-                                  </div>
-                                  <p className="text-xs">{reply.text}</p>
-                                </div>
-                                <div className="flex gap-3 px-3 mt-1">
-                                  <button className="text-xs text-gray-600 hover:underline font-semibold hover:text-purple-600 transition-colors">
-                                    Phản hồi
-                                  </button>
-                                  <span className="text-xs text-gray-500">
-                                    {reply.time}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-
-                        {replyingTo === comment.id && (
-                          <div className="flex gap-2 mt-2 ml-8 animate-in slide-in-from-top-2 duration-200">
-                            <Avatar className="w-7 h-7">
-                              <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
-                                U
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 flex gap-2">
-                              <Input
-                                placeholder="Viết phản hồi..."
-                                className="rounded-full text-sm"
-                              />
-                              <Button
-                                size="sm"
-                                className="rounded-full hover:scale-105 transition-transform"
-                              >
-                                <Send className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              <div className="flex gap-2 mt-4 pt-3 border-t">
-                <Avatar className="w-8 h-8">
-                  <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
-                    U
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 flex gap-2">
-                  <Input
-                    placeholder="Viết bình luận..."
-                    className="rounded-full hover:border-purple-300 transition-colors"
-                  />
-                  <Button
-                    size="sm"
-                    className="rounded-full hover:scale-105 transition-transform"
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <button
-                onClick={() => toggleComments(post.id)}
-                className="text-sm text-gray-600 hover:text-purple-600 font-medium flex items-center gap-1 mx-auto hover:underline transition-colors"
-              >
-                <ChevronUp className="w-4 h-4" />
-                Thu gọn bình luận
-              </button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
+  const handleScrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setHasNewPosts(false);
   };
 
+  const toggleReplies = (commentId: number) => {
+    setExpandedReplies((prev: Set<number>) => {
+      const newSet = new Set(prev);
+      if (newSet.has(commentId)) {
+        newSet.delete(commentId);
+      } else {
+        newSet.add(commentId);
+      }
+      return newSet;
+    });
+  };
+
+  const getSortedComments = (comments: Post["comments"]) => {
+    const topLevelComments = comments.filter((c) => !c.parent_comment_id);
+    switch (commentSort) {
+      case "newest":
+        return [...topLevelComments].sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      case "oldest":
+        return [...topLevelComments].sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+      default:
+        return topLevelComments;
+    }
+  };
+
+  const handleImageClick = (
+    e: React.MouseEvent,
+    images: string[],
+    idx: number
+  ) => {
+    e.stopPropagation();
+    setModalImages(images);
+    setSelectedImageIndex(idx);
+    setImageZoom(1);
+    setShowImageModal(true);
+  };
+
+  const handleCloseImageModal = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowImageModal(false);
+    setImageZoom(1);
+  };
+
+  const handleZoomIn = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImageZoom((prev) => Math.min(prev + 0.25, 3));
+  };
+
+  const handleZoomOut = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImageZoom((prev) => Math.max(prev - 0.25, 0.5));
+  };
+
+  const modalPost = isModalOpen
+    ? posts.find((p) => p.post_id === Number(modalPostId))
+    : null;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-purple-500 to-pink-500 p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 mb-8">
+    <div className="w-full h-full overflow-auto p-2">
+      <div className="max-w mx-auto">
+        <div className="bg-white rounded-2xl p-8 mb-8 border">
           <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-2">
             📚 Forum Học Tập
           </h1>
@@ -709,6 +506,18 @@ const App = () => {
             Nơi học sinh chia sẻ và giải đáp thắc mắc
           </p>
         </div>
+
+        {hasNewPosts && (
+          <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top-2 duration-300">
+            <Button
+              onClick={handleScrollToTop}
+              className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
+            >
+              <ArrowUp className="w-4 h-4 mr-2" />
+              Có bài viết mới
+            </Button>
+          </div>
+        )}
 
         <div className="grid grid-cols-12 gap-6">
           <aside className="col-span-3 space-y-4">
@@ -738,29 +547,34 @@ const App = () => {
                     <DropdownMenuContent className="w-56">
                       {subjects.map((subject) => (
                         <DropdownMenuCheckboxItem
-                          key={subject}
-                          checked={selectedSubjects.includes(subject)}
-                          onCheckedChange={() => toggleSubject(subject)}
+                          key={subject.id}
+                          checked={selectedSubjects.includes(subject.id)}
+                          onCheckedChange={() => toggleSubject(subject.id)}
                         >
-                          {subject}
+                          {subject.name}
                         </DropdownMenuCheckboxItem>
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
                   {selectedSubjects.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {selectedSubjects.map((subject) => (
-                        <Badge
-                          key={subject}
-                          className={`${getSubjectColor(
-                            subject
-                          )} text-white cursor-pointer hover:opacity-80 transition-opacity`}
-                          onClick={() => toggleSubject(subject)}
-                        >
-                          {subject}
-                          <X className="w-3 h-3 ml-1" />
-                        </Badge>
-                      ))}
+                      {selectedSubjects.map((subjectId) => {
+                        const subject = subjects.find(
+                          (s) => s.id === subjectId
+                        );
+                        return (
+                          <Badge
+                            key={subjectId}
+                            className={`${getSubjectColor(
+                              subject?.name || ""
+                            )} text-white cursor-pointer hover:opacity-80 transition-opacity`}
+                            onClick={() => toggleSubject(subjectId)}
+                          >
+                            {subject?.name}
+                            <X className="w-3 h-3 ml-1" />
+                          </Badge>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -783,30 +597,33 @@ const App = () => {
                     <DropdownMenuContent className="w-56">
                       {flairs.map((flair) => (
                         <DropdownMenuCheckboxItem
-                          key={flair}
-                          checked={selectedFlairs.includes(flair)}
-                          onCheckedChange={() => toggleFlair(flair)}
+                          key={flair.id}
+                          checked={selectedFlairs.includes(flair.id)}
+                          onCheckedChange={() => toggleFlair(flair.id)}
                         >
-                          {flair}
+                          {flair.name}
                         </DropdownMenuCheckboxItem>
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
                   {selectedFlairs.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {selectedFlairs.map((flair) => (
-                        <Badge
-                          key={flair}
-                          variant="outline"
-                          className={`${getFlairColor(
-                            flair
-                          )} cursor-pointer hover:opacity-80 transition-opacity`}
-                          onClick={() => toggleFlair(flair)}
-                        >
-                          {flair}
-                          <X className="w-3 h-3 ml-1" />
-                        </Badge>
-                      ))}
+                      {selectedFlairs.map((flairId) => {
+                        const flair = flairs.find((f) => f.id === flairId);
+                        return (
+                          <Badge
+                            key={flairId}
+                            variant="outline"
+                            className={`${getFlairColor(
+                              flair?.name || ""
+                            )} cursor-pointer hover:opacity-80 transition-opacity`}
+                            onClick={() => toggleFlair(flairId)}
+                          >
+                            {flair?.name}
+                            <X className="w-3 h-3 ml-1" />
+                          </Badge>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -815,10 +632,7 @@ const App = () => {
                   <Button
                     variant="ghost"
                     className="w-full text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors"
-                    onClick={() => {
-                      setSelectedSubjects([]);
-                      setSelectedFlairs([]);
-                    }}
+                    onClick={handleClearFilters}
                   >
                     Xóa tất cả bộ lọc
                   </Button>
@@ -828,36 +642,15 @@ const App = () => {
           </aside>
 
           <main className="col-span-6">
-            <Tabs
-              value={activeTab}
-              onValueChange={setActiveTab}
-              className="space-y-6"
-            >
-              <div className="bg-white rounded-lg shadow-md p-1">
-                <TabsList className="w-full grid grid-cols-2">
-                  <TabsTrigger
-                    value="all"
-                    className="data-[state=active]:bg-purple-600 data-[state=active]:text-white transition-all"
-                  >
-                    Tất cả bài viết
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="my"
-                    className="data-[state=active]:bg-purple-600 data-[state=active]:text-white transition-all"
-                  >
-                    Bài viết của tôi
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-md p-4 space-y-4">
+            <div className="space-y-6">
+              <div className="bg-white rounded-lg border p-4 space-y-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
                   <Input
                     placeholder="Tìm kiếm bài viết..."
                     className="pl-10 hover:border-purple-300 focus:border-purple-500 transition-colors"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={handleSearchChange}
                   />
                 </div>
 
@@ -865,14 +658,13 @@ const App = () => {
                   <span className="text-sm text-gray-600">
                     Tìm thấy <strong>{filteredPosts.length}</strong> bài viết
                   </span>
-                  <Select value={sortBy} onValueChange={setSortBy}>
+                  <Select value={sortBy} onValueChange={handleSortChange}>
                     <SelectTrigger className="w-48 hover:border-purple-300 transition-colors">
                       <SelectValue placeholder="Sắp xếp theo" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="newest">Mới nhất</SelectItem>
                       <SelectItem value="oldest">Cũ nhất</SelectItem>
-                      <SelectItem value="mostViewed">Xem nhiều nhất</SelectItem>
                       <SelectItem value="mostCommented">
                         Nhiều bình luận nhất
                       </SelectItem>
@@ -881,98 +673,42 @@ const App = () => {
                 </div>
               </div>
 
-              <TabsContent value="all" className="space-y-6 mt-0">
-                {filteredPosts.slice(0, visiblePosts).map((post) => (
-                  <PostCard key={post.id} post={post} />
-                ))}
-                {visiblePosts < filteredPosts.length && (
-                  <div className="flex justify-center">
-                    <Button
-                      onClick={handleLoadMore}
-                      className="bg-white text-purple-600 hover:bg-gray-50 shadow-md hover:shadow-lg transition-all"
-                      size="lg"
-                    >
-                      Xem thêm bài viết
-                    </Button>
-                  </div>
-                )}
-                {filteredPosts.length === 0 && (
-                  <div className="bg-white rounded-lg shadow-md p-12 text-center">
-                    <p className="text-gray-500 text-lg">
-                      Không tìm thấy bài viết nào phù hợp
-                    </p>
-                  </div>
-                )}
-              </TabsContent>
+              {filteredPosts.slice(0, visiblePosts).map((post) => (
+                <div
+                  key={post.post_id}
+                  onDoubleClick={() => handleViewDetails(post.post_id)}
+                >
+                  <PostCard
+                    post={post}
+                    onOpenComments={() => handleOpenModal(post.post_id)}
+                    onViewDetails={() => handleViewDetails(post.post_id)}
+                  />
+                </div>
+              ))}
 
-              <TabsContent value="my" className="space-y-6 mt-0">
-                {myPosts.map((post) => (
-                  <PostCard key={post.id} post={post} />
-                ))}
-                {myPosts.length === 0 && (
-                  <div className="bg-white rounded-lg shadow-md p-12 text-center">
-                    <p className="text-gray-500 text-lg">
-                      Bạn chưa có bài viết nào
-                    </p>
+              <div
+                ref={observerTarget}
+                className="h-10 flex items-center justify-center"
+              >
+                {isLoadingMore && visiblePosts < filteredPosts.length && (
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                    <span className="text-sm">Đang tải...</span>
                   </div>
                 )}
-              </TabsContent>
-            </Tabs>
+              </div>
+
+              {filteredPosts.length === 0 && (
+                <div className="bg-white rounded-lg border p-12 text-center">
+                  <p className="text-gray-500 text-lg">
+                    Không tìm thấy bài viết nào phù hợp
+                  </p>
+                </div>
+              )}
+            </div>
           </main>
 
           <aside className="col-span-3 space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-orange-500" />
-                  <h3 className="font-bold text-lg">Chủ đề nổi bật</h3>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {trendingTopics.map((topic, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      {topic.trending && (
-                        <TrendingUp className="w-4 h-4 text-orange-500" />
-                      )}
-                      <span className="text-sm font-medium">{topic.title}</span>
-                    </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {topic.count}
-                    </Badge>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-blue-500" />
-                  <h3 className="font-bold text-lg">Sự kiện sắp tới</h3>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {upcomingEvents.map((event, index) => (
-                  <div
-                    key={index}
-                    className="p-3 border border-blue-200 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
-                  >
-                    <div className="font-semibold text-sm text-blue-900">
-                      {event.title}
-                    </div>
-                    <div className="text-xs text-blue-600 mt-1 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {event.date}
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
@@ -1002,8 +738,348 @@ const App = () => {
           </aside>
         </div>
       </div>
+
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={(open) => !open && handleCloseModal()}
+      >
+        <DialogContent className="!max-w-[95vw] !w-[60vw] h-[90vh] p-0 flex flex-col">
+          {modalPost && (
+            <>
+              <DialogHeader className="p-4 border-b flex-shrink-0">
+                <DialogTitle className="sr-only">{modalPost.title}</DialogTitle>
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleViewDetails(modalPost.post_id)}
+                    className="w-fit hover:bg-gray-100 transition-colors gap-2"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Xem chi tiết
+                  </Button>
+                </div>
+              </DialogHeader>
+
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-12 h-12">
+                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold">
+                          {modalPost.author_initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-semibold text-lg">
+                          {modalPost.author_name}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {formatTimestamp(modalPost.created_at)} •{" "}
+                          {modalPost.author_class}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Badge
+                        className={`${getSubjectColor(
+                          modalPost.subject_name
+                        )} text-white`}
+                      >
+                        {modalPost.subject_name}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className={getFlairColor(modalPost.flair_name)}
+                      >
+                        {modalPost.flair_name}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <h1 className="text-2xl font-bold mb-4">{modalPost.title}</h1>
+                  <p className="text-gray-700 mb-6 leading-relaxed">
+                    {modalPost.content}
+                  </p>
+
+                  {modalPost.image_urls &&
+                    (() => {
+                      const images = modalPost.image_urls
+                        .split(",")
+                        .filter((url) => url.trim());
+                      return (
+                        images.length > 0 && (
+                          <div
+                            className={`mb-6 ${
+                              images.length === 1
+                                ? ""
+                                : "grid grid-cols-2 gap-3"
+                            }`}
+                          >
+                            {images.map((img, idx) => (
+                              <div
+                                key={idx}
+                                className={`rounded-lg overflow-hidden cursor-pointer hover:opacity-95 transition-opacity ${
+                                  images.length === 1 ? "h-96" : "h-60"
+                                }`}
+                                onClick={(e) =>
+                                  handleImageClick(e, images, idx)
+                                }
+                              >
+                                <img
+                                  src={img}
+                                  alt={`${modalPost.title} ${idx + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      );
+                    })()}
+                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-6 pt-4 border-t">
+                    <div className="flex items-center gap-1">
+                      <MessageSquare className="w-4 h-4" />
+                      <span>{modalPost.comment_count} bình luận</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b">
+                      <h3 className="font-bold text-lg">
+                        Bình luận ({modalPost.comment_count})
+                      </h3>
+                      <Select
+                        value={commentSort}
+                        onValueChange={setCommentSort}
+                      >
+                        <SelectTrigger className="w-32 h-9 text-sm hover:border-purple-300 transition-colors">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="newest">Mới nhất</SelectItem>
+                          <SelectItem value="oldest">Cũ nhất</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {getSortedComments(modalPost.comments).map((comment) => {
+                      const isRepliesExpanded = expandedReplies.has(
+                        comment.comment_id
+                      );
+                      const replies = comment.replies || [];
+                      return (
+                        <div key={comment.comment_id}>
+                          <div className="flex gap-3">
+                            <Avatar className="w-10 h-10">
+                              <AvatarFallback className="bg-gradient-to-br from-pink-400 to-orange-400 text-white text-sm font-bold">
+                                {comment.author_initials}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <div className="bg-gray-100 rounded-2xl px-4 py-3 hover:bg-gray-200 transition-colors">
+                                <div className="font-semibold text-sm">
+                                  {comment.author_name}
+                                </div>
+                                <p className="text-sm mt-1">
+                                  {comment.content}
+                                </p>
+                              </div>
+                              <div className="flex gap-4 px-4 mt-2">
+                                <button
+                                  className="text-xs text-gray-600 hover:text-purple-600 hover:underline font-semibold transition-colors"
+                                  onClick={() =>
+                                    setReplyingTo(
+                                      replyingTo === comment.comment_id
+                                        ? null
+                                        : comment.comment_id
+                                    )
+                                  }
+                                >
+                                  Phản hồi
+                                </button>
+                                <span className="text-xs text-gray-500">
+                                  {formatTimestamp(comment.created_at)}
+                                </span>
+                              </div>
+
+                              {replies.length > 0 && (
+                                <button
+                                  onClick={() =>
+                                    toggleReplies(comment.comment_id)
+                                  }
+                                  className="flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-purple-600 hover:underline mt-3 ml-4 transition-colors"
+                                >
+                                  {isRepliesExpanded ? (
+                                    <ChevronUp className="w-4 h-4" />
+                                  ) : (
+                                    <ChevronDown className="w-4 h-4" />
+                                  )}
+                                  {replies.length} phản hồi
+                                </button>
+                              )}
+
+                              {isRepliesExpanded &&
+                                replies.map((reply) => (
+                                  <div
+                                    key={reply.comment_id}
+                                    className="flex gap-3 mt-3 ml-10 animate-in slide-in-from-top-2 duration-200"
+                                  >
+                                    <Avatar className="w-8 h-8">
+                                      <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-400 text-white text-xs font-bold">
+                                        {reply.author_initials}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1">
+                                      <div className="bg-gray-100 rounded-2xl px-4 py-2 hover:bg-gray-200 transition-colors">
+                                        <div className="font-semibold text-xs">
+                                          {reply.author_name}
+                                        </div>
+                                        <p className="text-xs mt-1">
+                                          {reply.content}
+                                        </p>
+                                      </div>
+                                      <div className="flex gap-4 px-4 mt-1">
+                                        <button className="text-xs text-gray-600 hover:text-purple-600 hover:underline font-semibold transition-colors">
+                                          Phản hồi
+                                        </button>
+                                        <span className="text-xs text-gray-500">
+                                          {formatTimestamp(reply.created_at)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+
+                              {replyingTo === comment.comment_id && (
+                                <div className="flex gap-2 mt-3 ml-10 animate-in slide-in-from-top-2 duration-200">
+                                  <Avatar className="w-8 h-8">
+                                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
+                                      U
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1 flex gap-2">
+                                    <Input
+                                      placeholder="Viết phản hồi..."
+                                      className="rounded-full text-sm hover:border-purple-300 focus:border-purple-500 transition-colors"
+                                      autoFocus
+                                    />
+                                    <Button
+                                      size="sm"
+                                      className="rounded-full px-4 hover:scale-105 transition-transform"
+                                    >
+                                      <Send className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t p-4 bg-gray-50 flex-shrink-0">
+                <div className="flex gap-3">
+                  <Avatar className="w-10 h-10">
+                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm font-bold">
+                      U
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 flex gap-2">
+                    <Input
+                      placeholder="Viết bình luận..."
+                      className="rounded-full hover:border-purple-300 focus:border-purple-500 transition-colors"
+                    />
+                    <Button className="rounded-full px-6 hover:scale-105 transition-transform">
+                      <Send className="w-4 h-4 mr-2" />
+                      Gửi
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {showImageModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-95 z-[100] flex items-center justify-center p-4"
+          onClick={handleCloseImageModal}
+        >
+          <button
+            className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 w-12 h-12 flex items-center justify-center"
+            onClick={handleCloseImageModal}
+          >
+            ×
+          </button>
+
+          <div className="absolute top-4 left-4 flex gap-2">
+            <button
+              className="text-white bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70"
+              onClick={handleZoomIn}
+            >
+              <ZoomIn className="w-5 h-5" />
+            </button>
+            <button
+              className="text-white bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70"
+              onClick={handleZoomOut}
+            >
+              <ZoomOut className="w-5 h-5" />
+            </button>
+            <span className="text-white bg-black bg-opacity-50 rounded-full px-3 h-10 flex items-center">
+              {Math.round(imageZoom * 100)}%
+            </span>
+          </div>
+
+          {modalImages.length > 1 && (
+            <>
+              <button
+                className="absolute left-4 text-white text-4xl hover:text-gray-300 w-12 h-12 flex items-center justify-center bg-black bg-opacity-50 rounded-full"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedImageIndex((prev) =>
+                    prev === 0 ? modalImages.length - 1 : prev - 1
+                  );
+                }}
+              >
+                ‹
+              </button>
+              <button
+                className="absolute right-4 text-white text-4xl hover:text-gray-300 w-12 h-12 flex items-center justify-center bg-black bg-opacity-50 rounded-full"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedImageIndex((prev) =>
+                    prev === modalImages.length - 1 ? 0 : prev + 1
+                  );
+                }}
+              >
+                ›
+              </button>
+              <div className="absolute bottom-4 text-white text-sm">
+                {selectedImageIndex + 1} / {modalImages.length}
+              </div>
+            </>
+          )}
+
+          <img
+            src={modalImages[selectedImageIndex]}
+            alt="Full size"
+            className="object-contain transition-transform duration-200"
+            style={{
+              maxWidth: "90vw",
+              maxHeight: "90vh",
+              transform: `scale(${imageZoom})`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };
 
-export default App;
+export default ForumMain;

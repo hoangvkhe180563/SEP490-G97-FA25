@@ -2,6 +2,7 @@ import React from "react";
 import { Eye, Edit, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 import type {
   CourseListDto as Course,
   CourseStatus,
@@ -31,6 +32,27 @@ const STATUS_MAP: Record<CourseStatus, { label: string; className: string }> = {
 const CourseItem: React.FC<Props> = ({ course }) => {
   const deleteCourse = useCourseStore((s) => s.deleteCourse);
   const updateCourse = useCourseStore((s) => s.updateCourse);
+  const authUser = useAuthStore((s) => s.user);
+
+  // Determine whether the current user is the owner/teacher of this course.
+  // Backend sometimes returns `createdBy` as an id, or as a fullname string.
+  const courseCreator = (course as any).createdBy ?? "";
+  const isOwner = (() => {
+    try {
+      if (!courseCreator) return false;
+      if (authUser?.id && String(authUser?.id) === String(courseCreator))
+        return true;
+      if (
+        authUser?.fullname &&
+        String(authUser?.fullname).trim().toLowerCase() ===
+          String(courseCreator).trim().toLowerCase()
+      )
+        return true;
+      return false;
+    } catch {
+      return false;
+    }
+  })();
 
   const statusKey =
     course.status === "Mở" ? "Mở" : course.status === "Đóng" ? "Đóng" : "Nháp";
@@ -184,15 +206,17 @@ const CourseItem: React.FC<Props> = ({ course }) => {
             <Eye className="w-4 h-4" />
           </Link>
 
-          <Link
-            to={`/course/teacher/edit-course/${course.id}`}
-            title="Chỉnh sửa"
-            className="p-1.5 hover:bg-gray-100 rounded"
-          >
-            <Edit className="w-4 h-4" />
-          </Link>
+          {isOwner && (
+            <Link
+              to={`/course/teacher/edit-course/${course.id}`}
+              title="Chỉnh sửa"
+              className="p-1.5 hover:bg-gray-100 rounded"
+            >
+              <Edit className="w-4 h-4" />
+            </Link>
+          )}
 
-          {course.status !== "Đóng" && (
+          {course.status !== "Đóng" && isOwner && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <button

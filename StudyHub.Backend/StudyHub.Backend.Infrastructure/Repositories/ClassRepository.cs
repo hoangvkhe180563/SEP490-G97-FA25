@@ -344,6 +344,42 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 }).OrderByDescending(c => c.CreatedAt).ToList();
             return classes;
         }
+        public List<Class> GetAllClassByUserId(Guid userId)
+        {
+            try
+            {
+                var joinedClassIds = _context.Set<Data.AppUserSubjectClass>()
+                    .Where(usc => usc.UserId == userId && usc.Status == "joined")
+                    .Select(usc => usc.ClassId)
+                    .Distinct()
+                    .ToList();
+
+                var classDetails = _context.Classes
+                    .Where(c => c.DeletedAt == null &&
+                           (joinedClassIds.Contains(c.Id) || c.CreatedBy == userId))
+                    .Distinct() 
+                    .Select(c => new Class
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        Description = c.Description,
+                        CreatedBy = c.CreatedBy,
+                        CreatedAt = c.CreatedAt,
+                        UpdatedAt = c.UpdatedAt,
+                        UpdatedBy = c.UpdatedBy,
+                        DeletedAt = c.DeletedAt
+                    })
+                    .ToList();
+
+                return classDetails;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ClassRepository",
+                    "GetClassByUserId failed: " + ex.Message).LogError();
+                return new List<Class>();
+            }
+        }
         public ClassNotificationComment CommentNoti(ClassNotificationComment comment)
         {
             var commented = new Data.ClassNotificationComment

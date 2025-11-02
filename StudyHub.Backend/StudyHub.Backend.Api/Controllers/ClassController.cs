@@ -251,8 +251,8 @@ namespace StudyHub.Backend.Api.Controllers
 
         public class CreateCommentDto
         {
-            public string Content { get; set; } = string.Empty; // HTML allowed
-            public Guid CreatedBy { get; set; } // optional if you use auth, but keep for now
+            public string Content { get; set; } = string.Empty;
+            public Guid CreatedBy { get; set; }
         }
 
         //[HttpPost("notifications/{notificationId}/comments")]

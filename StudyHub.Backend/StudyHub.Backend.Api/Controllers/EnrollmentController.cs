@@ -11,20 +11,57 @@ public class EnrollmentController : ControllerBase
 {
     private readonly EnrollmentService _enrollService;
     private readonly ProgressService _progressService;
+    private readonly PaymentService _paymentService;
+    private readonly CourseService _courseService;
 
-    public EnrollmentController(EnrollmentService enrollService, ProgressService progressService)
+    public EnrollmentController(EnrollmentService enrollService, ProgressService progressService, PaymentService paymentService, CourseService courseService)
     {
         _enrollService = enrollService;
         _progressService = progressService;
+        _paymentService = paymentService;
+        _courseService = courseService;
     }
 
     [HttpPost]
     public IActionResult Enroll([FromBody] EnrollmentDto dto)
     {
         if (dto == null) return BadRequest();
-        var entity = dto.ToEntity();
-        var created = _enrollService.CreateEnrollment(entity);
-        return CreatedAtAction(nameof(GetEnrollment), new { id = created.Id }, created.ToListDto());
+
+        var course = _courseService.GetCourse(dto.CourseId);
+        if (course == null) return BadRequest("Course not found");
+
+        if (course.Price > 0)
+        {
+            var debitResult = _paymentService.DebitWalletByUserId(dto.AppUserId, (long)course.Price);
+            if (debitResult == null)
+            {
+                return BadRequest("User not found");
+            }
+            if (debitResult == -1)
+            {
+                return BadRequest("Insufficient wallet balance");
+            }
+
+            // proceed to create enrollment; if creation fails, refund
+            try
+            {
+                var entity = dto.ToEntity();
+                var created = _enrollService.CreateEnrollment(entity);
+                return CreatedAtAction(nameof(GetEnrollment), new { id = created.Id }, created.ToListDto());
+            }
+            catch (Exception)
+            {
+                // refund
+                try { _paymentService.CreditWalletByUserId(dto.AppUserId, (long)course.Price); } 
+                catch { /* ignore */ }
+                return StatusCode(500, "Failed to create enrollment after charging. Refunded.");
+            }
+        }
+
+        // free course or price == 0
+        var entityNoCharge = dto.ToEntity();
+        var createdNoCharge = _enrollService.CreateEnrollment(entityNoCharge);
+        return CreatedAtAction(nameof(GetEnrollment), new { id = createdNoCharge.Id }, createdNoCharge.ToListDto());
     }
 
     [HttpGet("user/{userId}")]

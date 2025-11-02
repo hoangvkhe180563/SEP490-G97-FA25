@@ -3,12 +3,12 @@ import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { Button } from "@/common/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import type { CourseListDto as Course } from "@/courseManagement/interfaces/types";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import { CalendarDays } from "lucide-react";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 // module-level cache to avoid repeated fetches when many CourseCard components mount
-const _enrollFetchRequested = new Set<string>();
+// const _enrollFetchRequested = new Set<string>();
 
 const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
   course,
@@ -18,9 +18,7 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
   const selectCourse = useCourseStore((s: any) => s.selectCourse);
   const selectedCourseId = useCourseStore((s: any) => s.selectedCourseId);
   const isSelected = selectedCourseId === course.id;
-  const currentUser = useAppUserStore((s: any) => s.appUser);
-  const enrollAction = useEnrollmentStore((s: any) => s.enroll);
-  const fetchProgresses = useEnrollmentStore((s: any) => s.fetchProgresses);
+  const authUser = useAuthStore((s) => s.user);
   const fetchEnrollmentsByUser = useEnrollmentStore((s: any) => s.fetchByUser);
   const enrollment = useEnrollmentStore((s) =>
     s.getEnrollmentForCourse(course.id)
@@ -31,8 +29,8 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
   );
 
   useEffect(() => {
-    if (!currentUser?.id) return;
-    const userId = String(currentUser.id);
+    if (!authUser?.id) return;
+    const userId = String(authUser.id);
     if (enrollment) return;
     if (enrollmentsLoaded) return;
 
@@ -45,7 +43,7 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
     })();
   }, [
     fetchEnrollmentsByUser,
-    currentUser?.id,
+    authUser?.id,
     enrollment,
     course.id,
     enrollmentsLoaded,
@@ -201,22 +199,23 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
           ) : (
             <Button
               className="flex-[1.1] bg-black text-white hover:bg-gray-900 rounded-lg py-2 text-sm shadow-md transition-all"
-              onClick={async (e) => {
+              onClick={(e) => {
                 e.stopPropagation();
                 try {
-                  if (!currentUser?.id) return;
-                  const created = await enrollAction({
-                    appUserId: String(currentUser.id),
-                    courseId: course.id,
-                  });
-                  if (created?.id) {
-                    useEnrollmentStore.setState((s) => ({
-                      enrollments: [...(s.enrollments || []), created],
-                    }));
-                    await fetchProgresses(created.id);
-                    if (selectCourse) selectCourse(course.id);
-                    navigate(`/course/student/courses/${course.id}`);
+                  if (!authUser?.id) {
+                    navigate(`/auth/login`);
+                    return;
                   }
+                  const params = new URLSearchParams({
+                    courseId: String(course.id),
+                    price: String(course.price ?? 0),
+                    name: String(course.name ?? ""),
+                    userId: String(authUser.id),
+                    schoolId: String(course.schoolId ?? ""),
+                  });
+                  navigate(
+                    `/course/student/payments/checkout?${params.toString()}`
+                  );
                 } catch {
                   /* ignore */
                 }

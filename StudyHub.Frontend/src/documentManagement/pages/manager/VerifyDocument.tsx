@@ -1,5 +1,5 @@
 // src/documentManagement/pages/manager/VerifyDocument.tsx
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/common/components/ui/input";
 import { Button } from "@/common/components/ui/button";
@@ -11,14 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/common/components/ui/table";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/common/components/ui/pagination";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,7 +35,6 @@ import {
   X,
   RotateCcw,
   EyeOff,
-  ChevronLeft,
   ChevronRight,
   MoreVertical,
   ArrowUpDown,
@@ -63,77 +54,49 @@ import {
   CollapsibleTrigger,
 } from "@/common/components/ui/collapsible";
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
-import type {
-  SubjectDto,
-  DocumentCategoryDto,
-  Document,
-} from "@/documentManagement/interfaces/document";
+import type { Document } from "@/documentManagement/interfaces/document";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-
-type SortField = "createdAt" | "updatedAt" | "name" | null;
-type SortOrder = "asc" | "desc";
-
-const STORAGE_KEY = "manager-document-verification-state";
-
-const loadState = () => {
-  try {
-    const saved = sessionStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch (error) {
-    console.error("Error loading state:", error);
-  }
-  return null;
-};
-
-const saveState = (state: any) => {
-  try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.error("Error saving state:", error);
-  }
-};
+import { useManagerDocumentFilters } from "@/documentManagement/hooks/useManagerDocumentFilters";
+import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination";
 
 const ManagerDocumentApprovalList = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const savedState = loadState();
 
-  const [statusFilter, setStatusFilter] = useState<string>(
-    savedState?.statusFilter || "pending"
-  );
-  const [searchQuery, setSearchQuery] = useState(savedState?.searchQuery || "");
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(
-    savedState?.selectedSubjects || []
-  );
-  const [selectedGrades, setSelectedGrades] = useState<string[]>(
-    savedState?.selectedGrades || []
-  );
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    savedState?.selectedCategories || []
-  );
-  const [pageSize, setPageSize] = useState(savedState?.pageSize || 5);
-  const [sortField, setSortField] = useState<SortField>(
-    savedState?.sortField || null
-  );
-  const [sortOrder, setSortOrder] = useState<SortOrder>(
-    savedState?.sortOrder || "desc"
-  );
-  const [currentPage, setCurrentPage] = useState(savedState?.currentPage || 1);
+  const {
+    documents,
+    subjects,
+    categories,
+    loading,
+    currentPage,
+    totalPages,
+    totalCount,
+    pageSize,
+    searchQuery,
+    sortBy,
+    sortOrder,
+    filters,
+    openSections,
+    isPublicManager,
+    setCurrentPage,
+    setPageSize,
+    setSearchQuery,
+    updateFilters,
+    clearFilters,
+    handleSort,
+    toggleSection,
+    refetch,
+  } = useManagerDocumentFilters();
 
-  const [subjects, setSubjects] = useState<SubjectDto[]>([]);
-  const [categories, setCategories] = useState<DocumentCategoryDto[]>([]);
+  const {
+    approveDocument,
+    rejectDocument,
+    revokeApproval,
+    softDeleteDocument,
+  } = useDocumentStore();
+
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [openSections, setOpenSections] = useState<{ [key: string]: boolean }>(
-    savedState?.openSections || {
-      status: true,
-      subject: false,
-      grade: false,
-      category: false,
-    }
-  );
 
   const [dialogState, setDialogState] = useState<{
     open: boolean;
@@ -146,222 +109,6 @@ const ManagerDocumentApprovalList = () => {
     documentId: null,
     documentName: "",
   });
-
-  const {
-    documents,
-    totalPages,
-    isLoading,
-    fetchManagerPublicDocuments,
-    fetchManagerSchoolDocuments,
-    approveDocument,
-    rejectDocument,
-    revokeApproval,
-    softDeleteDocument,
-    getCategories,
-    getSubjects,
-    categories: storeCategoriesRaw,
-    subjects: storeSubjectsRaw,
-  } = useDocumentStore();
-
-  const managerSchoolId = user?.schoolId;
-  const isPublicManager = !managerSchoolId;
-
-  useEffect(() => {
-    saveState({
-      statusFilter,
-      searchQuery,
-      selectedSubjects,
-      selectedGrades,
-      selectedCategories,
-      pageSize,
-      sortField,
-      sortOrder,
-      currentPage,
-      openSections,
-    });
-  }, [
-    statusFilter,
-    searchQuery,
-    selectedSubjects,
-    selectedGrades,
-    selectedCategories,
-    pageSize,
-    sortField,
-    sortOrder,
-    currentPage,
-    openSections,
-  ]);
-
-  useEffect(() => {
-    const fetchMasterData = async () => {
-      try {
-        await getCategories();
-        await getSubjects();
-      } catch (err) {
-        console.error("Failed to fetch master data", err);
-      }
-    };
-    fetchMasterData();
-  }, [getCategories, getSubjects]);
-
-  useEffect(() => {
-    if (storeSubjectsRaw && storeSubjectsRaw.length > 0) {
-      setSubjects(storeSubjectsRaw);
-    }
-  }, [storeSubjectsRaw]);
-
-  useEffect(() => {
-    if (storeCategoriesRaw && storeCategoriesRaw.length > 0) {
-      setCategories(storeCategoriesRaw);
-    }
-  }, [storeCategoriesRaw]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    statusFilter,
-    searchQuery,
-    selectedCategories,
-    selectedGrades,
-    selectedSubjects,
-  ]);
-
-  const fetchDocuments = useCallback(() => {
-    let isApproved: boolean | undefined = undefined;
-
-    if (statusFilter === "approved") {
-      isApproved = true;
-    } else if (statusFilter === "rejected") {
-      isApproved = false;
-    }
-
-    if (isPublicManager) {
-      fetchManagerPublicDocuments(
-        searchQuery || undefined,
-        selectedCategories.length > 0
-          ? parseInt(selectedCategories[0])
-          : undefined,
-        selectedGrades.length > 0 ? parseInt(selectedGrades[0]) : undefined,
-        selectedSubjects.length > 0 ? selectedSubjects[0] : undefined,
-        undefined,
-        isApproved,
-        true,
-        currentPage,
-        pageSize
-      );
-    } else {
-      if (!managerSchoolId) {
-        setErrorMessage("School ID không hợp lệ");
-        return;
-      }
-
-      fetchManagerSchoolDocuments(
-        managerSchoolId!.toString(),
-        searchQuery || undefined,
-        selectedCategories.length > 0
-          ? parseInt(selectedCategories[0])
-          : undefined,
-        selectedGrades.length > 0 ? parseInt(selectedGrades[0]) : undefined,
-        selectedSubjects.length > 0 ? selectedSubjects[0] : undefined,
-        undefined,
-        isApproved,
-        true,
-        currentPage,
-        pageSize
-      );
-    }
-  }, [
-    statusFilter,
-    searchQuery,
-    selectedCategories,
-    selectedGrades,
-    selectedSubjects,
-    currentPage,
-    pageSize,
-    isPublicManager,
-    managerSchoolId,
-    fetchManagerPublicDocuments,
-    fetchManagerSchoolDocuments,
-  ]);
-
-  useEffect(() => {
-    fetchDocuments();
-  }, [fetchDocuments]);
-
-  const sortedDocuments = [...documents].sort((a, b) => {
-    if (!sortField) return 0;
-
-    let comparison = 0;
-
-    if (sortField === "name") {
-      const aValue = a.name.toLowerCase();
-      const bValue = b.name.toLowerCase();
-      comparison = aValue > bValue ? 1 : -1;
-    } else if (sortField === "createdAt" || sortField === "updatedAt") {
-      const aValue = a[sortField] ? new Date(a[sortField]!).getTime() : 0;
-      const bValue = b[sortField] ? new Date(b[sortField]!).getTime() : 0;
-      comparison = aValue > bValue ? 1 : -1;
-    }
-
-    return sortOrder === "asc" ? comparison : -comparison;
-  });
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortOrder("desc");
-    }
-  };
-
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field)
-      return <ArrowUpDown className="h-3 w-3 ml-1 inline" />;
-    return sortOrder === "asc" ? (
-      <ArrowUp className="h-3 w-3 ml-1 inline" />
-    ) : (
-      <ArrowDown className="h-3 w-3 ml-1 inline" />
-    );
-  };
-
-  const handleClearFilters = () => {
-    setSearchQuery("");
-    setSelectedSubjects([]);
-    setSelectedGrades([]);
-    setSelectedCategories([]);
-    setStatusFilter("pending");
-    setCurrentPage(1);
-  };
-
-  const toggleSubject = (subjectName: string) => {
-    setSelectedSubjects((prev) =>
-      prev.includes(subjectName)
-        ? prev.filter((s) => s !== subjectName)
-        : [...prev, subjectName]
-    );
-  };
-
-  const toggleGrade = (grade: string) => {
-    setSelectedGrades((prev) =>
-      prev.includes(grade) ? prev.filter((g) => g !== grade) : [...prev, grade]
-    );
-  };
-
-  const toggleCategory = (categoryId: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(categoryId)
-        ? prev.filter((c) => c !== categoryId)
-        : [...prev, categoryId]
-    );
-  };
-
-  const toggleSection = (section: string) => {
-    setOpenSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
-  };
 
   const openDialog = (
     type: typeof dialogState.type,
@@ -406,18 +153,15 @@ const ManagerDocumentApprovalList = () => {
     }
 
     if (success) {
-      if (dialogState.type === "approve") {
-        setSuccessMessage("Phê duyệt tài liệu thành công");
-      } else if (dialogState.type === "reject") {
-        setSuccessMessage("Từ chối tài liệu thành công");
-      } else if (dialogState.type === "revoke") {
-        setSuccessMessage("Thu hồi phê duyệt thành công");
-      } else if (dialogState.type === "hide") {
-        setSuccessMessage("Ẩn tài liệu thành công");
-      }
-
+      const messages = {
+        approve: "Phê duyệt tài liệu thành công",
+        reject: "Từ chối tài liệu thành công",
+        revoke: "Thu hồi phê duyệt thành công",
+        hide: "Ẩn tài liệu thành công",
+      };
+      setSuccessMessage(messages[dialogState.type]);
       setTimeout(() => setSuccessMessage(""), 3000);
-      setTimeout(() => fetchDocuments(), 500);
+      setTimeout(() => refetch(), 500);
     } else {
       setErrorMessage("Thao tác thất bại");
       setTimeout(() => setErrorMessage(""), 3000);
@@ -430,39 +174,63 @@ const ManagerDocumentApprovalList = () => {
     navigate(`/document/student/details/${id}`);
   };
 
+  const getSortIcon = (field: typeof sortBy) => {
+    if (sortBy !== field)
+      return <ArrowUpDown className="h-3 w-3 ml-1 inline" />;
+    return sortOrder === "asc" ? (
+      <ArrowUp className="h-3 w-3 ml-1 inline" />
+    ) : (
+      <ArrowDown className="h-3 w-3 ml-1 inline" />
+    );
+  };
+
+  const toggleSubject = (subjectName: string) => {
+    const newSubjects = filters.selectedSubjects.includes(subjectName)
+      ? filters.selectedSubjects.filter((s) => s !== subjectName)
+      : [...filters.selectedSubjects, subjectName];
+    updateFilters({ selectedSubjects: newSubjects });
+  };
+
+  const toggleGrade = (grade: number) => {
+    const newGrades = filters.selectedGrades.includes(grade)
+      ? filters.selectedGrades.filter((g) => g !== grade)
+      : [...filters.selectedGrades, grade];
+    updateFilters({ selectedGrades: newGrades });
+  };
+
+  const toggleCategory = (categoryId: number) => {
+    const newCategories = filters.selectedCategories.includes(categoryId)
+      ? filters.selectedCategories.filter((c) => c !== categoryId)
+      : [...filters.selectedCategories, categoryId];
+    updateFilters({ selectedCategories: newCategories });
+  };
+
   const getDialogContent = () => {
-    switch (dialogState.type) {
-      case "approve":
-        return {
-          title: "Xác nhận phê duyệt",
-          description: `Bạn có chắc chắn muốn phê duyệt tài liệu "${dialogState.documentName}"?`,
-          confirmText: "Phê duyệt",
-        };
-      case "reject":
-        return {
-          title: "Xác nhận từ chối",
-          description: `Bạn có chắc chắn muốn từ chối tài liệu "${dialogState.documentName}"?`,
-          confirmText: "Từ chối",
-        };
-      case "revoke":
-        return {
-          title: "Xác nhận thu hồi",
-          description: `Bạn có chắc chắn muốn thu hồi phê duyệt tài liệu "${dialogState.documentName}"?`,
-          confirmText: "Thu hồi",
-        };
-      case "hide":
-        return {
-          title: "Xác nhận ẩn",
-          description: `Bạn có chắc chắn muốn ẩn tài liệu "${dialogState.documentName}"?`,
-          confirmText: "Ẩn",
-        };
-      default:
-        return {
-          title: "",
-          description: "",
-          confirmText: "",
-        };
-    }
+    const contents = {
+      approve: {
+        title: "Xác nhận phê duyệt",
+        description: `Bạn có chắc chắn muốn phê duyệt tài liệu "${dialogState.documentName}"?`,
+        confirmText: "Phê duyệt",
+      },
+      reject: {
+        title: "Xác nhận từ chối",
+        description: `Bạn có chắc chắn muốn từ chối tài liệu "${dialogState.documentName}"?`,
+        confirmText: "Từ chối",
+      },
+      revoke: {
+        title: "Xác nhận thu hồi",
+        description: `Bạn có chắc chắn muốn thu hồi phê duyệt tài liệu "${dialogState.documentName}"?`,
+        confirmText: "Thu hồi",
+      },
+      hide: {
+        title: "Xác nhận ẩn",
+        description: `Bạn có chắc chắn muốn ẩn tài liệu "${dialogState.documentName}"?`,
+        confirmText: "Ẩn",
+      },
+    };
+    return dialogState.type
+      ? contents[dialogState.type]
+      : { title: "", description: "", confirmText: "" };
   };
 
   const renderDropdownMenu = (status: string, doc: Document) => {
@@ -524,13 +292,16 @@ const ManagerDocumentApprovalList = () => {
 
   const getPageTitle = () => {
     const prefix = isPublicManager ? "[Công khai] " : "[Trường] ";
-    if (statusFilter === "pending")
-      return prefix + "Danh sách tài liệu chờ phê duyệt";
-    if (statusFilter === "approved")
-      return prefix + "Danh sách tài liệu đã phê duyệt";
-    if (statusFilter === "rejected")
-      return prefix + "Danh sách tài liệu bị từ chối";
-    return prefix + "Danh sách tài liệu";
+    const statusTitles = {
+      pending: "Danh sách tài liệu chờ phê duyệt",
+      approved: "Danh sách tài liệu đã phê duyệt",
+      rejected: "Danh sách tài liệu bị từ chối",
+    };
+    return (
+      prefix +
+      (statusTitles[filters.statusFilter as keyof typeof statusTitles] ||
+        "Danh sách tài liệu")
+    );
   };
 
   const dialogContent = getDialogContent();
@@ -596,45 +367,27 @@ const ManagerDocumentApprovalList = () => {
                 />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3 space-y-2.5">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="pending"
-                    checked={statusFilter === "pending"}
-                    onCheckedChange={() => setStatusFilter("pending")}
-                  />
-                  <Label
-                    htmlFor="pending"
-                    className="text-sm cursor-pointer font-normal"
-                  >
-                    Chờ phê duyệt
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="approved"
-                    checked={statusFilter === "approved"}
-                    onCheckedChange={() => setStatusFilter("approved")}
-                  />
-                  <Label
-                    htmlFor="approved"
-                    className="text-sm cursor-pointer font-normal"
-                  >
-                    Đã phê duyệt
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="rejected"
-                    checked={statusFilter === "rejected"}
-                    onCheckedChange={() => setStatusFilter("rejected")}
-                  />
-                  <Label
-                    htmlFor="rejected"
-                    className="text-sm cursor-pointer font-normal"
-                  >
-                    Bị từ chối
-                  </Label>
-                </div>
+                {["pending", "approved", "rejected"].map((status) => (
+                  <div key={status} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={status}
+                      checked={filters.statusFilter === status}
+                      onCheckedChange={() =>
+                        updateFilters({ statusFilter: status })
+                      }
+                    />
+                    <Label
+                      htmlFor={status}
+                      className="text-sm cursor-pointer font-normal"
+                    >
+                      {status === "pending"
+                        ? "Chờ phê duyệt"
+                        : status === "approved"
+                        ? "Đã phê duyệt"
+                        : "Bị từ chối"}
+                    </Label>
+                  </div>
+                ))}
               </CollapsibleContent>
             </Collapsible>
           </div>
@@ -657,7 +410,7 @@ const ManagerDocumentApprovalList = () => {
                   <div key={subject.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={`subject-${subject.id}`}
-                      checked={selectedSubjects.includes(subject.name)}
+                      checked={filters.selectedSubjects.includes(subject.name)}
                       onCheckedChange={() => toggleSubject(subject.name)}
                     />
                     <Label
@@ -686,18 +439,18 @@ const ManagerDocumentApprovalList = () => {
                 />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3 space-y-2.5 max-h-60 overflow-y-auto scrollbar-custom">
-                {[...Array(12)].map((_, i) => (
-                  <div key={i + 1} className="flex items-center space-x-2">
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((grade) => (
+                  <div key={grade} className="flex items-center space-x-2">
                     <Checkbox
-                      id={`grade-${i + 1}`}
-                      checked={selectedGrades.includes((i + 1).toString())}
-                      onCheckedChange={() => toggleGrade((i + 1).toString())}
+                      id={`grade-${grade}`}
+                      checked={filters.selectedGrades.includes(grade)}
+                      onCheckedChange={() => toggleGrade(grade)}
                     />
                     <Label
-                      htmlFor={`grade-${i + 1}`}
+                      htmlFor={`grade-${grade}`}
                       className="text-sm cursor-pointer font-normal"
                     >
-                      Lớp {i + 1}
+                      Lớp {grade}
                     </Label>
                   </div>
                 ))}
@@ -726,12 +479,8 @@ const ManagerDocumentApprovalList = () => {
                   >
                     <Checkbox
                       id={`category-${category.id}`}
-                      checked={selectedCategories.includes(
-                        category.id.toString()
-                      )}
-                      onCheckedChange={() =>
-                        toggleCategory(category.id.toString())
-                      }
+                      checked={filters.selectedCategories.includes(category.id)}
+                      onCheckedChange={() => toggleCategory(category.id)}
                     />
                     <Label
                       htmlFor={`category-${category.id}`}
@@ -750,7 +499,7 @@ const ManagerDocumentApprovalList = () => {
           <Button
             variant="outline"
             className="w-full h-10 text-sm"
-            onClick={handleClearFilters}
+            onClick={clearFilters}
           >
             Xóa bộ lọc
           </Button>
@@ -794,7 +543,7 @@ const ManagerDocumentApprovalList = () => {
         </div>
 
         <div className="flex-1 overflow-auto scrollbar-custom">
-          {isLoading ? (
+          {loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-gray-500">Đang tải...</div>
             </div>
@@ -826,7 +575,7 @@ const ManagerDocumentApprovalList = () => {
                   >
                     NGÀY TẠO {getSortIcon("createdAt")}
                   </TableHead>
-                  {statusFilter === "approved" && (
+                  {filters.statusFilter === "approved" && (
                     <TableHead
                       className="text-center font-semibold text-gray-700 w-36 cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort("updatedAt")}
@@ -840,7 +589,7 @@ const ManagerDocumentApprovalList = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedDocuments.map((doc, index) => (
+                {documents.map((doc, index) => (
                   <TableRow key={doc.id} className="hover:bg-gray-50">
                     <TableCell className="text-center text-sm">
                       {(currentPage - 1) * pageSize + index + 1}
@@ -883,7 +632,7 @@ const ManagerDocumentApprovalList = () => {
                     <TableCell className="text-center text-xs">
                       {new Date(doc.createdAt).toLocaleDateString("vi-VN")}
                     </TableCell>
-                    {statusFilter === "approved" && (
+                    {filters.statusFilter === "approved" && (
                       <TableCell className="text-center text-xs">
                         {doc.updatedAt
                           ? new Date(doc.updatedAt).toLocaleDateString("vi-VN")
@@ -892,7 +641,7 @@ const ManagerDocumentApprovalList = () => {
                     )}
                     <TableCell>
                       <div className="flex items-center justify-center">
-                        {renderDropdownMenu(statusFilter, doc)}
+                        {renderDropdownMenu(filters.statusFilter, doc)}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -903,67 +652,15 @@ const ManagerDocumentApprovalList = () => {
         </div>
 
         <div className="p-3 border-t">
-          <div className="flex items-center justify-between">
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    onClick={() =>
-                      currentPage > 1 && setCurrentPage(currentPage - 1)
-                    }
-                    className={`${
-                      currentPage === 1
-                        ? "pointer-events-none opacity-50"
-                        : "cursor-pointer hover:bg-gray-100"
-                    }`}
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Trước
-                  </PaginationPrevious>
-                </PaginationItem>
-                {[...Array(Math.min(totalPages, 5))].map((_, i) => {
-                  let pageNumber: number;
-                  if (totalPages <= 5) {
-                    pageNumber = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNumber = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNumber = totalPages - 4 + i;
-                  } else {
-                    pageNumber = currentPage - 2 + i;
-                  }
-
-                  return (
-                    <PaginationItem key={pageNumber}>
-                      <PaginationLink
-                        onClick={() => setCurrentPage(pageNumber)}
-                        isActive={currentPage === pageNumber}
-                        className="cursor-pointer hover:bg-gray-100"
-                      >
-                        {pageNumber}
-                      </PaginationLink>
-                    </PaginationItem>
-                  );
-                })}
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={() =>
-                      currentPage < totalPages &&
-                      setCurrentPage(currentPage + 1)
-                    }
-                    className={`${
-                      currentPage === totalPages
-                        ? "pointer-events-none opacity-50"
-                        : "cursor-pointer hover:bg-gray-100"
-                    }`}
-                  >
-                    Sau
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </PaginationNext>
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
+          <DocumentPagination
+            pagination={{
+              currentPage,
+              totalPages,
+              totalCount,
+              pageSize,
+            }}
+            onPageChange={setCurrentPage}
+          />
         </div>
       </div>
 

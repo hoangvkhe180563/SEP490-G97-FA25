@@ -40,6 +40,8 @@ namespace StudyHub.Backend.Infrastructure
                 return new CloudinaryRepository(cloudName, apiKey, apiSecret);
             });
 
+            services.AddScoped<IPaymentInfoRepository, PaymentInfoRepository>();
+
             return services;
         }
     }

@@ -17,6 +17,7 @@ import { Button } from "@/common/components/ui/button";
 import { Edit2, ArrowLeft } from "lucide-react";
 import { documentService } from "@/documentManagement/services/documentService";
 import type { AppUser } from "@/auth/interfaces/app-user";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const CourseDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -36,8 +37,8 @@ const CourseDetail: React.FC = () => {
     null
   );
   const getAppUserById = useAppUserStore((s) => s.getAppUserById);
+  const authUser = useAuthStore((s) => s.user);
 
-  // === Load subjects ===
   useEffect(() => {
     (async () => {
       const res = await documentService.getSubjects();
@@ -64,6 +65,13 @@ const CourseDetail: React.FC = () => {
       });
     }
   }, [selectedCourse, getAppUserById]);
+
+  // Only the course owner (creator) may edit the course. Use auth user id.
+  const isOwner = Boolean(
+    authUser?.id &&
+      selectedCourse?.createdBy &&
+      String(authUser.id) === String(selectedCourse.createdBy)
+  );
 
   const categoryLabel = (id?: number | null) => {
     if (id === undefined || id === null) return "-";
@@ -119,14 +127,13 @@ const CourseDetail: React.FC = () => {
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
-            onClick={() => navigate(`/course/teacher/edit-course/${courseId}`)}
+            onClick={() =>
+              isOwner && navigate(`/course/teacher/edit-course/${courseId}`)
+            }
+            disabled={!isOwner}
+            aria-disabled={!isOwner}
           >
             <Edit2 className="mr-2" /> Chỉnh sửa
-          </Button>
-          <Button
-            onClick={() => navigate(`/course/teacher/preview/${courseId}`)}
-          >
-            Xem trước
           </Button>
         </div>
       </div>
