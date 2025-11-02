@@ -94,6 +94,24 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         }
 
+        public List<Domain.Entities.AppUser> GetQATeachers()
+        {
+            try
+            {
+                var users = _context.AppUsers
+                    .Include(u => u.Roles)
+                    .Where(u => u.Roles.Any(r => (r.Name ?? "").Contains("Q&A Teacher")))
+                    .ToList();
+
+                return users.Select(u => ToDomain(u)).ToList();
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("AppUserRepository", "GetQATeachers failed. Inner error: " + ex.Message).LogError();
+                return new List<Domain.Entities.AppUser>();
+            }
+        }
+
         public (List<Domain.Entities.AppUser>, int, int, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page, int limit)
         {
             try
@@ -233,21 +251,24 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 existing.PasswordHash = user.PasswordHash;
                 existing.Username = user.Username;
                 existing.Fullname = user.Fullname;
+                existing.Dob = user.Dob;
                 existing.Gender = user.Gender;
                 existing.TransferId = user.TransferId;
                 existing.SchoolId = user.SchoolId;
-                existing.Status = user.Status;
-                existing.IsVerified = user.IsVerified;
-                existing.UpdatedAt = user.UpdatedAt;
-                existing.RefreshToken = user.RefreshToken;
-                existing.RefreshTokenExpire = user.RefreshTokenExpire;
-                existing.ResetPasswordToken = user.ResetPasswordToken;
-                existing.ResetPasswordExpire = user.ResetPasswordExpire;
-                existing.EmailVerificationToken = user.EmailVerificationToken;
-                existing.EmailVerificationExpire = user.EmailVerificationExpire;
                 existing.Address = user.Address;
                 existing.CommuneId = user.CommuneId;
-                existing.Avatar = user.Avatar;
+                existing.PhoneNumber = user.PhoneNumber;
+                existing.Wallet = user.Wallet;
+                existing.IsVerified = user.IsVerified;
+                existing.RefreshToken = user.RefreshToken;
+                existing.RefreshTokenExpire = user.RefreshTokenExpire;
+                existing.EmailVerificationToken = user.EmailVerificationToken;
+                existing.EmailVerificationExpire = user.EmailVerificationExpire;
+                existing.ResetPasswordToken = user.ResetPasswordToken;
+                existing.ResetPasswordExpire = user.ResetPasswordExpire;
+                existing.IsLoginWithGoogle = user.IsLoginWithGoogle;
+                existing.Status = user.Status;
+                existing.UpdatedAt = user.UpdatedAt;
                 existing.Wallet = user.Wallet;
 
                 if (roleIds != null && roleIds.Any())

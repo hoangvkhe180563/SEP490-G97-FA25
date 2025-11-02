@@ -13,13 +13,15 @@ namespace StudyHub.Backend.UseCases.Services
     {
         private readonly IClassRepository _classRepository;
         private readonly ICloudinaryRepository _fileStorage;
+        private readonly AuthService _authService;
         private readonly IAppUserRepository _userRepository;
-        private readonly IEmailService _emailService;
+        private readonly SmtpEmailService _emailService;
 
-        public ClassService(IClassRepository classRepository, ICloudinaryRepository fileStorage, IAppUserRepository userRepository, IEmailService emailService)
+        public ClassService(IClassRepository classRepository, ICloudinaryRepository fileStorage, IAppUserRepository userRepository, AuthService authService, SmtpEmailService emailService)
         {
             _classRepository = classRepository;
             _fileStorage = fileStorage;
+            _authService = authService;
             _userRepository = userRepository;
             _emailService = emailService;
         }

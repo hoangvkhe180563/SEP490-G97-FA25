@@ -14,7 +14,7 @@ export const useAppUserStore = create<AppUserState>()(
     (set) => ({
       appUsers: [],
       appUser: undefined,
-      profileUser: undefined,
+      currentUser: undefined,
       success: false,
       message: "",
       isLoading: false,
@@ -149,7 +149,7 @@ export const useAppUserStore = create<AppUserState>()(
           const { data } = response;
           // API returns { Success, Data }
           set({
-            profileUser: data?.data ?? undefined,
+            currentUser: data?.data ?? undefined,
             success: data?.success ?? false,
             message: data?.message ?? "",
           });
@@ -250,7 +250,8 @@ export const useAppUserStore = create<AppUserState>()(
           if (typeof dto.schoolId !== "undefined")
             formData.append("SchoolId", String(dto.schoolId));
           if (dto.gender) formData.append("Gender", String(dto.gender));
-          if (dto.password) formData.append("Password", dto.password);
+          if (dto.oldPassword) formData.append("OldPassword", dto.oldPassword);
+          if (dto.newPassword) formData.append("NewPassword", dto.newPassword);
           if ((dto as any).avatarFile)
             formData.append("AvatarFile", (dto as any).avatarFile as File);
           const res = await axiosInstance.put(`/AppUser/me`, formData, {

@@ -6,6 +6,10 @@ const UserRouteConfig = {
     ADD_ACCOUNT: "add-account",
     UPDATE_ACCOUNT: "update-account/:id",
   },
+  USER: {
+    INDEX: "user",
+    UPDATE_PROFILE: "profile",
+  },
 };
 
 export default UserRouteConfig;

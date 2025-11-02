@@ -457,7 +457,8 @@ namespace StudyHub.Backend.Api.Controllers
             var result = classes
                 .GroupBy(c => c.Id) // Loại bỏ duplicate theo Id
                 .Select(g => g.First()) // Lấy item đầu tiên của mỗi group
-                .Select(c => {
+                .Select(c =>
+                {
                     var teacher = teachers.FirstOrDefault(t => t.Id == c.CreatedBy);
                     return c.ToListClassDto(teacher);
                 })

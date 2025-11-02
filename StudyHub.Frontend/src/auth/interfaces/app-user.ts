@@ -9,6 +9,7 @@ interface AppUser {
   classIds: number[];
   subjectIds: number[];
   schoolId: number;
+  isLoginWithGoogle: boolean;
   transferId: number;
 }
 

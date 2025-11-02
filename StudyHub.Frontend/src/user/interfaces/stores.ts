@@ -1,5 +1,5 @@
 import type { AppRole } from "./app-role";
-import type { AppUser, ProfileResponse } from "./app-user";
+import type { AppUser, CurrentUser } from "./app-user";
 import type { City } from "./city";
 import type { Commune } from "./commune";
 import type {
@@ -26,9 +26,9 @@ interface FilterAppUsersResponse {
 interface AppUserState {
   appUsers: AppUser[];
   appUser: AppUser | undefined;
-  profileUser: ProfileResponse | undefined;
+  currentUser: CurrentUser | undefined;
   success: boolean;
-  message: string;
+  message: string | { [key: string]: string[] };
   isLoading: boolean;
   meta?: Meta | null;
 
