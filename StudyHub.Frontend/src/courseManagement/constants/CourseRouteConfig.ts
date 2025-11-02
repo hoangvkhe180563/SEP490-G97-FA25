@@ -15,6 +15,8 @@ const CourseRouteConfig = {
     COURSES: "courses",
     COURSE_DETAIL: "courses/:id",
     LECTURE_PLAYER: "courses/:courseId/lecture/:lectureId",
+    PAYMENT_CHECKOUT: "payments/checkout",
+    PAYMENT_SUCCESS: "payment-success",
   },
 };
 export default CourseRouteConfig;

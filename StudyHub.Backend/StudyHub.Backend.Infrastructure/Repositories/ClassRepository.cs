@@ -5,6 +5,7 @@ using StudyHub.Backend.UseCases.Repositories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -22,14 +23,28 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
+                
                 var classentity = new Data.Class
                 {
-                    Id = classEntity.Id,
                     Name = classEntity.Name,
                     Description = classEntity.Description,
                     CreatedBy = classEntity.CreatedBy,
                 };
-                _context.Classes.Add(classentity);
+                var addedclass=_context.Classes.Add(classentity);
+                _context.SaveChanges();
+                classEntity.Id = addedclass.Entity.Id;
+                var classSubjectUserEntity = new Data.AppUserSubjectClass
+                {
+                    UserId = classEntity.CreatedBy,
+                    SubjectId = 1,
+                    ClassId = classEntity.Id,
+                    JoinDate = DateTime.Now,
+                    Status = "joined"
+                };
+
+                
+               
+                _context.AppUserSubjectClasses.Add(classSubjectUserEntity);
                 _context.SaveChanges();
                 return classEntity;
             }
@@ -42,10 +57,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
 
-        public bool DeleteClass(int id)
-        {
-            throw new NotImplementedException();
-        }
+       
 
         public List<Class> GetAllClasses(Guid? userid)
         {
@@ -94,37 +106,35 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 .ToList();
 
             var teachers = _context.AppUsers
-                .Where(u => u.Roles.Any(r => teacherRoleIds.Contains(r.Id)))
-                .Distinct()
+                .Where(u => u.Roles.Any(role => teacherRoleIds.Contains(role.Id)))
                 .ToList();
 
-            if (teachers == null)
-            {
+            if (teachers == null || teachers.Count == 0)
                 return new List<AppUser>();
-            }
 
             return teachers
-                .Select(infraUser => new AppUser
+                .Select(u => new AppUser
                 {
-                    Id = infraUser.Id,
-                    Email = infraUser.Email,
-                    Username = infraUser.Username,
-                    Fullname = infraUser.Fullname,
-                    Dob = infraUser.Dob,
-                    Gender = (bool)infraUser.Gender,
-                    SchoolId = infraUser.SchoolId,
-                    Address = infraUser.Address,
-                    CommuneId = infraUser.CommuneId,
-                    PhoneNumber = infraUser.PhoneNumber,
-                    Wallet = infraUser.Wallet,
-                    IsVerified = infraUser.IsVerified,
-                    IsLoginWithGoogle = infraUser.IsLoginWithGoogle,
-                    RefreshToken = infraUser.RefreshToken,
-                    Status = infraUser.Status,
-                    RefreshTokenExpire = infraUser.RefreshTokenExpire
+                    Id = u.Id,
+                    Email = u.Email,
+                    Username = u.Username,
+                    Fullname = u.Fullname,
+                    Dob = u.Dob,
+                    Gender = u.Gender ?? false, // tránh lỗi null
+                    SchoolId = u.SchoolId,
+                    Address = u.Address,
+                    CommuneId = u.CommuneId,
+                    PhoneNumber = u.PhoneNumber,
+                    Wallet = u.Wallet,
+                    IsVerified = u.IsVerified,
+                    IsLoginWithGoogle = u.IsLoginWithGoogle,
+                    RefreshToken = u.RefreshToken,
+                    Status = u.Status,
+                    RefreshTokenExpire = u.RefreshTokenExpire
                 })
                 .ToList();
         }
+
 
         public Class? GetClassById(int id)
         {
@@ -153,6 +163,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             clas.Name = classEntity.Name;
             clas.Description = classEntity.Description;
             clas.UpdatedAt = classEntity.UpdatedAt;
+            clas.UpdatedBy = classEntity.UpdatedBy;
 
             _context.Classes.Update(clas);
             _context.SaveChanges();
@@ -384,7 +395,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return comment;
 
         }
-        public bool deleteNotification(int id)
+        public bool DeleteNotification(int id)
         {
             var comment = _context.ClassNotifications.FirstOrDefault(c => c.Id == id);
             if (comment != null)
@@ -396,7 +407,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
             return false;
         }
-        public ClassNotification getNotificationByID(int notificationId)
+        public ClassNotification GetNotificationByID(int notificationId)
         {
             var noti = _context.ClassNotifications.FirstOrDefault(c => c.Id == notificationId);
             var noti2 = new ClassNotification
@@ -687,7 +698,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
             return classEntity.Count();
         }
-
+        public int GetMemberClassCount(int classID)
+        {
+            var classs = _context.AppUserSubjectClasses.Where(a=>a.ClassId== classID).GroupBy(a=>a.UserId).Count();
+            return classs;
+        }
 
     }
 }

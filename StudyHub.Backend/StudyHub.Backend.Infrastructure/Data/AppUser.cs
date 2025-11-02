@@ -23,6 +23,8 @@ public partial class AppUser
 
     public int? SchoolId { get; set; }
 
+    public int? TransferId { get; set; }
+
     public string? Address { get; set; }
 
     public int? CommuneId { get; set; }

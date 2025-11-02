@@ -94,7 +94,6 @@ const CourseDetail: React.FC = () => {
   const enrollment = useEnrollmentStore((s) =>
     s.getEnrollmentForCourse(courseId)
   );
-  const enrollAction = useEnrollmentStore((s) => s.enroll);
   const fetchProgresses = useEnrollmentStore((s) => s.fetchProgresses);
 
   const getLessonCompleted = useEnrollmentStore((s) => s.getLessonCompleted);
@@ -523,28 +522,29 @@ const CourseDetail: React.FC = () => {
                     <Button
                       onClick={async () => {
                         try {
-                          if (!authUser?.id) return;
-                          console.log("Enrolling user", authUser.id);
-                          const payload = {
-                            appUserId: String(authUser.id),
-                            courseId,
-                          };
-                          await enrollAction(payload);
-                          try {
-                            await fetchEnrollmentsByUser(String(authUser.id));
-                            const found = useEnrollmentStore
-                              .getState()
-                              .getEnrollmentForCourse(courseId);
-                            if (found?.id) {
-                              try {
-                                await fetchProgresses(found.id);
-                              } catch {
-                                // ignore
-                              }
-                            }
-                          } catch {
-                            // ignore
+                          // ensure user is logged in
+                          if (!authUser?.id) {
+                            navigate(`/auth/login`);
+                            return;
                           }
+
+                          // if already enrolled, do nothing
+                          if (enrollment) return;
+
+                          // navigate to payment checkout with required query params
+                          const params = new URLSearchParams({
+                            courseId: String(courseId),
+                            price: String((selectedCourse as any)?.price ?? 0),
+                            name: String((selectedCourse as any)?.name ?? ""),
+                            userId: String(authUser.id),
+                            schoolId: String(
+                              (selectedCourse as any)?.schoolId ?? ""
+                            ),
+                          });
+
+                          navigate(
+                            `/course/student/payments/checkout?${params.toString()}`
+                          );
                         } catch (err) {
                           // ignore
                         }
