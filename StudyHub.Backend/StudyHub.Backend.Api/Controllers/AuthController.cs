@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos.AuthDTOS;
 using StudyHub.Backend.Api.Filters;
 using StudyHub.Backend.Api.Mappers;
+using StudyHub.Backend.Api.Services;
 using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -15,9 +16,9 @@ namespace StudyHub.Backend.Api.Controllers
     {
         private readonly AuthService _authService;
         private readonly IConfiguration _configuration;
-        private readonly StudyHub.Backend.Api.Services.IEmailService _emailService;
+        private readonly SmtpEmailService _emailService;
 
-        public AuthController(AuthService authService, IConfiguration configuration, StudyHub.Backend.Api.Services.IEmailService emailService)
+        public AuthController(AuthService authService, IConfiguration configuration, SmtpEmailService emailService)
         {
             _authService = authService;
             _configuration = configuration;

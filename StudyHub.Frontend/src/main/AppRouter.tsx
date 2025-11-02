@@ -4,53 +4,44 @@ import forumRoutes from "@/forumManagement/routes/ForumRoutes";
 import RouteConfig from "@/common/constants/RouteConfig";
 import uiManagementRoutes from "@/uiManagement/routes/UiManagementRoutes";
 import userRoutes from "@/user/routes/UserRoutes";
-import { Outlet, useRoutes } from "react-router-dom";
+import { Outlet, useLocation, useNavigate, useRoutes } from "react-router-dom";
 import courseRoutes from "@/courseManagement/routes/CourseRoute";
-import MainLayout from "@/common/pages/MainLayout";
 import Homepage from "@/uiManagement/pages/Homepage";
-import {
-  guestSidebarItems,
-  schoolManagerSidebarItems,
-  teacherSidebarItems,
-  uiManagerSidebarItems,
-} from "@/common/constants/SidebarItems";
 import authRoutes from "@/auth/routes/AuthRoutes";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import GuestLayout from "@/common/pages/GuestLayout";
+import RegisteredLayout from "@/common/pages/RegisteredLayout";
+import qaRoutes from "@/qaManagement/routes/QARoutes";
 
 const AppRouter = () => {
-  const { isAuthenticated: isLoggedIn, checkAuth } = useAuthStore();
+  const { user, checkAuth } = useAuthStore();
+  const [authChecked, setAuthChecked] = useState<boolean>(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    // On app load, check if user is authenticated and populate appUser store
     (async () => {
       try {
         await checkAuth();
-        // if authenticated, ensure the app user details are loaded into useAppUserStore
-        const authUser = useAuthStore.getState().user;
-        if (authUser && authUser.id) {
-          // call getAppUserById from the app-user store to populate appUser
-          try {
-            await useAppUserStore
-              .getState()
-              .getAppUserById(String(authUser.id));
-          } catch {
-            // ignore
-          }
-        }
       } catch {
-        // ignore
+        console.log("lỗi authorization");
+      } finally {
+        setAuthChecked(true);
       }
     })();
   }, [checkAuth]);
 
+  useEffect(() => {
+    if (authChecked && !user && !location.pathname.includes("/auth")) {
+      navigate("/");
+    }
+  }, [authChecked]);
+
   const appRoutes = [
     {
       path: "/",
-      element: (
-        <MainLayout isLoggedIn={isLoggedIn} sidebarItems={guestSidebarItems} />
-      ),
+      element: user ? <RegisteredLayout user={user} /> : <GuestLayout />,
       children: [
         {
           index: true,
@@ -65,44 +56,39 @@ const AppRouter = () => {
     },
     {
       path: RouteConfig.USER,
-      element: (
-        <MainLayout
-          isLoggedIn={isLoggedIn}
-          sidebarItems={schoolManagerSidebarItems}
-        />
-      ),
+      element: <RegisteredLayout user={user} />,
       children: userRoutes,
     },
     {
       path: RouteConfig.UI_MANAGEMENT,
-      element: (
-        <MainLayout
-          isLoggedIn={isLoggedIn}
-          sidebarItems={uiManagerSidebarItems}
-        />
-      ),
+      element: <RegisteredLayout user={user} />,
       children: uiManagementRoutes,
     },
     {
       path: RouteConfig.CLASS_MANAGEMENT,
-      element: <Outlet />,
+      element: <RegisteredLayout user={user} />,
       children: classRoutes,
     },
     {
       path: RouteConfig.DOCUMENT_MANAGEMENT,
-      element: <Outlet />,
+      element: <RegisteredLayout user={user} />,
       children: documentRoutes,
     },
     {
       path: RouteConfig.COURSE_MANAGEMENT,
-      element: <Outlet />,
+      element: <RegisteredLayout user={user} />,
       children: courseRoutes,
     },
-    // {
-    //   path: RouteConfig.FORUM_MANAGEMENT,
-    //   element: <Outlet />,
-    //   children: forumRoutes,
-    // },
+    {
+      path: RouteConfig.FORUM_MANAGEMENT,
+      element: <RegisteredLayout user={user} />,
+      children: forumRoutes,
+    },
+    {
+      path: RouteConfig.QA_MANAGEMENT,
+      element: <RegisteredLayout user={user} />,
+      children: qaRoutes,
+    },
   ];
 
   const routesElement = useRoutes(appRoutes);

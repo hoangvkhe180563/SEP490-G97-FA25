@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { AuthState } from "../interfaces/stores";
 import { axiosInstance, axiosMessageErrorHandler } from "@/lib/axios";
+import type { AppUser } from "../interfaces/app-user";
 
 export const useAuthStore = create<AuthState>()(
   devtools(
@@ -30,7 +31,7 @@ export const useAuthStore = create<AuthState>()(
         username: string,
         email: string,
         password: string,
-        handlerSuccess: () => void
+        handlerSuccess: (data: AppUser) => void
       ) => {
         set({
           isLoading: true,
@@ -52,7 +53,7 @@ export const useAuthStore = create<AuthState>()(
             loginMessage: data.message,
           });
           if (data.success) {
-            handlerSuccess();
+            handlerSuccess(data.data);
           }
         } catch (error: unknown) {
           set({

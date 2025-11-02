@@ -90,7 +90,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var user = await _userService.CreateAccountAsync(req.Email, req.Password, req.Username, req.RoleIds, req.CommuneId, req.SchoolId, req.Fullname, req.AvatarFile, req.Gender);
+                var user = await _userService.CreateAccountAsync(req.Email, req.Password, req.Username, req.RoleIds, req.CommuneId, req.SchoolId, req.Fullname, req.AvatarFile, req.Gender, req.Address, req.PhoneNumber);
 
                 // map to dto
                 var roles = _roleService.GetRolesByUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
@@ -101,6 +101,11 @@ namespace StudyHub.Backend.Api.Controllers
                 var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id, province?.Id);
 
                 return Ok(new { Success = true, Data = dto });
+            }
+            catch (InvalidFieldException ex)
+            {
+                // business rule error (e.g., duplicate email/username)
+                return BadRequest(new { Success = false, Message = ex.Errors });
             }
             catch (InvalidOperationException ex)
             {
@@ -122,7 +127,7 @@ namespace StudyHub.Backend.Api.Controllers
             try
             {
 
-                var user = await _userService.EditAccountAsync(id, req.Email, req.Username, req.Fullname, req.CommuneId, req.Status, req.AvatarFile, req.Gender, req.RoleIds, req.SchoolId);
+                var user = await _userService.EditAccountAsync(id, req.Email, req.Username, req.Fullname, req.CommuneId, req.Status, req.AvatarFile, req.Gender, req.RoleIds, req.SchoolId, req.Address, req.PhoneNumber);
                 if (user == null) return NotFound(new { Success = false, Message = "Người dùng không tìm thấy" });
 
                 var roles = _roleService.GetRolesByUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
@@ -134,9 +139,13 @@ namespace StudyHub.Backend.Api.Controllers
 
                 return Ok(new { Success = true, Data = dto });
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidFieldException ex)
             {
                 // business rule error (e.g., duplicate email/username)
+                return BadRequest(new { Success = false, Message = ex.Errors });
+            }
+            catch (InvalidOperationException ex)
+            {
                 return BadRequest(new { Success = false, Message = ex.Message });
             }
             catch (Exception ex)
@@ -152,7 +161,7 @@ namespace StudyHub.Backend.Api.Controllers
             try
             {
                 var currentUser = _authService.GetCurrentUser();
-                var user = await _userService.UpdateProfile(currentUser, req.Email, req.Username, req.Fullname, req.CommuneId, req.OldPassword, req.NewPassword, req.AvatarFile, req.Gender, req.SchoolId);
+                var user = await _userService.UpdateProfile(currentUser, req.Email, req.Username, req.Fullname, req.CommuneId, req.OldPassword, req.NewPassword, req.AvatarFile, req.Gender, req.SchoolId, req.Address, req.PhoneNumber);
                 if (user == null) return NotFound(new { Success = false, Message = "Người dùng không tìm thấy" });
 
                 var roles = _roleService.GetRolesByUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();

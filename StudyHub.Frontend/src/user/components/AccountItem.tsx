@@ -38,7 +38,9 @@ const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
             <AvatarFallback>{createFallBack(user.fullname)}</AvatarFallback>
           </Avatar>
           <div>
-            <div className="font-medium text-gray-900">{user.fullname}</div>
+            <Link to={`/user/manager/update-account/${user.id}`}>
+              <div className="font-medium text-gray-900">{user.fullname}</div>
+            </Link>
             <div className="text-sm text-gray-500">{user.email}</div>
           </div>
         </div>

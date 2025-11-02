@@ -262,6 +262,53 @@ const EditLecture: React.FC = () => {
 
   // === Save (Update) ===
   const handleSave = async () => {
+    // validate before save
+    const errors: string[] = [];
+    if (!selectedChapterId) errors.push("Vui lòng chọn chương cho bài giảng.");
+    if (!title || !title.trim()) errors.push("Tiêu đề bài giảng là bắt buộc.");
+
+    if (type === "video") {
+      if (!useEmbed) {
+        if (!videoUrl || !videoUrl.trim())
+          errors.push("Vui lòng cung cấp URL video hoặc chọn Embed.");
+        else {
+          try {
+            // quick URL validity
+            new URL(videoUrl);
+          } catch (e) {
+            errors.push("URL video không hợp lệ.");
+          }
+        }
+      } else {
+        if (!embedSrc || !embedSrc.trim())
+          errors.push("Vui lòng dán link nhúng (embed) hợp lệ.");
+      }
+    } else {
+      const cleaned = (readingContent || "").replace(/<(.|\n)*?>/g, "").trim();
+      if (!cleaned) errors.push("Nội dung đọc không được để trống.");
+    }
+
+    if (duration && Number.isNaN(Number(duration)))
+      errors.push("Thời lượng phải là một số hợp lệ (phút).");
+
+    if (postDate && isNaN(new Date(postDate).getTime()))
+      errors.push("Ngày đăng không hợp lệ.");
+
+    if (resourceFile) {
+      const maxBytes = 50 * 1024 * 1024; // 50MB
+      if (resourceFile.size > maxBytes)
+        errors.push("Tài nguyên quá lớn. Kích thước tối đa 50MB.");
+    }
+
+    if (errors.length) {
+      setDialog({
+        open: true,
+        title: "Thiếu hoặc sai thông tin",
+        message: errors.join("\n"),
+      });
+      return;
+    }
+
     setSaving(true);
     try {
       const dto = {

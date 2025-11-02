@@ -13,6 +13,9 @@ namespace StudyHub.Backend.UseCases.Repositories
         public void CreateUser(AppUser user, IEnumerable<Guid>? roleIds = null);
         public void UpdateUser(AppUser user, IEnumerable<Guid>? roleIds = null);
 
+    // Get all users who have a teacher-related role (role name contains "teacher")
+    public List<AppUser> GetQATeachers();
+
     // get user-specific subject/class assignments
         public List<AppUserSubjectClass> GetClaimsForUser(Guid userId);
         // helper to get related names

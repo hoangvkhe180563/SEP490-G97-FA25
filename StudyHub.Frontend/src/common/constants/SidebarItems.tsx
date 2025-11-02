@@ -1,13 +1,16 @@
 import {
   BookOpen,
-  FileQuestionMark,
+  FilePen,
   LayoutDashboard,
   LibraryBig,
+  MessageCircleQuestionMark,
+  MessageSquare,
+  NotebookPen,
   Users,
 } from "lucide-react";
 import type { ISidebarItem } from "../interfaces/IMainLayoutProps";
 
-export const guestSidebarItems: ISidebarItem[] = [
+export const studentSidebarItems: ISidebarItem[] = [
   {
     icon: <LayoutDashboard size={20} />,
     text: "Trang chủ",
@@ -16,90 +19,30 @@ export const guestSidebarItems: ISidebarItem[] = [
   {
     icon: <LibraryBig size={20} />,
     text: "Tài liệu",
-    link: "",
-    children: [
-      {
-        icon: <BookOpen size={20} />,
-        text: "Sách giáo khoa",
-        link: "/document/textbooks",
-      },
-      {
-        icon: <FileQuestionMark size={20} />,
-        text: "Sách tham khảo",
-        link: "/document/references",
-      },
-    ],
+    link: "/document/textbooks",
   },
   {
     icon: <BookOpen size={20} />,
     text: "Khóa học",
-    link: "/courses",
+    link: "/course/student/courses",
   },
   {
-    icon: <Users size={20} />,
-    text: 'Lớp học của tôi',
-    link: '/class'
-  }
-]
-
-export const uiManagerSidebarItems: ISidebarItem[] = [
-  {
-    icon: <LayoutDashboard size={20} />,
-    text: "Trang chủ",
-    link: "",
-    children: [
-      {
-        icon: <LayoutDashboard size={20} />,
-        text: "Giao diện",
-        link: "/",
-      },
-      {
-        icon: <Users size={20} />,
-        text: "Tùy chỉnh giao diện",
-        link: "/ui/landing-pages",
-      },
-    ],
+    icon: <MessageCircleQuestionMark size={20} />,
+    text: "Hỏi đáp",
+    link: "/qa/student/conversations",
   },
 ];
 
 export const schoolStudentSidebarItems: ISidebarItem[] = [
   {
-    icon: <LayoutDashboard size={20} />,
-    text: "Trang chủ",
-    link: "/",
-  },
-  {
-    icon: <LibraryBig size={20} />,
-    text: "Tài liệu",
-    link: "/document/textbooks",
-  },
-  {
-    icon: <BookOpen size={20} />,
-    text: "Khóa học",
-    link: "/courses",
-  },
-  {
     icon: <Users size={20} />,
     text: "Lớp học của tôi",
     link: "/class",
   },
-];
-
-export const externalStudentSidebarItems: ISidebarItem[] = [
   {
-    icon: <LayoutDashboard size={20} />,
-    text: "Trang chủ",
-    link: "/",
-  },
-  {
-    icon: <LibraryBig size={20} />,
-    text: "Tài liệu",
-    link: "/document/textbooks",
-  },
-  {
-    icon: <BookOpen size={20} />,
-    text: "Khóa học",
-    link: "/courses",
+    icon: <MessageSquare size={20} />,
+    text: "Forum",
+    link: "/forum",
   },
 ];
 
@@ -117,27 +60,34 @@ export const teacherSidebarItems: ISidebarItem[] = [
   {
     icon: <BookOpen size={20} />,
     text: "Khóa học",
-    link: "/courses",
+    link: "/course/teacher/courses",
   },
   {
     icon: <Users size={20} />,
     text: "Lớp học của tôi",
     link: "/class",
   },
+  {
+    icon: <MessageSquare size={20} />,
+    text: "Forum",
+    link: "/forum",
+  },
+  {
+    icon: <MessageCircleQuestionMark size={20} />,
+    text: "Các câu hỏi từ học sinh",
+    link: "/qa/teacher/conversations",
+  },
 ];
 
-export const headOfDepartmentSidebarItems: ISidebarItem[] = [
+export const headOfDepartmentTeacherSidebarItems: ISidebarItem[] = [
   {
-    icon: <LayoutDashboard size={20} />,
-    text: "Trang chủ",
-    link: "/",
-  },
-  {
-    icon: <BookOpen size={20} />,
+    icon: <NotebookPen size={20} />,
     text: "Duyệt khoá học",
-    link: "/courses",
+    link: "/course/teacher/approve-courses",
   },
 ];
+
+export const qAndATeacherSidebarItems: ISidebarItem[] = [];
 
 export const documentManagerSidebarItems: ISidebarItem[] = [
   {
@@ -151,6 +101,18 @@ export const documentManagerSidebarItems: ISidebarItem[] = [
     link: "/documents",
   },
 ];
+
+export const questionManagerSidebarItems: ISidebarItem[] = [
+  {
+    icon: <FilePen size={20} />,
+    text: "Quản lý bài kiểm tra",
+    link: "/",
+  },
+];
+
+export const financialManagerSidebarItems: ISidebarItem[] = [];
+
+export const uiManagerSidebarItems: ISidebarItem[] = [];
 
 export const moderatorSidebarItems: ISidebarItem[] = [
   {
@@ -170,7 +132,7 @@ export const moderatorSidebarItems: ISidebarItem[] = [
   },
 ];
 
-export const schoolManagerSidebarItems: ISidebarItem[] = [
+export const schoolAdminSidebarItems: ISidebarItem[] = [
   {
     icon: <LayoutDashboard size={20} />,
     text: "Trang chủ",

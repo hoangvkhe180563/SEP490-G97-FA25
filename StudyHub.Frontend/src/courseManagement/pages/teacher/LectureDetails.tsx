@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/common/components/ui/card";
-import { ArrowLeft, Bookmark, Download, File } from "lucide-react";
+import { ArrowLeft, File } from "lucide-react";
 import type { AppUser } from "@/auth/interfaces/app-user";
 import type { CourseListDto } from "@/courseManagement/types/api";
 
@@ -132,19 +132,6 @@ const LectureDetails: React.FC = () => {
               ? new Date(currentLesson.postDate).toLocaleDateString()
               : "Chưa cập nhật"}
           </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {resources.length > 0 && (
-            <Button variant="outline" asChild>
-              <a href={resources[0].url} download>
-                <Download className="w-4 h-4 mr-2" /> Tải xuống
-              </a>
-            </Button>
-          )}
-          <Button variant="outline">
-            <Bookmark className="w-4 h-4 mr-2" /> Đánh dấu
-          </Button>
         </div>
       </div>
 

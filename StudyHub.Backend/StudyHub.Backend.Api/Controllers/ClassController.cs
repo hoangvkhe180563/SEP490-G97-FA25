@@ -25,10 +25,10 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly AppRoleService _aRoleService;
         private readonly LocationService _locationService;
         private readonly IConfiguration _config;
-        private readonly IEmailService _emailService;
+        private readonly SmtpEmailService _emailService;
         private readonly IHubContext<ClassNotificationHub> _hubContext;
 
-        public ClassController(ClassService service, AppUserService aUserService, AppRoleService aRoleService, LocationService locationService, IConfiguration config, IEmailService emailService, IHubContext<ClassNotificationHub> hubContext)
+        public ClassController(ClassService service, AppUserService aUserService, AppRoleService aRoleService, LocationService locationService, IConfiguration config, SmtpEmailService emailService, IHubContext<ClassNotificationHub> hubContext)
         {
             _service = service;
             _aUserService = aUserService;
@@ -417,8 +417,8 @@ namespace StudyHub.Backend.Api.Controllers
 
         public class CreateCommentDto
         {
-            public string Content { get; set; } = string.Empty; // HTML allowed
-            public Guid CreatedBy { get; set; } // optional if you use auth, but keep for now
+            public string Content { get; set; } = string.Empty;
+            public Guid CreatedBy { get; set; }
         }
 
         [HttpPost("notifications/{notificationId}/comments")]

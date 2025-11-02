@@ -32,11 +32,22 @@ import { useLocationStore } from "@/user/stores/useLocationStore";
 import { createFallBack } from "@/user/utils/avatarUtils";
 import toast from "react-hot-toast";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import type { UpdateProfileDto } from "../interfaces/dtos";
+import { isValidVietnamPhone } from "../utils/phoneUtils";
+
+// Vietnam phone validator
 
 const profileSchema = z
   .object({
     email: z.string().email("Định dạng email không hợp lệ").optional(),
     username: z.string().optional(),
+    address: z.string().optional(),
+    phoneNumber: z
+      .string()
+      .optional()
+      .refine((v) => !v || isValidVietnamPhone(v), {
+        message: "Số điện thoại không hợp lệ",
+      }),
     fullname: z.string().optional(),
     communeId: z.union([z.string(), z.number()]).optional(),
     cityId: z.string().optional(),
@@ -90,6 +101,8 @@ export default function UpdateProfile() {
     defaultValues: {
       email: "",
       username: "",
+      address: "",
+      phoneNumber: "",
       fullname: "",
       cityId: undefined,
       provinceId: undefined,
@@ -119,6 +132,8 @@ export default function UpdateProfile() {
         email: user.email ?? "",
         username: user.username ?? "",
         fullname: user.fullname ?? user.username ?? "",
+        address: (user as any)?.address ?? "",
+        phoneNumber: (user as any)?.phoneNumber ?? "",
         cityId: user.cityId ? String(user.cityId) : undefined,
         provinceId: user.provinceId ? String(user.provinceId) : undefined,
         communeId: user.communeId ? String(user.communeId) : undefined,
@@ -189,7 +204,7 @@ export default function UpdateProfile() {
   };
 
   const onSubmit = async (data: FormValues) => {
-    const dto: any = {};
+    const dto: UpdateProfileDto = {};
     if (data.email) dto.email = data.email;
     if (data.username) dto.username = data.username;
     if (data.fullname) dto.fullname = data.fullname;
@@ -226,6 +241,9 @@ export default function UpdateProfile() {
     };
 
     try {
+      if (data.address) dto.address = data.address;
+      if (data.phoneNumber) dto.phoneNumber = data.phoneNumber;
+
       const res = await updateProfile(dto);
       const body = res?.data ?? res;
       if (body?.success ?? true) {
@@ -347,6 +365,20 @@ export default function UpdateProfile() {
 
             <FormField
               control={form.control}
+              name="phoneNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Số điện thoại</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Số điện thoại" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="gender"
               render={({ field }) => (
                 <FormItem>
@@ -356,7 +388,7 @@ export default function UpdateProfile() {
                       onValueChange={(v) => field.onChange(v)}
                       value={field.value ?? undefined}
                     >
-                      <SelectTrigger className="w-1/2 mt-1">
+                      <SelectTrigger className="w-full mt-1">
                         {field.value === undefined && "Chọn giới tính"}
                         {field.value === "1" && "Nam"}
                         {field.value === "0" && "Nữ"}
@@ -371,6 +403,22 @@ export default function UpdateProfile() {
                 </FormItem>
               )}
             />
+            {/* address moved down and spans two columns */}
+            <div className="col-span-2">
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Địa chỉ</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Địa chỉ" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}

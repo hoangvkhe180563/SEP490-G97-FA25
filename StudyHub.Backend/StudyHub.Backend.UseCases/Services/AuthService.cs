@@ -22,14 +22,14 @@ namespace StudyHub.Backend.UseCases.Services
 
         public IAppUserRepository _userRepository;
         public IAppRoleRepository _roleRepository;
-        public IEmailService _emailService;
+        public SmtpEmailService _emailService;
         public IHttpContextAccessor _httpContextAccessor;
         private readonly IConfiguration _configuration;
         private const int SALT_ROUNDS = 12; // BCrypt salt rounds for hashing
         private const int DEFAULT_EXPIRES_MINUTES = 60; // default 60 minutes
         private const int DEFAULT_REFRESH_EXPIRES_MINUTES = 60 * 24 * 7; // default 7 days
 
-        public AuthService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, IEmailService emailService, IHttpContextAccessor httpContextAccessor, IConfiguration configuration)
+        public AuthService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, SmtpEmailService emailService, IHttpContextAccessor httpContextAccessor, IConfiguration configuration)
         {
             _userRepository = userRepository;
             _roleRepository = roleRepository;

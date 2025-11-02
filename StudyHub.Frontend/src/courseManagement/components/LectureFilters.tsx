@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import type { ChapterListDto, LessonListDto } from "../types/api";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
+import RouteConfig from "@/common/constants/RouteConfig";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const LectureFilters: React.FC = () => {
   const { courseId } = useParams();
@@ -21,29 +22,35 @@ const LectureFilters: React.FC = () => {
     if (cid) fetchChapters(cid);
   }, [cid, fetchChapters]);
 
-  const currentUser = useAppUserStore((s) => s.appUser);
+  const authUser = useAuthStore((s) => s.user);
   const fetchEnrollmentsByUser = useEnrollmentStore((s) => s.fetchByUser);
-  const getEnrollmentForCourse = useEnrollmentStore(
-    (s) => s.getEnrollmentForCourse
-  );
+
   const enrollAction = useEnrollmentStore((s) => s.enroll);
   const fetchProgresses = useEnrollmentStore((s) => s.fetchProgresses);
   const getLessonCompleted = useEnrollmentStore((s) => s.getLessonCompleted);
   // subscribe to progresses map so component re-renders when progresses update
   const progresses = useEnrollmentStore((s) => s.progresses);
-  const [enrollment, setEnrollment] = useState<any | null>(null);
+
+  const enrollment = useEnrollmentStore((s) => s.getEnrollmentForCourse(cid));
+
+  const enrollmentsLoaded = useEnrollmentStore((s: any) =>
+    Array.isArray(s.enrollments) ? s.enrollments.length > 0 : false
+  );
 
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!authUser?.id) return;
+
     (async () => {
       try {
-        await fetchEnrollmentsByUser(String(currentUser.id));
-        const found = getEnrollmentForCourse(cid);
-        setEnrollment(found);
-        // if already enrolled, fetch progresses to populate completion map
-        if (found?.id) {
+        // fetch enrollments if not already loaded globally
+        if (!enrollmentsLoaded) {
+          await fetchEnrollmentsByUser(String(authUser.id));
+        }
+
+        // if we already have an enrollment for this course, ensure progresses are loaded
+        if (enrollment?.id) {
           try {
-            await fetchProgresses(found.id);
+            await fetchProgresses(enrollment.id);
           } catch {
             // ignore
           }
@@ -53,10 +60,11 @@ const LectureFilters: React.FC = () => {
       }
     })();
   }, [
-    currentUser?.id,
+    authUser?.id,
     fetchEnrollmentsByUser,
-    getEnrollmentForCourse,
+    enrollment,
     cid,
+    enrollmentsLoaded,
     fetchProgresses,
   ]);
 
@@ -64,10 +72,11 @@ const LectureFilters: React.FC = () => {
     setOpenChapters((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-4">
-      {/* Enroll CTA when logged in but not enrolled */}
-      {currentUser && !enrollment && (
+      {!enrollment ? (
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 flex flex-col items-center text-center">
           <h3 className="text-base font-semibold text-gray-900">
             Bạn chưa đăng ký khóa học này
@@ -79,16 +88,19 @@ const LectureFilters: React.FC = () => {
           <button
             onClick={async () => {
               try {
-                if (!currentUser?.id) return;
-                await enrollAction({
-                  appUserId: String(currentUser.id),
+                if (!authUser?.id) {
+                  // not logged in -> go to login
+                  navigate(`${RouteConfig.AUTH}/login`);
+                  return;
+                }
+                const created = await enrollAction({
+                  appUserId: String(authUser.id),
                   courseId: cid,
                 });
-                const found = getEnrollmentForCourse(cid);
-                setEnrollment(found);
-                if (found?.id) {
+                // enrollAction appends the created enrollment into the store; ensure progresses are loaded
+                if (created?.id) {
                   try {
-                    await fetchProgresses(found.id);
+                    await fetchProgresses(created.id);
                   } catch {
                     // ignore
                   }
@@ -102,44 +114,48 @@ const LectureFilters: React.FC = () => {
             Đăng ký ngay
           </button>
         </div>
-      )}
+      ) : (
+        <div className="bg-white rounded-2xl p-4 shadow border border-gray-100">
+          <div className="text-sm font-medium text-gray-800">
+            {useCourseStore.getState().selectedCourse?.name ?? "Khóa học"}
+          </div>
 
-      <div className="bg-white rounded-2xl p-4 shadow border border-gray-100">
-        <div className="text-sm font-medium text-gray-800">
-          {useCourseStore.getState().selectedCourse?.name ?? "Khóa học"}
+          <div className="text-xs text-gray-500 mt-2">
+            Tiến độ:{" "}
+            {(() => {
+              const allLessons: any[] = chapters.flatMap(
+                (c) => c.lessons ?? []
+              );
+              const total = allLessons.length;
+              const completed = allLessons.filter((l) =>
+                Boolean(progresses?.[Number(l.id)])
+              ).length;
+              const pct =
+                total === 0 ? 0 : Math.round((completed / total) * 100);
+              return `${pct}%`;
+            })()}
+          </div>
+          <div className="w-full bg-gray-100 h-2 rounded mt-3 overflow-hidden">
+            <div
+              className="bg-black h-2 rounded"
+              style={{
+                width: `${(() => {
+                  const allLessons: any[] = chapters.flatMap(
+                    (c) => c.lessons ?? []
+                  );
+                  const total = allLessons.length;
+                  const completed = allLessons.filter((l) =>
+                    Boolean(progresses?.[Number(l.id)])
+                  ).length;
+                  const pct =
+                    total === 0 ? 0 : Math.round((completed / total) * 100);
+                  return pct;
+                })()}%`,
+              }}
+            />
+          </div>
         </div>
-        <div className="text-xs text-gray-500 mt-2">
-          Tiến độ:{" "}
-          {(() => {
-            const allLessons: any[] = chapters.flatMap((c) => c.lessons ?? []);
-            const total = allLessons.length;
-            const completed = allLessons.filter((l) =>
-              Boolean(progresses?.[Number(l.id)])
-            ).length;
-            const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
-            return `${pct}%`;
-          })()}
-        </div>
-        <div className="w-full bg-gray-100 h-2 rounded mt-3 overflow-hidden">
-          <div
-            className="bg-black h-2 rounded"
-            style={{
-              width: `${(() => {
-                const allLessons: any[] = chapters.flatMap(
-                  (c) => c.lessons ?? []
-                );
-                const total = allLessons.length;
-                const completed = allLessons.filter((l) =>
-                  Boolean(progresses?.[Number(l.id)])
-                ).length;
-                const pct =
-                  total === 0 ? 0 : Math.round((completed / total) * 100);
-                return pct;
-              })()}%`,
-            }}
-          />
-        </div>
-      </div>
+      )}
 
       {chapters.map((ch) => {
         const isOpen = !!openChapters[ch.id];

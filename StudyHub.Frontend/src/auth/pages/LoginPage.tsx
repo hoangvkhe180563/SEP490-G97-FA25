@@ -30,7 +30,6 @@ export default function LoginPage() {
     isLoading,
     loginError,
     loginMessage,
-    user,
     isAuthenticated,
     sendEmailVerification,
     getGoogleRedirectURL,
@@ -70,9 +69,9 @@ export default function LoginPage() {
   }, [getGoogleRedirectURL]);
 
   // separate effect: navigate to home when auth becomes available
-  React.useEffect(() => {
-    if (isAuthenticated && user) navigate("/");
-  }, [isAuthenticated, user, navigate]);
+  // React.useEffect(() => {
+  //   if (isAuthenticated && user) navigate("/");
+  // }, [isAuthenticated, user, navigate]);
 
   const { handleSubmit, control } = form;
 
@@ -81,12 +80,24 @@ export default function LoginPage() {
     const identifier = data.identifier.trim();
     const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
     if (emailRegex.test(identifier)) {
-      await login("", identifier, data.password, () => {
-        navigate("/");
+      await login("", identifier, data.password, (user) => {
+        if (user) {
+          if (user.schoolId !== null) {
+            navigate(`/ui/${user?.schoolId}/landing`);
+            return;
+          }
+        }
+        navigate("/")
       });
     } else {
-      await login(identifier, "", data.password, () => {
-        navigate("/");
+      await login(identifier, "", data.password, (user) => {
+        if (user) {
+          if (user.schoolId !== null) {
+            navigate(`/ui/${user?.schoolId}/landing`);
+            return;
+          }
+        }
+        navigate("/")
       });
     }
     setLastIdentifier(identifier);

@@ -46,6 +46,15 @@ import {
   AlertDialogAction,
 } from "@/common/components/ui/alert-dialog";
 import { createFallBack } from "@/user/utils/avatarUtils";
+import type { EditAccountDto } from "@/user/interfaces/dtos";
+
+// Vietnam phone validator
+const isValidVietnamPhone = (s?: string | null) => {
+  if (!s) return false;
+  const v = String(s).replace(/\s|-/g, "");
+  const re = /^(?:\+84|0)(?:3|5|7|8|9)\d{8}$/;
+  return re.test(v);
+};
 
 const schema = z.object({
   email: z.string().email("Invalid email").optional(),
@@ -57,10 +66,17 @@ const schema = z.object({
   schoolId: z.string().optional(),
   roleIds: z.array(z.string()).optional(),
   gender: z.union([z.literal("0"), z.literal("1"), z.literal("2")]).optional(),
+  address: z.string().optional(),
+  phoneNumber: z
+    .string()
+    .optional()
+    .refine((v) => !v || isValidVietnamPhone(v), {
+      message: "Số điện thoại không hợp lệ",
+    }),
   status: z.boolean().optional(),
 });
 
-type FormValues = z.infer<typeof schema> & { photo?: File | null };
+type FormValues = z.infer<typeof schema> & { avatar?: File | null };
 
 const UpdateAccount: React.FC = () => {
   const navigate = useNavigate();
@@ -98,6 +114,8 @@ const UpdateAccount: React.FC = () => {
     roleIds: [] as string[],
     gender: undefined as any,
     status: true,
+    address: "",
+    phoneNumber: "",
   };
 
   const form = useForm<FormValues>({
@@ -112,9 +130,31 @@ const UpdateAccount: React.FC = () => {
     reset,
     setValue,
     watch,
+    setError,
     getValues,
-    formState: { isSubmitting },
+    formState,
   } = form;
+
+  const mapBackendKeyToField = (key: string) => {
+    const k = key || "";
+    if (k.toLowerCase() === "avatar" || k.toLowerCase() === "avatarfile")
+      return "avatar";
+    return k.charAt(0).toLowerCase() + k.slice(1);
+  };
+
+  const handleMessage = (msg: any) => {
+    if (msg && typeof msg === "object") {
+      Object.entries(msg).forEach(([k, v]) => {
+        const field = mapBackendKeyToField(k);
+        const messageText = Array.isArray(v) ? v.join(", ") : String(v ?? "");
+        try {
+          setError(field as any, { type: "server", message: messageText });
+        } catch (e) {
+          toast.error(messageText || "Cập nhật thất bại");
+        }
+      });
+    }
+  };
 
   const selectedRoles = watch("roleIds") || [];
 
@@ -265,10 +305,11 @@ const UpdateAccount: React.FC = () => {
       return raw;
     });
 
-    const dto: any = {};
+    const dto: EditAccountDto = {};
     if (data.email) dto.email = data.email;
     if (data.username) dto.username = data.username;
     if (data.fullname) dto.fullname = data.fullname;
+    if (data.phoneNumber) dto.phoneNumber = data.phoneNumber;
     if (typeof data.communeId !== "undefined" && data.communeId !== undefined)
       dto.communeId = Number(data.communeId);
     if (typeof data.schoolId !== "undefined" && data.schoolId !== undefined)
@@ -278,17 +319,20 @@ const UpdateAccount: React.FC = () => {
       dto.gender = Number((data as any).gender);
     if (typeof data.status !== "undefined") dto.status = Boolean(data.status);
     if (file) dto.avatarFile = file;
+    if (data.address) dto.address = data.address;
 
-    await updateAccount(
-      id,
-      dto,
-      (message?: string) => {
-        if (message) toast.success(message);
-      },
-      (message?: string) => {
-        if (message) toast.error(message);
+    try {
+      const res = await updateAccount(id, dto);
+      const body = (res as any)?.data ?? res;
+      if (body?.success ?? body?.Success ?? false) {
+        toast.success(body?.message ?? "Cập nhật tài khoản thành công");
+      } else {
+        handleMessage(body?.message ?? body);
       }
-    );
+    } catch (err: any) {
+      const body = err?.response?.data ?? err?.data ?? err;
+      handleMessage(body?.message ?? err?.message ?? body);
+    }
   };
 
   const handleConfirmToggle = async () => {
@@ -333,7 +377,7 @@ const UpdateAccount: React.FC = () => {
     <Form {...form}>
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="bg-white rounded-xl p-6 shadow-md space-y-6"
+        className="bg-white rounded-xl p-6 shadow-md space-y-6 max-h-screen overflow-auto"
       >
         <div className="flex items-center gap-6">
           <div className="relative">
@@ -344,13 +388,13 @@ const UpdateAccount: React.FC = () => {
               </AvatarFallback>
             </Avatar>
             <div className="absolute bottom-0 right-0">
-              <label htmlFor="photo" className="cursor-pointer">
+              <label htmlFor="avatar" className="cursor-pointer">
                 <div className="bg-white border rounded-full p-1 shadow">
                   <Camera className="size-4" />
                 </div>
               </label>
               <input
-                id="photo"
+                id="avatar"
                 type="file"
                 accept="image/*"
                 onChange={onFileChange}
@@ -390,6 +434,11 @@ const UpdateAccount: React.FC = () => {
             </div>
           </div>
         </div>
+        {formState.errors?.avatar?.message && (
+          <p className="text-sm text-red-600 mt-2">
+            {String(formState.errors.avatar.message)}
+          </p>
+        )}
 
         <div className="col-span-3 grid grid-cols-2 gap-6">
           <FormField
@@ -418,6 +467,20 @@ const UpdateAccount: React.FC = () => {
                 </FormLabel>
                 <FormControl>
                   <Input {...field} placeholder="Tên đăng nhập" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="phoneNumber"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Số điện thoại</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="Số điện thoại" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -471,6 +534,22 @@ const UpdateAccount: React.FC = () => {
               </FormItem>
             )}
           />
+
+          <div className="col-span-2">
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Địa chỉ</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Địa chỉ" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -729,7 +808,7 @@ const UpdateAccount: React.FC = () => {
             <Button
               type="submit"
               className="bg-black text-white"
-              disabled={isSubmitting}
+              disabled={formState.isSubmitting}
             >
               Cập nhật
             </Button>
