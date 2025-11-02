@@ -450,7 +450,7 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("my-class/{userid:guid}")]
         public IActionResult GetClassByUserId(Guid userid)
         {
-            var classes = _classService.GetAllClassByUserId(userid);
+            var classes = _classService.GetClassByUserId(userid);
             var subjects = _classService.GetSubjects();
             var teachers = _classService.GetTeachers();
 
