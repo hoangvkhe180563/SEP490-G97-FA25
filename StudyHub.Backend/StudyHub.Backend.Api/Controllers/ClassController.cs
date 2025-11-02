@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Api.Dtos.ClassDTOS;
 using StudyHub.Backend.Api.Dtos.ClassworkDTOS;
+using StudyHub.Backend.Api.Hubs;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.Api.Services;
 using StudyHub.Backend.Domain.Entities;
@@ -23,17 +25,21 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly AppRoleService _aRoleService;
         private readonly LocationService _locationService;
         private readonly IConfiguration _config;
-        private readonly IEmailService _emailService;
+        private readonly SmtpEmailService _emailService;
+        private readonly IHubContext<ClassNotificationHub> _hubContext;
+        private readonly ClassNotificationService _classNotificationService;
 
 
-        public ClassController(ClassService service, AppUserService aUserService, AppRoleService aRoleService, LocationService locationService, IEmailService emailService, IConfiguration config)
+        public ClassController(ClassService service, AppUserService aUserService, AppRoleService aRoleService, LocationService locationService, SmtpEmailService emailService, IConfiguration config, IHubContext<ClassNotificationHub> hubContext, ClassNotificationService classNotificationService)
         {
             _service = service;
             _aUserService = aUserService;
             _aRoleService = aRoleService;
             _locationService = locationService;
-            _emailService = emailService;
             _config = config;
+            _emailService = emailService;
+            _hubContext = hubContext;
+            _classNotificationService = classNotificationService;
         }
 
         [HttpGet]
@@ -140,13 +146,13 @@ namespace StudyHub.Backend.Api.Controllers
             if (cls == null)
                 return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
 
-            var notificationsEntities = _service.GetClassNotifications(id);
+            var notificationsEntities = _classNotificationService.GetClassNotifications(id);
 
             var notifications = notificationsEntities
                 .Select(n =>
                 {
-                    var files = _service.GetFileByNotificationId(n.Id);
-                    var comments = _service.GetCommentsByNotificationId(n.Id);
+                    var files = _classNotificationService.GetFileByNotificationId(n.Id);
+                    var comments = _classNotificationService.GetCommentsByNotificationId(n.Id);
 
                     return n.ToNotificationDto(
                         _aUserService.GetUserById(n.AppUserId),

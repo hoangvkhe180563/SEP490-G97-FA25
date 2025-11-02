@@ -3,6 +3,7 @@ import {
   FilePen,
   LayoutDashboard,
   LibraryBig,
+  MessageCircleQuestionMark,
   MessageSquare,
   NotebookPen,
   Users,
@@ -24,6 +25,11 @@ export const studentSidebarItems: ISidebarItem[] = [
     icon: <BookOpen size={20} />,
     text: "Khóa học",
     link: "/course/student/courses",
+  },
+  {
+    icon: <MessageCircleQuestionMark size={20} />,
+    text: "Hỏi đáp",
+    link: "/qa/student/conversations",
   },
 ];
 
@@ -67,6 +73,11 @@ export const teacherSidebarItems: ISidebarItem[] = [
     text: "Forum",
     link: "/forum/student/forums",
     childrenLinks: ["/forum/student/forums", "/forum/student/forums/details"],
+  },
+  {
+    icon: <MessageCircleQuestionMark size={20} />,
+    text: "Các câu hỏi từ học sinh",
+    link: "/qa/teacher/conversations",
   },
 ];
 

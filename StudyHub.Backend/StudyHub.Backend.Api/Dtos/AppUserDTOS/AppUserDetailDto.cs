@@ -14,6 +14,7 @@ namespace StudyHub.Backend.Api.Dtos.AppUserDTOS
         public bool? Gender { get; set; }
         public string? Avatar { get; set; }
         public string? Address { get; set; }
+    public string? PhoneNumber { get; set; }
         public bool? Status { get; set; } // Active/Inactive
         public string CreatedAt { get; set; } = null!;
         public string? UpdatedAt { get; set; }
