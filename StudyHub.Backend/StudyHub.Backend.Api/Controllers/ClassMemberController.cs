@@ -10,13 +10,14 @@ namespace StudyHub.Backend.Api.Controllers
     [ApiController]
     public class ClassMemberController : ControllerBase
     {
-        private readonly ClassService _service;
+        private readonly ClassMemberService _service;
+        private readonly ClassService _classService;
         private readonly AppUserService _aUserService;
         private readonly AppRoleService _aRoleService;
         private readonly LocationService _locationService;
         private readonly IEmailService _emailService;
         private readonly IConfiguration _config;
-        public ClassMemberController(ClassService service, AppUserService aUserService, AppRoleService aRoleService, LocationService locationService, IEmailService emailService, IConfiguration config)
+        public ClassMemberController(ClassMemberService service, AppUserService aUserService, AppRoleService aRoleService, LocationService locationService, IEmailService emailService, IConfiguration config, ClassService classService)
         {
             _service = service;
             _aUserService = aUserService;
@@ -24,11 +25,12 @@ namespace StudyHub.Backend.Api.Controllers
             _locationService = locationService;
             _emailService = emailService;
             _config = config;
+            _classService = classService;
         }
         [HttpGet]
         public IActionResult GetMembers(int classId)
         {
-            var cls = _service.GetClassById(classId);
+            var cls = _classService.GetClassById(classId);
             if (cls == null) return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
 
             var membersEntities = _service.GetClassMembers(classId);
@@ -52,7 +54,7 @@ namespace StudyHub.Backend.Api.Controllers
             if (request?.Emails == null || request.Emails.Count == 0)
                 return BadRequest(new { success = false, message = "Cần cung cấp ít nhất một email để mời." });
 
-            var cls = _service.GetClassById(classId);
+            var cls = _classService.GetClassById(classId);
             if (cls == null) return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
 
             var baseFrontendUrl = _config["App:BaseUrl"]?.TrimEnd('/') ?? $"{Request.Scheme}://{Request.Host}";
