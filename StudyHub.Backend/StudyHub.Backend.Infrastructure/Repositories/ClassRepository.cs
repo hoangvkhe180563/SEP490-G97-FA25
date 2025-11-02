@@ -5,6 +5,7 @@ using StudyHub.Backend.UseCases.Repositories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -22,14 +23,28 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
+                
                 var classentity = new Data.Class
                 {
-                    Id = classEntity.Id,
                     Name = classEntity.Name,
                     Description = classEntity.Description,
                     CreatedBy = classEntity.CreatedBy,
                 };
-                _context.Classes.Add(classentity);
+                var addedclass=_context.Classes.Add(classentity);
+                _context.SaveChanges();
+                classEntity.Id = addedclass.Entity.Id;
+                var classSubjectUserEntity = new Data.AppUserSubjectClass
+                {
+                    UserId = classEntity.CreatedBy,
+                    SubjectId = 1,
+                    ClassId = classEntity.Id,
+                    JoinDate = DateTime.Now,
+                    Status = "joined"
+                };
+
+                
+               
+                _context.AppUserSubjectClasses.Add(classSubjectUserEntity);
                 _context.SaveChanges();
                 return classEntity;
             }
@@ -42,10 +57,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
 
-        public bool DeleteClass(int id)
-        {
-            throw new NotImplementedException();
-        }
+       
 
         public List<Class> GetAllClasses(Guid? userid)
         {
@@ -151,6 +163,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             clas.Name = classEntity.Name;
             clas.Description = classEntity.Description;
             clas.UpdatedAt = classEntity.UpdatedAt;
+            clas.UpdatedBy = classEntity.UpdatedBy;
 
             _context.Classes.Update(clas);
             _context.SaveChanges();
@@ -346,7 +359,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return comment;
 
         }
-        public bool deleteNotification(int id)
+        public bool DeleteNotification(int id)
         {
             var comment = _context.ClassNotifications.FirstOrDefault(c => c.Id == id);
             if (comment != null)
@@ -358,7 +371,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
             return false;
         }
-        public ClassNotification getNotificationByID(int notificationId)
+        public ClassNotification GetNotificationByID(int notificationId)
         {
             var noti = _context.ClassNotifications.FirstOrDefault(c => c.Id == notificationId);
             var noti2 = new ClassNotification

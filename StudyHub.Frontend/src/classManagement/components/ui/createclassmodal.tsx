@@ -1,13 +1,13 @@
+// url: (update your local file)
 import React, { useEffect, useState } from "react";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 
 export const CreateClassModal: React.FC<{
   open: boolean;
   onClose: () => void;
-  onCreate: (payload: { title: string; description?: string }) => Promise<void>;
+  onCreate: (payload: { title: string; description?: string; createdBy?: string }) => Promise<void>;
 }> = ({ open, onClose, onCreate }) => {
   const [title, setTitle] = useState("");
-  const [subject, setSubject] = useState<number>(0);
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -18,14 +18,13 @@ export const CreateClassModal: React.FC<{
       getAllSubjects();
     } else {
       setTitle("");
-      setSubject(0);
       setDescription("");
     }
   }, [open, getAllSubjects]);
 
   if (!open) return null;
 
-  const valid = title.trim() !== "" && subject !== 0;
+  const valid = title.trim() !== "" ;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

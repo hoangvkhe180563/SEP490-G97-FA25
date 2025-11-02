@@ -419,7 +419,36 @@ const DetailedClassTeacher: React.FC = () => {
         ? titleFromComposer.trim()
         : fallbackTitle;
 
-  // ... rest of function unchanged ...
+   const createdBy = user?.id ?? "";
+
+  try {
+
+    const payload = {
+      classId: Number(id),
+      title: titleToSend,
+      description: content,
+      files, 
+      links, 
+      createdBy,
+    };
+
+    const created = await createNotification(payload);
+
+    if (created) {
+      
+      setNotifications((prev) => [created, ...prev]);
+
+      try {
+        await getClassInfo(Number(id));
+      } catch (err) {
+        console.debug("Không thể reload class info ngay sau khi tạo thông báo:", err);
+      }
+    } else {
+      console.error("Tạo thông báo thất bại: createNotification trả về null");
+    }
+  } catch (err: any) {
+    console.error("handlePost/createNotification error:", err);
+  }
   };
 
   const handleMail = (person: ClassMemberDto) => {

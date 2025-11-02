@@ -25,7 +25,8 @@ namespace StudyHub.Backend.Api.Mappers
             {
                 Name = dto.Name,
                 Description = dto.Description,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = dto.CreatedBy
             };
         }
         public static Class ToEntity(this EditClassDto dto)
@@ -109,7 +110,7 @@ namespace StudyHub.Backend.Api.Mappers
                 ClassId = entity.ClassId,
                 Title = entity.Title,
                 Description = entity.Description,
-                CreatedBy = entity.CreatedBy,
+                CreatedBy = entity.AppUserId,
                 CreatedAt = DateTime.Now,
                 Files = files ?? new List<FileDto>(),
                 Comments = comments ?? new List<CommentDto>(),

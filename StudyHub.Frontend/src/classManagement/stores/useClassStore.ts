@@ -1,9 +1,6 @@
 // Updated mapping to include all member fields returned by the API (address, communeId, phoneNumber, wallet, gender, schoolId, ...)
 // plus new method getSubmissionByUserAndClasswork and getDocumentsByClassId
-import {
-  type Post,
-  type PostComment,
-} from "@/classManagement/components/ui/postcard";
+
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type {
@@ -160,24 +157,44 @@ export const useClassStore = create<ClassState>()(
       addClass: async (payload: {
         title: string;
         description?: string;
+        createdBy?: string;
       }) => {
         set({ isLoading: true, success: false, message: "" });
         try {
+          // Use the API path shown in the screenshot
+          const url = "/Class";
+
+          // createdBy should be a GUID string. prefer payload.createdBy if caller provides it.
+          const createdBy =
+            payload.createdBy ?? "3fa85f64-5717-4562-b3fc-2c963f66afa6"; // <- replace with current user id in real app
+
           const body = {
             name: payload.title,
-            description: payload.description,
-            createdBy: "2",
+            description: payload.description ?? "",
+            createdBy: createdBy,
           };
 
-          const res = await axiosInstance.post("/Class", body);
-          const created = res.data ?? null;
+          // send JSON body (axios does this by default)
+          const res = await axiosInstance.post(url, body);
+          const created = res?.data ?? null;
 
-          const mapped: ClassListDto | null = created
+          // The backend may return the created Class domain entity or a wrapped response.
+          // Support both shapes: direct object or { success, message, data }
+          const createdObj =
+            created && created.data
+              ? created.data
+              : created && created.success !== undefined
+              ? created.data ?? null
+              : created;
+
+          const mapped: ClassListDto | null = createdObj
             ? {
-                id: created.id ?? created.classId,
-                name: created.name ?? payload.title,
-                instructorName: created.instructorName ?? "",
-                description: created.description ?? payload.description,
+                id: createdObj.id ?? createdObj.classId ?? 0,
+                name: createdObj.name ?? payload.title,
+                instructorName:
+                  createdObj.instructorName ?? createdObj.instructor ?? "",
+                description:
+                  createdObj.description ?? payload.description ?? "",
               }
             : null;
 
@@ -188,7 +205,8 @@ export const useClassStore = create<ClassState>()(
                 ? { ...state.meta, total: (state.meta.total ?? 0) + 1 }
                 : state.meta,
               success: true,
-              message: "Create class successful",
+              message:
+                (created && created.message) ?? "Create class successful",
             }));
           } else {
             set({ success: false, message: "Create returned empty response" });
@@ -196,7 +214,7 @@ export const useClassStore = create<ClassState>()(
 
           return created;
         } catch (error) {
-          console.error(error);
+          console.error("addClass error", error);
           set({ success: false, message: "Failed to create class" });
           return null;
         } finally {
@@ -220,55 +238,115 @@ export const useClassStore = create<ClassState>()(
       updateClass: async (payload: {
         id: number;
         title: string;
-        subject: number;
         description?: string;
+        updatedBy?: string;
       }) => {
         set({ isLoading: true, success: false, message: "" });
         try {
-          const body = {
+          // Prepare payload using proper field names the API expects
+          const body: Record<string, any> = {
             name: payload.title,
-            subjectId: payload.subject,
-            description: payload.description,
-            updatedBy: "2",
+            description: payload.description ?? "",
+            // backend expects GUID for updatedBy; prefer caller-provided value
+            updatedBy:
+              payload.updatedBy ?? "3fa85f64-5717-4562-b3fc-2c963f66afa6",
           };
 
-          const res = await axiosInstance.put(`/Class/${payload.id}`, body);
-          const updated = res.data ?? null;
+          // Try both route variants in case axiosInstance.baseURL already contains /api
+          const endpoints = [
+            `/Class/${encodeURIComponent(payload.id)}`,
+            `/api/Class/${encodeURIComponent(payload.id)}`,
+          ];
 
-          if (updated) {
-            set((state) => ({
-              classes: state.classes.map((cls) =>
-                cls.id === updated.id
-                  ? {
-                      ...cls,
-                      name: updated.name,
-                      subjectName: updated.subjectName,
-                      description: updated.description,
-                      subjectId: updated.subjectId,
-                    }
-                  : cls
-              ),
-              success: true,
-              message: "Update class successful",
-            }));
-          } else {
-            set({ success: false, message: "Update returned empty response" });
+          let res: any = null;
+          let lastError: any = null;
+
+          for (const ep of endpoints) {
+            try {
+              res = await axiosInstance.put(ep, body, {
+                headers: { "Content-Type": "application/json" },
+              });
+              // success -> break out
+              break;
+            } catch (err: any) {
+              lastError = err;
+              // If server returned 400 (validation), stop trying alternatives and surface message
+              const status = err?.response?.status;
+              if (status === 400) break;
+              // otherwise continue to try next endpoint (e.g. 404 due to double /api)
+            }
           }
 
-          return updated;
+          if (!res) {
+            // All attempts failed (or 400 returned)
+            console.error(
+              "updateClass error (no successful response)",
+              lastError
+            );
+            const serverMsg =
+              lastError?.response?.data?.message ??
+              lastError?.message ??
+              "Failed to update class";
+            set({ success: false, message: serverMsg });
+            return null;
+          }
+
+          const raw = res?.data ?? null;
+
+          // Normalize response shapes: support direct entity or { success, message, data: {...} }
+          const updatedObj =
+            raw && raw.data
+              ? raw.data
+              : raw && raw.success !== undefined
+              ? raw.data ?? null
+              : raw;
+
+          if (!updatedObj) {
+            set({ success: false, message: "Update returned empty response" });
+            return null;
+          }
+
+          // Map updated object to ClassListDto shape and update store
+          const mapped = {
+            id: updatedObj.id ?? updatedObj.classId ?? payload.id,
+            name: updatedObj.name ?? payload.title,
+            subjectId: updatedObj.subjectId ?? updatedObj.subject_id ?? 0,
+            subjectName:
+              updatedObj.subjectName ?? updatedObj.subject_name ?? null,
+            description: updatedObj.description ?? payload.description ?? "",
+            instructorName:
+              updatedObj.instructorName ?? updatedObj.instructor ?? "",
+            ...updatedObj,
+          } as ClassListDto;
+
+          set((state) => ({
+            classes: state.classes.map((cls) =>
+              cls.id === mapped.id ? { ...cls, ...mapped } : cls
+            ),
+            success: true,
+            message: raw?.message ?? "Update class successful",
+          }));
+
+          return updatedObj;
         } catch (error) {
           console.error("❌ Failed to update class", error);
-          set({ success: false, message: "Failed to update class" });
+          const err: any = error;
+          const serverMsg =
+            err?.response?.data?.message ??
+            err?.message ??
+            "Failed to update class";
+          set({ success: false, message: serverMsg });
           return null;
         } finally {
           set({ isLoading: false });
         }
       },
-
       getClassMembers: async (id: number): Promise<ClassMemberDto[] | null> => {
         set({ isLoading: true });
         try {
-          const res = await axiosInstance.get(`/Class/${id}/members`);
+          // call the API endpoint exactly as requested
+          const url = `/ClassMember?classId=${encodeURIComponent(id)}`;
+          const res = await axiosInstance.get(url);
           const raw = res?.data ?? null;
 
           if (!raw || raw.success === false) {
@@ -276,7 +354,6 @@ export const useClassStore = create<ClassState>()(
               "getClassMembers: API returned success=false",
               raw?.message
             );
-            set({ isLoading: false });
             return null;
           }
 
@@ -287,7 +364,6 @@ export const useClassStore = create<ClassState>()(
             if (Array.isArray(r)) return r.map(String);
             if (typeof r === "string") {
               try {
-                // sometimes server sends JSON-string: '["Student"]'
                 const parsed = JSON.parse(r);
                 if (Array.isArray(parsed)) return parsed.map(String);
               } catch {
@@ -307,15 +383,29 @@ export const useClassStore = create<ClassState>()(
             return undefined;
           };
 
-          const members: ClassMemberDto[] = membersRaw.map((m: any) => {
+          const members: ClassMemberDto[] = (
+            Array.isArray(membersRaw) ? membersRaw : []
+          ).map((m: any) => {
             return {
               userId: m.userId ?? m.id ?? "",
               fullname: m.fullname ?? m.fullName ?? m.name ?? "",
               roles: normalizeRoles(m.roles),
               joinDate: m.joinDate ?? m.joinedAt ?? m.createdAt ?? "",
-              // new fields
+              // new/extended fields (use null when absent to match your type)
               email: m.email ?? null,
-              gender: toBoolean(m.gender ?? m.sex ?? m.isMale),
+              gender: ((): boolean | number | string | undefined => {
+                // keep original types where possible, but normalize booleans
+                if (m.gender === undefined) return undefined;
+                if (typeof m.gender === "boolean") return m.gender;
+                if (typeof m.gender === "number") return m.gender;
+                if (typeof m.gender === "string") {
+                  const low = m.gender.toLowerCase();
+                  if (low === "true" || low === "false") return low === "true";
+                  const num = Number(m.gender);
+                  return Number.isNaN(num) ? m.gender : num;
+                }
+                return undefined;
+              })(),
               schoolId:
                 m.schoolId ??
                 m.school_id ??
@@ -333,6 +423,7 @@ export const useClassStore = create<ClassState>()(
               wallet:
                 typeof m.wallet === "number" ? m.wallet : Number(m.wallet ?? 0),
               avatarUrl: m.avatarUrl ?? m.avatar ?? m.imageUrl ?? null,
+              // include any extra fields returned by backend
               ...m,
             } as ClassMemberDto;
           });
@@ -341,14 +432,16 @@ export const useClassStore = create<ClassState>()(
             (memberRoles ?? []).some((r) => pattern.test(String(r)));
 
           const teacherMember =
-            members.find((m) => hasRole(m.roles, /teacher/i)) ?? null;
-          const parentMembers = members.filter((m) =>
-            hasRole(m.roles, /parent/i)
+            members.find((mm) => hasRole(mm.roles, /teacher/i)) ?? null;
+          const parentMembers = members.filter((mm) =>
+            hasRole(mm.roles, /parent/i)
           );
           const studentMembers = members.filter(
-            (m) => (m.roles ?? []).length === 0 || hasRole(m.roles, /student/i)
+            (mm) =>
+              (mm.roles ?? []).length === 0 || hasRole(mm.roles, /student/i)
           );
 
+          // update store currentClass with categorized members
           set((state) => {
             const cur = state.currentClass ?? defaultCurrentClass;
             return {
@@ -397,7 +490,7 @@ export const useClassStore = create<ClassState>()(
           };
 
           // Example endpoint; change if your API is different.
-          const url = `/Class/${classId}/invite`;
+          const url = `/ClassMember/invite/${classId}`;
           const res = await axiosInstance.post(url, body);
           const raw = res?.data ?? null;
 
@@ -443,7 +536,7 @@ export const useClassStore = create<ClassState>()(
       getClassWorks: async (classId: number): Promise<ClassWork[] | null> => {
         set({ isLoading: true });
         try {
-          const res = await axiosInstance.get(`/Class/classworks/${classId}`);
+          const res = await axiosInstance.get(`/Classwork/class/${classId}`);
           const raw = res?.data ?? null;
 
           if (!raw) {
@@ -597,7 +690,9 @@ export const useClassStore = create<ClassState>()(
         // do not spam global isLoading for quick count calls; set local flag if needed
         try {
           if (!classId) return null;
-          const res = await axiosInstance.get(`/Class/membercount/${classId}`);
+          const res = await axiosInstance.get(
+            `/Classwork/membercount/${classId}`
+          );
           const raw = res?.data ?? null;
           let count: number | null = null;
           if (raw !== null) {
@@ -613,94 +708,108 @@ export const useClassStore = create<ClassState>()(
       },
 
       // NEW: Lấy documents theo classId và lưu vào store.documentsByClass[classId]
-      getDocumentsByClassId: async (classId: number): Promise<DocumentDto[] | null> => {
-  try {
-    if (!classId) return null;
+      getDocumentsByClassId: async (
+        classId: number
+      ): Promise<DocumentDto[] | null> => {
+        try {
+          if (!classId) return null;
 
-    // Return cached value if available to avoid unnecessary network calls
-    const cached = get().documentsByClass?.[classId];
-    if (Array.isArray(cached) && cached.length > 0) {
-      return cached as DocumentDto[];
-    }
+          // Return cached value if available to avoid unnecessary network calls
+          const cached = get().documentsByClass?.[classId];
+          if (Array.isArray(cached) && cached.length > 0) {
+            return cached as DocumentDto[];
+          }
 
-    // Try primary endpoint first. If backend baseURL/config differs, fallback to /api prefix.
-    const endpoints = [
-      `/Document/GetAllDocumentByClassId/${classId}`,
-      `/api/Document/GetAllDocumentByClassId/${classId}`,
-    ];
+          // Try primary endpoint first. If backend baseURL/config differs, fallback to /api prefix.
+          const endpoints = [
+            `/Document/GetAllDocumentByClassId/${classId}`,
+            `/api/Document/GetAllDocumentByClassId/${classId}`,
+          ];
 
-    let res: any = null;
-    let raw: any = null;
-    let success = false;
-    for (const ep of endpoints) {
-      try {
-        res = await axiosInstance.get(ep);
-        raw = res?.data ?? null;
-        // if got something plausible, stop trying other endpoints
-        if (raw !== null) {
-          success = true;
-          break;
+          let res: any = null;
+          let raw: any = null;
+          let success = false;
+          for (const ep of endpoints) {
+            try {
+              res = await axiosInstance.get(ep);
+              raw = res?.data ?? null;
+              // if got something plausible, stop trying other endpoints
+              if (raw !== null) {
+                success = true;
+                break;
+              }
+            } catch (e) {
+              // try next endpoint
+              // only log debug-level to avoid noisy errors
+              console.debug(
+                `getDocumentsByClassId: endpoint ${ep} failed, trying next if any`,
+                e
+              );
+            }
+          }
+
+          if (!success || !raw) return null;
+
+          const arr = raw.data ?? raw?.documents ?? raw ?? [];
+          const docs: DocumentDto[] = (Array.isArray(arr) ? arr : []).map(
+            (d: any) => {
+              const fileType =
+                (d.fileType ?? "").toString().toLowerCase() || null;
+              // If thumbnail not provided and it's an image, use documentUrl as thumbnail
+              let thumbnail = d.thumbnail ?? null;
+              if (
+                !thumbnail &&
+                fileType &&
+                /jpg|jpeg|png|gif|bmp|webp/i.test(fileType)
+              ) {
+                thumbnail = d.documentUrl ?? null;
+              }
+
+              return {
+                id: d.id,
+                name: d.name ?? d.title ?? "Tài liệu",
+                documentUrl: d.documentUrl ?? d.fileUrl ?? d.url ?? "",
+                thumbnail,
+                description: d.description ?? null,
+                fileType: fileType,
+                uploaderName: d.uploaderName ?? d.uploaderFullname ?? null,
+                createdAt: d.createdAt ?? null,
+                classes: Array.isArray(d.classes)
+                  ? d.classes.map((c: any) => ({
+                      id: c.id,
+                      name: c.name ?? null,
+                      subjectName: c.subjectName ?? null,
+                      instructorName: c.instructorName ?? null,
+                      description: c.description ?? null,
+                      subjectId: c.subjectId ?? null,
+                    }))
+                  : undefined,
+                raw: d,
+              } as DocumentDto;
+            }
+          );
+
+          // sort newest first if createdAt available
+          docs.sort((a, b) => {
+            const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return tb - ta;
+          });
+
+          // cache into store.documentsByClass
+          set((state) => ({
+            documentsByClass: {
+              ...(state.documentsByClass ?? {}),
+              [classId]: docs,
+            },
+          }));
+
+          return docs;
+        } catch (err) {
+          console.error("getDocumentsByClassId error:", err);
+          return null;
         }
-      } catch (e) {
-        // try next endpoint
-        // only log debug-level to avoid noisy errors
-        console.debug(`getDocumentsByClassId: endpoint ${ep} failed, trying next if any`, e);
-      }
-    }
-
-    if (!success || !raw) return null;
-
-    const arr = raw.data ?? raw?.documents ?? raw ?? [];
-    const docs: DocumentDto[] = (Array.isArray(arr) ? arr : []).map((d: any) => {
-      const fileType = (d.fileType ?? "").toString().toLowerCase() || null;
-      // If thumbnail not provided and it's an image, use documentUrl as thumbnail
-      let thumbnail = d.thumbnail ?? null;
-      if (!thumbnail && fileType && /jpg|jpeg|png|gif|bmp|webp/i.test(fileType)) {
-        thumbnail = d.documentUrl ?? null;
-      }
-
-      return {
-        id: d.id,
-        name: d.name ?? d.title ?? "Tài liệu",
-        documentUrl: d.documentUrl ?? d.fileUrl ?? d.url ?? "",
-        thumbnail,
-        description: d.description ?? null,
-        fileType: fileType,
-        uploaderName: d.uploaderName ?? d.uploaderFullname ?? null,
-        createdAt: d.createdAt ?? null,
-        classes: Array.isArray(d.classes) ? d.classes.map((c: any) => ({
-          id: c.id,
-          name: c.name ?? null,
-          subjectName: c.subjectName ?? null,
-          instructorName: c.instructorName ?? null,
-          description: c.description ?? null,
-          subjectId: c.subjectId ?? null,
-        })) : undefined,
-        raw: d,
-      } as DocumentDto;
-    });
-
-    // sort newest first if createdAt available
-    docs.sort((a, b) => {
-      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return tb - ta;
-    });
-
-    // cache into store.documentsByClass
-    set((state) => ({
-      documentsByClass: {
-        ...(state.documentsByClass ?? {}),
-        [classId]: docs,
       },
-    }));
-
-    return docs;
-  } catch (err) {
-    console.error("getDocumentsByClassId error:", err);
-    return null;
-  }
-},
       // --- addComment: send comment HTML to backend and update state ---
       addComment: async (payload) => {
         // payload: { notificationId, content (HTML), createdBy? }
@@ -711,7 +820,7 @@ export const useClassStore = create<ClassState>()(
             createdBy: payload.userId ?? "d4e5f6a7-b8c9-0123-4567-890abcdef014",
           };
 
-          const url = `/Class/notifications/${payload.notificationId}/comments`;
+          const url = `/ClassNotification/${payload.notificationId}/comments`;
           const res = await axiosInstance.post(url, body);
           const raw = res?.data ?? null;
 
@@ -790,7 +899,7 @@ export const useClassStore = create<ClassState>()(
             description: payload.description ?? "",
             deadline: payload.deadline ?? null,
           };
-          const res = await axiosInstance.post(`/Class/classworks`, body);
+          const res = await axiosInstance.post(`/Classwork`, body);
           const raw = res?.data ?? null;
           if (!raw || raw.success === false) {
             set({
@@ -832,10 +941,7 @@ export const useClassStore = create<ClassState>()(
             description: payload.description ?? "",
             deadline: payload.deadline ?? null,
           };
-          const res = await axiosInstance.put(
-            `/Class/classworks/${payload.id}`,
-            body
-          );
+          const res = await axiosInstance.put(`/Classwork/${payload.id}`, body);
           const raw = res?.data ?? null;
           if (!raw || raw.success === false) {
             set({
@@ -881,7 +987,7 @@ export const useClassStore = create<ClassState>()(
           }
 
           const res = await axiosInstance.post(
-            `/Class/classworks/${classworkId}/submit`,
+            `/Classwork/${classworkId}/submit`,
             fd,
             {
               headers: { "Content-Type": "multipart/form-data" },
@@ -920,7 +1026,7 @@ export const useClassStore = create<ClassState>()(
         set({ isLoading: true });
         try {
           const res = await axiosInstance.get(
-            `/Class/classworks/${classworkId}/submissions`
+            `/Classwork/${classworkId}/submissions`
           );
           const raw = res?.data ?? null;
           if (!raw || raw.success === false) {
@@ -952,14 +1058,19 @@ export const useClassStore = create<ClassState>()(
       },
 
       // NEW: Lấy 1 submission của 1 user cho 1 classwork
-      getSubmissionByUserAndClasswork: async (classworkId: number, appUserId: string): Promise<ClassworkSubmission | null> => {
+      getSubmissionByUserAndClasswork: async (
+        classworkId: number,
+        appUserId: string
+      ): Promise<ClassworkSubmission | null> => {
         set({ isLoading: true });
         try {
           if (!classworkId || !appUserId) {
             set({ isLoading: false });
             return null;
           }
-          const url = `/Class/classworks/submission?classworkID=${encodeURIComponent(classworkId)}&userid=${encodeURIComponent(appUserId)}`;
+          const url = `/Classwork/submission?classworkID=${encodeURIComponent(
+            classworkId
+          )}&userid=${encodeURIComponent(appUserId)}`;
           const res = await axiosInstance.get(url);
           const raw = res?.data ?? null;
           if (!raw || raw.success === false) {
@@ -993,7 +1104,7 @@ export const useClassStore = create<ClassState>()(
       deleteNotification: async (notificationId) => {
         set({ isLoading: true, success: false, message: "" });
         try {
-          const url = `/Class/notifications/${notificationId}`;
+          const url = `/ClassNotification/${notificationId}`;
           const res = await axiosInstance.delete(url);
           const raw = res?.data ?? null;
 
@@ -1086,12 +1197,11 @@ export const useClassStore = create<ClassState>()(
             }
           }
 
-          // Debug: log FormData entries (can't stringify fd directly)
+          // Debug logging (optional)
           try {
             const entries: string[] = [];
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             for (const e of (fd as any).entries()) {
-              // entry[1] may be a File — show name and type
               const val = e[1];
               if (val instanceof File) {
                 entries.push(`${e[0]}: File(${val.name}, ${val.type})`);
@@ -1107,9 +1217,43 @@ export const useClassStore = create<ClassState>()(
             console.debug("createNotification - FormData (debugging failed)");
           }
 
-          const res = await axiosInstance.post("/Class/notifications", fd, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
+          // Try endpoint variants so we don't break when axiosInstance.baseURL already contains /api
+          const endpoints = ["/ClassNotification", "/api/ClassNotification"];
+          let res: any = null;
+          let lastError: any = null;
+
+          for (const ep of endpoints) {
+            try {
+              // Do NOT set Content-Type header; let axios/browser set the correct boundary
+              res = await axiosInstance.post(ep, fd);
+              // success
+              break;
+            } catch (err: any) {
+              lastError = err;
+              // if 404 try next endpoint; for other errors continue trying but remember lastError
+              if (err?.response?.status === 404) {
+                continue;
+              }
+              // For 400/500 we also break and surface error (server responded)
+              if (err?.response) break;
+            }
+          }
+
+          if (!res) {
+            console.error(
+              "createNotification error (no successful endpoint)",
+              lastError
+            );
+            set({
+              isLoading: false,
+              success: false,
+              message:
+                lastError?.response?.data?.message ??
+                lastError?.message ??
+                "Failed to create notification",
+            });
+            return null;
+          }
 
           const raw = res?.data ?? null;
           if (!raw || raw.success === false) {
@@ -1122,6 +1266,7 @@ export const useClassStore = create<ClassState>()(
           }
 
           const created = raw.data ?? raw;
+
           const mapped: ClassNotification = {
             id: created.id ?? Date.now(),
             classId: created.classId ?? payload.classId,

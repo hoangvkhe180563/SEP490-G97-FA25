@@ -158,9 +158,9 @@ export interface ClassState {
   meta?: Meta | null;
 
   getClasses: (query: string,memberUserId?: string) => Promise<GetClassesResponse | null>;
-  addClass: (payload: { title: string; description?: string }) => Promise<any | null>;
+  addClass: (payload: { title: string; description?: string ;createdBy:string}) => Promise<any | null>;
   getAllSubjects: () => Promise<Subject[]>;
-  updateClass: (payload: { id: number; title: string; description?: string }) => Promise<any | null>;
+  updateClass: (payload: { id: number; title: string; description?: string; updateBy?:string }) => Promise<any | null>;
 
  
   getClassInfo: (id: number) => Promise<ClassDetailResponse | null>;

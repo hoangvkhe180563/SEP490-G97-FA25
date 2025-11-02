@@ -1,3 +1,4 @@
+// url: (update your local file)
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import ClassCard from "@/classManagement/components/ui/classcard";
@@ -33,6 +34,9 @@ const ClassList: React.FC = () => {
 
   const { user } = useAuthStore();
 
+  // current user id from auth store (assume GUID or string)
+  const currentUserId = user?.id ?? "";
+
   // UI state
   const [query, setQuery] = useState("");
   const [subject, setSubject] = useState("all");
@@ -52,9 +56,6 @@ const ClassList: React.FC = () => {
 
   const coarseRole = mapToCoarseRole(user?.roles);
   const userRole: UserRole = (coarseRole === "student" ? "student" : userRoleFromPath) as UserRole;
-
-  // current user id from auth store (assume GUID or string)
-  const currentUserId = user?.id ?? "";
 
   const buildQuery = () => {
     const params = new URLSearchParams();
@@ -118,8 +119,9 @@ const ClassList: React.FC = () => {
     }
   };
 
-  const handleCreate = async (payload: { title: string; subject: number; description?: string }) => {
-    const created = await addClass(payload);
+  const handleCreate = async (payload: { title: string; description?: string ;  }) => {
+    // pass createdBy from auth store
+    const created = await addClass({ ...payload, createdBy: currentUserId });
     if (created) {
       setShowCreate(false);
       setCurrentPage(1);
@@ -228,14 +230,19 @@ const ClassList: React.FC = () => {
         </div>
       </div>
 
-      <CreateClassModal open={showCreate} onClose={() => setShowCreate(false)} onCreate={handleCreate} />
+      <CreateClassModal open={showCreate} onClose={() => {{
+        const q = buildQuery();
+          
+        getClasses(q, currentUserId);
+        setShowCreate(false);
+        }}} onCreate={handleCreate} />
       <EditClassModal
         open={showEdit}
         classItem={editing}
         onClose={() => {
           const q = buildQuery();
-          const memberIdToPass = userRole === "student" && currentUserId ? currentUserId : undefined;
-          getClasses(q, memberIdToPass);
+          
+          getClasses(q, currentUserId);
           setShowEdit(false);
         }}
       />
