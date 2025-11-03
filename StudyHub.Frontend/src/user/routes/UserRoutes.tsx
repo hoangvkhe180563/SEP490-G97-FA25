@@ -4,6 +4,7 @@ import CreateAccount from "../pages/manager/CreateAccount";
 import AccountList from "../pages/manager/AccountList";
 import UpdateAccount from "../pages/manager/UpdateAccount";
 import ManagerLayout from "../components/layouts/ManagerLayout";
+import UpdateProfile from "../pages/UpdateProfile";
 
 const managerRoutes = [
   {
@@ -29,6 +30,10 @@ const userRoutes: RouteObject[] = [
     path: UserRouteConfig.MANAGER.INDEX,
     element: <ManagerLayout />,
     children: managerRoutes,
+  },
+  {
+    path: UserRouteConfig.USER.UPDATE_PROFILE,
+    element: <UpdateProfile />,
   },
 ];
 

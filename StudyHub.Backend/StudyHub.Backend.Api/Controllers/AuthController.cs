@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos.AuthDTOS;
 using StudyHub.Backend.Api.Filters;
+using StudyHub.Backend.Api.Mappers;
+using StudyHub.Backend.Api.Services;
 using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -14,9 +16,9 @@ namespace StudyHub.Backend.Api.Controllers
     {
         private readonly AuthService _authService;
         private readonly IConfiguration _configuration;
-        private readonly StudyHub.Backend.Api.Services.IEmailService _emailService;
+        private readonly SmtpEmailService _emailService;
 
-        public AuthController(AuthService authService, IConfiguration configuration, StudyHub.Backend.Api.Services.IEmailService emailService)
+        public AuthController(AuthService authService, IConfiguration configuration, SmtpEmailService emailService)
         {
             _authService = authService;
             _configuration = configuration;
@@ -58,20 +60,7 @@ namespace StudyHub.Backend.Api.Controllers
             SetTokenInCookie(result);
 
             // Build user info response (do not return tokens in body)
-            var userInfo = new UserInfoResponse
-            {
-                Id = result.User.Id,
-                Email = result.User.Email,
-                Username = result.User.Username,
-                Fullname = result.User.Fullname,
-                Avatar = result.User.Avatar,
-                Roles = result.Roles ?? new List<string>(),
-                Permissions = result.Permissions ?? new List<string>(),
-                ClassIds = result.ClassIds ?? new List<int>(),
-                SubjectIds = result.SubjectIds ?? new List<short>(),
-                SchoolId = result.User.SchoolId,
-                transferId = result.User.TransferId
-            };
+            var userInfo = AuthMapper.ToUserInfoResponse(result);
 
             return Ok(new GenericResponse { Success = true, Message = "Đăng nhập thành công", Data = userInfo });
         }
@@ -88,19 +77,7 @@ namespace StudyHub.Backend.Api.Controllers
             var result = _authService.RefreshTokens(refreshToken);
             if (result == null) return Unauthorized(new GenericResponse { Success = false, Message = "Refresh token không hợp lệ" });
             SetTokenInCookie(result);
-            var userInfo = new UserInfoResponse
-            {
-                Id = result.User.Id,
-                Email = result.User.Email,
-                Username = result.User.Username,
-                Fullname = result.User.Fullname,
-                Avatar = result.User.Avatar,
-                Roles = result.Roles ?? new List<string>(),
-                Permissions = result.Permissions ?? new List<string>(),
-                ClassIds = result.ClassIds ?? new List<int>(),
-                SubjectIds = result.SubjectIds ?? new List<short>(),
-                SchoolId = result.User.SchoolId
-            };
+            var userInfo = AuthMapper.ToUserInfoResponse(result);
             return Ok(new GenericResponse { Success = true, Message = "Token được refresh thành công!", Data = userInfo });
         }
 
@@ -243,19 +220,7 @@ namespace StudyHub.Backend.Api.Controllers
             if (loginResult == null) return Unauthorized(new { success = false, message = "Đăng nhập với Google thất bại", error });
 
             SetTokenInCookie(loginResult);
-            var userInfo = new UserInfoResponse
-            {
-                Id = loginResult.User.Id,
-                Email = loginResult.User.Email,
-                Username = loginResult.User.Username,
-                Fullname = loginResult.User.Fullname,
-                Avatar = loginResult.User.Avatar,
-                Roles = loginResult.Roles ?? new List<string>(),
-                Permissions = loginResult.Permissions ?? new List<string>(),
-                ClassIds = loginResult.ClassIds ?? new List<int>(),
-                SubjectIds = loginResult.SubjectIds ?? new List<short>(),
-                SchoolId = loginResult.User.SchoolId
-            };
+            var userInfo = AuthMapper.ToUserInfoResponse(loginResult);
             return Ok(new GenericResponse { Success = true, Message = "Đăng nhập với Google thành công!", Data = userInfo });
         }
 
@@ -275,19 +240,7 @@ namespace StudyHub.Backend.Api.Controllers
             var info = _authService.GetUserInfoById(userId.Value);
             if (info == null) return Unauthorized(new GenericResponse { Success = false, Message = "Người dùng không tồn tại" });
 
-            var userInfo = new UserInfoResponse
-            {
-                Id = info.User.Id,
-                Email = info.User.Email,
-                Username = info.User.Username,
-                Fullname = info.User.Fullname,
-                Avatar = info.User.Avatar,
-                Roles = info.Roles ?? new List<string>(),
-                Permissions = info.Permissions ?? new List<string>(),
-                ClassIds = info.ClassIds ?? new List<int>(),
-                SubjectIds = info.SubjectIds ?? new List<short>(),
-                SchoolId = info.User.SchoolId
-            };
+            var userInfo = AuthMapper.ToUserInfoResponse(info);
 
             return Ok(new GenericResponse { Success = true, Message = "Người dùng đã xác thực", Data = userInfo });
 

@@ -29,7 +29,13 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
             services.AddScoped<IProgressRepository, ProgressRepository>();
             services.AddScoped<IClassRepository, ClassRepository>();
+            services.AddScoped<IClassMemberRepository, ClassMemberRepository>();
+            services.AddScoped<IClassNotificationRepository, ClassNotificationRepository>();
+            services.AddScoped<IClassworkRepository, ClassworkRepository>();
             services.AddScoped<IAppRoleRepository, AppRoleRepositoy>();
+            services.AddScoped<IQATopicRepository, QATopicRepository>();
+            services.AddScoped<IQAConversationRepository, QAConversationRepository>();
+            services.AddScoped<IQAMessageRepository, QAMessageRepository>();
 
             services.AddScoped<ICloudinaryRepository>(provider =>
             {

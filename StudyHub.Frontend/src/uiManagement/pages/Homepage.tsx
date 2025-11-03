@@ -5,10 +5,18 @@ import type { ILandingPageService } from "../interfaces/ILandingPageService";
 import Introduction from "../components/Introduction";
 import FeaturedDocuments from "../components/FeaturedDocuments";
 import FeaturedCourses from "../components/FeaturedCourses";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { useNavigate } from "react-router-dom";
 
 const Homepage = () => {
   const [data, setData] = useState<ILandingPageService>();
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
   const uiManagementService = new UiManagementService();
+
+  if (user && user.schoolId !== 0) {
+    navigate(`/ui/${user.schoolId}/landing`);
+  }
 
   useEffect(() => {
     const fetchData = async () => {

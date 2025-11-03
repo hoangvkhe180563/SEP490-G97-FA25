@@ -88,6 +88,27 @@ const AccountList = () => {
   const start = total === 0 ? 0 : (currentPage - 1) * limit + 1;
   const end = Math.min(currentPage * limit, total);
 
+  // Ensure message renders nicely whether it's a string, array, or object
+  const formatMessage = (msg: unknown): string => {
+    if (!msg && msg !== 0) return "";
+    if (typeof msg === "string") return msg;
+    if (Array.isArray(msg)) return msg.join(", ");
+    if (typeof msg === "object") {
+      try {
+        // If it's an object of validation errors, pick first values
+        const vals = Object.values(msg as any)
+          .flat?.()
+          .filter((v: any) => v != null);
+        if (Array.isArray(vals) && vals.length > 0)
+          return String(vals.join(", "));
+        if (vals && vals.length === 0) return JSON.stringify(msg);
+      } catch (_) {
+        return String(msg);
+      }
+    }
+    return String(msg);
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
       <div className="flex items-center gap-4 mb-6">
@@ -188,7 +209,9 @@ const AccountList = () => {
                       <p className="text-sm font-medium text-gray-900">
                         Đã có lỗi xảy ra khi tải dữ liệu
                       </p>
-                      <p className="text-sm text-gray-500">{message}</p>
+                      <p className="text-sm text-gray-500">
+                        {formatMessage(message)}
+                      </p>
                     </div>
                     <Button
                       onClick={() => window.location.reload()}

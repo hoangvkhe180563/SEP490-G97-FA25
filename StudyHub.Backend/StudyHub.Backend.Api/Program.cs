@@ -5,6 +5,7 @@ using StudyHub.Backend.Infrastructure;
 using StudyHub.Backend.UseCases;
 using StudyHub.Backend.UseCases.Utils;
 using StudyHub.Backend.Api.Filters;
+using StudyHub.Backend.Api.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,6 +69,7 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
 });
+builder.Services.AddSignalR();
 var app = builder.Build();
 app.UseCors();
 
@@ -98,4 +100,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseSession();
 app.MapControllers();
+app.MapHub<ClassNotificationHub>("/hubs/class-notification");
 app.Run();

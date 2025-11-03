@@ -9,9 +9,9 @@ namespace StudyHub.Backend.Api.Controllers
     [ApiController]
     public class ClassworkController : ControllerBase
     {
-        private readonly ClassService _service;
+        private readonly ClassworkService _service;
 
-        public ClassworkController(ClassService service)
+        public ClassworkController(ClassworkService service)
         {
             _service = service;
         }

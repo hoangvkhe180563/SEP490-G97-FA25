@@ -32,8 +32,4 @@ interface CurrentUser {
   roles?: string[];
 }
 
-interface ProfileResponse extends CurrentUser {
-  password?: string;
-}
-
-export type { AppUser, CurrentUser, ProfileResponse };
+export type { AppUser, CurrentUser };

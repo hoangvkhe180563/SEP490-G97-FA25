@@ -450,14 +450,15 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("my-class/{userid:guid}")]
         public IActionResult GetClassByUserId(Guid userid)
         {
-            var classes = _classService.GetAllClassByUserId(userid);
+            var classes = _classService.GetClassByUserId(userid);
             var subjects = _classService.GetSubjects();
             var teachers = _classService.GetTeachers();
 
             var result = classes
                 .GroupBy(c => c.Id) // Loại bỏ duplicate theo Id
                 .Select(g => g.First()) // Lấy item đầu tiên của mỗi group
-                .Select(c => {
+                .Select(c =>
+                {
                     var teacher = teachers.FirstOrDefault(t => t.Id == c.CreatedBy);
                     return c.ToListClassDto(teacher);
                 })
