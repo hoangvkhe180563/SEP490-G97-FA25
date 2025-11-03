@@ -6,5 +6,9 @@ export interface Exam {
   description: string,
   duration: number,
   createdBy: number,
-  questions: Question[]
+  questions: Question[],
+  showAnswers: boolean,
+  showCorrectAnswers: boolean,
+  classId?: number,
+  lessonId?: number
 }

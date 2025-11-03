@@ -9,7 +9,8 @@ import { ExamService } from '@/exam/services/ExamService';
 import { MOCK_DATA_USERS } from '@/exam/services/MockData';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 
 const UpdateExam = () => {
@@ -21,7 +22,6 @@ const UpdateExam = () => {
   const [examDuration, setExamDuration] = useState<string>('');
   const [questions, setQuestions] = useState<Question[]>([]);
   const { setLoading } = useLoading();
-  const [error, setError] = useState<string>('');
   const [excelFileError, setExcelFileError] = useState<string>('');
   const [hasExam, setHasExam] = useState(false);
   const [showAnswers, setShowAnswers] = useState<boolean>(true);
@@ -30,7 +30,8 @@ const UpdateExam = () => {
 
   useEffect(() => {
     if (!Number(id)) {
-      setError('Không thể tải bài kiểm tra.');
+      toast.error('Không thể tải bài kiểm tra.');
+      navigate('/exam/teacher/exams');
       return;
     }
     const fetchExam = async () => {
@@ -41,10 +42,12 @@ const UpdateExam = () => {
         setExamDescription(fetched.description);
         setExamDuration(fetched.duration.toString());
         setQuestions(fetched.questions);
+        setShowAnswers(fetched.showAnswers);
+        setShowCorrectAnswers(fetched.showCorrectAnswers);
         setHasExam(true);
       } catch (err) {
         console.error('Failed to load exam:', err);
-        setError('Không thể tải bài kiểm tra.');
+        toast.error('Không thể tải bài kiểm tra.');
       } finally {
         setLoading(false);
       }
@@ -159,7 +162,7 @@ const UpdateExam = () => {
         let rowErrors: string[] = [];
 
         questionRows.forEach((row: any, rowIndex) => {
-          const question: Question = DEFAULT_QUESTION;
+          const question: Question = JSON.parse(JSON.stringify(DEFAULT_QUESTION)) as Question;
           let isValidRow = true;
 
           const questionType = String(row[header.indexOf('Loại câu hỏi')] || '').toLowerCase();
@@ -264,17 +267,10 @@ const UpdateExam = () => {
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
-    if (!user || user.role !== 'teacher') {
-      setError("Bạn không có quyền cập nhật bài kiểm tra.");
-      setLoading(false);
-      return;
-    }
-
     if (!examTitle || !examDescription || !examDuration || questions.length === 0) {
-      setError("Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi.");
+      toast.error("Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi.");
       setLoading(false);
       return;
     }
@@ -282,13 +278,13 @@ const UpdateExam = () => {
     // Basic validation for questions
     for (const q of questions) {
       if (!q.questionText.trim()) {
-        setError("Vui lòng nhập nội dung cho tất cả các câu hỏi.");
+        toast.error("Vui lòng nhập nội dung cho tất cả các câu hỏi.");
         setLoading(false);
         return;
       }
       if (q.type === EXAM_TYPE.SINGLE_CHOICE || q.type === EXAM_TYPE.MULTI_CHOICE) {
         if (q.options.some(opt => !String(opt).trim())) {
-          setError(`Vui lòng nhập nội dung cho tất cả các lựa chọn hoặc xóa lựa chọn trống cho câu hỏi "${q.questionText}".`);
+          toast.error(`Vui lòng nhập nội dung cho tất cả các lựa chọn hoặc xóa lựa chọn trống cho câu hỏi "${q.questionText}".`);
           setLoading(false);
           return;
         }
@@ -296,31 +292,31 @@ const UpdateExam = () => {
 
       if (q.type === EXAM_TYPE.SINGLE_CHOICE) {
         if (!String(q.correctAnswer).trim()) {
-          setError(`Vui lòng chọn đáp án đúng cho câu hỏi "${q.questionText}".`);
+          toast.error(`Vui lòng chọn đáp án đúng cho câu hỏi "${q.questionText}".`);
           setLoading(false);
           return;
         }
       } else if (q.type === EXAM_TYPE.MULTI_CHOICE) {
         if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length === 0 || q.correctAnswer.some(ans => !String(ans).trim())) {
-          setError(`Vui lòng chọn ít nhất một đáp án đúng cho câu hỏi "${q.questionText}".`);
+          toast.error(`Vui lòng chọn ít nhất một đáp án đúng cho câu hỏi "${q.questionText}".`);
           setLoading(false);
           return;
         }
       } else if (q.type === EXAM_TYPE.TEXT_INPUT) {
         if (!String(q.correctAnswer).trim()) {
-          setError(`Vui lòng nhập đáp án đúng cho câu hỏi "${q.questionText}".`);
+          toast.error(`Vui lòng nhập đáp án đúng cho câu hỏi "${q.questionText}".`);
           setLoading(false);
           return;
         }
       } else if (q.type === EXAM_TYPE.FILL_IN_BLANK) {
         const expectedBlanks = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
         if (expectedBlanks === 0) {
-          setError(`Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
+          toast.error(`Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
           setLoading(false);
           return;
         }
         if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length !== expectedBlanks || q.correctAnswer.some(ans => !String(ans).trim())) {
-          setError(`Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${q.questionText}".`);
+          toast.error(`Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${q.questionText}".`);
           setLoading(false);
           return;
         }
@@ -333,22 +329,24 @@ const UpdateExam = () => {
       description: examDescription,
       duration: parseInt(examDuration),
       createdBy: Number(user.id),
-      questions: questions
+      questions: questions,
+      showAnswers: showAnswers,
+      showCorrectAnswers: showCorrectAnswers
     };
 
     try {
       await examService.updateExam(Number(id), examToUpdate);
-      alert('Cập nhật bài kiểm tra thành công!');
+      toast.success('Cập nhật bài kiểm tra thành công!');
       navigate('/exam/teacher/exams');
     } catch (err) {
       console.error("Failed to create exam:", err);
-      setError("Tạo bài kiểm tra thất bại. Vui lòng thử lại.");
+      toast.error("Tạo bài kiểm tra thất bại. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
   };
 
-  if (!id || !hasExam) return <p className="container mx-auto mt-8 p-4 text-gray-600">Không tìm thấy bài kiểm tra. Lỗi: {error}</p>;
+  if (!id || !hasExam) return <p className="container mx-auto mt-8 p-4 text-gray-600">Không tìm thấy bài kiểm tra. <Link to='/exam/teacher/exams'>Quay lại</Link></p>;
 
   return (
     <div className="container mx-auto mt-8 p-6 bg-white shadow-lg rounded-lg">
@@ -358,8 +356,6 @@ const UpdateExam = () => {
       </Button>
 
       <h1 className="text-4xl font-bold mb-6 text-gray-800">Chỉnh sửa bài kiểm tra</h1>
-
-      {error && <div className="p-3 mb-4 bg-red-100 text-red-700 rounded-lg">{error}</div>}
 
       <form onSubmit={handleSubmit}>
         <div className="mb-6">

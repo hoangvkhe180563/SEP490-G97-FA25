@@ -68,7 +68,7 @@ const ListExams = () => {
                   </span>
                 ) : (
                   <Link
-                    to={`/exam/student/take-exam/${exam.id}`}
+                    to={`/exam/student/exams/${exam.id}`}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
                   >
                     Bắt đầu làm bài

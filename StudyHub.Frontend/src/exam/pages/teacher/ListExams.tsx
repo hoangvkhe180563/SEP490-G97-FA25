@@ -41,10 +41,16 @@ const ListExams = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Bài kiểm tra của tôi</h1>
         <Link
-          to="/exam/teacher/create-exam"
+          to="/exam/teacher/create-exam?classId=1"
           className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300"
         >
-          Tạo bài kiểm tra mới
+          Tạo bài kiểm tra theo lớp
+        </Link>
+        <Link
+          to="/exam/teacher/create-exam?lessonId=1"
+          className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300"
+        >
+          Tạo bài kiểm tra theo bài học
         </Link>
       </div>
 

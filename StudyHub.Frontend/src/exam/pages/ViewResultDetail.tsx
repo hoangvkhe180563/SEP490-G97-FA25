@@ -6,6 +6,8 @@ import type { ExamResult } from '../interfaces/models/ExamResult';
 import { BLANK_PLACEHOLDER, DEFAULT_EXAM, DEFAULT_EXAM_RESULT, EXAM_TYPE } from '../constants/Constants';
 import type { Question } from '../interfaces/models/Question';
 import type { Exam } from '../interfaces/models/Exam';
+import { Button } from '@/common/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 const ViewResultDetail = () => {
   const { id } = useParams();
@@ -102,6 +104,11 @@ const ViewResultDetail = () => {
 
   return (
     <div className="container mx-auto mt-8 p-6 bg-white shadow-lg rounded-lg">
+      <Button variant='outline' className='flex items-center' onClick={() => history.back()}>
+        <ArrowLeft />
+        <span>Quay lại</span>
+      </Button>
+
       <h1 className="text-4xl font-bold mb-4 text-gray-800">Chi tiết kết quả</h1>
 
       <div className="mb-6 border-b pb-4">
@@ -114,8 +121,8 @@ const ViewResultDetail = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <p className="text-lg text-gray-700"><strong>Học sinh:</strong> [Student.Username]</p>
-        <p className="text-lg text-gray-700"><strong>Điểm số:</strong> {result.score} / {result.totalQuestions}</p>
-        <p className="text-lg text-gray-700"><strong>Ngày nộp:</strong> {new Date(result.submissionDate).toLocaleString("vi-VN")}</p>
+        <p className="text-lg text-gray-700"><strong>Điểm số:</strong> {result.score}</p>
+        <p className="text-lg text-gray-700"><strong>Ngày nộp:</strong> {result.submissionDate?.toLocaleString("vi-VN")}</p>
       </div>
 
       <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Các câu hỏi và câu trả lời</h2>

@@ -69,7 +69,9 @@ export const MOCK_DATA_EXAMS: Exam[] = [
         options: [],
         correctAnswer: "Súc Vật"
       }
-    ]
+    ],
+    showAnswers: true,
+    showCorrectAnswers: true
   },
   {
     title: "dwdwdwdw",
@@ -104,7 +106,9 @@ export const MOCK_DATA_EXAMS: Exam[] = [
         ]
       }
     ],
-    id: 2
+    id: 2,
+    showAnswers: true,
+    showCorrectAnswers: true
   },
   {
     id: 3,
@@ -148,7 +152,9 @@ export const MOCK_DATA_EXAMS: Exam[] = [
           "Có súc vật"
         ]
       }
-    ]
+    ],
+    showAnswers: true,
+    showCorrectAnswers: true
   },
   {
     title: "Bài kiểm tra số 2",
@@ -188,7 +194,9 @@ export const MOCK_DATA_EXAMS: Exam[] = [
         options: []
       }
     ],
-    id: 4
+    id: 4,
+    showAnswers: true,
+    showCorrectAnswers: true
   },
   {
     title: "Các từ viết tắt của Thành",
@@ -232,7 +240,9 @@ export const MOCK_DATA_EXAMS: Exam[] = [
         options: []
       }
     ],
-    id: 5
+    id: 5,
+    showAnswers: true,
+    showCorrectAnswers: true
   },
   {
     title: "bai kiem tra so 10",
@@ -261,7 +271,9 @@ export const MOCK_DATA_EXAMS: Exam[] = [
         correctAnswer: 0
       }
     ],
-    id: 6
+    id: 6,
+    showAnswers: true,
+    showCorrectAnswers: false
   },
   {
     title: "Lịch sử Đảng CSVN",
@@ -289,7 +301,9 @@ export const MOCK_DATA_EXAMS: Exam[] = [
         correctAnswer: "Hồ Chí Minh"
       }
     ],
-    id: 7
+    id: 7,
+    showAnswers: true,
+    showCorrectAnswers: false
   },
   {
     title: "Bài kiểm tra xem Thành có Súc Vật hay không",
@@ -326,7 +340,9 @@ export const MOCK_DATA_EXAMS: Exam[] = [
         correctAnswer: "tiện hơn tí vẫn thích chatgpt hơn"
       }
     ],
-    id: 8
+    id: 8,
+    showAnswers: true,
+    showCorrectAnswers: false
   }
 ]
 
@@ -357,6 +373,7 @@ export const MOCK_DATA_RESULTS: ExamResult[] = [
         isCorrect: false
       }
     ],
-    id: 1
+    id: 1,
+    cheatTimes: 1
   }
 ]

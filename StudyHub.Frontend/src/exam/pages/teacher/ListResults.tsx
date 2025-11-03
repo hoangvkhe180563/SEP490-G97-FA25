@@ -69,8 +69,8 @@ const ListResults = () => {
                 <tr key={result.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{examTitles[result.examId] || 'Đang tải...'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">[Student.Username]</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{result.score}/{result.totalQuestions}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(result.submissionDate).toLocaleString("vi-VN")}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{result.score}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{result.submissionDate?.toLocaleString("vi-VN")}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <Link
                       to={`/results/${result.id}`}

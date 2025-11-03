@@ -26,22 +26,13 @@ export class ExamService {
     return MOCK_DATA_RESULTS.filter(result => result.examId === examId);
   }
 
-  createResult = (resultData: ExamResult): boolean => {
-    console.log("Creating exam paper...", resultData);
-    return true;
-  }
-
-  backupResult = (resultData: ExamResult): boolean => {
-    console.log("Backup data: " + resultData);
+  backupResult = async (resultData: ExamResult): Promise<boolean> => {
+    console.log("Backup data: ", resultData);
     return true;
   }
 
   getResultsByStudent = (studentId: number): ExamResult[] => {
     return MOCK_DATA_RESULTS.filter(result => result.studentId === studentId);
-  }
-
-  getAllStudentResults = (id: number): ExamResult[] => {
-    return MOCK_DATA_RESULTS.filter(result => result.studentId === id);
   }
 
   getAllTeacherResults = (id: number): ExamResult[] => {
@@ -51,5 +42,15 @@ export class ExamService {
 
   getResultDetail = (id: number): ExamResult => {
     return MOCK_DATA_RESULTS.find(result => result.id === id) ?? DEFAULT_EXAM_RESULT;
+  }
+
+  getClassName = async (classId: number): Promise<string> => {
+    console.log("retrieving Class Name from Class " + classId);
+    return "ClassName";
+  }
+
+  getLessonName = async (lessonId: number): Promise<string> => {
+    console.log("retrieving Lesson Name from Lesson " + lessonId);
+    return "LessonName";
   }
 }

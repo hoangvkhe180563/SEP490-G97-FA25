@@ -18,7 +18,9 @@ export const DEFAULT_EXAM: Exam = {
   createdBy: 0,
   duration: 0,
   description: '',
-  questions: []
+  questions: [],
+  showAnswers: true,
+  showCorrectAnswers: false
 }
 
 export const DEFAULT_QUESTION: Question = {
@@ -34,9 +36,9 @@ export const DEFAULT_EXAM_RESULT: ExamResult = {
   examId: 0,
   score: 0,
   studentId: 0,
-  submissionDate: new Date(),
   totalQuestions: 0,
-  answers: []
+  answers: [],
+  cheatTimes: 0
 }
 
 export const DEFAULT_ANSWER: Answer = {

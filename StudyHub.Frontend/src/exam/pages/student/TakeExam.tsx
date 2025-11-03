@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Clock, Maximize, MinusSquare, PlusSquare, Repeat } from 'lucide-react';
 import './TakeExam.css'
 import { MOCK_DATA_USERS } from '@/exam/services/MockData';
 import { ExamService } from '@/exam/services/ExamService';
 import type { Exam } from '@/exam/interfaces/models/Exam';
-import { BLANK_PLACEHOLDER, DEFAULT_EXAM, EXAM_TYPE } from '@/exam/constants/Constants';
+import { BLANK_PLACEHOLDER, DEFAULT_EXAM, DEFAULT_EXAM_RESULT, EXAM_TYPE } from '@/exam/constants/Constants';
 import { useLoading } from '@/common/hooks/useLoading';
 import type { ExamResult } from '@/exam/interfaces/models/ExamResult';
 import { Button } from '@/common/components/ui/button';
@@ -19,7 +19,10 @@ const TakeExam = () => {
   const navigate = useNavigate();
   const user = MOCK_DATA_USERS[1];
   const [exam, setExam] = useState<Exam>(DEFAULT_EXAM);
-  const [studentAnswers, setStudentAnswers] = useState<any[]>([]);
+  const [examResult, setExamResult] = useState<ExamResult>(DEFAULT_EXAM_RESULT);
+  const [studentAnswers, setStudentAnswers] = useState<{
+    [key: number]: any;
+  }>({});
   const [timeLeft, setTimeLeft] = useState(0);
   const { setLoading } = useLoading();
   const [error, setError] = useState<string>('');
@@ -29,7 +32,28 @@ const TakeExam = () => {
   const [cheatTimes, setCheatTimes] = useState<number>(0);
   const [cheatDialogOpen, setCheatDialogOpen] = useState<boolean>(false);
 
+  const examRef = useRef(exam);
+  const examResultRef = useRef(examResult);
+  const studentAnswersRef = useRef(studentAnswers);
+  const cheatTimesRef = useRef(cheatTimes);
+
   //phân quyền?
+
+  useEffect(() => {
+    examRef.current = exam;
+  }, [exam]);
+
+  useEffect(() => {
+    examResultRef.current = examResult;
+  }, [examResult]);
+
+  useEffect(() => {
+    studentAnswersRef.current = studentAnswers;
+  }, [studentAnswers]);
+
+  useEffect(() => {
+    cheatTimesRef.current = cheatTimes;
+  }, [cheatTimes]);
 
   useEffect(() => {
     if (!Number(id)) {
@@ -42,16 +66,49 @@ const TakeExam = () => {
         const fetchedExam = await examService.getExamById(Number(id));
         setExam(fetchedExam);
         setTimeLeft(fetchedExam.duration * 60); // Convert minutes to seconds
-
-        const initialAnswers: any[] = [];
-        fetchedExam.questions.forEach(q => {
-          if (q.type === EXAM_TYPE.FILL_IN_BLANK) {
-            const blankCount = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
-            initialAnswers[q.id] = Array(blankCount).fill('');
-          }
+        
+        const examResult: ExamResult = {
+          id: 999,
+          examId: Number(fetchedExam.id),
+          studentId: Number(user.id),
+          totalQuestions: fetchedExam.questions.length,
+          answers: fetchedExam.questions.map((q) => {
+            let initialAnswer;
+            switch (q.type) {
+              case EXAM_TYPE.SINGLE_CHOICE:
+                initialAnswer = -1;
+                break;
+              case EXAM_TYPE.MULTI_CHOICE:
+                initialAnswer = [];
+                break;
+              case EXAM_TYPE.TEXT_INPUT:
+                initialAnswer = '';
+                break;
+              case EXAM_TYPE.FILL_IN_BLANK:
+                const blankCount = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+                initialAnswer = Array(blankCount).fill('');
+            }
+            
+            return {
+              questionId: q.id,
+              studentAnswer: initialAnswer,
+              isCorrect: false,
+            };
+          }),
+          cheatTimes: cheatTimes
+        };
+        setExamResult(examResult);
+        setStudentAnswers(_ => {
+          const newAnswers: { [key: number]: any } = {};
+          fetchedExam.questions.forEach((q) => {
+            const answerEntry = examResult.answers.find(a => a.questionId === q.id);
+            if (answerEntry) {
+              newAnswers[q.id] = answerEntry.studentAnswer;
+            }
+          });
+          return newAnswers;
         });
-        setStudentAnswers(prev => ({ ...prev, ...initialAnswers }));
-
+        await examService.backupResult(examResult);
       } catch (err) {
         console.error("Failed to fetch exam:", err);
         setError("Không thể tải bài kiểm tra.");
@@ -61,7 +118,10 @@ const TakeExam = () => {
       }
     };
     fetchExam();
-  }, [id]);
+
+    const backupInterval = setInterval(handleBackupExamResult, 30000);
+    return () => clearInterval(backupInterval);
+  }, []);
 
   useEffect(() => {
     if (exam.duration <= 0) return;
@@ -78,10 +138,14 @@ const TakeExam = () => {
   useEffect(() => {
     if (isVisible && exam.duration) {
       setCheatTimes(ct => ct + 1);
-      console.log("backup results: cheatTimes x" + cheatTimes);
-      setCheatDialogOpen(true)
+      setCheatDialogOpen(true);
     }
-  }, [isVisible])
+  }, [isVisible]);
+
+  useEffect(() => {
+    if (exam.duration <= 0) return;
+    handleBackupExamResult(false);
+  }, [cheatTimes])
 
   const handleAnswerChange = (questionId: number, value: any, type: string, blankIndex: number | null = null) => {
     setStudentAnswers((prevAnswers) => {
@@ -121,65 +185,54 @@ const TakeExam = () => {
 
     if (isSubmitted || !exam) return;
     setIsSubmitted(true);
-
-    let rightAnswers = 0;
-    const answeredQuestions = exam.questions.map((q) => {
-      const studentAns = studentAnswers[q.id];
-      let isCorrect = false;
-
-      if (q.type === EXAM_TYPE.SINGLE_CHOICE) {
-        isCorrect = q.correctAnswer === studentAns;
-      } else if (q.type === EXAM_TYPE.MULTI_CHOICE) {
-        const studentAnsArray = Array.isArray(studentAns) ? studentAns : [];
-        const correctAnsArray = Array.isArray(q.correctAnswer) ? q.correctAnswer : [];
-        isCorrect = (
-          studentAnsArray.length === correctAnsArray.length &&
-          studentAnsArray.every((val) => correctAnsArray.includes(val))
-        );
-      } else if (q.type === EXAM_TYPE.TEXT_INPUT) {
-        isCorrect = (studentAns?.toString().trim().toLowerCase() === q.correctAnswer?.toString().trim().toLowerCase());
-      } else if (q.type === EXAM_TYPE.FILL_IN_BLANK) {
-        const studentAnsArray = Array.isArray(studentAns) ? studentAns.map(ans => String(ans || '').trim().toLowerCase()) : [];
-        const correctAnsArray = Array.isArray(q.correctAnswer) ? q.correctAnswer.map(ans => String(ans || '').trim().toLowerCase()) : [];
-        isCorrect = (
-          studentAnsArray.length === correctAnsArray.length &&
-          studentAnsArray.every((val, index) => val === correctAnsArray[index])
-        );
-      }
-
-      if (isCorrect) {
-        rightAnswers++;
-      }
-
+    
+    setExamResult(prev => {
       return {
-        questionId: q.id,
-        studentAnswer: studentAns,
-        isCorrect: isCorrect,
-      };
+        ...prev,
+        submissionDate: new Date()
+      }
     });
-
-    const finalScore = rightAnswers / exam.questions.length * 10;
-
-    const resultData: ExamResult = {
-      id: 999,
-      examId: Number(exam.id),
-      studentId: Number(user.id),
-      submissionDate: new Date(),
-      score: parseFloat(finalScore.toFixed(2)),
-      totalQuestions: exam.questions.length,
-      answers: answeredQuestions,
-    };
+    handleBackupExamResult(true);
 
     try {
-      await examService.createResult(resultData);
       alert('Bạn đã nộp bài thành công!');
-      navigate(`/exam/results/${resultData.examId}`);
+      navigate(`/exam/results/${examResult.examId}`);
     } catch (err) {
       console.error("Failed to submit exam:", err);
       setError("Nộp bài thất bại. Vui lòng thử lại.");
       setIsSubmitted(false);
     }
   };
+
+  const handleBackupExamResult = async (isSubmission: boolean) => {
+    const currentExam = examRef.current;
+    const currentStudentAnswers = studentAnswersRef.current;
+    console.log(currentStudentAnswers);
+    const currentCheatTimes = cheatTimesRef.current;
+    const currentExamResult = examResultRef.current;
+
+    const answeredQuestions = currentExam.questions.map((q) => {
+      const studentAns = currentStudentAnswers[q.id];
+
+      return {
+        questionId: q.id,
+        studentAnswer: studentAns,
+        isCorrect: false,
+      };
+    });
+
+    const newResult = {
+      ...currentExamResult,
+      answers: answeredQuestions,
+      cheatTimes: currentCheatTimes
+    }
+    if (isSubmission) {
+      currentExamResult.submissionDate = new Date();
+    }
+    setExamResult(newResult);
+
+    await examService.backupResult(newResult);
+  }
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -222,7 +275,7 @@ const TakeExam = () => {
         </div>
         <div className="flex justify-end items-center space-x-4">
           <b>Số câu đã trả lời: <span className="text-lime-500">2</span><span> / 40</span></b>
-          <Button className="bg-blue-500 hover:bg-blue-700">Lưu</Button>
+          <Button className="bg-blue-500 hover:bg-blue-700" onClick={() => handleBackupExamResult(false)}>Lưu</Button>
           <div className="flex space-x-2">
             <Button size="icon" className="bg-blue-800 hover:bg-blue-900 size-6 rounded-sm"><MinusSquare /></Button>
             <Button size="icon" className="bg-blue-800 hover:bg-blue-900 size-6 rounded-sm"><PlusSquare /></Button>

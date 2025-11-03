@@ -8,100 +8,51 @@ import type { Question } from '@/exam/interfaces/models/Question';
 import { ExamService } from '@/exam/services/ExamService';
 import { MOCK_DATA_USERS } from '@/exam/services/MockData';
 import { ArrowLeft } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 
 const CreateExam = () => {
   const user = MOCK_DATA_USERS[0];
+  const [searchParams] = useSearchParams();
+  const [classId, setClassId] = useState<number>(0);
+  const [className, setClassName] = useState<string>('');
+  const [lessonId, setLessonId] = useState<number>(0);
+  const [lessonName, setLessonName] = useState<string>('');
   const navigate = useNavigate();
   const [examTitle, setExamTitle] = useState('');
   const [examDescription, setExamDescription] = useState('');
   const [examDuration, setExamDuration] = useState<string>('');
   const [questions, setQuestions] = useState<Question[]>([]);
   const { setLoading } = useLoading();
-  const [error, setError] = useState<string>('');
   const [excelFileError, setExcelFileError] = useState<string>('');
   const [showAnswers, setShowAnswers] = useState<boolean>(true);
   const [showCorrectAnswers, setShowCorrectAnswers] = useState<boolean>(false);
   const examService = new ExamService();
 
-  const addQuestion = (type: string) => {
-    let newQuestion = DEFAULT_QUESTION;
-    newQuestion.type = type as "single-choice" | "multiple-choice" | "text-input" | "fill-blank";
+  //phân quyền
 
-    if (type === EXAM_TYPE.SINGLE_CHOICE) {
-      newQuestion.options = [''];
-      newQuestion.correctAnswer = '';
-    } else if (type === EXAM_TYPE.MULTI_CHOICE) {
-      newQuestion.options = [''];
-      newQuestion.correctAnswer = [];
-    } else if (type === EXAM_TYPE.FILL_IN_BLANK) {
-      newQuestion.questionText = `Câu hỏi có ${BLANK_PLACEHOLDER} thứ nhất và ${BLANK_PLACEHOLDER} thứ hai.`;
-      newQuestion.correctAnswer = ['', ''];
+  useEffect(() => {
+    const fetchData = async () => {
+      const classIdQuery = Number(searchParams.get("classId"))
+      const lessonIdQuery = Number(searchParams.get("lessonId"));
+      if (lessonIdQuery) {
+        setLessonId(lessonIdQuery);
+        const lessonName = await examService.getLessonName(lessonIdQuery);
+        setLessonName(lessonName);
+      } else if (classIdQuery) {
+        setClassId(classIdQuery);
+        const className = await examService.getClassName(classIdQuery);
+        setClassName(className);
+      } else {
+        toast.error("Chưa có id của lớp hoặc bài học để tạo bài kiểm tra!");
+        navigate("/");
+      }
     }
-    setQuestions([...questions, newQuestion]);
-  };
 
-  const updateQuestion = (id: number, field: string, value: any, optionIndex: number | null = null) => {
-    setQuestions(questions.map(q => {
-      if (q.id !== id) {
-        return q;
-      }
-      if (field === 'questionText' && q.type === EXAM_TYPE.FILL_IN_BLANK) {
-        const placeholderRegex = new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
-        const expectedBlanks = (String(value).match(placeholderRegex) || []).length;
-        const currentAnswers = Array.isArray(q.correctAnswer) ? [...q.correctAnswer] : [];
-
-        if (currentAnswers.length > expectedBlanks) {
-          currentAnswers.length = expectedBlanks;
-        } else {
-          while (currentAnswers.length < expectedBlanks) {
-            currentAnswers.push('');
-          }
-        }
-
-        return { ...q, questionText: value, correctAnswer: currentAnswers };
-      }
-      if (field === 'options' && optionIndex !== null) {
-        const newOptions = [...q.options];
-        newOptions[optionIndex] = value;
-        return { ...q, options: newOptions };
-      }
-      if (field === 'addOption') {
-        return { ...q, options: [...q.options, ''] };
-      }
-      if (field === 'removeOption' && optionIndex !== null) {
-        const newOptions = q.options.filter((_, idx) => idx !== optionIndex);
-        if (q.type === EXAM_TYPE.SINGLE_CHOICE && q.correctAnswer === q.options[optionIndex]) {
-          return { ...q, options: newOptions, correctAnswer: '' };
-        }
-        if (q.type === EXAM_TYPE.MULTI_CHOICE) {
-          const newCorrectAnswers = q.correctAnswer.filter((ans: any) => ans !== q.options[optionIndex]);
-          return { ...q, options: newOptions, correctAnswer: newCorrectAnswers };
-        }
-        return { ...q, options: newOptions };
-      }
-      if (field === 'correctAnswerMulti') {
-        const currentAnswers = q.correctAnswer;
-        if (currentAnswers.includes(value)) {
-          return { ...q, correctAnswer: currentAnswers.filter((ans: any) => ans !== value) };
-        } else {
-          return { ...q, correctAnswer: [...currentAnswers, value] };
-        }
-      }
-      if (field === 'fillBlankAnswer' && optionIndex !== null) {
-        const newCorrectAnswers = [...q.correctAnswer];
-        newCorrectAnswers[optionIndex] = value;
-        return { ...q, correctAnswer: newCorrectAnswers };
-      }
-      return { ...q, [field]: value };
-    }));
-  };
-
-  const removeQuestion = (id: number) => {
-    setQuestions(questions.filter(q => q.id !== id));
-  };
+    fetchData().catch(console.error);
+  }, [])
 
   const handleExcelFileUpload: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     if (!e.target.files) {
@@ -133,7 +84,7 @@ const CreateExam = () => {
         let rowErrors: string[] = [];
 
         questionRows.forEach((row: any, rowIndex) => {
-          const question: Question = DEFAULT_QUESTION;
+          const question: Question = JSON.parse(JSON.stringify(DEFAULT_QUESTION)) as Question;
           let isValidRow = true;
 
           const questionType = String(row[header.indexOf('Loại câu hỏi')] || '').toLowerCase();
@@ -218,7 +169,9 @@ const CreateExam = () => {
         }
 
         setQuestions(prevQuestions => [...prevQuestions, ...newQuestions]);
-        alert(`Đã nhập thành công ${newQuestions.length} câu hỏi từ file Excel.`);
+        toast.success(`Đã nhập thành công ${newQuestions.length} câu hỏi từ file Excel.`, {
+          style: { maxWidth: 600 }
+        });
 
       } catch (err) {
         console.error("Error reading Excel file:", err);
@@ -238,17 +191,16 @@ const CreateExam = () => {
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     if (!user || user.role !== 'teacher') {
-      setError("Bạn không có quyền tạo bài kiểm tra.");
+      toast.error("Bạn không có quyền tạo bài kiểm tra.");
       setLoading(false);
       return;
     }
 
     if (!examTitle || !examDescription || !examDuration || questions.length === 0) {
-      setError("Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi.");
+      toast.error("Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi.");
       setLoading(false);
       return;
     }
@@ -256,13 +208,13 @@ const CreateExam = () => {
     // Basic validation for questions
     for (const q of questions) {
       if (!q.questionText.trim()) {
-        setError("Vui lòng nhập nội dung cho tất cả các câu hỏi.");
+        toast.error("Vui lòng nhập nội dung cho tất cả các câu hỏi.");
         setLoading(false);
         return;
       }
       if (q.type === EXAM_TYPE.SINGLE_CHOICE || q.type === EXAM_TYPE.MULTI_CHOICE) {
         if (q.options.some(opt => !String(opt).trim())) {
-          setError(`Vui lòng nhập nội dung cho tất cả các lựa chọn hoặc xóa lựa chọn trống cho câu hỏi "${q.questionText}".`);
+          toast.error(`Vui lòng nhập nội dung cho tất cả các lựa chọn hoặc xóa lựa chọn trống cho câu hỏi "${q.questionText}".`);
           setLoading(false);
           return;
         }
@@ -270,31 +222,31 @@ const CreateExam = () => {
 
       if (q.type === EXAM_TYPE.SINGLE_CHOICE) {
         if (!String(q.correctAnswer).trim()) {
-          setError(`Vui lòng chọn đáp án đúng cho câu hỏi "${q.questionText}".`);
+          toast.error(`Vui lòng chọn đáp án đúng cho câu hỏi "${q.questionText}".`);
           setLoading(false);
           return;
         }
       } else if (q.type === EXAM_TYPE.MULTI_CHOICE) {
         if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length === 0 || q.correctAnswer.some(ans => !String(ans).trim())) {
-          setError(`Vui lòng chọn ít nhất một đáp án đúng cho câu hỏi "${q.questionText}".`);
+          toast.error(`Vui lòng chọn ít nhất một đáp án đúng cho câu hỏi "${q.questionText}".`);
           setLoading(false);
           return;
         }
       } else if (q.type === EXAM_TYPE.TEXT_INPUT) {
         if (!String(q.correctAnswer).trim()) {
-          setError(`Vui lòng nhập đáp án đúng cho câu hỏi "${q.questionText}".`);
+          toast.error(`Vui lòng nhập đáp án đúng cho câu hỏi "${q.questionText}".`);
           setLoading(false);
           return;
         }
       } else if (q.type === EXAM_TYPE.FILL_IN_BLANK) {
         const expectedBlanks = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
         if (expectedBlanks === 0) {
-          setError(`Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
+          toast.error(`Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
           setLoading(false);
           return;
         }
         if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length !== expectedBlanks || q.correctAnswer.some(ans => !String(ans).trim())) {
-          setError(`Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${q.questionText}".`);
+          toast.error(`Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${q.questionText}".`);
           setLoading(false);
           return;
         }
@@ -312,18 +264,99 @@ const CreateExam = () => {
           id: index + 1, ...rest
         }
       }),
+      showAnswers: showAnswers,
+      showCorrectAnswers: showCorrectAnswers,
+      classId: classId,
+      lessonId: lessonId
     };
 
     try {
       await examService.createExam(newExam);
-      alert('Tạo bài kiểm tra thành công!');
-      navigate('/teacher/exams');
+      toast.success('Tạo bài kiểm tra thành công!');
+      navigate('/exam/teacher/exams');
     } catch (err) {
       console.error("Failed to create exam:", err);
-      setError("Tạo bài kiểm tra thất bại. Vui lòng thử lại.");
+      toast.error("Tạo bài kiểm tra thất bại. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const addQuestion = (type: string) => {
+    let newQuestion = DEFAULT_QUESTION;
+    newQuestion.type = type as "single-choice" | "multiple-choice" | "text-input" | "fill-blank";
+
+    if (type === EXAM_TYPE.SINGLE_CHOICE) {
+      newQuestion.options = [''];
+      newQuestion.correctAnswer = '';
+    } else if (type === EXAM_TYPE.MULTI_CHOICE) {
+      newQuestion.options = [''];
+      newQuestion.correctAnswer = [];
+    } else if (type === EXAM_TYPE.FILL_IN_BLANK) {
+      newQuestion.questionText = `Câu hỏi có ${BLANK_PLACEHOLDER} thứ nhất và ${BLANK_PLACEHOLDER} thứ hai.`;
+      newQuestion.correctAnswer = ['', ''];
+    }
+    setQuestions([...questions, newQuestion]);
+  };
+
+  const updateQuestion = (id: number, field: string, value: any, optionIndex: number | null = null) => {
+    setQuestions(questions.map(q => {
+      if (q.id !== id) {
+        return q;
+      }
+      if (field === 'questionText' && q.type === EXAM_TYPE.FILL_IN_BLANK) {
+        const placeholderRegex = new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+        const expectedBlanks = (String(value).match(placeholderRegex) || []).length;
+        const currentAnswers = Array.isArray(q.correctAnswer) ? [...q.correctAnswer] : [];
+
+        if (currentAnswers.length > expectedBlanks) {
+          currentAnswers.length = expectedBlanks;
+        } else {
+          while (currentAnswers.length < expectedBlanks) {
+            currentAnswers.push('');
+          }
+        }
+
+        return { ...q, questionText: value, correctAnswer: currentAnswers };
+      }
+      if (field === 'options' && optionIndex !== null) {
+        const newOptions = [...q.options];
+        newOptions[optionIndex] = value;
+        return { ...q, options: newOptions };
+      }
+      if (field === 'addOption') {
+        return { ...q, options: [...q.options, ''] };
+      }
+      if (field === 'removeOption' && optionIndex !== null) {
+        const newOptions = q.options.filter((_, idx) => idx !== optionIndex);
+        if (q.type === EXAM_TYPE.SINGLE_CHOICE && q.correctAnswer === q.options[optionIndex]) {
+          return { ...q, options: newOptions, correctAnswer: '' };
+        }
+        if (q.type === EXAM_TYPE.MULTI_CHOICE) {
+          const newCorrectAnswers = q.correctAnswer.filter((ans: any) => ans !== q.options[optionIndex]);
+          return { ...q, options: newOptions, correctAnswer: newCorrectAnswers };
+        }
+        return { ...q, options: newOptions };
+      }
+      if (field === 'correctAnswerMulti') {
+        const currentAnswers = q.correctAnswer;
+        if (currentAnswers.includes(value)) {
+          return { ...q, correctAnswer: currentAnswers.filter((ans: any) => ans !== value) };
+        } else {
+          return { ...q, correctAnswer: [...currentAnswers, value] };
+        }
+      }
+      if (field === 'fillBlankAnswer' && optionIndex !== null) {
+        const newCorrectAnswers = [...q.correctAnswer];
+        newCorrectAnswers[optionIndex] = value;
+        return { ...q, correctAnswer: newCorrectAnswers };
+      }
+      return { ...q, [field]: value };
+    }));
+  };
+
+  const removeQuestion = (id: number) => {
+    setQuestions(questions.filter(q => q.id !== id));
   };
 
   return (
@@ -333,9 +366,8 @@ const CreateExam = () => {
         <span>Quay lại</span>
       </Button>
 
-      <h1 className="text-4xl font-bold mb-6 text-gray-800">Tạo bài kiểm tra mới</h1>
-
-      {error && <div className="p-3 mb-4 bg-red-100 text-red-700 rounded-lg">{error}</div>}
+      {classId !== 0 && <h1 className="text-4xl font-bold mb-6 text-gray-800">Tạo bài kiểm tra mới cho lớp {className}</h1>}
+      {lessonId !== 0 && <h1 className="text-4xl font-bold mb-6 text-gray-800">Tạo bài kiểm tra mới cho bài học {lessonName}</h1>}
 
       <form onSubmit={handleSubmit}>
         <div className="mb-6">
