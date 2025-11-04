@@ -9,32 +9,23 @@ import { Textarea } from "@/common/components/ui/textarea";
 import { ScrollArea } from "@/common/components/ui/scroll-area";
 import { Badge } from "@/common/components/ui/badge";
 import { Paperclip, Send } from "lucide-react";
-import { axiosInstance } from "@/lib/axios";
+import { useConversationStore } from "@/qaManagement/stores/useConversationStore";
+import { useMessageStore } from "@/qaManagement/stores/useMessageStore";
+import type { Message } from "@/qaManagement/interfaces/message";
+import type { Conversation } from "@/qaManagement/interfaces/conversation";
 import { formatLastOnline, formatTime } from "@/qaManagement/utils/dateUtils";
 import { useParams } from "react-router-dom";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-
-type Message = {
-  id: string;
-  senderId: string; // 'me' or other
-  content: string;
-  createdAt: string;
-};
+import { createFallBack } from "@/qaManagement/utils/avatarUtils";
 
 const ConversationDetails = () => {
   const { id: conversationId } = useParams();
   // demo current user id
   const { user } = useAuthStore();
   // messages (loaded from API)
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [conversation, setConversation] = useState<{
-    id: string;
-    title?: string;
-    teacherId?: string | null;
-    teacherName?: string | null;
-    teacherAvatar?: string | null;
-    createdAt?: string;
-  } | null>(null);
+  const [messages, setMessages] = useState<Partial<Message>[]>([]);
+  const [conversation, setConversation] =
+    useState<Partial<Conversation> | null>(null);
 
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -58,42 +49,36 @@ const ConversationDetails = () => {
       setLoading(true);
       setError(null);
       try {
-        // load conversation details
-        const convResp = await axiosInstance.get(
-          `/QAConversation/${conversationId}`
-        );
-        const convJson = convResp.data;
-        if (convJson && convJson.success && convJson.data) {
-          const c = convJson.data;
-          if (mounted) {
-            setConversation({
-              id: c.id,
-              title: c.title,
-              teacherId: c.teacherId ?? null,
-              teacherName: c.teacherName ?? null,
-              teacherAvatar: c.teacherAvatar ?? null,
-              createdAt: c.createdAt
-                ? new Date(c.createdAt).toISOString()
-                : undefined,
-            });
-          }
+        // load conversation details via store (store will populate `conversation`)
+        await useConversationStore
+          .getState()
+          .getConversationById(conversationId);
+        const found = useConversationStore.getState().conversation;
+        if (found && mounted) {
+          setConversation({
+            id: found.id,
+            title: found.title,
+            teacherId: found.teacherId ?? null,
+            teacherName: found.teacherName ?? null,
+            teacherAvatar: found.teacherAvatar ?? null,
+            createdAt: found.createdAt
+              ? new Date(found.createdAt).toISOString()
+              : undefined,
+          });
         }
 
-        const resp = await axiosInstance.get(
-          `/QAMessage/conversation/${conversationId}`
-        );
-        const json = resp.data;
-        if (json && json.success && Array.isArray(json.data)) {
-          if (!mounted) return;
-          const mapped = json.data.map((d: Message) => ({
+        await useMessageStore
+          .getState()
+          .getMessagesByConversationId(conversationId);
+        const msgs = useMessageStore.getState().messages || [];
+        if (mounted) {
+          const mapped = msgs.map((d: any) => ({
             id: d.id,
             senderId: d.senderId,
-            content: d.content ?? "",
-            createdAt: new Date(d.createdAt).toISOString(),
+            content: d.content ?? d.Content ?? "",
+            createdAt: new Date(d.createdAt ?? d.CreatedAt).toISOString(),
           }));
           setMessages(mapped);
-        } else {
-          setError(json?.message ?? "Không thể tải tin nhắn");
         }
       } catch (err: any) {
         setError(err?.message ?? String(err));
@@ -110,7 +95,7 @@ const ConversationDetails = () => {
   const onSend = () => {
     if (!text.trim()) return;
     // optimistic UI update
-    const m: Message = {
+    const m: Partial<Message> = {
       id: String(Date.now()),
       senderId: user?.id || "unknown",
       content: text.trim(),
@@ -126,25 +111,19 @@ const ConversationDetails = () => {
     setText("");
     (async () => {
       try {
-        const resp = await axiosInstance.post(`/QAMessage`, payload);
-        const json = resp.data;
-        if (json && json.success && json.data) {
-          const d = json.data;
-          const serverMsg: Message = {
-            id: d.id,
-            senderId: String(d.senderId),
-            content: d.content ?? d.Content ?? "",
-            createdAt: new Date(d.createdAt ?? d.CreatedAt).toISOString(),
-          };
-          // replace optimistic message with server message (simple strategy: append)
-          setMessages((s) => {
-            // if optimistic message is present (matching by content), we keep ordering and ensure server message appended
-            return [...s.filter((x) => x.id !== m.id), serverMsg];
-          });
-        } else {
-          // server error: leave optimistic but set error
-          setError(json?.message ?? "Lỗi khi gửi tin nhắn");
-        }
+        await useMessageStore.getState().sendMessage(payload);
+        // refresh messages from store after sending
+        await useMessageStore
+          .getState()
+          .getMessagesByConversationId(conversationId || "");
+        const msgs = useMessageStore.getState().messages || [];
+        const mapped = msgs.map((d: any) => ({
+          id: d.id,
+          senderId: d.senderId,
+          content: d.content ?? d.Content ?? "",
+          createdAt: new Date(d.createdAt ?? d.CreatedAt).toISOString(),
+        }));
+        setMessages(mapped);
       } catch (err: any) {
         setError(err?.message ?? String(err));
       }
@@ -171,7 +150,9 @@ const ConversationDetails = () => {
               />
             ) : (
               <AvatarFallback>
-                {(conversation?.teacherName ?? "T").charAt(0)}
+                {conversation?.teacherName
+                  ? createFallBack(conversation?.teacherName)
+                  : "AI"}
               </AvatarFallback>
             )}
           </Avatar>
@@ -263,7 +244,7 @@ const ConversationDetails = () => {
                         isMe ? "text-blue-100" : "text-muted-foreground"
                       }`}
                     >
-                      {formatTime(m.createdAt)}
+                      {formatTime(m.createdAt ?? "")}
                     </div>
                   </div>
                 </div>

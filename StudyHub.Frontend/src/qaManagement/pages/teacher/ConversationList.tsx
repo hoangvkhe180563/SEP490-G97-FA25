@@ -10,7 +10,8 @@ import { Button } from "@/common/components/ui/button";
 import { Badge } from "@/common/components/ui/badge";
 import { Input } from "@/common/components/ui/input";
 import { ScrollArea } from "@/common/components/ui/scroll-area";
-import { axiosInstance } from "@/lib/axios";
+import { useConversationStore } from "@/qaManagement/stores/useConversationStore";
+import { useQAUserStore } from "@/qaManagement/stores/useUserStore";
 import {
   AlertTriangle,
   ArrowRight,
@@ -19,67 +20,46 @@ import {
   Users2,
 } from "lucide-react";
 import { formatLastOnline } from "@/qaManagement/utils/dateUtils";
-
-type ConversationDto = {
-  id: string;
-  title: string;
-  isRead?: boolean;
-  studentId: string;
-  studentName: string;
-  studentEmail?: string;
-  studentAvatar?: string | null;
-  teacherId?: string | null;
-  topicName?: string;
-  subjectName?: string;
-  createdAt: string;
-};
+import type { ConversationDto } from "@/qaManagement/interfaces/dtos";
+import { createFallBack } from "@/qaManagement/utils/avatarUtils";
 
 const TeacherConversationList: React.FC = () => {
   const [items, setItems] = useState<ConversationDto[]>([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const conversations = useConversationStore((s) => s.conversations);
+  const loading = useConversationStore((s) => s.isLoading);
+  const getMine = useConversationStore((s) => s.getMine);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "read" | "recent">(
     "all"
   );
 
+  // load current user's conversations via store
   useEffect(() => {
     let mounted = true;
-    const fetchConversations = async () => {
-      setLoading(true);
+    const load = async () => {
       setError(null);
       try {
-        const resp = await axiosInstance.get("/QAConversation");
-        const json = resp.data;
-        if (resp.status !== 200) {
-          if (resp.status === 401) {
-            setError("Bạn chưa đăng nhập hoặc phiên đã hết hạn.");
-            return;
-          }
-          if (resp.status === 403) {
-            setError("Bạn không có quyền truy cập.");
-            return;
-          }
-          setError(json?.message ?? resp.statusText ?? "Không thể tải dữ liệu");
-          return;
-        }
-        if (json && json.success) {
-          const data = Array.isArray(json.data) ? json.data : [];
-          if (mounted) setItems(data.map((d: any) => mapServerToDto(d)));
-        } else {
-          setError(json?.message ?? "Không thể tải dữ liệu");
-        }
+        await getMine();
       } catch (err: any) {
-        setError(err?.message ?? String(err));
-      } finally {
-        if (mounted) setLoading(false);
+        if (mounted) setError(err?.message ?? String(err));
       }
     };
-    fetchConversations();
+    load();
     return () => {
       mounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // map store conversations to local DTOs for display
+  useEffect(() => {
+    if (!conversations || conversations.length === 0) {
+      setItems([]);
+      return;
+    }
+    setItems(conversations.map((d: any) => mapServerToDto(d)));
+  }, [conversations]);
 
   function mapServerToDto(d: any): ConversationDto {
     return {
@@ -97,33 +77,39 @@ const TeacherConversationList: React.FC = () => {
     };
   }
 
-  // derive unique students from conversations
-  const students = (() => {
-    const map = new Map<
-      string,
-      { id: string; name: string; avatar?: string | null; lastAt: string }
-    >();
-    for (const c of items) {
-      const id = c.studentId || c.studentId === "" ? c.studentId : c.studentId;
-      if (!id) continue;
-      const existing = map.get(id);
-      const lastAt = c.createdAt || new Date().toISOString();
-      if (!existing) {
-        map.set(id, {
-          id,
-          name: c.studentName || "Người học",
-          avatar: c.studentAvatar ?? null,
-          lastAt,
-        });
-      } else {
-        if (new Date(lastAt).getTime() > new Date(existing.lastAt).getTime())
-          existing.lastAt = lastAt;
+  // students list: use connectedStudents from QA user store (students with conversations)
+  const connectedStudents = useQAUserStore((s) => s.connectedStudents);
+  const getConnectedStudents = useQAUserStore((s) => s.getConnectedStudents);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        await getConnectedStudents();
+      } catch (err) {
+        // ignore
       }
-    }
-    return Array.from(map.values()).sort(
-      (a, b) => +new Date(b.lastAt) - +new Date(a.lastAt)
-    );
-  })();
+    };
+    if (mounted) load();
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const students = (connectedStudents || [])
+    .map((t: any) => {
+      const name =
+        t.fullname ?? t.fullName ?? t.name ?? t.username ?? "Người học";
+      const avatar = t.avatar ?? t.profilePicture ?? null;
+      const lastAt =
+        t.lastOnline ??
+        t.lastActivity ??
+        t.createdAt ??
+        new Date().toISOString();
+      return { id: t.id ?? t.Id ?? "", name, avatar, lastAt };
+    })
+    .sort((a: any, b: any) => +new Date(b.lastAt) - +new Date(a.lastAt));
 
   const filteredItems = items
     .filter((it) => {
@@ -141,6 +127,8 @@ const TeacherConversationList: React.FC = () => {
         (it.studentName || "").toLowerCase().includes(s)
       );
     });
+
+  // use connected teachers from QA user store
 
   const displayedItems =
     filter === "recent"
@@ -200,7 +188,7 @@ const TeacherConversationList: React.FC = () => {
                 <div className="relative">
                   <Avatar>
                     <AvatarImage src={s.avatar ?? ""} alt={s.name} />
-                    <AvatarFallback>{s.name.charAt(0)}</AvatarFallback>
+                    <AvatarFallback>{createFallBack(s.name)}</AvatarFallback>
                   </Avatar>
                   <span
                     aria-hidden

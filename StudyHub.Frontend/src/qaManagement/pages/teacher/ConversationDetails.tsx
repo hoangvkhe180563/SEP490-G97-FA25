@@ -9,30 +9,21 @@ import { Textarea } from "@/common/components/ui/textarea";
 import { ScrollArea } from "@/common/components/ui/scroll-area";
 import { Badge } from "@/common/components/ui/badge";
 import { Paperclip, Send } from "lucide-react";
-import { axiosInstance } from "@/lib/axios";
+import { useConversationStore } from "@/qaManagement/stores/useConversationStore";
+import { useMessageStore } from "@/qaManagement/stores/useMessageStore";
+import type { Message } from "@/qaManagement/interfaces/message";
+import type { Conversation } from "@/qaManagement/interfaces/conversation";
 import { formatLastOnline, formatTime } from "@/qaManagement/utils/dateUtils";
 import { useParams } from "react-router-dom";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-
-type Message = {
-  id: string;
-  senderId: string; // 'me' or other
-  content: string;
-  createdAt: string;
-};
+import { createFallBack } from "@/qaManagement/utils/avatarUtils";
 
 const ConversationDetails: React.FC = () => {
   const { id: conversationId } = useParams();
   const { user } = useAuthStore();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [conversation, setConversation] = useState<{
-    id: string;
-    title?: string;
-    teacherId?: string | null;
-    teacherName?: string | null;
-    teacherAvatar?: string | null;
-    createdAt?: string;
-  } | null>(null);
+  const [messages, setMessages] = useState<Partial<Message>[]>([]);
+  const [conversation, setConversation] =
+    useState<Partial<Conversation> | null>(null);
 
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -55,41 +46,35 @@ const ConversationDetails: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const convResp = await axiosInstance.get(
-          `/QAConversation/${conversationId}`
-        );
-        const convJson = convResp.data;
-        if (convJson && convJson.success && convJson.data) {
-          const c = convJson.data;
-          if (mounted) {
-            setConversation({
-              id: c.id,
-              title: c.title,
-              teacherId: c.teacherId ?? null,
-              teacherName: c.teacherName ?? null,
-              teacherAvatar: c.teacherAvatar ?? null,
-              createdAt: c.createdAt
-                ? new Date(c.createdAt).toISOString()
-                : undefined,
-            });
-          }
+        await useConversationStore
+          .getState()
+          .getConversationById(conversationId);
+        const found = useConversationStore.getState().conversation;
+        if (found && mounted) {
+          setConversation({
+            id: found.id,
+            title: found.title,
+            teacherId: found.teacherId ?? null,
+            teacherName: found.teacherName ?? null,
+            teacherAvatar: found.teacherAvatar ?? null,
+            createdAt: found.createdAt
+              ? new Date(found.createdAt).toISOString()
+              : undefined,
+          });
         }
 
-        const resp = await axiosInstance.get(
-          `/QAMessage/conversation/${conversationId}`
-        );
-        const json = resp.data;
-        if (json && json.success && Array.isArray(json.data)) {
-          if (!mounted) return;
-          const mapped = json.data.map((d: any) => ({
+        await useMessageStore
+          .getState()
+          .getMessagesByConversationId(conversationId);
+        const msgs = useMessageStore.getState().messages || [];
+        if (mounted) {
+          const mapped = msgs.map((d: any) => ({
             id: d.id,
             senderId: String(d.senderId),
             content: d.content ?? "",
             createdAt: new Date(d.createdAt ?? d.CreatedAt).toISOString(),
           }));
           setMessages(mapped);
-        } else {
-          setError(json?.message ?? "Không thể tải tin nhắn");
         }
       } catch (err: any) {
         setError(err?.message ?? String(err));
@@ -105,7 +90,7 @@ const ConversationDetails: React.FC = () => {
 
   const onSend = () => {
     if (!text.trim()) return;
-    const m: Message = {
+    const m: Partial<Message> = {
       id: String(Date.now()),
       senderId: user?.id || "unknown",
       content: text.trim(),
@@ -121,20 +106,18 @@ const ConversationDetails: React.FC = () => {
     setText("");
     (async () => {
       try {
-        const resp = await axiosInstance.post(`/QAMessage`, payload);
-        const json = resp.data;
-        if (json && json.success && json.data) {
-          const d = json.data;
-          const serverMsg: Message = {
-            id: d.id,
-            senderId: String(d.senderId),
-            content: d.content ?? d.Content ?? "",
-            createdAt: new Date(d.createdAt ?? d.CreatedAt).toISOString(),
-          };
-          setMessages((s) => [...s.filter((x) => x.id !== m.id), serverMsg]);
-        } else {
-          setError(json?.message ?? "Lỗi khi gửi tin nhắn");
-        }
+        await useMessageStore.getState().sendMessage(payload);
+        await useMessageStore
+          .getState()
+          .getMessagesByConversationId(conversationId || "");
+        const msgs = useMessageStore.getState().messages || [];
+        const mapped = msgs.map((d: any) => ({
+          id: d.id,
+          senderId: String(d.senderId),
+          content: d.content ?? d.Content ?? "",
+          createdAt: new Date(d.createdAt ?? d.CreatedAt).toISOString(),
+        }));
+        setMessages(mapped);
       } catch (err: any) {
         setError(err?.message ?? String(err));
       }
@@ -160,7 +143,9 @@ const ConversationDetails: React.FC = () => {
               />
             ) : (
               <AvatarFallback>
-                {(conversation?.teacherName ?? "T").charAt(0)}
+                {conversation?.teacherName
+                  ? createFallBack(conversation?.teacherName)
+                  : "AI"}
               </AvatarFallback>
             )}
           </Avatar>
@@ -250,7 +235,7 @@ const ConversationDetails: React.FC = () => {
                         isMe ? "text-blue-100" : "text-muted-foreground"
                       }`}
                     >
-                      {formatTime(m.createdAt)}
+                      {formatTime(m.createdAt ?? "")}
                     </div>
                   </div>
                 </div>

@@ -10,7 +10,7 @@ import { Button } from "@/common/components/ui/button";
 import { Badge } from "@/common/components/ui/badge";
 import { Input } from "@/common/components/ui/input";
 import { ScrollArea } from "@/common/components/ui/scroll-area";
-import { axiosInstance } from "@/lib/axios";
+import { useConversationStore } from "@/qaManagement/stores/useConversationStore";
 import {
   AlertTriangle,
   ArrowRight,
@@ -20,32 +20,17 @@ import {
 } from "lucide-react";
 import { formatLastOnline } from "@/qaManagement/utils/dateUtils";
 import CreateConversationModal from "../../components/CreateConversationModal";
-
-type ConversationDto = {
-  id: string;
-  title: string;
-  isRead?: boolean;
-  studentId: string;
-  studentName: string;
-  studentEmail: string;
-  studentUsername: string;
-  studentAvatar?: string | null;
-  teacherId?: string | null;
-  teacherName?: string | null;
-  teacherAvatar?: string | null;
-  teacherUsername?: string | null;
-  type?: string;
-  isPaid?: boolean;
-  topicId?: number;
-  topicName?: string;
-  subjectName?: string;
-  createdAt: string;
-};
+import type { ConversationDto } from "@/qaManagement/interfaces/dtos";
+import { useQAUserStore } from "@/qaManagement/stores/useUserStore";
+import { createFallBack } from "@/qaManagement/utils/avatarUtils";
 
 const ConversationList: React.FC = () => {
   const [createOpen, setCreateOpen] = useState(false);
-  const [items, setItems] = useState<ConversationDto[]>([]);
-  const [loading, setLoading] = useState(false);
+  const conversations = useConversationStore((s) => s.conversations);
+  const loading = useConversationStore((s) => s.isLoading);
+  const storeMessage = useConversationStore((s) => s.message);
+  const storeSuccess = useConversationStore((s) => s.success);
+  const getMine = useConversationStore((s) => s.getMine);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "read" | "recent">(
@@ -54,47 +39,19 @@ const ConversationList: React.FC = () => {
 
   useEffect(() => {
     let mounted = true;
-
-    const fetchConversations = async () => {
-      setLoading(true);
-      setError(null);
+    setError(null);
+    const load = async () => {
       try {
-        const resp = await axiosInstance.get("/QAConversation", {
-          withCredentials: true,
-        });
-        const json = resp.data;
-
-        if (resp.status !== 200) {
-          if (resp.status === 401) {
-            setError("Bạn chưa đăng nhập hoặc phiên đã hết hạn.");
-            return;
-          }
-          if (resp.status === 403) {
-            setError("Bạn không có quyền truy cập.");
-            return;
-          }
-          setError(json?.message ?? resp.statusText ?? "Không thể tải dữ liệu");
-          return;
-        }
-
-        if (json && json.success) {
-          const data = Array.isArray(json.data) ? json.data : [];
-          if (mounted) setItems(data.map((d: any) => mapServerToDto(d)));
-        } else {
-          setError(json?.message ?? "Không thể tải dữ liệu");
-        }
+        await getMine();
       } catch (err: any) {
-        setError(err?.message ?? String(err));
-      } finally {
-        if (mounted) setLoading(false);
+        if (mounted) setError(err?.message ?? String(err));
       }
     };
-
-    fetchConversations();
-
+    load();
     return () => {
       mounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function mapServerToDto(d: any): ConversationDto {
@@ -120,75 +77,34 @@ const ConversationList: React.FC = () => {
     };
   }
 
-  // demo data: hard-coded online teachers (include lastOnline and isOnline for preview)
-  const onlineTeachers = [
-    {
-      id: "t1",
-      name: "Ms. Lan",
-      avatar: "",
-      subject: "Tiếng Anh",
-      isOnline: true,
-      lastOnline: new Date().toISOString(),
-    },
-    {
-      id: "t2",
-      name: "Mr. Huy",
-      avatar: "",
-      subject: "Toán",
-      isOnline: false,
-      lastOnline: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-    }, // 2 hours ago
-    {
-      id: "t3",
-      name: "Ms. Hoa",
-      avatar: "",
-      subject: "Hóa",
-      isOnline: false,
-      lastOnline: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-    }, // 3 days ago
-    {
-      id: "t4",
-      name: "Mr. Nam",
-      avatar: "",
-      subject: "Vật Lý",
-      isOnline: false,
-      lastOnline: new Date(Date.now() - 1000 * 60 * 60 * 24 * 40).toISOString(),
-    }, // > 1 month ago
-    {
-      id: "t5",
-      name: "Mr. Nam",
-      avatar: "",
-      subject: "Vật Lý",
-      isOnline: false,
-      lastOnline: new Date(Date.now() - 1000 * 60 * 60 * 24 * 40).toISOString(),
-    }, // >
-    {
-      id: "t6",
-      name: "Mr. Nam",
-      avatar: "",
-      subject: "Vật Lý",
-      isOnline: false,
-      lastOnline: new Date(Date.now() - 1000 * 60 * 60 * 24 * 40).toISOString(),
-    }, // >
-    {
-      id: "t7",
-      name: "Mr. Nam",
-      avatar: "",
-      subject: "Vật Lý",
-      isOnline: false,
-      lastOnline: new Date(Date.now() - 1000 * 60 * 60 * 24 * 40).toISOString(),
-    }, // >
-    {
-      id: "t8",
-      name: "Mr. Nam",
-      avatar: "",
-      subject: "Vật Lý",
-      isOnline: false,
-      lastOnline: new Date(Date.now() - 1000 * 60 * 60 * 24 * 40).toISOString(),
-    }, // >
-  ];
+  // use connected teachers from QA user store (fetched from backend)
+  const connectedTeachers = useQAUserStore((s) => s.connectedTeachers);
+  const getConnectedTeachers = useQAUserStore((s) => s.getConnectedTeachers);
 
-  const filteredItems = items
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        await getConnectedTeachers();
+      } catch (err) {
+        // ignore: store will set message on error
+      }
+    };
+    if (mounted) load();
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const mappedItems = (conversations || []).map((d: any) => mapServerToDto(d));
+
+  // show store-level message as error when not successful
+  useEffect(() => {
+    if (!storeSuccess && storeMessage) setError(storeMessage || null);
+  }, [storeMessage, storeSuccess]);
+
+  const filteredItems = mappedItems
     .filter((it) => {
       if (filter === "unread") return !it.isRead;
       if (filter === "read") return !!it.isRead;
@@ -257,47 +173,60 @@ const ConversationList: React.FC = () => {
         </div>
         <ScrollArea className="rounded-lg border">
           <div className="space-y-3 pr-2 max-h-[calc(100vh-220px)]">
-            {onlineTeachers.map((t: any) => (
-              <Card
-                key={t.id}
-                className="p-3 flex flex-row justify-center items-center gap-3"
-              >
-                <div className="relative">
-                  <Avatar>
-                    <AvatarFallback>{t.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <span
-                    aria-hidden
-                    className={`absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 w-3 h-3 rounded-full ring-1 ring-white ${
-                      t.isOnline ? "bg-emerald-500" : "bg-gray-400"
-                    }`}
-                  />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium truncate">{t.name}</div>
-                  <div className="text-sm text-muted-foreground truncate">
-                    {t.subject}
+            {connectedTeachers.map((t: any) => {
+              const name =
+                t.fullname ?? t.fullName ?? t.name ?? t.username ?? "Giáo viên";
+              const avatar = t.avatar ?? t.profilePicture ?? null;
+              const subject = t.subjectName ?? t.subject ?? undefined;
+              const lastOnline =
+                t.lastOnline ?? t.lastActivity ?? t.createdAt ?? undefined;
+              const isOnline = t.isOnline === true;
+              return (
+                <Card
+                  key={t.id}
+                  className="p-3 flex flex-row justify-center items-center gap-3"
+                >
+                  <div className="relative">
+                    <Avatar>
+                      {avatar ? (
+                        <AvatarImage src={avatar} alt={name} />
+                      ) : (
+                        <AvatarFallback>{name.charAt(0)}</AvatarFallback>
+                      )}
+                    </Avatar>
+                    <span
+                      aria-hidden
+                      className={`absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 w-3 h-3 rounded-full ring-1 ring-white ${
+                        isOnline ? "bg-emerald-500" : "bg-gray-400"
+                      }`}
+                    />
                   </div>
-                </div>
 
-                <div className="text-right ml-2 flex flex-col items-end">
-                  <Badge
-                    variant={t.isOnline ? undefined : "outline"}
-                    className={`${
-                      t.isOnline
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : "bg-gray-100 text-gray-600 border-gray-200"
-                    }`}
-                  >
-                    {t.isOnline ? "Online" : "Offline"}
-                  </Badge>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {formatLastOnline(t.lastOnline)}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{name}</div>
+                    <div className="text-sm text-muted-foreground truncate">
+                      {subject}
+                    </div>
                   </div>
-                </div>
-              </Card>
-            ))}
+
+                  <div className="text-right ml-2 flex flex-col items-end">
+                    <Badge
+                      variant={isOnline ? undefined : "outline"}
+                      className={`${
+                        isOnline
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-gray-100 text-gray-600 border-gray-200"
+                      }`}
+                    >
+                      {isOnline ? "Online" : "Offline"}
+                    </Badge>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {formatLastOnline(lastOnline)}
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         </ScrollArea>
       </aside>
@@ -387,7 +316,9 @@ const ConversationList: React.FC = () => {
                         />
                       ) : (
                         <AvatarFallback>
-                          {(c.teacherName || c.teacherUsername || "").charAt(0)}
+                          {c?.teacherName
+                            ? createFallBack(c?.teacherName)
+                            : "AI"}
                         </AvatarFallback>
                       )}
                     </Avatar>
