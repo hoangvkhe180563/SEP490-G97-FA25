@@ -93,6 +93,8 @@ const ManagerDocumentApprovalList = () => {
     rejectDocument,
     revokeApproval,
     softDeleteDocument,
+    approveEditRequest,
+    rejectEditRequest,
   } = useDocumentStore();
 
   const [successMessage, setSuccessMessage] = useState("");
@@ -100,7 +102,14 @@ const ManagerDocumentApprovalList = () => {
 
   const [dialogState, setDialogState] = useState<{
     open: boolean;
-    type: "approve" | "reject" | "revoke" | "hide" | null;
+    type:
+      | "approve"
+      | "reject"
+      | "revoke"
+      | "hide"
+      | "approveEdit"
+      | "rejectEdit"
+      | null;
     documentId: number | null;
     documentName: string;
   }>({
@@ -150,6 +159,12 @@ const ManagerDocumentApprovalList = () => {
       case "hide":
         success = await softDeleteDocument(dialogState.documentId);
         break;
+      case "approveEdit":
+        success = await approveEditRequest(dialogState.documentId);
+        break;
+      case "rejectEdit":
+        success = await rejectEditRequest(dialogState.documentId);
+        break;
     }
 
     if (success) {
@@ -158,6 +173,8 @@ const ManagerDocumentApprovalList = () => {
         reject: "Từ chối tài liệu thành công",
         revoke: "Thu hồi phê duyệt thành công",
         hide: "Ẩn tài liệu thành công",
+        approveEdit: "Chấp nhận yêu cầu chỉnh sửa thành công",
+        rejectEdit: "Từ chối yêu cầu chỉnh sửa thành công",
       };
       setSuccessMessage(messages[dialogState.type]);
       setTimeout(() => setSuccessMessage(""), 3000);
@@ -227,6 +244,16 @@ const ManagerDocumentApprovalList = () => {
         description: `Bạn có chắc chắn muốn ẩn tài liệu "${dialogState.documentName}"?`,
         confirmText: "Ẩn",
       },
+      approveEdit: {
+        title: "Chấp nhận yêu cầu chỉnh sửa",
+        description: `Bạn có chắc chắn muốn cho phép chỉnh sửa tài liệu "${dialogState.documentName}"?`,
+        confirmText: "Chấp nhận",
+      },
+      rejectEdit: {
+        title: "Từ chối yêu cầu chỉnh sửa",
+        description: `Bạn có chắc chắn muốn từ chối yêu cầu chỉnh sửa tài liệu "${dialogState.documentName}"?`,
+        confirmText: "Từ chối",
+      },
     };
     return dialogState.type
       ? contents[dialogState.type]
@@ -249,7 +276,29 @@ const ManagerDocumentApprovalList = () => {
             <Eye className="mr-2 h-4 w-4" />
             <span>Xem chi tiết</span>
           </DropdownMenuItem>
-          {status === "pending" && (
+          {doc.isRequested === true && (
+            <>
+              <DropdownMenuItem
+                onClick={() => openDialog("approveEdit", doc.id, doc.name)}
+                className="cursor-pointer bg-green-50 hover:bg-green-100"
+              >
+                <Check className="mr-2 h-4 w-4 text-green-600" />
+                <span className="font-medium text-green-600">
+                  Chấp nhận yêu cầu
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => openDialog("rejectEdit", doc.id, doc.name)}
+                className="cursor-pointer bg-red-50 hover:bg-red-100"
+              >
+                <X className="mr-2 h-4 w-4 text-red-600" />
+                <span className="font-medium text-red-600">
+                  Từ chối yêu cầu
+                </span>
+              </DropdownMenuItem>
+            </>
+          )}
+          {status === "pending" && doc.isRequested !== true && (
             <>
               <DropdownMenuItem
                 onClick={() => openDialog("approve", doc.id, doc.name)}
@@ -267,7 +316,7 @@ const ManagerDocumentApprovalList = () => {
               </DropdownMenuItem>
             </>
           )}
-          {status === "approved" && (
+          {status === "approved" && doc.isRequested !== true && (
             <DropdownMenuItem
               onClick={() => openDialog("revoke", doc.id, doc.name)}
               className="cursor-pointer"
@@ -296,6 +345,7 @@ const ManagerDocumentApprovalList = () => {
       pending: "Danh sách tài liệu chờ phê duyệt",
       approved: "Danh sách tài liệu đã phê duyệt",
       rejected: "Danh sách tài liệu bị từ chối",
+      editRequest: "Danh sách tài liệu chờ duyệt chỉnh sửa",
     };
     return (
       prefix +
@@ -367,27 +417,31 @@ const ManagerDocumentApprovalList = () => {
                 />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3 space-y-2.5">
-                {["pending", "approved", "rejected"].map((status) => (
-                  <div key={status} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={status}
-                      checked={filters.statusFilter === status}
-                      onCheckedChange={() =>
-                        updateFilters({ statusFilter: status })
-                      }
-                    />
-                    <Label
-                      htmlFor={status}
-                      className="text-sm cursor-pointer font-normal"
-                    >
-                      {status === "pending"
-                        ? "Chờ phê duyệt"
-                        : status === "approved"
-                        ? "Đã phê duyệt"
-                        : "Bị từ chối"}
-                    </Label>
-                  </div>
-                ))}
+                {["pending", "approved", "rejected", "editRequest"].map(
+                  (status) => (
+                    <div key={status} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={status}
+                        checked={filters.statusFilter === status}
+                        onCheckedChange={() =>
+                          updateFilters({ statusFilter: status })
+                        }
+                      />
+                      <Label
+                        htmlFor={status}
+                        className="text-sm cursor-pointer font-normal"
+                      >
+                        {status === "pending"
+                          ? "Chờ phê duyệt"
+                          : status === "approved"
+                          ? "Đã phê duyệt"
+                          : status === "rejected"
+                          ? "Bị từ chối"
+                          : "Chờ duyệt chỉnh sửa"}
+                      </Label>
+                    </div>
+                  )
+                )}
               </CollapsibleContent>
             </Collapsible>
           </div>
@@ -563,26 +617,32 @@ const ManagerDocumentApprovalList = () => {
                   <TableHead className="text-center font-semibold text-gray-700 w-48">
                     MÔ TẢ
                   </TableHead>
-                  <TableHead className="text-center font-semibold text-gray-700 w-48">
+                  <TableHead className="text-center font-semibold text-gray-700 w-32">
                     TÁC GIẢ
                   </TableHead>
                   <TableHead className="text-center font-semibold text-gray-700 w-32">
                     MÔN HỌC
                   </TableHead>
+                  <TableHead className="text-center font-semibold text-gray-700 w-24">
+                    KHỐI
+                  </TableHead>
                   <TableHead
-                    className="text-center font-semibold text-gray-700 w-36 cursor-pointer hover:bg-gray-100"
+                    className="text-center font-semibold text-gray-700 w-32 cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort("createdAt")}
                   >
                     NGÀY TẠO {getSortIcon("createdAt")}
                   </TableHead>
-                  {filters.statusFilter === "approved" && (
+                  <TableHead className="text-center font-semibold text-gray-700 w-32">
+                    TRẠNG THÁI
+                  </TableHead>
+                  {/* {filters.statusFilter === "approved" && (
                     <TableHead
-                      className="text-center font-semibold text-gray-700 w-36 cursor-pointer hover:bg-gray-100"
+                      className="text-center font-semibold text-gray-700 w-32 cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort("updatedAt")}
                     >
                       NGÀY DUYỆT {getSortIcon("updatedAt")}
                     </TableHead>
-                  )}
+                  )} */}
                   <TableHead className="text-center font-semibold text-gray-700 w-24">
                     THAO TÁC
                   </TableHead>
@@ -610,35 +670,52 @@ const ManagerDocumentApprovalList = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="overflow-x-auto scrollbar-custom">
-                        <div className="text-xs text-center min-w-max px-2">
-                          <div className="font-medium">
-                            {doc.uploaderName || "N/A"}
-                          </div>
-                          <div className="text-gray-500 text-[11px] mt-1">
-                            {doc.schoolName || "N/A"}
-                          </div>
+                      <div className="text-xs text-center">
+                        <div className="font-medium">
+                          {doc.uploaderName || "N/A"}
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="text-xs">
-                        <div>{doc.subjectName}</div>
                         <div className="text-gray-500 text-[11px] mt-1">
-                          Lớp {doc.grade}
+                          {doc.schoolName || "N/A"}
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-center text-xs">
+                      {doc.subjectName}
+                    </TableCell>
+                    <TableCell className="text-center text-xs">
+                      Lớp {doc.grade}
+                    </TableCell>
+                    <TableCell className="text-center text-xs">
                       {new Date(doc.createdAt).toLocaleDateString("vi-VN")}
                     </TableCell>
-                    {filters.statusFilter === "approved" && (
+                    <TableCell className="text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        {doc.isRequested === true ? (
+                          <span className="text-xs font-medium text-orange-700 animate-pulse">
+                            Yêu cầu chỉnh sửa
+                          </span>
+                        ) : doc.isApproved === true ? (
+                          <span className="text-xs font-medium text-green-700">
+                            Đã duyệt
+                          </span>
+                        ) : doc.isApproved === null ? (
+                          <span className="text-xs font-medium text-red-700">
+                            Chờ duyệt
+                          </span>
+                        ) : (
+                          <span className="text-xs font-medium text-red-700">
+                            Từ chối
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    {/* {filters.statusFilter === "approved" && (
                       <TableCell className="text-center text-xs">
                         {doc.updatedAt
                           ? new Date(doc.updatedAt).toLocaleDateString("vi-VN")
                           : "-"}
                       </TableCell>
-                    )}
+                    )} */}
                     <TableCell>
                       <div className="flex items-center justify-center">
                         {renderDropdownMenu(filters.statusFilter, doc)}

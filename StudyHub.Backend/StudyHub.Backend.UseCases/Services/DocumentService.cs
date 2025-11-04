@@ -35,19 +35,19 @@ namespace StudyHub.Backend.UseCases.Services
 
         public (List<Document> documents, int totalCount) GetManagerPublicDocuments(
             string? query = null, int? categoryId = null, int? grade = null, string? subject = null,
-            int? classId = null, bool? isApproved = null, bool? status = null,
+            int? classId = null, bool? isApproved = null, bool? status = null, bool? hasEditRequest = null,
             DateTime? createdFrom = null, DateTime? createdTo = null,
             DateTime? updatedFrom = null, DateTime? updatedTo = null,
             int pageNumber = 1, int pageSize = 10)
-            => _repo.GetManagerPublicDocuments(query, categoryId, grade, subject, classId, isApproved, status, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
+            => _repo.GetManagerPublicDocuments(query, categoryId, grade, subject, classId, isApproved, status, hasEditRequest, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
 
         public (List<Document> documents, int totalCount) GetManagerSchoolDocuments(
             int schoolId, string? query = null, int? categoryId = null, int? grade = null, string? subject = null,
-            int? classId = null, bool? isApproved = null, bool? status = null,
+            int? classId = null, bool? isApproved = null, bool? status = null, bool? hasEditRequest = null,
             DateTime? createdFrom = null, DateTime? createdTo = null,
             DateTime? updatedFrom = null, DateTime? updatedTo = null,
             int pageNumber = 1, int pageSize = 10)
-            => _repo.GetManagerSchoolDocuments(schoolId, query, categoryId, grade, subject, classId, isApproved, status, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
+            => _repo.GetManagerSchoolDocuments(schoolId, query, categoryId, grade, subject, classId, isApproved, status, hasEditRequest, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
         public async Task<Document> CreateDocumentAsync(Document document, IFormFile documentFile, IFormFile? thumbnailFile = null)
         {
             ValidateDocumentFile(documentFile);
@@ -84,8 +84,8 @@ namespace StudyHub.Backend.UseCases.Services
             var existingDocument = _repo.GetDocumentById(document.Id)
                 ?? throw new InvalidOperationException("Document not found");
 
-            if (existingDocument.IsApproved == true && !existingDocument.IsInClass)
-                throw new InvalidOperationException("Cannot edit approved documents");
+            if (existingDocument.IsApproved == true && existingDocument.Status == true && !existingDocument.IsInClass)
+                throw new InvalidOperationException("Cannot edit approved documents. Request edit first.");
 
             if (document.IsInClass && document.SchoolId == null)
                 throw new ArgumentException("SchoolId required for class documents");
@@ -112,14 +112,13 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 ValidateThumbnailFile(thumbnailFile);
                 if (!string.IsNullOrEmpty(existingDocument.Thumbnail))
-                   await _fileStorage.DeleteFileAsync(existingDocument.Thumbnail);
+                    await _fileStorage.DeleteFileAsync(existingDocument.Thumbnail);
                 document.Thumbnail = await _fileStorage.UploadFileAsync(thumbnailFile, FileConstants.ThumbnailUploadPath);
             }
             else
                 document.Thumbnail = existingDocument.Thumbnail;
 
             document.IsApproved = existingDocument.IsApproved;
-            document.Status = existingDocument.Status;
             document.UpdatedAt = DateTime.Now;
 
             return _repo.UpdateDocument(document);
@@ -268,6 +267,51 @@ namespace StudyHub.Backend.UseCases.Services
         public List<Document> GetDocumentsByClass(int classId) => _repo.GetDocumentsByClass(classId);
 
         public List<Class> GetClassesByDocument(int documentId) => _repo.GetClassesByDocument(documentId);
+        public Document RequestEditDocument(int id, Guid userId)
+        {
+            var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");
+
+            if (document.CreatedBy != userId)
+                throw new InvalidOperationException("Only document owner can request edit");
+
+            if (document.IsInClass)
+                throw new InvalidOperationException("Class documents can be edited directly");
+
+            if (document.IsApproved != true)
+                throw new InvalidOperationException("Only approved documents need edit request");
+
+            document.IsRequested = true;
+            document.UpdatedAt = DateTime.Now;
+            document.UpdatedBy = userId;
+
+            return _repo.UpdateDocument(document);
+        }
+        public Document ApproveEditRequest(int id, Guid approvedBy)
+        {
+            var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");
+            if (document.IsRequested != true) throw new InvalidOperationException("No pending edit request");
+
+            document.IsRequested = null;
+            document.IsApproved = null;
+            document.UpdatedAt = DateTime.Now;
+            document.UpdatedBy = approvedBy;
+
+            return _repo.UpdateDocument(document);
+        }
+        public (List<Document> documents, int totalCount) GetEditRequestDocuments(
+    bool? isRequested = null, int pageNumber = 1, int pageSize = 10)
+    => _repo.GetEditRequestDocuments(isRequested, pageNumber, pageSize);
+        public Document RejectEditRequest(int id, Guid rejectedBy)
+        {
+            var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");
+            if (document.IsRequested != true) throw new InvalidOperationException("No pending edit request");
+
+            document.IsRequested = false;
+            document.UpdatedAt = DateTime.Now;
+            document.UpdatedBy = rejectedBy;
+
+            return _repo.UpdateDocument(document);
+        }
         private string GetContentType(string filePath)
         {
             var extension = Path.GetExtension(filePath).ToLowerInvariant();

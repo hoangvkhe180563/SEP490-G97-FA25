@@ -293,6 +293,19 @@ export default function CreateDocument() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const validTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
+    if (!validTypes.includes(file.type)) {
+      showToast("error", "Vui lòng chọn file ảnh (JPG, PNG, GIF, WEBP)");
+      e.target.value = "";
+      return;
+    }
+
     setThumbnailFile(file);
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -539,7 +552,9 @@ export default function CreateDocument() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tên tài liệu</FormLabel>
+                        <FormLabel>
+                          Tên tài liệu <span className="text-red-500">*</span>
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -608,7 +623,9 @@ export default function CreateDocument() {
                           name="subject"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Môn học</FormLabel>
+                              <FormLabel>
+                                Môn học <span className="text-red-500">*</span>
+                              </FormLabel>
                               <Select
                                 onValueChange={field.onChange}
                                 value={field.value}
@@ -638,7 +655,9 @@ export default function CreateDocument() {
                           name="grade"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Khối lớp</FormLabel>
+                              <FormLabel>
+                                Khối lớp <span className="text-red-500">*</span>
+                              </FormLabel>
                               <Select
                                 onValueChange={field.onChange}
                                 value={field.value}
@@ -674,7 +693,10 @@ export default function CreateDocument() {
                           name="type"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Loại tài liệu</FormLabel>
+                              <FormLabel>
+                                Loại tài liệu{" "}
+                                <span className="text-red-500">*</span>
+                              </FormLabel>
                               <Select
                                 onValueChange={field.onChange}
                                 value={field.value}
@@ -704,7 +726,10 @@ export default function CreateDocument() {
                           name="access"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Quyền truy cập</FormLabel>
+                              <FormLabel>
+                                Quyền truy cập{" "}
+                                <span className="text-red-500">*</span>
+                              </FormLabel>
                               <Select
                                 onValueChange={field.onChange}
                                 value={field.value}
@@ -839,7 +864,7 @@ export default function CreateDocument() {
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
-                      Tập tài liệu *
+                      Tập tài liệu <span className="text-red-500">*</span>
                     </label>
                     <FileUploadZone
                       id="document"
