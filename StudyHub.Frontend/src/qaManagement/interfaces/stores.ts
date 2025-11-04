@@ -50,5 +50,6 @@ interface AppUserState {
   getConnectedTeachers: () => Promise<void>;
   getStudents: () => Promise<void>;
   getConnectedStudents: () => Promise<void>;
+  getUserStatus: (userId: string) => Promise<any | null>;
 }
 export type { ConversationState, MessageState, TopicState, AppUserState };

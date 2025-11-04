@@ -23,6 +23,7 @@ import CreateConversationModal from "../../components/CreateConversationModal";
 import type { ConversationDto } from "@/qaManagement/interfaces/dtos";
 import { useQAUserStore } from "@/qaManagement/stores/useUserStore";
 import { createFallBack } from "@/qaManagement/utils/avatarUtils";
+import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
 
 const ConversationList: React.FC = () => {
   const [createOpen, setCreateOpen] = useState(false);
@@ -36,6 +37,11 @@ const ConversationList: React.FC = () => {
   const [filter, setFilter] = useState<"all" | "unread" | "read" | "recent">(
     "all"
   );
+  // sidebar teacher search & filter
+  const [teacherSearch, setTeacherSearch] = useState("");
+  const [teacherFilter, setTeacherFilter] = useState<
+    "all" | "online" | "offline"
+  >("all");
 
   useEffect(() => {
     let mounted = true;
@@ -80,6 +86,38 @@ const ConversationList: React.FC = () => {
   // use connected teachers from QA user store (fetched from backend)
   const connectedTeachers = useQAUserStore((s) => s.connectedTeachers);
   const getConnectedTeachers = useQAUserStore((s) => s.getConnectedTeachers);
+  // presence users list (keeps component reactive to presence updates)
+  const onlineUsers = useUserOnlineStore((s) => s.onlineUsers);
+
+  // helper: find online user item (normalized) so we can read lastSeen/isOnline
+  const findOnlineUser = (userId: any) => {
+    const tid = String(userId ?? "")
+      .toLowerCase()
+      .trim();
+    if (!tid) return null;
+    return (onlineUsers || []).find(
+      (u: any) =>
+        String(u?.userId ?? u?.UserId ?? u?.id ?? u?.Id ?? "")
+          .toLowerCase()
+          .trim() === tid
+    );
+  };
+
+  // filtered teacher list for sidebar (search + online/offline filter)
+  const filteredTeachers = (connectedTeachers || []).filter((t: any) => {
+    // prefer the presence store when available, otherwise fall back to t.isOnline
+    const matched = findOnlineUser(t.id);
+    const onlineFlag = matched?.isOnline === true || t.isOnline === true;
+    if (teacherFilter === "online" && !onlineFlag) return false;
+    if (teacherFilter === "offline" && onlineFlag) return false;
+    if (!teacherSearch) return true;
+    const s = teacherSearch.toLowerCase();
+    const name = String(
+      t.fullname ?? t.fullName ?? t.name ?? t.username ?? ""
+    ).toLowerCase();
+    const subject = String(t.subjectName ?? t.subject ?? "").toLowerCase();
+    return name.includes(s) || subject.includes(s);
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -145,26 +183,26 @@ const ConversationList: React.FC = () => {
           <div className="flex items-center flex-wrap gap-3 w-full">
             <Input
               placeholder="Tìm kiếm giáo viên..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={teacherSearch}
+              onChange={(e) => setTeacherSearch(e.target.value)}
               className="max-w-md"
             />
             <div className="inline-flex rounded-md border bg-muted p-0.5">
               <Button
-                variant={filter === "all" ? undefined : "ghost"}
-                onClick={() => setFilter("all")}
+                variant={teacherFilter === "all" ? undefined : "ghost"}
+                onClick={() => setTeacherFilter("all")}
               >
                 Tất cả
               </Button>
               <Button
-                variant={filter === "unread" ? undefined : "ghost"}
-                onClick={() => setFilter("unread")}
+                variant={teacherFilter === "online" ? undefined : "ghost"}
+                onClick={() => setTeacherFilter("online")}
               >
                 Trực tuyến
               </Button>
               <Button
-                variant={filter === "read" ? undefined : "ghost"}
-                onClick={() => setFilter("read")}
+                variant={teacherFilter === "offline" ? undefined : "ghost"}
+                onClick={() => setTeacherFilter("offline")}
               >
                 Ngoại tuyến
               </Button>
@@ -173,14 +211,21 @@ const ConversationList: React.FC = () => {
         </div>
         <ScrollArea className="rounded-lg border">
           <div className="space-y-3 pr-2 max-h-[calc(100vh-220px)]">
-            {connectedTeachers.map((t: any) => {
+            {filteredTeachers.map((t: any) => {
               const name =
                 t.fullname ?? t.fullName ?? t.name ?? t.username ?? "Giáo viên";
               const avatar = t.avatar ?? t.profilePicture ?? null;
               const subject = t.subjectName ?? t.subject ?? undefined;
+              // prefer presence store's lastSeen/isOnline when available
+              const matched = findOnlineUser(t.id);
+              const isOnline =
+                Boolean(matched?.isOnline) || t.isOnline === true;
               const lastOnline =
-                t.lastOnline ?? t.lastActivity ?? t.createdAt ?? undefined;
-              const isOnline = t.isOnline === true;
+                matched?.lastSeen ??
+                t.lastOnline ??
+                t.lastActivity ??
+                t.createdAt ??
+                undefined;
               return (
                 <Card
                   key={t.id}
@@ -218,7 +263,7 @@ const ConversationList: React.FC = () => {
                           : "bg-gray-100 text-gray-600 border-gray-200"
                       }`}
                     >
-                      {isOnline ? "Online" : "Offline"}
+                      {isOnline ? "Trực tuyến" : "Ngoại tuyến"}
                     </Badge>
                     <div className="text-xs text-muted-foreground mt-1">
                       {formatLastOnline(lastOnline)}
@@ -325,12 +370,9 @@ const ConversationList: React.FC = () => {
 
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center justify-between">
-                        <Link
-                          to={`/qa/student/conversations/${c.id}`}
-                          className="text-lg font-medium hover:underline"
-                        >
+                        <span className="text-lg font-medium hover:underline">
                           {c.title}
-                        </Link>
+                        </span>
                         {!c.isPaid ? (
                           <Badge
                             variant="outline"
@@ -361,14 +403,14 @@ const ConversationList: React.FC = () => {
                           <Clock className="w-4 h-4" />
                           {new Date(c.createdAt).toLocaleString()}
                         </div>
-                        <Link to={`/qa/student/conversations/${c.id}`}>
+                        <div>
                           <Button
                             variant="ghost"
                             className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
                           >
                             Mở <ArrowRight className="w-4 h-4" />
                           </Button>
-                        </Link>
+                        </div>
                       </div>
                     </div>
                   </div>

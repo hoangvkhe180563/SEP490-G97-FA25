@@ -14,6 +14,8 @@ import { useMessageStore } from "@/qaManagement/stores/useMessageStore";
 import type { Message } from "@/qaManagement/interfaces/message";
 import type { Conversation } from "@/qaManagement/interfaces/conversation";
 import { formatLastOnline, formatTime } from "@/qaManagement/utils/dateUtils";
+import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
+import { useQAUserStore } from "@/qaManagement/stores/useUserStore";
 import { useParams } from "react-router-dom";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { createFallBack } from "@/qaManagement/utils/avatarUtils";
@@ -24,6 +26,13 @@ const ConversationDetails: React.FC = () => {
   const [messages, setMessages] = useState<Partial<Message>[]>([]);
   const [conversation, setConversation] =
     useState<Partial<Conversation> | null>(null);
+
+  // presence for the other party (student) — prefer presence store
+  const onlineUsers = useUserOnlineStore((s) => s.onlineUsers);
+  const [studentPresence, setStudentPresence] = useState<{
+    isOnline?: boolean;
+    lastSeen?: string | null;
+  } | null>(null);
 
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -51,16 +60,34 @@ const ConversationDetails: React.FC = () => {
           .getConversationById(conversationId);
         const found = useConversationStore.getState().conversation;
         if (found && mounted) {
+          // for teacher view, show the student (other party) in the header
           setConversation({
             id: found.id,
             title: found.title,
-            teacherId: found.teacherId ?? null,
-            teacherName: found.teacherName ?? null,
-            teacherAvatar: found.teacherAvatar ?? null,
+            studentId: found.studentId ?? null,
+            studentName: found.studentName ?? null,
+            studentAvatar: found.studentAvatar ?? null,
             createdAt: found.createdAt
               ? new Date(found.createdAt).toISOString()
               : undefined,
           });
+          // initial presence snapshot for student (other party)
+          let presence: any = null;
+          try {
+            presence = await useQAUserStore
+              .getState()
+              .getUserStatus(found.studentId ?? "");
+          } catch (err) {
+            // ignore
+          }
+          if (presence) {
+            setStudentPresence({
+              isOnline: presence.isOnline,
+              lastSeen: presence.lastSeen,
+            });
+          } else {
+            setStudentPresence({ isOnline: false, lastSeen: null });
+          }
         }
 
         await useMessageStore
@@ -87,6 +114,39 @@ const ConversationDetails: React.FC = () => {
       mounted = false;
     };
   }, [conversationId]);
+
+  // reactively update studentPresence from presence snapshot
+  useEffect(() => {
+    if (!conversation?.studentId) return;
+    const sid = String(conversation.studentId ?? "")
+      .toLowerCase()
+      .trim();
+    if (!sid) return;
+    const found = (onlineUsers || []).find(
+      (u: any) =>
+        String(u?.userId ?? "")
+          .toLowerCase()
+          .trim() === sid
+    );
+    const next = found
+      ? { isOnline: found.isOnline === true, lastSeen: found.lastSeen ?? null }
+      : { isOnline: false, lastSeen: null };
+    setStudentPresence((prev) => {
+      if (
+        prev?.isOnline === true &&
+        (prev?.lastSeen ?? null) === null &&
+        next.isOnline === false &&
+        (next.lastSeen ?? null) === null
+      )
+        return prev;
+      if (
+        prev?.isOnline === next.isOnline &&
+        (prev?.lastSeen ?? null) === (next.lastSeen ?? null)
+      )
+        return prev;
+      return next;
+    });
+  }, [onlineUsers, conversation?.studentId]);
 
   const onSend = () => {
     if (!text.trim()) return;
@@ -136,22 +196,27 @@ const ConversationDetails: React.FC = () => {
       <header className="flex items-center gap-4 p-4 border-b">
         <div className="relative">
           <Avatar className="h-10 w-10 border border-gray-300">
-            {conversation?.teacherAvatar ? (
+            {conversation?.studentAvatar ? (
               <AvatarImage
-                src={conversation.teacherAvatar}
-                alt={conversation.teacherName ?? "Teacher"}
+                src={conversation.studentAvatar}
+                alt={conversation.studentName ?? "Người học"}
               />
             ) : (
               <AvatarFallback>
-                {conversation?.teacherName
-                  ? createFallBack(conversation?.teacherName)
-                  : "AI"}
+                {conversation?.studentName
+                  ? createFallBack(conversation?.studentName)
+                  : "H"}
               </AvatarFallback>
             )}
           </Avatar>
           <span
             aria-hidden
             className={`absolute right-0.5 top-0.5 translate-x-1/4 -translate-y-1/4 w-3 h-3 rounded-full ring-1 ring-white ${(() => {
+              if (studentPresence) {
+                return studentPresence.isOnline === true
+                  ? "bg-emerald-500"
+                  : "bg-gray-400";
+              }
               const last = messages.length
                 ? messages[messages.length - 1].createdAt
                 : conversation?.createdAt;
@@ -166,11 +231,16 @@ const ConversationDetails: React.FC = () => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <div className="font-semibold">
-              {conversation?.teacherName ?? "Người hỗ trợ"}
+              {conversation?.studentName ?? "Người học"}
             </div>
             <Badge
               variant="outline"
               className={`border-emerald-200 ${(() => {
+                if (studentPresence) {
+                  return studentPresence.isOnline === true
+                    ? "text-emerald-700 bg-emerald-50"
+                    : "text-gray-600 bg-gray-100";
+                }
                 const last = messages.length
                   ? messages[messages.length - 1].createdAt
                   : conversation?.createdAt;
@@ -184,10 +254,14 @@ const ConversationDetails: React.FC = () => {
               })()}`}
             >
               {(() => {
+                if (studentPresence)
+                  return studentPresence.isOnline === true
+                    ? "Đang hoạt động"
+                    : "Ngoại tuyến";
                 const last = messages.length
                   ? messages[messages.length - 1].createdAt
                   : conversation?.createdAt;
-                if (!last) return "Offline";
+                if (!last) return "Ngoại tuyến";
                 const diff = Math.floor(
                   (Date.now() - new Date(last).getTime()) / 1000
                 );
@@ -197,9 +271,12 @@ const ConversationDetails: React.FC = () => {
           </div>
           <div className="text-sm text-muted-foreground">
             {(() => {
-              const last = messages.length
-                ? messages[messages.length - 1].createdAt
-                : conversation?.createdAt;
+              if (studentPresence?.isOnline === true) return "Đang hoạt động";
+              const last =
+                studentPresence?.lastSeen ??
+                (messages.length
+                  ? messages[messages.length - 1].createdAt
+                  : conversation?.createdAt);
               return last ? formatLastOnline(last) : "Không hoạt động";
             })()}
           </div>

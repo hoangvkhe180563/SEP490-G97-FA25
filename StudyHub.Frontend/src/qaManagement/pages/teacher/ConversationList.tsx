@@ -20,6 +20,7 @@ import {
   Users2,
 } from "lucide-react";
 import { formatLastOnline } from "@/qaManagement/utils/dateUtils";
+import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
 import type { ConversationDto } from "@/qaManagement/interfaces/dtos";
 import { createFallBack } from "@/qaManagement/utils/avatarUtils";
 
@@ -33,6 +34,12 @@ const TeacherConversationList: React.FC = () => {
   const [filter, setFilter] = useState<"all" | "unread" | "read" | "recent">(
     "all"
   );
+
+  // sidebar student search & filter (separate from main conversation filters)
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentFilter, setStudentFilter] = useState<
+    "all" | "online" | "offline"
+  >("all");
 
   // load current user's conversations via store
   useEffect(() => {
@@ -97,19 +104,46 @@ const TeacherConversationList: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const onlineUsers = useUserOnlineStore((s) => s.onlineUsers);
+
+  const findOnlineUser = (userId: any) => {
+    const tid = String(userId ?? "")
+      .toLowerCase()
+      .trim();
+    if (!tid) return null;
+    return (onlineUsers || []).find(
+      (u: any) =>
+        String(u?.userId ?? "")
+          .toLowerCase()
+          .trim() === tid
+    );
+  };
+
   const students = (connectedStudents || [])
     .map((t: any) => {
       const name =
         t.fullname ?? t.fullName ?? t.name ?? t.username ?? "Người học";
       const avatar = t.avatar ?? t.profilePicture ?? null;
+      const matched = findOnlineUser(t.id);
+      const isOnline = matched?.isOnline === true || t.isOnline === true;
       const lastAt =
+        matched?.lastSeen ??
         t.lastOnline ??
         t.lastActivity ??
         t.createdAt ??
         new Date().toISOString();
-      return { id: t.id ?? t.Id ?? "", name, avatar, lastAt };
+      return { id: t.id ?? t.Id ?? "", name, avatar, lastAt, isOnline };
     })
     .sort((a: any, b: any) => +new Date(b.lastAt) - +new Date(a.lastAt));
+
+  // apply sidebar search + online/offline filter to students list
+  const filteredStudents = (students || []).filter((s: any) => {
+    if (studentFilter === "online" && !s.isOnline) return false;
+    if (studentFilter === "offline" && s.isOnline) return false;
+    if (!studentSearch) return true;
+    const q = String(studentSearch).toLowerCase().trim();
+    return (s.name || "").toLowerCase().includes(q);
+  });
 
   const filteredItems = items
     .filter((it) => {
@@ -151,26 +185,26 @@ const TeacherConversationList: React.FC = () => {
           <div className="flex items-center flex-wrap gap-3 w-full">
             <Input
               placeholder="Tìm học sinh..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={studentSearch}
+              onChange={(e) => setStudentSearch(e.target.value)}
               className="max-w-md"
             />
             <div className="inline-flex  rounded-md border bg-muted p-0.5">
               <Button
-                variant={filter === "all" ? undefined : "ghost"}
-                onClick={() => setFilter("all")}
+                variant={studentFilter === "all" ? undefined : "ghost"}
+                onClick={() => setStudentFilter("all")}
               >
                 Tất cả
               </Button>
               <Button
-                variant={filter === "unread" ? undefined : "ghost"}
-                onClick={() => setFilter("unread")}
+                variant={studentFilter === "online" ? undefined : "ghost"}
+                onClick={() => setStudentFilter("online")}
               >
                 Trực tuyến
               </Button>
               <Button
-                variant={filter === "read" ? undefined : "ghost"}
-                onClick={() => setFilter("read")}
+                variant={studentFilter === "offline" ? undefined : "ghost"}
+                onClick={() => setStudentFilter("offline")}
               >
                 Ngoại tuyến
               </Button>
@@ -180,7 +214,7 @@ const TeacherConversationList: React.FC = () => {
 
         <ScrollArea className="rounded-lg border">
           <div className="space-y-3 pr-2 max-h-[calc(100vh-220px)]">
-            {students.map((s) => (
+            {filteredStudents.map((s) => (
               <Card
                 key={s.id}
                 className="p-3 flex flex-row justify-center items-center gap-3"
@@ -193,7 +227,7 @@ const TeacherConversationList: React.FC = () => {
                   <span
                     aria-hidden
                     className={`absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 w-3 h-3 rounded-full ring-1 ring-white ${
-                      s.avatar ? "bg-emerald-500" : "bg-gray-400"
+                      s.isOnline ? "bg-emerald-500" : "bg-gray-400"
                     }`}
                   />
                 </div>
@@ -207,12 +241,12 @@ const TeacherConversationList: React.FC = () => {
                   <Badge
                     variant={s.avatar ? undefined : "outline"}
                     className={`${
-                      s.avatar
+                      s.isOnline
                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                         : "bg-gray-100 text-gray-600 border-gray-200"
                     }`}
                   >
-                    {s.avatar ? "Online" : "Offline"}
+                    {s.isOnline ? "Online" : "Offline"}
                   </Badge>
                   <div className="text-xs text-muted-foreground mt-1">
                     {formatLastOnline(s.lastAt)}

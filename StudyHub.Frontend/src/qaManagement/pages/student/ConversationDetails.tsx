@@ -17,6 +17,8 @@ import { formatLastOnline, formatTime } from "@/qaManagement/utils/dateUtils";
 import { useParams } from "react-router-dom";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { createFallBack } from "@/qaManagement/utils/avatarUtils";
+import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
+import { useQAUserStore } from "@/qaManagement/stores/useUserStore";
 
 const ConversationDetails = () => {
   const { id: conversationId } = useParams();
@@ -26,6 +28,55 @@ const ConversationDetails = () => {
   const [messages, setMessages] = useState<Partial<Message>[]>([]);
   const [conversation, setConversation] =
     useState<Partial<Conversation> | null>(null);
+
+  // reactive presence list so UI updates when presence changes
+  const onlineUsers = useUserOnlineStore((s) => s.onlineUsers);
+  const [teacherPresence, setTeacherPresence] = useState<{
+    isOnline?: boolean;
+    lastSeen?: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!conversation?.teacherId) return;
+    const tid = String(conversation.teacherId ?? "")
+      .toLowerCase()
+      .trim();
+    if (!tid) return;
+    const found = (onlineUsers || []).find(
+      (u: any) =>
+        String(u?.userId ?? u?.UserId ?? u?.id ?? u?.Id ?? "")
+          .toLowerCase()
+          .trim() === tid
+    );
+    const next = found
+      ? {
+          isOnline: found.isOnline === true,
+          lastSeen: (found as any).lastSeen ?? (found as any).LastSeen ?? null,
+        }
+      : { isOnline: false, lastSeen: null };
+
+    // If we previously knew the teacher was online (and had null lastSeen meaning "currently online"),
+    // avoid flipping them back to offline when the presence snapshot is briefly missing or ambiguous.
+    setTeacherPresence((prev) => {
+      if (
+        prev?.isOnline === true &&
+        (prev?.lastSeen ?? null) === null &&
+        next.isOnline === false &&
+        (next.lastSeen ?? null) === null
+      ) {
+        // keep previous online state until we observe a definite offline timestamp
+        return prev;
+      }
+
+      if (
+        prev?.isOnline === next.isOnline &&
+        (prev?.lastSeen ?? null) === (next.lastSeen ?? null)
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, [onlineUsers, conversation?.teacherId]);
 
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -55,6 +106,16 @@ const ConversationDetails = () => {
           .getConversationById(conversationId);
         const found = useConversationStore.getState().conversation;
         if (found && mounted) {
+          // try to resolve presence for the teacher (local store first, then server)
+          let presence: any = null;
+          try {
+            presence = await useQAUserStore
+              .getState()
+              .getUserStatus(found.teacherId ?? "");
+          } catch (err) {
+            // ignore presence resolution error
+          }
+
           setConversation({
             id: found.id,
             title: found.title,
@@ -65,8 +126,29 @@ const ConversationDetails = () => {
               ? new Date(found.createdAt).toISOString()
               : undefined,
           });
+          // set initial presence snapshot separately (avoid redundant updates)
+          if (presence) {
+            setTeacherPresence((prev) => {
+              const next = {
+                isOnline: presence.isOnline,
+                lastSeen: presence.lastSeen,
+              };
+              if (
+                prev?.isOnline === next.isOnline &&
+                (prev?.lastSeen ?? null) === (next.lastSeen ?? null)
+              ) {
+                return prev;
+              }
+              return next;
+            });
+          } else {
+            setTeacherPresence((prev) => {
+              if (prev?.isOnline === false && (prev?.lastSeen ?? null) === null)
+                return prev;
+              return { isOnline: false, lastSeen: null };
+            });
+          }
         }
-
         await useMessageStore
           .getState()
           .getMessagesByConversationId(conversationId);
@@ -137,6 +219,14 @@ const ConversationDetails = () => {
     }
   };
 
+  // Log presence changes (avoid logging on every render)
+  useEffect(() => {
+    console.log(
+      "ConversationDetails: teacherPresence changed:",
+      teacherPresence
+    );
+  }, [teacherPresence]);
+
   return (
     <div className="flex flex-col h-full ">
       {/* Header */}
@@ -156,10 +246,15 @@ const ConversationDetails = () => {
               </AvatarFallback>
             )}
           </Avatar>
-          {/* status dot: online if last activity within 5 minutes */}
+          {/* status dot: prefer presence.isOnline explicitly; if presence indicates offline, show offline even if lastSeen is recent */}
           <span
             aria-hidden
             className={`absolute right-0.5 top-0.5 translate-x-1/4 -translate-y-1/4 w-3 h-3 rounded-full ring-1 ring-white ${(() => {
+              if (teacherPresence) {
+                return teacherPresence.isOnline === true
+                  ? "bg-emerald-500"
+                  : "bg-gray-400";
+              }
               const last = messages.length
                 ? messages[messages.length - 1].createdAt
                 : conversation?.createdAt;
@@ -179,6 +274,12 @@ const ConversationDetails = () => {
             <Badge
               variant="outline"
               className={`border-emerald-200 ${(() => {
+                // If presence snapshot exists, use isOnline strictly.
+                if (teacherPresence) {
+                  return teacherPresence.isOnline === true
+                    ? "text-emerald-700 bg-emerald-50"
+                    : "text-gray-600 bg-gray-100";
+                }
                 const last = messages.length
                   ? messages[messages.length - 1].createdAt
                   : conversation?.createdAt;
@@ -192,22 +293,31 @@ const ConversationDetails = () => {
               })()}`}
             >
               {(() => {
+                if (teacherPresence) {
+                  return teacherPresence.isOnline === true
+                    ? "Trực tuyến"
+                    : "Ngoại tuyến";
+                }
                 const last = messages.length
                   ? messages[messages.length - 1].createdAt
                   : conversation?.createdAt;
-                if (!last) return "Offline";
+                if (!last) return "Ngoại tuyến";
                 const diff = Math.floor(
                   (Date.now() - new Date(last).getTime()) / 1000
                 );
-                return diff <= 300 ? "Online" : "Offline";
+                return diff <= 300 ? "Trực tuyến" : "Ngoại tuyến";
               })()}
             </Badge>
           </div>
           <div className="text-sm text-muted-foreground">
             {(() => {
-              const last = messages.length
-                ? messages[messages.length - 1].createdAt
-                : conversation?.createdAt;
+              // If presence snapshot says online, show "Đang hoạt động" explicitly.
+              if (teacherPresence?.isOnline === true) return "Đang hoạt động";
+              const last =
+                teacherPresence?.lastSeen ??
+                (messages.length
+                  ? messages[messages.length - 1].createdAt
+                  : conversation?.createdAt);
               return last ? formatLastOnline(last) : "Không hoạt động";
             })()}
           </div>

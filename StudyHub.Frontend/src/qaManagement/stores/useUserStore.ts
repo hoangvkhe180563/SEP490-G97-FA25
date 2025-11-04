@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { AppUserState } from "../interfaces/stores";
 import { axiosInstance, axiosMessageErrorHandler } from "@/lib/axios";
+import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
 
 export const useQAUserStore = create<AppUserState>()((set) => ({
   teachers: [],
@@ -88,6 +89,42 @@ export const useQAUserStore = create<AppUserState>()((set) => ({
       return null;
     } finally {
       set({ isLoading: false });
+    }
+  },
+  getUserStatus: async (userId: string) => {
+    if (!userId) return null;
+    try {
+      // Prefer the shared presence store's snapshot when available
+      const normalizedId = String(userId ?? "")
+        .toLowerCase()
+        .trim();
+      const local = (useUserOnlineStore.getState().onlineUsers || []).find(
+        (u: any) =>
+          String(u?.userId ?? "")
+            .toLowerCase()
+            .trim() === normalizedId
+      );
+      if (local) return local;
+      // fallback to server endpoint
+      const resp = await axiosInstance.get(
+        `/QAConversation/presence/user/${userId}`
+      );
+      const d = resp?.data?.data ?? null;
+      if (!d) return null;
+      // normalize server response to the same shape as onlineUsers
+      const normalized = {
+        userId: String(d?.userId ?? d?.UserId ?? d?.id ?? d?.Id ?? "")
+          .toLowerCase()
+          .trim(),
+        fullName: d?.fullName ?? d?.FullName ?? d?.displayName ?? "",
+        roles: d?.roles ?? d?.Roles ?? [],
+        isOnline: d?.isOnline === true,
+        lastSeen: d?.lastSeen ?? d?.LastSeen ?? null,
+      };
+      return normalized;
+    } catch (err) {
+      console.error("getUserStatus failed", err);
+      return null;
     }
   },
 }));
