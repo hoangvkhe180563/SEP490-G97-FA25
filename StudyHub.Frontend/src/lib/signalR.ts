@@ -23,7 +23,7 @@ export function createPresenceConnection() {
 export function createChatConnection() {
   const base = hubBase();
   return new signalR.HubConnectionBuilder()
-    .withUrl(`${base}/hubs/qachat`, { withCredentials: true })
+    .withUrl(`${base}/hubs/qa-chat`, { withCredentials: true })
     .withAutomaticReconnect()
     .build();
 }

@@ -84,6 +84,17 @@ const ConversationDetails = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const typingTimeoutRef = useRef<any>(null);
+  const storeMessages = useMessageStore((s) => s.messages);
+  const storeTypingUsers = useMessageStore((s) => s.typingUsers || []);
+  const isTyping = Boolean(
+    storeTypingUsers.find(
+      (t: any) =>
+        String(t?.conversationId) === String(conversationId) &&
+        t?.isTyping === true
+    )
+  );
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
@@ -91,6 +102,18 @@ const ConversationDetails = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
+
+  // react to store messages changes
+  useEffect(() => {
+    if (!storeMessages) return;
+    const mapped = (storeMessages || []).map((d: any) => ({
+      id: d.id,
+      senderId: d.senderId,
+      content: d.content ?? d.Content ?? "",
+      createdAt: new Date(d.createdAt ?? d.CreatedAt).toISOString(),
+    }));
+    setMessages(mapped);
+  }, [storeMessages]);
 
   useEffect(() => {
     // load messages for conversation if id provided
@@ -169,8 +192,34 @@ const ConversationDetails = () => {
       }
     };
     load();
+    // start chat connection and join this conversation
+    (async () => {
+      try {
+        await useMessageStore.getState().startChat?.();
+        await useMessageStore
+          .getState()
+          .joinConversation?.(conversationId || "");
+      } catch (err) {
+        console.warn("chat join failed", err);
+      }
+    })();
     return () => {
       mounted = false;
+    };
+  }, [conversationId]);
+
+  // leave conversation on unmount
+  useEffect(() => {
+    return () => {
+      (async () => {
+        try {
+          await useMessageStore
+            .getState()
+            .leaveConversation?.(conversationId || "");
+        } catch (err) {
+          console.warn("leave conversation failed", err);
+        }
+      })();
     };
   }, [conversationId]);
 
@@ -219,13 +268,23 @@ const ConversationDetails = () => {
     }
   };
 
-  // Log presence changes (avoid logging on every render)
-  useEffect(() => {
-    console.log(
-      "ConversationDetails: teacherPresence changed:",
-      teacherPresence
-    );
-  }, [teacherPresence]);
+  const onTextChange = (val: string) => {
+    setText(val);
+    if (!conversationId) return;
+    try {
+      useMessageStore.getState().sendTyping?.(conversationId, true);
+    } catch (err) {
+      console.warn("sendTyping start failed", err);
+    }
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      try {
+        useMessageStore.getState().sendTyping?.(conversationId, false);
+      } catch (err) {
+        console.warn("sendTyping stop failed", err);
+      }
+    }, 10000);
+  };
 
   return (
     <div className="flex flex-col h-full ">
@@ -360,6 +419,42 @@ const ConversationDetails = () => {
                 </div>
               );
             })}
+            {isTyping && (
+              <div className="flex justify-start">
+                <div className="max-w-[70%] bg-gray-200 text-gray-700 rounded-r-xl rounded-tl-xl px-4 py-2 text-sm flex items-center">
+                  <div className="flex items-center space-x-1">
+                    <span
+                      className="typing-dot"
+                      style={{ animationDelay: "0s" }}
+                    />
+                    <span
+                      className="typing-dot"
+                      style={{ animationDelay: "0.12s" }}
+                    />
+                    <span
+                      className="typing-dot"
+                      style={{ animationDelay: "0.24s" }}
+                    />
+                  </div>
+                  <style>{`
+                    @keyframes typingBounce {
+                      0% { transform: translateY(0); opacity: 0.6 }
+                      25% { transform: translateY(-6px); opacity: 1 }
+                      50% { transform: translateY(0); opacity: 0.6 }
+                      100% { transform: translateY(0); opacity: 0.6 }
+                    }
+                    .typing-dot {
+                      display: inline-block;
+                      width: 8px;
+                      height: 8px;
+                      background: #374151; /* gray-700 */
+                      border-radius: 9999px;
+                      animation: typingBounce 0.9s ease-in-out infinite;
+                    }
+                  `}</style>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
@@ -373,7 +468,7 @@ const ConversationDetails = () => {
           </button>
           <Textarea
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => onTextChange(e.target.value)}
             onKeyDown={onKeyDown}
             placeholder="Viết tin nhắn..."
             className="flex-1 max-h-36"

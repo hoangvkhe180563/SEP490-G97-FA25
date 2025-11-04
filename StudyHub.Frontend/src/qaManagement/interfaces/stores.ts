@@ -19,6 +19,9 @@ interface ConversationState {
 }
 interface MessageState {
   messages: Message[];
+  // realtime/chat
+  isChatConnected?: boolean;
+  typingUsers?: any[];
   isLoading: boolean;
   success: boolean;
   message: string;
@@ -26,6 +29,11 @@ interface MessageState {
   sendMessage: (message: CreateMessageDTO) => Promise<void>;
   updateMessage: (id: string, dto: any) => Promise<void>;
   getAllMessages: () => Promise<void>;
+  startChat?: () => Promise<void>;
+  stopChat?: () => Promise<void>;
+  joinConversation?: (conversationId: string) => Promise<void>;
+  leaveConversation?: (conversationId: string) => Promise<void>;
+  sendTyping?: (conversationId: string, isTyping: boolean) => Promise<void>;
 }
 
 interface TopicState {

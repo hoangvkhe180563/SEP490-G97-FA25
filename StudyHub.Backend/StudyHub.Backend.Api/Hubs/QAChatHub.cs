@@ -8,11 +8,15 @@ namespace StudyHub.Backend.Api.Hubs
     public class QAChatHub : Hub
     {
         private readonly QAMessageService _messageService;
+        private readonly AuthService authService;
 
-        public QAChatHub(QAMessageService messageService)
+        public QAChatHub(QAMessageService messageService, AuthService authService)
         {
             _messageService = messageService;
+            this.authService = authService;
         }
+
+
 
         // join the SignalR group for a conversation so the client receives messages for it
         public Task JoinConversation(string conversationId)
@@ -46,9 +50,7 @@ namespace StudyHub.Backend.Api.Hubs
         // typing indicator - broadcast to others in conversation group
         public Task Typing(string conversationId, bool isTyping)
         {
-            var userId = Context.User?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
-                ?? Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                ?? string.Empty;
+            var userId = authService.GetCurrentUser().Id.ToString();
             var group = $"conversation-{conversationId}";
             return Clients.OthersInGroup(group).SendAsync("UserTyping", new { ConversationId = conversationId, UserId = userId, IsTyping = isTyping });
         }

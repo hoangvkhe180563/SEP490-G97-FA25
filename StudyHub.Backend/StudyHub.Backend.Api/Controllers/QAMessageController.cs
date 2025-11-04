@@ -79,7 +79,7 @@ namespace StudyHub.Backend.Api.Controllers
                 try
                 {
                     var dto = QAMessageMapper.MapToDto(created);
-                    await _chatHub.Clients.Group($"conversation-{created.ConversationId}").SendAsync("ReceiveMessage", dto);
+                    await _chatHub.Clients.Group($"conversation-{created.Conversation.Id}").SendAsync("ReceiveMessage", dto);
                 }
                 catch
                 {
