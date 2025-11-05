@@ -8,6 +8,7 @@ import {
   AvatarImage,
   AvatarFallback,
 } from "@/common/components/ui/avatar";
+import type { AppUser } from "@/auth/interfaces/app-user";
 import { Input } from "@/common/components/ui/input";
 import { Button } from "@/common/components/ui/button";
 // textarea not needed for teacher profile currently
@@ -55,9 +56,24 @@ const schema = z
 
 type FormValues = z.infer<typeof schema> & { photo?: File | null };
 
+const defaultUser: AppUser = {
+  id: "teacher-1",
+  email: "sarah.johnson@school.edu",
+  username: "sarah.t",
+  fullname: "John Smith",
+  avatar: "/avatars/user1.png",
+  roles: ["Teacher"],
+  permissions: [],
+  classIds: [],
+  subjectIds: [],
+  schoolId: 0,
+  isLoginWithGoogle: false,
+  transferId: 0,
+};
+
 export default function TeacherProfile() {
   const [preview, setPreview] = useState<string | undefined>(
-    "/avatars/user1.png"
+    defaultUser.avatar
   );
   const [file, setFile] = useState<File | null>(null);
 
@@ -158,8 +174,12 @@ export default function TeacherProfile() {
             </div>
             <div>
               <div>
-                <div className="font-medium text-lg">John Smith</div>
-                <div className="text-sm text-gray-500">Role: Teacher</div>
+                <div className="font-medium text-lg">
+                  {defaultUser.fullname}
+                </div>
+                <div className="text-sm text-gray-500">
+                  Role: {defaultUser.roles[0] ?? "Teacher"}
+                </div>
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
                 <Badge variant="secondary" className="bg-teal-100">
