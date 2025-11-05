@@ -7,65 +7,74 @@ namespace StudyHub.Backend.Api.Mappers
 {
     public static class DocumentMapper
     {
-        public static DocumentListDto ToListDto(this Document d) => new DocumentListDto
-        {
-            Id = d.Id,
-            Name = d.Name,
-            DocumentUrl = d.DocumentUrl,
-            Thumbnail = d.Thumbnail,
-            Description = d.Description,
-            SubjectId = d.SubjectId,
-            SubjectName = d.Subject?.Name,
-            Grade = d.Grade,
-            DocumentCategoryId = (byte)d.DocumentCategoryId,
-            CategoryName = d.DocumentCategory?.Name,
-            SchoolId = d.SchoolId,
-            SchoolName = d.School?.Name,
-            IsInClass = d.IsInClass,
-            CreatedAt = d.CreatedAt,
-            IsFeatured = d.IsFeatured,
-            IsApproved = d.IsApproved,
-            Status = d.Status ?? true,
-            FileType = GetFileType(d.DocumentUrl),
-            UploaderName = d.Username?.Fullname ?? d.Username?.Username,
-            classes = d.Classes?.Select(c => new ClassListDto
-            {
-                Id = c.Id,
-                Name = c.Name
-            }).ToList() ?? new List<ClassListDto>()
-        };
 
-        public static DocumentDetailDto ToDetailDto(this Document d) => new DocumentDetailDto
+        // DocumentMapper.cs - Sửa ToListDto và ToDetailDto
+        public static DocumentListDto ToListDto(this Document d)
         {
-            Id = d.Id,
-            Name = d.Name,
-            DocumentUrl = d.DocumentUrl,
-            Thumbnail = d.Thumbnail,
-            SubjectId = d.SubjectId,
-            SubjectName = d.Subject?.Name,
-            Grade = d.Grade,
-            DocumentCategoryId = (byte)d.DocumentCategoryId,
-            CategoryName = d.DocumentCategory?.Name,
-            SchoolId = d.SchoolId,
-            SchoolName = d.School?.Name,
-            IsInClass = d.IsInClass,
-            Description = d.Description,
-            CreatedAt = d.CreatedAt,
-            CreatedBy = d.CreatedBy,
-            UpdatedAt = d.UpdatedAt,
-            UpdatedBy = d.UpdatedBy,
-            IsFeatured = d.IsFeatured,
-            IsApproved = d.IsApproved,
-            Status = d.Status ?? true,
-            FileType = GetFileType(d.DocumentUrl),
-            UploaderName = d.Username?.Fullname ?? d.Username?.Username,
-            classes = d.Classes?.Select(c => new ClassListDto
+            return new DocumentListDto
             {
-                Id = c.Id,
-                Name = c.Name
-            }).ToList() ?? new List<ClassListDto>()
-        };
+                Id = d.Id,
+                Name = d.Name,
+                DocumentUrl = d.DocumentUrl,
+                Thumbnail = d.Thumbnail,
+                Description = d.Description,
+                SubjectId = d.SubjectId,
+                SubjectName = d.Subject?.Name,
+                Grade = d.Grade,
+                DocumentCategoryId = (byte)d.DocumentCategoryId,
+                CategoryName = d.DocumentCategory?.Name,
+                SchoolId = d.SchoolId,
+                SchoolName = d.School?.Name,
+                IsInClass = d.IsInClass,
+                CreatedAt = d.CreatedAt,
+                IsFeatured = d.IsFeatured,
+                IsApproved = d.IsApproved,
+                Status = d.Status ?? true,
+                FileType = GetFileType(d.DocumentUrl),
+                UploaderName = d.Username?.Fullname ?? d.Username?.Username,
+                classes = d.Classes?.Select(c => new ClassListDto
+                {
+                    Id = c.Id,
+                    Name = c.Name
+                }).ToList() ?? new List<ClassListDto>(),
+                IsRequested = d.IsRequested
+            };
+        }
 
+        public static DocumentDetailDto ToDetailDto(this Document d)
+        {
+            return new DocumentDetailDto
+            {
+                Id = d.Id,
+                Name = d.Name,
+                DocumentUrl = d.DocumentUrl,
+                Thumbnail = d.Thumbnail,
+                SubjectId = d.SubjectId,
+                SubjectName = d.Subject?.Name,
+                Grade = d.Grade,
+                DocumentCategoryId = (byte)d.DocumentCategoryId,
+                CategoryName = d.DocumentCategory?.Name,
+                SchoolId = d.SchoolId,
+                SchoolName = d.School?.Name,
+                IsInClass = d.IsInClass,
+                Description = d.Description,
+                CreatedAt = d.CreatedAt,
+                CreatedBy = d.CreatedBy,
+                UpdatedAt = d.UpdatedAt,
+                UpdatedBy = d.UpdatedBy,
+                IsFeatured = d.IsFeatured,
+                IsApproved = d.IsApproved,
+                Status = d.Status ?? true,
+                FileType = GetFileType(d.DocumentUrl),
+                UploaderName = d.Username?.Fullname ?? d.Username?.Username,
+                classes = d.Classes?.Select(c => new ClassListDto
+                {
+                    Id = c.Id,
+                    Name = c.Name
+                }).ToList() ?? new List<ClassListDto>(),
+                IsRequested = d.IsRequested
+            };
+        }
         public static Document ToEntity(this CreateDocumentDto dto) => new Document
         {
             Name = dto.Name,

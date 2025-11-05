@@ -1,43 +1,72 @@
 // src/documentManagement/components/OwnedDocumentItem.tsx
-import { FileText } from "lucide-react"
-import { Card } from "@/common/components/ui/card"
-import { Badge } from "@/common/components/ui/badge"
-import type { Document } from "@/documentManagement/interfaces/document"
+import { FileText } from "lucide-react";
+import { Card } from "@/common/components/ui/card";
+import { Badge } from "@/common/components/ui/badge";
+import type { Document } from "@/documentManagement/interfaces/document";
 
 interface OwnedDocumentItemProps {
-  document: Document
-  onClick: () => void
-  onDoubleClick: () => void
-  getAccessType: (doc: Document) => string
+  document: Document;
+  onClick: () => void;
+  onDoubleClick: () => void;
+  getAccessType: (doc: Document) => string;
 }
 
 const getAccessLabel = (type: string) => {
   switch (type) {
-    case "public": return "Công khai"
-    case "school": return "Trường"
-    case "class": return "Lớp học"
-    default: return "Công khai"
+    case "public":
+      return "Công khai";
+    case "school":
+      return "Trường";
+    case "class":
+      return "Lớp học";
+    default:
+      return "Công khai";
   }
-}
+};
 
 const getAccessBadgeClass = (type: string) => {
   switch (type) {
-    case "public": return "bg-blue-50 text-blue-700 border-blue-200"
-    case "school": return "bg-purple-50 text-purple-700 border-purple-200"
-    case "class": return "bg-green-50 text-green-700 border-green-200"
-    default: return "bg-slate-50 text-slate-700 border-slate-200"
+    case "public":
+      return "bg-blue-50 text-blue-700 border-blue-200";
+    case "school":
+      return "bg-purple-50 text-purple-700 border-purple-200";
+    case "class":
+      return "bg-green-50 text-green-700 border-green-200";
+    default:
+      return "bg-slate-50 text-slate-700 border-slate-200";
   }
-}
+};
 
-const getApprovalStatus = (isApproved: boolean | null) => {
-  if (isApproved === true) return { label: "Đã duyệt", class: "bg-green-50 text-green-700 border-green-200" }
-  if (isApproved === false) return { label: "Từ chối", class: "bg-red-50 text-red-700 border-red-200" }
-  return { label: "Chờ duyệt", class: "bg-amber-50 text-amber-700 border-amber-200" }
-}
+const getApprovalStatus = (
+  isApproved: boolean | null,
+  hasEditRequest?: boolean
+) => {
+  if (hasEditRequest === true)
+    return {
+      label: "Chờ duyệt sửa",
+      class: "bg-orange-50 text-orange-700 border-orange-200",
+    };
+  if (isApproved === true)
+    return {
+      label: "Đã duyệt",
+      class: "bg-green-50 text-green-700 border-green-200",
+    };
+  if (isApproved === false)
+    return { label: "Từ chối", class: "bg-red-50 text-red-700 border-red-200" };
+  return {
+    label: "Chờ duyệt",
+    class: "bg-amber-50 text-amber-700 border-amber-200",
+  };
+};
 
-export default function OwnedDocumentItem({ document, onClick, onDoubleClick, getAccessType }: OwnedDocumentItemProps) {
-  const accessType = getAccessType(document)
-  const status = getApprovalStatus(document.isApproved)
+export default function OwnedDocumentItem({
+  document,
+  onClick,
+  onDoubleClick,
+  getAccessType,
+}: OwnedDocumentItemProps) {
+  const accessType = getAccessType(document);
+  const status = getApprovalStatus(document.isApproved, document.isRequested);
 
   return (
     <Card
@@ -62,7 +91,9 @@ export default function OwnedDocumentItem({ document, onClick, onDoubleClick, ge
         <div className="absolute top-2 right-2">
           <Badge
             variant="secondary"
-            className={`text-[10px] px-2 py-0.5 font-medium ${getAccessBadgeClass(accessType)}`}
+            className={`text-[10px] px-2 py-0.5 font-medium ${getAccessBadgeClass(
+              accessType
+            )}`}
           >
             {getAccessLabel(accessType)}
           </Badge>
@@ -88,11 +119,14 @@ export default function OwnedDocumentItem({ document, onClick, onDoubleClick, ge
           <span className="text-xs text-slate-400">
             {new Date(document.createdAt).toLocaleDateString("vi-VN")}
           </span>
-          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-medium ${status.class}`}>
+          <Badge
+            variant="outline"
+            className={`text-[10px] px-1.5 py-0 font-medium ${status.class}`}
+          >
             {status.label}
           </Badge>
         </div>
       </div>
     </Card>
-  )
+  );
 }

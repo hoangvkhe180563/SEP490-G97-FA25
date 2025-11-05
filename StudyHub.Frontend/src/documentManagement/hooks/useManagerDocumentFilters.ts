@@ -116,12 +116,26 @@ export const useManagerDocumentFilters = () => {
 
   const fetchDocuments = useCallback(async () => {
     try {
-      let isApproved: boolean | undefined = undefined;
+      let isApproved: boolean | undefined | null = undefined;
+      let statusParam: boolean | undefined = true;
+      let isRequested: boolean | undefined | null = undefined;
 
       if (filters.statusFilter === "approved") {
         isApproved = true;
+        statusParam = true;
+        isRequested = null;
       } else if (filters.statusFilter === "rejected") {
         isApproved = false;
+        statusParam = true;
+        isRequested = null;
+      } else if (filters.statusFilter === "editRequest") {
+        isRequested = true;
+        isApproved = true;
+        statusParam = true;
+      } else if (filters.statusFilter === "pending") {
+        isApproved = null;
+        statusParam = true;
+        isRequested = null;
       }
 
       const gradeParam =
@@ -144,8 +158,9 @@ export const useManagerDocumentFilters = () => {
           gradeParam,
           subjectParam,
           undefined,
-          isApproved,
-          true,
+          isApproved, // Bỏ dấu ngoặc và toán tử =
+          statusParam,
+          isRequested, // Bỏ dấu ngoặc và toán tử =
           currentPage,
           pageSize
         );
@@ -159,7 +174,8 @@ export const useManagerDocumentFilters = () => {
           subjectParam,
           undefined,
           isApproved,
-          true,
+          statusParam,
+          isRequested, // Bỏ dấu ngoặc và toán tử =
           currentPage,
           pageSize
         );
@@ -199,19 +215,19 @@ export const useManagerDocumentFilters = () => {
   });
 
   const filteredDocuments = sortedDocuments.filter((doc) => {
-    if (filters.selectedGrades.length > 1) {
+    if (filters.selectedGrades.length > 0) {
       if (!filters.selectedGrades.includes(Number(doc.grade))) {
         return false;
       }
     }
 
-    if (filters.selectedSubjects.length > 1) {
+    if (filters.selectedSubjects.length > 0) {
       if (!filters.selectedSubjects.includes(doc.subjectName || "")) {
         return false;
       }
     }
 
-    if (filters.selectedCategories.length > 1) {
+    if (filters.selectedCategories.length > 0) {
       if (
         !filters.selectedCategories.includes(Number(doc.documentCategoryId))
       ) {

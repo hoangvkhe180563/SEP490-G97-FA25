@@ -20,5 +20,6 @@
         public DocumentCategory? DocumentCategory { get; set; }
         public School? School { get; set; }
         public AppUser? Username { get; set; }
+        public bool? IsRequested { get; set; }
     }
 }

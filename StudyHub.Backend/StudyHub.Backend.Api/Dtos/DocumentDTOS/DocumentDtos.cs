@@ -30,6 +30,8 @@ namespace StudyHub.Backend.Api.Dtos
         public string? UploaderUrl { get; set; }
         public string? UploaderFullname { get; set; }
         public List<ClassListDto> classes { get; set; } = new();
+        public bool? IsRequested { get; set; }
+
     }
 
     public class DocumentDetailDto
@@ -59,6 +61,8 @@ namespace StudyHub.Backend.Api.Dtos
         public string? UploaderUrl { get; set; }
         public string? UploaderFullname { get; set; }
         public List<ClassListDto> classes { get; set; } = new();
+        public bool? IsRequested { get; set; }
+
     }
 
     public class CreateDocumentDto
@@ -136,12 +140,13 @@ namespace StudyHub.Backend.Api.Dtos
         public DateTime? UpdatedAt { get; set; }
         public Guid? UpdatedBy { get; set; }
         public bool? Status { get; set; } = true;
-        public bool? IsPendingApproval { get; set; }
-        public bool IncludeUnapproved { get; set; }
-        public DateTime? CreatedFrom { get; set; }
-        public DateTime? CreatedTo { get; set; }
-        public DateTime? UpdatedFrom { get; set; }
-        public DateTime? UpdatedTo { get; set; }
+        public bool? IsRequested { get; set; }
+        //public bool? IsPendingApproval { get; set; }
+        //public bool IncludeUnapproved { get; set; }
+        //public DateTime? CreatedFrom { get; set; }
+        //public DateTime? CreatedTo { get; set; }
+        //public DateTime? UpdatedFrom { get; set; }
+        //public DateTime? UpdatedTo { get; set; }
         public List<ClassListDto> classes { get; set; } = new();
 
         public int PageNumber { get; set; } = 1;

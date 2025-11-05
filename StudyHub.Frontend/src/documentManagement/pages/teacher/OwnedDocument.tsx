@@ -7,6 +7,7 @@ import { Label } from "@/common/components/ui/label";
 import { ScrollArea } from "@/common/components/ui/scroll-area";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { Checkbox } from "@/common/components/ui/checkbox";
+import { axiosInstance } from "@/lib/axios";
 import {
   Popover,
   PopoverContent,
@@ -31,6 +32,8 @@ import {
   Plus,
   Eye,
   ChevronDown,
+  Badge,
+  Loader2,
 } from "lucide-react";
 import { useOwnedDocuments } from "@/documentManagement/hooks/useOwnedDocuments";
 import OwnedDocumentItem from "@/documentManagement/components/OwnedDocumentItem";
@@ -42,7 +45,8 @@ import type {
   DocumentGridProps,
   DocumentDetailProps,
 } from "@/documentManagement/interfaces/document";
-
+import { Check } from "lucide-react";
+import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
 const ITEMS_PER_PAGE = 12;
 
 function FilterBar({
@@ -351,6 +355,7 @@ function DocumentHeader({
                 <SelectItem value="approved">Đã duyệt</SelectItem>
                 <SelectItem value="pending">Chờ duyệt</SelectItem>
                 <SelectItem value="rejected">Từ chối</SelectItem>
+                <SelectItem value="editRequest">Yêu cầu chỉnh sửa</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -487,6 +492,7 @@ function DocumentDetail({
   onDelete,
   onPreview,
   getAccessType,
+  requestEditDocument,
 }: DocumentDetailProps) {
   const accessType = getAccessType(document);
 
@@ -503,12 +509,15 @@ function DocumentDetail({
     }
   };
 
-  const getApprovalLabel = (isApproved: boolean | null) => {
+  const getApprovalLabel = (
+    isApproved: boolean | null,
+    isRequested?: boolean
+  ) => {
+    if (isRequested === true) return "Chờ duyệt chỉnh sửa";
     if (isApproved === true) return "Đã duyệt";
     if (isApproved === false) return "Từ chối";
     return "Chờ duyệt";
   };
-
   return (
     <div className="w-80 bg-white border-l border-slate-200 flex-shrink-0">
       <ScrollArea className="h-full">
@@ -575,26 +584,68 @@ function DocumentDetail({
               <Eye className="w-4 h-4 mr-1" />
               Xem trước
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 text-xs bg-transparent"
-              onClick={onEdit}
-            >
-              <Edit className="w-4 h-4 mr-1" />
-              Chỉnh sửa
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
-              onClick={onDelete}
-            >
-              <Trash2 className="w-4 h-4 mr-1" />
-              Xóa
-            </Button>
+
+            {document.isApproved === true &&
+              document.status === true &&
+              document.isRequested !== true && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs col-span-2 bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100"
+                  onClick={async () => {
+                    const success = await requestEditDocument(document.id);
+                    if (success) {
+                      // showToast("success", "Đã gửi yêu cầu chỉnh sửa");
+                      setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                      // showToast("error", "Gửi yêu cầu thất bại");
+                    }
+                  }}
+                >
+                  <Edit className="w-4 h-4 mr-1" />
+                  Yêu cầu chỉnh sửa
+                </Button>
+              )}
+
+            {document.isRequested === true && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs col-span-2 bg-gray-100 text-gray-500 cursor-not-allowed"
+                disabled
+              >
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                Đang chờ xét duyệt
+              </Button>
+            )}
+
+            {!(document.isApproved === true && document.status === true) &&
+              document.isRequested !== true && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 text-xs bg-transparent"
+                    onClick={onEdit}
+                  >
+                    <Edit className="w-4 h-4 mr-1" />
+                    Chỉnh sửa
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Xóa
+                  </Button>
+                </>
+              )}
           </div>
 
           <div>
@@ -627,9 +678,35 @@ function DocumentDetail({
               </div>
               <div className="flex justify-between text-sm gap-2">
                 <span className="text-slate-500 flex-shrink-0">Trạng thái</span>
-                <span className="font-normal text-slate-900 text-right">
-                  {getApprovalLabel(document.isApproved)}
-                </span>
+                <div className="flex flex-col items-end gap-1">
+                  {document.isRequested === true ? (
+                    <>
+                      <span className="text-xs font-medium text-orange-700">
+                        Chờ duyệt chỉnh sửa
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(document.editRequestedAt!).toLocaleDateString(
+                          "vi-VN"
+                        )}
+                      </span>
+                    </>
+                  ) : (
+                    <Badge
+                      className={
+                        document.isApproved === true
+                          ? "bg-green-100 text-green-700 text-xs"
+                          : document.isApproved === false
+                          ? "bg-red-100 text-red-700 text-xs"
+                          : "bg-yellow-100 text-yellow-700 text-xs"
+                      }
+                    >
+                      {getApprovalLabel(
+                        document.isApproved,
+                        document.isRequested
+                      )}
+                    </Badge>
+                  )}
+                </div>
               </div>
               <div className="flex justify-between text-sm gap-2">
                 <span className="text-slate-500 flex-shrink-0">Loại</span>
@@ -677,7 +754,27 @@ export default function OwnedDocument() {
   const { user } = useAuthStore();
   const [selectedDocument, setSelectedDocument] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-
+  const [toasts, setToasts] = useState<
+    Array<{ id: string; type: "success" | "error"; message: string }>
+  >([]);
+  const handleRequestEdit = async (documentId: number) => {
+    const { requestEditDocument } = useDocumentStore.getState();
+    const success = await requestEditDocument(documentId);
+    if (success) {
+      showToast("success", "Đã gửi yêu cầu chỉnh sửa");
+      setTimeout(() => window.location.reload(), 1000);
+    } else {
+      showToast("error", "Gửi yêu cầu thất bại");
+    }
+    return success;
+  };
+  const showToast = (type: "success" | "error", message: string) => {
+    const id = Date.now().toString();
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 5000);
+  };
   const {
     documents,
     availableFilters,
@@ -720,10 +817,53 @@ export default function OwnedDocument() {
   const handleEdit = (docId: number) => {
     navigate(`/document/teacher/update-document/${docId}`);
   };
+  const Toast = ({
+    toast,
+  }: {
+    toast: { id: string; type: "success" | "error"; message: string };
+  }) => (
+    <div
+      className={`flex items-center gap-3 px-4 py-3 shadow-lg animate-in slide-in-from-right ${
+        toast.type === "success"
+          ? "bg-green-50 border border-green-200"
+          : "bg-red-50 border border-red-200"
+      }`}
+    >
+      <div
+        className={toast.type === "success" ? "text-green-600" : "text-red-600"}
+      >
+        {toast.type === "success" ? (
+          <Check className="h-5 w-5" />
+        ) : (
+          <X className="h-5 w-5" />
+        )}
+      </div>
+      <p
+        className={`text-sm font-medium ${
+          toast.type === "success" ? "text-green-800" : "text-red-800"
+        }`}
+      >
+        {toast.message}
+      </p>
+    </div>
+  );
+  <div className="fixed top-4 right-4 z-50 space-y-2">
+    {toasts.map((toast) => (
+      <Toast key={toast.id} toast={toast} />
+    ))}
+  </div>;
+  const handleDelete = async () => {
+    if (!selectedDoc) return;
 
-  const handleDelete = () => {
-    if (selectedDoc) {
-      console.log("Delete document:", selectedDoc.id);
+    if (!confirm("Bạn có chắc chắn muốn xóa tài liệu này?")) return;
+
+    try {
+      await axiosInstance.delete(`/Document/${selectedDoc.id}`);
+      showToast("success", "Xóa tài liệu thành công");
+      setSelectedDocument(null);
+      window.location.reload();
+    } catch (error) {
+      showToast("error", "Không thể xóa tài liệu");
     }
   };
 
@@ -744,6 +884,11 @@ export default function OwnedDocument() {
 
   return (
     <div className="flex h-screen bg-white overflow-hidden flex-col">
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        {toasts.map((toast) => (
+          <Toast key={toast.id} toast={toast} />
+        ))}
+      </div>
       <DocumentHeader
         viewMode={viewMode}
         setViewMode={setViewMode}
@@ -780,6 +925,7 @@ export default function OwnedDocument() {
             onDelete={handleDelete}
             onPreview={() => handlePreview(selectedDoc.id)}
             getAccessType={getAccessType}
+            requestEditDocument={handleRequestEdit}
           />
         )}
       </div>

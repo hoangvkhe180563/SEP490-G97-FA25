@@ -55,7 +55,14 @@ export const useDocumentStore = create<DocumentState>()(
       getSubjectsError: null,
       getUserClassesMessage: "",
       getUserClassesError: null,
-
+      requestEditDocumentMessage: "",
+      requestEditDocumentError: null,
+      fetchEditRequestDocumentsMessage: "",
+      fetchEditRequestDocumentsError: null,
+      approveEditRequestMessage: "",
+      approveEditRequestError: null,
+      rejectEditRequestMessage: "",
+      rejectEditRequestError: null,
       getDocumentById: async (id, handlerSuccess) => {
         set({
           isLoading: true,
@@ -126,7 +133,115 @@ export const useDocumentStore = create<DocumentState>()(
           set({ isLoading: false });
         }
       },
+      requestEditDocument: async (
+        documentId: number,
+        handlerSuccess?: () => void
+      ) => {
+        set({
+          isLoading: true,
+          requestEditDocumentError: null,
+          requestEditDocumentMessage: "",
+        });
+        try {
+          const response = await axiosInstance.post("/Document/request-edit", {
+            documentId,
+          });
+          const { data } = response;
+          set({
+            success: data.success,
+            requestEditDocumentMessage:
+              data.message || "Đã gửi yêu cầu chỉnh sửa",
+          });
+          if (data.success && handlerSuccess) {
+            handlerSuccess();
+          }
+          return data.success;
+        } catch (error: unknown) {
+          set({
+            success: false,
+            requestEditDocumentError: axiosMessageErrorHandler(error),
+          });
+          console.error(error);
+          return false;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      approveEditRequest: async (
+        documentId: number,
+        handlerSuccess?: () => void
+      ) => {
+        set({
+          isLoading: true,
+          approveEditRequestError: null,
+          approveEditRequestMessage: "",
+        });
+        try {
+          const response = await axiosInstance.post(
+            "/Document/approve-edit-request",
+            {
+              documentId,
+            }
+          );
+          const { data } = response;
+          set({
+            success: data.success,
+            approveEditRequestMessage:
+              data.message || "Đã chấp nhận yêu cầu chỉnh sửa",
+          });
+          if (data.success && handlerSuccess) {
+            handlerSuccess();
+          }
+          return data.success;
+        } catch (error: unknown) {
+          set({
+            success: false,
+            approveEditRequestError: axiosMessageErrorHandler(error),
+          });
+          console.error(error);
+          return false;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
 
+      rejectEditRequest: async (
+        documentId: number,
+        handlerSuccess?: () => void
+      ) => {
+        set({
+          isLoading: true,
+          rejectEditRequestError: null,
+          rejectEditRequestMessage: "",
+        });
+        try {
+          const response = await axiosInstance.post(
+            "/Document/reject-edit-request",
+            {
+              documentId,
+            }
+          );
+          const { data } = response;
+          set({
+            success: data.success,
+            rejectEditRequestMessage:
+              data.message || "Đã từ chối yêu cầu chỉnh sửa",
+          });
+          if (data.success && handlerSuccess) {
+            handlerSuccess();
+          }
+          return data.success;
+        } catch (error: unknown) {
+          set({
+            success: false,
+            rejectEditRequestError: axiosMessageErrorHandler(error),
+          });
+          console.error(error);
+          return false;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
       previewDocument: async (id, handlerSuccess) => {
         set({
           isLoading: true,
@@ -323,6 +438,7 @@ export const useDocumentStore = create<DocumentState>()(
         classId,
         isApproved,
         status,
+        isRequested,
         pageNumber = 1,
         pageSize = 10,
         handlerSuccess
@@ -339,9 +455,11 @@ export const useDocumentStore = create<DocumentState>()(
           if (gradeId) params.append("grade", gradeId.toString());
           if (subject) params.append("subject", subject);
           if (classId) params.append("classId", classId.toString());
-          if (isApproved !== undefined)
+          if (isApproved !== undefined && isApproved !== null)
             params.append("isApproved", isApproved.toString());
           if (status !== undefined) params.append("status", status.toString());
+          if (isRequested !== undefined && isRequested !== null)
+            params.append("hasEditRequest", isRequested.toString());
           params.append("pageNumber", pageNumber.toString());
           params.append("pageSize", pageSize.toString());
 
@@ -349,8 +467,13 @@ export const useDocumentStore = create<DocumentState>()(
             ApiResponse<PagedDocumentResponse>
           >(`/Document/manager/public?${params.toString()}`);
 
+          const mappedItems = response.data.data.items.map((doc) => ({
+            ...doc,
+            isRequested: doc.isRequested === true,
+          }));
+
           set({
-            documents: response.data.data.items,
+            documents: mappedItems,
             totalCount: response.data.data.total,
             totalPages: response.data.data.totalPages,
             currentPage: response.data.data.page,
@@ -381,6 +504,7 @@ export const useDocumentStore = create<DocumentState>()(
         classId,
         isApproved,
         status,
+        isRequested,
         pageNumber = 1,
         pageSize = 10,
         handlerSuccess
@@ -405,6 +529,8 @@ export const useDocumentStore = create<DocumentState>()(
             }
           }
           if (status !== undefined) params.append("status", status.toString());
+          if (isRequested !== undefined && isRequested !== null)
+            params.append("hasEditRequest", isRequested.toString());
           params.append("pageNumber", pageNumber.toString());
           params.append("pageSize", pageSize.toString());
 
