@@ -8,6 +8,7 @@ const RouteConfig = {
   COURSE_MANAGEMENT: "/course",
   FORUM_MANAGEMENT: "/forum",
   QA_MANAGEMENT: "/qa",
+  EXAM: "/exam"
 };
 
 export default RouteConfig;

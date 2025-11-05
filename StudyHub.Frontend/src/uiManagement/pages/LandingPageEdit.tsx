@@ -10,6 +10,8 @@ import { Input } from '@/common/components/ui/input';
 import type { ILandingPageUpdateService } from '../interfaces/ILandingPageUpdateService';
 import { Textarea } from '@/common/components/ui/textarea';
 import { useLoading } from '@/common/hooks/useLoading';
+import { useAuthStore } from '@/auth/stores/useAuthStore';
+import { ROLES } from '@/common/constants/Roles';
 
 interface IBanner {
   url: string,
@@ -45,12 +47,13 @@ const LandingPageEdit = () => {
     deletedLandingPageImages: []
   });
   const uiManagementService = new UiManagementService();
+  const { user } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      if (schoolId) {
+      if (schoolId && user?.roles.includes(ROLES.UI_MANAGER)) {
         const schoolIdInt = Number(schoolId);
         const documentData = await uiManagementService.getAllDocuments(schoolIdInt);
         setAllDocuments(documentData);
