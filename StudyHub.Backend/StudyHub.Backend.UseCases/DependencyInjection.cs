@@ -33,6 +33,7 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<QATopicService>();
             services.AddScoped<QAConversationService>();
             services.AddScoped<QAMessageService>();
+            services.AddScoped<ExamService>();
 
             
             return services;

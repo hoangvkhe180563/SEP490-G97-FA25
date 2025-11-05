@@ -1,11 +1,11 @@
-﻿using StudyHub.Backend.Api.Middleware;
-using Microsoft.AspNetCore.Mvc;
-using StudyHub.Backend.Domain;
-using StudyHub.Backend.Infrastructure;
-using StudyHub.Backend.UseCases;
-using StudyHub.Backend.UseCases.Utils;
+﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Filters;
 using StudyHub.Backend.Api.Hubs;
+using StudyHub.Backend.Api.Middleware;
+using StudyHub.Backend.Infrastructure;
+using StudyHub.Backend.Infrastructure.MongoDb;
+using StudyHub.Backend.UseCases;
+using StudyHub.Backend.UseCases.Utils;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,8 +39,9 @@ builder.Services.AddControllers(options =>
 
 
 builder.Services.AddUseCasesDependency()
-                .AddInfrastructureDependency(builder.Configuration);
-//Để chỉnh cái connection string, chuột phải project chọn Manage user secrets.
+                .AddInfrastructureDependency(builder.Configuration)
+                .AddMongoDbDependency(builder.Configuration);
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>

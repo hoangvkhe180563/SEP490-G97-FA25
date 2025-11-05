@@ -71,7 +71,8 @@ export const MOCK_DATA_EXAMS: Exam[] = [
       }
     ],
     showAnswers: true,
-    showCorrectAnswers: true
+    showCorrectAnswers: true,
+    openTime: new Date('2025-11-04T13:00:00Z')
   },
   {
     title: "dwdwdwdw",
@@ -108,7 +109,8 @@ export const MOCK_DATA_EXAMS: Exam[] = [
     ],
     id: 2,
     showAnswers: true,
-    showCorrectAnswers: true
+    showCorrectAnswers: true,
+    openTime: new Date('2025-11-04T13:00:00Z')
   },
   {
     id: 3,
@@ -154,7 +156,8 @@ export const MOCK_DATA_EXAMS: Exam[] = [
       }
     ],
     showAnswers: true,
-    showCorrectAnswers: true
+    showCorrectAnswers: true,
+    openTime: new Date('2025-11-04T13:00:00Z')
   },
   {
     title: "Bài kiểm tra số 2",
@@ -196,7 +199,9 @@ export const MOCK_DATA_EXAMS: Exam[] = [
     ],
     id: 4,
     showAnswers: true,
-    showCorrectAnswers: true
+    showCorrectAnswers: true,
+    openTime: new Date('2025-11-04T13:00:00Z'),
+    closeTime: new Date('2025-11-05T00:00:00Z')
   },
   {
     title: "Các từ viết tắt của Thành",
@@ -242,7 +247,8 @@ export const MOCK_DATA_EXAMS: Exam[] = [
     ],
     id: 5,
     showAnswers: true,
-    showCorrectAnswers: true
+    showCorrectAnswers: true,
+    openTime: new Date('2025-11-04T13:00:00Z')
   },
   {
     title: "bai kiem tra so 10",
@@ -273,7 +279,8 @@ export const MOCK_DATA_EXAMS: Exam[] = [
     ],
     id: 6,
     showAnswers: true,
-    showCorrectAnswers: false
+    showCorrectAnswers: false,
+    openTime: new Date('2025-11-04T13:00:00Z')
   },
   {
     title: "Lịch sử Đảng CSVN",
@@ -303,7 +310,8 @@ export const MOCK_DATA_EXAMS: Exam[] = [
     ],
     id: 7,
     showAnswers: true,
-    showCorrectAnswers: false
+    showCorrectAnswers: false,
+    openTime: new Date('2025-11-04T13:00:00Z')
   },
   {
     title: "Bài kiểm tra xem Thành có Súc Vật hay không",
@@ -342,7 +350,8 @@ export const MOCK_DATA_EXAMS: Exam[] = [
     ],
     id: 8,
     showAnswers: true,
-    showCorrectAnswers: false
+    showCorrectAnswers: false,
+    openTime: new Date('2025-11-04T13:00:00Z')
   }
 ]
 
@@ -350,7 +359,7 @@ export const MOCK_DATA_RESULTS: ExamResult[] = [
   {
     examId: 1,
     studentId: 2,
-    submissionDate: new Date("2025-11-01T05:14:31.984Z"),
+    submissionTime: new Date("2025-11-01T05:14:31.984Z"),
     score: 2,
     totalQuestions: 3,
     answers: [

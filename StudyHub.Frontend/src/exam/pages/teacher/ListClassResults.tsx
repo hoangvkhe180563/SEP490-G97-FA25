@@ -1,12 +1,13 @@
+import { useAuthStore } from '@/auth/stores/useAuthStore';
 import { useLoading } from '@/common/hooks/useLoading';
 import type { ExamResult } from '@/exam/interfaces/models/ExamResult';
 import { ExamService } from '@/exam/services/ExamService';
-import { MOCK_DATA_USERS } from '@/exam/services/MockData';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
-const ListResults = () => {
-  const user = MOCK_DATA_USERS[1];
+const ListClassResults = () => {
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [results, setResults] = useState<ExamResult[]>([]);
   const { setLoading } = useLoading();
   const [error, setError] = useState<string>('');
@@ -14,12 +15,17 @@ const ListResults = () => {
   const examService = new ExamService();
 
   useEffect(() => {
+    if (!user) {
+      return;
+    }
+    if (!user.roles.some(role => role.includes("Teacher"))) {
+      navigate("/");
+      return;
+    }
     const fetchResults = async () => {
       try {
         setLoading(true);
-        let fetchedResults = [];
-        fetchedResults = await examService.getResultsByStudent(user.id);
-        fetchedResults = fetchedResults.filter(res => res.studentId == user.id);
+        let fetchedResults = await examService.getAllClassResultsByTeacher(user.id);
 
         const examIds = [...new Set(fetchedResults.map(r => r.examId))];
 
@@ -49,7 +55,7 @@ const ListResults = () => {
   return (
     <div className="container mx-auto mt-8 p-4">
       <h1 className="text-3xl font-bold mb-6 text-gray-800">
-        Lịch sử làm bài (Học sinh [Student.Username])
+        Kết quả các bài kiểm tra theo lớp
       </h1>
 
       {results.length === 0 ? (
@@ -60,6 +66,7 @@ const ListResults = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bài kiểm tra</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Học sinh</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Điểm số</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày nộp</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
@@ -69,8 +76,9 @@ const ListResults = () => {
               {results.map((result) => (
                 <tr key={result.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{examTitles[result.examId] || 'Đang tải...'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">[Student.Username]</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{result.score}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{result.submissionDate?.toLocaleString("vi-VN")}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{result.submissionTime?.toLocaleString("vi-VN")}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <Link
                       to={`/results/${result.id}`}
@@ -89,4 +97,4 @@ const ListResults = () => {
   );
 };
 
-export default ListResults;
+export default ListClassResults;

@@ -3,8 +3,10 @@ import type { Answer } from "./Answer";
 export interface ExamResult {
   id: number,
   examId: number,
-  studentId: number,
-  submissionDate?: Date,
+  studentId: string,
+  studentName?: string,
+  finishDate: Date,
+  submissionTime?: Date,
   score?: number,
   totalQuestions: number,
   answers: Answer[],

@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Clock, Maximize, MinusSquare, PlusSquare, Repeat } from 'lucide-react';
 import './TakeExam.css'
-import { MOCK_DATA_USERS } from '@/exam/services/MockData';
 import { ExamService } from '@/exam/services/ExamService';
 import type { Exam } from '@/exam/interfaces/models/Exam';
 import { BLANK_PLACEHOLDER, DEFAULT_EXAM, DEFAULT_EXAM_RESULT, EXAM_TYPE } from '@/exam/constants/Constants';
@@ -13,11 +12,13 @@ import { RadioGroup, RadioGroupItem } from '@/common/components/ui/radio-group';
 import { Checkbox } from '@/common/components/ui/checkbox';
 import useDocumentVisibility from '@/exam/hooks/useDocumentVisibility';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/common/components/ui/alert-dialog';
+import { useAuthStore } from '@/auth/stores/useAuthStore';
+import { calculateFinishTime } from '@/exam/utils/ExamUtils';
 
 const TakeExam = () => {
   const { id } = useParams();
+  const { user } = useAuthStore();
   const navigate = useNavigate();
-  const user = MOCK_DATA_USERS[1];
   const [exam, setExam] = useState<Exam>(DEFAULT_EXAM);
   const [examResult, setExamResult] = useState<ExamResult>(DEFAULT_EXAM_RESULT);
   const [studentAnswers, setStudentAnswers] = useState<{
@@ -37,8 +38,6 @@ const TakeExam = () => {
   const studentAnswersRef = useRef(studentAnswers);
   const cheatTimesRef = useRef(cheatTimes);
 
-  //phân quyền?
-
   useEffect(() => {
     examRef.current = exam;
   }, [exam]);
@@ -56,7 +55,7 @@ const TakeExam = () => {
   }, [cheatTimes]);
 
   useEffect(() => {
-    if (!Number(id)) {
+    if (!Number(id) || !user) {
       setError('Không thể tải bài kiểm tra.');
       return;
     }
@@ -65,12 +64,12 @@ const TakeExam = () => {
         setLoading(true);
         const fetchedExam = await examService.getExamById(Number(id));
         setExam(fetchedExam);
-        setTimeLeft(fetchedExam.duration * 60); // Convert minutes to seconds
-        
+        setTimeLeft(fetchedExam.duration * 60);
+
         const examResult: ExamResult = {
           id: 999,
           examId: Number(fetchedExam.id),
-          studentId: Number(user.id),
+          studentId: user.id,
           totalQuestions: fetchedExam.questions.length,
           answers: fetchedExam.questions.map((q) => {
             let initialAnswer;
@@ -88,14 +87,15 @@ const TakeExam = () => {
                 const blankCount = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
                 initialAnswer = Array(blankCount).fill('');
             }
-            
+
             return {
               questionId: q.id,
               studentAnswer: initialAnswer,
               isCorrect: false,
             };
           }),
-          cheatTimes: cheatTimes
+          cheatTimes: cheatTimes,
+          finishDate: calculateFinishTime()
         };
         setExamResult(examResult);
         setStudentAnswers(_ => {
@@ -185,11 +185,11 @@ const TakeExam = () => {
 
     if (isSubmitted || !exam) return;
     setIsSubmitted(true);
-    
+
     setExamResult(prev => {
       return {
         ...prev,
-        submissionDate: new Date()
+        submissionTime: new Date()
       }
     });
     handleBackupExamResult(true);
@@ -207,7 +207,6 @@ const TakeExam = () => {
   const handleBackupExamResult = async (isSubmission: boolean) => {
     const currentExam = examRef.current;
     const currentStudentAnswers = studentAnswersRef.current;
-    console.log(currentStudentAnswers);
     const currentCheatTimes = cheatTimesRef.current;
     const currentExamResult = examResultRef.current;
 
@@ -227,7 +226,7 @@ const TakeExam = () => {
       cheatTimes: currentCheatTimes
     }
     if (isSubmission) {
-      currentExamResult.submissionDate = new Date();
+      currentExamResult.submissionTime = new Date();
     }
     setExamResult(newResult);
 
@@ -252,7 +251,7 @@ const TakeExam = () => {
     <div id="examScreen" className="bg-white w-screen h-screen flex flex-col">
       <div className="w-full bg-blue-900 px-8 py-3 flex justify-between font-black">
         <div className="text-xs text-white">
-          <p>{user.username}</p>
+          <p>{user?.fullname}</p>
           <p className="py-2 line-clamp-1">
             Bài thi: {exam.title} &nbsp;&nbsp;
             Mô tả: {exam.description}
@@ -274,7 +273,6 @@ const TakeExam = () => {
           <Button className="bg-blue-500 hover:bg-blue-700">Tiếp theo</Button>
         </div>
         <div className="flex justify-end items-center space-x-4">
-          <b>Số câu đã trả lời: <span className="text-lime-500">2</span><span> / 40</span></b>
           <Button className="bg-blue-500 hover:bg-blue-700" onClick={() => handleBackupExamResult(false)}>Lưu</Button>
           <div className="flex space-x-2">
             <Button size="icon" className="bg-blue-800 hover:bg-blue-900 size-6 rounded-sm"><MinusSquare /></Button>
@@ -352,9 +350,33 @@ const TakeExam = () => {
       </div>
       <div className="px-3 py-3 flex gap-3">
         {
-          exam.questions.map((_, index) => <Button key={index} tabIndex={-1} className="size-9 px-2 py-2 rounded-full ring-2 ring-blue-500 text-center bg-green-500 hover:bg-green-700 leading-5" onClick={() => location.hash = `#q${index + 1}`}>
-            {index + 1}
-          </Button>)
+          exam.questions.map((q, index) => {
+            let hasAnswered = false;
+            switch (q.type) {
+              case EXAM_TYPE.SINGLE_CHOICE:
+                hasAnswered = studentAnswers[q.id] !== -1;
+                break;
+              case EXAM_TYPE.MULTI_CHOICE:
+                hasAnswered = studentAnswers[q.id].length !== 0;
+                break;
+              case EXAM_TYPE.TEXT_INPUT:
+                hasAnswered = studentAnswers[q.id] !== '';
+                break;
+              case EXAM_TYPE.FILL_IN_BLANK:
+                hasAnswered = studentAnswers[q.id].every((ans: string) => ans !== '');
+                break;
+            }
+
+            if (hasAnswered) {
+              return <Button key={index} tabIndex={-1} className="size-9 px-2 py-2 rounded-full text-center bg-green-500 hover:bg-green-700 text-black leading-5" onClick={() => location.hash = `#q${index + 1}`}>
+                {index + 1}
+              </Button>
+            } else {
+              return <Button key={index} tabIndex={-1} className="size-9 px-2 py-2 rounded-full text-center bg-gray-300 hover:bg-gray-500 text-black leading-5" onClick={() => location.hash = `#q${index + 1}`}>
+                {index + 1}
+              </Button>
+            }
+          })
         }
       </div>
       <AlertDialog open={cheatDialogOpen} onOpenChange={setCheatDialogOpen}>

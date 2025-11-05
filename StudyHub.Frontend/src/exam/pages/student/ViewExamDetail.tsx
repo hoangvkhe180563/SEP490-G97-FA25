@@ -1,7 +1,14 @@
+import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { useEffect } from "react";
 import { useParams } from "react-router-dom"
 
 const ViewExamDetail = () => {
   const { id } = useParams();
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    console.log(user);
+  }, [user]);
   return (
     <div>
       <a

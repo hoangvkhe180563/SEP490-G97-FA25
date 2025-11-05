@@ -1,26 +1,32 @@
+import { useAuthStore } from '@/auth/stores/useAuthStore';
 import { useLoading } from '@/common/hooks/useLoading';
 import type { Exam } from '@/exam/interfaces/models/Exam';
 import { ExamService } from '@/exam/services/ExamService';
-import { MOCK_DATA_USERS } from '@/exam/services/MockData';
 import { Pencil } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
-const ListExams = () => {
-  const user = MOCK_DATA_USERS[0];
+const ListClassExams = () => {
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [exams, setExams] = useState<Exam[]>([]);
   const { setLoading } = useLoading();
   const [error, setError] = useState<string>('');
   const examService = new ExamService();
 
   useEffect(() => {
+    if (!user) {
+      return;
+    }
+    if (!user.roles.some(role => role.includes("Teacher"))) {
+      navigate("/");
+      return;
+    }
     const fetchExams = async () => {
       try {
         setLoading(true);
-        const allExams = await examService.getExams();
-        // Filter exams created by the current teacher
-        const teacherExams = allExams.filter(exam => exam.createdBy === user.id);
-        setExams(teacherExams);
+        const examData = await examService.getTeacherClassExams(user.id);
+        setExams(examData);
       } catch (err) {
         console.error("Failed to fetch exams:", err);
         setError("Không thể tải danh sách bài kiểm tra.");
@@ -39,18 +45,12 @@ const ListExams = () => {
   return (
     <div className="container mx-auto mt-8 p-4">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Bài kiểm tra của tôi</h1>
+        <h1 className="text-3xl font-bold text-gray-800">Bài kiểm tra đã tạo theo lớp</h1>
         <Link
           to="/exam/teacher/create-exam?classId=1"
           className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300"
         >
-          Tạo bài kiểm tra theo lớp
-        </Link>
-        <Link
-          to="/exam/teacher/create-exam?lessonId=1"
-          className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300"
-        >
-          Tạo bài kiểm tra theo bài học
+          Tạo bài kiểm tra
         </Link>
       </div>
 
@@ -63,7 +63,7 @@ const ListExams = () => {
               <h2 className="text-2xl font-semibold mb-2 text-gray-800">{exam.title}</h2>
               <p className="text-gray-600 mb-4 line-clamp-2">{exam.description}</p>
               <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-                <span>{exam.questions.length} câu hỏi</span>
+                <span>{exam.totalQuestions} câu hỏi</span>
                 <span>{exam.duration} phút</span>
               </div>
               <div className="flex justify-end">
@@ -71,7 +71,7 @@ const ListExams = () => {
                   to={`/exam/teacher/exams/${exam.id}/edit`}
                   className="px-4 py-2 mr-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 text-sm"
                 >
-                  <Pencil size={16}/>
+                  <Pencil size={16} />
                 </Link>
                 <Link
                   to={`/exam/teacher/exams/${exam.id}/results`}
@@ -88,4 +88,4 @@ const ListExams = () => {
   );
 };
 
-export default ListExams;
+export default ListClassExams;

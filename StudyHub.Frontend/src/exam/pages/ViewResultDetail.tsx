@@ -8,18 +8,19 @@ import type { Question } from '../interfaces/models/Question';
 import type { Exam } from '../interfaces/models/Exam';
 import { Button } from '@/common/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { useAuthStore } from '@/auth/stores/useAuthStore';
 
 const ViewResultDetail = () => {
   const { id } = useParams();
+  const { user } = useAuthStore();
   const [result, setResult] = useState<ExamResult>(DEFAULT_EXAM_RESULT);
   const [exam, setExam] = useState<Exam>(DEFAULT_EXAM);
-  // const [student, setStudent] = useState(null);
   const { setLoading } = useLoading();
   const [error, setError] = useState<string>('');
   const examService = new ExamService();
 
   useEffect(() => {
-    if (!Number(id)) {
+    if (!Number(id) || !user) {
       setError('Không thể tải bài kiểm tra.');
       return;
     }
@@ -33,13 +34,8 @@ const ViewResultDetail = () => {
         }
         setResult(fetchedResult);
 
-        const [fetchedExam] = await Promise.all([
-          examService.getExamById(fetchedResult.examId),
-          // examService.getUserById(fetchedResult.studentId)
-        ]);
+        const fetchedExam = await examService.getExamById(fetchedResult.examId);
         setExam(fetchedExam);
-        // setStudent(fetchedStudent);
-
       } catch (err) {
         console.error("Failed to fetch result details:", err);
         setError("Không thể tải chi tiết kết quả.");
@@ -55,7 +51,7 @@ const ViewResultDetail = () => {
     return <div className="container mx-auto mt-8 p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>;
   }
 
-  if (!result || !exam) { //|| !student
+  if (!result || !exam) {
     return <p className="container mx-auto mt-8 p-4 text-gray-600">Không tìm thấy chi tiết kết quả.</p>;
   }
 
@@ -120,9 +116,9 @@ const ViewResultDetail = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <p className="text-lg text-gray-700"><strong>Học sinh:</strong> [Student.Username]</p>
+        <p className="text-lg text-gray-700"><strong>Học sinh:</strong> {result.studentName}</p>
         <p className="text-lg text-gray-700"><strong>Điểm số:</strong> {result.score}</p>
-        <p className="text-lg text-gray-700"><strong>Ngày nộp:</strong> {result.submissionDate?.toLocaleString("vi-VN")}</p>
+        <p className="text-lg text-gray-700"><strong>Ngày nộp:</strong> {result.submissionTime?.toLocaleString("vi-VN")}</p>
       </div>
 
       <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Các câu hỏi và câu trả lời</h2>

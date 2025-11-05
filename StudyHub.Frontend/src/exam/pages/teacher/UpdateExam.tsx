@@ -1,22 +1,34 @@
+import { useAuthStore } from '@/auth/stores/useAuthStore';
 import { Button } from '@/common/components/ui/button';
 import { Checkbox } from '@/common/components/ui/checkbox';
 import { Label } from '@/common/components/ui/label';
 import { useLoading } from '@/common/hooks/useLoading';
-import { BLANK_PLACEHOLDER, DEFAULT_QUESTION, EXAM_TYPE } from '@/exam/constants/Constants';
+import { BLANK_PLACEHOLDER, EXAM_TYPE } from '@/exam/constants/Constants';
 import type { Exam } from '@/exam/interfaces/models/Exam';
 import type { Question } from '@/exam/interfaces/models/Question';
 import { ExamService } from '@/exam/services/ExamService';
-import { MOCK_DATA_USERS } from '@/exam/services/MockData';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 
+const getFormattedDateTime = (dateInput: Date | string) => {
+  if (!dateInput) return '';
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput as any);
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 const UpdateExam = () => {
   const { id } = useParams();
-  const user = MOCK_DATA_USERS[0];
+  const { user } = useAuthStore();
   const navigate = useNavigate();
+  const [examCreatedBy, setExamCreatedBy] = useState('');
   const [examTitle, setExamTitle] = useState('');
   const [examDescription, setExamDescription] = useState('');
   const [examDuration, setExamDuration] = useState<string>('');
@@ -26,9 +38,18 @@ const UpdateExam = () => {
   const [hasExam, setHasExam] = useState(false);
   const [showAnswers, setShowAnswers] = useState<boolean>(true);
   const [showCorrectAnswers, setShowCorrectAnswers] = useState<boolean>(false);
+  const [openTime, setOpenTime] = useState<string>('');
+  const [closeTime, setCloseTime] = useState<string>('');
   const examService = new ExamService();
 
   useEffect(() => {
+    if (!user) {
+      return;
+    }
+    if (!user.roles.some(role => role.includes("Teacher"))) {
+      navigate("/");
+      return;
+    }
     if (!Number(id)) {
       toast.error('Không thể tải bài kiểm tra.');
       navigate('/exam/teacher/exams');
@@ -41,9 +62,19 @@ const UpdateExam = () => {
         setExamTitle(fetched.title);
         setExamDescription(fetched.description);
         setExamDuration(fetched.duration.toString());
-        setQuestions(fetched.questions);
+        setExamCreatedBy(fetched.createdBy);
+        setQuestions(fetched.questions.map((q, index) => {
+          return {
+            ...q,
+            id: Date.now() + index
+          }
+        }));
         setShowAnswers(fetched.showAnswers);
         setShowCorrectAnswers(fetched.showCorrectAnswers);
+        setOpenTime(getFormattedDateTime(fetched.openTime));
+        if (fetched.closeTime) {
+          setCloseTime(getFormattedDateTime(fetched.closeTime));
+        }
         setHasExam(true);
       } catch (err) {
         console.error('Failed to load exam:', err);
@@ -53,10 +84,16 @@ const UpdateExam = () => {
       }
     };
     fetchExam();
-  }, [id]);
+  }, [id, user]);
 
   const addQuestion = (type: string) => {
-    let newQuestion = DEFAULT_QUESTION;
+    let newQuestion: Question = {
+      id: Date.now(),
+      type: 'single-choice',
+      questionText: '',
+      options: [],
+      correctAnswer: null
+    }
     newQuestion.type = type as "single-choice" | "multiple-choice" | "text-input" | "fill-blank";
 
     if (type === EXAM_TYPE.SINGLE_CHOICE) {
@@ -162,7 +199,13 @@ const UpdateExam = () => {
         let rowErrors: string[] = [];
 
         questionRows.forEach((row: any, rowIndex) => {
-          const question: Question = JSON.parse(JSON.stringify(DEFAULT_QUESTION)) as Question;
+          const question: Question = {
+            id: Date.now(),
+            type: 'single-choice',
+            questionText: '',
+            options: [],
+            correctAnswer: ''
+          };
           let isValidRow = true;
 
           const questionType = String(row[header.indexOf('Loại câu hỏi')] || '').toLowerCase();
@@ -275,6 +318,12 @@ const UpdateExam = () => {
       return;
     }
 
+    if (closeTime && closeTime < openTime) {
+      toast.error("Ngày bắt đầu phải trước ngày kết thúc!");
+      setLoading(false);
+      return;
+    }
+
     // Basic validation for questions
     for (const q of questions) {
       if (!q.questionText.trim()) {
@@ -328,16 +377,22 @@ const UpdateExam = () => {
       title: examTitle,
       description: examDescription,
       duration: parseInt(examDuration),
-      createdBy: Number(user.id),
+      createdBy: examCreatedBy,
       questions: questions,
       showAnswers: showAnswers,
-      showCorrectAnswers: showCorrectAnswers
+      showCorrectAnswers: showCorrectAnswers,
+      openTime: new Date(openTime),
+      closeTime: closeTime ? new Date(closeTime) : undefined
     };
 
     try {
-      await examService.updateExam(Number(id), examToUpdate);
-      toast.success('Cập nhật bài kiểm tra thành công!');
-      navigate('/exam/teacher/exams');
+      const success: boolean = await examService.updateExam(examToUpdate);
+      if (success) {
+        toast.success('Tạo bài kiểm tra thành công!');
+        navigate('/exam/teacher/class/exams');
+      } else {
+        toast.error('Tạo bài kiểm tra thất bại. Vui lòng thử lại.');
+      }
     } catch (err) {
       console.error("Failed to create exam:", err);
       toast.error("Tạo bài kiểm tra thất bại. Vui lòng thử lại.");
@@ -360,7 +415,7 @@ const UpdateExam = () => {
       <form onSubmit={handleSubmit}>
         <div className="mb-6">
           <label htmlFor="examTitle" className="block text-gray-700 text-lg font-bold mb-2">
-            Tiêu đề bài kiểm tra
+            Tiêu đề bài kiểm tra <span className='text-red-500'>*</span>
           </label>
           <input
             type="text"
@@ -374,7 +429,7 @@ const UpdateExam = () => {
 
         <div className="mb-6">
           <label htmlFor="examDescription" className="block text-gray-700 text-lg font-bold mb-2">
-            Mô tả
+            Mô tả <span className='text-red-500'>*</span>
           </label>
           <textarea
             id="examDescription"
@@ -385,9 +440,37 @@ const UpdateExam = () => {
           ></textarea>
         </div>
 
+        <div className="mb-6 flex space-x-3">
+          <div className='w-1/2 space-x-3 flex items-center'>
+            <label htmlFor="openTime" className="text-gray-700 text-lg font-bold">
+              Thời gian mở bài thi <span className='text-red-500'>*</span>:
+            </label>
+            <input
+              type="datetime-local"
+              id="openTime"
+              className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+              value={openTime}
+              onChange={(e) => setOpenTime(e.target.value)}
+              required
+            />
+          </div>
+          <div className='w-1/2 space-x-3 flex items-center'>
+            <label htmlFor="closeTime" className="text-gray-700 text-lg font-bold">
+              Thời gian đóng bài thi:
+            </label>
+            <input
+              type="datetime-local"
+              id="closeTime"
+              className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+              value={closeTime}
+              onChange={(e) => setCloseTime(e.target.value)}
+            />
+          </div>
+        </div>
+
         <div className="mb-6">
           <label htmlFor="examDuration" className="block text-gray-700 text-lg font-bold mb-2">
-            Thời lượng (phút)
+            Thời lượng (phút) <span className='text-red-500'>*</span>
           </label>
           <input
             type="number"

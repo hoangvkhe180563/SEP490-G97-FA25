@@ -1,28 +1,34 @@
+import { useAuthStore } from '@/auth/stores/useAuthStore';
 import { useLoading } from '@/common/hooks/useLoading';
 import type { Exam } from '@/exam/interfaces/models/Exam';
 import type { ExamResult } from '@/exam/interfaces/models/ExamResult';
 import { ExamService } from '@/exam/services/ExamService';
-import { MOCK_DATA_USERS } from '@/exam/services/MockData';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
-const ListExams = () => {
-  const user = MOCK_DATA_USERS[1];
+const ListClassExams = () => {
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [exams, setExams] = useState<Exam[]>([]);
   const [userResults, setUserResults] = useState<ExamResult[]>([]);
   const { setLoading } = useLoading();
   const [error, setError] = useState<string>('');
   const examService = new ExamService();
 
-  //phân quyền?
-
   useEffect(() => {
+    if (!user) {
+      return;
+    }
+    if (!user.roles.some(role => role.includes("Student"))) {
+      navigate("/");
+      return;
+    }
     const fetchExamsAndResults = async () => {
       try {
         setLoading(true);
         const [allExams, results] = await Promise.all([
-          examService.getExams(),
-          examService.getResultsByStudent(user.id)
+          examService.getStudentClassExams(user.id),
+          examService.getClassExamResultsByStudent(user.id)
         ]);
         setExams(allExams);
         setUserResults(results);
@@ -47,7 +53,7 @@ const ListExams = () => {
 
   return (
     <div className="container mx-auto mt-8 p-4">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Các bài kiểm tra có sẵn</h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-800">Các bài kiểm tra trong lớp</h1>
 
       {exams.length === 0 ? (
         <p className="text-gray-600">Hiện chưa có bài kiểm tra nào.</p>
@@ -58,7 +64,7 @@ const ListExams = () => {
               <h2 className="text-2xl font-semibold mb-2 text-gray-800">{exam.title}</h2>
               <p className="text-gray-600 mb-4 line-clamp-2">{exam.description}</p>
               <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-                <span>{exam.questions.length} câu hỏi</span>
+                <span>{exam.totalQuestions} câu hỏi</span>
                 <span>{exam.duration} phút</span>
               </div>
               <div className="flex justify-end">
@@ -83,4 +89,4 @@ const ListExams = () => {
   );
 };
 
-export default ListExams;
+export default ListClassExams;

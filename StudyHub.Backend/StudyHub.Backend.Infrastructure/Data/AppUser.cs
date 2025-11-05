@@ -75,6 +75,8 @@ public partial class AppUser
 
     public virtual ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
 
+    public virtual ICollection<ExamResult> ExamResults { get; set; } = new List<ExamResult>();
+
     public virtual ICollection<LessonComment> LessonComments { get; set; } = new List<LessonComment>();
 
     public virtual ICollection<QAConversation> QAConversationStudents { get; set; } = new List<QAConversation>();

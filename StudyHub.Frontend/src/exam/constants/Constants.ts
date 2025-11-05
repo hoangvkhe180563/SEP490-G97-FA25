@@ -15,30 +15,24 @@ export const BLANK_PLACEHOLDER = "[BLANK]";
 export const DEFAULT_EXAM: Exam = {
   id: 0,
   title: '',
-  createdBy: 0,
+  createdBy: '',
   duration: 0,
   description: '',
   questions: [],
   showAnswers: true,
-  showCorrectAnswers: false
-}
-
-export const DEFAULT_QUESTION: Question = {
-  id: 0,
-  type: 'single-choice',
-  questionText: '',
-  options: [],
-  correctAnswer: null
+  showCorrectAnswers: false,
+  openTime: new Date()
 }
 
 export const DEFAULT_EXAM_RESULT: ExamResult = {
   id: 0,
   examId: 0,
   score: 0,
-  studentId: 0,
+  studentId: '',
   totalQuestions: 0,
   answers: [],
-  cheatTimes: 0
+  cheatTimes: 0,
+  finishDate: new Date()
 }
 
 export const DEFAULT_ANSWER: Answer = {

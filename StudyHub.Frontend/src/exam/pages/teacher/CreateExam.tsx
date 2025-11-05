@@ -1,20 +1,29 @@
+import { useAuthStore } from '@/auth/stores/useAuthStore';
 import { Button } from '@/common/components/ui/button';
 import { Checkbox } from '@/common/components/ui/checkbox';
 import { Label } from '@/common/components/ui/label';
 import { useLoading } from '@/common/hooks/useLoading';
-import { BLANK_PLACEHOLDER, DEFAULT_QUESTION, EXAM_TYPE } from '@/exam/constants/Constants';
+import { BLANK_PLACEHOLDER, EXAM_TYPE } from '@/exam/constants/Constants';
 import type { Exam } from '@/exam/interfaces/models/Exam';
 import type { Question } from '@/exam/interfaces/models/Question';
 import { ExamService } from '@/exam/services/ExamService';
-import { MOCK_DATA_USERS } from '@/exam/services/MockData';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 
+const getFormattedDateTime = (date: Date) => {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 const CreateExam = () => {
-  const user = MOCK_DATA_USERS[0];
+  const { user } = useAuthStore();
   const [searchParams] = useSearchParams();
   const [classId, setClassId] = useState<number>(0);
   const [className, setClassName] = useState<string>('');
@@ -29,13 +38,20 @@ const CreateExam = () => {
   const [excelFileError, setExcelFileError] = useState<string>('');
   const [showAnswers, setShowAnswers] = useState<boolean>(true);
   const [showCorrectAnswers, setShowCorrectAnswers] = useState<boolean>(false);
+  const [openTime, setOpenTime] = useState<string>(getFormattedDateTime(new Date()));
+  const [closeTime, setCloseTime] = useState<string>('');
   const examService = new ExamService();
 
-  //phân quyền
-
   useEffect(() => {
+    if (!user) {
+      return;
+    }
+    if (!user.roles.some(role => role.includes("Teacher"))) {
+      navigate("/");
+      return;
+    }
     const fetchData = async () => {
-      const classIdQuery = Number(searchParams.get("classId"))
+      const classIdQuery = Number(searchParams.get("classId"));
       const lessonIdQuery = Number(searchParams.get("lessonId"));
       if (lessonIdQuery) {
         setLessonId(lessonIdQuery);
@@ -50,9 +66,8 @@ const CreateExam = () => {
         navigate("/");
       }
     }
-
     fetchData().catch(console.error);
-  }, [])
+  }, [user])
 
   const handleExcelFileUpload: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     if (!e.target.files) {
@@ -84,7 +99,13 @@ const CreateExam = () => {
         let rowErrors: string[] = [];
 
         questionRows.forEach((row: any, rowIndex) => {
-          const question: Question = JSON.parse(JSON.stringify(DEFAULT_QUESTION)) as Question;
+          const question: Question = {
+            id: Date.now(),
+            type: 'single-choice',
+            questionText: '',
+            options: [],
+            correctAnswer: null
+          };
           let isValidRow = true;
 
           const questionType = String(row[header.indexOf('Loại câu hỏi')] || '').toLowerCase();
@@ -191,16 +212,21 @@ const CreateExam = () => {
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
+
+    if (!user) {
+      toast.error("Chưa đăng nhập vui lòng thử lại!");
+      return;
+    }
     setLoading(true);
 
-    if (!user || user.role !== 'teacher') {
-      toast.error("Bạn không có quyền tạo bài kiểm tra.");
+    if (!examTitle || !examDescription || !examDuration || questions.length === 0) {
+      toast.error("Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi.");
       setLoading(false);
       return;
     }
 
-    if (!examTitle || !examDescription || !examDuration || questions.length === 0) {
-      toast.error("Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi.");
+    if (closeTime && closeTime < openTime) {
+      toast.error("Ngày bắt đầu phải trước ngày kết thúc!");
       setLoading(false);
       return;
     }
@@ -258,7 +284,7 @@ const CreateExam = () => {
       title: examTitle,
       description: examDescription,
       duration: parseInt(examDuration),
-      createdBy: Number(user.id),
+      createdBy: user.id,
       questions: questions.map(({ id, ...rest }, index) => {
         return {
           id: index + 1, ...rest
@@ -267,13 +293,19 @@ const CreateExam = () => {
       showAnswers: showAnswers,
       showCorrectAnswers: showCorrectAnswers,
       classId: classId,
-      lessonId: lessonId
+      lessonId: lessonId,
+      openTime: new Date(openTime),
+      closeTime: closeTime ? new Date(closeTime) : undefined
     };
 
     try {
-      await examService.createExam(newExam);
-      toast.success('Tạo bài kiểm tra thành công!');
-      navigate('/exam/teacher/exams');
+      const success = await examService.createExam(newExam);
+      if (success) {
+        toast.success('Tạo bài kiểm tra thành công!');
+        navigate('/exam/teacher/class/exams');
+      } else {
+        toast.error('Tạo bài kiểm tra thất bại. Vui lòng thử lại.');
+      }
     } catch (err) {
       console.error("Failed to create exam:", err);
       toast.error("Tạo bài kiểm tra thất bại. Vui lòng thử lại.");
@@ -283,7 +315,14 @@ const CreateExam = () => {
   };
 
   const addQuestion = (type: string) => {
-    let newQuestion = DEFAULT_QUESTION;
+    let newQuestion: Question = {
+      id: Date.now(),
+      type: 'single-choice',
+      questionText: '',
+      options: [],
+      correctAnswer: ''
+    };
+    console.log(newQuestion.id);
     newQuestion.type = type as "single-choice" | "multiple-choice" | "text-input" | "fill-blank";
 
     if (type === EXAM_TYPE.SINGLE_CHOICE) {
@@ -361,7 +400,7 @@ const CreateExam = () => {
 
   return (
     <div className="container mx-auto mt-8 p-6 bg-white shadow-lg rounded-lg">
-      <Button variant='outline' className='flex items-center' onClick={() => navigate('/exam/teacher/exams')}>
+      <Button variant='outline' className='flex items-center' onClick={() => navigate("/exam/teacher/class/exams")}>
         <ArrowLeft />
         <span>Quay lại</span>
       </Button>
@@ -372,7 +411,7 @@ const CreateExam = () => {
       <form onSubmit={handleSubmit}>
         <div className="mb-6">
           <label htmlFor="examTitle" className="block text-gray-700 text-lg font-bold mb-2">
-            Tiêu đề bài kiểm tra
+            Tiêu đề bài kiểm tra <span className='text-red-500'>*</span>
           </label>
           <input
             type="text"
@@ -386,7 +425,7 @@ const CreateExam = () => {
 
         <div className="mb-6">
           <label htmlFor="examDescription" className="block text-gray-700 text-lg font-bold mb-2">
-            Mô tả
+            Mô tả <span className='text-red-500'>*</span>
           </label>
           <textarea
             id="examDescription"
@@ -397,9 +436,39 @@ const CreateExam = () => {
           ></textarea>
         </div>
 
+        <div className="mb-6 flex space-x-3">
+          <div className='w-1/2 space-x-3 flex items-center'>
+            <label htmlFor="openTime" className="text-gray-700 text-lg font-bold">
+              Thời gian mở bài thi <span className='text-red-500'>*</span>:
+            </label>
+            <input
+              type="datetime-local"
+              id="openTime"
+              className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+              value={openTime}
+              onChange={(e) => {
+                setOpenTime(e.target.value)
+              }}
+              required
+            />
+          </div>
+          <div className='w-1/2 space-x-3 flex items-center'>
+            <label htmlFor="closeTime" className="text-gray-700 text-lg font-bold">
+              Thời gian đóng bài thi:
+            </label>
+            <input
+              type="datetime-local"
+              id="closeTime"
+              className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+              value={closeTime}
+              onChange={(e) => setCloseTime(e.target.value)}
+            />
+          </div>
+        </div>
+
         <div className="mb-6">
           <label htmlFor="examDuration" className="block text-gray-700 text-lg font-bold mb-2">
-            Thời lượng (phút)
+            Thời lượng (phút) <span className='text-red-500'>*</span>
           </label>
           <input
             type="number"
@@ -427,7 +496,7 @@ const CreateExam = () => {
           <Label htmlFor="showCorrectAnswers">Hiện đáp án đúng/sai</Label>
         </div>
 
-        <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Câu hỏi</h2>
+        <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Câu hỏi <span className='text-red-500'>*</span></h2>
 
         <div className="mb-8 p-6 bg-blue-50 rounded-lg border border-blue-200">
           <h3 className="text-2xl font-semibold mb-3 text-blue-800">Nhập câu hỏi từ File Excel</h3>
