@@ -11,8 +11,6 @@ public partial class ForumAttachment
 
     public int? CommentId { get; set; }
 
-    public string FileName { get; set; } = null!;
-
     public string FileUrl { get; set; } = null!;
 
     public bool IsApproved { get; set; }
