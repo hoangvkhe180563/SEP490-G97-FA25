@@ -57,7 +57,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
         {
             try
             {
-                var exams = _context.Exams.Where(e => e.ClassId == classId).ToList();
+                var exams = _context.Exams.Include(e => e.ExamQuestions).Where(e => e.ClassId == classId).ToList();
                 return exams.Select(e => new Domain.Entities.Exam.Exam
                 {
                     Id = e.Id,
@@ -67,8 +67,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                     OpenTime = e.OpenTime,
                     CloseTime = e.CloseTime,
                     ClassId = e.ClassId.GetValueOrDefault(),
-                    ShowAnswers = e.ShowAnswers,
+                    ShowAnswers = e.ShowAnswers.GetValueOrDefault(),
                     ShowCorrectAnswers = e.ShowCorrectAnswers,
+                    TotalQuestions = e.ExamQuestions.Count
                 }).ToList();
             }
             catch (Exception ex)
@@ -93,7 +94,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                     OpenTime = e.OpenTime,
                     CloseTime = e.CloseTime,
                     ClassId = e.ClassId.GetValueOrDefault(),
-                    ShowAnswers = e.ShowAnswers,
+                    ShowAnswers = e.ShowAnswers.GetValueOrDefault(),
                     ShowCorrectAnswers = e.ShowCorrectAnswers,
                     TotalQuestions = e.ExamQuestions.Count
                 }).ToList();
@@ -119,7 +120,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                     OpenTime = e.OpenTime,
                     CloseTime = e.CloseTime,
                     ClassId = e.ClassId.GetValueOrDefault(),
-                    ShowAnswers = e.ShowAnswers,
+                    ShowAnswers = e.ShowAnswers.GetValueOrDefault(),
                     ShowCorrectAnswers = e.ShowCorrectAnswers,
                     TotalQuestions = e.ExamQuestions.Count
                 }).ToList();
@@ -162,7 +163,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                         ClassId = examData.ClassId.GetValueOrDefault(),
                         LessonId = examData.LessonId.GetValueOrDefault(),
                         CreatedBy = examData.CreatedBy,
-                        ShowAnswers = examData.ShowAnswers,
+                        ShowAnswers = examData.ShowAnswers.GetValueOrDefault(),
                         ShowCorrectAnswers = examData.ShowCorrectAnswers,
                         TotalQuestions = examData.ExamQuestions.Count
                     };
@@ -204,7 +205,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                         OpenTime = examData.OpenTime,
                         CloseTime = examData.CloseTime,
                         LessonId = examData.LessonId.GetValueOrDefault(),
-                        ShowAnswers = examData.ShowAnswers,
+                        ShowAnswers = examData.ShowAnswers.GetValueOrDefault(),
                         ShowCorrectAnswers = examData.ShowCorrectAnswers,
                     };
                 }

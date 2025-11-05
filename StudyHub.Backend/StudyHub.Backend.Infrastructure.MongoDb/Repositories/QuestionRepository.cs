@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using MongoDB.Bson;
+﻿using MongoDB.Bson;
 using MongoDB.Driver;
 using StudyHub.Backend.Domain.Entities.Exam;
 using StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers;

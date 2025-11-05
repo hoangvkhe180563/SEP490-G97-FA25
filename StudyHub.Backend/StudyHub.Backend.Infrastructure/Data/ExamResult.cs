@@ -17,6 +17,8 @@ public partial class ExamResult
 
     public DateTime? SubmissionTime { get; set; }
 
+    public decimal Score { get; set; }
+
     public virtual Exam Exam { get; set; } = null!;
 
     public virtual AppUser Student { get; set; } = null!;

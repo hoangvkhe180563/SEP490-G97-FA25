@@ -48,21 +48,21 @@ const ViewExamHistory = () => {
       }
     };
     fetchData();
-  }, [id]);
+  }, [id, user]);
 
   if (error) return <div className="container mx-auto mt-8 p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>;
   if (!exam) return <p className="container mx-auto mt-8 p-4 text-gray-600">Không tìm thấy bài kiểm tra.</p>;
 
   return (
-    <div className="container mx-auto mt-8 p-6 bg-white shadow-lg rounded-lg">
-      <Button variant='outline' className='flex items-center' onClick={() => navigate('/exam/teacher/class/exams')}>
+    <div className="w-full h-full overflow-y-auto p-6">
+      <Button variant='outline' className='flex items-center' onClick={() => history.back()}>
         <ArrowLeft />
         <span>Quay lại</span>
       </Button>
 
       <h1 className="text-3xl font-bold mb-3">Chi tiết bài kiểm tra: {exam.title}</h1>
       <p className="text-gray-700 mb-2">{exam.description}</p>
-      <p className="text-sm text-gray-500 mb-4">Thời lượng: {exam.duration} phút — Số câu hỏi: {exam.questions.length}</p>
+      <p className="text-sm text-gray-500 mb-4">Thời lượng: {exam.duration} phút — Số câu hỏi: {exam.totalQuestions}</p>
       <p className='text-gray-700'>Thời gian mở: {exam.openTime.toLocaleString("vi-VN")}</p>
       {exam.closeTime && <p className='text-gray-700'>Thời gian đóng: {exam.closeTime.toLocaleString("vi-VN")}</p>}
       <p></p>
@@ -70,7 +70,7 @@ const ViewExamHistory = () => {
       <p className='mb-5'>Cho phép học sinh xem câu trả lời đúng/sai: <b>{exam.showCorrectAnswers ? 'Có' : 'Không'}</b></p>
 
       <div className="mb-6">
-        <Link to={`/exam/teacher/exams/${exam.id}/edit`}>
+        <Link to={`/exam/teacher/class-exams/${exam.id}/edit`}>
           <Button className='px-4 py-2 bg-yellow-500 text-white hover:bg-yellow-600'>
             Sửa bài kiểm tra
           </Button>
@@ -85,7 +85,7 @@ const ViewExamHistory = () => {
           {results.map(r => (
             <div key={r.id} className="p-4 bg-gray-50 border rounded flex justify-between items-center">
               <div>
-                <p className="font-semibold">Học sinh: {r.studentId}</p>
+                <p className="font-semibold">Học sinh: {r.studentName}</p>
                 <p className="text-sm text-gray-600">Nộp lúc: {r.submissionTime?.toLocaleString("vi-VN")}</p>
                 <p className="text-sm text-gray-700">Điểm: {r.score}</p>
                 <p className="text-sm text-gray-700">Số lần chuyển tab/thu nhỏ màn hình: <span className='text-red-600'>{r.cheatTimes}</span></p>

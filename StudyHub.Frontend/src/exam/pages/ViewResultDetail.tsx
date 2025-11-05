@@ -1,6 +1,6 @@
 import { useLoading } from '@/common/hooks/useLoading';
 import { useEffect, useState, type JSX } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ExamService } from '../services/ExamService';
 import type { ExamResult } from '../interfaces/models/ExamResult';
 import { BLANK_PLACEHOLDER, DEFAULT_EXAM, DEFAULT_EXAM_RESULT, EXAM_TYPE } from '../constants/Constants';
@@ -17,25 +17,39 @@ const ViewResultDetail = () => {
   const [exam, setExam] = useState<Exam>(DEFAULT_EXAM);
   const { setLoading } = useLoading();
   const [error, setError] = useState<string>('');
+  const navigate = useNavigate();
   const examService = new ExamService();
+  const [showAnswers, setShowAnswers] = useState<boolean>(false);
+  const [showCorrectAnswers, setShowCorrectAnswers] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!Number(id) || !user) {
-      setError('Không thể tải bài kiểm tra.');
+    if (!user) {
+      return;
+    }
+    if (!user.roles.some(role => role.includes("Teacher"))) {
+      navigate("/");
+      return;
+    }
+    if (!id) {
+      setError("Không thể tải bài kiểm tra.");
       return;
     }
     const fetchResultDetails = async () => {
       try {
         setLoading(true);
-        const fetchedResult = await examService.getResultDetail(Number(id));
+        const fetchedResult = await examService.getResultDetail(id);
         if (fetchedResult.examId === 0) {
           setError("Không thể tải chi tiết kết quả.");
           return;
         }
+        console.log(fetchedResult);
         setResult(fetchedResult);
 
-        const fetchedExam = await examService.getExamById(fetchedResult.examId);
+        const fetchedExam = await examService.getExamById(fetchedResult.examId, true);
         setExam(fetchedExam);
+        setShowAnswers(fetchedExam.showAnswers);
+        setShowCorrectAnswers(fetchedExam.showCorrectAnswers);
+        console.log(fetchedExam);
       } catch (err) {
         console.error("Failed to fetch result details:", err);
         setError("Không thể tải chi tiết kết quả.");
@@ -45,7 +59,7 @@ const ViewResultDetail = () => {
     };
 
     fetchResultDetails();
-  }, [id]);
+  }, [id, user]);
 
   if (error) {
     return <div className="container mx-auto mt-8 p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>;
@@ -99,7 +113,7 @@ const ViewResultDetail = () => {
   };
 
   return (
-    <div className="container mx-auto mt-8 p-6 bg-white shadow-lg rounded-lg">
+    <div className="w-full h-full overflow-y-auto p-6">
       <Button variant='outline' className='flex items-center' onClick={() => history.back()}>
         <ArrowLeft />
         <span>Quay lại</span>
@@ -112,7 +126,7 @@ const ViewResultDetail = () => {
         <p className="text-lg text-gray-700"><strong>Tiêu đề:</strong> {exam.title}</p>
         <p className="text-lg text-gray-700"><strong>Mô tả:</strong> {exam.description}</p>
         <p className="text-lg text-gray-700"><strong>Thời lượng:</strong> {exam.duration} phút</p>
-        <p className="text-lg text-gray-700"><strong>Tổng số câu hỏi:</strong> {exam.questions.length}</p>
+        <p className="text-lg text-gray-700"><strong>Tổng số câu hỏi:</strong> {exam.totalQuestions}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -121,90 +135,99 @@ const ViewResultDetail = () => {
         <p className="text-lg text-gray-700"><strong>Ngày nộp:</strong> {result.submissionTime?.toLocaleString("vi-VN")}</p>
       </div>
 
-      <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Các câu hỏi và câu trả lời</h2>
+      {showAnswers && (
+        <>
+          <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Các câu hỏi và câu trả lời</h2>
 
-      <div className="space-y-8">
-        {exam.questions.map((question, index) => {
-          const studentAnswerEntry = result.answers.find(ans => ans.questionId === question.id);
-          const isCorrect = studentAnswerEntry?.isCorrect;
-          const studentAnswer = studentAnswerEntry?.studentAnswer;
+          <div className="space-y-8">
+            {exam.questions.map((question, index) => {
+              const studentAnswerEntry = result.answers.find(ans => ans.questionId === question.questionObjectId);
+              const isCorrect = studentAnswerEntry?.isCorrect;
+              const studentAnswer = studentAnswerEntry?.jsonAnswers;
 
-          return (
-            <div
-              key={question.id}
-              className={`p-6 rounded-lg shadow-sm border ${isCorrect ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'
-                }`}
-            >
-              <p className="text-xl font-semibold mb-3 text-gray-800">
-                Câu {index + 1}:
-              </p>
+              return (
+                <div
+                  key={question.questionObjectId}
+                  className={`p-6 rounded-lg shadow-sm border ${!showCorrectAnswers ? 'border-gray-300 bg-gray-50' : isCorrect ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'
+                    }`}
+                >
+                  <p className="text-xl font-semibold mb-3 text-gray-800">
+                    Câu {index + 1}: {question.type !== EXAM_TYPE.FILL_IN_BLANK && question.questionText}
+                  </p>
 
-              <div className="space-y-3 text-gray-700">
-                {question.type === EXAM_TYPE.SINGLE_CHOICE && (
-                  <div className="space-y-2">
-                    {question.options.map((option, optIndex) => (
-                      <label key={optIndex} className="flex items-center space-x-2 text-gray-700">
+                  <div className="space-y-3 text-gray-700">
+                    {question.type === EXAM_TYPE.SINGLE_CHOICE && (
+                      <div className="space-y-2">
+                        {question.options.map((option, optIndex) => (
+                          <label key={optIndex} className="flex items-center space-x-2 text-gray-700">
+                            <input
+                              type="radio"
+                              name={`result-question-${question.questionObjectId}`}
+                              value={option}
+                              checked={result.answers.find(a => a.questionId === question.questionObjectId)?.jsonAnswers === optIndex}
+                              readOnly
+                              disabled
+                              className="form-radio text-blue-600"
+                            />
+                            <span>{option}</span>
+                          </label>
+                        ))
+                        }
+                      </div>
+                    )}
+
+                    {question.type === EXAM_TYPE.MULTI_CHOICE && (
+                      <div className="space-y-2">
+                        {question.options.map((option, optIndex) => {
+                          const studentAnsArr = Array.isArray(result.answers.find(a => a.questionId === question.questionObjectId)?.jsonAnswers)
+                            ? result.answers.find(a => a.questionId === question.questionObjectId)?.jsonAnswers
+                            : [];
+                          return (
+                            <label key={optIndex} className="flex items-center space-x-2 text-gray-700">
+                              <input
+                                type="checkbox"
+                                name={`result-question-${question.questionObjectId}`}
+                                value={option}
+                                checked={studentAnsArr.includes(optIndex)}
+                                readOnly
+                                disabled
+                                className="form-checkbox text-blue-600 rounded"
+                              />
+                              <span>{option}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {question.type === EXAM_TYPE.TEXT_INPUT && (
+                      <div>
                         <input
-                          type="radio"
-                          name={`result-question-${question.id}`}
-                          value={option}
-                          checked={result.answers.find(a => a.questionId === question.id)?.studentAnswer === option}
+                          type="text"
+                          className="w-full border border-gray-300 rounded-lg p-2 mt-1 bg-gray-100"
+                          value={result.answers.find(a => a.questionId === question.questionObjectId)?.jsonAnswers || ''}
                           readOnly
                           disabled
-                          className="form-radio text-blue-600"
                         />
-                        <span>{option}</span>
-                      </label>
-                    ))}
+                      </div>
+                    )}
+
+                    {question.type === EXAM_TYPE.FILL_IN_BLANK && renderFillBlankQuestionText(question, studentAnswer)}
+
+                    {
+                      showCorrectAnswers && (
+                        <p>
+                          <strong>Đáp án đúng:</strong> {renderCorrectAnswer(question)}
+                        </p>
+                      )
+                    }
                   </div>
-                )}
-
-                {question.type === EXAM_TYPE.MULTI_CHOICE && (
-                  <div className="space-y-2">
-                    {question.options.map((option, optIndex) => {
-                      const studentAnsArr = Array.isArray(result.answers.find(a => a.questionId === question.id)?.studentAnswer)
-                        ? result.answers.find(a => a.questionId === question.id)?.studentAnswer
-                        : [];
-                      return (
-                        <label key={optIndex} className="flex items-center space-x-2 text-gray-700">
-                          <input
-                            type="checkbox"
-                            name={`result-question-${question.id}`}
-                            value={option}
-                            checked={studentAnsArr.includes(option)}
-                            readOnly
-                            disabled
-                            className="form-checkbox text-blue-600 rounded"
-                          />
-                          <span>{option}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {question.type === EXAM_TYPE.TEXT_INPUT && (
-                  <div>
-                    <input
-                      type="text"
-                      className="w-full border border-gray-300 rounded-lg p-2 mt-1 bg-gray-100"
-                      value={result.answers.find(a => a.questionId === question.id)?.studentAnswer || ''}
-                      readOnly
-                      disabled
-                    />
-                  </div>
-                )}
-
-                {question.type === EXAM_TYPE.FILL_IN_BLANK && renderFillBlankQuestionText(question, studentAnswer)}
-
-                <p>
-                  <strong>Đáp án đúng:</strong> {renderCorrectAnswer(question)}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 };

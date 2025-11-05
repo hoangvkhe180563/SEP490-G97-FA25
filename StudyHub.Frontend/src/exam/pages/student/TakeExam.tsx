@@ -67,10 +67,9 @@ const TakeExam = () => {
         setTimeLeft(fetchedExam.duration * 60);
 
         const examResult: ExamResult = {
-          id: 999,
+          id: '',
           examId: Number(fetchedExam.id),
           studentId: user.id,
-          totalQuestions: fetchedExam.questions.length,
           answers: fetchedExam.questions.map((q) => {
             let initialAnswer;
             switch (q.type) {
@@ -95,7 +94,7 @@ const TakeExam = () => {
             };
           }),
           cheatTimes: cheatTimes,
-          finishDate: calculateFinishTime()
+          finishTime: calculateFinishTime()
         };
         setExamResult(examResult);
         setStudentAnswers(_ => {
@@ -103,7 +102,7 @@ const TakeExam = () => {
           fetchedExam.questions.forEach((q) => {
             const answerEntry = examResult.answers.find(a => a.questionId === q.id);
             if (answerEntry) {
-              newAnswers[q.id] = answerEntry.studentAnswer;
+              newAnswers[q.id] = answerEntry.jsonAnswers;
             }
           });
           return newAnswers;

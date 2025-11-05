@@ -11,13 +11,14 @@ const ExamRouteConfig = {
   },
   TEACHER: {
     EXAM_LIST: "teacher/exams",
-    CREATE_EXAM: "teacher/create-exam",
     EXAM_DETAILS: "teacher/exams/:id/results",
-    EXAM_EDIT: "teacher/exams/:id/edit",
     EXAM_RESULT_LIST: "teacher/results",
     CLASS: {
-      EXAM_LIST: "teacher/class/exams",
-      EXAM_RESULT_LIST: "teacher/class/results"
+      EXAM_LIST: "teacher/class-exams/:classId",
+      CREATE_EXAM: "teacher/class-exams/create-exam",
+      EXAM_EDIT: "teacher/class-exams/:id/edit",
+      EXAM_DETAILS: "teacher/class-exams/:id/results",
+      EXAM_RESULT_LIST: "teacher/class-exams/results"
     }
   },
   EXAM_RESULT_DETAIL: "results/:id"

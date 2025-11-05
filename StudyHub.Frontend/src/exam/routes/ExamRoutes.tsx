@@ -37,15 +37,15 @@ const examRoutes: RouteObject[] = [
     element: <TeacherListExams />
   },
   {
-    path: ExamRouteConfig.TEACHER.CREATE_EXAM,
+    path: ExamRouteConfig.TEACHER.CLASS.CREATE_EXAM,
     element: <CreateExam />
   },
   {
-    path: ExamRouteConfig.TEACHER.EXAM_DETAILS,
+    path: ExamRouteConfig.TEACHER.CLASS.EXAM_DETAILS,
     element: <ViewExamHistory />
   },
   {
-    path: ExamRouteConfig.TEACHER.EXAM_EDIT,
+    path: ExamRouteConfig.TEACHER.CLASS.EXAM_EDIT,
     element: <UpdateExam />
   },
   {

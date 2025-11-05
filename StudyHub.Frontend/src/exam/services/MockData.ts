@@ -365,12 +365,12 @@ export const MOCK_DATA_RESULTS: ExamResult[] = [
     answers: [
       {
         questionId: 1,
-        studentAnswer: "lua chon dung",
+        jsonAnswers: "lua chon dung",
         isCorrect: true
       },
       {
         questionId: 2,
-        studentAnswer: [
+        jsonAnswers: [
           "lua chon dung 1",
           "lua chon dung 2"
         ],
@@ -378,7 +378,7 @@ export const MOCK_DATA_RESULTS: ExamResult[] = [
       },
       {
         questionId: 3,
-        studentAnswer: "sv",
+        jsonAnswers: "sv",
         isCorrect: false
       }
     ],

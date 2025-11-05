@@ -14,10 +14,31 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpGet("by-exam/{examId:int}")]
-        public IActionResult GetAllExamResultsByExamId(int examId)
+        public IActionResult GetExamResultByExamId(int examId)
         {
-            Console.WriteLine("Getting questions...");
-            return Ok(_service.GetAllQuestions());
+            if (examId == 0)
+            {
+                return BadRequest();
+            }
+
+            var examResults = _service.GetExamResultsByExamId(examId);
+            return Ok(examResults);
+        }
+
+        [HttpGet("{resultId}")]
+        public IActionResult GetExamResultById(string resultId)
+        {
+            if (resultId == string.Empty || resultId.Length != 24)
+            {
+                return BadRequest("Truyền sai id");
+            }
+
+            var examResult = _service.GetExamResultById(resultId);
+            if (examResult == null)
+            {
+                return NotFound();
+            }
+            return Ok(examResult);
         }
 
         [HttpGet("class/by-student/{studentId:guid}")]
@@ -29,13 +50,6 @@ namespace StudyHub.Backend.Api.Controllers
 
         [HttpGet("class/by-teacher/{teacherId:guid}")]
         public IActionResult GetAllExamResultsByTeacherId(Guid teacherId)
-        {
-            Console.WriteLine("Getting questions...");
-            return Ok(_service.GetAllQuestions());
-        }
-
-        [HttpGet("{resultId:int}")]
-        public IActionResult GetResultDetail(int resultId)
         {
             Console.WriteLine("Getting questions...");
             return Ok(_service.GetAllQuestions());

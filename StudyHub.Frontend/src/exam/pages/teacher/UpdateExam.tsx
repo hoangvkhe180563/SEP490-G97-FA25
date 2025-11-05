@@ -10,7 +10,7 @@ import { ExamService } from '@/exam/services/ExamService';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 
 const getFormattedDateTime = (dateInput: Date | string) => {
@@ -389,7 +389,7 @@ const UpdateExam = () => {
       const success: boolean = await examService.updateExam(examToUpdate);
       if (success) {
         toast.success('Tạo bài kiểm tra thành công!');
-        navigate('/exam/teacher/class/exams');
+        navigate('/exam/teacher/class-exams');
       } else {
         toast.error('Tạo bài kiểm tra thất bại. Vui lòng thử lại.');
       }
@@ -401,11 +401,11 @@ const UpdateExam = () => {
     }
   };
 
-  if (!id || !hasExam) return <p className="container mx-auto mt-8 p-4 text-gray-600">Không tìm thấy bài kiểm tra. <Link to='/exam/teacher/exams'>Quay lại</Link></p>;
+  if (!id || !hasExam) return <p className="container mx-auto mt-8 p-4 text-gray-600">Không tìm thấy bài kiểm tra.</p>;
 
   return (
-    <div className="container mx-auto mt-8 p-6 bg-white shadow-lg rounded-lg">
-      <Button variant='outline' className='flex items-center' onClick={() => navigate('/exam/teacher/exams')}>
+    <div className="h-full overflow-y-auto p-6">
+      <Button variant='outline' className='flex items-center' onClick={() => history.back()}>
         <ArrowLeft />
         <span>Quay lại</span>
       </Button>
@@ -414,7 +414,7 @@ const UpdateExam = () => {
 
       <form onSubmit={handleSubmit}>
         <div className="mb-6">
-          <label htmlFor="examTitle" className="block text-gray-700 text-lg font-bold mb-2">
+          <label htmlFor="examTitle" className="text-gray-700 text-lg font-bold mb-2">
             Tiêu đề bài kiểm tra <span className='text-red-500'>*</span>
           </label>
           <input
@@ -427,8 +427,8 @@ const UpdateExam = () => {
           />
         </div>
 
-        <div className="mb-6">
-          <label htmlFor="examDescription" className="block text-gray-700 text-lg font-bold mb-2">
+        <div className="mb-3">
+          <label htmlFor="examDescription" className="text-gray-700 text-lg font-bold mb-2">
             Mô tả <span className='text-red-500'>*</span>
           </label>
           <textarea
@@ -638,7 +638,7 @@ const UpdateExam = () => {
           ))}
         </div>
 
-        <div className="mt-8 space-x-4">
+        <div className="mt-8 grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => addQuestion(EXAM_TYPE.SINGLE_CHOICE)}

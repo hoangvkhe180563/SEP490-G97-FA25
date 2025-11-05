@@ -302,7 +302,7 @@ const CreateExam = () => {
       const success = await examService.createExam(newExam);
       if (success) {
         toast.success('Tạo bài kiểm tra thành công!');
-        navigate('/exam/teacher/class/exams');
+        navigate('/exam/teacher/class-exams');
       } else {
         toast.error('Tạo bài kiểm tra thất bại. Vui lòng thử lại.');
       }
@@ -399,8 +399,8 @@ const CreateExam = () => {
   };
 
   return (
-    <div className="container mx-auto mt-8 p-6 bg-white shadow-lg rounded-lg">
-      <Button variant='outline' className='flex items-center' onClick={() => navigate("/exam/teacher/class/exams")}>
+    <div className="h-full overflow-y-auto p-6">
+      <Button variant='outline' className='flex items-center' onClick={() => history.back()}>
         <ArrowLeft />
         <span>Quay lại</span>
       </Button>
@@ -410,7 +410,7 @@ const CreateExam = () => {
 
       <form onSubmit={handleSubmit}>
         <div className="mb-6">
-          <label htmlFor="examTitle" className="block text-gray-700 text-lg font-bold mb-2">
+          <label htmlFor="examTitle" className="text-gray-700 text-lg font-bold mb-2">
             Tiêu đề bài kiểm tra <span className='text-red-500'>*</span>
           </label>
           <input
@@ -423,8 +423,8 @@ const CreateExam = () => {
           />
         </div>
 
-        <div className="mb-6">
-          <label htmlFor="examDescription" className="block text-gray-700 text-lg font-bold mb-2">
+        <div className="mb-3">
+          <label htmlFor="examDescription" className="text-gray-700 text-lg font-bold mb-2">
             Mô tả <span className='text-red-500'>*</span>
           </label>
           <textarea
@@ -617,7 +617,7 @@ const CreateExam = () => {
 
               {q.type === EXAM_TYPE.FILL_IN_BLANK && (
                 <div className="mb-4">
-                  <label className="block text-gray-700 text-sm font-bold mb-2">Các đáp án đúng cho chỗ trống</label>
+                  <label className="text-gray-700 text-sm font-bold mb-2">Các đáp án đúng cho chỗ trống</label>
                   {(q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).map((_, index) => (
                     <div key={index} className="flex items-center mb-2">
                       <span className="mr-2 text-gray-600">Chỗ trống {index + 1}:</span>
@@ -636,7 +636,7 @@ const CreateExam = () => {
           ))}
         </div>
 
-        <div className="mt-8 space-x-4">
+        <div className="mt-8 grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => addQuestion(EXAM_TYPE.SINGLE_CHOICE)}

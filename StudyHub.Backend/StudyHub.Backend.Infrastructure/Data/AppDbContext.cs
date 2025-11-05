@@ -569,6 +569,9 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.OpenTime)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime");
+            entity.Property(e => e.ShowAnswers)
+                .IsRequired()
+                .HasDefaultValueSql("'1'");
             entity.Property(e => e.Title).HasMaxLength(500);
 
             entity.HasOne(d => d.Class).WithMany(p => p.Exams)
@@ -611,6 +614,7 @@ public partial class AppDbContext : DbContext
                 .HasDefaultValueSql("'0'")
                 .HasColumnType("mediumint");
             entity.Property(e => e.FinishTime).HasColumnType("datetime");
+            entity.Property(e => e.Score).HasPrecision(4, 2);
             entity.Property(e => e.SubmissionTime).HasColumnType("datetime");
 
             entity.HasOne(d => d.Exam).WithMany(p => p.ExamResults)

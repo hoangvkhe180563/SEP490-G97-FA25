@@ -6,13 +6,15 @@ namespace StudyHub.Backend.UseCases.Services
     public class ExamService
     {
         private readonly IQuestionRepository _questionRepo;
+        private readonly IAnswerRepository _answerRepo;
         private readonly IExamRepository _examRepo;
-        //private readonly IExamResultRepository _examResultRepo;
-        public ExamService(IQuestionRepository questionRepo, IExamRepository examRepo) //, IExamResultRepository examResultRepo
+        private readonly IExamResultRepository _examResultRepo;
+        public ExamService(IQuestionRepository questionRepo, IExamRepository examRepo, IExamResultRepository examResultRepo, IAnswerRepository answerRepo)
         {
             _questionRepo = questionRepo;
             _examRepo = examRepo;
-            //_examResultRepo = examResultRepo;
+            _examResultRepo = examResultRepo;
+            _answerRepo = answerRepo;
         }
 
         public List<Question> GetAllQuestions()
@@ -50,16 +52,19 @@ namespace StudyHub.Backend.UseCases.Services
             return _examRepo.GetLessonName(lessonId);
         }
 
-        public Exam? GetExamById(int id)
+        public Exam? GetExamById(int id, bool retrieveQuestions)
         {
             var exam = _examRepo.GetExamById(id);
             if (exam == null)
             {
                 return null;
             }
-            var questionObjectIds = _examRepo.GetExamQuestionObjectIds(id);
-            var questions = _questionRepo.GetManyQuestionsById(questionObjectIds);
-            exam.Questions = questions;
+            if (retrieveQuestions)
+            {
+                var questionObjectIds = _examRepo.GetExamQuestionObjectIds(id);
+                var questions = _questionRepo.GetManyQuestionsById(questionObjectIds);
+                exam.Questions = questions;
+            }
             return exam;
         }
 
@@ -123,6 +128,25 @@ namespace StudyHub.Backend.UseCases.Services
             }
 
             return addObjectIds.Concat(updateObjectIds).ToList();
+        }
+
+        public List<ExamResult> GetExamResultsByExamId(int examId)
+        {
+            var result = _examResultRepo.GetExamResultsByExamId(examId);
+            return result;
+        }
+
+        public ExamResult? GetExamResultById(string resultId)
+        {
+            var result = _examResultRepo.GetExamResultById(resultId);
+            if (result == null) return null;
+
+            var exam = _examRepo.GetExamById(result.ExamId);
+            
+            var resultObjectId = result.Id;
+            var answers = _answerRepo.GetAnswersByResultId(resultObjectId, exam.ShowAnswers, exam.ShowCorrectAnswers);
+            result.Answers = answers;
+            return result;
         }
     }
 }

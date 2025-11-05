@@ -24,7 +24,9 @@ public partial class Exam
     public uint Duration { get; set; }
 
     public Guid CreatedBy { get; set; }
-    public bool ShowAnswers { get; set; }
+
+    public bool? ShowAnswers { get; set; }
+
     public bool ShowCorrectAnswers { get; set; }
 
     public virtual Class? Class { get; set; }

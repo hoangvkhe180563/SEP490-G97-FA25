@@ -22,6 +22,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb
             services.AddSingleton(provider => new MongoDbContext(connectionString, databaseName));
 
             services.AddScoped<IQuestionRepository, QuestionRepository>();
+            services.AddScoped<IAnswerRepository, AnswerRepository>();
             return services;
         }
     }

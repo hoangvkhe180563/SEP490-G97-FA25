@@ -83,14 +83,14 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpGet("{examId:int}")]
-        public IActionResult GetExamById(int examId)
+        public IActionResult GetExamById(int examId, bool retrieveQuestions)
         {
             if (examId == 0)
             {
                 return BadRequest();
             }
 
-            var exam = _service.GetExamById(examId);
+            var exam = _service.GetExamById(examId, retrieveQuestions);
             if (exam == null)
             {
                 return NotFound();
