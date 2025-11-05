@@ -14,9 +14,11 @@ import GuestLayout from "@/common/pages/GuestLayout";
 import RegisteredLayout from "@/common/pages/RegisteredLayout";
 import qaRoutes from "@/qaManagement/routes/QARoutes";
 import examRoutes from "@/exam/routes/ExamRoutes";
+import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
 
 const AppRouter = () => {
   const { user, checkAuth } = useAuthStore();
+  const { startPresence, stopPresence } = useUserOnlineStore();
   const [authChecked, setAuthChecked] = useState<boolean>(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -25,19 +27,50 @@ const AppRouter = () => {
     (async () => {
       try {
         await checkAuth();
+        try {
+          // read latest user after checkAuth completed
+          const currentUser = useAuthStore.getState().user;
+          if (!currentUser) return;
+          await startPresence();
+          // stop presence when the tab/window unloads
+          try {
+            window.addEventListener("beforeunload", stopPresence as any);
+          } catch (err) {
+            console.warn("failed to add unload listener", err);
+          }
+        } catch (err) {
+          // non-fatal
+          console.warn("startPresence failed", err);
+        }
       } catch {
         console.log("lỗi authorization");
       } finally {
         setAuthChecked(true);
       }
     })();
+    return () => {
+      try {
+        // remove unload listener and stop presence
+        try {
+          window.removeEventListener("beforeunload", stopPresence as any);
+        } catch (err) {
+          console.warn("failed to remove unload listener", err);
+        }
+        const currentUser = useAuthStore.getState().user;
+        if (!currentUser) return;
+        stopPresence();
+      } catch (err) {
+        /* ignore */
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkAuth]);
 
   useEffect(() => {
     if (authChecked && !user && !location.pathname.includes("/auth")) {
       navigate("/");
     }
-  }, [authChecked]);
+  }, [authChecked, user, location.pathname, navigate]);
 
   const appRoutes = [
     {
