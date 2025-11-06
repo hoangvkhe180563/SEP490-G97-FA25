@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/common/components/ui/button";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
-import { usePaymentStore } from "@/courseManagement/stores/usePaymentStore";
+import { usePaymentStore } from "@/paymentManagement/stores/usePaymentStore";
 
 const PaymentSuccess: React.FC = () => {
   const [search] = useSearchParams();

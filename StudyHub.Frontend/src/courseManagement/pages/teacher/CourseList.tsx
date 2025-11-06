@@ -9,15 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/common/components/ui/table";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  PaginationEllipsis,
-} from "@/common/components/ui/pagination";
+import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination";
 import CourseFilterTeacher from "@/courseManagement/components/CourseFilterTeacher";
 
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
@@ -43,42 +35,6 @@ const CourseList: React.FC = () => {
     }
     return 1;
   }, [totalCourses, pageSize]);
-
-  const paginationRange = useMemo(() => {
-    const currentPage = page || 1;
-    const range: number[] = [];
-    const maxPagesToShow = 5;
-
-    if (totalPages <= maxPagesToShow) {
-      for (let i = 1; i <= totalPages; i++) {
-        range.push(i);
-      }
-      return range;
-    }
-
-    const startPage = Math.max(1, currentPage - 1);
-    const endPage = Math.min(totalPages, currentPage + 1);
-
-    for (let i = startPage; i <= endPage; i++) {
-      range.push(i);
-    }
-
-    if (range[0] > 1) {
-      if (range[0] > 2) range.unshift(-1);
-      range.unshift(1);
-    }
-
-    if (range[range.length - 1] < totalPages) {
-      if (range[range.length - 1] < totalPages - 1) range.push(-1);
-      if (range[range.length - 1] !== totalPages) range.push(totalPages);
-    }
-
-    const finalRange = range.filter(
-      (item, index) => item !== -1 || range[index - 1] !== -1
-    );
-
-    return finalRange;
-  }, [page, totalPages]);
 
   const goToPage = (p: number) => {
     if (p >= 1 && p <= totalPages) {
@@ -226,64 +182,15 @@ const CourseList: React.FC = () => {
             : "Không tìm thấy kết quả nào"}
         </span>
 
-        {totalPages > 1 && (
-          <div>
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    href="#"
-                    onClick={(e: any) => {
-                      e.preventDefault();
-                      goToPage((page || 1) - 1);
-                    }}
-                    className={
-                      (page || 1) === 1
-                        ? "pointer-events-none opacity-50"
-                        : undefined
-                    }
-                  />
-                </PaginationItem>
-
-                {paginationRange.map((p) =>
-                  p === -1 ? (
-                    <PaginationItem key="ellipsis">
-                      <PaginationEllipsis />
-                    </PaginationItem>
-                  ) : (
-                    <PaginationItem key={p}>
-                      <PaginationLink
-                        href="#"
-                        isActive={p === (page || 1)}
-                        onClick={(e: any) => {
-                          e.preventDefault();
-                          goToPage(p);
-                        }}
-                      >
-                        {p}
-                      </PaginationLink>
-                    </PaginationItem>
-                  )
-                )}
-
-                <PaginationItem>
-                  <PaginationNext
-                    href="#"
-                    onClick={(e: any) => {
-                      e.preventDefault();
-                      goToPage((page || 1) + 1);
-                    }}
-                    className={
-                      (page || 1) === totalPages
-                        ? "pointer-events-none opacity-50"
-                        : undefined
-                    }
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        )}
+        <DocumentPagination
+          pagination={{
+            currentPage: page || 1,
+            totalPages,
+            totalCount: totalCourses || 0,
+            pageSize: pageSize || 10,
+          }}
+          onPageChange={(p: number) => goToPage(p)}
+        />
       </div>
     </div>
   );

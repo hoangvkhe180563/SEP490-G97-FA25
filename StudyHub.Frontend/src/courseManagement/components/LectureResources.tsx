@@ -101,7 +101,7 @@ const LectureResources: React.FC = () => {
                     rel="noreferrer"
                     className="text-blue-600 hover:underline truncate"
                   >
-                    {r.url}
+                    {r.url.split("/").pop()}
                   </a>
                 </li>
               ))}

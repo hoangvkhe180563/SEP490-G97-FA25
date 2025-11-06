@@ -10,6 +10,7 @@ interface AppUser {
   subjectIds: number[];
   schoolId: number;
   transferId: number;
+  wallet: number;
 }
 
 export type { AppUser };

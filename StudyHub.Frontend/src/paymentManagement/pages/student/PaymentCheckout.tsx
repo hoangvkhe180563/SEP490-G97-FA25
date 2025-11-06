@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/common/components/ui/button";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-import { usePaymentStore } from "@/courseManagement/stores/usePaymentStore";
+import { usePaymentStore } from "@/paymentManagement/stores/usePaymentStore";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
 
@@ -42,6 +42,21 @@ const PaymentCheckout: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolId, price, orderRef, name, authUser?.id]);
 
+  // If the payment store reports an error, navigate to the failed page with message
+  useEffect(() => {
+    if (error) {
+      const params = new URLSearchParams();
+      params.set("msg", encodeURIComponent(String(error)));
+      params.set("orderRef", orderRef);
+      // re-include original checkout params so PaymentFailed can retry
+      params.set("price", String(price));
+      if (name) params.set("name", encodeURIComponent(name));
+      if (schoolId) params.set("schoolId", schoolId);
+      if (courseId) params.set("courseId", courseId);
+      navigate(`/payment/student/payment-failed?${params.toString()}`);
+    }
+  }, [error, navigate, orderRef, price, name, schoolId, courseId]);
+
   // Auto-poll payment status: when backend marks txRef as Paid, navigate to success
   useEffect(() => {
     let timer: any = null;
@@ -62,7 +77,7 @@ const PaymentCheckout: React.FC = () => {
             const params = new URLSearchParams();
             if (courseId) params.set("courseId", courseId);
             if (result?.transferNote) params.set("txRef", result.transferNote);
-            navigate(`/course/student/payment-success?${params.toString()}`);
+            navigate(`/payment/student/payment-success?${params.toString()}`);
           }
         } catch (err) {
           // ignore transient errors
@@ -149,12 +164,14 @@ const PaymentCheckout: React.FC = () => {
               <span className="font-mono bg-gray-100 px-2 py-1 rounded text-sm">
                 {orderRef}
               </span>
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => copyText(orderRef)}
-                className="ml-2 text-xs text-sky-600 hover:underline"
+                className="ml-2 text-xs text-sky-600 hover:underline p-0"
               >
                 Sao chép
-              </button>
+              </Button>
             </div>
 
             {loading ? (

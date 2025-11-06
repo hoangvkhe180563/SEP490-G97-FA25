@@ -12,6 +12,7 @@ import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { useEffect, useState } from "react";
 import GuestLayout from "@/common/pages/GuestLayout";
 import RegisteredLayout from "@/common/pages/RegisteredLayout";
+import paymentRoutes from "@/paymentManagement/routes/PaymentRoute";
 
 const AppRouter = () => {
   const { user, checkAuth } = useAuthStore();
@@ -77,6 +78,11 @@ const AppRouter = () => {
       path: RouteConfig.COURSE_MANAGEMENT,
       element: <RegisteredLayout user={user} />,
       children: courseRoutes,
+    },
+    {
+      path: RouteConfig.PAYMENT_MANAGEMENT,
+      element: <RegisteredLayout user={user} />,
+      children: paymentRoutes,
     },
     {
       path: RouteConfig.FORUM_MANAGEMENT,

@@ -81,6 +81,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<SubmissionFile> SubmissionFiles { get; set; }
 
+    public virtual DbSet<Transaction> Transactions { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
@@ -845,6 +847,48 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.SubmissionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("submission_files_ibfk_1");
+        });
+
+        modelBuilder.Entity<Transaction>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("transactions");
+
+            entity.HasIndex(e => e.ConversationId, "ConversationId");
+
+            entity.HasIndex(e => e.CourseId, "CourseId");
+
+            entity.HasIndex(e => e.TransactionCode, "TransactionCode").IsUnique();
+
+            entity.HasIndex(e => e.UserId, "UserId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.ProcessedAt).HasColumnType("datetime");
+            entity.Property(e => e.QrcodeUrl).HasColumnName("QRCodeUrl");
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'Pending'")
+                .HasColumnType("enum('Pending','Success','Failed','Cancelled')");
+            entity.Property(e => e.TransactionCode).HasMaxLength(100);
+            entity.Property(e => e.Type).HasColumnType("enum('Deposit','Withdraw','Refund')");
+
+            entity.HasOne(d => d.Conversation).WithMany(p => p.Transactions)
+                .HasForeignKey(d => d.ConversationId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("transactions_ibfk_3");
+
+            entity.HasOne(d => d.Course).WithMany(p => p.Transactions)
+                .HasForeignKey(d => d.CourseId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("transactions_ibfk_2");
+
+            entity.HasOne(d => d.User).WithMany(p => p.Transactions)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("transactions_ibfk_1");
         });
 
         OnModelCreatingPartial(modelBuilder);

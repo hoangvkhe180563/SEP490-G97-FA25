@@ -83,5 +83,7 @@ public partial class AppUser
 
     public virtual ICollection<QAMessage> QAMessages { get; set; } = new List<QAMessage>();
 
+    public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
+
     public virtual ICollection<AppRole> Roles { get; set; } = new List<AppRole>();
 }

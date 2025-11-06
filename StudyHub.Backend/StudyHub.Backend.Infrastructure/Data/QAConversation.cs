@@ -28,4 +28,6 @@ public partial class QAConversation
     public virtual AppUser? Teacher { get; set; }
 
     public virtual QATopic Topic { get; set; } = null!;
+
+    public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
 }

@@ -30,6 +30,7 @@ const LectureFilters: React.FC = () => {
   const progresses = useEnrollmentStore((s) => s.progresses);
 
   const enrollment = useEnrollmentStore((s) => s.getEnrollmentForCourse(cid));
+  const enroll = useEnrollmentStore((s) => s.enroll);
 
   const enrollmentsLoaded = useEnrollmentStore((s: any) =>
     Array.isArray(s.enrollments) ? s.enrollments.length > 0 : false
@@ -84,27 +85,53 @@ const LectureFilters: React.FC = () => {
           </p>
 
           <button
-            onClick={() => {
-              if (!authUser?.id) {
-                navigate(`${RouteConfig.AUTH}/login`);
-                return;
-              }
-              const params = new URLSearchParams({
-                courseId: String(cid),
-                price: String(
+            onClick={async () => {
+              try {
+                if (!authUser?.id) {
+                  navigate(`${RouteConfig.AUTH}/login`);
+                  return;
+                }
+
+                // if already enrolled do nothing
+                if (enrollment) return;
+
+                // if course is free, enroll directly
+                const priceNum = Number(
                   useCourseStore.getState().selectedCourse?.price ?? 0
-                ),
-                name: String(
-                  useCourseStore.getState().selectedCourse?.name ?? ""
-                ),
-                userId: String(authUser.id),
-                schoolId: String(
-                  useCourseStore.getState().selectedCourse?.schoolId ?? ""
-                ),
-              });
-              navigate(
-                `/course/student/payments/checkout?${params.toString()}`
-              );
+                );
+                if (!priceNum || priceNum <= 0) {
+                  try {
+                    await enroll({
+                      appUserId: String(authUser.id),
+                      courseId: cid,
+                    });
+                    // refresh enrollments so UI updates
+                    await fetchEnrollmentsByUser(String(authUser.id));
+                  } catch (err) {
+                    // ignore enrollment errors for now
+                  }
+                  return;
+                }
+
+                // otherwise navigate to checkout with params
+                const params = new URLSearchParams({
+                  courseId: String(cid),
+                  price: String(
+                    useCourseStore.getState().selectedCourse?.price ?? 0
+                  ),
+                  name: String(
+                    useCourseStore.getState().selectedCourse?.name ?? ""
+                  ),
+                  userId: String(authUser.id),
+                  schoolId: String(
+                    useCourseStore.getState().selectedCourse?.schoolId ?? ""
+                  ),
+                });
+
+                navigate(`/payment/student/checkout?${params.toString()}`);
+              } catch (err) {
+                // ignore
+              }
             }}
             className="mt-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-lg shadow-sm transition-all"
           >

@@ -41,6 +41,7 @@ namespace StudyHub.Backend.Infrastructure
             });
 
             services.AddScoped<IPaymentInfoRepository, PaymentInfoRepository>();
+            services.AddScoped<ITransactionRepository, TransactionRepository>();
 
             return services;
         }

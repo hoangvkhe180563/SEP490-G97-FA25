@@ -23,6 +23,7 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
   const enrollment = useEnrollmentStore((s) =>
     s.getEnrollmentForCourse(course.id)
   );
+  const enroll = useEnrollmentStore((s: any) => s.enroll);
 
   const enrollmentsLoaded = useEnrollmentStore((s: any) =>
     Array.isArray(s.enrollments) ? s.enrollments.length > 0 : false
@@ -199,13 +200,30 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
           ) : (
             <Button
               className="flex-[1.1] bg-black text-white hover:bg-gray-900 rounded-lg py-2 text-sm shadow-md transition-all"
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation();
                 try {
                   if (!authUser?.id) {
                     navigate(`/auth/login`);
                     return;
                   }
+
+                  const priceNum = Number(course.price ?? 0);
+                  // If free, enroll directly
+                  if (!priceNum || priceNum <= 0) {
+                    try {
+                      await enroll({
+                        appUserId: String(authUser.id),
+                        courseId: course.id,
+                      });
+                      await fetchEnrollmentsByUser(String(authUser.id));
+                    } catch (err) {
+                      // ignore enroll error for now (could show dialog later)
+                    }
+                    return;
+                  }
+
+                  // otherwise go to checkout
                   const params = new URLSearchParams({
                     courseId: String(course.id),
                     price: String(course.price ?? 0),
@@ -213,9 +231,7 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
                     userId: String(authUser.id),
                     schoolId: String(course.schoolId ?? ""),
                   });
-                  navigate(
-                    `/course/student/payments/checkout?${params.toString()}`
-                  );
+                  navigate(`/payment/student/checkout?${params.toString()}`);
                 } catch {
                   /* ignore */
                 }

@@ -6,6 +6,7 @@ const RouteConfig = {
   UI_MANAGEMENT: "/ui",
   CLASS_MANAGEMENT: "/class",
   COURSE_MANAGEMENT: "/course",
+  PAYMENT_MANAGEMENT: "/payment",
   FORUM_MANAGEMENT: "/forum",
 };
 

@@ -70,7 +70,8 @@ namespace StudyHub.Backend.Api.Controllers
                 ClassIds = result.ClassIds ?? new List<int>(),
                 SubjectIds = result.SubjectIds ?? new List<short>(),
                 SchoolId = result.User.SchoolId,
-                transferId = result.User.TransferId
+                transferId = result.User.TransferId,
+                Wallet = result.User.Wallet,
             };
 
             return Ok(new GenericResponse { Success = true, Message = "Đăng nhập thành công", Data = userInfo });
@@ -99,7 +100,8 @@ namespace StudyHub.Backend.Api.Controllers
                 Permissions = result.Permissions ?? new List<string>(),
                 ClassIds = result.ClassIds ?? new List<int>(),
                 SubjectIds = result.SubjectIds ?? new List<short>(),
-                SchoolId = result.User.SchoolId
+                SchoolId = result.User.SchoolId,
+                transferId = result.User.TransferId,
             };
             return Ok(new GenericResponse { Success = true, Message = "Token được refresh thành công!", Data = userInfo });
         }
@@ -254,7 +256,9 @@ namespace StudyHub.Backend.Api.Controllers
                 Permissions = loginResult.Permissions ?? new List<string>(),
                 ClassIds = loginResult.ClassIds ?? new List<int>(),
                 SubjectIds = loginResult.SubjectIds ?? new List<short>(),
-                SchoolId = loginResult.User.SchoolId
+                SchoolId = loginResult.User.SchoolId,
+                Wallet = loginResult.User.Wallet,
+                transferId = loginResult.User.TransferId,
             };
             return Ok(new GenericResponse { Success = true, Message = "Đăng nhập với Google thành công!", Data = userInfo });
         }
@@ -287,6 +291,8 @@ namespace StudyHub.Backend.Api.Controllers
                 ClassIds = info.ClassIds ?? new List<int>(),
                 SubjectIds = info.SubjectIds ?? new List<short>(),
                 SchoolId = info.User.SchoolId
+                ,
+                transferId = info.User.TransferId,
             };
 
             return Ok(new GenericResponse { Success = true, Message = "Người dùng đã xác thực", Data = userInfo });

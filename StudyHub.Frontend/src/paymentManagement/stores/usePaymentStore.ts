@@ -1,6 +1,8 @@
 import { create } from "zustand";
-import { paymentService } from "../services/paymentService";
-import type { PaymentInfoDto } from "../services/paymentService";
+import {
+  paymentService,
+  type PaymentInfoDto,
+} from "../services/paymentService";
 
 type StartResult = {
   orderRef: string;

@@ -90,6 +90,8 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
         public int? SchoolId { get; set; }
         public int? transferId { get; set; }
 
+        public long Wallet { get; set; }
+
     }
 
     public class GenericResponse
