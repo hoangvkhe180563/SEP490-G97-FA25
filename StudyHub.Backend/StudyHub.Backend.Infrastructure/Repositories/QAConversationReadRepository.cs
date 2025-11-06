@@ -46,7 +46,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 ConversationId = d.ConversationId,
                 UserId = d.UserId,
-                LastReadAt = d.LastReadAt == default ? DateTime.UtcNow : d.LastReadAt
+                LastReadAt = d.LastReadAt == default ? DateTime.Now : d.LastReadAt
             };
         }
 
@@ -157,7 +157,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 }
                 else
                 {
-                    existing.LastReadAt = read.LastReadAt == default ? DateTime.UtcNow : read.LastReadAt;
+                    existing.LastReadAt = read.LastReadAt == default ? DateTime.Now : read.LastReadAt;
                     _context.QAConversationReads.Update(existing);
                     _context.SaveChanges();
                     var updated = _context.QAConversationReads

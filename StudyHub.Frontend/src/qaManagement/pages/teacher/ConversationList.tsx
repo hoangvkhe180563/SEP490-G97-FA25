@@ -48,6 +48,11 @@ const TeacherConversationList: React.FC = () => {
       setError(null);
       try {
         await getMine();
+        try {
+          await useConversationStore.getState().startRead?.();
+        } catch (err) {
+          console.warn("start read hub failed", err);
+        }
       } catch (err: any) {
         if (mounted) setError(err?.message ?? String(err));
       }
@@ -72,7 +77,8 @@ const TeacherConversationList: React.FC = () => {
     return {
       id: d.id ?? d.Id ?? "",
       title: d.title ?? d.Title ?? "(Không có tiêu đề)",
-      isRead: d.isRead ?? d.IsRead ?? false,
+      unreadCount: d.unreadCount ?? d.UnreadCount ?? 0,
+      isRead: (d.unreadCount ?? d.UnreadCount ?? 0) === 0,
       studentId: d.studentId ?? d.StudentId ?? "",
       studentName: d.studentName ?? d.StudentName ?? "",
       studentEmail: d.studentEmail ?? d.StudentEmail ?? undefined,
@@ -170,6 +176,15 @@ const TeacherConversationList: React.FC = () => {
           (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)
         )
       : filteredItems;
+
+  // counts for filter buttons
+  // const totalCount = items.length;
+  const unreadCount = (items || []).filter(
+    (it) => Number(it.unreadCount ?? 0) > 0
+  ).length;
+  // const readCount = (items || []).filter(
+  //   (it) => Number(it.unreadCount ?? 0) === 0
+  // ).length;
 
   return (
     <div className="flex gap-6 p-6 min-h-[calc(100vh-100px)]">
@@ -272,25 +287,43 @@ const TeacherConversationList: React.FC = () => {
                 variant={filter === "all" ? undefined : "ghost"}
                 onClick={() => setFilter("all")}
               >
-                Tất cả
+                <div className="inline-flex items-center gap-2">
+                  <span>Tất cả</span>
+                  {/* <Badge className="text-xs">{totalCount}</Badge> */}
+                </div>
               </Button>
               <Button
                 variant={filter === "unread" ? undefined : "ghost"}
                 onClick={() => setFilter("unread")}
               >
-                Chưa đọc
+                <div className="inline-flex items-center gap-2">
+                  <span>Chưa đọc</span>
+                  {unreadCount > 0 && (
+                    <Badge className="text-xs rounded-full">
+                      {unreadCount}
+                    </Badge>
+                  )}
+                </div>
               </Button>
               <Button
                 variant={filter === "read" ? undefined : "ghost"}
                 onClick={() => setFilter("read")}
               >
-                Đã đọc
+                <div className="inline-flex items-center gap-2">
+                  <span>Đã đọc</span>
+                  {/* {readCount > 0 && (
+                    <Badge className="text-xs">{readCount}</Badge>
+                  )} */}
+                </div>
               </Button>
               <Button
                 variant={filter === "recent" ? undefined : "ghost"}
                 onClick={() => setFilter("recent")}
               >
-                Gần đây
+                <div className="inline-flex items-center gap-2">
+                  <span>Gần đây</span>
+                  {/* <Badge className="text-xs">{totalCount}</Badge> */}
+                </div>
               </Button>
             </div>
           </div>
@@ -330,7 +363,7 @@ const TeacherConversationList: React.FC = () => {
                 key={c.id}
                 className="block"
               >
-                <Card className="w-full p-4 hover:shadow-lg transition-shadow rounded-xl">
+                <Card className="relative w-full p-4 hover:shadow-lg transition-shadow rounded-xl">
                   <div className="flex items-start gap-4">
                     <Avatar className="ring-1 ring-border">
                       {c.studentAvatar ? (
@@ -353,17 +386,14 @@ const TeacherConversationList: React.FC = () => {
                         >
                           {c.title}
                         </Link>
-                        <Badge
-                          variant="outline"
-                          className={
-                            c.isRead
-                              ? "bg-gray-100 text-gray-700 border-gray-200"
-                              : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          }
-                        >
-                          {c.isRead ? "Đã đọc" : "Mới"}
-                        </Badge>
                       </div>
+                      {Number(c.unreadCount) > 0 && (
+                        <div className="absolute top-3 right-3">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-500 text-white text-xs">
+                            {c.unreadCount}
+                          </span>
+                        </div>
+                      )}
 
                       <div className="text-sm text-muted-foreground leading-snug">
                         {c.topicName} • {c.subjectName}
@@ -378,14 +408,12 @@ const TeacherConversationList: React.FC = () => {
                           <Clock className="w-4 h-4" />
                           {new Date(c.createdAt).toLocaleString()}
                         </div>
-                        <Link to={`/qa/teacher/conversations/${c.id}`}>
-                          <Button
-                            variant="ghost"
-                            className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
-                          >
-                            Mở <ArrowRight className="w-4 h-4" />
-                          </Button>
-                        </Link>
+                        <Button
+                          variant="ghost"
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                        >
+                          Mở <ArrowRight className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   </div>

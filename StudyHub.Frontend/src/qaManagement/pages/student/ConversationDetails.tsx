@@ -79,6 +79,7 @@ const ConversationDetails = () => {
   }, [onlineUsers, conversation?.teacherId]);
 
   const [text, setText] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -199,6 +200,15 @@ const ConversationDetails = () => {
         await useMessageStore
           .getState()
           .joinConversation?.(conversationId || "");
+        // start read hub and mark this conversation as read for current user
+        try {
+          await useConversationStore.getState().startRead?.();
+          await useConversationStore
+            .getState()
+            .upsertRead?.(conversationId || "");
+        } catch (err) {
+          console.warn("read hub start/upsert failed", err);
+        }
       } catch (err) {
         console.warn("chat join failed", err);
       }
@@ -216,6 +226,12 @@ const ConversationDetails = () => {
           await useMessageStore
             .getState()
             .leaveConversation?.(conversationId || "");
+          // stop read hub when leaving
+          try {
+            await useConversationStore.getState().stopRead?.();
+          } catch (err) {
+            console.warn("stop read hub failed", err);
+          }
         } catch (err) {
           console.warn("leave conversation failed", err);
         }
@@ -225,9 +241,11 @@ const ConversationDetails = () => {
 
   const onSend = () => {
     if (!text.trim()) return;
+    if (isSending) return; // prevent double-send jitter
+    setIsSending(true);
     // optimistic UI update
     const m: Partial<Message> = {
-      id: String(Date.now()),
+      id: `tmp-${Date.now()}`,
       senderId: user?.id || "unknown",
       content: text.trim(),
       createdAt: new Date().toISOString(),
@@ -257,6 +275,8 @@ const ConversationDetails = () => {
         setMessages(mapped);
       } catch (err: any) {
         setError(err?.message ?? String(err));
+      } finally {
+        setTimeout(() => setIsSending(false), 60);
       }
     })();
   };
@@ -283,7 +303,7 @@ const ConversationDetails = () => {
       } catch (err) {
         console.warn("sendTyping stop failed", err);
       }
-    }, 10000);
+    }, 3000);
   };
 
   return (
@@ -473,7 +493,7 @@ const ConversationDetails = () => {
             placeholder="Viết tin nhắn..."
             className="flex-1 max-h-36"
           />
-          <Button onClick={onSend} className="flex items-center gap-2">
+          <Button onClick={onSend} disabled={isSending} className="flex items-center gap-2">
             <Send className="w-4 h-4" /> Gửi
           </Button>
         </div>

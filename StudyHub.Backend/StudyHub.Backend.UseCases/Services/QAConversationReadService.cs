@@ -58,7 +58,7 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 ConversationId = conversationId,
                 UserId = current.Id,
-                LastReadAt = DateTime.UtcNow
+                LastReadAt = DateTime.Now
             };
             return _repo.UpsertRead(read);
         }
@@ -69,7 +69,7 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 ConversationId = conversationId,
                 UserId = userId,
-                LastReadAt = DateTime.UtcNow
+                LastReadAt = DateTime.Now
             };
             return _repo.UpsertRead(read);
         }

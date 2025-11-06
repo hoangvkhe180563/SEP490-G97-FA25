@@ -53,6 +53,7 @@ interface ConversationDto {
   topicName?: string;
   subjectName?: string;
   createdAt: string;
+  unreadCount?: number;
 }
 
 export type {

@@ -49,6 +49,12 @@ const ConversationList: React.FC = () => {
     const load = async () => {
       try {
         await getMine();
+        // start read hub to receive realtime unread count updates for list
+        try {
+          await useConversationStore.getState().startRead?.();
+        } catch (err) {
+          console.warn("start read hub failed", err);
+        }
       } catch (err: any) {
         if (mounted) setError(err?.message ?? String(err));
       }
@@ -64,7 +70,6 @@ const ConversationList: React.FC = () => {
     return {
       id: d.id ?? d.Id ?? "",
       title: d.title ?? d.Title ?? "(Không có tiêu đề)",
-      isRead: d.isRead ?? d.IsRead ?? false,
       studentId: d.studentId ?? d.StudentId ?? "",
       studentName: d.studentName ?? d.StudentName ?? "",
       studentEmail: d.studentEmail ?? d.StudentEmail ?? "",
@@ -80,6 +85,8 @@ const ConversationList: React.FC = () => {
       topicName: d.topicName ?? d.TopicName ?? "",
       subjectName: d.subjectName ?? d.SubjectName ?? "",
       createdAt: d.createdAt ?? d.CreatedAt ?? new Date().toISOString(),
+      unreadCount: d.unreadCount ?? d.UnreadCount ?? 0,
+      isRead: (d.unreadCount ?? d.UnreadCount ?? 0) === 0,
     };
   }
 
@@ -165,6 +172,15 @@ const ConversationList: React.FC = () => {
           (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)
         )
       : filteredItems;
+
+  // counts for filter buttons
+  // const totalCount = items.length;
+  const unreadCount = (mappedItems || []).filter(
+    (it) => Number(it.unreadCount ?? 0) > 0
+  ).length;
+  // const readCount = (items || []).filter(
+  //   (it) => Number(it.unreadCount ?? 0) === 0
+  // ).length;
 
   return (
     <div className="flex gap-6 p-6 min-h-[calc(100vh-100px)]">
@@ -290,25 +306,43 @@ const ConversationList: React.FC = () => {
                 variant={filter === "all" ? undefined : "ghost"}
                 onClick={() => setFilter("all")}
               >
-                Tất cả
+                <div className="inline-flex items-center gap-2">
+                  <span>Tất cả</span>
+                  {/* <Badge className="text-xs">{totalCount}</Badge> */}
+                </div>
               </Button>
               <Button
                 variant={filter === "unread" ? undefined : "ghost"}
                 onClick={() => setFilter("unread")}
               >
-                Chưa đọc
+                <div className="inline-flex items-center gap-2">
+                  <span>Chưa đọc</span>
+                  {unreadCount > 0 && (
+                    <Badge className="text-xs rounded-full">
+                      {unreadCount}
+                    </Badge>
+                  )}
+                </div>
               </Button>
               <Button
                 variant={filter === "read" ? undefined : "ghost"}
                 onClick={() => setFilter("read")}
               >
-                Đã đọc
+                <div className="inline-flex items-center gap-2">
+                  <span>Đã đọc</span>
+                  {/* {readCount > 0 && (
+                                  <Badge className="text-xs">{readCount}</Badge>
+                                )} */}
+                </div>
               </Button>
               <Button
                 variant={filter === "recent" ? undefined : "ghost"}
                 onClick={() => setFilter("recent")}
               >
-                Gần đây
+                <div className="inline-flex items-center gap-2">
+                  <span>Gần đây</span>
+                  {/* <Badge className="text-xs">{totalCount}</Badge> */}
+                </div>
               </Button>
             </div>
           </div>
@@ -351,7 +385,7 @@ const ConversationList: React.FC = () => {
                 key={c.id}
                 className="block"
               >
-                <Card className="w-full p-4 hover:shadow-lg transition-shadow rounded-xl">
+                <Card className="relative w-full p-4 hover:shadow-lg transition-shadow rounded-xl">
                   <div className="flex items-start gap-4">
                     <Avatar className="ring-1 ring-border">
                       {c.teacherAvatar ? (
@@ -369,10 +403,12 @@ const ConversationList: React.FC = () => {
                     </Avatar>
 
                     <div className="flex-1 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-lg font-medium hover:underline">
-                          {c.title}
-                        </span>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-medium hover:underline">
+                            {c.title}
+                          </span>
+                        </div>
                         {!c.isPaid ? (
                           <Badge
                             variant="outline"
@@ -389,6 +425,13 @@ const ConversationList: React.FC = () => {
                           </Badge>
                         )}
                       </div>
+                      {Number(c.unreadCount) > 0 && (
+                        <div className="absolute top-3 right-3">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-600 text-white text-xs">
+                            {c.unreadCount}
+                          </span>
+                        </div>
+                      )}
 
                       <div className="text-sm text-muted-foreground leading-snug">
                         {c.topicName} • {c.subjectName}
