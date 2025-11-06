@@ -500,7 +500,7 @@ const ForumMain = () => {
       <div className="max-w mx-auto">
         <div className="bg-white rounded-2xl p-8 mb-8 border">
           <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-2">
-            📚 Forum Học Tập
+            Forum Học Tập
           </h1>
           <p className="text-gray-600">
             Nơi học sinh chia sẻ và giải đáp thắc mắc

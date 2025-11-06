@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using StudyHub.Backend.Api.Services;
+using StudyHub.Backend.UseCases.IServices;
 using StudyHub.Backend.UseCases.Services;
 namespace StudyHub.Backend.UseCases
 {
@@ -33,8 +34,8 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<QATopicService>();
             services.AddScoped<QAConversationService>();
             services.AddScoped<QAMessageService>();
+            services.AddScoped<IImageModerationService, ImageDectectService>();
 
-            
             return services;
         }
     }

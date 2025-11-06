@@ -9,7 +9,7 @@
         public int TotalViolationScore { get; set; }
         public bool IsHidden { get; set; }
         public bool? Status { get; set; }
-
+        public int SchoolId { get; set; }
         public DateTime CreatedAt { get; set; }
         public Guid CreatedBy { get; set; }
         public DateTime? UpdatedAt { get; set; }
