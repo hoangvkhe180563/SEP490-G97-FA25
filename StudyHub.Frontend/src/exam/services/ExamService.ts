@@ -2,7 +2,6 @@ import { axiosInstance } from "@/lib/axios";
 import { DEFAULT_EXAM, DEFAULT_EXAM_RESULT } from "../constants/Constants";
 import type { Exam } from "../interfaces/models/Exam";
 import type { ExamResult } from "../interfaces/models/ExamResult";
-import { MOCK_DATA_EXAMS } from "./MockData";
 import { formatISO } from "date-fns";
 
 export class ExamService {
@@ -30,10 +29,6 @@ export class ExamService {
     return false;
   }
 
-  getExams = (): Exam[] => {
-    return MOCK_DATA_EXAMS;
-  }
-
   getStudentClassExams = async (studentId: string): Promise<Exam[]> => {
     try {
       const res = await axiosInstance.get("/exam/class/by-student/" + studentId);
@@ -57,33 +52,6 @@ export class ExamService {
       }
     } catch (error) {
       console.error("Error getStudentClassExams: ", error);
-    }
-    return [];
-  }
-
-  getTeacherClassExams = async (teacherId: string): Promise<Exam[]> => {
-    try {
-      const res = await axiosInstance.get("/exam/class/by-teacher/" + teacherId);
-      if (res.status === 200) {
-        return res.data.map((item: any) => {
-          return {
-            id: item.id,
-            title: item.title,
-            description: item.description,
-            openTime: item.openTime,
-            closeTime: item.closeTime,
-            duration: item.duration,
-            createdBy: item.createdBy,
-            showAnswers: item.showAnswers,
-            showCorrectAnswers: item.showCorrectAnswers,
-            totalQuestions: item.totalQuestions
-          }
-        });
-      } else {
-        throw new Error(`Status: ${res.status}`);
-      }
-    } catch (error) {
-      console.error("Error getTeacherClassExams: ", error);
     }
     return [];
   }

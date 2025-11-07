@@ -194,7 +194,7 @@ const UpdateExam = () => {
             type: 'single-choice',
             questionText: '',
             options: [],
-            correctAnswer: ''
+            correctAnswer: null
           };
           let isValidRow = true;
 
@@ -228,8 +228,8 @@ const UpdateExam = () => {
               question.options = options;
 
               if (questionType === EXAM_TYPE.SINGLE_CHOICE) {
-                question.correctAnswer = correctAnswerRaw;
-                if (!options.includes(question.correctAnswer)) {
+                question.correctAnswer = options.findIndex(o => o === correctAnswerRaw);
+                if (!options.includes(correctAnswerRaw)) {
                   rowErrors.push(`Hàng ${rowIndex + 2}: Đáp án đúng không nằm trong các lựa chọn.`);
                   isValidRow = false;
                 }
@@ -243,7 +243,8 @@ const UpdateExam = () => {
                   rowErrors.push(`Hàng ${rowIndex + 2}: Một hoặc nhiều đáp án đúng không nằm trong các lựa chọn.`);
                   isValidRow = false;
                 }
-                question.correctAnswer = correctAnswersArray;
+                const correctAnswersIndex = correctAnswersArray.map(ans => options.findIndex(o => o === ans));
+                question.correctAnswer = correctAnswersIndex;
               }
             } else if (questionType === EXAM_TYPE.TEXT_INPUT) {
               question.correctAnswer = correctAnswerRaw;
@@ -271,7 +272,7 @@ const UpdateExam = () => {
         });
 
         if (rowErrors.length > 0) {
-          setExcelFileError(`Có lỗi khi đọc file Excel:<br/>${rowErrors.join('<br/>')}`);
+          setExcelFileError(`Có lỗi khi đọc file Excel:<br/>${rowErrors.slice(0, 10).join('<br/>')} ${rowErrors.length > 10 && '<br/>(Quá nhiều lỗi, vui lòng nhập đúng cấu trúc trong file mẫu!)'}`);
           return;
         }
         if (newQuestions.length === 0) {
@@ -280,7 +281,9 @@ const UpdateExam = () => {
         }
 
         setQuestions(prevQuestions => [...prevQuestions, ...newQuestions]);
-        alert(`Đã nhập thành công ${newQuestions.length} câu hỏi từ file Excel.`);
+        toast.success(`Đã nhập thành công ${newQuestions.length} câu hỏi từ file Excel.`, {
+          style: { maxWidth: 600 }
+        });
 
       } catch (err) {
         console.error("Error reading Excel file:", err);
@@ -300,6 +303,11 @@ const UpdateExam = () => {
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
+
+    if (!user) {
+      toast.error("Chưa đăng nhập vui lòng thử lại!");
+      return;
+    }
     setLoading(true);
 
     if (!examTitle || !examDescription || !examDuration || questions.length === 0) {
@@ -378,14 +386,14 @@ const UpdateExam = () => {
     try {
       const success: boolean = await examService.updateExam(examToUpdate);
       if (success) {
-        toast.success('Tạo bài kiểm tra thành công!');
+        toast.success('Cập nhật bài kiểm tra thành công!');
         navigate('/exam/teacher/class-exams');
       } else {
-        toast.error('Tạo bài kiểm tra thất bại. Vui lòng thử lại.');
+        toast.error('Cập nhật bài kiểm tra thất bại. Vui lòng thử lại.');
       }
     } catch (err) {
-      console.error("Failed to create exam:", err);
-      toast.error("Tạo bài kiểm tra thất bại. Vui lòng thử lại.");
+      console.error("Failed to update exam:", err);
+      toast.error("Cập nhật bài kiểm tra thất bại. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }

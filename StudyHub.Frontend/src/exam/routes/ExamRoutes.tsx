@@ -1,20 +1,22 @@
 import type { RouteObject } from "react-router-dom";
 import ExamRouteConfig from "../constants/ExamRouteConfig";
-import StudentListExams from "../pages/student/ListClassExams";
-import TeacherListExams from "../pages/teacher/ListClassExams";
+import StudentClassExams from "../pages/student/ListClassExams";
+import TeacherClassExams from "../pages/teacher/ListClassExams";
 import TakeExam from "../pages/student/TakeExam";
-import StudentListResults from "../pages/student/ListClassResults";
-import TeacherListResults from "../pages/teacher/ListClassResults";
+import StudentListResults from "../pages/student/ListResults";
+import TeacherClassResults from "../pages/teacher/ListClassResults";
 import ViewResultDetail from "../pages/ViewResultDetail";
 import CreateExam from "../pages/teacher/CreateExam";
 import ViewExamHistory from "../pages/teacher/ViewExamHistory";
 import UpdateExam from "../pages/teacher/UpdateExam";
 import ViewExamDetail from "../pages/student/ViewExamDetail";
+import StudentLessonExam from "../pages/student/LessonExam";
+import TeacherLessonExam from "../pages/teacher/LessonExam";
 
 const examRoutes: RouteObject[] = [
   {
     path: ExamRouteConfig.STUDENT.CLASS.EXAM_LIST,
-    element: <StudentListExams />
+    element: <StudentClassExams />
   },
   {
     path: ExamRouteConfig.STUDENT.EXAM_DETAIL,
@@ -34,24 +36,32 @@ const examRoutes: RouteObject[] = [
   },
   {
     path: ExamRouteConfig.TEACHER.CLASS.EXAM_LIST,
-    element: <TeacherListExams />
+    element: <TeacherClassExams />
   },
   {
-    path: ExamRouteConfig.TEACHER.CLASS.CREATE_EXAM,
+    path: ExamRouteConfig.TEACHER.CREATE_EXAM,
     element: <CreateExam />
   },
   {
-    path: ExamRouteConfig.TEACHER.CLASS.EXAM_DETAILS,
+    path: ExamRouteConfig.TEACHER.EXAM_DETAILS,
     element: <ViewExamHistory />
   },
   {
-    path: ExamRouteConfig.TEACHER.CLASS.EXAM_EDIT,
+    path: ExamRouteConfig.TEACHER.EDIT_EXAM,
     element: <UpdateExam />
   },
   {
     path: ExamRouteConfig.TEACHER.CLASS.EXAM_RESULT_LIST,
-    element: <TeacherListResults />
+    element: <TeacherClassResults />
   },
+  {
+    path: ExamRouteConfig.STUDENT.LESSON.LESSON_EXAM,
+    element: <StudentLessonExam />
+  },
+  {
+    path: ExamRouteConfig.TEACHER.LESSON.LESSON_EXAM,
+    element: <TeacherLessonExam />
+  }
 ];
 
 export default examRoutes;

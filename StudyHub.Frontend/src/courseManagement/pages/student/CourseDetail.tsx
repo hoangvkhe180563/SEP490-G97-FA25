@@ -447,9 +447,9 @@ const CourseDetail: React.FC = () => {
                             />
                             {`${new Date(
                               selectedCourse.startAt
-                            ).toLocaleDateString()} - ${new Date(
+                            ).toLocaleDateString("vi-VN")} - ${new Date(
                               selectedCourse.endAt
-                            ).toLocaleDateString()}`}
+                            ).toLocaleDateString("vi-VN")}`}
                           </>
                         ) : (
                           "-"

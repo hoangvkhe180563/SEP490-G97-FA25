@@ -342,6 +342,7 @@ const AddLecture: React.FC = () => {
                   <SelectContent>
                     <SelectItem value="video">Bài giảng video</SelectItem>
                     <SelectItem value="reading">Tài liệu đọc</SelectItem>
+                    <SelectItem value="exam">Bài kiểm tra</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -368,119 +369,116 @@ const AddLecture: React.FC = () => {
               </div>
 
               {/* File Upload / Embed */}
-              {type === "video" ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Label>Video URL</Label>
-                    <div className="flex items-center gap-2 text-sm">
-                      <input
-                        id="use-embed"
-                        type="checkbox"
-                        checked={useEmbed}
-                        onChange={(e) => setUseEmbed(e.target.checked)}
-                        className="w-4 h-4"
-                      />
-                      <label htmlFor="use-embed">Embed (iframe)</label>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setDialog({
-                            open: true,
-                            title: "Hướng dẫn lấy link nhúng YouTube",
-                            message: (
-                              <div className="space-y-2 text-sm">
-                                <p>
-                                  📹 <strong>Các bước thực hiện:</strong>
-                                </p>
-                                <ol className="list-decimal ml-5">
-                                  <li>
-                                    <strong>Tải video lên YouTube</strong> -
-                                    Đăng nhập → Tạo → Tải video lên
-                                  </li>
-                                  <li>
-                                    <strong>Lấy mã nhúng (Embed)</strong> - Chia
-                                    sẻ → Nhúng → Sao chép{" "}
-                                    <code>
-                                      &lt;iframe&gt;...&lt;/iframe&gt;
-                                    </code>{" "}
-                                    hoặc URL:
-                                    <br />
-                                    <a
-                                      href="https://www.youtube.com/embed/VIDEO_ID"
-                                      target="_blank"
-                                      className="text-blue-600 underline"
-                                    >
-                                      https://www.youtube.com/embed/VIDEO_ID
-                                    </a>
-                                  </li>
-                                  <li>
-                                    <strong>Dán vào hệ thống</strong> - Quay lại
-                                    form → dán vào ô Embed
-                                  </li>
-                                </ol>
-                                <p className="italic text-gray-500">
-                                  💡 Gợi ý: Để video không công khai, đặt chế độ
-                                  “Không công khai (Unlisted)”.
-                                </p>
-                              </div>
-                            ),
-                          })
-                        }
-                        className="ml-2 text-gray-500 hover:text-gray-700"
-                        aria-label="Hướng dẫn embed YouTube"
-                      >
-                        <HelpCircle className="w-4 h-4" />
-                      </button>
+              <div className={`space-y-4 ${type === 'video' ? 'block' : 'hidden'}`}>
+                <div className="flex items-center gap-3">
+                  <Label>Video URL</Label>
+                  <div className="flex items-center gap-2 text-sm">
+                    <input
+                      id="use-embed"
+                      type="checkbox"
+                      checked={useEmbed}
+                      onChange={(e) => setUseEmbed(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="use-embed">Embed (iframe)</label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDialog({
+                          open: true,
+                          title: "Hướng dẫn lấy link nhúng YouTube",
+                          message: (
+                            <div className="space-y-2 text-sm">
+                              <p>
+                                📹 <strong>Các bước thực hiện:</strong>
+                              </p>
+                              <ol className="list-decimal ml-5">
+                                <li>
+                                  <strong>Tải video lên YouTube</strong> -
+                                  Đăng nhập → Tạo → Tải video lên
+                                </li>
+                                <li>
+                                  <strong>Lấy mã nhúng (Embed)</strong> - Chia
+                                  sẻ → Nhúng → Sao chép{" "}
+                                  <code>
+                                    &lt;iframe&gt;...&lt;/iframe&gt;
+                                  </code>{" "}
+                                  hoặc URL:
+                                  <br />
+                                  <a
+                                    href="https://www.youtube.com/embed/VIDEO_ID"
+                                    target="_blank"
+                                    className="text-blue-600 underline"
+                                  >
+                                    https://www.youtube.com/embed/VIDEO_ID
+                                  </a>
+                                </li>
+                                <li>
+                                  <strong>Dán vào hệ thống</strong> - Quay lại
+                                  form → dán vào ô Embed
+                                </li>
+                              </ol>
+                              <p className="italic text-gray-500">
+                                💡 Gợi ý: Để video không công khai, đặt chế độ
+                                “Không công khai (Unlisted)”.
+                              </p>
+                            </div>
+                          ),
+                        })
+                      }
+                      className="ml-2 text-gray-500 hover:text-gray-700"
+                      aria-label="Hướng dẫn embed YouTube"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {!useEmbed ? (
+                  <Input
+                    placeholder="https://example.com/video.mp4"
+                    value={videoUrl}
+                    onChange={(e) => setVideoUrl(e.target.value)}
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Dán link embed YouTube (vd: https://www.youtube.com/embed/...)"
+                      value={embedSrc}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const match = val.match(/src="([^"]+)"/);
+                        setEmbedSrc(match ? match[1] : val);
+                      }}
+                    />
+                    <div className="border rounded overflow-hidden">
+                      {embedSrc ? (
+                        <iframe
+                          title="embed-preview"
+                          src={embedSrc}
+                          className="w-full aspect-video rounded-md border border-gray-200"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          referrerPolicy="strict-origin-when-cross-origin"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <div className="p-3 text-sm text-gray-500">
+                          Nhập link embed (ví dụ YouTube embed URL) để xem
+                          trước
+                        </div>
+                      )}
                     </div>
                   </div>
-
-                  {!useEmbed ? (
-                    <Input
-                      placeholder="https://example.com/video.mp4"
-                      value={videoUrl}
-                      onChange={(e) => setVideoUrl(e.target.value)}
-                    />
-                  ) : (
-                    <div className="space-y-2">
-                      <Input
-                        placeholder="Dán link embed YouTube (vd: https://www.youtube.com/embed/...)"
-                        value={embedSrc}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const match = val.match(/src="([^"]+)"/);
-                          setEmbedSrc(match ? match[1] : val);
-                        }}
-                      />
-                      <div className="border rounded overflow-hidden">
-                        {embedSrc ? (
-                          <iframe
-                            title="embed-preview"
-                            src={embedSrc}
-                            className="w-full aspect-video rounded-md border border-gray-200"
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                            referrerPolicy="strict-origin-when-cross-origin"
-                            allowFullScreen
-                          />
-                        ) : (
-                          <div className="p-3 text-sm text-gray-500">
-                            Nhập link embed (ví dụ YouTube embed URL) để xem
-                            trước
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label>Nội dung đọc</Label>
-                  <div
-                    ref={quillRef}
-                    className="bg-white rounded-md min-h-[250px] p-2"
-                  />
-                </div>
-              )}
+                )}
+              </div>
+              <div className={`space-y-2 ${type === 'reading' ? 'block' : 'hidden'}`}>
+                <Label>Nội dung đọc</Label>
+                <div
+                  ref={quillRef}
+                  className="bg-white rounded-md min-h-[250px] p-2"
+                />
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -576,12 +574,13 @@ const AddLecture: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2 mt-6">
                   <input
+                    id="preview"
                     type="checkbox"
                     checked={isPreview}
                     onChange={(e) => setIsPreview(e.target.checked)}
                     className="w-4 h-4"
                   />
-                  <Label>Cho phép xem trước bài giảng</Label>
+                  <Label htmlFor="preview">Cho phép xem trước bài giảng</Label>
                 </div>
               </div>
             </div>

@@ -1075,7 +1075,7 @@ const EditCourse: React.FC = () => {
                           <span className="float-right">
                             {formatDate(
                               selectedCourse?.updatedAt ??
-                                selectedCourse?.createdAt
+                              selectedCourse?.createdAt
                             )}
                           </span>
                         </div>
@@ -1095,7 +1095,7 @@ const EditCourse: React.FC = () => {
                         checked={isFeatured}
                         onChange={(e) => setIsFeatured(e.target.checked)}
                       />
-                      <Label>Khóa học nổi bật</Label>
+                      <Label htmlFor="featured">Khóa học nổi bật</Label>
                     </div>
                   </div>
                 </CardContent>
@@ -1163,8 +1163,8 @@ const EditCourse: React.FC = () => {
                       value={
                         (modalChapter as any).postDate
                           ? new Date((modalChapter as any).postDate)
-                              .toISOString()
-                              .slice(0, 10)
+                            .toISOString()
+                            .slice(0, 10)
                           : ""
                       }
                       onChange={(e) =>

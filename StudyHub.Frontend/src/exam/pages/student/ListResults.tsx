@@ -5,7 +5,7 @@ import { ExamService } from '@/exam/services/ExamService';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-const ListClassResults = () => {
+const ListResults = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [results, setResults] = useState<ExamResult[]>([]);
@@ -98,4 +98,4 @@ const ListClassResults = () => {
   );
 };
 
-export default ListClassResults;
+export default ListResults;

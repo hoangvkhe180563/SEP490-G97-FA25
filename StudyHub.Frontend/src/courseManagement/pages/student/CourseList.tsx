@@ -111,8 +111,8 @@ const CourseList: React.FC = () => {
   const endItem = Math.min(currentPage * effectivePageSize, total);
 
   return (
-    <div className="max-w-[1300px] mx-auto my-3 w-full h-full overflow-y-auto scrollbar-hide">
-      <div className="flex items-center justify-between mb-4">
+    <div className="p-4 mx-auto w-full h-full overflow-y-auto scrollbar-hide">
+      <div className="mb-4">
         <div className="text-2xl font-normal text-[#171717]">
           Tất cả các khóa học
         </div>
