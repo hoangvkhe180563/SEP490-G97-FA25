@@ -32,8 +32,9 @@ export interface Document {
   classId?: number;
   isInClass?: boolean;
   classes?: Array<{ id: number; name?: string }>;
+  isRequested?: boolean;
+  editRequestedAt?: string;
 }
-
 export interface DocumentFilterParams {
   query?: string;
   categoryId?: number;
@@ -126,6 +127,8 @@ export interface DocumentDetailDto {
   classId?: number;
   isInClass?: boolean;
   classes?: Array<{ id: number; name?: string }>;
+  isRequested?: boolean;
+  editRequestedAt?: string;
 }
 
 export interface DocumentListDto {
@@ -225,6 +228,7 @@ export interface DocumentDetailProps {
   onDelete: () => void;
   onPreview: () => void;
   getAccessType: (doc: Document) => string;
+  requestEditDocument: (documentId: number) => Promise<boolean>;
 }
 export interface PdfOutlineItem {
   title: string;
@@ -319,7 +323,14 @@ export interface DocumentState {
   getSubjectsError: string | null;
   getUserClassesMessage: string;
   getUserClassesError: string | null;
-
+  requestEditDocumentMessage: string;
+  requestEditDocumentError: string | null;
+  fetchEditRequestDocumentsMessage: string;
+  fetchEditRequestDocumentsError: string | null;
+  approveEditRequestMessage: string;
+  approveEditRequestError: string | null;
+  rejectEditRequestMessage: string;
+  rejectEditRequestError: string | null;
   getDocumentById: (
     id: number,
     handlerSuccess?: () => void
@@ -370,8 +381,9 @@ export interface DocumentState {
     gradeId?: number,
     subject?: string,
     classId?: number,
-    isApproved?: boolean,
+    isApproved?: boolean | null,
     status?: boolean,
+    isRequested?: boolean | null,
     pageNumber?: number,
     pageSize?: number,
     handlerSuccess?: () => void
@@ -383,8 +395,9 @@ export interface DocumentState {
     gradeId?: number,
     subject?: string,
     classId?: number,
-    isApproved?: boolean,
+    isApproved?: boolean | null,
     status?: boolean,
+    isRequested?: boolean | null,
     pageNumber?: number,
     pageSize?: number,
     handlerSuccess?: () => void
@@ -415,5 +428,23 @@ export interface DocumentState {
     userId: string,
     handlerSuccess?: () => void
   ) => Promise<void>;
+  requestEditDocument: (
+    documentId: number,
+    handlerSuccess?: () => void
+  ) => Promise<boolean>;
+  fetchEditRequestDocuments: (
+    isRequested?: boolean,
+    pageNumber?: number,
+    pageSize?: number,
+    handlerSuccess?: () => void
+  ) => Promise<void>;
+  approveEditRequest: (
+    documentId: number,
+    handlerSuccess?: () => void
+  ) => Promise<boolean>;
+  rejectEditRequest: (
+    documentId: number,
+    handlerSuccess?: () => void
+  ) => Promise<boolean>;
   setCurrentPage: (page: number) => void;
 }

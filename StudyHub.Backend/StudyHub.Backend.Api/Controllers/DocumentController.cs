@@ -123,43 +123,45 @@ namespace StudyHub.Backend.Api.Controllers
 
         [HttpGet("manager/public")]
         public IActionResult GetManagerPublicDocuments(
-     [FromQuery] string? query = null,
-     [FromQuery] int? categoryId = null,
-     [FromQuery] int? grade = null,
-     [FromQuery] string? subject = null,
-     [FromQuery] int? classId = null,
-     [FromQuery] bool? isApproved = null,
-     [FromQuery] bool? status = null,
-     [FromQuery] bool? isPending = null,
-     [FromQuery] DateTime? createdFrom = null,
-     [FromQuery] DateTime? createdTo = null,
-     [FromQuery] DateTime? updatedFrom = null,
-     [FromQuery] DateTime? updatedTo = null,
-     [FromQuery] int pageNumber = 1,
-     [FromQuery] int pageSize = 10)
+          [FromQuery] string? query = null,
+          [FromQuery] int? categoryId = null,
+          [FromQuery] int? grade = null,
+          [FromQuery] string? subject = null,
+          [FromQuery] int? classId = null,
+          [FromQuery] bool? isApproved = null,
+          [FromQuery] bool? status = null,
+          [FromQuery] bool? isPending = null,
+          [FromQuery] bool? hasEditRequest = null,
+          [FromQuery] DateTime? createdFrom = null,
+          [FromQuery] DateTime? createdTo = null,
+          [FromQuery] DateTime? updatedFrom = null,
+          [FromQuery] DateTime? updatedTo = null,
+          [FromQuery] int pageNumber = 1,
+          [FromQuery] int pageSize = 10)
         {
             var (documents, totalCount) = _documentService.GetManagerPublicDocuments(
-                query, categoryId, grade, subject, classId, isApproved, status, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
+                query, categoryId, grade, subject, classId, isApproved, status, hasEditRequest, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
             return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
         }
 
         [HttpGet("manager/school/{schoolId}")]
         public IActionResult GetManagerSchoolDocuments(
-            int schoolId,
-            [FromQuery] string? query = null,
-            [FromQuery] int? categoryId = null,
-            [FromQuery] int? grade = null,
-            [FromQuery] string? subject = null,
-            [FromQuery] int? classId = null,
-            [FromQuery] bool? isApproved = null,
-            [FromQuery] bool? status = null,
-            [FromQuery] bool? isPending = null,
-            [FromQuery] DateTime? createdFrom = null,
-            [FromQuery] DateTime? createdTo = null,
-            [FromQuery] DateTime? updatedFrom = null,
-            [FromQuery] DateTime? updatedTo = null,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10)
+    int schoolId,
+    [FromQuery] string? query = null,
+    [FromQuery] int? categoryId = null,
+    [FromQuery] int? grade = null,
+    [FromQuery] string? subject = null,
+    [FromQuery] int? classId = null,
+    [FromQuery] bool? isApproved = null,
+    [FromQuery] bool? status = null,
+    [FromQuery] bool? isPending = null,
+    [FromQuery] bool? hasEditRequest = null,
+    [FromQuery] DateTime? createdFrom = null,
+    [FromQuery] DateTime? createdTo = null,
+    [FromQuery] DateTime? updatedFrom = null,
+    [FromQuery] DateTime? updatedTo = null,
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10)
         {
             var currentUser = GetCurrentUser();
             if (currentUser == null)
@@ -169,7 +171,7 @@ namespace StudyHub.Backend.Api.Controllers
                 return Forbid();
 
             var (documents, totalCount) = _documentService.GetManagerSchoolDocuments(
-                schoolId, query, categoryId, grade, subject, classId, isApproved, status, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
+                schoolId, query, categoryId, grade, subject, classId, isApproved, status, hasEditRequest, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
             return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
         }
 
@@ -374,6 +376,10 @@ namespace StudyHub.Backend.Api.Controllers
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
             var document = _documentService.RevokeApproval(dto.DocumentId, currentUserId.Value);
+
+            document.Status = true;
+            _documentService.UpdateDocumentAsync(document);
+
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
@@ -473,7 +479,46 @@ namespace StudyHub.Backend.Api.Controllers
             var dtos = documents.Select(d => d.ToListDto()).ToList();
             return Ok(new { success = true, data = dtos });
         }
+        [HttpPost("request-edit")]
+        public IActionResult RequestEdit([FromBody] ApprovalDto dto)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
+            var document = _documentService.RequestEditDocument(dto.DocumentId, currentUserId.Value);
+            return Ok(new { success = true, data = document.ToDetailDto() });
+        }
+        [HttpPost("approve-edit-request")]
+        public IActionResult ApproveEditRequest([FromBody] ApprovalDto dto)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            var document = _documentService.ApproveEditRequest(dto.DocumentId, currentUserId.Value);
+            return Ok(new { success = true, data = document.ToDetailDto() });
+        }
+        [HttpPost("reject-edit-request")]
+        public IActionResult RejectEditRequest([FromBody] ApprovalDto dto)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            var document = _documentService.RejectEditRequest(dto.DocumentId, currentUserId.Value);
+            return Ok(new { success = true, data = document.ToDetailDto() });
+        }
+        [HttpGet("edit-requests")]
+        public IActionResult GetEditRequestDocuments(
+    [FromQuery] bool? isRequested = null,
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10)
+        {
+            var (documents, totalCount) = _documentService.GetEditRequestDocuments(
+                isRequested, pageNumber, pageSize);
+            return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
+        }
         [HttpGet("GetAllClassesByDocumentId/{documentId:int}/classes")]
         public IActionResult GetClassesByDocument(int documentId)
         {

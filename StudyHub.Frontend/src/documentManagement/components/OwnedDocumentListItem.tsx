@@ -1,37 +1,62 @@
 // src/documentManagement/components/OwnedDocumentListItem.tsx
-import { FileText } from "lucide-react"
-import { Badge } from "@/common/components/ui/badge"
-import type { Document } from "@/documentManagement/interfaces/document"
+import { FileText } from "lucide-react";
+import { Badge } from "@/common/components/ui/badge";
+import type { Document } from "@/documentManagement/interfaces/document";
 
 interface OwnedDocumentListItemProps {
-  document: Document
-  onClick: () => void
-  onDoubleClick: () => void
-  getAccessType: (doc: Document) => string
+  document: Document;
+  onClick: () => void;
+  onDoubleClick: () => void;
+  getAccessType: (doc: Document) => string;
 }
 
 const getAccessLabel = (type: string) => {
   switch (type) {
-    case "public": return "Công khai"
-    case "school": return "Trường"
-    case "class": return "Lớp học"
-    default: return "Công khai"
+    case "public":
+      return "Công khai";
+    case "school":
+      return "Trường";
+    case "class":
+      return "Lớp học";
+    default:
+      return "Công khai";
   }
-}
+};
 
-const getApprovalStatus = (isApproved: boolean | null) => {
-  if (isApproved === true) return { label: "Đã duyệt", class: "bg-green-50 text-green-700 border-green-200" }
-  if (isApproved === false) return { label: "Từ chối", class: "bg-red-50 text-red-700 border-red-200" }
-  return { label: "Chờ duyệt", class: "bg-amber-50 text-amber-700 border-amber-200" }
-}
+const getApprovalStatus = (
+  isApproved: boolean | null,
+  hasEditRequest?: boolean
+) => {
+  if (hasEditRequest === true)
+    return {
+      label: "Chờ duyệt sửa",
+      class: "bg-orange-50 text-orange-700 border-orange-200",
+    };
+  if (isApproved === true)
+    return {
+      label: "Đã duyệt",
+      class: "bg-green-50 text-green-700 border-green-200",
+    };
+  if (isApproved === false)
+    return { label: "Từ chối", class: "bg-red-50 text-red-700 border-red-200" };
+  return {
+    label: "Chờ duyệt",
+    class: "bg-amber-50 text-amber-700 border-amber-200",
+  };
+};
 
-export default function OwnedDocumentListItem({ document, onClick, onDoubleClick, getAccessType }: OwnedDocumentListItemProps) {
-  const accessType = getAccessType(document)
-  const status = getApprovalStatus(document.isApproved)
+export default function OwnedDocumentListItem({
+  document,
+  onClick,
+  onDoubleClick,
+  getAccessType,
+}: OwnedDocumentListItemProps) {
+  const accessType = getAccessType(document);
+  const status = getApprovalStatus(document.isApproved, document.isRequested);
 
   return (
     <div
-      className="group grid grid-cols-[32px_1fr_90px_90px_120px_90px_90px] items-center gap-3 px-4 py-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors"
+      className="group grid grid-cols-[32px_1fr_90px_90px_120px_90px_90px_32px] items-center gap-3 px-4 py-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors"
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
@@ -57,15 +82,16 @@ export default function OwnedDocumentListItem({ document, onClick, onDoubleClick
         {getAccessLabel(accessType)}
       </span>
 
-      <span className="text-xs text-slate-500">
-        Lớp {document.grade}
-      </span>
+      <span className="text-xs text-slate-500">Lớp {document.grade}</span>
 
       <span className="text-xs text-slate-500 truncate">
         {document.subjectName || "-"}
       </span>
 
-      <Badge variant="outline" className={`text-xs font-normal justify-center ${status.class}`}>
+      <Badge
+        variant="outline"
+        className={`text-xs font-normal justify-center ${status.class}`}
+      >
         {status.label}
       </Badge>
 
@@ -73,5 +99,5 @@ export default function OwnedDocumentListItem({ document, onClick, onDoubleClick
         {new Date(document.createdAt).toLocaleDateString("vi-VN")}
       </span>
     </div>
-  )
+  );
 }
