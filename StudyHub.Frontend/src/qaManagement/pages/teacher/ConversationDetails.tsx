@@ -9,29 +9,29 @@ import { Textarea } from "@/common/components/ui/textarea";
 import { ScrollArea } from "@/common/components/ui/scroll-area";
 import { Badge } from "@/common/components/ui/badge";
 import { Paperclip, Send } from "lucide-react";
-import { axiosInstance } from "@/lib/axios";
+import { useConversationStore } from "@/qaManagement/stores/useConversationStore";
+import { useMessageStore } from "@/qaManagement/stores/useMessageStore";
+import type { Message } from "@/qaManagement/interfaces/message";
+import type { Conversation } from "@/qaManagement/interfaces/conversation";
 import { formatLastOnline, formatTime } from "@/qaManagement/utils/dateUtils";
+import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
+import { useQAUserStore } from "@/qaManagement/stores/useUserStore";
 import { useParams } from "react-router-dom";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-
-type Message = {
-  id: string;
-  senderId: string; // 'me' or other
-  content: string;
-  createdAt: string;
-};
+import { createFallBack } from "@/qaManagement/utils/avatarUtils";
 
 const ConversationDetails: React.FC = () => {
   const { id: conversationId } = useParams();
   const { user } = useAuthStore();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [conversation, setConversation] = useState<{
-    id: string;
-    title?: string;
-    teacherId?: string | null;
-    teacherName?: string | null;
-    teacherAvatar?: string | null;
-    createdAt?: string;
+  const [messages, setMessages] = useState<Partial<Message>[]>([]);
+  const [conversation, setConversation] =
+    useState<Partial<Conversation> | null>(null);
+
+  // presence for the other party (student) — prefer presence store
+  const onlineUsers = useUserOnlineStore((s) => s.onlineUsers);
+  const [studentPresence, setStudentPresence] = useState<{
+    isOnline?: boolean;
+    lastSeen?: string | null;
   } | null>(null);
 
   const [text, setText] = useState("");
@@ -39,6 +39,17 @@ const ConversationDetails: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<any>(null);
+  // subscribe to store messages & typing
+  const storeMessages = useMessageStore((s) => s.messages);
+  const storeTypingUsers = useMessageStore((s) => s.typingUsers || []);
+  const isTyping = Boolean(
+    storeTypingUsers.find(
+      (t: any) =>
+        String(t?.conversationId) === String(conversationId) &&
+        t?.isTyping === true
+    )
+  );
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -48,6 +59,18 @@ const ConversationDetails: React.FC = () => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
+  // react to store messages changes
+  useEffect(() => {
+    if (!storeMessages) return;
+    const mapped = (storeMessages || []).map((d: any) => ({
+      id: d.id,
+      senderId: String(d.senderId),
+      content: d.content ?? d.Content ?? "",
+      createdAt: new Date(d.createdAt ?? d.CreatedAt).toISOString(),
+    }));
+    setMessages(mapped);
+  }, [storeMessages]);
+
   useEffect(() => {
     if (!conversationId) return;
     let mounted = true;
@@ -55,41 +78,53 @@ const ConversationDetails: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const convResp = await axiosInstance.get(
-          `/QAConversation/${conversationId}`
-        );
-        const convJson = convResp.data;
-        if (convJson && convJson.success && convJson.data) {
-          const c = convJson.data;
-          if (mounted) {
-            setConversation({
-              id: c.id,
-              title: c.title,
-              teacherId: c.teacherId ?? null,
-              teacherName: c.teacherName ?? null,
-              teacherAvatar: c.teacherAvatar ?? null,
-              createdAt: c.createdAt
-                ? new Date(c.createdAt).toISOString()
-                : undefined,
+        await useConversationStore
+          .getState()
+          .getConversationById(conversationId);
+        const found = useConversationStore.getState().conversation;
+        if (found && mounted) {
+          // for teacher view, show the student (other party) in the header
+          setConversation({
+            id: found.id,
+            title: found.title,
+            studentId: found.studentId ?? null,
+            studentName: found.studentName ?? null,
+            studentAvatar: found.studentAvatar ?? null,
+            createdAt: found.createdAt
+              ? new Date(found.createdAt).toISOString()
+              : undefined,
+          });
+          // initial presence snapshot for student (other party)
+          let presence: any = null;
+          try {
+            presence = await useQAUserStore
+              .getState()
+              .getUserStatus(found.studentId ?? "");
+          } catch (err) {
+            // ignore
+          }
+          if (presence) {
+            setStudentPresence({
+              isOnline: presence.isOnline,
+              lastSeen: presence.lastSeen,
             });
+          } else {
+            setStudentPresence({ isOnline: false, lastSeen: null });
           }
         }
 
-        const resp = await axiosInstance.get(
-          `/QAMessage/conversation/${conversationId}`
-        );
-        const json = resp.data;
-        if (json && json.success && Array.isArray(json.data)) {
-          if (!mounted) return;
-          const mapped = json.data.map((d: any) => ({
+        await useMessageStore
+          .getState()
+          .getMessagesByConversationId(conversationId);
+        const msgs = useMessageStore.getState().messages || [];
+        if (mounted) {
+          const mapped = msgs.map((d: any) => ({
             id: d.id,
             senderId: String(d.senderId),
             content: d.content ?? "",
             createdAt: new Date(d.createdAt ?? d.CreatedAt).toISOString(),
           }));
           setMessages(mapped);
-        } else {
-          setError(json?.message ?? "Không thể tải tin nhắn");
         }
       } catch (err: any) {
         setError(err?.message ?? String(err));
@@ -98,14 +133,66 @@ const ConversationDetails: React.FC = () => {
       }
     };
     load();
+    // start chat connection and join this conversation
+    (async () => {
+      try {
+        await useMessageStore.getState().startChat?.();
+        await useMessageStore.getState().joinConversation?.(conversationId);
+      } catch (err) {
+        console.warn("chat join failed", err);
+      }
+    })();
     return () => {
       mounted = false;
+      // leave conversation and stop connection when unmounting
+      (async () => {
+        try {
+          await useMessageStore.getState().leaveConversation?.(conversationId);
+          // optionally stop the chat connection entirely if you want to free resources
+          // await useMessageStore.getState().stopChat?.();
+        } catch (err) {
+          console.warn("leave conversation failed", err);
+        }
+      })();
     };
   }, [conversationId]);
 
+  // reactively update studentPresence from presence snapshot
+  useEffect(() => {
+    if (!conversation?.studentId) return;
+    const sid = String(conversation.studentId ?? "")
+      .toLowerCase()
+      .trim();
+    if (!sid) return;
+    const found = (onlineUsers || []).find(
+      (u: any) =>
+        String(u?.userId ?? "")
+          .toLowerCase()
+          .trim() === sid
+    );
+    const next = found
+      ? { isOnline: found.isOnline === true, lastSeen: found.lastSeen ?? null }
+      : { isOnline: false, lastSeen: null };
+    setStudentPresence((prev) => {
+      if (
+        prev?.isOnline === true &&
+        (prev?.lastSeen ?? null) === null &&
+        next.isOnline === false &&
+        (next.lastSeen ?? null) === null
+      )
+        return prev;
+      if (
+        prev?.isOnline === next.isOnline &&
+        (prev?.lastSeen ?? null) === (next.lastSeen ?? null)
+      )
+        return prev;
+      return next;
+    });
+  }, [onlineUsers, conversation?.studentId]);
+
   const onSend = () => {
     if (!text.trim()) return;
-    const m: Message = {
+    const m: Partial<Message> = {
       id: String(Date.now()),
       senderId: user?.id || "unknown",
       content: text.trim(),
@@ -121,20 +208,18 @@ const ConversationDetails: React.FC = () => {
     setText("");
     (async () => {
       try {
-        const resp = await axiosInstance.post(`/QAMessage`, payload);
-        const json = resp.data;
-        if (json && json.success && json.data) {
-          const d = json.data;
-          const serverMsg: Message = {
-            id: d.id,
-            senderId: String(d.senderId),
-            content: d.content ?? d.Content ?? "",
-            createdAt: new Date(d.createdAt ?? d.CreatedAt).toISOString(),
-          };
-          setMessages((s) => [...s.filter((x) => x.id !== m.id), serverMsg]);
-        } else {
-          setError(json?.message ?? "Lỗi khi gửi tin nhắn");
-        }
+        await useMessageStore.getState().sendMessage(payload);
+        await useMessageStore
+          .getState()
+          .getMessagesByConversationId(conversationId || "");
+        const msgs = useMessageStore.getState().messages || [];
+        const mapped = msgs.map((d: any) => ({
+          id: d.id,
+          senderId: String(d.senderId),
+          content: d.content ?? d.Content ?? "",
+          createdAt: new Date(d.createdAt ?? d.CreatedAt).toISOString(),
+        }));
+        setMessages(mapped);
       } catch (err: any) {
         setError(err?.message ?? String(err));
       }
@@ -148,25 +233,50 @@ const ConversationDetails: React.FC = () => {
     }
   };
 
+  const onTextChange = (val: string) => {
+    setText(val);
+    if (!conversationId) return;
+    try {
+      useMessageStore.getState().sendTyping?.(conversationId, true);
+    } catch (err) {
+      console.warn("sendTyping start failed", err);
+    }
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      try {
+        useMessageStore.getState().sendTyping?.(conversationId, false);
+      } catch (err) {
+        console.warn("sendTyping stop failed", err);
+      }
+    }, 10000);
+  };
+
   return (
     <div className="flex flex-col h-full ">
       <header className="flex items-center gap-4 p-4 border-b">
         <div className="relative">
           <Avatar className="h-10 w-10 border border-gray-300">
-            {conversation?.teacherAvatar ? (
+            {conversation?.studentAvatar ? (
               <AvatarImage
-                src={conversation.teacherAvatar}
-                alt={conversation.teacherName ?? "Teacher"}
+                src={conversation.studentAvatar}
+                alt={conversation.studentName ?? "Người học"}
               />
             ) : (
               <AvatarFallback>
-                {(conversation?.teacherName ?? "T").charAt(0)}
+                {conversation?.studentName
+                  ? createFallBack(conversation?.studentName)
+                  : "H"}
               </AvatarFallback>
             )}
           </Avatar>
           <span
             aria-hidden
             className={`absolute right-0.5 top-0.5 translate-x-1/4 -translate-y-1/4 w-3 h-3 rounded-full ring-1 ring-white ${(() => {
+              if (studentPresence) {
+                return studentPresence.isOnline === true
+                  ? "bg-emerald-500"
+                  : "bg-gray-400";
+              }
               const last = messages.length
                 ? messages[messages.length - 1].createdAt
                 : conversation?.createdAt;
@@ -181,11 +291,16 @@ const ConversationDetails: React.FC = () => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <div className="font-semibold">
-              {conversation?.teacherName ?? "Người hỗ trợ"}
+              {conversation?.studentName ?? "Người học"}
             </div>
             <Badge
               variant="outline"
               className={`border-emerald-200 ${(() => {
+                if (studentPresence) {
+                  return studentPresence.isOnline === true
+                    ? "text-emerald-700 bg-emerald-50"
+                    : "text-gray-600 bg-gray-100";
+                }
                 const last = messages.length
                   ? messages[messages.length - 1].createdAt
                   : conversation?.createdAt;
@@ -199,10 +314,14 @@ const ConversationDetails: React.FC = () => {
               })()}`}
             >
               {(() => {
+                if (studentPresence)
+                  return studentPresence.isOnline === true
+                    ? "Đang hoạt động"
+                    : "Ngoại tuyến";
                 const last = messages.length
                   ? messages[messages.length - 1].createdAt
                   : conversation?.createdAt;
-                if (!last) return "Offline";
+                if (!last) return "Ngoại tuyến";
                 const diff = Math.floor(
                   (Date.now() - new Date(last).getTime()) / 1000
                 );
@@ -212,9 +331,13 @@ const ConversationDetails: React.FC = () => {
           </div>
           <div className="text-sm text-muted-foreground">
             {(() => {
-              const last = messages.length
-                ? messages[messages.length - 1].createdAt
-                : conversation?.createdAt;
+              // show presence/last seen in header; typing UI moved to chat bubble
+              if (studentPresence?.isOnline === true) return "Đang hoạt động";
+              const last =
+                studentPresence?.lastSeen ??
+                (messages.length
+                  ? messages[messages.length - 1].createdAt
+                  : conversation?.createdAt);
               return last ? formatLastOnline(last) : "Không hoạt động";
             })()}
           </div>
@@ -250,12 +373,48 @@ const ConversationDetails: React.FC = () => {
                         isMe ? "text-blue-100" : "text-muted-foreground"
                       }`}
                     >
-                      {formatTime(m.createdAt)}
+                      {formatTime(m.createdAt ?? "")}
                     </div>
                   </div>
                 </div>
               );
             })}
+            {isTyping && (
+              <div className="flex justify-start">
+                <div className="max-w-[70%] bg-gray-200 text-gray-700 rounded-r-xl rounded-tl-xl px-4 py-2 text-sm flex items-center">
+                  <div className="flex items-center space-x-1">
+                    <span
+                      className="typing-dot"
+                      style={{ animationDelay: "0s" }}
+                    />
+                    <span
+                      className="typing-dot"
+                      style={{ animationDelay: "0.12s" }}
+                    />
+                    <span
+                      className="typing-dot"
+                      style={{ animationDelay: "0.24s" }}
+                    />
+                  </div>
+                  <style>{`
+                    @keyframes typingBounce {
+                      0% { transform: translateY(0); opacity: 0.6 }
+                      25% { transform: translateY(-6px); opacity: 1 }
+                      50% { transform: translateY(0); opacity: 0.6 }
+                      100% { transform: translateY(0); opacity: 0.6 }
+                    }
+                    .typing-dot {
+                      display: inline-block;
+                      width: 8px;
+                      height: 8px;
+                      background: #374151; /* gray-700 */
+                      border-radius: 9999px;
+                      animation: typingBounce 0.9s ease-in-out infinite;
+                    }
+                  `}</style>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
@@ -268,7 +427,7 @@ const ConversationDetails: React.FC = () => {
           </button>
           <Textarea
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => onTextChange(e.target.value)}
             onKeyDown={onKeyDown}
             placeholder="Viết tin nhắn..."
             className="flex-1 max-h-36"

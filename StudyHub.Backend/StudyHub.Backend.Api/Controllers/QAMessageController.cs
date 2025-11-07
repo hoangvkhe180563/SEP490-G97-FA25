@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.UseCases.Services;
+using Microsoft.AspNetCore.SignalR;
+using StudyHub.Backend.Api.Hubs;
 using StudyHub.Backend.Api.Dtos.QADTOS;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Api.Mappers;
@@ -11,10 +13,12 @@ namespace StudyHub.Backend.Api.Controllers
     public class QAMessageController : ControllerBase
     {
         private readonly QAMessageService _service;
+        private readonly IHubContext<QAChatHub> _chatHub;
 
-        public QAMessageController(QAMessageService service)
+        public QAMessageController(QAMessageService service, IHubContext<QAChatHub> chatHub)
         {
             _service = service;
+            _chatHub = chatHub;
         }
 
         [HttpGet]
@@ -63,7 +67,7 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpPost]
-        public IActionResult CreateMessage([FromBody] CreateQAMessageRequest req)
+        public async Task<IActionResult> CreateMessage([FromBody] CreateQAMessageRequest req)
         {
             if (req == null) return BadRequest(new { Success = false, Message = "Request body is required.", Data = (object?)null });
             try
@@ -71,6 +75,16 @@ namespace StudyHub.Backend.Api.Controllers
                 // Service will determine the sender from auth; ignore req.SenderId for security
                 var created = _service.CreateQAMessage(req.ConversationId, req.Content, req.IsFromAi, req.IsPaid);
                 if (created == null) return StatusCode(500, new { Success = false, Message = "Không tạo được message", Data = (object?)null });
+                // broadcast to conversation group so connected clients receive the new message in real-time
+                try
+                {
+                    var dto = QAMessageMapper.MapToDto(created);
+                    await _chatHub.Clients.Group($"conversation-{created.Conversation.Id}").SendAsync("ReceiveMessage", dto);
+                }
+                catch
+                {
+                    // if hub broadcast fails, don't fail the request
+                }
                 return CreatedAtAction(nameof(GetQAMessage), new { id = created.Id }, new { Success = true, Message = "Tạo message thành công.", Data = QAMessageMapper.MapToDto(created) });
             }
             catch (Exception)

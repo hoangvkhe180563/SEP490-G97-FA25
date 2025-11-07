@@ -10,7 +10,7 @@ namespace StudyHub.Backend.Api.Mappers
             return new QAMessageResponse
             {
                 Id = m.Id,
-                ConversationId = m.ConversationId,
+                ConversationId = m.Conversation.Id,
                 ConversationTitle = m.Conversation?.Title ?? string.Empty,
                 SenderId = m.Sender.Id,
                 SenderName = m.Sender?.Fullname ?? string.Empty,

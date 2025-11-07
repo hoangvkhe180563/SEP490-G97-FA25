@@ -5,6 +5,7 @@ using StudyHub.Backend.Api.Dtos.QADTOS;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Api.Mappers;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using StudyHub.Backend.Api.Hubs;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -113,6 +114,49 @@ namespace StudyHub.Backend.Api.Controllers
             catch (Exception)
             {
                 return StatusCode(500, new { Success = false, Message = "Lỗi server khi lấy danh sách teachers.", Data = (object?)null });
+            }
+        }
+
+        [HttpGet("presence/online-count")]
+        public IActionResult GetOnlineCount()
+        {
+            try
+            {
+                var count = PresenceTracker.GetOnlineCount();
+                return Ok(new { Success = true, Message = "Số người online hiện tại.", Data = count });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lỗi server khi lấy số người online.", Data = (object?)null });
+            }
+        }
+
+        [HttpGet("presence/user/{userId}")]
+        public IActionResult GetUserStatus(string userId)
+        {
+            try
+            {
+                var status = PresenceTracker.GetUserStatus(userId);
+                return Ok(new { Success = true, Message = "Trạng thái người dùng.", Data = status });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lỗi server khi lấy trạng thái người dùng.", Data = (object?)null });
+            }
+        }
+
+        [HttpGet("teachers/online-exclude-connected")]
+        public IActionResult GetOnlineTeachersExcludeConnected([FromQuery] string? excludeIds = null)
+        {
+            try
+            {
+                var exclude = (excludeIds ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                var list = PresenceTracker.GetOnlineTeachersExceptConnected(exclude);
+                return Ok(new { Success = true, Message = "Danh sách giáo viên online không bao gồm đã kết nối.", Data = list });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lỗi server khi lấy danh sách giáo viên.", Data = (object?)null });
             }
         }
 
