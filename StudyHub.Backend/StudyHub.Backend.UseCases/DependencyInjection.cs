@@ -23,7 +23,6 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<ClassService>();
             services.AddScoped<ClassNotificationService>();
             services.AddScoped<ClassMemberService>();
-            services.AddScoped<ClassworkService>();
             services.AddScoped<LandingPageService>();
             services.AddScoped<PaymentInfoService>();
             services.AddScoped<PaymentService>();

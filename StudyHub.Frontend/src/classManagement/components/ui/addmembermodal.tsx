@@ -30,7 +30,11 @@ const emailRegex = (s: string) =>
   /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(s.trim());
 
 const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) => {
-  const inviteMembers = useClassStore((s) => s.inviteMembers);
+  // select inviteMembers from store
+  const inviteMembersFromHook = useClassStore((s) => s.inviteMembers);
+  // fallback to direct getter in case selector returns undefined during SSR/hydration edge-cases
+  const inviteMembers = inviteMembersFromHook ?? useClassStore.getState().inviteMembers;
+
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<Array<{ name?: string; email: string }>>([]);
@@ -82,6 +86,7 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
       setSelected([]);
       setSuggestions([]);
       setError(null);
+      setIsSending(false);
     }
   }, [open]);
 
@@ -99,25 +104,56 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
 
   const handleSend = async () => {
     setError(null);
-    const valid = selected.filter((e) => emailRegex(e));
+    // normalize and dedupe selected items, allow comma separated in query as well
+    const extras = query
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const all = Array.from(new Set([...selected, ...extras]));
+
+    const valid = all.filter((e) => emailRegex(e));
     if (valid.length === 0) {
       setError("Vui lòng thêm ít nhất 1 email hợp lệ.");
       return;
     }
 
+    if (typeof inviteMembers !== "function") {
+      setError("Chức năng mời hiện không khả dụng. Vui lòng thử lại sau.");
+      return;
+    }
+
     setIsSending(true);
+    setError(null);
     try {
+      // inviteMembers returns either { success, message, data } or throws
       const result = await inviteMembers(classId, valid, "Student");
-      setIsSending(false);
-      if (result?.success) {
+
+      // handle multiple possible shapes of response
+      if (result === true) {
         onInvited?.(result);
         onClose();
-      } else {
-        setError(result?.message ?? "Không thể gửi lời mời.");
+        return;
       }
-    } catch (err) {
-      console.error(err);
-      setError("Lỗi khi gửi lời mời.");
+
+      if (result && typeof result === "object") {
+        if (result.success === true || result?.data) {
+          onInvited?.(result);
+          onClose();
+          return;
+        } else {
+          setError(result?.message ?? "Không thể gửi lời mời.");
+          return;
+        }
+      }
+
+      // fallback: if result is falsy or unexpected
+      setError("Không thể gửi lời mời. Vui lòng thử lại sau.");
+    } catch (err: any) {
+      console.error("inviteMembers error", err);
+      // try to read server message
+      const msg = err?.response?.data?.message ?? err?.message ?? "Lỗi khi gửi lời mời.";
+      setError(msg);
+    } finally {
       setIsSending(false);
     }
   };
@@ -136,7 +172,9 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
               </DialogDescription>
             </div>
             <DialogClose asChild>
-             
+              <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close">
+                ✕
+              </Button>
             </DialogClose>
           </div>
         </DialogHeader>
@@ -157,9 +195,14 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
                   } else {
                     if (emailRegex(query)) addEmail(query);
                     else if (suggestions[0]) addEmail(suggestions[0].email);
+                    else {
+                      // if not an email and no suggestion, still push as raw text so user can edit later
+                      addEmail(query);
+                    }
                   }
                 }
               }}
+              disabled={isSending}
             />
           </div>
 
@@ -171,6 +214,8 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
                     key={idx}
                     onClick={() => addEmail(s.email)}
                     className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-3"
+                    type="button"
+                    disabled={isSending}
                   >
                     <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-sm">
                       {s.name ? s.name.split(" ").slice(-1)[0].charAt(0) : s.email.charAt(0).toUpperCase()}
@@ -190,7 +235,7 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
               {selected.map((e) => (
                 <div key={e} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100">
                   <span className="text-xs">{e}</span>
-                  <Button variant="ghost" size="sm" onClick={() => removeEmail(e)} className="h-6 w-6 p-0">
+                  <Button variant="ghost" size="sm" onClick={() => removeEmail(e)} className="h-6 w-6 p-0" disabled={isSending}>
                     <X className="w-3 h-3" />
                   </Button>
                 </div>
@@ -201,7 +246,7 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
           {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
 
           <div className="mt-4 flex justify-end gap-3">
-            <Button variant="ghost" onClick={onClose}>Hủy</Button>
+            <Button variant="ghost" onClick={onClose} disabled={isSending}>Hủy</Button>
             <Button onClick={handleSend} disabled={isSending}>
               {isSending ? "Đang gửi..." : "Mời"}
             </Button>

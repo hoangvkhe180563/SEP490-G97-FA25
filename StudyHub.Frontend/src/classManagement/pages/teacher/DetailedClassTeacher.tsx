@@ -1,10 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import {
   useParams,
   useSearchParams,
   useNavigate,
-  useLocation,
 } from "react-router-dom";
 import type { ClassWork } from "@/classManagement/interfaces/class";
 import PostComposer from "@/classManagement/components/ui/postcomposer";
@@ -23,9 +21,8 @@ import type {
   DocumentDto,
 } from "@/classManagement/interfaces/class";
 import { ChevronRight } from "lucide-react";
-import { axiosInstance } from "@/lib/axios"; // <-- dùng để gọi API đếm
+import { axiosInstance } from "@/lib/axios";
 
-/* shadcn components */
 import { Button } from "@/common/components/ui/button";
 import { Card } from "@/common/components/ui/card";
 import { Badge } from "@/common/components/ui/badge";
@@ -44,15 +41,10 @@ import {
   BreadcrumbPage,
   BreadcrumbList,
 } from "@/common/components/ui/breadcrumb";
-import { Tooltip } from "@/common/components/ui/tooltip";
-import { ScrollArea } from "@/common/components/ui/scroll-area";
-import { Separator } from "@/common/components/ui/separator";
-import { Label } from "@/common/components/ui/label";
 
 /* local type for links coming from PostComposer */
 type LinkPayload = { url: string; title?: string; thumbnail?: string };
 
-/* ===== Thẻ thông tin lớp học (dùng shadcn Card/Badge) ===== */
 const ClassInfoCard: React.FC<{
   info: ClassInfo | null;
   memberCount?: number;
@@ -83,55 +75,6 @@ const ClassInfoCard: React.FC<{
   );
 };
 
-/* ===== Thành phần hiển thị chi tiết bài tập dưới dạng dropdown (dùng Card/Button) ===== */
-const ClassWorkDropdown: React.FC<{
-  work: ClassWork;
-  submitted?: number | null;
-  total?: number | null;
-  onViewDetails?: () => void;
-}> = ({ work, submitted, total, onViewDetails }) => {
-  return (
-    <Card className="mt-2">
-      <div className="p-5">
-        <div>
-          <span className="font-semibold">Tiêu đề:</span>{" "}
-          <span className="ml-2">{work.title}</span>
-        </div>
-        <div className="mt-3">
-          <span className="font-semibold">Mô tả:</span>{" "}
-          <span className="ml-2 text-slate-600">
-            {work.description || "Không có mô tả"}
-          </span>
-        </div>
-        <div className="mt-3 flex items-center justify-between">
-          <div>
-            <div className="text-xs text-slate-400">Hạn nộp</div>
-            <div className="font-medium">
-              {work.deadline
-                ? new Date(work.deadline).toLocaleString()
-                : "Không xác định"}
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-xs text-slate-400">Đã nộp / Tổng</div>
-            <div className="font-semibold text-slate-700">
-              {submitted ?? "—"} / {total ?? "—"}
-            </div>
-          </div>
-        </div>
-        {onViewDetails && (
-          <div className="mt-4 text-right">
-            <Button onClick={onViewDetails} size="sm">
-              Xem chi tiết
-            </Button>
-          </div>
-        )}
-      </div>
-    </Card>
-  );
-};
-
-/* Small document preview card (image/pdf/other) - dùng Card/Badge */
 const DocumentPreviewCard: React.FC<{ doc: DocumentDto }> = ({ doc }) => {
   const isImage = !!(
     doc.fileType && /jpg|jpeg|png|gif|bmp|webp/i.test(String(doc.fileType))
@@ -197,7 +140,6 @@ const DocumentPreviewCard: React.FC<{ doc: DocumentDto }> = ({ doc }) => {
   );
 };
 
-/* Documents box to be rendered under the ClassInfoCard */
 const DocumentsBox: React.FC<{
   documents: DocumentDto[];
   loading: boolean;
@@ -265,6 +207,7 @@ const MemberRowSimple: React.FC<{
           size="sm"
           onClick={(e) => {
             e.stopPropagation();
+            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
             onMail && onMail(m);
           }}
         >
@@ -288,9 +231,6 @@ const DetailedClassTeacher: React.FC = () => {
   else {
     const stored = localStorage.getItem("currentUserRole");
     role = stored === "teacher" ? "teacher" : "student";
-    console.warn(
-      `DetailedClassTeacher: role not found in auth store; falling back to stored/current default role='${role}'`
-    );
   }
 
   const {
@@ -302,7 +242,10 @@ const DetailedClassTeacher: React.FC = () => {
     getDocumentsByClassId,
     isLoading,
     createNotification,
+    getClassworkSubmissions,
+    getSubmissionCount, // <--- use the new store method
   } = useClassStore();
+
   const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(
     null
   );
@@ -339,7 +282,6 @@ const DetailedClassTeacher: React.FC = () => {
         const count = await getMemberCount(Number(id));
         if (mounted) setClassMemberCount(count);
       } catch (err) {
-        console.error("Error fetching class member count via store:", err);
         if (mounted) setClassMemberCount(null);
       }
     };
@@ -359,7 +301,6 @@ const DetailedClassTeacher: React.FC = () => {
         const docs = await getDocumentsByClassId(Number(id));
         if (mounted) setDocuments(docs ?? []);
       } catch (err) {
-        console.error("Error fetching documents for class:", err);
         if (mounted) setDocuments([]);
       } finally {
         if (mounted) setDocsLoading(false);
@@ -390,45 +331,60 @@ const DetailedClassTeacher: React.FC = () => {
   }, [currentClass?.data?.students, worksFromStore]);
 
   const fetchCountsForWork = async (workId: number) => {
-    const students = currentClass?.data?.students ?? [];
-    if (students && Array.isArray(students) && students.length > 0) {
-      setMemberCounts((prev) => ({ ...prev, [workId]: students.length }));
-    } else if (memberCounts[workId] === undefined) {
-      try {
-        const memRes = await axiosInstance.get(
-          `/Class/classworks/membercount/${workId}`
-        );
-        const memRaw = memRes?.data ?? null;
-        let memCount: number | null = null;
-        if (memRaw !== null) {
-          if (typeof memRaw === "number") memCount = memRaw;
-          else if (typeof memRaw?.data === "number") memCount = memRaw.data;
-          else if (typeof memRaw?.count === "number") memCount = memRaw.count;
+    // member count
+    try {
+      const students = currentClass?.data?.students ?? [];
+      if (students && students.length > 0) {
+        setMemberCounts((prev) => ({ ...prev, [workId]: students.length }));
+      } else if (memberCounts[workId] === undefined) {
+        try {
+          if (getMemberCount) {
+            const count = await getMemberCount(workId);
+            setMemberCounts((prev) => ({ ...prev, [workId]: count }));
+          } else {
+            const res = await axiosInstance.get(
+              `/Class/classworks/membercount/${workId}`
+            );
+            const raw = res?.data ?? null;
+            let memCount: number | null = null;
+            if (raw !== null) {
+              if (typeof raw === "number") memCount = raw;
+              else if (typeof raw?.data === "number") memCount = raw.data;
+              else if (typeof raw?.count === "number") memCount = raw.count;
+            }
+            setMemberCounts((prev) => ({ ...prev, [workId]: memCount }));
+          }
+        } catch (err) {
+          setMemberCounts((prev) => ({ ...prev, [workId]: null }));
         }
-        setMemberCounts((prev) => ({ ...prev, [workId]: memCount }));
-      } catch (err) {
-        console.error("fetch membercount error:", err);
-        setMemberCounts((prev) => ({ ...prev, [workId]: null }));
       }
+    } catch (err) {
+      console.error("Unexpected member count error:", err);
     }
 
-    if (submissionCounts[workId] === undefined) {
-      try {
-        const subRes = await axiosInstance.get(
-          `/Class/classworks/submissioncount/${workId}`
-        );
-        const subRaw = subRes?.data ?? null;
-        let subCount: number | null = null;
-        if (subRaw !== null) {
-          if (typeof subRaw === "number") subCount = subRaw;
-          else if (typeof subRaw?.data === "number") subCount = subRaw.data;
-          else if (typeof subRaw?.count === "number") subCount = subRaw.count;
+    // submission count: prefer store.getSubmissionCount if available; otherwise fallback to getClassworkSubmissions
+    try {
+      // only fetch if not cached
+      if (submissionCounts[workId] === undefined || submissionCounts[workId] === null) {
+        if (typeof getSubmissionCount === "function") {
+          const count = await getSubmissionCount(workId);
+          setSubmissionCounts((prev) => ({ ...prev, [workId]: count }));
+        } else {
+          const subs = await getClassworkSubmissions(workId);
+          if (!subs) {
+            setSubmissionCounts((prev) => ({ ...prev, [workId]: 0 }));
+          } else {
+            const unique = new Set<string>();
+            subs.forEach((s) => {
+              const uid = String(s.appUserId ?? (s as any).userId ?? "");
+              if (uid) unique.add(uid);
+            });
+            setSubmissionCounts((prev) => ({ ...prev, [workId]: unique.size }));
+          }
         }
-        setSubmissionCounts((prev) => ({ ...prev, [workId]: subCount }));
-      } catch (err) {
-        console.error("fetch submissioncount error:", err);
-        setSubmissionCounts((prev) => ({ ...prev, [workId]: null }));
       }
+    } catch (err) {
+      setSubmissionCounts((prev) => ({ ...prev, [workId]: null }));
     }
   };
 
@@ -468,8 +424,7 @@ const DetailedClassTeacher: React.FC = () => {
   const [notifications, setNotifications] = useState<ClassNotification[]>([]);
 
   useEffect(() => {
-    if (!id) return;
-    if (activeTab === "exercise") {
+    if (activeTab === "exercise" && id) {
       const hasWorks = (currentClass?.data?.works ?? []).length > 0;
       if (!hasWorks) {
         getClassWorks(Number(id));
@@ -523,15 +478,7 @@ const DetailedClassTeacher: React.FC = () => {
 
       if (created) {
         setNotifications((prev) => [created, ...prev]);
-
-        try {
-          await getClassInfo(Number(id));
-        } catch (err) {
-          console.debug(
-            "Không thể reload class info ngay sau khi tạo thông báo:",
-            err
-          );
-        }
+        await getClassInfo(Number(id));
       } else {
         console.error("Tạo thông báo thất bại: createNotification trả về null");
       }
@@ -599,7 +546,6 @@ const DetailedClassTeacher: React.FC = () => {
 
   return (
     <div className="p-8 relative w-full h-full overflow-y-auto">
-      {/* Breadcrumb (shadcn) */}
       <Breadcrumb>
         <BreadcrumbList className="flex items-center gap-2 whitespace-nowrap">
           <BreadcrumbItem>
@@ -626,7 +572,6 @@ const DetailedClassTeacher: React.FC = () => {
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* Header */}
       <div className="mt-6 mb-6 flex items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-bold">
@@ -638,7 +583,6 @@ const DetailedClassTeacher: React.FC = () => {
         </div>
       </div>
 
-      {/* Main grid */}
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-8">
           <Tabs
@@ -648,10 +592,7 @@ const DetailedClassTeacher: React.FC = () => {
           >
             <div className="mb-4">
               <TabsList>
-                <TabsTrigger
-                  value="notifications"
-                  className="px-4 py-2 text-lg"
-                >
+                <TabsTrigger value="notifications" className="px-4 py-2 text-lg">
                   Thông báo
                 </TabsTrigger>
                 <TabsTrigger value="exercise" className="px-4 py-2 text-lg">
@@ -663,7 +604,6 @@ const DetailedClassTeacher: React.FC = () => {
               </TabsList>
             </div>
 
-            {/* Notifications */}
             <TabsContent value="notifications">
               <div className="mb-4">
                 <PostComposer onPost={handlePost} avatarUrl={"/vite.svg"} />
@@ -691,10 +631,8 @@ const DetailedClassTeacher: React.FC = () => {
               </div>
             </TabsContent>
 
-            {/* Exercise */}
             <TabsContent value="exercise">
               <div className="flex justify-end mb-4">
-                {/* only show Add classwork when teacher */}
                 {role === "teacher" && (
                   <Button
                     onClick={() =>
@@ -719,20 +657,15 @@ const DetailedClassTeacher: React.FC = () => {
                         <div
                           className={`bg-white border rounded-xl p-5 cursor-pointer hover:bg-blue-50 flex justify-between items-start`}
                           onClick={() => {
-                            // New logic:
-                            // - If student: navigate to detail page
-                            // - If teacher: toggle dropdown for this work (show more info)
                             if (role === "student") {
                               navigate(
                                 `/class/${role}/${id}/classwork/${w.id}/detail`
                               );
                             } else {
-                              const next =
-                                openDropdownId === w.id ? null : w.id;
+                              const next = openDropdownId === w.id ? null : w.id;
                               setOpenDropdownId(next);
-                              // when opening dropdown, fetch counts if not present
                               if (next === w.id) {
-                                fetchCountsForWork(w.id);
+                                void fetchCountsForWork(w.id);
                               }
                             }
                           }}
@@ -746,15 +679,12 @@ const DetailedClassTeacher: React.FC = () => {
                             </div>
                           </div>
                           <div className="text-right min-w-[140px]">
-                            <div className="text-xs text-slate-400">
-                              Hạn nộp
-                            </div>
+                            <div className="text-xs text-slate-400">Hạn nộp</div>
                             <div className="font-medium text-slate-800 mt-1">
                               {w.deadline
                                 ? new Date(w.deadline).toLocaleString()
                                 : "Không xác định"}
                             </div>
-                            {/* show Edit link only for teacher */}
                             {role === "teacher" && (
                               <div className="mt-3">
                                 <Button
@@ -774,18 +704,34 @@ const DetailedClassTeacher: React.FC = () => {
                             )}
                           </div>
                         </div>
-                        {/* dropdown only rendered when openDropdownId matches */}
                         {openDropdownId === w.id && (
-                          <ClassWorkDropdown
-                            work={w}
-                            submitted={submissionCounts[w.id]}
-                            total={memberCounts[w.id]}
-                            onViewDetails={() =>
-                              navigate(
-                                `/class/${role}/${id}/classwork/${w.id}/submissions`
-                              )
-                            }
-                          />
+                          <Card className="mt-2">
+                            <div className="p-5">
+                              <div>
+                                <span className="font-semibold">Tiêu đề:</span>{" "}
+                                <span className="ml-2">{w.title}</span>
+                              </div>
+                              <div className="mt-3 flex items-center justify-between">
+                                <div>
+                                  <div className="text-xs text-slate-400">Hạn nộp</div>
+                                  <div className="font-medium">
+                                    {w.deadline ? new Date(w.deadline).toLocaleString() : "Không xác định"}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-xs text-slate-400">Đã nộp / Tổng</div>
+                                  <div className="font-semibold text-slate-700">
+                                    {submissionCounts[w.id] ?? "—"} / {memberCounts[w.id] ?? "—"}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="mt-4 text-right">
+                                <Button onClick={() => navigate(`/class/${role}/${id}/classwork/${w.id}/submissions`)} size="sm">
+                                  Xem chi tiết
+                                </Button>
+                              </div>
+                            </div>
+                          </Card>
                         )}
                       </div>
                     ))}
@@ -794,10 +740,8 @@ const DetailedClassTeacher: React.FC = () => {
               </div>
             </TabsContent>
 
-            {/* Everyone */}
             <TabsContent value="everyone">
               <div className="mb-3">
-                {/* show Add member only for teachers */}
                 {role === "teacher" && (
                   <Button onClick={handleOpenAdd} className="text-base">
                     Thêm thành viên
@@ -805,9 +749,7 @@ const DetailedClassTeacher: React.FC = () => {
                 )}
               </div>
 
-              {/* ---- Explicitly separate Teacher / Students / Parents for clarity ---- */}
               <div className="space-y-4">
-                {/* Teacher section */}
                 <Card>
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-3">
@@ -831,7 +773,6 @@ const DetailedClassTeacher: React.FC = () => {
                   </div>
                 </Card>
 
-                {/* Students section */}
                 <Card>
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-3">
@@ -860,7 +801,6 @@ const DetailedClassTeacher: React.FC = () => {
                   </div>
                 </Card>
 
-                {/* Parents section */}
                 <Card>
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-3">
@@ -893,7 +833,6 @@ const DetailedClassTeacher: React.FC = () => {
           </Tabs>
         </div>
 
-        {/* Right column: show class info and documents (no role distinction) */}
         <aside className="col-span-12 lg:col-span-4">
           <div className="sticky top-6 space-y-4">
             <ClassInfoCard info={classInfo} memberCount={displayMemberCount} />
@@ -906,7 +845,6 @@ const DetailedClassTeacher: React.FC = () => {
         </aside>
       </div>
 
-      {/* Modals */}
       <MemberDetailModal
         open={!!selectedMember}
         member={selectedMember}

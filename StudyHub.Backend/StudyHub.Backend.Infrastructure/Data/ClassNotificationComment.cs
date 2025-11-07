@@ -19,7 +19,5 @@ public partial class ClassNotificationComment
 
     public DateTime? DeletedAt { get; set; }
 
-    public virtual AppUser AppUser { get; set; } = null!;
-
     public virtual ClassNotification Notification { get; set; } = null!;
 }

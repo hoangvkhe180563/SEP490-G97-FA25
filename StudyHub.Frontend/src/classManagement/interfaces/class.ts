@@ -54,7 +54,6 @@ export type ClassNotification = {
 };
 
 
-
 export interface ClassDetailResponse {
   success: boolean;
   message: string;
@@ -92,23 +91,43 @@ export type ClassWork = {
   title: string;
   description?: string | null;
   deadline?: string | null;
+  maxScore?: number | null;
+  allowSubmission?: boolean;
   [key: string]: any;
 };
 export type ClassworkSubmissionFile = {
   id: number;
   fileName: string;
   fileUrl: string;
+  // optional additional fields returned by backend
+  thumbnail?: string | null;
+  fileType?: string | null;
+  raw?: any;
 };
 
 export type ClassworkSubmission = {
   id: number;
+
   classworkId: number;
+  notificationId?: number;
+
   appUserId: string;
-  firstSubmissionTime: string;
-  latestSubmissionTime: string;
+
+  firstSubmissionTime?: string | null;
+  latestSubmissionTime?: string | null;
+
   files: ClassworkSubmissionFile[];
-  score: number | string | null;
+  submissionFiles?: ClassworkSubmissionFile[];
+
+  score?: number | string | null;
   feedback?: string | null;
+  gradedAt?: string | null;
+  gradedBy?: string | null;
+
+  submissionStatus?: string | null;
+  status?: string | null;
+
+  raw?: any;
 };
 export interface DocumentClassRef {
   id: number;
@@ -190,7 +209,25 @@ export interface ClassState {
 
   // NEW: fetch a single submission for a given user + classwork
   getSubmissionByUserAndClasswork: (classworkId: number, appUserId: string) => Promise<ClassworkSubmission | null>;
+  // Updated signature for grading to match the store implementation:
+  // notificationId (i.e. the ClassNotification id / classwork id), submissionId, score, optional feedback, optional grader id
+  gradeSubmission: (
+    notificationId: number,
+    submissionId: number,
+    score: number,
+    feedback?: string,
+    gradedBy?: string
+  ) => Promise<{
+    raw: any; success: boolean; message?: string 
+} | null>;
+
+  // NEW: efficient count of how many unique students submitted for a given classwork/notification
+  getSubmissionCount: (classworkId: number) => Promise<number | null>;
+
   getMemberCount:  (classId: number)=> Promise<number | null>;
 
   getDocumentsByClassId?: (classId: number) => Promise<DocumentDto[] | null>;
+
+  confirmMember: (classId: number, userId: string) => Promise<boolean>;
+  declineMember: (classId: number, userId: string) => Promise<boolean>;
 }

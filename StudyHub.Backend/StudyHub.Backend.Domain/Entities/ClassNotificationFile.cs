@@ -16,6 +16,10 @@ namespace StudyHub.Backend.Domain.Entities
 
         public string FileUrl { get; set; } = null!;
 
+        public string? ThumbnailUrl { get; set; }
+
+        public string? FileType { get; set; }
+
         public virtual ClassNotification Notification { get; set; } = null!;
     }
 }

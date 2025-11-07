@@ -115,12 +115,12 @@ namespace StudyHub.Backend.Api.Controllers
             if (cls == null)
                 return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
 
-            var notificationsEntities = _classNotificationService.GetClassNotifications(id);
+            var notificationsEntities = _classNotificationService.GetNotifications(id);
 
             var notifications = notificationsEntities
                 .Select(n =>
                 {
-                    var files = _classNotificationService.GetFileByNotificationId(n.Id);
+                    var files = _classNotificationService.GetFilesByNotification(n.Id);
                     var comments = _classNotificationService.GetCommentsByNotificationId(n.Id);
 
                     return n.ToNotificationDto(
