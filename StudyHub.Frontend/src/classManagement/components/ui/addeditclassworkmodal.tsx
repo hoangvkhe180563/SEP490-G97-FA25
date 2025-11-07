@@ -3,11 +3,16 @@ import { useClassStore } from "@/classManagement/stores/useClassStore";
 import { useNavigate, useParams } from "react-router-dom";
 import type { UserRole } from "@/classManagement/components/ui/classcard";
 
+/* shadcn components */
+import { Card } from "@/common/components/ui/card";
+import { Label } from "@/common/components/ui/label";
+import { Input } from "@/common/components/ui/input";
+import { Textarea } from "@/common/components/ui/textarea";
+import { Button } from "@/common/components/ui/button";
+
 const AddEditClassworkForm: React.FC = () => {
-  // include role in params so navigation can produce /class/{role}/{id}
   const params = useParams<{ role?: string; id?: string; classworkId?: string }>();
   const { role: roleParam, id: idParam, classworkId } = params;
-  // normalize role to UserRole (default to 'teacher' when missing/unknown)
   const role = (roleParam === "student" ? "student" : "teacher") as UserRole;
 
   const isEdit = !!classworkId;
@@ -20,7 +25,7 @@ const AddEditClassworkForm: React.FC = () => {
 
   useEffect(() => {
     if (isEdit && classworkId && currentClass?.data?.works) {
-      const cw = currentClass.data.works.find(w => String(w.id) === String(classworkId));
+      const cw = currentClass.data.works.find((w) => String(w.id) === String(classworkId));
       if (cw) {
         setTitle(cw.title ?? "");
         setDescription(cw.description ?? "");
@@ -50,7 +55,6 @@ const AddEditClassworkForm: React.FC = () => {
         });
       }
       await getClassWorks(Number(idParam));
-      // navigate back to class list with role-aware URL
       navigate(`/class/${role}/${idParam}?tab=exercise`);
     } catch (err) {
       console.error("Error creating/updating classwork", err);
@@ -64,55 +68,34 @@ const AddEditClassworkForm: React.FC = () => {
   };
 
   return (
-    <div className="max-w-lg mx-auto mt-8 bg-white p-6 rounded shadow">
+    <Card className="max-w-lg mx-auto mt-8 p-6">
       <h2 className="text-xl font-bold mb-4">{isEdit ? "Sửa bài tập" : "Thêm bài tập mới"}</h2>
-      <form onSubmit={handleSubmit}>
-        <div className="mb-3">
-          <label className="block text-sm font-medium mb-1">Tiêu đề</label>
-          <input
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            required
-            className="w-full border rounded px-2 py-1"
-          />
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <Label className="mb-1">Tiêu đề</Label>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
         </div>
-        <div className="mb-3">
-          <label className="block text-sm font-medium mb-1">Mô tả</label>
-          <textarea
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            className="w-full border rounded px-2 py-1"
-          />
+
+        <div>
+          <Label className="mb-1">Mô tả</Label>
+          <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
-        <div className="mb-3">
-          <label className="block text-sm font-medium mb-1">Hạn nộp</label>
-          <input
-            type="datetime-local"
-            value={deadline}
-            onChange={e => setDeadline(e.target.value)}
-            className="w-full border rounded px-2 py-1"
-          />
+
+        <div>
+          <Label className="mb-1">Hạn nộp</Label>
+          <Input type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-blue-600 text-white px-4 py-2 rounded"
-          >
-            {isEdit ? "Cập nhật" : "Thêm mới"}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="px-4 py-2 rounded border"
-          >
+          <Button type="submit" disabled={loading}>
+            {isEdit ? (loading ? "Đang cập nhật..." : "Cập nhật") : (loading ? "Đang thêm..." : "Thêm mới")}
+          </Button>
+          <Button variant="ghost" onClick={handleCancel} type="button">
             Hủy
-          </button>
+          </Button>
         </div>
       </form>
-    </div>
+    </Card>
   );
 };
 
