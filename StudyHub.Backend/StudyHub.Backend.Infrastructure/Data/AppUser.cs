@@ -99,8 +99,6 @@ public partial class AppUser
 
     public virtual ICollection<RulePattern> RulePatterns { get; set; } = new List<RulePattern>();
 
-    public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
-
     public virtual ICollection<UserForumStatus> UserForumStatuses { get; set; } = new List<UserForumStatus>();
 
     public virtual ICollection<ViolationRecord> ViolationRecordReportedByNavigations { get; set; } = new List<ViolationRecord>();

@@ -26,7 +26,8 @@ namespace StudyHub.Backend.UseCases.Repositories
             int? classId = null,
             int? pageNumber = null,
             int? pageSize = null);
-
+        (List<Document> documents, int totalCount) GetEditRequestDocuments(
+    bool? isRequested = null, int? pageNumber = null, int? pageSize = null);
         (List<Document> documents, int totalCount) GetOwnedDocuments(
             Guid creatorId,
             string? query = null,
@@ -45,6 +46,7 @@ namespace StudyHub.Backend.UseCases.Repositories
        int? classId = null,
        bool? isApproved = null,
        bool? status = null,
+       bool? hasEditRequest = null,
        DateTime? createdFrom = null,
        DateTime? createdTo = null,
        DateTime? updatedFrom = null,
@@ -61,6 +63,7 @@ namespace StudyHub.Backend.UseCases.Repositories
             int? classId = null,
             bool? isApproved = null,
             bool? status = null,
+            bool? hasEditRequest = null,
             DateTime? createdFrom = null,
             DateTime? createdTo = null,
             DateTime? updatedFrom = null,
