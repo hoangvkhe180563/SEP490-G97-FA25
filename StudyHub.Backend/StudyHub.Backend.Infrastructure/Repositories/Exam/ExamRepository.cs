@@ -230,6 +230,20 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
             return string.Empty;
         }
 
+        public int GetExamIdByResultId(string resultId)
+        {
+            try
+            {
+                var result = _context.ExamResults.Find(resultId);
+                return result?.ExamId ?? 0;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ExamRepository", "GetNumberOfQuestionsByResult exception. Inner error: " + ex.Message).LogError();
+            }
+            return 0;
+        }
+
         public bool? IsLessonExamExists(int lessonId)
         {
             try

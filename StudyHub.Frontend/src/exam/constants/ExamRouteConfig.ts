@@ -5,8 +5,8 @@ const ExamRouteConfig = {
     TAKE_EXAM: "student/take-exam/:id",
     EXAM_RESULT_LIST: "student/results",
     CLASS: {
-      EXAM_LIST: "student/class/exams",
-      EXAM_RESULT_LIST: "student/class/results"
+      EXAM_LIST: "student/class-exams",
+      EXAM_RESULT_LIST: "student/class-exams/results"
     }
   },
   TEACHER: {

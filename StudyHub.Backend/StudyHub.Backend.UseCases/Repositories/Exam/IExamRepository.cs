@@ -16,5 +16,6 @@ namespace StudyHub.Backend.UseCases.Repositories.Exam
         bool CreateExam(Domain.Entities.Exam.Exam examEntity, List<string> questionObjectIds);
         bool UpdateExam(Domain.Entities.Exam.Exam examEntity);
         bool UpdateExamQuestions(int examId, List<string> questionObjectIds);
+        int GetExamIdByResultId(string resultId);
     }
 }

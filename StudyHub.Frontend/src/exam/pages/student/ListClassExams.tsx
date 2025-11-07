@@ -1,8 +1,9 @@
 import { useAuthStore } from '@/auth/stores/useAuthStore';
+import { Button } from '@/common/components/ui/button';
 import { useLoading } from '@/common/hooks/useLoading';
 import type { Exam } from '@/exam/interfaces/models/Exam';
-import type { ExamResult } from '@/exam/interfaces/models/ExamResult';
 import { ExamService } from '@/exam/services/ExamService';
+import { Eye } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -10,7 +11,6 @@ const ListClassExams = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [exams, setExams] = useState<Exam[]>([]);
-  const [userResults, setUserResults] = useState<ExamResult[]>([]);
   const { setLoading } = useLoading();
   const [error, setError] = useState<string>('');
   const examService = new ExamService();
@@ -26,12 +26,8 @@ const ListClassExams = () => {
     const fetchExamsAndResults = async () => {
       try {
         setLoading(true);
-        const [allExams, results] = await Promise.all([
-          examService.getStudentClassExams(user.id),
-          examService.getClassExamResultsByStudent(user.id)
-        ]);
+        const allExams = await examService.getStudentClassExams(user.id);
         setExams(allExams);
-        setUserResults(results);
       } catch (err) {
         console.error("Failed to fetch exams or results:", err);
         setError("Không thể tải danh sách bài kiểm tra.");
@@ -43,16 +39,12 @@ const ListClassExams = () => {
     fetchExamsAndResults();
   }, [user]);
 
-  const hasTakenExam = (examId: number) => {
-    return userResults.some(result => result.examId == examId);
-  };
-
   if (error) {
     return <div className="container mx-auto mt-8 p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>;
   }
 
   return (
-    <div className="container mx-auto mt-8 p-4">
+    <div className="p-4 overflow-y-auto h-full">
       <h1 className="text-3xl font-bold mb-6 text-gray-800">Các bài kiểm tra trong lớp</h1>
 
       {exams.length === 0 ? (
@@ -68,18 +60,14 @@ const ListClassExams = () => {
                 <span>{exam.duration} phút</span>
               </div>
               <div className="flex justify-end">
-                {hasTakenExam(exam.id) ? (
-                  <span className="px-4 py-2 bg-gray-400 text-white rounded-lg text-sm cursor-not-allowed">
-                    Đã hoàn thành
-                  </span>
-                ) : (
-                  <Link
-                    to={`/exam/student/exams/${exam.id}`}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                  >
-                    Bắt đầu làm bài
-                  </Link>
-                )}
+                <Link
+                  to={`/exam/student/exams/${exam.id}`}
+                >
+                  <Button
+                    className="bg-blue-600 text-white hover:bg-blue-700 space-x-1">
+                    <Eye /> <span>Xem chi tiết</span>
+                  </Button>
+                </Link>
               </div>
             </div>
           ))}

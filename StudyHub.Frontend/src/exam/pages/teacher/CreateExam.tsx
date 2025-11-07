@@ -7,20 +7,12 @@ import { BLANK_PLACEHOLDER, EXAM_TYPE } from '@/exam/constants/Constants';
 import type { Exam } from '@/exam/interfaces/models/Exam';
 import type { Question } from '@/exam/interfaces/models/Question';
 import { ExamService } from '@/exam/services/ExamService';
+import { getFormattedDateTime } from '@/exam/utils/ExamUtils';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-
-const getFormattedDateTime = (date: Date) => {
-  const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-};
 
 const CreateExam = () => {
   const { user } = useAuthStore();
@@ -138,8 +130,8 @@ const CreateExam = () => {
               question.options = options;
 
               if (questionType === EXAM_TYPE.SINGLE_CHOICE) {
-                question.correctAnswer = correctAnswerRaw;
-                if (!options.includes(question.correctAnswer)) {
+                question.correctAnswer = options.findIndex(o => o === correctAnswerRaw);
+                if (!options.includes(correctAnswerRaw)) {
                   rowErrors.push(`Hàng ${rowIndex + 2}: Đáp án đúng không nằm trong các lựa chọn.`);
                   isValidRow = false;
                 }
@@ -153,7 +145,8 @@ const CreateExam = () => {
                   rowErrors.push(`Hàng ${rowIndex + 2}: Một hoặc nhiều đáp án đúng không nằm trong các lựa chọn.`);
                   isValidRow = false;
                 }
-                question.correctAnswer = correctAnswersArray;
+                const correctAnswersIndex = correctAnswersArray.map(ans => options.findIndex(o => o === ans));
+                question.correctAnswer = correctAnswersIndex;
               }
             } else if (questionType === EXAM_TYPE.TEXT_INPUT) {
               question.correctAnswer = correctAnswerRaw;
@@ -302,7 +295,7 @@ const CreateExam = () => {
       const success = await examService.createExam(newExam);
       if (success) {
         toast.success('Tạo bài kiểm tra thành công!');
-        navigate('/exam/teacher/class-exams');
+        navigate(`/exam/teacher/class-exams/${classId}`);
       } else {
         toast.error('Tạo bài kiểm tra thất bại. Vui lòng thử lại.');
       }
@@ -322,7 +315,6 @@ const CreateExam = () => {
       options: [],
       correctAnswer: ''
     };
-    console.log(newQuestion.id);
     newQuestion.type = type as "single-choice" | "multiple-choice" | "text-input" | "fill-blank";
 
     if (type === EXAM_TYPE.SINGLE_CHOICE) {

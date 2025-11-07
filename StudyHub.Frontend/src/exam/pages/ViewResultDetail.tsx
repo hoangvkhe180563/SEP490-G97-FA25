@@ -13,21 +13,17 @@ import { useAuthStore } from '@/auth/stores/useAuthStore';
 const ViewResultDetail = () => {
   const { id } = useParams();
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [result, setResult] = useState<ExamResult>(DEFAULT_EXAM_RESULT);
   const [exam, setExam] = useState<Exam>(DEFAULT_EXAM);
   const { setLoading } = useLoading();
   const [error, setError] = useState<string>('');
-  const navigate = useNavigate();
   const examService = new ExamService();
   const [showAnswers, setShowAnswers] = useState<boolean>(false);
   const [showCorrectAnswers, setShowCorrectAnswers] = useState<boolean>(false);
 
   useEffect(() => {
     if (!user) {
-      return;
-    }
-    if (!user.roles.some(role => role.includes("Teacher"))) {
-      navigate("/");
       return;
     }
     if (!id) {
@@ -42,7 +38,6 @@ const ViewResultDetail = () => {
           setError("Không thể tải chi tiết kết quả.");
           return;
         }
-        console.log(fetchedResult);
         setResult(fetchedResult);
 
         const fetchedExam = await examService.getExamById(fetchedResult.examId, true);
@@ -114,7 +109,17 @@ const ViewResultDetail = () => {
 
   return (
     <div className="w-full h-full overflow-y-auto p-6">
-      <Button variant='outline' className='flex items-center' onClick={() => history.back()}>
+      <Button variant='outline' className='flex items-center' onClick={() => {
+        console.log(user);
+        if (user?.roles.some(role => role.includes("Student"))) {
+          navigate('/exam/student/class-exams');
+        } else if (user?.roles.some(role => role.includes("Teacher"))) {
+          if (exam.classId) {
+            navigate('/exam/teacher/class-exams/' + exam.classId);
+          }
+        }
+        navigate("/")
+      }}>
         <ArrowLeft />
         <span>Quay lại</span>
       </Button>

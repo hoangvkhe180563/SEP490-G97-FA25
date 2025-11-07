@@ -27,7 +27,7 @@ const ListClassResults = () => {
       try {
         setLoading(true);
         let fetchedResults = [];
-        fetchedResults = await examService.getClassExamResultsByStudent(user.id);
+        fetchedResults = await examService.getResultsByStudentAndExamId(user.id);
         fetchedResults = fetchedResults.filter(res => res.studentId == user.id);
 
         const examIds = [...new Set(fetchedResults.map(r => r.examId))];

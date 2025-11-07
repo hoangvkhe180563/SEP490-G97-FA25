@@ -1,5 +1,7 @@
 ﻿using StudyHub.Backend.Domain.Entities.Exam;
+using StudyHub.Backend.UseCases.Exceptions;
 using StudyHub.Backend.UseCases.Repositories.Exam;
+using System.Text.Json;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -147,6 +149,162 @@ namespace StudyHub.Backend.UseCases.Services
             var answers = _answerRepo.GetAnswersByResultId(resultObjectId, exam.ShowAnswers, exam.ShowCorrectAnswers);
             result.Answers = answers;
             return result;
+        }
+
+        public bool CheckExamStatus(int examId, Guid studentId)
+        {
+            return _examResultRepo.CheckExamStatus(examId, studentId);
+        }
+
+        public List<ExamResult> GetResultsByExamIdAndStudentId(int examId, Guid studentId)
+        {
+            return _examResultRepo.GetResultsByExamIdAndStudentId(examId, studentId);
+        }
+
+        public string CreateExamPaper(List<ExamAnswer> answers)
+        {
+            return _answerRepo.AddManyAnswers(answers);
+        }
+
+        public bool CreateExamResult(ExamResult result)
+        {
+            return _examResultRepo.CreateExamResult(result);
+        }
+
+        public bool UpdateExamPaper(string resultObjectId, List<ExamAnswer> answers)
+        {
+            return _answerRepo.UpdateManyAnswers(resultObjectId, answers);
+        }
+
+        public bool UpdateExamResult(ExamResult result)
+        {
+            return _examResultRepo.UpdateExamResult(result);
+        }
+
+        public bool? CheckIfResultIsSubmitted(string resultId)
+        {
+            return _examResultRepo.CheckIfResultIsSubmitted(resultId);
+        }
+
+        public bool SubmitExamResult(string resultId)
+        {
+            DateTime submissionTime = DateTime.Now;
+
+            //1. get all the answers of the exam paper
+            List<ExamAnswer> answers = _answerRepo.GetAnswersByResultId(resultId, true, false);
+
+            //2. get all the questions of the exam of the exam paper
+            int examId = _examRepo.GetExamIdByResultId(resultId);
+            if (examId == 0)
+            {
+                new UseCaseException("ExamService", "SubmitExamResult error: Cannot retrieve exam id!").LogError();
+                return false;
+            }
+            var exam = GetExamById(examId, true);
+            if (exam == null)
+            {
+                new UseCaseException("ExamService", "SubmitExamResult error: Cannot found exam!").LogError();
+                return false;
+            }
+            List<Question> questions = exam.Questions;
+            if (questions.Count != answers.Count)
+            {
+                new UseCaseException("ExamService", "SubmitExamResult error: Number of questions and answers doesn't match!").LogError();
+                return false;
+            }
+
+            //3. calculate mark
+            int corrects = 0;
+            for (int i = 0; i < questions.Count; i++)
+            {
+                switch (questions[i].Type)
+                {
+                    case QuestionType.SingleChoice:
+                        {
+                            SingleChoiceQuestion scq = questions[i] as SingleChoiceQuestion;
+                            int studentAnswer = int.Parse(answers[i].JsonAnswers);
+                            if (studentAnswer == scq.CorrectAnswer)
+                            {
+                                corrects++;
+                                answers[i].IsCorrect = true;
+                            }
+                            else
+                            {
+                                answers[i].IsCorrect = false;
+                            }
+                        }
+                        break;
+                    case QuestionType.MultipleChoice:
+                        {
+                            MultipleChoiceQuestion mcq = questions[i] as MultipleChoiceQuestion;
+                            List<int> studentAnswer = JsonSerializer.Deserialize<List<int>>(answers[i].JsonAnswers) ?? [];
+                            if (studentAnswer.Count != 0 && studentAnswer.Count == mcq.CorrectAnswer.Count && studentAnswer.All(mcq.CorrectAnswer.Contains))
+                            {
+                                corrects++;
+                                answers[i].IsCorrect = true;
+                            }
+                            else
+                            {
+                                answers[i].IsCorrect = false;
+                            }
+                        }
+                        break;
+                    case QuestionType.TextInput:
+                        {
+                            TextInputQuestion tiq = questions[i] as TextInputQuestion;
+                            string studentAnswer = answers[i].JsonAnswers;
+                            if (studentAnswer.ToLower().Trim() == tiq.CorrectAnswer.ToLower().Trim())
+                            {
+                                corrects++;
+                                answers[i].IsCorrect = true;
+                            }
+                            else
+                            {
+                                answers[i].IsCorrect = false;
+                            }
+                        }
+                        break;
+                    case QuestionType.FillBlank:
+                        {
+                            FillBlankQuestion fbq = questions[i] as FillBlankQuestion;
+                            List<string> studentAnswer = JsonSerializer.Deserialize<List<string>>(answers[i].JsonAnswers) ?? [];
+
+                            fbq.CorrectAnswer = fbq.CorrectAnswer.Select(ans => ans.ToLower().Trim()).ToList();
+                            studentAnswer = studentAnswer.Select(ans => ans.ToLower().Trim()).ToList();
+
+                            if (studentAnswer.Count != 0 && studentAnswer.Count == fbq.CorrectAnswer.Count && studentAnswer.All(fbq.CorrectAnswer.Contains))
+                            {
+                                corrects++;
+                                answers[i].IsCorrect = true;
+                            }
+                            else
+                            {
+                                answers[i].IsCorrect = false;
+                            }
+                        }
+                        break;
+                }
+            }
+            decimal score = ((decimal)corrects / questions.Count) * 10;
+
+            //4. update answer to exam paper (MongoDB)
+            bool isAnswerUpdated = _answerRepo.UpdateManyAnswers(resultId, answers);
+            if (!isAnswerUpdated)
+            {
+                new UseCaseException("ExamService", "SubmitExamResult error: Correct answers are not updated!").LogError();
+                return false;
+            }
+
+            //5. update exam result (MySQL)
+            var result = new ExamResult
+            {
+                Id = resultId,
+                SubmissionTime = DateTime.Now,
+                Score = score,
+            };
+
+            bool isResultSubmitted = _examResultRepo.SubmitExam(result);
+            return isResultSubmitted;
         }
     }
 }

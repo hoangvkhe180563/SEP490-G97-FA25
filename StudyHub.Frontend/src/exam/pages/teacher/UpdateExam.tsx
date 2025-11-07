@@ -7,22 +7,12 @@ import { BLANK_PLACEHOLDER, EXAM_TYPE } from '@/exam/constants/Constants';
 import type { Exam } from '@/exam/interfaces/models/Exam';
 import type { Question } from '@/exam/interfaces/models/Question';
 import { ExamService } from '@/exam/services/ExamService';
+import { getFormattedDateTime } from '@/exam/utils/ExamUtils';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-
-const getFormattedDateTime = (dateInput: Date | string) => {
-  if (!dateInput) return '';
-  const date = dateInput instanceof Date ? dateInput : new Date(dateInput as any);
-  const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-};
 
 const UpdateExam = () => {
   const { id } = useParams();
@@ -58,7 +48,7 @@ const UpdateExam = () => {
     const fetchExam = async () => {
       try {
         setLoading(true);
-        const fetched = await examService.getExamById(Number(id));
+        const fetched = await examService.getExamById(Number(id), true);
         setExamTitle(fetched.title);
         setExamDescription(fetched.description);
         setExamDuration(fetched.duration.toString());

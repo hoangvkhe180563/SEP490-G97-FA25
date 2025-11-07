@@ -8,7 +8,6 @@ import { formatISO } from "date-fns";
 export class ExamService {
 
   createExam = async (examData: Exam): Promise<boolean> => {
-    console.log(examData.questions);
     const payload = {
       ...examData,
       openTime: formatISO(examData.openTime),
@@ -204,26 +203,81 @@ export class ExamService {
     return [];
   }
 
-  backupResult = async (resultData: ExamResult): Promise<boolean> => {
-    console.log("Backup data: ", resultData);
-    return true;
+  createResult = async (resultData: ExamResult): Promise<string> => {
+    const payload = {
+      ...resultData,
+      finishTime: formatISO(resultData.finishTime)
+    }
+    try {
+      const res = await axiosInstance.post("/examResult", payload, {
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      if (res.status === 200) {
+        return res.data;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error createResult: ", error);
+    }
+    return '';
   }
 
-  getClassExamResultsByStudent = async (studentId: string): Promise<ExamResult[]> => {
+  updateResult = async (resultData: ExamResult): Promise<boolean> => {
+    const payload = {
+      ...resultData,
+      submissionTime: resultData.submissionTime && formatISO(resultData.submissionTime)
+    }
     try {
-      const res = await axiosInstance.get("/examResult/class/by-student/" + studentId);
+      const res = await axiosInstance.put("/examResult", payload, {
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      if (res.status === 200) {
+        return true;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error createResult: ", error);
+    }
+    return false;
+  }
+
+  submitResult = async (resultId: string): Promise<boolean> => {
+    try {
+      const res = await axiosInstance.put(`/examResult/${resultId}/submit`, {
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      if (res.status === 200) {
+        return true;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error createResult: ", error);
+    }
+    return false;
+  }
+
+  getResultsByStudentAndExamId = async (studentId: string, examId: number): Promise<ExamResult[]> => {
+    try {
+      const res = await axiosInstance.get(`/examResult/by-exam/${examId}/${studentId}`);
       if (res.status === 200) {
         return res.data.map((item: any) => {
           return {
             id: item.id,
-            title: item.title,
-            description: item.description,
-            openTime: item.openTime,
-            closeTime: item.closeTime,
-            duration: item.duration,
-            createdBy: item.createdBy,
-            showAnswers: item.showAnswers,
-            showCorrectAnswers: item.showCorrectAnswers
+            studentId: item.studentId,
+            studentName: item.studentName,
+            examId: item.examId,
+            submissionTime: new Date(item.submissionTime),
+            score: item.score,
+            cheatTimes: item.cheatTimes
           }
         });
       } else {
@@ -319,5 +373,19 @@ export class ExamService {
       console.error("Error getLessonName: ", error);
     }
     return '';
+  }
+
+  checkExamStatus = async (studentId: string, examId: number): Promise<boolean> => {
+    try {
+      const res = await axiosInstance.get(`/examResult/by-exam/${examId}/${studentId}/status`);
+      if (res.status === 200) {
+        return res.data;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error checkExamStatus: ", error);
+    }
+    return false;
   }
 }
