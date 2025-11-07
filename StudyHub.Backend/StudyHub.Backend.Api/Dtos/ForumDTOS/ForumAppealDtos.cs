@@ -11,7 +11,7 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public string? Avatar { get; set; }
         public int SchoolId { get; set; }
         public string? SchoolName { get; set; }
-        public string ReasonPreview { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
         public bool? Status { get; set; }
         public string StatusText { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }

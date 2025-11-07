@@ -158,7 +158,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         public async Task<(List<ForumComment> comments, int totalCount)> GetModeratorCommentsAsync(
-            int schoolId,
             int? postId = null,
             string? commentStatus = null,
             int? minViolationScore = null,
@@ -171,7 +170,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 var dbQuery = _context.ForumComments
                     .Include(c => c.CreatedByNavigation)
-                    .Where(c => c.Id == schoolId && c.DeletedAt == null);
+                    .Where(c => c.DeletedAt == null);
 
                 if (postId.HasValue)
                     dbQuery = dbQuery.Where(c => c.PostId == postId.Value);

@@ -19,6 +19,7 @@
         public AppUser? Creator { get; set; }
         public int ReplyCount { get; set; }
         public List<ForumComment>? Replies { get; set; }
+        public List<ViolationRecord> ViolationRecords { get; set; } = new List<ViolationRecord>();
         public List<ForumAttachment>? Attachments { get; set; }
     }
 }

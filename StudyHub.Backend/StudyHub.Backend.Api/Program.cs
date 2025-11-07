@@ -104,5 +104,6 @@ app.MapControllers();
 app.MapHub<ClassNotificationHub>("/hubs/class-notification");
 app.MapHub<QAChatHub>("/hubs/qa-chat");
 app.MapHub<UserPresenseHub>("/hubs/user-presense");
+app.MapHub<ForumHub>("/hubs/forum");
 
 app.Run();

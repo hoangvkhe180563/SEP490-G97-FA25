@@ -1,3 +1,4 @@
+//src/forumManagement/components/PostCard.tsx
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
 // import { Input } from "@/common/components/ui/input";

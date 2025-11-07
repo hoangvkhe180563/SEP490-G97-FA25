@@ -27,3 +27,10 @@ export function createChatConnection() {
     .withAutomaticReconnect()
     .build();
 }
+export function createForumFuncConnection() {
+  const base = hubBase();
+  return new signalR.HubConnectionBuilder()
+    .withUrl(`${base}/hubs/forum`, { withCredentials: true })
+    .withAutomaticReconnect()
+    .build();
+}

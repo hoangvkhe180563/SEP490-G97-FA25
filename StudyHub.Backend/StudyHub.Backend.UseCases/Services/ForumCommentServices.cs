@@ -42,7 +42,6 @@ namespace StudyHub.Backend.UseCases.Services
         }
 
         public async Task<(List<ForumComment> comments, int totalCount)> GetModeratorCommentsAsync(
-            int schoolId,
             int? postId = null,
             string? commentStatus = null,
             int? minViolationScore = null,
@@ -52,7 +51,7 @@ namespace StudyHub.Backend.UseCases.Services
             int? pageSize = null)
         {
             return await _commentRepo.GetModeratorCommentsAsync(
-                schoolId, postId, commentStatus, minViolationScore,
+                 postId, commentStatus, minViolationScore,
                 createdFrom, createdTo, pageNumber, pageSize);
         }
 

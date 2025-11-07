@@ -30,6 +30,7 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public string FileUrl { get; set; } = string.Empty;
         public bool IsApproved { get; set; }
         public DateTime CreatedAt { get; set; }
+        public Guid CreatedBy { get; set; }
     }
 
     public class ForumAttachmentDetailDto
@@ -57,6 +58,8 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
     {
         public int? PostId { get; set; }
         public int? CommentId { get; set; }
+        public string? Url { get; set; }
+        public bool? IsApproved { get; set; }
 
         [Required]
         public IFormFile File { get; set; } = null!;
