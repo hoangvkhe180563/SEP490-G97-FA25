@@ -235,9 +235,7 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
               {selected.map((e) => (
                 <div key={e} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100">
                   <span className="text-xs">{e}</span>
-                  <Button variant="ghost" size="sm" onClick={() => removeEmail(e)} className="h-6 w-6 p-0" disabled={isSending}>
-                    <X className="w-3 h-3" />
-                  </Button>
+                 
                 </div>
               ))}
             </div>

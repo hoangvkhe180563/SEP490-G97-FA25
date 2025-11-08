@@ -327,7 +327,6 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        // DTO for comment creation
         public class CreateCommentRequest
         {
             public string Content { get; set; } = "";
