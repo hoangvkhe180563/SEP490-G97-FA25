@@ -112,6 +112,27 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
+        public List<Domain.Entities.AppUser> GetQATeachersBySubject(short subjectId)
+        {
+            try
+            {
+                var users = _context.AppUsers
+                    .Include(u => u.Roles)
+                    .Include(u => u.AppUserSubjectClasses)
+                        .ThenInclude(a => a.Subject)
+                    .Where(u => u.Roles.Any(r => (r.Name ?? "").Contains("Q&A Teacher"))
+                                && u.AppUserSubjectClasses.Any(a => a.SubjectId == subjectId))
+                    .ToList();
+
+                return users.Select(u => ToDomain(u)).ToList();
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("AppUserRepository", "GetQATeachersBySubject failed. Inner error: " + ex.Message).LogError();
+                return new List<Domain.Entities.AppUser>();
+            }
+        }
+
         public (List<Domain.Entities.AppUser>, int, int, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page, int limit)
         {
             try

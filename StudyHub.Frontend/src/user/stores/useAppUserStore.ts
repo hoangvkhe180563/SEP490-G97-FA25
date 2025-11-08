@@ -178,6 +178,8 @@ export const useAppUserStore = create<AppUserState>()(
           if (dto.email) formData.append("Email", dto.email);
           if (dto.username) formData.append("Username", dto.username);
           if (dto.fullname) formData.append("Fullname", dto.fullname);
+          if (dto.address) formData.append("Address", dto.address);
+          if (dto.phoneNumber) formData.append("PhoneNumber", dto.phoneNumber);
           if (typeof dto.communeId !== "undefined")
             formData.append("CommuneId", String(dto.communeId));
           if (typeof dto.schoolId !== "undefined")
@@ -199,6 +201,7 @@ export const useAppUserStore = create<AppUserState>()(
           });
 
           const body = res.data;
+          console.log(body);
           const success = body?.success ?? body?.Success ?? false;
           if (success) {
             // update local appUser and appUsers list if present

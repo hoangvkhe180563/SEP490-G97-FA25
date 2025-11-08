@@ -196,13 +196,15 @@ const ConversationDetails = () => {
     // start chat connection and join this conversation
     (async () => {
       try {
+        // 1. Start chat connection trước
         await useMessageStore.getState().startChat?.();
         await useMessageStore
           .getState()
           .joinConversation?.(conversationId || "");
-        // start read hub and mark this conversation as read for current user
+
+        // 2. Sau đó mới start read hub
         try {
-          await useConversationStore.getState().startRead?.();
+          // 4. Cuối cùng mới call upsertRead
           await useConversationStore
             .getState()
             .upsertRead?.(conversationId || "");
@@ -226,12 +228,6 @@ const ConversationDetails = () => {
           await useMessageStore
             .getState()
             .leaveConversation?.(conversationId || "");
-          // stop read hub when leaving
-          try {
-            await useConversationStore.getState().stopRead?.();
-          } catch (err) {
-            console.warn("stop read hub failed", err);
-          }
         } catch (err) {
           console.warn("leave conversation failed", err);
         }
@@ -493,7 +489,11 @@ const ConversationDetails = () => {
             placeholder="Viết tin nhắn..."
             className="flex-1 max-h-36"
           />
-          <Button onClick={onSend} disabled={isSending} className="flex items-center gap-2">
+          <Button
+            onClick={onSend}
+            disabled={isSending}
+            className="flex items-center gap-2"
+          >
             <Send className="w-4 h-4" /> Gửi
           </Button>
         </div>

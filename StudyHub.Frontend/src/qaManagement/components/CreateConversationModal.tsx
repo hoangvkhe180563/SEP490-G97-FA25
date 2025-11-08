@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Input } from "@/common/components/ui/input";
 import {
   Tooltip,
@@ -24,10 +24,12 @@ import {
   SelectItem,
   SelectValue,
 } from "@/common/components/ui/select";
-import { Checkbox } from "@/common/components/ui/checkbox";
+// checkbox removed: conversations are always paid
 import { useNavigate } from "react-router-dom";
-import { axiosInstance } from "@/lib/axios";
-import { Plus } from "lucide-react";
+import { useConversationStore } from "@/qaManagement/stores/useConversationStore";
+import { useTopicStore } from "@/qaManagement/stores/useTopicStore";
+import { useQAUserStore } from "@/qaManagement/stores/useUserStore";
+import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/common/components/ui/button";
 
 interface CreateConversationModalProps {
@@ -40,31 +42,42 @@ const CreateConversationModal: React.FC<CreateConversationModalProps> = ({
   createOpen,
 }) => {
   const navigate = useNavigate();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const [cTitle, setCTitle] = useState("");
-  const [cTopicId, setCTopicId] = useState<number>(0);
-  const [cTopics, setCTopics] = useState<Array<{ id: number; name: string }>>(
-    []
-  );
-  const [cIsPaid, setCIsPaid] = useState(false);
+  const [cTopicId, setCTopicId] = useState<string>("0");
+  const [cSubjectId, setCSubjectId] = useState<string>("0");
+  const [cTeacherId, setCTeacherId] = useState<string>("0");
   const [cLoading, setCLoading] = useState(false);
   const [cError, setCError] = useState<string | null>(null);
+  const getTopics = useTopicStore((s) => s.getTopics);
+  const topics = useTopicStore((s) => s.topics || []);
+  const topicsLoading = useTopicStore((s) => s.isLoading);
+  const subjectTeachers = useQAUserStore((s) => s.subjectTeachers || []);
+  const getTeachersBySubject = useQAUserStore((s) => s.getTeachersBySubject);
+  const subjectTeachersLoading = useQAUserStore(
+    (s) => s.subjectTeachersLoading ?? false
+  );
+  const subjectTeachersError = useQAUserStore(
+    (s) => s.subjectTeachersError ?? null
+  );
+  const createConv = useConversationStore((s) => s.createConversation);
+  const [teacherValidationError, setTeacherValidationError] = useState<
+    string | null
+  >(null);
 
+  // load topics and teachers once on mount
+  // we intentionally run this effect once; suppress exhaustive-deps warning
   useEffect(() => {
     // load topics for the create modal
     let mounted = true;
     const load = async () => {
       try {
-        const resp = await axiosInstance.get("/QATopic");
-        const json = resp.data;
-        if (json && json.success && Array.isArray(json.data)) {
-          if (!mounted) return;
-          const tlist = json.data.map((d: any) => ({
-            id: d.id ?? d.Id ?? 0,
-            name: d.name ?? d.Name ?? d.title ?? d.Title ?? String(d.id),
-          }));
-          setCTopics(tlist);
-          if (tlist.length > 0) setCTopicId(tlist[0].id);
-        }
+        await getTopics();
+        // get topics list; keep both selects at their placeholder defaults
+        // (do not auto-select subject/topic or teachers on mount)
+        if (!mounted) return;
+        // intentionally do not auto-select subject/topic on mount; keep placeholders
       } catch (e) {
         // ignore
       }
@@ -73,28 +86,85 @@ const CreateConversationModal: React.FC<CreateConversationModalProps> = ({
     return () => {
       mounted = false;
     };
+    // eslint-disable-next-line
   }, []);
+
+  // ensure clicking outside the modal closes it and that the trigger is blurred
+  useEffect(() => {
+    if (!createOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (
+        contentRef.current &&
+        !contentRef.current.contains(target) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(target)
+      ) {
+        setCreateOpen(false);
+        try {
+          triggerRef.current.blur();
+        } catch (err) {
+          // ignore
+        }
+      }
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [createOpen, setCreateOpen]);
+
+  // handle subject change: set subject, pick default topic for subject,
+  // fetch teachers for that subject and auto-select the first teacher if available
+  const handleSubjectChange = async (v: string) => {
+    // If the user selected the placeholder ('0'), reset both selects to defaults
+    if (!v || String(v) === "0") {
+      setCSubjectId("0");
+      setCTopicId("0");
+      setCTeacherId("0");
+      setTeacherValidationError(null);
+      return;
+    }
+
+    // set subject and keep topic at placeholder (user may choose a topic)
+    setCSubjectId(v);
+    setCTopicId("0");
+
+    // fetch teachers for this subject from server (store-managed loading)
+    const sidNum = Number(v ?? 0);
+    if (sidNum && typeof getTeachersBySubject === "function") {
+      await getTeachersBySubject(sidNum);
+    } else {
+      setCTeacherId("0");
+    }
+
+    // clear any previous validation error
+    setTeacherValidationError(null);
+  };
 
   const createConversation = async () => {
     if (!cTitle.trim()) {
       setCError("Tiêu đề là bắt buộc");
       return;
     }
+    // teacher is required
+    if (!cTeacherId || cTeacherId === "0") {
+      setTeacherValidationError("Vui lòng chọn giáo viên");
+      return;
+    }
     setCError(null);
     setCLoading(true);
     try {
+      setTeacherValidationError(null);
       const payload = {
         title: cTitle.trim(),
-        topicId: cTopicId || 0,
-        teacherId: null,
-        isPaid: cIsPaid,
+        topicId: Number(cTopicId) || 0,
+        teacherId: cTeacherId && cTeacherId !== "0" ? String(cTeacherId) : null,
+        isPaid: true,
       };
-      const resp = await axiosInstance.post("/QAConversation", payload);
-      const json = resp.data;
-      if ((json && json.success) || resp.status === 201) {
-        const id = json?.data?.id ?? json?.data?.Id;
+      const resp: any = await (createConv as any)(payload);
+      const json: any = resp;
+      if (json && (json.success || json?.status === 201)) {
+        const id = json?.data?.id ?? json?.data?.Id ?? json?.id ?? json?.Id;
         setCreateOpen(false);
-        // navigate to conversation details if id present
         if (id) navigate(`/qa/student/conversations/${id}`);
         return;
       }
@@ -106,14 +176,30 @@ const CreateConversationModal: React.FC<CreateConversationModalProps> = ({
     }
   };
 
+  const handleOpenChange = (open: boolean) => {
+    setCreateOpen(open);
+    if (!open) {
+      try {
+        triggerRef.current?.blur();
+      } catch (err) {
+        /* ignore */
+      }
+    }
+  };
+
   return (
     <div>
-      <AlertDialog open={createOpen} onOpenChange={setCreateOpen}>
+      <AlertDialog open={createOpen} onOpenChange={handleOpenChange}>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <AlertDialogTrigger asChild>
-                <Button variant="default" size="icon" className="rounded-full">
+                <Button
+                  variant="default"
+                  size="icon"
+                  className="rounded-full"
+                  ref={triggerRef}
+                >
                   <Plus className="w-20 h-20" />
                 </Button>
               </AlertDialogTrigger>
@@ -124,11 +210,11 @@ const CreateConversationModal: React.FC<CreateConversationModalProps> = ({
           </Tooltip>
         </TooltipProvider>
 
-        <AlertDialogContent>
+        <AlertDialogContent ref={contentRef as any}>
           <AlertDialogHeader>
             <AlertDialogTitle>Tạo cuộc hội thoại mới</AlertDialogTitle>
             <AlertDialogDescription>
-              Nhập tiêu đề và chọn chủ đề (tùy chọn)
+              Nhập tiêu đề và chọn chủ đề (bắt buộc)
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -146,32 +232,129 @@ const CreateConversationModal: React.FC<CreateConversationModalProps> = ({
             </div>
 
             <div>
-              <Label className="mb-2">Chủ đề</Label>
+              <Label className="mb-2">Môn</Label>
               <Select
-                value={String(cTopicId ?? 0)}
-                onValueChange={(v) => setCTopicId(Number(v))}
+                value={String(cSubjectId ?? "0")}
+                onValueChange={(v) => void handleSubjectChange(String(v))}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Chọn chủ đề (tùy chọn)" />
+                  <div className="flex items-center justify-between w-full">
+                    <SelectValue placeholder="Chọn môn (bắt buộc)" />
+                    {topicsLoading ? (
+                      <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    ) : null}
+                  </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">Chọn chủ đề (tùy chọn)</SelectItem>
-                  {cTopics.map((t) => (
-                    <SelectItem key={t.id} value={String(t.id)}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="0">Chọn môn (bắt buộc)</SelectItem>
+                  {(() => {
+                    // derive unique subjects from topics
+                    const map = new Map<string, string>();
+                    (topics || []).forEach((t: any) => {
+                      const sid = String(t?.subjectId ?? t?.SubjectId ?? "0");
+                      const sname =
+                        t?.subjectName ?? t?.SubjectName ?? t?.subject ?? "";
+                      if (sid && sid !== "0") map.set(sid, sname || sid);
+                    });
+                    return Array.from(map.entries()).map(([id, name]) => (
+                      <SelectItem key={id} value={String(id)}>
+                        {name}
+                      </SelectItem>
+                    ));
+                  })()}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Checkbox
-                id="isPaid_modal"
-                checked={cIsPaid}
-                onCheckedChange={(v) => setCIsPaid(Boolean(v))}
-              />
-              <Label htmlFor="isPaid_modal">Trả phí</Label>
+            <div>
+              <Label className="mb-2">Chủ đề</Label>
+              <Select
+                value={String(cTopicId ?? "0")}
+                onValueChange={(v) => setCTopicId(v)}
+              >
+                <SelectTrigger className="w-full">
+                  <div className="flex items-center justify-between w-full">
+                    <SelectValue placeholder="Chọn chủ đề (bắt buộc)" />
+                    {topicsLoading ? (
+                      <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    ) : null}
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Chọn chủ đề (bắt buộc)</SelectItem>
+                  {(topics || [])
+                    .filter((d: any) =>
+                      cSubjectId && cSubjectId !== "0"
+                        ? String(d?.subjectId ?? d?.SubjectId ?? "0") ===
+                          String(cSubjectId)
+                        : true
+                    )
+                    .map((d: any) => {
+                      const id = d?.id ?? d?.Id ?? 0;
+                      const name =
+                        d?.name ??
+                        d?.Name ??
+                        d?.title ??
+                        d?.Title ??
+                        String(id);
+                      return (
+                        <SelectItem key={id} value={String(id)}>
+                          {name}
+                        </SelectItem>
+                      );
+                    })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="mb-2">Chọn giáo viên (bắt buộc)</Label>
+              <Select
+                value={String(cTeacherId ?? "0")}
+                onValueChange={(v) => setCTeacherId(v)}
+              >
+                <SelectTrigger className="w-full">
+                  <div className="flex items-center justify-between w-full">
+                    <SelectValue placeholder="Chọn giáo viên (bắt buộc)" />
+                    {subjectTeachersLoading ? (
+                      <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    ) : null}
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {subjectTeachersLoading ? (
+                    <SelectItem value="0">
+                      Đang tải danh sách giáo viên...
+                    </SelectItem>
+                  ) : (
+                    <>
+                      <SelectItem value="0">
+                        Chọn giáo viên (bắt buộc)
+                      </SelectItem>
+                      {(subjectTeachers || []).map((t: any) => {
+                        const id =
+                          t?.id ?? t?.Id ?? t?.userId ?? t?.UserId ?? 0;
+                        const name =
+                          t?.fullname ??
+                          t?.fullName ??
+                          t?.name ??
+                          t?.username ??
+                          "Giáo viên";
+                        return (
+                          <SelectItem key={id} value={String(id)}>
+                            {name}
+                          </SelectItem>
+                        );
+                      })}
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+              {(subjectTeachersError || teacherValidationError) && (
+                <div className="text-sm mt-2 text-red-600">
+                  {subjectTeachersError ?? teacherValidationError}
+                </div>
+              )}
             </div>
           </div>
 
@@ -184,7 +367,14 @@ const CreateConversationModal: React.FC<CreateConversationModalProps> = ({
                 validation errors inside the modal. */}
             <div>
               <Button onClick={createConversation} disabled={cLoading}>
-                {cLoading ? "Đang tạo..." : "Tạo cuộc hội thoại"}
+                {cLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin inline-block" />
+                    Đang tạo...
+                  </>
+                ) : (
+                  "Tạo cuộc hội thoại"
+                )}
               </Button>
             </div>
           </AlertDialogFooter>

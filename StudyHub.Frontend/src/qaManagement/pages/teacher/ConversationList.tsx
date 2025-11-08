@@ -48,11 +48,6 @@ const TeacherConversationList: React.FC = () => {
       setError(null);
       try {
         await getMine();
-        try {
-          await useConversationStore.getState().startRead?.();
-        } catch (err) {
-          console.warn("start read hub failed", err);
-        }
       } catch (err: any) {
         if (mounted) setError(err?.message ?? String(err));
       }
@@ -380,12 +375,7 @@ const TeacherConversationList: React.FC = () => {
 
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center justify-between">
-                        <Link
-                          to={`/qa/teacher/conversations/${c.id}`}
-                          className="text-lg font-medium hover:underline"
-                        >
-                          {c.title}
-                        </Link>
+                        {c.title}
                       </div>
                       {Number(c.unreadCount) > 0 && (
                         <div className="absolute top-3 right-3">

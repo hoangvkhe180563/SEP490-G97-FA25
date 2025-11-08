@@ -1,13 +1,13 @@
 interface CreateConversationDTO {
   title: string;
-  teacherId: string;
+  teacherId: string | null;
   topicId: number;
   isPaid: boolean;
 }
 
 interface UpdateConversationDTO {
   title: string;
-  teacherId: string;
+  teacherId: string | null;
   topicId: number;
   isPaid: boolean;
 }

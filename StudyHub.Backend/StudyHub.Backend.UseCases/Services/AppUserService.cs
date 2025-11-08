@@ -82,6 +82,29 @@ namespace StudyHub.Backend.UseCases.Services
             return items;
         }
 
+        // Return QA teachers for a given subject id
+        public List<AppUserListDto> GetQATeachersBySubject(short subjectId)
+        {
+            var users = _userRepository.GetQATeachersBySubject(subjectId);
+            var items = new List<AppUserListDto>();
+            foreach (var u in users)
+            {
+                var roles = _roleRepository.GetRolesForUser(u.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+                items.Add(new AppUserListDto
+                {
+                    Id = u.Id,
+                    Email = u.Email,
+                    Username = u.Username,
+                    Fullname = u.Fullname,
+                    Avatar = u.Avatar,
+                    Status = (u.Status == true) ? "Active" : "Inactive",
+                    CreatedAt = u.CreatedAt.ToString("yyyy/MM/dd"),
+                    Roles = roles
+                });
+            }
+            return items;
+        }
+
         // Admin / management methods
         public AppUser? GetUserById(Guid id)
         {
@@ -126,8 +149,8 @@ namespace StudyHub.Backend.UseCases.Services
                 Username = username,
                 Fullname = fullname,
                 CommuneId = communeId,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now,
                 Status = true,
                 Avatar = uploadedUrl,
                 Gender = (gender == 1),
@@ -184,7 +207,7 @@ namespace StudyHub.Backend.UseCases.Services
 
             if (status.HasValue) user.Status = status.Value;
             if (gender.HasValue) user.Gender = (gender.Value == 1);
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
 
             string? oldAvatar = user.Avatar;
             string? uploadedUrl = null;
@@ -279,8 +302,8 @@ namespace StudyHub.Backend.UseCases.Services
                 user.IsLoginWithGoogle = false; // chuyển sang đăng nhập bằng mật khẩu
             }
             if (gender.HasValue) user.Gender = (gender.Value == 1);
-            user.UpdatedAt = DateTime.UtcNow;
-
+            user.UpdatedAt = DateTime.Now;
+                
             string? oldAvatar = user.Avatar;
             string? uploadedUrl = null;
 
@@ -343,8 +366,8 @@ namespace StudyHub.Backend.UseCases.Services
                 Username = username,
                 Fullname = fullname,
                 CommuneId = communeId,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now,
                 Status = true,
                 Avatar = avatar,
                 Gender = (gender == 1)
@@ -383,7 +406,7 @@ namespace StudyHub.Backend.UseCases.Services
             if (status.HasValue) user.Status = status.Value;
             if (!string.IsNullOrEmpty(avatar)) user.Avatar = avatar;
             if (gender.HasValue) user.Gender = (gender.Value == 1);
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
 
             try
             {
@@ -401,7 +424,7 @@ namespace StudyHub.Backend.UseCases.Services
             var user = _userRepository.GetById(id);
             if (user == null) return false;
             user.Status = false;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
             try
             {
                 _userRepository.UpdateUser(user);
@@ -418,7 +441,7 @@ namespace StudyHub.Backend.UseCases.Services
             var user = _userRepository.GetById(id);
             if (user == null) return false;
             user.Status = true;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
             try
             {
                 _userRepository.UpdateUser(user);

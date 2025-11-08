@@ -119,12 +119,30 @@ const CreateAccount: React.FC = () => {
   };
 
   const handleMessage = (msg: any) => {
-    if (msg && typeof msg === "object") {
+    // Defensive handling similar to UpdateAccount: backend may return the
+    // entity or raw field values instead of validation messages. Avoid
+    // setting those as field errors (which causes the field value to be
+    // displayed as a red error message). Show a toast instead if appropriate.
+    if (!msg) return;
+
+    if (typeof msg === "string") {
+      toast.error(msg);
+      return;
+    }
+
+    if (typeof msg === "object") {
       Object.entries(msg).forEach(([k, v]) => {
         const field = mapBackendKeyToField(k);
         const messageText = Array.isArray(v) ? v.join(", ") : String(v ?? "");
         try {
-          setError(field as any, { type: "server", message: messageText });
+          const current = getValues(field as any);
+          // If backend returned the current field value (or entity), skip
+          // setting it as a form error to avoid showing the value as an error.
+          if (String(current) === messageText) return;
+
+          if (messageText) {
+            setError(field as any, { type: "server", message: messageText });
+          }
         } catch (e) {
           toast.error(messageText || "Tạo tài khoản không thành công");
         }

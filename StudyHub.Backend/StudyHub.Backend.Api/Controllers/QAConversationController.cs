@@ -131,6 +131,20 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
+        [HttpGet("teachers/by-subject/{subjectId}")]
+        public IActionResult GetQATeachersBySubject(short subjectId)
+        {
+            try
+            {
+                var teachers = _userService.GetQATeachersBySubject(subjectId);
+                return Ok(new { Success = true, Message = "Lấy danh sách QA teachers theo môn thành công.", Data = teachers });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lỗi server khi lấy danh sách QA teachers theo môn.", Data = (object?)null });
+            }
+        }
+
         [HttpGet("presence/online-count")]
         public IActionResult GetOnlineCount()
         {

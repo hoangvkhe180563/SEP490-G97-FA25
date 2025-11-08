@@ -49,12 +49,6 @@ const ConversationList: React.FC = () => {
     const load = async () => {
       try {
         await getMine();
-        // start read hub to receive realtime unread count updates for list
-        try {
-          await useConversationStore.getState().startRead?.();
-        } catch (err) {
-          console.warn("start read hub failed", err);
-        }
       } catch (err: any) {
         if (mounted) setError(err?.message ?? String(err));
       }

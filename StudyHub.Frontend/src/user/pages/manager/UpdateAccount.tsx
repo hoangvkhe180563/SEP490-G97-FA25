@@ -57,7 +57,7 @@ const isValidVietnamPhone = (s?: string | null) => {
 };
 
 const schema = z.object({
-  email: z.string().email("Invalid email").optional(),
+  email: z.string().email("Email không hợp lệ").optional(),
   username: z.string().optional(),
   fullname: z.string().optional(),
   communeId: z.union([z.string(), z.number()]).optional(),
@@ -143,16 +143,62 @@ const UpdateAccount: React.FC = () => {
   };
 
   const handleMessage = (msg: any) => {
-    if (msg && typeof msg === "object") {
+    // Defensive handling of server messages/errors.
+    // The backend sometimes returns a structured validation error object
+    // (e.g. { Email: ["..."] }) or, in other cases, the full user object.
+    // If it's the latter we should NOT set form field errors using the
+    // field values (that causes the UI to display the current value as an error).
+    if (!msg) return;
+
+    if (typeof msg === "string") {
+      toast.error(msg);
+      return;
+    }
+
+    if (typeof msg === "object") {
       Object.entries(msg).forEach(([k, v]) => {
         const field = mapBackendKeyToField(k);
-        const messageText = Array.isArray(v) ? v.join(", ") : String(v ?? "");
-        try {
-          setError(field as any, { type: "server", message: messageText });
-        } catch (e) {
-          toast.error(messageText || "Cập nhật thất bại");
+
+        // Only treat arrays of strings or plain string messages as validation
+        // errors. If backend returned booleans/numbers/objects (common when it
+        // returns the entity), skip setting a form error to avoid showing
+        // values as error messages (e.g. avatar URL, true/false).
+        if (Array.isArray(v)) {
+          const messageText = v.join(", ");
+          try {
+            setError(field as any, { type: "server", message: messageText });
+          } catch (e) {
+            toast.error(messageText || "Cập nhật thất bại");
+          }
+          return;
         }
+
+        if (typeof v === "string") {
+          const messageText = v;
+          // Skip obvious non-error strings such as URLs or when the message
+          // equals the current form value (the backend returned the entity).
+          if (/^https?:\/\//i.test(messageText)) return;
+          try {
+            const current = form.getValues(field as any);
+            if (String(current) === messageText) return;
+            setError(field as any, { type: "server", message: messageText });
+          } catch (e) {
+            toast.error(messageText || "Cập nhật thất bại");
+          }
+          return;
+        }
+
+        // For booleans/numbers/objects skip setting field errors
+        return;
       });
+      return;
+    }
+
+    // Fallback: show whatever arrived
+    try {
+      toast.error(String(msg));
+    } catch (e) {
+      /* ignore */
     }
   };
 
@@ -206,6 +252,8 @@ const UpdateAccount: React.FC = () => {
             cityId: user.cityId ? String(user.cityId) : undefined,
             provinceId: user.provinceId ? String(user.provinceId) : undefined,
             communeId: user.communeId ? String(user.communeId) : undefined,
+            address: user.address ?? "",
+            phoneNumber: user.phoneNumber ?? "",
             schoolId: user.schoolId ? String(user.schoolId) : undefined,
             roleIds: mappedRoleIds,
             gender:
@@ -322,13 +370,16 @@ const UpdateAccount: React.FC = () => {
     if (data.address) dto.address = data.address;
 
     try {
-      const res = await updateAccount(id, dto);
-      const body = (res as any)?.data ?? res;
-      if (body?.success ?? body?.Success ?? false) {
-        toast.success(body?.message ?? "Cập nhật tài khoản thành công");
-      } else {
-        handleMessage(body?.message ?? body);
-      }
+      await updateAccount(
+        id,
+        dto,
+        () => {
+          toast.success("Cập nhật tài khoản thành công");
+        },
+        () => {
+          handleMessage("Cập nhật tài khoản thất bại");
+        }
+      );
     } catch (err: any) {
       const body = err?.response?.data ?? err?.data ?? err;
       handleMessage(body?.message ?? err?.message ?? body);
