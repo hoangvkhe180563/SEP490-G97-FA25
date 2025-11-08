@@ -1,6 +1,3 @@
-// Updated mapping to include all member fields returned by the API (address, communeId, phoneNumber, wallet, gender, schoolId, ...)
-// plus new method getSubmissionByUserAndClasswork and getDocumentsByClassId
-
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type {
@@ -24,30 +21,6 @@ const defaultClassInfo: ClassInfo = {
   description: "",
   createdAt: new Date().toISOString(),
 };
-
-export const getCurrentIsoUtc = (): string => {
-  return new Date().toISOString();
-};
-
-export const getCurrentIsoLocal = (): string => {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-
-  const year = d.getFullYear();
-  const month = pad(d.getMonth() + 1);
-  const day = pad(d.getDate());
-  const hour = pad(d.getHours());
-  const minute = pad(d.getMinutes());
-  const second = pad(d.getSeconds());
-
-  const tzMin = -d.getTimezoneOffset();
-  const sign = tzMin >= 0 ? "+" : "-";
-  const tzHour = pad(Math.floor(Math.abs(tzMin) / 60));
-  const tzMinute = pad(Math.abs(tzMin) % 60);
-
-  return `${year}-${month}-${day}T${hour}:${minute}:${second}${sign}${tzHour}:${tzMinute}`;
-};
-
 const defaultCurrentClass: ClassDetailResponse = {
   success: false,
   message: "",
@@ -483,18 +456,66 @@ export const useClassStore = create<ClassState>()(
             return { success: false, message: "No emails to invite" };
           }
 
-          // prepare body; backend contract may differ — update if needed
+          // prepare body
           const body = {
             emails,
-            role: role ?? "Student", // default role; change if UI provides role selection
+            role: role ?? "Student",
           };
 
-          // Example endpoint; change if your API is different.
-          const url = `/ClassMember/invite/${classId}`;
-          const res = await axiosInstance.post(url, body);
+          // Try several endpoint variants so we match your backend which expects:
+          // POST /api/ClassMember/invite?classId=1
+          // Also try without /api prefix or with classId path segment as fallback.
+          const endpoints = [
+            `/ClassMember/invite?classId=${encodeURIComponent(classId)}`,
+            `/api/ClassMember/invite?classId=${encodeURIComponent(classId)}`,
+            `/ClassMember/invite/${encodeURIComponent(classId)}`,
+            `/api/ClassMember/invite/${encodeURIComponent(classId)}`,
+            `/Class/${encodeURIComponent(classId)}/members/invite`,
+            `/api/Class/${encodeURIComponent(classId)}/members/invite`,
+          ];
+
+          let res: any = null;
+          let lastError: any = null;
+
+          for (const ep of endpoints) {
+            try {
+              res = await axiosInstance.post(ep, body, {
+                headers: { "Content-Type": "application/json" },
+              });
+              break; // success
+            } catch (err: any) {
+              lastError = err;
+              // If server says 404, try next endpoint variant
+              if (err?.response?.status === 404) continue;
+              // For other server responses (400/500) break and surface that error
+              if (err?.response) break;
+              // network errors - try next
+            }
+          }
+
+          if (!res) {
+            console.error(
+              "inviteMembers error (no successful endpoint)",
+              lastError
+            );
+            const serverMsg =
+              lastError?.response?.data?.message ??
+              lastError?.message ??
+              "Failed to send invites";
+            set({
+              isLoading: false,
+              success: false,
+              message: serverMsg,
+            });
+            return { success: false, message: serverMsg };
+          }
+
           const raw = res?.data ?? null;
 
-          if (!raw || raw.success === false) {
+          // Support various backend shapes:
+          // 1) { success: true/false, message, data }
+          // 2) direct payload (array/object)
+          if (raw && raw.success === false) {
             set({
               isLoading: false,
               success: false,
@@ -506,23 +527,25 @@ export const useClassStore = create<ClassState>()(
             };
           }
 
+          // Normalize positive responses:
+          const success = raw?.success ?? true;
+          const message = raw?.message ?? "Invitations sent";
+          const data = raw?.data ?? raw;
+
           set({
             isLoading: false,
-            success: true,
-            message: raw.message ?? "Invitations sent",
+            success,
+            message,
           });
 
+          // Refresh members list for the class if possible
           try {
             await get().getClassMembers(classId);
           } catch {
             // ignore refresh errors
           }
 
-          return {
-            success: true,
-            message: raw.message ?? "Invitations sent",
-            data: raw.data ?? null,
-          };
+          return { success, message, data };
         } catch (error) {
           console.error("inviteMembers error:", error);
           set({
@@ -531,35 +554,163 @@ export const useClassStore = create<ClassState>()(
             message: "Failed to send invites",
           });
           return { success: false, message: "Failed to send invites" };
+        } finally {
+          set({ isLoading: false });
         }
       },
+
+      // NEW: confirm a pending member (calls [HttpPost("{userId}/confirm")] endpoint)
+      /**
+       * Confirm a member for a class by calling POST /ClassMember/{userId}/confirm?classId={classId}
+       * Returns:
+       *  - true  => confirmed successfully
+       *  - false => API responded with success=false or non-OK status
+       *  - null  => input invalid or unexpected error
+       */
+      confirmMember: async (
+        classId: number,
+        userId: string
+      ): Promise<boolean | null> => {
+        set({ isLoading: true, success: false, message: "" });
+        try {
+          if (!classId || !userId) {
+            set({
+              isLoading: false,
+              success: false,
+              message: "classId or userId is required",
+            });
+            return null;
+          }
+
+          // Try both endpoint variants in case axiosInstance.baseURL already contains /api
+          const endpoints = [
+            `/ClassMember/${encodeURIComponent(
+              userId
+            )}/confirm?classId=${encodeURIComponent(classId)}`,
+            `/api/ClassMember/${encodeURIComponent(
+              userId
+            )}/confirm?classId=${encodeURIComponent(classId)}`,
+          ];
+
+          let res: any = null;
+          let lastError: any = null;
+
+          for (const ep of endpoints) {
+            try {
+              // POST with empty body (controller reads classId from query)
+              res = await axiosInstance.post(ep);
+              break;
+            } catch (err: any) {
+              lastError = err;
+              // If 404 try next endpoint; for other errors break to surface server response
+              if (err?.response?.status === 404) continue;
+              if (err?.response) break;
+            }
+          }
+
+          if (!res) {
+            console.error(
+              "confirmMember error (no successful endpoint)",
+              lastError
+            );
+            set({
+              isLoading: false,
+              success: false,
+              message:
+                lastError?.response?.data?.message ??
+                lastError?.message ??
+                "Failed to confirm member",
+            });
+            return false;
+          }
+
+          const raw = res?.data ?? null;
+
+          // Controller returns { success = true/false, message = "..." }
+          if (!raw || raw.success === false) {
+            set({
+              isLoading: false,
+              success: false,
+              message: raw?.message ?? "Failed to confirm member",
+            });
+            return false;
+          }
+
+          // Refresh members for the class to reflect the confirmed status
+          try {
+            await get().getClassMembers(classId);
+          } catch {
+            // ignore refresh errors
+          }
+
+          set({
+            isLoading: false,
+            success: true,
+            message: raw.message ?? "Thành viên đã được xác nhận",
+          });
+          return true;
+        } catch (err) {
+          console.error("confirmMember error:", err);
+          set({
+            isLoading: false,
+            success: false,
+            message: "Failed to confirm member",
+          });
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
       getClassWorks: async (classId: number): Promise<ClassWork[] | null> => {
         set({ isLoading: true });
         try {
-          const res = await axiosInstance.get(`/Classwork/class/${classId}`);
-          const raw = res?.data ?? null;
-
+          const endpoints = [
+            `/api/Classwork/class/${classId}`,
+            `/Classwork/class/${classId}`,
+            `/api/ClassNotification/class/${classId}`,
+            `/ClassNotification/class/${classId}`,
+          ];
+          let res: any = null;
+          let raw: any = null;
+          for (const ep of endpoints) {
+            try {
+              res = await axiosInstance.get(ep);
+              raw = res?.data ?? null;
+              if (raw !== null) break;
+            } catch (e) {
+              // try next endpoint
+            }
+          }
           if (!raw) {
-            console.warn("getClassWorks: no response data");
             set({ isLoading: false });
             return null;
           }
 
           let arr: any[] = [];
+          // support multiple shapes
           if (Array.isArray(raw.classes)) arr = raw.classes;
+          else if (Array.isArray(raw.data)) arr = raw.data;
           else if (raw.data && Array.isArray(raw.data.classes))
             arr = raw.data.classes;
-          else if (raw.data && Array.isArray(raw.data)) arr = raw.data;
           else if (Array.isArray(raw)) arr = raw;
 
-          const works: ClassWork[] = arr.map((w: any) => ({
-            id: w.id ?? w.workId ?? 0,
-            classId: w.classId ?? classId,
-            title: w.title ?? w.name ?? "",
-            description: w.description ?? w.desc ?? "",
-            deadline: w.deadline ?? w.dueDate ?? null,
-            ...w,
-          }));
+          const works: ClassWork[] = (Array.isArray(arr) ? arr : []).map(
+            (w: any) => ({
+              id: w.id ?? w.workId ?? 0,
+              classId: w.classId ?? classId,
+              title: w.title ?? w.name ?? "",
+              description: w.description ?? w.desc ?? "",
+              deadline: w.deadline ?? w.dueDate ?? null,
+              maxScore: w.maxScore ?? w.max_score ?? null,
+              allowSubmission:
+                w.allowSubmission ??
+                w.allow_submission ??
+                w.allow_submit ??
+                true,
+              ...w,
+            })
+          );
 
           set((state) => {
             const cur = state.currentClass ?? defaultCurrentClass;
@@ -583,7 +734,6 @@ export const useClassStore = create<ClassState>()(
           set({ isLoading: false });
         }
       },
-
       getClassInfo: async (id: number): Promise<ClassDetailResponse | null> => {
         set({ isLoading: true });
         try {
@@ -982,17 +1132,39 @@ export const useClassStore = create<ClassState>()(
             fd.append("Files", files[i], files[i].name);
           }
           if (links && links.length > 0) {
-            // append LinksJson so backend can parse
             fd.append("LinksJson", JSON.stringify(links));
           }
 
-          const res = await axiosInstance.post(
+          const endpoints = [
+            `/api/Classwork/${classworkId}/submit`,
             `/Classwork/${classworkId}/submit`,
-            fd,
-            {
-              headers: { "Content-Type": "multipart/form-data" },
+            `/api/ClassNotification/${classworkId}/submit`,
+            `/ClassNotification/${classworkId}/submit`,
+          ];
+
+          let res: any = null;
+          let lastError: any = null;
+          for (const ep of endpoints) {
+            try {
+              res = await axiosInstance.post(ep, fd);
+              break;
+            } catch (err: any) {
+              lastError = err;
+              if (err?.response?.status === 404) continue;
+              if (err?.response) break;
             }
-          );
+          }
+
+          if (!res) {
+            console.error("submitClasswork error (no endpoint)", lastError);
+            set({
+              isLoading: false,
+              success: false,
+              message: lastError?.message ?? "Nộp bài thất bại",
+            });
+            return null;
+          }
+
           const raw = res?.data ?? null;
           if (!raw || raw.success === false) {
             set({
@@ -1002,6 +1174,7 @@ export const useClassStore = create<ClassState>()(
             });
             return null;
           }
+
           set({
             isLoading: false,
             success: true,
@@ -1009,55 +1182,84 @@ export const useClassStore = create<ClassState>()(
           });
           return raw.data ?? raw;
         } catch (err) {
+          console.error("submitClasswork error", err);
           set({
             isLoading: false,
             success: false,
             message: "Nộp bài thất bại",
           });
-          console.error("submitClasswork error", err);
           return null;
+        } finally {
+          set({ isLoading: false });
         }
       },
 
-      // Lấy danh sách các bài nộp cho một bài tập
       getClassworkSubmissions: async (
         classworkId: number
       ): Promise<ClassworkSubmission[] | null> => {
         set({ isLoading: true });
         try {
-          const res = await axiosInstance.get(
-            `/Classwork/${classworkId}/submissions`
-          );
-          const raw = res?.data ?? null;
+          const endpoints = [
+            `/api/Classwork/${classworkId}/submissions`,
+            `/Classwork/${classworkId}/submissions`,
+            `/api/ClassNotification/${classworkId}/submissions`,
+            `/ClassNotification/${classworkId}/submissions`,
+          ];
+          let res: any = null;
+          let raw: any = null;
+          for (const ep of endpoints) {
+            try {
+              res = await axiosInstance.get(ep);
+              raw = res?.data ?? null;
+              if (raw !== null) break;
+            } catch (e) {
+              // try next
+            }
+          }
           if (!raw || raw.success === false) {
             set({ isLoading: false });
             return null;
           }
+
+          const arr =
+            raw.data ?? raw.submissions ?? raw.submissionList ?? raw ?? [];
           const subs: ClassworkSubmission[] = (
-            raw.data ??
-            raw.submissions ??
-            []
+            Array.isArray(arr) ? arr : []
           ).map((s: any) => ({
             id: s.id,
-            classworkId: s.classworkId,
-            appUserId: s.appUserId,
-            firstSubmissionTime: s.firstSubmissionTime,
-            latestSubmissionTime: s.latestSubmissionTime,
-            files: (s.files ?? []).map((f: any) => ({
+            classworkId: s.classworkId ?? s.notificationId ?? 0,
+            appUserId: s.appUserId ?? s.app_user_id ?? s.userId ?? "",
+            firstSubmissionTime:
+              s.firstSubmissionTime ??
+              s.first_submission_time ??
+              s.firstSubmittedAt ??
+              null,
+            latestSubmissionTime:
+              s.latestSubmissionTime ??
+              s.latest_submission_time ??
+              s.latestSubmittedAt ??
+              null,
+            files: (s.files ?? s.submissionFiles ?? []).map((f: any) => ({
               id: f.id,
-              fileName: f.fileName,
-              fileUrl: f.fileUrl,
+              fileName: f.fileName ?? f.file_name ?? f.name,
+              fileUrl: f.fileUrl ?? f.file_url ?? f.url,
             })),
+            score: s.score ?? s.Score ?? null,
+            submissionStatus: s.submissionStatus ?? s.status ?? null,
+            // include raw for debugging
+            raw: s,
           }));
+
           set({ isLoading: false });
           return subs;
         } catch (err) {
+          console.error("getClassworkSubmissions error:", err);
           set({ isLoading: false });
           return null;
         }
       },
 
-      // NEW: Lấy 1 submission của 1 user cho 1 classwork
+      // get a user's submission using various compatibility endpoints
       getSubmissionByUserAndClasswork: async (
         classworkId: number,
         appUserId: string
@@ -1068,35 +1270,360 @@ export const useClassStore = create<ClassState>()(
             set({ isLoading: false });
             return null;
           }
-          const url = `/Classwork/submission?classworkID=${encodeURIComponent(
-            classworkId
-          )}&userid=${encodeURIComponent(appUserId)}`;
-          const res = await axiosInstance.get(url);
-          const raw = res?.data ?? null;
+          const endpoints = [
+            `/api/Classwork/submission?classworkID=${encodeURIComponent(
+              classworkId
+            )}&userid=${encodeURIComponent(appUserId)}`,
+            `/Classwork/submission?classworkID=${encodeURIComponent(
+              classworkId
+            )}&userid=${encodeURIComponent(appUserId)}`,
+            `/api/ClassNotification/submission?notificationId=${encodeURIComponent(
+              classworkId
+            )}&userid=${encodeURIComponent(appUserId)}`,
+            `/ClassNotification/submission?notificationId=${encodeURIComponent(
+              classworkId
+            )}&userid=${encodeURIComponent(appUserId)}`,
+          ];
+
+          let res: any = null;
+          let raw: any = null;
+          for (const ep of endpoints) {
+            try {
+              res = await axiosInstance.get(ep);
+              raw = res?.data ?? null;
+              if (raw !== null) break;
+            } catch (e) {
+              // try next
+            }
+          }
+
           if (!raw || raw.success === false) {
             set({ isLoading: false });
             return null;
           }
+
           const d = raw.data ?? raw;
-          const files = (d.submissionFiles ?? []).map((f: any) => ({
+          const files = (d.submissionFiles ?? d.files ?? []).map((f: any) => ({
             id: f.id,
-            fileName: f.fileName,
-            fileUrl: f.fileUrl,
+            fileName: f.fileName ?? f.file_name ?? f.name,
+            fileUrl: f.fileUrl ?? f.file_url ?? f.url,
           }));
+
+          // Normalize classwork/notification id from many possible names, fallback to function arg
+          const candidateClassworkId =
+            d.classworkId ??
+            d.notificationId ??
+            d.notification_id ??
+            d.workId ??
+            d.work_id ??
+            classworkId;
+
           const submission: ClassworkSubmission = {
             id: d.id,
-            classworkId: d.classworkId,
-            appUserId: d.appUserId,
-            firstSubmissionTime: d.firstSubmissionTime,
-            latestSubmissionTime: d.latestSubmissionTime,
+            classworkId: Number(candidateClassworkId ?? classworkId),
+            appUserId: d.appUserId ?? d.app_user_id ?? appUserId,
+            firstSubmissionTime:
+              d.firstSubmissionTime ??
+              d.first_submission_time ??
+              d.firstSubmittedAt ??
+              null,
+            latestSubmissionTime:
+              d.latestSubmissionTime ??
+              d.latest_submission_time ??
+              d.latestSubmittedAt ??
+              null,
             files,
-            score: 50, // default score if not provided
+            score: d.score ?? d.Score ?? null,
+            submissionStatus: d.submissionStatus ?? d.status ?? null,
+            raw: d,
           };
           set({ isLoading: false });
           return submission;
         } catch (err) {
-          console.error("getSubmissionByUserAndClasswork error", err);
+          console.error("getSubmissionByUserAndClasswork error:", err);
           set({ isLoading: false });
+          return null;
+        }
+      },
+      // paste/replace vào useClassStore / class-store2.ts: gradeSubmission implementation
+      gradeSubmission: async (
+        notificationId: number,
+        submissionId: number,
+        score: number,
+        feedback?: string,
+        gradedBy?: string
+      ): Promise<{ success: boolean; message?: string; raw?: any } | null> => {
+        set({ isLoading: true, success: false, message: "" });
+        try {
+          if (
+            !notificationId ||
+            !submissionId ||
+            score === undefined ||
+            score === null
+          ) {
+            const msg = "Invalid parameters";
+            set({ isLoading: false, success: false, message: msg });
+            return { success: false, message: msg };
+          }
+
+          const body = {
+            score,
+            feedback: feedback ?? "",
+            gradedBy: gradedBy ?? "00000000-0000-0000-0000-000000000000",
+          };
+
+          // 1) try relative endpoints without /api first (safe if axiosInstance.baseURL already contains /api)
+          // 2) then try with /api prefix (in case baseURL is root)
+          // 3) finally try absolute URL built from window.location.origin to bypass baseURL entirely
+          const relativeEndpoints = [
+            `/ClassNotification/${encodeURIComponent(
+              notificationId
+            )}/submissions/${encodeURIComponent(submissionId)}/grade`,
+            `/Classwork/${encodeURIComponent(
+              notificationId
+            )}/submissions/${encodeURIComponent(submissionId)}/grade`,
+            `/ClassNotification/${encodeURIComponent(notificationId)}/grade`,
+            `/Classwork/${encodeURIComponent(notificationId)}/grade`,
+          ];
+          const prefixed = relativeEndpoints.map((e) => `/api${e}`);
+          const allCandidates = [...relativeEndpoints, ...prefixed];
+
+          let res: any = null;
+          let used: string | null = null;
+          let lastErr: any = null;
+
+          // try relative / prefixed (axiosInstance will combine with baseURL)
+          for (const ep of allCandidates) {
+            try {
+              console.debug("[gradeSubmission] try:", ep, "body:", body);
+              res = await axiosInstance.post(ep, body, {
+                headers: { "Content-Type": "application/json" },
+              });
+              used = ep;
+              break;
+            } catch (err: any) {
+              lastErr = err;
+              console.warn(
+                "[gradeSubmission] endpoint failed:",
+                ep,
+                "status:",
+                err?.response?.status,
+                "data:",
+                err?.response?.data
+              );
+            }
+          }
+
+          // if still no response, try absolute URL (bypasses axios baseURL)
+          if (!res) {
+            try {
+              const abs = `${
+                window.location.origin
+              }/api/ClassNotification/${encodeURIComponent(
+                notificationId
+              )}/submissions/${encodeURIComponent(submissionId)}/grade`;
+              console.debug(
+                "[gradeSubmission] try absolute URL:",
+                abs,
+                "body:",
+                body
+              );
+              // use fetch to avoid axios baseURL confusion (or axios with full URL works too)
+              res = await fetch(abs, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+              });
+              // fetch returns a Response object; convert to JSON if ok
+              const status = (res as any).status ?? 0;
+              const text = await (res as any).text();
+              let parsed = null;
+              try {
+                parsed = text ? JSON.parse(text) : null;
+              } catch {
+                parsed = text;
+              }
+              if (status < 200 || status >= 300) {
+                console.error(
+                  "[gradeSubmission] absolute URL failed",
+                  status,
+                  parsed
+                );
+                set({
+                  isLoading: false,
+                  success: false,
+                  message: `Grading failed: ${status} ${JSON.stringify(
+                    parsed
+                  )}`,
+                });
+                return {
+                  success: false,
+                  message: `Grading failed: ${status} ${JSON.stringify(
+                    parsed
+                  )}`,
+                  raw: parsed,
+                };
+              }
+              // success
+              used = abs;
+              // normalize fetch response to same shape as axios
+              const raw = parsed;
+              // refresh
+              try {
+                await get().getClassworkSubmissions(notificationId);
+              } catch {
+                /* empty */
+              }
+              set({
+                isLoading: false,
+                success: true,
+                message: raw?.message ?? "Graded",
+              });
+              return { success: true, message: raw?.message ?? "Graded", raw };
+            } catch (err) {
+              console.error("[gradeSubmission] absolute attempt error", err);
+              set({
+                isLoading: false,
+                success: false,
+                message: "Grading failed (absolute attempt)",
+              });
+              return {
+                success: false,
+                message: "Grading failed (absolute attempt)",
+                raw: err,
+              };
+            }
+          }
+
+          // if we have an axios response
+          const raw = res?.data ?? res;
+          console.debug("[gradeSubmission] used:", used, "response:", raw);
+          if (!raw || raw.success === false) {
+            const serverMsg = raw?.message ?? JSON.stringify(raw ?? {});
+            set({
+              isLoading: false,
+              success: false,
+              message: `Grading failed: ${serverMsg}`,
+            });
+            return {
+              success: false,
+              message: `Grading failed: ${serverMsg}`,
+              raw,
+            };
+          }
+
+          // refresh submissions
+          try {
+            await get().getClassworkSubmissions(notificationId);
+          } catch (e) {
+            console.debug("[gradeSubmission] refresh failed", e);
+          }
+
+          set({
+            isLoading: false,
+            success: true,
+            message: raw.message ?? "Graded",
+          });
+          return { success: true, message: raw.message ?? "Graded", raw };
+        } catch (err) {
+          console.error("[gradeSubmission] unexpected error", err);
+          set({
+            isLoading: false,
+            success: false,
+            message: "Failed to grade submission (unexpected error)",
+          });
+          return {
+            success: false,
+            message: "Failed to grade submission (unexpected error)",
+            raw: err,
+          };
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      getSubmissionCount: async (
+        classworkId: number
+      ): Promise<number | null> => {
+        try {
+          if (!classworkId) return null;
+
+          // Try a broad set of endpoint patterns, including the one you mentioned:
+          const endpoints = [
+            // exact pattern your server shows
+            `/api/Classwork/submissioncount/${encodeURIComponent(classworkId)}`,
+            `/Classwork/submissioncount/${encodeURIComponent(classworkId)}`,
+
+            // alternate placements
+            `/api/Classwork/${encodeURIComponent(classworkId)}/submissioncount`,
+            `/Classwork/${encodeURIComponent(classworkId)}/submissioncount`,
+
+            // ClassNotification variants (if server exposes under notification)
+            `/api/ClassNotification/submissioncount/${encodeURIComponent(
+              classworkId
+            )}`,
+            `/ClassNotification/submissioncount/${encodeURIComponent(
+              classworkId
+            )}`,
+            `/api/ClassNotification/${encodeURIComponent(
+              classworkId
+            )}/submissioncount`,
+            `/ClassNotification/${encodeURIComponent(
+              classworkId
+            )}/submissioncount`,
+
+            // query-style fallbacks
+            `/api/Classwork/submissioncount?classworkId=${encodeURIComponent(
+              classworkId
+            )}`,
+            `/Classwork/submissioncount?classworkId=${encodeURIComponent(
+              classworkId
+            )}`,
+            `/api/ClassNotification/submissioncount?notificationId=${encodeURIComponent(
+              classworkId
+            )}`,
+            `/ClassNotification/submissioncount?notificationId=${encodeURIComponent(
+              classworkId
+            )}`,
+          ];
+
+          for (const ep of endpoints) {
+            try {
+              const res = await axiosInstance.get(ep);
+              const raw = res?.data ?? null;
+              if (raw === null) continue;
+
+              // raw might be:
+              // - a plain number (e.g. 1)
+              // - { data: number } or { count: number }
+              // - { success: true, data: number }
+              // - { success: true, submissionCount: number }
+              if (typeof raw === "number") return raw;
+              if (typeof raw?.data === "number") return raw.data;
+              if (typeof raw?.count === "number") return raw.count;
+              if (typeof raw?.submissionCount === "number")
+                return raw.submissionCount;
+              if (typeof raw?.submission_count === "number")
+                return raw.submission_count;
+              // sometimes wrapped deeper:
+              if (raw?.result != null && typeof raw.result === "number")
+                return raw.result;
+              // if success + data with array, maybe server returns submissions array, skip here
+            } catch (err) {
+              // quietly try next endpoint
+            }
+          }
+
+          // Fallback: fetch full submissions list and count unique submitters
+          const subs = await get().getClassworkSubmissions(classworkId);
+          if (!subs) return 0;
+          const unique = new Set<string>();
+          subs.forEach((s) => {
+            const uid = String(s.appUserId ?? (s as any).userId ?? "");
+            if (uid) unique.add(uid);
+          });
+          return unique.size;
+        } catch (err) {
+          console.error("getSubmissionCount error:", err);
           return null;
         }
       },
@@ -1312,6 +1839,145 @@ export const useClassStore = create<ClassState>()(
             success: false,
             message: "Failed to create notification",
             isLoading: false,
+          });
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      declineMember: async (
+        classId: number,
+        userId: string
+      ): Promise<boolean | null> => {
+        set({ isLoading: true, success: false, message: "" });
+        try {
+          if (!classId || !userId) {
+            set({
+              isLoading: false,
+              success: false,
+              message: "classId or userId is required",
+            });
+            return null;
+          }
+
+          // candidate endpoints (POST preference, fallback to DELETE)
+          const postEndpoints = [
+            `/ClassMember/${encodeURIComponent(
+              userId
+            )}/decline?classId=${encodeURIComponent(classId)}`,
+            `/api/ClassMember/${encodeURIComponent(
+              userId
+            )}/decline?classId=${encodeURIComponent(classId)}`,
+            `/ClassMember/${encodeURIComponent(
+              userId
+            )}/reject?classId=${encodeURIComponent(classId)}`,
+            `/api/ClassMember/${encodeURIComponent(
+              userId
+            )}/reject?classId=${encodeURIComponent(classId)}`,
+            `/Class/${encodeURIComponent(classId)}/members/${encodeURIComponent(
+              userId
+            )}/decline`,
+            `/api/Class/${encodeURIComponent(
+              classId
+            )}/members/${encodeURIComponent(userId)}/decline`,
+            `/Class/${encodeURIComponent(classId)}/members/${encodeURIComponent(
+              userId
+            )}/reject`,
+            `/api/Class/${encodeURIComponent(
+              classId
+            )}/members/${encodeURIComponent(userId)}/reject`,
+          ];
+
+          let res: any = null;
+          let lastError: any = null;
+
+          // Try POST-style endpoints first
+          for (const ep of postEndpoints) {
+            try {
+              res = await axiosInstance.post(ep);
+              break;
+            } catch (err: any) {
+              lastError = err;
+              if (err?.response?.status === 404) continue;
+              if (err?.response) break;
+            }
+          }
+
+          // If no POST succeeded, try DELETE endpoints (some APIs use DELETE to remove invitation)
+          if (!res) {
+            const deleteEndpoints = [
+              `/Class/${encodeURIComponent(
+                classId
+              )}/members/${encodeURIComponent(userId)}`,
+              `/api/Class/${encodeURIComponent(
+                classId
+              )}/members/${encodeURIComponent(userId)}`,
+              `/ClassMember?classId=${encodeURIComponent(
+                classId
+              )}&userId=${encodeURIComponent(userId)}`,
+              `/api/ClassMember?classId=${encodeURIComponent(
+                classId
+              )}&userId=${encodeURIComponent(userId)}`,
+            ];
+            for (const dep of deleteEndpoints) {
+              try {
+                res = await axiosInstance.delete(dep);
+                break;
+              } catch (err: any) {
+                lastError = err;
+                if (err?.response?.status === 404) continue;
+                if (err?.response) break;
+              }
+            }
+          }
+
+          if (!res) {
+            console.error(
+              "declineMember error (no successful endpoint)",
+              lastError
+            );
+            set({
+              isLoading: false,
+              success: false,
+              message:
+                lastError?.response?.data?.message ??
+                lastError?.message ??
+                "Failed to decline invitation",
+            });
+            return false;
+          }
+
+          const raw = res?.data ?? null;
+
+          // If server returned { success: false } treat as failure.
+          if (raw && raw.success === false) {
+            set({
+              isLoading: false,
+              success: false,
+              message: raw?.message ?? "Failed to decline invitation",
+            });
+            return false;
+          }
+
+          // Refresh members for the class (invitation removed)
+          try {
+            await get().getClassMembers(classId);
+          } catch {
+            // ignore refresh errors
+          }
+
+          set({
+            isLoading: false,
+            success: true,
+            message: raw?.message ?? "Bạn đã từ chối lời mời",
+          });
+          return true;
+        } catch (err) {
+          console.error("declineMember error:", err);
+          set({
+            isLoading: false,
+            success: false,
+            message: "Failed to decline invitation",
           });
           return null;
         } finally {

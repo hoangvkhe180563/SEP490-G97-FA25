@@ -9,6 +9,8 @@ public partial class ClassNotification
 
     public int ClassId { get; set; }
 
+    public string Type { get; set; } = null!;
+
     public string Title { get; set; } = null!;
 
     public string? Description { get; set; }
@@ -21,7 +23,15 @@ public partial class ClassNotification
 
     public Guid AppUserId { get; set; }
 
-    public virtual AppUser AppUser { get; set; } = null!;
+    public DateTime? Deadline { get; set; }
+
+    public decimal? MaxScore { get; set; }
+
+    public string? GradeType { get; set; }
+
+    public bool AllowSubmission { get; set; }
+
+    public string? InstructionsHtml { get; set; }
 
     public virtual Class Class { get; set; } = null!;
 
@@ -30,4 +40,6 @@ public partial class ClassNotification
     public virtual ICollection<ClassNotificationFile> ClassNotificationFiles { get; set; } = new List<ClassNotificationFile>();
 
     public virtual ICollection<ClassNotificationReadStatus> ClassNotificationReadStatuses { get; set; } = new List<ClassNotificationReadStatus>();
+
+    public virtual ICollection<NotificationSubmission> NotificationSubmissions { get; set; } = new List<NotificationSubmission>();
 }

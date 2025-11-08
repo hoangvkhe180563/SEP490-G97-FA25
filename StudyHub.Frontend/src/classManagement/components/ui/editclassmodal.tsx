@@ -1,7 +1,22 @@
-// url: (update your local file)
 import React, { useEffect, useState } from "react";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+
+/* shadcn components */
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/common/components/ui/dialog";
+import { Button } from "@/common/components/ui/button";
+import { Input } from "@/common/components/ui/input";
+import { Textarea } from "@/common/components/ui/textarea";
+import { Label } from "@/common/components/ui/label";
+import { X } from "lucide-react";
 
 export type EditClassPayload = {
   id: number | string;
@@ -23,87 +38,96 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
   const { user } = useAuthStore();
   const currentUserId = user?.id ?? "";
 
+  // fetch subjects only when modal opens
+  useEffect(() => {
+    if (open) {
+      getAllSubjects?.();
+    }
+  }, [open, getAllSubjects]);
+
+  // set initial values when modal opens or classItem changes,
+  // but do NOT depend on subjects (avoids overwriting while editing)
   useEffect(() => {
     if (open && classItem) {
       setTitle(classItem.title ?? "");
       setDescription(classItem.description ?? "");
     }
-  }, [open, classItem, subjects]);
+    if (!open) {
+      // optional: clear when closed
+      setTitle("");
+      setDescription("");
+    }
+  }, [open, classItem]);
 
-  if (!open) return null;
-
-  const valid = title.trim() !== "" ;
+  const valid = title.trim() !== "";
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!classItem) return;
+    if (!valid) return;
 
     await updateClass({
       id: classItem.id,
       title: title.trim(),
       description: description.trim(),
-      updateBy: currentUserId, // pass current user id as updatedBy
+      updateBy: currentUserId,
     });
 
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+    <Dialog open={open} onOpenChange={(val) => { if (!val) onClose(); }}>
+      <DialogContent className="sm:max-w-md w-full">
+        <form onSubmit={submit} className="space-y-4">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Chỉnh sửa lớp học</DialogTitle>
+              <DialogClose asChild>
+                
+              </DialogClose>
+            </div>
+            <DialogDescription className="text-sm text-slate-500">
+              Cập nhật thông tin lớp học.
+            </DialogDescription>
+          </DialogHeader>
 
-      <form
-        onSubmit={submit}
-        className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 overflow-hidden"
-      >
-        {/* Header */}
-        <div className="px-6 py-4 border-b flex justify-between items-center">
-          <h3 className="text-lg font-medium">Chỉnh sửa lớp học</h3>
-          <button type="button" onClick={onClose} className="text-gray-500">
-            ✕
-          </button>
-        </div>
+          <div className="grid gap-2">
+            <div>
+              <Label className="text-sm">Tên lớp học <span className="text-red-500">*</span></Label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Nhập tên lớp học"
+                required
+                className="mt-1"
+                aria-label="Tên lớp học"
+              />
+            </div>
 
-        {/* Body */}
-        <div className="px-6 py-4 space-y-4">
-          <div>
-            <label className="text-sm block mb-1">
-              Tên lớp học <span className="text-red-500">*</span>
-            </label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Nhập tên lớp học"
-              className="w-full border rounded px-3 py-2"
-            />
+            <div>
+              <Label className="text-sm">Mô tả</Label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Nhập mô tả lớp học (nếu có)"
+                className="mt-1 h-28"
+                aria-label="Mô tả lớp học"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="text-sm block mb-1">Mô tả</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Nhập mô tả lớp học (nếu có)"
-              className="w-full border rounded px-3 py-2 h-28"
-            />
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
-          <button type="button" onClick={onClose} className="px-4 py-2">
-            Hủy
-          </button>
-          <button
-            type="submit"
-            disabled={!valid}
-            className="px-4 py-2 bg-slate-900 text-white rounded disabled:opacity-50"
-          >
-            Lưu
-          </button>
-        </div>
-      </form>
-    </div>
+          <DialogFooter className="flex items-center justify-end gap-2">
+            <Button variant="ghost" onClick={onClose} type="button">
+              Hủy
+            </Button>
+            <Button type="submit" disabled={!valid}>
+              Lưu
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 
