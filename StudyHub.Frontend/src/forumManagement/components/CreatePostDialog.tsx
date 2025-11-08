@@ -1,5 +1,5 @@
 // src/forumManagement/components/CreatePostDialog.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,8 @@ import {
 import { X, ImagePlus, Loader2 } from "lucide-react";
 import { useForumStore } from "../stores/useForumStore";
 import { documentService } from "@/documentManagement/services/documentService";
+import type { Subject } from "../interfaces/forum";
+import { DialogDescription } from "@/common/components/ui/dialog";
 
 interface CreatePostDialogProps {
   open: boolean;
@@ -31,23 +33,21 @@ export const CreatePostDialog = ({
   onOpenChange,
   schoolId,
 }: CreatePostDialogProps) => {
-  const { createPost, isLoading } = useForumStore();
+  const { createPost, isLoading, flairs, loadFlairs } = useForumStore();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [flairId, setFlairId] = useState("");
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [subjects, setSubjects] = useState<any[]>([]);
-  const [flairs] = useState([
-    { id: 1, name: "Câu hỏi" },
-    { id: 2, name: "Kiến thức" },
-    { id: 3, name: "Thảo luận" },
-  ]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
 
-  useState(() => {
-    documentService.getSubjects().then(setSubjects);
-  });
+  useEffect(() => {
+    if (open) {
+      documentService.getSubjects().then(setSubjects);
+      loadFlairs(schoolId);
+    }
+  }, [open, schoolId, loadFlairs]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -104,6 +104,9 @@ export const CreatePostDialog = ({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Tạo bài viết mới</DialogTitle>
+          <DialogDescription className="sr-only">
+            Form tạo bài viết mới
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -126,11 +129,19 @@ export const CreatePostDialog = ({
                 <SelectValue placeholder="Chọn loại bài viết" />
               </SelectTrigger>
               <SelectContent>
-                {flairs.map((f) => (
-                  <SelectItem key={f.id} value={f.id.toString()}>
-                    {f.name}
+                {flairs && flairs.length > 0 ? (
+                  flairs
+                    .filter((f) => f?.id)
+                    .map((f) => (
+                      <SelectItem key={f.id} value={f.id.toString()}>
+                        {f.name || "N/A"}
+                      </SelectItem>
+                    ))
+                ) : (
+                  <SelectItem value="no-flairs" disabled>
+                    Không có loại bài viết
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -149,7 +160,6 @@ export const CreatePostDialog = ({
             rows={6}
             maxLength={2000}
           />
-
           {imagePreviews.length > 0 && (
             <div className="grid grid-cols-4 gap-2">
               {imagePreviews.map((preview, idx) => (

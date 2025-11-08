@@ -11,8 +11,10 @@ namespace StudyHub.Backend.Api.Mappers
             return new ForumFlairListDto
             {
                 FlairId = flair.Id,
+                Id = flair.Id,
                 SchoolId = flair.SchoolId,
-                FlairName = flair.Name,
+                FlairName = flair.Name ?? string.Empty,
+                Name = flair.Name ?? string.Empty,
                 Description = flair.Description,
                 IsProtected = flair.IsProtected,
                 Status = flair.Status ?? true,

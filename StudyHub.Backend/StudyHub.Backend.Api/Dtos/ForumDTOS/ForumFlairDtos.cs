@@ -8,6 +8,11 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public int SchoolId { get; set; }
         public string? SchoolName { get; set; }
         public string FlairName { get; set; } = string.Empty;
+
+        // Thêm field này để match với FE
+        public string Name { get; set; } = string.Empty;
+        public int Id { get; set; }
+
         public string? Description { get; set; }
         public bool IsProtected { get; set; }
         public bool Status { get; set; }

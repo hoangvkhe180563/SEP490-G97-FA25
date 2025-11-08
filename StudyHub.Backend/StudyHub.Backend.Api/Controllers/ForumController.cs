@@ -139,7 +139,6 @@ namespace StudyHub.Backend.Api.Controllers
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi tải bài viết" });
             }
         }
-
         [HttpPost("posts/create")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreatePost([FromForm] CreateForumPostDto dto)
@@ -732,5 +731,1221 @@ namespace StudyHub.Backend.Api.Controllers
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
             }
         }
+        [HttpPost("comments/{commentId:int}/hide")]
+        public async Task<IActionResult> HideComment(int commentId, [FromBody] HideCommentDto dto)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var result = await _commentService.HideCommentByModeratorAsync(commentId, currentUser.Id, dto.ViolationScore);
+                if (!result)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy bình luận" });
+                }
+
+                _logger.LogInformation("Moderator {UserId} hid comment {CommentId}", currentUser.Id, commentId);
+
+                var comment = await _commentService.GetCommentByIdAsync(commentId);
+                await _forumHubContext.Clients.Group($"post-{comment.PostId}").SendAsync("CommentHidden", commentId);
+
+                return Ok(new { success = true, message = "Đã ẩn bình luận" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error hiding comment {CommentId}", commentId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpGet("flairs")]
+        public async Task<IActionResult> GetFlairs([FromQuery] ForumFlairFilterDto filter)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
+
+                var (flairs, totalCount) = await _configService.GetFlairsBySchoolAsync(
+                    filter.SchoolId,
+                    filter.IsProtected,
+                    filter.Status,
+                    filter.PageNumber,
+                    filter.PageSize);
+
+                var dtos = flairs.Select(f => f.ToListDto()).ToList();
+                return PagedResult(dtos, totalCount, filter.PageNumber, filter.PageSize);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting flairs");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpGet("flairs/{flairId:int}")]
+        public async Task<IActionResult> GetFlairById(int flairId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var flair = await _configService.GetFlairByIdAsync(flairId);
+                if (flair == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy flair" });
+                }
+
+                return Ok(new { success = true, data = flair.ToListDto() });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting flair {FlairId}", flairId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPost("flairs/create")]
+        public async Task<IActionResult> CreateFlair([FromBody] CreateForumFlairDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { success = false, errors = ModelState });
+                }
+
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != dto.SchoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
+
+                var flair = dto.ToEntity(currentUser.Id, dto.SchoolId);
+                var createdFlair = await _configService.CreateFlairAsync(flair);
+
+                _logger.LogInformation("Moderator {UserId} created flair {FlairId}", currentUser.Id, createdFlair.Id);
+
+                return Ok(new { success = true, data = createdFlair.ToListDto() });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating flair");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPut("flairs/{flairId:int}")]
+        public async Task<IActionResult> UpdateFlair(int flairId, [FromBody] UpdateForumFlairDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { success = false, errors = ModelState });
+                }
+
+                if (flairId != dto.FlairId)
+                {
+                    return BadRequest(new { success = false, message = "FlairId không khớp" });
+                }
+
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var existingFlair = await _configService.GetFlairByIdAsync(flairId);
+                if (existingFlair == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy flair" });
+                }
+
+                if (currentUser.SchoolId != existingFlair.SchoolId)
+                {
+                    return Forbid();
+                }
+
+                var updatedFlair = dto.ToEntity(existingFlair);
+                updatedFlair.UpdatedBy = currentUser.Id;
+                var result = await _configService.UpdateFlairAsync(updatedFlair);
+
+                _logger.LogInformation("Moderator {UserId} updated flair {FlairId}", currentUser.Id, flairId);
+
+                return Ok(new { success = true, data = result.ToListDto() });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating flair {FlairId}", flairId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpDelete("flairs/{flairId:int}")]
+        public async Task<IActionResult> DeleteFlair(int flairId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var flair = await _configService.GetFlairByIdAsync(flairId);
+                if (flair == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy flair" });
+                }
+
+                if (currentUser.SchoolId != flair.SchoolId)
+                {
+                    return Forbid();
+                }
+
+                var result = await _configService.DeleteFlairAsync(flairId);
+                if (!result)
+                {
+                    return BadRequest(new { success = false, message = "Không thể xóa flair" });
+                }
+
+                _logger.LogInformation("Moderator {UserId} deleted flair {FlairId}", currentUser.Id, flairId);
+
+                return Ok(new { success = true, message = "Đã xóa flair" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting flair {FlairId}", flairId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPost("flairs/{flairId:int}/toggle-status")]
+        public async Task<IActionResult> ToggleFlairStatus(int flairId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var flair = await _configService.GetFlairByIdAsync(flairId);
+                if (flair == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy flair" });
+                }
+
+                if (currentUser.SchoolId != flair.SchoolId)
+                {
+                    return Forbid();
+                }
+
+                var result = await _configService.ToggleFlairStatusAsync(flairId);
+                if (!result)
+                {
+                    return BadRequest(new { success = false, message = "Không thể toggle status" });
+                }
+
+                _logger.LogInformation("Moderator {UserId} toggled flair {FlairId} status", currentUser.Id, flairId);
+
+                return Ok(new { success = true, message = "Đã cập nhật trạng thái flair" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error toggling flair status {FlairId}", flairId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpGet("rules")]
+        public async Task<IActionResult> GetRules([FromQuery] ForumRuleFilterDto filter)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
+
+                var (rules, totalCount) = await _moderationService.GetRulesBySchoolAsync(
+                    filter.SchoolId,
+                    filter.RuleType,
+                    filter.IsActive,
+                    filter.PageNumber,
+                    filter.PageSize);
+
+                var dtos = rules.Select(r => r.ToListDto()).ToList();
+                return PagedResult(dtos, totalCount, filter.PageNumber, filter.PageSize);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting rules");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpGet("rules/{ruleId:int}")]
+        public async Task<IActionResult> GetRuleById(int ruleId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var rule = await _moderationService.GetRuleByIdAsync(ruleId);
+                if (rule == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy rule" });
+                }
+
+                return Ok(new { success = true, data = rule.ToDetailDto() });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting rule {RuleId}", ruleId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPost("rules/create")]
+        public async Task<IActionResult> CreateRule([FromBody] CreateForumRuleDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { success = false, errors = ModelState });
+                }
+
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != dto.SchoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
+
+                var rule = dto.ToEntity(currentUser.Id, dto.SchoolId);
+                var createdRule = await _moderationService.CreateRuleWithPatternsAsync(rule, dto.Patterns);
+
+                _logger.LogInformation("Moderator {UserId} created rule {RuleId} with {PatternCount} patterns",
+                    currentUser.Id, createdRule.Id, dto.Patterns.Count);
+
+                return Ok(new { success = true, data = createdRule.ToDetailDto() });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating rule");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPut("rules/{ruleId:int}")]
+        public async Task<IActionResult> UpdateRule(int ruleId, [FromBody] UpdateForumRuleDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { success = false, errors = ModelState });
+                }
+
+                if (ruleId != dto.RuleId)
+                {
+                    return BadRequest(new { success = false, message = "RuleId không khớp" });
+                }
+
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var existingRule = await _moderationService.GetRuleByIdAsync(ruleId);
+                if (existingRule == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy rule" });
+                }
+
+                if (currentUser.SchoolId != existingRule.SchoolId)
+                {
+                    return Forbid();
+                }
+
+                var updatedRule = dto.ToEntity(existingRule);
+                updatedRule.UpdatedBy = currentUser.Id;
+                var result = await _moderationService.UpdateRuleAsync(updatedRule);
+
+                _logger.LogInformation("Moderator {UserId} updated rule {RuleId}", currentUser.Id, ruleId);
+
+                return Ok(new { success = true, data = result.ToDetailDto() });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating rule {RuleId}", ruleId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpDelete("rules/{ruleId:int}")]
+        public async Task<IActionResult> DeleteRule(int ruleId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var rule = await _moderationService.GetRuleByIdAsync(ruleId);
+                if (rule == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy rule" });
+                }
+
+                if (currentUser.SchoolId != rule.SchoolId)
+                {
+                    return Forbid();
+                }
+
+                var result = await _moderationService.DeleteRuleAsync(ruleId);
+                if (!result)
+                {
+                    return BadRequest(new { success = false, message = "Không thể xóa rule" });
+                }
+
+                _logger.LogInformation("Moderator {UserId} deleted rule {RuleId}", currentUser.Id, ruleId);
+
+                return Ok(new { success = true, message = "Đã xóa rule" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting rule {RuleId}", ruleId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPost("rules/{ruleId:int}/toggle-status")]
+        public async Task<IActionResult> ToggleRuleStatus(int ruleId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var rule = await _moderationService.GetRuleByIdAsync(ruleId);
+                if (rule == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy rule" });
+                }
+
+                if (currentUser.SchoolId != rule.SchoolId)
+                {
+                    return Forbid();
+                }
+
+                var result = await _moderationService.ToggleRuleStatusAsync(ruleId);
+                if (!result)
+                {
+                    return BadRequest(new { success = false, message = "Không thể toggle status" });
+                }
+
+                _logger.LogInformation("Moderator {UserId} toggled rule {RuleId} status", currentUser.Id, ruleId);
+
+                return Ok(new { success = true, message = "Đã cập nhật trạng thái rule" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error toggling rule status {RuleId}", ruleId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpGet("rules/{ruleId:int}/patterns")]
+        public async Task<IActionResult> GetPatternsByRule(int ruleId, [FromQuery] RulePatternFilterDto filter)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var rule = await _moderationService.GetRuleByIdAsync(ruleId);
+                if (rule == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy rule" });
+                }
+
+                if (currentUser.SchoolId != rule.SchoolId)
+                {
+                    return Forbid();
+                }
+
+                var (patterns, totalCount) = await _moderationService.GetPatternsByRuleAsync(
+                    ruleId,
+                    filter.IsActive,
+                    filter.PageNumber,
+                    filter.PageSize);
+
+                var dtos = patterns.Select(p => p.ToDto()).ToList();
+                return PagedResult(dtos, totalCount, filter.PageNumber, filter.PageSize);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting patterns for rule {RuleId}", ruleId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPost("patterns/create")]
+        public async Task<IActionResult> CreatePattern([FromBody] CreateRulePatternDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { success = false, errors = ModelState });
+                }
+
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var rule = await _moderationService.GetRuleByIdAsync(dto.RuleId);
+                if (rule == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy rule" });
+                }
+
+                if (currentUser.SchoolId != rule.SchoolId)
+                {
+                    return Forbid();
+                }
+
+                var pattern = dto.ToEntity(currentUser.Id);
+                var createdPattern = await _moderationService.CreatePatternAsync(pattern);
+
+                _logger.LogInformation("Moderator {UserId} created pattern {PatternId} for rule {RuleId}",
+                    currentUser.Id, createdPattern.Id, dto.RuleId);
+
+                return Ok(new { success = true, data = createdPattern.ToDto() });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating pattern");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPut("patterns/{patternId:int}")]
+        public async Task<IActionResult> UpdatePattern(int patternId, [FromBody] UpdateRulePatternDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { success = false, errors = ModelState });
+                }
+
+                if (patternId != dto.PatternId)
+                {
+                    return BadRequest(new { success = false, message = "PatternId không khớp" });
+                }
+
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var existingPattern = await _moderationService.GetPatternByIdAsync(patternId);
+                if (existingPattern == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy pattern" });
+                }
+
+                var rule = await _moderationService.GetRuleByIdAsync(existingPattern.RuleId);
+                if (currentUser.SchoolId != rule.SchoolId)
+                {
+                    return Forbid();
+                }
+
+                var updatedPattern = dto.ToEntity(existingPattern);
+                updatedPattern.UpdatedBy = currentUser.Id;
+                var result = await _moderationService.UpdatePatternAsync(updatedPattern);
+
+                _logger.LogInformation("Moderator {UserId} updated pattern {PatternId}", currentUser.Id, patternId);
+
+                return Ok(new { success = true, data = result.ToDto() });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating pattern {PatternId}", patternId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpDelete("patterns/{patternId:int}")]
+        public async Task<IActionResult> DeletePattern(int patternId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var pattern = await _moderationService.GetPatternByIdAsync(patternId);
+                if (pattern == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy pattern" });
+                }
+
+                var rule = await _moderationService.GetRuleByIdAsync(pattern.RuleId);
+                if (currentUser.SchoolId != rule.SchoolId)
+                {
+                    return Forbid();
+                }
+
+                var result = await _moderationService.DeletePatternAsync(patternId);
+                if (!result)
+                {
+                    return BadRequest(new { success = false, message = "Không thể xóa pattern" });
+                }
+
+                _logger.LogInformation("Moderator {UserId} deleted pattern {PatternId}", currentUser.Id, patternId);
+
+                return Ok(new { success = true, message = "Đã xóa pattern" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting pattern {PatternId}", patternId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPost("patterns/{patternId:int}/toggle-status")]
+        public async Task<IActionResult> TogglePatternStatus(int patternId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var pattern = await _moderationService.GetPatternByIdAsync(patternId);
+                if (pattern == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy pattern" });
+                }
+
+                var rule = await _moderationService.GetRuleByIdAsync(pattern.RuleId);
+                if (currentUser.SchoolId != rule.SchoolId)
+                {
+                    return Forbid();
+                }
+
+                var result = await _moderationService.TogglePatternStatusAsync(patternId);
+                if (!result)
+                {
+                    return BadRequest(new { success = false, message = "Không thể toggle status" });
+                }
+
+                _logger.LogInformation("Moderator {UserId} toggled pattern {PatternId} status", currentUser.Id, patternId);
+
+                return Ok(new { success = true, message = "Đã cập nhật trạng thái pattern" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error toggling pattern status {PatternId}", patternId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpGet("appeals")]
+        public async Task<IActionResult> GetUserAppeals([FromQuery] ForumAppealFilterDto filter)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var (appeals, totalCount) = await _moderationService.GetAppealsByUserAsync(
+                    currentUser.Id,
+                    filter.SchoolId,
+                    filter.Status,
+                    filter.PageNumber,
+                    filter.PageSize);
+
+                var dtos = appeals.Select(a => a.ToListDto()).ToList();
+                return PagedResult(dtos, totalCount, filter.PageNumber, filter.PageSize);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user appeals");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi tải khiếu nại" });
+            }
+        }
+
+        [HttpPost("appeals/create")]
+        public async Task<IActionResult> CreateAppeal([FromBody] CreateForumAppealDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { success = false, errors = ModelState });
+                }
+
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                if (currentUser.SchoolId != dto.SchoolId)
+                {
+                    return Forbid();
+                }
+
+                var appeal = dto.ToEntity(currentUser.Id, dto.SchoolId);
+                var createdAppeal = await _moderationService.CreateAppealAsync(appeal);
+
+                _logger.LogInformation("User {UserId} created appeal {AppealId}", currentUser.Id, createdAppeal.Id);
+
+                return Ok(new { success = true, data = createdAppeal.ToListDto() });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating appeal");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi tạo khiếu nại" });
+            }
+        }
+
+        [HttpGet("moderator/appeals")]
+        public async Task<IActionResult> GetModeratorAppeals([FromQuery] ForumAppealFilterDto filter)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
+
+                var (appeals, totalCount) = await _moderationService.GetAppealsBySchoolAsync(
+                    filter.SchoolId,
+                    filter.Status,
+                    filter.CreatedFrom,
+                    filter.CreatedTo,
+                    filter.PageNumber,
+                    filter.PageSize);
+
+                var dtos = appeals.Select(a => a.ToListDto()).ToList();
+                return PagedResult(dtos, totalCount, filter.PageNumber, filter.PageSize);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting moderator appeals");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi tải khiếu nại" });
+            }
+        }
+
+        [HttpPost("appeals/{appealId:int}/approve")]
+        public async Task<IActionResult> ApproveAppeal(int appealId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var result = await _moderationService.ApproveAppealAsync(appealId, currentUser.Id);
+                if (!result)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy khiếu nại" });
+                }
+
+                _logger.LogInformation("Moderator {UserId} approved appeal {AppealId}", currentUser.Id, appealId);
+
+                return Ok(new { success = true, message = "Đã chấp nhận khiếu nại" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error approving appeal {AppealId}", appealId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi duyệt khiếu nại" });
+            }
+        }
+
+        [HttpPost("appeals/{appealId:int}/reject")]
+        public async Task<IActionResult> RejectAppeal(int appealId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var result = await _moderationService.RejectAppealAsync(appealId, currentUser.Id);
+                if (!result)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy khiếu nại" });
+                }
+
+                _logger.LogInformation("Moderator {UserId} rejected appeal {AppealId}", currentUser.Id, appealId);
+
+                return Ok(new { success = true, message = "Đã từ chối khiếu nại" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error rejecting appeal {AppealId}", appealId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi từ chối khiếu nại" });
+            }
+        }
+
+        [HttpGet("moderator/violations")]
+        public async Task<IActionResult> GetViolationRecords([FromQuery] ViolationRecordFilterDto filter)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
+                {
+                    _logger.LogWarning("Unauthorized access to violations for school {SchoolId}", filter.SchoolId);
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
+
+                var (records, totalCount) = await _moderationService.GetViolationRecordsBySchoolAsync(
+                    filter.SchoolId,
+                    filter.SourceType,
+                    filter.From,
+                    filter.To,
+                    filter.PageNumber,
+                    filter.PageSize);
+
+                var dtos = records.Select(r => r.ToDto()).ToList();
+                return PagedResult(dtos, totalCount, filter.PageNumber, filter.PageSize);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting violation records");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi tải vi phạm" });
+            }
+        }
+
+        [HttpGet("moderator/user-status")]
+        public async Task<IActionResult> GetMutedUsers([FromQuery] UserForumStatusFilterDto filter)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
+
+                var (statuses, totalCount) = await _moderationService.GetMutedUsersAsync(
+                    filter.SchoolId,
+                    filter.MutedFrom,
+                    filter.MutedTo,
+                    filter.PageNumber,
+                    filter.PageSize);
+
+                var dtos = statuses.Select(s => s.ToDto()).ToList();
+                return PagedResult(dtos, totalCount, filter.PageNumber, filter.PageSize);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting muted users");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPost("moderator/mute-user")]
+        public async Task<IActionResult> MuteUser([FromBody] MuteUserDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { success = false, errors = ModelState });
+                }
+
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != dto.SchoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
+
+                var result = await _moderationService.MuteUserAsync(dto.UserId, dto.SchoolId, dto.MuteUntil);
+                if (!result)
+                {
+                    return BadRequest(new { success = false, message = "Không thể mute user" });
+                }
+
+                _logger.LogInformation("Moderator {ModeratorId} muted user {UserId} until {MuteUntil}",
+                    currentUser.Id, dto.UserId, dto.MuteUntil);
+
+                return Ok(new { success = true, message = "Đã mute user" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error muting user");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPost("moderator/unmute-user")]
+        public async Task<IActionResult> UnmuteUser([FromBody] UnmuteUserDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { success = false, errors = ModelState });
+                }
+
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != dto.SchoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
+
+                var result = await _moderationService.UnmuteUserAsync(dto.UserId, dto.SchoolId);
+                if (!result)
+                {
+                    return BadRequest(new { success = false, message = "Không thể unmute user" });
+                }
+
+                _logger.LogInformation("Moderator {ModeratorId} unmuted user {UserId}",
+                    currentUser.Id, dto.UserId);
+
+                return Ok(new { success = true, message = "Đã unmute user" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error unmuting user");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPost("moderator/reset-violation-score")]
+        public async Task<IActionResult> ResetViolationScore([FromBody] ResetUserViolationScoreDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { success = false, errors = ModelState });
+                }
+
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != dto.SchoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
+
+                var result = await _moderationService.ResetViolationScoreAsync(dto.UserId, dto.SchoolId);
+                if (!result)
+                {
+                    return BadRequest(new { success = false, message = "Không thể reset điểm vi phạm" });
+                }
+
+                _logger.LogInformation("Moderator {ModeratorId} reset violation score for user {UserId}",
+                    currentUser.Id, dto.UserId);
+
+                return Ok(new { success = true, message = "Đã reset điểm vi phạm" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resetting violation score");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpGet("user/status")]
+        public async Task<IActionResult> GetUserStatus([FromQuery] int schoolId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != schoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
+
+                var status = await _moderationService.GetUserForumStatusAsync(currentUser.Id, schoolId);
+                if (status == null)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            TotalViolationScore = 50,
+                            IsMute = false,
+                            MuteUntil = (DateTime?)null
+                        }
+                    });
+                }
+
+                return Ok(new { success = true, data = status.ToDto() });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user status");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpGet("user/violations")]
+        public async Task<IActionResult> GetUserViolations([FromQuery] ViolationRecordFilterDto filter)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var (records, totalCount) = await _moderationService.GetViolationRecordsByUserAsync(
+                    currentUser.Id,
+                    filter.SchoolId,
+                    filter.From,
+                    filter.To,
+                    filter.SourceType,
+                    filter.PageNumber,
+                    filter.PageSize);
+
+                var dtos = records.Select(r => r.ToDto()).ToList();
+                return PagedResult(dtos, totalCount, filter.PageNumber, filter.PageSize);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user violations");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpGet("my-posts")]
+        public async Task<IActionResult> GetMyPosts([FromQuery] ForumPostFilterDto filter)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var (posts, totalCount) = await _postService.GetOwnedPostsAsync(
+                    currentUser.Id,
+                    filter.SchoolId,
+                    filter.SubjectId,
+                    filter.FlairId,
+                    filter.Query,
+                    null,
+                    filter.CreatedFrom,
+                    filter.CreatedTo,
+                    filter.PageNumber,
+                    filter.PageSize);
+
+                var dtos = posts.Select(p => p.ToListDto()).ToList();
+                return PagedResult(dtos, totalCount, filter.PageNumber, filter.PageSize);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user's posts");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpGet("attachments/pending")]
+        public async Task<IActionResult> GetPendingAttachments([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var (attachments, totalCount) = await _configService.GetPendingAttachmentsAsync(pageNumber, pageSize);
+                var dtos = attachments.Select(a => a.ToDto()).ToList();
+
+                return PagedResult(dtos, totalCount, pageNumber, pageSize);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting pending attachments");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPost("attachments/{attachmentId:int}/approve")]
+        public async Task<IActionResult> ApproveAttachment(int attachmentId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var result = await _configService.ApproveAttachmentAsync(attachmentId, currentUser.Id);
+                if (!result)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy attachment" });
+                }
+
+                _logger.LogInformation("Moderator {UserId} approved attachment {AttachmentId}",
+                    currentUser.Id, attachmentId);
+
+                return Ok(new { success = true, message = "Đã duyệt attachment" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error approving attachment {AttachmentId}", attachmentId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPost("attachments/{attachmentId:int}/reject")]
+        public async Task<IActionResult> RejectAttachment(int attachmentId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var result = await _configService.RejectAttachmentAsync(attachmentId);
+                if (!result)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy attachment" });
+                }
+
+                _logger.LogInformation("Moderator {UserId} rejected attachment {AttachmentId}",
+                    currentUser.Id, attachmentId);
+
+                return Ok(new { success = true, message = "Đã từ chối attachment" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error rejecting attachment {AttachmentId}", attachmentId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpDelete("attachments/{attachmentId:int}")]
+        public async Task<IActionResult> DeleteAttachment(int attachmentId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var attachment = await _configService.GetAttachmentByIdAsync(attachmentId);
+                if (attachment == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy attachment" });
+                }
+
+                if (attachment.CreatedBy != currentUser.Id)
+                {
+                    return Forbid();
+                }
+
+                var result = await _configService.SoftDeleteAttachmentAsync(attachmentId);
+                if (!result)
+                {
+                    return BadRequest(new { success = false, message = "Không thể xóa attachment" });
+                }
+
+                _logger.LogInformation("User {UserId} deleted attachment {AttachmentId}",
+                    currentUser.Id, attachmentId);
+
+                return Ok(new { success = true, message = "Đã xóa attachment" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting attachment {AttachmentId}", attachmentId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpGet("statistics")]
+        public async Task<IActionResult> GetForumStatistics([FromQuery] int schoolId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != schoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
+
+                var (posts, _) = await _postService.GetPublicPostsAsync(schoolId, null, null, null, null, 1, 1);
+                var (comments, _) = await _commentService.GetCommentsByPostIdAsync(posts.FirstOrDefault()?.Id ?? 0, 1, 1);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        TotalPosts = posts.Count,
+                        TotalComments = comments.Count,
+                        LastUpdated = DateTime.Now
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting forum statistics");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
     }
-}
+} 

@@ -13,6 +13,7 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public int? FlairId { get; set; }
         public string? FlairName { get; set; }
         public string Title { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
         public string ContentPreview { get; set; } = string.Empty;
         public int TotalViolationScore { get; set; }
         public bool? Status { get; set; }
@@ -22,6 +23,13 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public Guid CreatedBy { get; set; }
         public string? CreatorName { get; set; }
         public string? CreatorAvatar { get; set; }
+
+        // Thêm fields này
+        public string? AuthorName { get; set; }
+        public string? AuthorInitials { get; set; }
+        public string? AuthorClass { get; set; }
+        public string? ImageUrls { get; set; }
+
         public int CommentCount { get; set; }
         public int AttachmentCount { get; set; }
         public DateTime? UpdatedAt { get; set; }

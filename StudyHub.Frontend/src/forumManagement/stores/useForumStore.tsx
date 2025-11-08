@@ -4,16 +4,19 @@ import { devtools } from "zustand/middleware";
 import { axiosInstance, axiosMessageErrorHandler } from "@/lib/axios";
 import type { HubConnection } from "@microsoft/signalr";
 import { createForumFuncConnection } from "@/lib/signalR";
-import type { Post } from "../interfaces/forum";
+import type { Post, Flair } from "../interfaces/forum";
+import { forumService } from "../services/ForumService";
 
 interface ForumState {
   posts: Post[];
   currentPost: Post | null;
+  flairs: Flair[];
   isForumConnected: boolean;
   isLoading: boolean;
   success: boolean;
   message: string;
 
+  loadFlairs: (schoolId?: number) => Promise<void>;
   startForum: () => Promise<void>;
   stopForum: () => Promise<void>;
   joinSchoolForum: (schoolId: number) => Promise<void>;
@@ -51,14 +54,29 @@ export const useForumStore = create<ForumState>()(
     (set, get) => ({
       posts: [],
       currentPost: null,
+      flairs: [],
       isForumConnected: false,
       isLoading: false,
       success: false,
       message: "",
 
+      loadFlairs: async (schoolId?: number) => {
+        try {
+          const result = await forumService.getFlairs(schoolId);
+          set({ flairs: result });
+        } catch (error) {
+          console.error("Failed to load flairs:", error);
+          set({ flairs: [] });
+        }
+      },
+
       startForum: async () => {
         try {
-          if ((window as any).__forumConn) return;
+          if ((window as any).__forumConn) {
+            console.log("Forum connection already exists");
+            return;
+          }
+
           const conn: HubConnection = createForumFuncConnection();
           (window as any).__forumConn = conn;
 
@@ -201,6 +219,7 @@ export const useForumStore = create<ForumState>()(
           set({ isForumConnected: true });
         } catch (err) {
           console.error("startForum failed", err);
+          delete (window as any).__forumConn;
         }
       },
 
@@ -220,7 +239,14 @@ export const useForumStore = create<ForumState>()(
       joinSchoolForum: async (schoolId: number) => {
         try {
           const conn: HubConnection | undefined = (window as any).__forumConn;
-          if (!conn) return;
+          if (!conn) {
+            console.warn("No forum connection");
+            return;
+          }
+          if (conn.state !== "Connected") {
+            console.warn("Connection not ready");
+            return;
+          }
           await conn.invoke("JoinSchoolForum", schoolId);
         } catch (err) {
           console.error("joinSchoolForum failed", err);

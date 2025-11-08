@@ -17,6 +17,9 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public Guid CreatedBy { get; set; }
         public string? CreatorName { get; set; }
         public string? CreatorAvatar { get; set; }
+        public string? AuthorName { get; set; }
+        public string? AuthorInitials { get; set; }
+
         public DateTime? UpdatedAt { get; set; }
         public Guid? UpdatedBy { get; set; }
         public DateTime? DeletedAt { get; set; }

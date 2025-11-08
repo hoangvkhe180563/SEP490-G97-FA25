@@ -7,12 +7,17 @@ namespace StudyHub.Backend.Api.Mappers
     {
         public static ForumCommentListDto ToListDto(this ForumComment comment)
         {
+            var authorName = comment.Creator?.Username ?? "Unknown";
+            var authorInitials = comment.Creator?.Username?.Length >= 2
+                ? comment.Creator.Username.Substring(0, 2).ToUpper()
+                : "U";
+
             return new ForumCommentListDto
             {
                 CommentId = comment.CommentId,
                 PostId = comment.PostId,
                 ParentCommentId = comment.ParentCommentId,
-                Content = comment.Content,
+                Content = comment.Content ?? string.Empty,
                 TotalViolationScore = comment.TotalViolationScore,
                 Status = comment.Status,
                 StatusText = comment.Status == null
@@ -21,20 +26,26 @@ namespace StudyHub.Backend.Api.Mappers
                 IsHidden = comment.IsHidden,
                 CreatedAt = comment.CreatedAt,
                 CreatedBy = comment.CreatedBy,
-                CreatorName = comment.Creator?.Username,
+                CreatorName = authorName,
                 CreatorAvatar = comment.Creator?.Avatar,
+
+                AuthorName = authorName,
+                AuthorInitials = authorInitials,
+
                 UpdatedAt = comment.UpdatedAt,
                 ReplyCount = comment.ReplyCount,
                 Replies = comment.Replies?.Select(r => r.ToListDto()).ToList()
                     ?? new List<ForumCommentListDto>(),
-                Attachments = comment.Attachments?.Select(a => new ForumAttachmentDto
-                {
-                    AttachmentId = a.Id,
-                    CommentId = a.CommentId,
-                    FileUrl = a.FileUrl,
-                    IsApproved = a.IsApproved,
-                    CreatedAt = a.CreatedAt
-                }).ToList() ?? new List<ForumAttachmentDto>()
+                Attachments = comment.Attachments?
+                    .Where(a => a.IsApproved == true)
+                    .Select(a => new ForumAttachmentDto
+                    {
+                        AttachmentId = a.Id,
+                        CommentId = a.CommentId,
+                        FileUrl = a.FileUrl ?? string.Empty,
+                        IsApproved = a.IsApproved,
+                        CreatedAt = a.CreatedAt
+                    }).ToList() ?? new List<ForumAttachmentDto>()
             };
         }
 

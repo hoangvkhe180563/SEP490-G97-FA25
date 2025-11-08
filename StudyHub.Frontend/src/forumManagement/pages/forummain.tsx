@@ -1,5 +1,5 @@
-// forummain.tsx - Full code
-import { useState, useEffect, useRef } from "react";
+// forummain.tsx - Fixed
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
 import { Input } from "@/common/components/ui/input";
@@ -15,6 +15,8 @@ import {
   ExternalLink,
   ZoomIn,
   ZoomOut,
+  Plus,
+  ImagePlus,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -36,25 +38,54 @@ import {
   DialogTitle,
 } from "@/common/components/ui/dialog";
 import PostCard from "../components/PostCard";
-import type { Post, Subject, Flair } from "../interfaces/forum";
+import { CreatePostDialog } from "../components/CreatePostDialog";
+import type { Post, Subject } from "../interfaces/forum";
 import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
-import { MessageSquare, Send, ChevronUp } from "lucide-react";
+import { MessageSquare, Send, ChevronUp, Loader2 } from "lucide-react";
+import { useForumStore } from "../stores/useForumStore";
+import { documentService } from "@/documentManagement/services/documentService";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { getSubjectBadgeColor, getFlairColor } from "../utils/colorUtils";
+import { DialogDescription } from "@/common/components/ui/dialog";
 
 const ForumMain = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const observerTarget = useRef<HTMLDivElement>(null);
+  const commentInputRef = useRef<HTMLInputElement>(null);
+
+  const { user } = useAuthStore();
+  const schoolId = user?.schoolId || 1;
+
+  const {
+    posts,
+    currentPost,
+    isLoading,
+    flairs,
+    loadFlairs,
+    startForum,
+    stopForum,
+    joinSchoolForum,
+    joinPost,
+    leavePost,
+    getPosts,
+    getPostById,
+    getComments,
+    createComment,
+    sendTyping,
+  } = useForumStore();
+
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [modalImages, setModalImages] = useState<string[]>([]);
   const [imageZoom, setImageZoom] = useState(1);
+  const [showCreatePost, setShowCreatePost] = useState(false);
 
   const getInitialState = () => {
     const saved = sessionStorage.getItem("forumMainState");
     if (saved && location.state?.fromModal) {
-      const parsed = JSON.parse(saved);
-      return parsed;
+      return JSON.parse(saved);
     }
     return {
       searchQuery: searchParams.get("q") || "",
@@ -89,10 +120,61 @@ const ForumMain = () => {
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [commentSort, setCommentSort] = useState("newest");
   const [hasNewPosts, setHasNewPosts] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [commentContent, setCommentContent] = useState("");
+  const [commentImages, setCommentImages] = useState<File[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
 
   const modalPostId = searchParams.get("postId");
   const isModalOpen = !!modalPostId;
+
+  useEffect(() => {
+    const initForum = async () => {
+      await startForum();
+      await joinSchoolForum(schoolId);
+    };
+
+    initForum();
+    documentService.getSubjects().then(setSubjects);
+    loadFlairs(schoolId);
+
+    return () => {
+      stopForum();
+    };
+  }, [startForum, stopForum, joinSchoolForum, schoolId, loadFlairs]);
+
+  const fetchPosts = useCallback(() => {
+    const subjectId =
+      selectedSubjects.length === 1 ? selectedSubjects[0] : undefined;
+    const flairId = selectedFlairs.length === 1 ? selectedFlairs[0] : undefined;
+
+    getPosts(schoolId, subjectId, flairId, searchQuery, sortBy, 1, 100);
+  }, [
+    schoolId,
+    searchQuery,
+    selectedSubjects,
+    selectedFlairs,
+    sortBy,
+    getPosts,
+  ]);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
+
+  useEffect(() => {
+    if (modalPostId) {
+      const postId = parseInt(modalPostId);
+      getPostById(postId);
+      joinPost(postId);
+      getComments(postId);
+    }
+
+    return () => {
+      if (modalPostId) {
+        leavePost(parseInt(modalPostId));
+      }
+    };
+  }, [modalPostId, getPostById, joinPost, getComments, leavePost]);
 
   useEffect(() => {
     const state = {
@@ -110,8 +192,7 @@ const ForumMain = () => {
     if (location.state?.fromModal && initialState.scrollPosition) {
       window.scrollTo(0, initialState.scrollPosition);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [location.state?.fromModal, initialState.scrollPosition]);
 
   useEffect(() => {
     const newSearchParams = new URLSearchParams();
@@ -134,204 +215,27 @@ const ForumMain = () => {
   ]);
 
   useEffect(() => {
+    const currentTarget = observerTarget.current;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (
-          entries[0].isIntersecting &&
-          !isLoadingMore &&
-          visiblePosts < filteredPosts.length
-        ) {
-          setIsLoadingMore(true);
-          setTimeout(() => {
-            setVisiblePosts((prev: number) => prev + 5);
-            setIsLoadingMore(false);
-          }, 500);
+        if (entries[0].isIntersecting && visiblePosts < filteredPosts.length) {
+          setVisiblePosts((prev: number) => prev + 5);
         }
       },
       { threshold: 0.1 }
     );
 
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
+    if (currentTarget) {
+      observer.observe(currentTarget);
     }
 
     return () => {
-      if (observerTarget.current) {
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        observer.unobserve(observerTarget.current);
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoadingMore, visiblePosts]);
-
-  const posts: Post[] = [
-    {
-      post_id: 1,
-      subject_id: 1,
-      subject_name: "Toán",
-      flair_id: 1,
-      flair_name: "Câu hỏi",
-      title: "Cách giải phương trình bậc hai có dễ không?",
-      content:
-        "Mình đang học về phương trình bậc hai nhưng vẫn chưa hiểu rõ cách tính delta và các trường hợp nghiệm. Các bạn có thể giải thích chi tiết hơn được không? Đặc biệt là khi nào thì phương trình vô nghiệm ạ?",
-      created_at: "2024-10-23T10:00:00",
-      created_by: "user-001",
-      author_name: "Nguyễn Minh An",
-      author_initials: "AN",
-      author_class: "10A1",
-      comment_count: 3,
-      image_urls: "",
-      comments: [
-        {
-          comment_id: 1,
-          post_id: 1,
-          parent_comment_id: null,
-          content:
-            "Delta = b² - 4ac nha bạn. Nếu delta < 0 thì phương trình vô nghiệm, delta = 0 thì có nghiệm kép, delta > 0 thì có 2 nghiệm phân biệt!",
-          created_at: "2024-10-23T11:00:00",
-          created_by: "user-002",
-          author_name: "Trần Bảo Hân",
-          author_initials: "BH",
-          image_urls: "",
-          replies: [
-            {
-              comment_id: 11,
-              post_id: 1,
-              parent_comment_id: 1,
-              content: "Cảm ơn bạn nhiều nha! Giờ mình hiểu rồi 😊",
-              created_at: "2024-10-23T11:10:00",
-              created_by: "user-001",
-              author_name: "Nguyễn Minh An",
-              author_initials: "AN",
-              image_urls: "",
-            },
-          ],
-        },
-        {
-          comment_id: 2,
-          post_id: 1,
-          parent_comment_id: null,
-          content:
-            "Mình có công thức nghiệm: x = (-b ± √Δ) / 2a. Bạn cứ tính delta trước rồi xét các trường hợp là được nhé!",
-          created_at: "2024-10-23T11:15:00",
-          created_by: "user-003",
-          author_name: "Lê Tuấn",
-          author_initials: "TL",
-          replies: [],
-          image_urls: "",
-        },
-        {
-          comment_id: 3,
-          post_id: 1,
-          parent_comment_id: null,
-          content:
-            "Mình thấy cô giáo giải trên lớp rất dễ hiểu. Bạn có thể xem lại bài giảng hoặc làm thêm bài tập để quen thuộc công thức hơn 😊",
-          created_at: "2024-10-23T11:30:00",
-          created_by: "user-004",
-          author_name: "Phạm Mai Hương",
-          author_initials: "MH",
-          replies: [],
-          image_urls: "",
-        },
-      ],
-    },
-    {
-      post_id: 2,
-      subject_id: 2,
-      subject_name: "Vật Lý",
-      flair_id: 1,
-      flair_name: "Câu hỏi",
-      title: "Ai giải thích định luật Newton thứ ba giúp mình với!",
-      content:
-        "Mình không hiểu tại sao khi tác dụng một lực lên vật thì vật lại tác dụng trở lại một lực bằng nhau và ngược chiều. Có ví dụ thực tế nào dễ hiểu không các bạn? Cảm ơn nhiều!",
-      image_urls:
-        "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=800&h=600&fit=crop",
-      created_at: "2024-10-23T07:00:00",
-      created_by: "user-005",
-      author_name: "Hoàng Đức Long",
-      author_initials: "DL",
-      author_class: "11B2",
-      comment_count: 2,
-      comments: [
-        {
-          comment_id: 4,
-          post_id: 2,
-          parent_comment_id: null,
-          content:
-            "Ví dụ đơn giản nhất là khi bạn đẩy tường, tường cũng đẩy ngược lại bạn với lực bằng nhau. Hoặc khi bạn nhảy, bạn đạp xuống đất và đất đẩy bạn lên trên!",
-          created_at: "2024-10-23T09:00:00",
-          created_by: "user-006",
-          author_name: "Vũ Khánh An",
-          author_initials: "KA",
-          image_urls: "",
-          replies: [
-            {
-              comment_id: 41,
-              post_id: 2,
-              parent_comment_id: 4,
-              content: "Ví dụ hay quá! Giờ mình hình dung được rồi",
-              created_at: "2024-10-23T10:00:00",
-              created_by: "user-005",
-              author_name: "Hoàng Đức Long",
-              author_initials: "DL",
-              image_urls: "",
-            },
-          ],
-        },
-        {
-          comment_id: 5,
-          post_id: 2,
-          parent_comment_id: null,
-          content:
-            "Thêm ví dụ nữa: khi chèo thuyền, bạn dùng mái chèo đẩy nước về phía sau, nước đẩy thuyền về phía trước. Đây chính là định luật 3 Newton đấy!",
-          created_at: "2024-10-23T10:00:00",
-          created_by: "user-007",
-          author_name: "Ngô Thanh Tùng",
-          author_initials: "NT",
-          image_urls: "",
-          replies: [],
-        },
-      ],
-    },
-  ];
-
-  const subjects: Subject[] = [
-    { id: 1, name: "Toán" },
-    { id: 2, name: "Vật Lý" },
-    { id: 3, name: "Tiếng Anh" },
-    { id: 4, name: "Hóa học" },
-    { id: 5, name: "Văn" },
-    { id: 6, name: "Sinh học" },
-    { id: 7, name: "Lịch sử" },
-  ];
-
-  const flairs: Flair[] = [
-    { id: 1, name: "Câu hỏi" },
-    { id: 2, name: "Kiến thức" },
-    { id: 3, name: "Thảo luận" },
-  ];
-
-  const getSubjectColor = (subjectName: string) => {
-    const colors: Record<string, string> = {
-      Toán: "bg-blue-500",
-      "Vật Lý": "bg-purple-500",
-      "Tiếng Anh": "bg-green-500",
-      "Hóa học": "bg-orange-500",
-      Văn: "bg-pink-500",
-      "Sinh học": "bg-teal-500",
-      "Lịch sử": "bg-yellow-600",
-    };
-    return colors[subjectName] || "bg-gray-500";
-  };
-
-  const getFlairColor = (flairName: string) => {
-    const colors: Record<string, string> = {
-      "Câu hỏi": "bg-red-100 text-red-700 border-red-300",
-      "Kiến thức": "bg-blue-100 text-blue-700 border-blue-300",
-      "Thảo luận": "bg-green-100 text-green-700 border-green-300",
-    };
-    return colors[flairName] || "bg-gray-100 text-gray-700 border-gray-300";
-  };
+  }, [visiblePosts]);
 
   const formatTimestamp = (dateString: string) => {
     const date = new Date(dateString);
@@ -398,19 +302,7 @@ const ForumMain = () => {
     }
   };
 
-  const filteredPosts = sortPosts(
-    posts.filter((post) => {
-      const matchesSearch =
-        post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.content.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesSubject =
-        selectedSubjects.length === 0 ||
-        selectedSubjects.includes(post.subject_id);
-      const matchesFlair =
-        selectedFlairs.length === 0 || selectedFlairs.includes(post.flair_id);
-      return matchesSearch && matchesSubject && matchesFlair;
-    })
-  );
+  const filteredPosts = sortPosts(posts);
 
   const handleOpenModal = (postId: number) => {
     const currentParams = new URLSearchParams(window.location.search);
@@ -446,6 +338,7 @@ const ForumMain = () => {
   };
 
   const getSortedComments = (comments: Post["comments"]) => {
+    if (!comments) return [];
     const topLevelComments = comments.filter((c) => !c.parent_comment_id);
     switch (commentSort) {
       case "newest":
@@ -491,20 +384,61 @@ const ForumMain = () => {
     setImageZoom((prev) => Math.max(prev - 0.25, 0.5));
   };
 
-  const modalPost = isModalOpen
-    ? posts.find((p) => p.post_id === Number(modalPostId))
-    : null;
+  const handleCommentImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + commentImages.length > 4) {
+      alert("Tối đa 4 ảnh");
+      return;
+    }
+    setCommentImages((prev) => [...prev, ...files]);
+  };
+
+  const handleSubmitComment = async () => {
+    if (!commentContent.trim() || !modalPostId) return;
+
+    const formData = new FormData();
+    formData.append("postId", modalPostId);
+    formData.append("content", commentContent);
+    if (replyingTo) {
+      formData.append("parentCommentId", replyingTo.toString());
+    }
+    commentImages.forEach((img) => formData.append("attachments", img));
+
+    const result = await createComment(formData);
+    if (result?.success) {
+      setCommentContent("");
+      setCommentImages([]);
+      setReplyingTo(null);
+    }
+  };
+
+  const handleTyping = (isTyping: boolean) => {
+    if (modalPostId) {
+      sendTyping(parseInt(modalPostId), isTyping);
+    }
+  };
 
   return (
     <div className="w-full h-full overflow-auto p-2">
       <div className="max-w mx-auto">
         <div className="bg-white rounded-2xl p-8 mb-8 border">
-          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-2">
-            Forum Học Tập
-          </h1>
-          <p className="text-gray-600">
-            Nơi học sinh chia sẻ và giải đáp thắc mắc
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-2">
+                Forum Học Tập
+              </h1>
+              <p className="text-gray-600">
+                Nơi học sinh chia sẻ và giải đáp thắc mắc
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowCreatePost(true)}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Tạo bài viết
+            </Button>
+          </div>
         </div>
 
         {hasNewPosts && (
@@ -565,7 +499,7 @@ const ForumMain = () => {
                         return (
                           <Badge
                             key={subjectId}
-                            className={`${getSubjectColor(
+                            className={`${getSubjectBadgeColor(
                               subject?.name || ""
                             )} text-white cursor-pointer hover:opacity-80 transition-opacity`}
                             onClick={() => toggleSubject(subjectId)}
@@ -595,15 +529,16 @@ const ForumMain = () => {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56">
-                      {flairs.map((flair) => (
-                        <DropdownMenuCheckboxItem
-                          key={flair.id}
-                          checked={selectedFlairs.includes(flair.id)}
-                          onCheckedChange={() => toggleFlair(flair.id)}
-                        >
-                          {flair.name}
-                        </DropdownMenuCheckboxItem>
-                      ))}
+                      {Array.isArray(flairs) &&
+                        flairs.map((flair) => (
+                          <DropdownMenuCheckboxItem
+                            key={flair.id}
+                            checked={selectedFlairs.includes(flair.id)}
+                            onCheckedChange={() => toggleFlair(flair.id)}
+                          >
+                            {flair.name}
+                          </DropdownMenuCheckboxItem>
+                        ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
                   {selectedFlairs.length > 0 && (
@@ -673,37 +608,45 @@ const ForumMain = () => {
                 </div>
               </div>
 
-              {filteredPosts.slice(0, visiblePosts).map((post) => (
-                <div
-                  key={post.post_id}
-                  onDoubleClick={() => handleViewDetails(post.post_id)}
-                >
-                  <PostCard
-                    post={post}
-                    onOpenComments={() => handleOpenModal(post.post_id)}
-                    onViewDetails={() => handleViewDetails(post.post_id)}
-                  />
+              {isLoading && filteredPosts.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
                 </div>
-              ))}
+              ) : (
+                <>
+                  {filteredPosts.slice(0, visiblePosts).map((post) => (
+                    <div
+                      key={post.post_id}
+                      onDoubleClick={() => handleViewDetails(post.post_id)}
+                    >
+                      <PostCard
+                        post={post}
+                        onOpenComments={() => handleOpenModal(post.post_id)}
+                        onViewDetails={() => handleViewDetails(post.post_id)}
+                      />
+                    </div>
+                  ))}
 
-              <div
-                ref={observerTarget}
-                className="h-10 flex items-center justify-center"
-              >
-                {isLoadingMore && visiblePosts < filteredPosts.length && (
-                  <div className="flex items-center gap-2 text-gray-500">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
-                    <span className="text-sm">Đang tải...</span>
+                  <div
+                    ref={observerTarget}
+                    className="h-10 flex items-center justify-center"
+                  >
+                    {visiblePosts < filteredPosts.length && (
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                        <span className="text-sm">Đang tải...</span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {filteredPosts.length === 0 && (
-                <div className="bg-white rounded-lg border p-12 text-center">
-                  <p className="text-gray-500 text-lg">
-                    Không tìm thấy bài viết nào phù hợp
-                  </p>
-                </div>
+                  {filteredPosts.length === 0 && !isLoading && (
+                    <div className="bg-white rounded-lg border p-12 text-center">
+                      <p className="text-gray-500 text-lg">
+                        Không tìm thấy bài viết nào phù hợp
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </main>
@@ -719,19 +662,9 @@ const ForumMain = () => {
               <CardContent className="space-y-3">
                 <div className="flex justify-between items-center p-2 hover:bg-gray-50 rounded transition-colors">
                   <span className="text-sm text-gray-600">Tổng bài viết</span>
-                  <span className="font-bold text-lg text-purple-600">248</span>
-                </div>
-                <div className="flex justify-between items-center p-2 hover:bg-gray-50 rounded transition-colors">
-                  <span className="text-sm text-gray-600">
-                    Thành viên hoạt động
+                  <span className="font-bold text-lg text-purple-600">
+                    {posts.length}
                   </span>
-                  <span className="font-bold text-lg text-green-600">156</span>
-                </div>
-                <div className="flex justify-between items-center p-2 hover:bg-gray-50 rounded transition-colors">
-                  <span className="text-sm text-gray-600">
-                    Bình luận hôm nay
-                  </span>
-                  <span className="font-bold text-lg text-orange-600">89</span>
                 </div>
               </CardContent>
             </Card>
@@ -744,14 +677,19 @@ const ForumMain = () => {
         onOpenChange={(open) => !open && handleCloseModal()}
       >
         <DialogContent className="!max-w-[95vw] !w-[60vw] h-[90vh] p-0 flex flex-col">
-          {modalPost && (
+          {currentPost && (
             <>
               <DialogHeader className="p-4 border-b flex-shrink-0">
-                <DialogTitle className="sr-only">{modalPost.title}</DialogTitle>
+                <DialogTitle className="sr-only">
+                  {currentPost.title}
+                </DialogTitle>
+                <DialogDescription className="sr-only">
+                  Chi tiết bài viết và bình luận
+                </DialogDescription>
                 <div className="flex items-center justify-between">
                   <Button
                     variant="ghost"
-                    onClick={() => handleViewDetails(modalPost.post_id)}
+                    onClick={() => handleViewDetails(currentPost.post_id)}
                     className="w-fit hover:bg-gray-100 transition-colors gap-2"
                   >
                     <ExternalLink className="w-4 h-4" />
@@ -766,44 +704,46 @@ const ForumMain = () => {
                     <div className="flex items-center gap-3">
                       <Avatar className="w-12 h-12">
                         <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold">
-                          {modalPost.author_initials}
+                          {currentPost.author_initials}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="font-semibold text-lg">
-                          {modalPost.author_name}
+                          {currentPost.author_name}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {formatTimestamp(modalPost.created_at)} •{" "}
-                          {modalPost.author_class}
+                          {formatTimestamp(currentPost.created_at)} •{" "}
+                          {currentPost.author_class}
                         </div>
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <Badge
-                        className={`${getSubjectColor(
-                          modalPost.subject_name
+                        className={`${getSubjectBadgeColor(
+                          currentPost.subject_name
                         )} text-white`}
                       >
-                        {modalPost.subject_name}
+                        {currentPost.subject_name}
                       </Badge>
                       <Badge
                         variant="outline"
-                        className={getFlairColor(modalPost.flair_name)}
+                        className={getFlairColor(currentPost.flair_name)}
                       >
-                        {modalPost.flair_name}
+                        {currentPost.flair_name}
                       </Badge>
                     </div>
                   </div>
 
-                  <h1 className="text-2xl font-bold mb-4">{modalPost.title}</h1>
+                  <h1 className="text-2xl font-bold mb-4">
+                    {currentPost.title}
+                  </h1>
                   <p className="text-gray-700 mb-6 leading-relaxed">
-                    {modalPost.content}
+                    {currentPost.content}
                   </p>
 
-                  {modalPost.image_urls &&
+                  {currentPost.image_urls &&
                     (() => {
-                      const images = modalPost.image_urls
+                      const images = currentPost.image_urls
                         .split(",")
                         .filter((url) => url.trim());
                       return (
@@ -827,7 +767,7 @@ const ForumMain = () => {
                               >
                                 <img
                                   src={img}
-                                  alt={`${modalPost.title} ${idx + 1}`}
+                                  alt={`${currentPost.title} ${idx + 1}`}
                                   className="w-full h-full object-cover"
                                 />
                               </div>
@@ -836,17 +776,18 @@ const ForumMain = () => {
                         )
                       );
                     })()}
+
                   <div className="flex items-center gap-4 text-sm text-gray-600 mb-6 pt-4 border-t">
                     <div className="flex items-center gap-1">
                       <MessageSquare className="w-4 h-4" />
-                      <span>{modalPost.comment_count} bình luận</span>
+                      <span>{currentPost.comment_count} bình luận</span>
                     </div>
                   </div>
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between pb-3 border-b">
                       <h3 className="font-bold text-lg">
-                        Bình luận ({modalPost.comment_count})
+                        Bình luận ({currentPost.comment_count})
                       </h3>
                       <Select
                         value={commentSort}
@@ -862,121 +803,145 @@ const ForumMain = () => {
                       </Select>
                     </div>
 
-                    {getSortedComments(modalPost.comments).map((comment) => {
-                      const isRepliesExpanded = expandedReplies.has(
-                        comment.comment_id
-                      );
-                      const replies = comment.replies || [];
-                      return (
-                        <div key={comment.comment_id}>
-                          <div className="flex gap-3">
-                            <Avatar className="w-10 h-10">
-                              <AvatarFallback className="bg-gradient-to-br from-pink-400 to-orange-400 text-white text-sm font-bold">
-                                {comment.author_initials}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <div className="bg-gray-100 rounded-2xl px-4 py-3 hover:bg-gray-200 transition-colors">
-                                <div className="font-semibold text-sm">
-                                  {comment.author_name}
+                    {getSortedComments(currentPost.comments || []).map(
+                      (comment) => {
+                        const isRepliesExpanded = expandedReplies.has(
+                          comment.comment_id
+                        );
+                        const replies = comment.replies || [];
+                        return (
+                          <div key={comment.comment_id}>
+                            <div className="flex gap-3">
+                              <Avatar className="w-10 h-10">
+                                <AvatarFallback className="bg-gradient-to-br from-pink-400 to-orange-400 text-white text-sm font-bold">
+                                  {comment.author_initials}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="bg-gray-100 rounded-2xl px-4 py-3 hover:bg-gray-200 transition-colors">
+                                  <div className="font-semibold text-sm">
+                                    {comment.author_name}
+                                  </div>
+                                  <p className="text-sm mt-1">
+                                    {comment.content}
+                                  </p>
                                 </div>
-                                <p className="text-sm mt-1">
-                                  {comment.content}
-                                </p>
-                              </div>
-                              <div className="flex gap-4 px-4 mt-2">
-                                <button
-                                  className="text-xs text-gray-600 hover:text-purple-600 hover:underline font-semibold transition-colors"
-                                  onClick={() =>
-                                    setReplyingTo(
-                                      replyingTo === comment.comment_id
-                                        ? null
-                                        : comment.comment_id
-                                    )
-                                  }
-                                >
-                                  Phản hồi
-                                </button>
-                                <span className="text-xs text-gray-500">
-                                  {formatTimestamp(comment.created_at)}
-                                </span>
-                              </div>
-
-                              {replies.length > 0 && (
-                                <button
-                                  onClick={() =>
-                                    toggleReplies(comment.comment_id)
-                                  }
-                                  className="flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-purple-600 hover:underline mt-3 ml-4 transition-colors"
-                                >
-                                  {isRepliesExpanded ? (
-                                    <ChevronUp className="w-4 h-4" />
-                                  ) : (
-                                    <ChevronDown className="w-4 h-4" />
-                                  )}
-                                  {replies.length} phản hồi
-                                </button>
-                              )}
-
-                              {isRepliesExpanded &&
-                                replies.map((reply) => (
-                                  <div
-                                    key={reply.comment_id}
-                                    className="flex gap-3 mt-3 ml-10 animate-in slide-in-from-top-2 duration-200"
+                                <div className="flex gap-4 px-4 mt-2">
+                                  <button
+                                    className="text-xs text-gray-600 hover:text-purple-600 hover:underline font-semibold transition-colors"
+                                    onClick={() =>
+                                      setReplyingTo(
+                                        replyingTo === comment.comment_id
+                                          ? null
+                                          : comment.comment_id
+                                      )
+                                    }
                                   >
-                                    <Avatar className="w-8 h-8">
-                                      <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-400 text-white text-xs font-bold">
-                                        {reply.author_initials}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1">
-                                      <div className="bg-gray-100 rounded-2xl px-4 py-2 hover:bg-gray-200 transition-colors">
-                                        <div className="font-semibold text-xs">
-                                          {reply.author_name}
+                                    Phản hồi
+                                  </button>
+                                  <span className="text-xs text-gray-500">
+                                    {formatTimestamp(comment.created_at)}
+                                  </span>
+                                </div>
+
+                                {replies.length > 0 && (
+                                  <button
+                                    onClick={() =>
+                                      toggleReplies(comment.comment_id)
+                                    }
+                                    className="flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-purple-600 hover:underline mt-3 ml-4 transition-colors"
+                                  >
+                                    {isRepliesExpanded ? (
+                                      <ChevronUp className="w-4 h-4" />
+                                    ) : (
+                                      <ChevronDown className="w-4 h-4" />
+                                    )}
+                                    {replies.length} phản hồi
+                                  </button>
+                                )}
+
+                                {isRepliesExpanded &&
+                                  replies.map((reply) => (
+                                    <div
+                                      key={reply.comment_id}
+                                      className="flex gap-3 mt-3 ml-10 animate-in slide-in-from-top-2 duration-200"
+                                    >
+                                      <Avatar className="w-8 h-8">
+                                        <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-400 text-white text-xs font-bold">
+                                          {reply.author_initials}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="flex-1">
+                                        <div className="bg-gray-100 rounded-2xl px-4 py-2 hover:bg-gray-200 transition-colors">
+                                          <div className="font-semibold text-xs">
+                                            {reply.author_name}
+                                          </div>
+                                          <p className="text-xs mt-1">
+                                            {reply.content}
+                                          </p>
                                         </div>
-                                        <p className="text-xs mt-1">
-                                          {reply.content}
-                                        </p>
-                                      </div>
-                                      <div className="flex gap-4 px-4 mt-1">
-                                        <button className="text-xs text-gray-600 hover:text-purple-600 hover:underline font-semibold transition-colors">
-                                          Phản hồi
-                                        </button>
-                                        <span className="text-xs text-gray-500">
-                                          {formatTimestamp(reply.created_at)}
-                                        </span>
+                                        <div className="flex gap-4 px-4 mt-1">
+                                          <span className="text-xs text-gray-500">
+                                            {formatTimestamp(reply.created_at)}
+                                          </span>
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  ))}
 
-                              {replyingTo === comment.comment_id && (
-                                <div className="flex gap-2 mt-3 ml-10 animate-in slide-in-from-top-2 duration-200">
-                                  <Avatar className="w-8 h-8">
-                                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
-                                      U
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex-1 flex gap-2">
-                                    <Input
-                                      placeholder="Viết phản hồi..."
-                                      className="rounded-full text-sm hover:border-purple-300 focus:border-purple-500 transition-colors"
-                                      autoFocus
-                                    />
-                                    <Button
-                                      size="sm"
-                                      className="rounded-full px-4 hover:scale-105 transition-transform"
-                                    >
-                                      <Send className="w-4 h-4" />
-                                    </Button>
+                                {replyingTo === comment.comment_id && (
+                                  <div className="flex gap-2 mt-3 ml-10 animate-in slide-in-from-top-2 duration-200">
+                                    <Avatar className="w-8 h-8">
+                                      <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
+                                        {user?.username
+                                          ?.substring(0, 2)
+                                          .toUpperCase() || "U"}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 flex gap-2">
+                                      <Input
+                                        placeholder="Viết phản hồi..."
+                                        className="rounded-full text-sm hover:border-purple-300 focus:border-purple-500 transition-colors"
+                                        autoFocus
+                                        value={commentContent}
+                                        onChange={(e) =>
+                                          setCommentContent(e.target.value)
+                                        }
+                                        onFocus={() => handleTyping(true)}
+                                        onBlur={() => handleTyping(false)}
+                                        onKeyPress={(e) => {
+                                          if (
+                                            e.key === "Enter" &&
+                                            !e.shiftKey
+                                          ) {
+                                            e.preventDefault();
+                                            handleSubmitComment();
+                                          }
+                                        }}
+                                      />
+                                      <Button
+                                        size="sm"
+                                        className="rounded-full px-4 hover:scale-105 transition-transform"
+                                        onClick={handleSubmitComment}
+                                        disabled={
+                                          isLoading || !commentContent.trim()
+                                        }
+                                      >
+                                        {isLoading ? (
+                                          <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                          <Send className="w-4 h-4" />
+                                        )}
+                                      </Button>
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      }
+                    )}
                   </div>
                 </div>
               </div>
@@ -985,18 +950,87 @@ const ForumMain = () => {
                 <div className="flex gap-3">
                   <Avatar className="w-10 h-10">
                     <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm font-bold">
-                      U
+                      {user?.username?.substring(0, 2).toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 flex gap-2">
-                    <Input
-                      placeholder="Viết bình luận..."
-                      className="rounded-full hover:border-purple-300 focus:border-purple-500 transition-colors"
-                    />
-                    <Button className="rounded-full px-6 hover:scale-105 transition-transform">
-                      <Send className="w-4 h-4 mr-2" />
-                      Gửi
-                    </Button>
+                  <div className="flex-1">
+                    <div className="flex gap-2 mb-2">
+                      <Input
+                        ref={commentInputRef}
+                        placeholder="Viết bình luận..."
+                        className="rounded-full hover:border-purple-300 focus:border-purple-500 transition-colors"
+                        value={commentContent}
+                        onChange={(e) => setCommentContent(e.target.value)}
+                        onFocus={() => handleTyping(true)}
+                        onBlur={() => handleTyping(false)}
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSubmitComment();
+                          }
+                        }}
+                      />
+                      <Button
+                        className="rounded-full px-6 hover:scale-105 transition-transform"
+                        onClick={handleSubmitComment}
+                        disabled={isLoading || !commentContent.trim()}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4 mr-2" />
+                        )}
+                        Gửi
+                      </Button>
+                    </div>
+
+                    {commentImages.length > 0 && (
+                      <div className="flex gap-2 mb-2">
+                        {commentImages.map((img, idx) => (
+                          <div key={idx} className="relative">
+                            <img
+                              src={URL.createObjectURL(img)}
+                              alt={`Preview ${idx + 1}`}
+                              className="w-16 h-16 object-cover rounded"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCommentImages((prev) =>
+                                  prev.filter((_, i) => i !== idx)
+                                );
+                              }}
+                              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          document.getElementById("comment-images")?.click()
+                        }
+                        disabled={commentImages.length >= 4}
+                      >
+                        <ImagePlus className="w-4 h-4 mr-1" />
+                        Thêm ảnh ({commentImages.length}/4)
+                      </Button>
+                      <input
+                        id="comment-images"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={handleCommentImageSelect}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1078,6 +1112,12 @@ const ForumMain = () => {
           />
         </div>
       )}
+
+      <CreatePostDialog
+        open={showCreatePost}
+        onOpenChange={setShowCreatePost}
+        schoolId={schoolId}
+      />
     </div>
   );
 };

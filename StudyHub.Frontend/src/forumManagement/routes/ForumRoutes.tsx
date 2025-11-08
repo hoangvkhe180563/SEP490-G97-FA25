@@ -1,7 +1,7 @@
 // src/forumManagement/routes/ForumRoutes.tsx
 import ForumRouteConfig from "@/forumManagement/constants/ForumRouteConfig";
-import ForumMain from "@/forumManagement/pages/Forummain";
-import PostDetail from "@/forumManagement/pages/Postdetail";
+import ForumMain from "@/forumManagement/pages/forummain";
+import PostDetail from "@/forumManagement/pages/postdetail";
 import { Outlet, type RouteObject } from "react-router-dom";
 import AppealManagement from "../pages/AppealManagement";
 import PostManagement from "../pages/PostManagement";

@@ -1,19 +1,24 @@
-//src/forumManagement/components/PostCard.tsx
+// src/forumManagement/components/PostCard.tsx
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
-// import { Input } from "@/common/components/ui/input";
 import { Badge } from "@/common/components/ui/badge";
-// import { Button } from "@/common/components/ui/button";
 import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
+import { Input } from "@/common/components/ui/input";
+import { Button } from "@/common/components/ui/button";
 import {
   MessageSquare,
-  // Send,
   Image as ImageIcon,
   ExternalLink,
   ZoomIn,
   ZoomOut,
+  Send,
+  ImagePlus,
+  X,
+  Loader2,
 } from "lucide-react";
 import type { Post } from "../interfaces/forum";
+import { useForumStore } from "../stores/useForumStore";
+import { getSubjectBadgeColor, getFlairColor } from "../utils/colorUtils";
 
 interface PostCardProps {
   post: Post;
@@ -26,35 +31,18 @@ const PostCard: React.FC<PostCardProps> = ({
   onOpenComments,
   onViewDetails,
 }) => {
+  const { createComment, isLoading } = useForumStore();
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [cardImages, setCardImages] = useState<string[]>([]);
   const [imageZoom, setImageZoom] = useState(1);
+  const [showQuickComment, setShowQuickComment] = useState(false);
+  const [commentContent, setCommentContent] = useState("");
+  const [commentImages, setCommentImages] = useState<File[]>([]);
+
   const images = post.image_urls
     ? post.image_urls.split(",").filter((url) => url.trim())
     : [];
-
-  const getSubjectColor = (subjectName: string) => {
-    const colors: Record<string, string> = {
-      Toán: "bg-blue-500",
-      "Vật Lý": "bg-purple-500",
-      "Tiếng Anh": "bg-green-500",
-      "Hóa học": "bg-orange-500",
-      Văn: "bg-pink-500",
-      "Sinh học": "bg-teal-500",
-      "Lịch sử": "bg-yellow-600",
-    };
-    return colors[subjectName] || "bg-gray-500";
-  };
-
-  const getFlairColor = (flairName: string) => {
-    const colors: Record<string, string> = {
-      "Câu hỏi": "bg-red-100 text-red-700 border-red-300",
-      "Kiến thức": "bg-blue-100 text-blue-700 border-blue-300",
-      "Thảo luận": "bg-green-100 text-green-700 border-green-300",
-    };
-    return colors[flairName] || "bg-gray-100 text-gray-700 border-gray-300";
-  };
 
   const formatTimestamp = (dateString: string) => {
     const date = new Date(dateString);
@@ -95,7 +83,34 @@ const PostCard: React.FC<PostCardProps> = ({
     setImageZoom((prev) => Math.max(prev - 0.25, 0.5));
   };
 
-  const topLevelComments = post.comments.filter((c) => !c.parent_comment_id);
+  const handleCommentImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + commentImages.length > 4) {
+      alert("Tối đa 4 ảnh");
+      return;
+    }
+    setCommentImages((prev) => [...prev, ...files]);
+  };
+
+  const handleSubmitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentContent.trim()) return;
+
+    const formData = new FormData();
+    formData.append("postId", post.post_id.toString());
+    formData.append("content", commentContent);
+    commentImages.forEach((img) => formData.append("attachments", img));
+
+    const result = await createComment(formData);
+    if (result?.success) {
+      setCommentContent("");
+      setCommentImages([]);
+      setShowQuickComment(false);
+    }
+  };
+
+  const topLevelComments =
+    post.comments?.filter((c) => !c.parent_comment_id) || [];
   const previewComments = topLevelComments.slice(0, 2);
 
   return (
@@ -118,13 +133,15 @@ const PostCard: React.FC<PostCardProps> = ({
             </div>
             <div className="flex gap-2">
               <Badge
-                className={`${getSubjectColor(post.subject_name)} text-white`}
+                className={`${getSubjectBadgeColor(
+                  post.subject_name || ""
+                )} text-white`}
               >
-                {post.subject_name}
+                {post.subject_name || "N/A"}
               </Badge>
               <Badge
                 variant="outline"
-                className={getFlairColor(post.flair_name)}
+                className={getFlairColor(post.flair_name || "")}
               >
                 {post.flair_name}
               </Badge>
@@ -177,7 +194,7 @@ const PostCard: React.FC<PostCardProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onOpenComments();
+                setShowQuickComment(!showQuickComment);
               }}
               className="flex items-center gap-1 hover:text-purple-600 transition-colors"
             >
@@ -201,6 +218,83 @@ const PostCard: React.FC<PostCardProps> = ({
               <span>Xem chi tiết</span>
             </button>
           </div>
+
+          {showQuickComment && (
+            <form
+              onSubmit={handleSubmitComment}
+              className="mb-3 p-3 bg-gray-50 rounded-lg"
+            >
+              <Input
+                placeholder="Viết bình luận nhanh..."
+                value={commentContent}
+                onChange={(e) => setCommentContent(e.target.value)}
+                className="mb-2"
+              />
+
+              {commentImages.length > 0 && (
+                <div className="flex gap-2 mb-2">
+                  {commentImages.map((img, idx) => (
+                    <div key={idx} className="relative">
+                      <img
+                        src={URL.createObjectURL(img)}
+                        alt={`Preview ${idx + 1}`}
+                        className="w-16 h-16 object-cover rounded"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCommentImages((prev) =>
+                            prev.filter((_, i) => i !== idx)
+                          );
+                        }}
+                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    document
+                      .getElementById(`quick-comment-${post.post_id}`)
+                      ?.click()
+                  }
+                  disabled={commentImages.length >= 4}
+                >
+                  <ImagePlus className="w-4 h-4 mr-1" />
+                  Ảnh ({commentImages.length}/4)
+                </Button>
+                <input
+                  id={`quick-comment-${post.post_id}`}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleCommentImageSelect}
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isLoading || !commentContent.trim()}
+                  className="ml-auto"
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4 mr-1" />
+                  )}
+                  Gửi
+                </Button>
+              </div>
+            </form>
+          )}
 
           {topLevelComments.length > 0 && (
             <div className="space-y-2 mb-3">

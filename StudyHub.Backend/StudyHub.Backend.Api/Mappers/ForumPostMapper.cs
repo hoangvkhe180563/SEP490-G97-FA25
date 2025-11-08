@@ -7,6 +7,11 @@ namespace StudyHub.Backend.Api.Mappers
     {
         public static ForumPostListDto ToListDto(this ForumPost post)
         {
+            var authorName = post.Creator?.Username ?? "Unknown";
+            var authorInitials = post.Creator?.Username?.Length >= 2
+                ? post.Creator.Username.Substring(0, 2).ToUpper()
+                : "U";
+
             return new ForumPostListDto
             {
                 PostId = post.Id,
@@ -17,9 +22,10 @@ namespace StudyHub.Backend.Api.Mappers
                 FlairId = post.FlairId,
                 FlairName = post.Flair?.Name,
                 Title = post.Title,
-                ContentPreview = post.Content.Length > 200
-                    ? post.Content.Substring(0, 200) + "..."
-                    : post.Content,
+                Content = post.Content ?? string.Empty,
+                ContentPreview = (post.Content?.Length ?? 0) > 200
+                    ? post.Content!.Substring(0, 200) + "..."
+                    : post.Content ?? string.Empty,
                 TotalViolationScore = post.TotalViolationScore,
                 Status = post.Status,
                 StatusText = post.Status == null
@@ -28,14 +34,23 @@ namespace StudyHub.Backend.Api.Mappers
                 IsHidden = post.IsHidden,
                 CreatedAt = post.CreatedAt,
                 CreatedBy = post.CreatedBy,
-                CreatorName = post.Creator?.Username,
+                CreatorName = authorName,
                 CreatorAvatar = post.Creator?.Avatar,
+
+                AuthorName = authorName,
+                AuthorInitials = authorInitials,
+                //AuthorClass = post.Creator?.Class ?? "",
+                ImageUrls = post.Attachments != null && post.Attachments.Any()
+                    ? string.Join(",", post.Attachments
+                        .Where(a => a.IsApproved == true && !string.IsNullOrEmpty(a.FileUrl))
+                        .Select(a => a.FileUrl))
+                    : null,
+
                 CommentCount = post.CommentCount,
                 AttachmentCount = post.AttachmentCount,
                 UpdatedAt = post.UpdatedAt
             };
         }
-
         public static ForumPostDetailDto ToDetailDto(this ForumPost post)
         {
             return new ForumPostDetailDto
