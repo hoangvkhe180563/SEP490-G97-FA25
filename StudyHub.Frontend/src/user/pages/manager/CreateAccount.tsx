@@ -216,8 +216,8 @@ const CreateAccount: React.FC = () => {
       // include schoolId when provided
       schoolId: Number(data.schoolId ?? 0),
       // include dob if provided (frontend stores dob as string)
-    // send dob as ISO yyyy-MM-dd to backend (convert from display dd/MM/yyyy)
-    dob: useDobStore.getState().displayToIso(data.dob ?? null),
+      // send dob as ISO yyyy-MM-dd to backend (convert from display dd/MM/yyyy)
+      dob: useDobStore.getState().displayToIso(data.dob ?? null),
       fullname: data.fullname,
       // ensure roleIds are strings (GUIDs expected by backend)
       roleIds: (data.roleIds ?? []).map((r: any) => String(r)),

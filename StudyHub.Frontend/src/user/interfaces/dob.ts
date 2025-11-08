@@ -15,7 +15,9 @@ export function isValidDisplayDob(s?: string | null): boolean {
     const m = Number(parts[1]);
     const y = Number(parts[2]);
     const dt = new Date(y, m - 1, d);
-    return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+    return (
+      dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
+    );
   }
   if (iso.test(v)) {
     const parts = v.split("-");
@@ -23,7 +25,9 @@ export function isValidDisplayDob(s?: string | null): boolean {
     const m = Number(parts[1]);
     const d = Number(parts[2]);
     const dt = new Date(y, m - 1, d);
-    return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+    return (
+      dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
+    );
   }
   return false;
 }

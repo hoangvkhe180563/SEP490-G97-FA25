@@ -52,12 +52,12 @@ const profileSchema = z
       .refine((v) => !v || isValidVietnamPhone(v), {
         message: "Số điện thoại không hợp lệ",
       }),
-      dob: z
-        .string()
-        .optional()
-        .refine((v) => !v || useDobStore.getState().isValidDisplayDob(v), {
-          message: "Ngày sinh không hợp lệ. Định dạng dd/mm/yyyy",
-        }),
+    dob: z
+      .string()
+      .optional()
+      .refine((v) => !v || useDobStore.getState().isValidDisplayDob(v), {
+        message: "Ngày sinh không hợp lệ. Định dạng dd/mm/yyyy",
+      }),
     fullname: z.string().optional(),
     communeId: z.union([z.string(), z.number()]).optional(),
     cityId: z.string().optional(),
@@ -166,7 +166,9 @@ export default function UpdateProfile() {
         provinceId: user.provinceId ? String(user.provinceId) : undefined,
         communeId: user.communeId ? String(user.communeId) : undefined,
         schoolId: user.schoolId ? String(user.schoolId) : undefined,
-  dob: (user as any)?.dob ? useDobStore.getState().isoToDisplay((user as any).dob) ?? undefined : undefined,
+        dob: (user as any)?.dob
+          ? useDobStore.getState().isoToDisplay((user as any).dob) ?? undefined
+          : undefined,
         gender:
           typeof user.gender !== "undefined"
             ? user.gender
@@ -245,8 +247,9 @@ export default function UpdateProfile() {
     if (data.oldPassword) dto.oldPassword = data.oldPassword;
     if (data.newPassword) dto.newPassword = data.newPassword;
     if (file) dto.avatarFile = file;
-  // Convert display dob dd/MM/yyyy to ISO yyyy-MM-dd for backend
-  if (data.dob) dto.dob = useDobStore.getState().displayToIso(data.dob) ?? null;
+    // Convert display dob dd/MM/yyyy to ISO yyyy-MM-dd for backend
+    if (data.dob)
+      dto.dob = useDobStore.getState().displayToIso(data.dob) ?? null;
 
     const mapBackendKeyToField = (key: string) => {
       // common mappings from backend keys to our form field names
