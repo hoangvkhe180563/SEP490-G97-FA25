@@ -42,7 +42,8 @@ import {
   BreadcrumbList,
 } from "@/common/components/ui/breadcrumb";
 
-/* local type for links coming from PostComposer */
+import { isPastDeadline } from "@/classManagement/utils/dateutil"; // <-- added import
+
 type LinkPayload = { url: string; title?: string; thumbnail?: string };
 
 const ClassInfoCard: React.FC<{
@@ -75,17 +76,31 @@ const ClassInfoCard: React.FC<{
   );
 };
 
-const DocumentPreviewCard: React.FC<{ doc: DocumentDto }> = ({ doc }) => {
+const DocumentPreviewCard: React.FC<{ doc: DocumentDto; role: string }> = ({
+  doc,
+  role,
+}) => {
+  const navigate = useNavigate();
   const isImage = !!(
     doc.fileType && /jpg|jpeg|png|gif|bmp|webp/i.test(String(doc.fileType))
   );
   const isPdf = !!(doc.fileType && /pdf/i.test(String(doc.fileType)));
 
+  const detailPath = `/document/student/details/${doc.id}`;
+
   return (
     <a
-      href={doc.documentUrl}
-      target="_blank"
-      rel="noopener noreferrer"
+      href={detailPath}
+      // allow Ctrl/Cmd+click (open in new tab) by NOT preventing default when modifier is pressed.
+      onClick={(e) => {
+        // If user pressed modifier keys (Ctrl/Cmd/Shift/Alt) or used middle-click, let browser handle it (open new tab/window).
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
+          return;
+        }
+        // Otherwise prevent default and use SPA navigation
+        e.preventDefault();
+        navigate(detailPath);
+      }}
       className="block"
       title={doc.name}
     >
@@ -144,7 +159,8 @@ const DocumentsBox: React.FC<{
   documents: DocumentDto[];
   loading: boolean;
   classId: string;
-}> = ({ documents, loading, classId }) => {
+  role: string;
+}> = ({ documents, loading, classId, role }) => {
   return (
     <Card className="mt-4">
       <div className="p-4">
@@ -156,7 +172,7 @@ const DocumentsBox: React.FC<{
         </div>
         <div className="grid grid-cols-2 gap-3">
           {documents && documents.length > 0 ? (
-            documents.map((d) => <DocumentPreviewCard key={d.id} doc={d} />)
+            documents.map((d) => <DocumentPreviewCard key={d.id} doc={d} role={role} />)
           ) : (
             <div className="col-span-2 text-sm text-slate-500">
               Chưa có tài liệu.
@@ -652,89 +668,99 @@ const DetailedClassTeacher: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {worksFromStore.map((w) => (
-                      <div key={w.id}>
-                        <div
-                          className={`bg-white border rounded-xl p-5 cursor-pointer hover:bg-blue-50 flex justify-between items-start`}
-                          onClick={() => {
-                            if (role === "student") {
-                              navigate(
-                                `/class/${role}/${id}/classwork/${w.id}/detail`
-                              );
-                            } else {
-                              const next = openDropdownId === w.id ? null : w.id;
-                              setOpenDropdownId(next);
-                              if (next === w.id) {
-                                void fetchCountsForWork(w.id);
+                    {worksFromStore.map((w) => {
+                      const past = !!w.deadline && isPastDeadline(w.deadline);
+                      return (
+                        <div key={w.id}>
+                          <div
+                            className={`bg-white border rounded-xl p-5 cursor-pointer hover:bg-blue-50 flex justify-between items-start`}
+                            onClick={() => {
+                              if (role === "student") {
+                                navigate(
+                                  `/class/${role}/${id}/classwork/${w.id}/detail`
+                                );
+                              } else {
+                                const next = openDropdownId === w.id ? null : w.id;
+                                setOpenDropdownId(next);
+                                if (next === w.id) {
+                                  void fetchCountsForWork(w.id);
+                                }
                               }
-                            }
-                          }}
-                        >
-                          <div className="max-w-[70%]">
-                            <div className="text-lg font-semibold text-slate-900">
-                              {w.title}
+                            }}
+                          >
+                            <div className="max-w-[70%]">
+                              <div className="text-lg font-semibold text-slate-900">
+                                {w.title}
+                              </div>
+                              <div className="text-base text-slate-600 mt-2">
+                                {w.description}
+                              </div>
                             </div>
-                            <div className="text-base text-slate-600 mt-2">
-                              {w.description}
+                            <div className="text-right min-w-[140px]">
+                              <div className="text-xs text-slate-400">Hạn nộp</div>
+                              <div className="font-medium text-slate-800 mt-1">
+                                {w.deadline
+                                  ? new Date(w.deadline).toLocaleString()
+                                  : "Không xác định"}
+                              </div>
+                              {past && (
+                                <div className="mt-2 text-xs text-red-600 font-semibold">Đã quá hạn</div>
+                              )}
+                              {role === "teacher" && (
+                                <div className="mt-3">
+                                  <Button
+                                    aria-label={`Sửa bài tập ${w.title}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // Prevent navigation to edit if past deadline
+                                      if (past) return;
+                                      navigate(
+                                        `/class/${role}/${id}/classwork/${w.id}/edit`
+                                      );
+                                    }}
+                                    variant="secondary"
+                                    size="sm"
+                                    disabled={past}
+                                    title={past ? "Bài tập đã quá hạn, không thể chỉnh sửa" : undefined}
+                                  >
+                                    ✏️ Sửa
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <div className="text-right min-w-[140px]">
-                            <div className="text-xs text-slate-400">Hạn nộp</div>
-                            <div className="font-medium text-slate-800 mt-1">
-                              {w.deadline
-                                ? new Date(w.deadline).toLocaleString()
-                                : "Không xác định"}
-                            </div>
-                            {role === "teacher" && (
-                              <div className="mt-3">
-                                <Button
-                                  aria-label={`Sửa bài tập ${w.title}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(
-                                      `/class/${role}/${id}/classwork/${w.id}/edit`
-                                    );
-                                  }}
-                                  variant="secondary"
-                                  size="sm"
-                                >
-                                  ✏️ Sửa
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        {openDropdownId === w.id && (
-                          <Card className="mt-2">
-                            <div className="p-5">
-                              <div>
-                                <span className="font-semibold">Tiêu đề:</span>{" "}
-                                <span className="ml-2">{w.title}</span>
-                              </div>
-                              <div className="mt-3 flex items-center justify-between">
+                          {openDropdownId === w.id && (
+                            <Card className="mt-2">
+                              <div className="p-5">
                                 <div>
-                                  <div className="text-xs text-slate-400">Hạn nộp</div>
-                                  <div className="font-medium">
-                                    {w.deadline ? new Date(w.deadline).toLocaleString() : "Không xác định"}
+                                  <span className="font-semibold">Tiêu đề:</span>{" "}
+                                  <span className="ml-2">{w.title}</span>
+                                </div>
+                                <div className="mt-3 flex items-center justify-between">
+                                  <div>
+                                    <div className="text-xs text-slate-400">Hạn nộp</div>
+                                    <div className="font-medium">
+                                      {w.deadline ? new Date(w.deadline).toLocaleString() : "Không xác định"}
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-xs text-slate-400">Đã nộp / Tổng</div>
+                                    <div className="font-semibold text-slate-700">
+                                      {submissionCounts[w.id] ?? "—"} / {memberCounts[w.id] ?? "—"}
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="text-right">
-                                  <div className="text-xs text-slate-400">Đã nộp / Tổng</div>
-                                  <div className="font-semibold text-slate-700">
-                                    {submissionCounts[w.id] ?? "—"} / {memberCounts[w.id] ?? "—"}
-                                  </div>
+                                <div className="mt-4 text-right">
+                                  <Button onClick={() => navigate(`/class/${role}/${id}/classwork/${w.id}/submissions`)} size="sm">
+                                    Xem chi tiết
+                                  </Button>
                                 </div>
                               </div>
-                              <div className="mt-4 text-right">
-                                <Button onClick={() => navigate(`/class/${role}/${id}/classwork/${w.id}/submissions`)} size="sm">
-                                  Xem chi tiết
-                                </Button>
-                              </div>
-                            </div>
-                          </Card>
-                        )}
-                      </div>
-                    ))}
+                            </Card>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -840,6 +866,7 @@ const DetailedClassTeacher: React.FC = () => {
               documents={documents}
               loading={docsLoading}
               classId={id}
+              role={role}
             />
           </div>
         </aside>

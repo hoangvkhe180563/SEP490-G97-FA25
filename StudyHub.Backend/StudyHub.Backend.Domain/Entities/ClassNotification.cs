@@ -1,6 +1,6 @@
 ﻿namespace StudyHub.Backend.Domain.Entities;
 
-public class ClassNotification:IAuditTrail
+public class    ClassNotification:IAuditTrail
 {
     public int Id { get; set; }
 

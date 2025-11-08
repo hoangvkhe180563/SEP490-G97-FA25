@@ -237,7 +237,8 @@ namespace StudyHub.Backend.Api.Controllers
             if (noti == null) return NotFound(new { success = false, message = "Không tìm thấy classwork" });
 
             var submissions = _service.GetSubmissionsByNotificationId(id);
-            return Ok(new { success = true, data = noti, submissions = submissions });
+            var file = _service.GetFilesByNotification(id);
+            return Ok(new { success = true, data = noti, submissions = submissions, files=file });
         }
 
         // Submit assignment (multipart/form-data) - old route

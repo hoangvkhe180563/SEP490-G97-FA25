@@ -1116,7 +1116,7 @@ export const useClassStore = create<ClassState>()(
           return null;
         }
       },
-
+     
       // Nộp bài tập: submitClasswork
       submitClasswork: async (
         classworkId: number,
@@ -1254,6 +1254,73 @@ export const useClassStore = create<ClassState>()(
           return subs;
         } catch (err) {
           console.error("getClassworkSubmissions error:", err);
+          set({ isLoading: false });
+          return null;
+        }
+      },
+
+      // NEW: Lấy chi tiết 1 classwork (detail endpoint) và trả về object chứa data, submissions, files (nếu có)
+      // Endpoint tried: /api/Classwork/{id}/detail, /Classwork/{id}/detail, /api/ClassNotification/{id}/detail, /ClassNotification/{id}/detail
+      getClassworkDetail: async (
+        id: number
+      ): Promise<
+        | {
+            success?: boolean;
+            data?: any;
+            submissions?: any[];
+            files?: any[];
+            raw?: any;
+          }
+        | null
+      > => {
+        set({ isLoading: true });
+        try {
+          if (!id) {
+            set({ isLoading: false });
+            return null;
+          }
+
+          const endpoints = [
+            `/api/Classwork/${id}/detail`,
+            `/Classwork/${id}/detail`,
+            `/api/ClassNotification/${id}/detail`,
+            `/ClassNotification/${id}/detail`,
+          ];
+
+          let res: any = null;
+          let raw: any = null;
+          for (const ep of endpoints) {
+            try {
+              res = await axiosInstance.get(ep);
+              raw = res?.data ?? null;
+              if (raw !== null) break;
+            } catch (e) {
+              // try next endpoint
+            }
+          }
+
+          if (!raw) {
+            set({ isLoading: false });
+            return null;
+          }
+
+          // normalize known shapes
+          const data = raw.data ?? raw?.data ?? raw;
+          const submissions = raw.submissions ?? raw.data?.submissions ?? raw.submissionList ?? raw.submissions ?? [];
+          const files = raw.files ?? raw.data?.files ?? raw.attachments ?? raw.documents ?? [];
+
+          const result = {
+            success: raw.success ?? true,
+            data,
+            submissions,
+            files,
+            raw,
+          };
+
+          set({ isLoading: false });
+          return result;
+        } catch (err) {
+          console.error("getClassworkDetail error:", err);
           set({ isLoading: false });
           return null;
         }
@@ -1877,15 +1944,11 @@ export const useClassStore = create<ClassState>()(
             `/Class/${encodeURIComponent(classId)}/members/${encodeURIComponent(
               userId
             )}/decline`,
-            `/api/Class/${encodeURIComponent(
-              classId
-            )}/members/${encodeURIComponent(userId)}/decline`,
+            `/api/Class/${encodeURIComponent(classId)}/members/${encodeURIComponent(userId)}/decline`,
             `/Class/${encodeURIComponent(classId)}/members/${encodeURIComponent(
               userId
             )}/reject`,
-            `/api/Class/${encodeURIComponent(
-              classId
-            )}/members/${encodeURIComponent(userId)}/reject`,
+            `/api/Class/${encodeURIComponent(classId)}/members/${encodeURIComponent(userId)}/reject`,
           ];
 
           let res: any = null;

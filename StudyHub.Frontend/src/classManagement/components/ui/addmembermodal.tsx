@@ -172,9 +172,7 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
               </DialogDescription>
             </div>
             <DialogClose asChild>
-              <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close">
-                ✕
-              </Button>
+              
             </DialogClose>
           </div>
         </DialogHeader>

@@ -93,6 +93,7 @@ export type ClassWork = {
   deadline?: string | null;
   maxScore?: number | null;
   allowSubmission?: boolean;
+  files: ClassNotificationFile[];
   [key: string]: any;
 };
 export type ClassworkSubmissionFile = {
@@ -225,6 +226,7 @@ export interface ClassState {
   getSubmissionCount: (classworkId: number) => Promise<number | null>;
 
   getMemberCount:  (classId: number)=> Promise<number | null>;
+  getClassworkDetail: (classworkId: number) => Promise<ClassWork | null>;
 
   getDocumentsByClassId?: (classId: number) => Promise<DocumentDto[] | null>;
 

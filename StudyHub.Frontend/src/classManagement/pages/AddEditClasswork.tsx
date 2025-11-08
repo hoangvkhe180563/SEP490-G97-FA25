@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
@@ -7,11 +7,21 @@ import type { ClassInfo } from "@/classManagement/interfaces/class";
 import type { UserRole } from "@/classManagement/components/ui/classcard";
 import { axiosInstance } from "@/lib/axios";
 
-/* This component creates/edits a "classwork" by calling the unified ClassNotification API.
-   For creation we POST multipart/form-data to /ClassNotification with fields matching
-   CreateNotificationDto (Type = "classwork", Deadline, MaxScore, GradeType, AllowSubmission, InstructionsHtml).
-   For editing we fall back to the legacy /api/Classwork/{id} PUT route (keeps backward compatibility).
-*/
+import { Button } from "@/common/components/ui/button";
+import { Card } from "@/common/components/ui/card";
+import { Input } from "@/common/components/ui/input";
+import { Textarea } from "@/common/components/ui/textarea";
+import { Label } from "@/common/components/ui/label";
+import { Switch } from "@/common/components/ui/switch";
+
+type LinkItem = { title: string; url: string };
+
+type FilePreview = {
+  id: string;
+  file: File;
+  url?: string; // object URL for images
+  type: "image" | "pdf" | "other";
+};
 
 const AddEditClassworkForm: React.FC = () => {
   const params = useParams<{ id?: string; classworkId?: string }>();
@@ -41,6 +51,14 @@ const AddEditClassworkForm: React.FC = () => {
   const [gradeType, setGradeType] = useState<string>("points");
   const [allowSubmission, setAllowSubmission] = useState<boolean>(true);
 
+  // attachments
+  const [filePreviews, setFilePreviews] = useState<FilePreview[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [links, setLinks] = useState<LinkItem[]>([]);
+  const [linkTitle, setLinkTitle] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+
   const [loading, setLoading] = useState(false);
 
   // only teachers allowed to access this page (check auth-derived role)
@@ -53,11 +71,12 @@ const AddEditClassworkForm: React.FC = () => {
   // when editing, prefill fields from store.currentClass.works if present
   useEffect(() => {
     if (isEdit && params.classworkId && currentClass?.data?.works) {
-      const cw = currentClass.data.works.find((w) => String(w.id) === String(params.classworkId));
+      const cw = currentClass.data.works.find(
+        (w) => String(w.id) === String(params.classworkId)
+      );
       if (cw) {
         setTitle(cw.title ?? "");
         setDescription(cw.description ?? "");
-        // instructionsHtml may be stored in instructionsHtml or same as description
         setInstructionsHtml((cw as any).instructionsHtml ?? cw.description ?? "");
         if (cw.deadline) {
           const d = new Date(cw.deadline);
@@ -78,6 +97,16 @@ const AddEditClassworkForm: React.FC = () => {
     if (id) getClassInfo(Number(id));
   }, [id, getClassInfo]);
 
+  // cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      filePreviews.forEach((p) => {
+        if (p.url) URL.revokeObjectURL(p.url);
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleCancel = () => navigate(`/class/${role}/${id}?tab=exercise`);
 
   // Helper to post FormData to /ClassNotification (create)
@@ -86,13 +115,11 @@ const AddEditClassworkForm: React.FC = () => {
     let lastError: any = null;
     for (const ep of endpoints) {
       try {
-        // Let browser set the multipart Content-Type with boundary
         const res = await axiosInstance.post(ep, fd);
         return res;
       } catch (err: any) {
         lastError = err;
         if (err?.response?.status === 404) continue;
-        // on other errors break and surface the server response
         if (err?.response) break;
       }
     }
@@ -107,23 +134,24 @@ const AddEditClassworkForm: React.FC = () => {
       // basic validation
       if (!title || title.trim().length === 0) {
         alert("Tiêu đề không được để trống");
+        setLoading(false);
         return;
       }
       if (!id || Number(id) <= 0) {
         alert("ClassId không hợp lệ");
+        setLoading(false);
         return;
       }
 
       const createdBy = user?.id ?? (localStorage.getItem("currentUserId") ?? "");
       if (!createdBy) {
         alert("Thiếu thông tin người dùng");
+        setLoading(false);
         return;
       }
 
       // If editing -> try legacy edit route for classwork (keeps compatibility)
       if (isEdit && params.classworkId) {
-        // Attempt to call unified notification edit if available, otherwise fallback to /api/Classwork/{id}
-        // We'll call /api/Classwork/{id} with JSON body that contains extended fields.
         const putBody: any = {
           classId: Number(id),
           title: title.trim(),
@@ -133,9 +161,9 @@ const AddEditClassworkForm: React.FC = () => {
           gradeType: gradeType ?? null,
           allowSubmission: !!allowSubmission,
           instructionsHtml: instructionsHtml ?? null,
+          links: links.length > 0 ? links : undefined,
         };
 
-        // Try a few endpoints: /api/ClassNotification/{id} (if server supports PUT), then /api/Classwork/{id}
         const putEndpoints = [
           `/api/ClassNotification/${encodeURIComponent(params.classworkId)}`,
           `/ClassNotification/${encodeURIComponent(params.classworkId)}`,
@@ -147,7 +175,9 @@ const AddEditClassworkForm: React.FC = () => {
         let lastPutErr: any = null;
         for (const ep of putEndpoints) {
           try {
-            putRes = await axiosInstance.put(ep, putBody, { headers: { "Content-Type": "application/json" } });
+            putRes = await axiosInstance.put(ep, putBody, {
+              headers: { "Content-Type": "application/json" },
+            });
             break;
           } catch (err: any) {
             lastPutErr = err;
@@ -157,14 +187,17 @@ const AddEditClassworkForm: React.FC = () => {
         }
 
         if (!putRes) {
-          const msg = lastPutErr?.response?.data?.message ?? lastPutErr?.message ?? "Không thể cập nhật bài tập";
+          const msg =
+            lastPutErr?.response?.data?.message ??
+            lastPutErr?.message ??
+            "Không thể cập nhật bài tập";
           alert(msg);
         } else {
-          // Refresh classworks and class info then navigate back
           await getClassWorks(Number(id));
           await getClassInfo(Number(id));
           navigate(`/class/${role}/${id}?tab=exercise`);
         }
+        setLoading(false);
         return;
       }
 
@@ -175,30 +208,33 @@ const AddEditClassworkForm: React.FC = () => {
       fd.append("Title", title.trim());
       fd.append("Description", description?.trim() ?? "");
       fd.append("CreatedBy", createdBy);
-      // optional fields
       if (deadline) fd.append("Deadline", new Date(deadline).toISOString());
       if (maxScore !== "") fd.append("MaxScore", String(maxScore));
       if (gradeType) fd.append("GradeType", gradeType);
       fd.append("AllowSubmission", String(allowSubmission));
       if (instructionsHtml) fd.append("InstructionsHtml", instructionsHtml);
 
-      // (Files and Links are optional - this form doesn't include file picker UI now,
-      // but code supports them if you later add file inputs)
-      // Example: fd.append("Files", fileObj, fileObj.name);
-      // For Links, send LinksJson
-      // If you had link attachments in UI, you'd append:
-      // fd.append("LinksJson", JSON.stringify(linksArray));
+      // append files from filePreviews
+      if (filePreviews.length > 0) {
+        filePreviews.forEach((p) => {
+          fd.append("Files", p.file, p.file.name);
+        });
+      }
 
-      // Send to create endpoint (controller will upload files if any and persist file records)
+      // append links as LinksJson
+      if (links.length > 0) {
+        fd.append("LinksJson", JSON.stringify(links));
+      }
+
       const res = await postCreateNotification(fd);
       const raw = res?.data ?? null;
       if (!raw || raw.success === false) {
         const msg = raw?.message ?? "Tạo thông báo thất bại";
         alert(msg);
+        setLoading(false);
         return;
       }
 
-      // Refresh store data and navigate back to class exercise tab
       await getClassWorks(Number(id));
       await getClassInfo(Number(id));
       navigate(`/class/${role}/${id}?tab=exercise`);
@@ -213,92 +249,288 @@ const AddEditClassworkForm: React.FC = () => {
 
   const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
 
+  // --- File selection like notification: click or drag-and-drop, thumbnails, remove ---
+  const detectFileType = (file: File): FilePreview["type"] => {
+    const t = file.type ?? "";
+    if (/image\/(jpeg|png|webp|gif|bmp)/i.test(t)) return "image";
+    if (/pdf/i.test(t) || file.name.toLowerCase().endsWith(".pdf")) return "pdf";
+    return "other";
+  };
+
+  const handleFiles = (files: File[]) => {
+    const next: FilePreview[] = files.map((f) => {
+      const tp = detectFileType(f);
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const url = tp === "image" ? URL.createObjectURL(f) : undefined;
+      return { id, file: f, url, type: tp };
+    });
+    setFilePreviews((prev) => [...prev, ...next]);
+  };
+
+  const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files ? Array.from(e.target.files) : [];
+    if (selected.length > 0) {
+      handleFiles(selected);
+    }
+    // Reset input so same file can be re-selected later
+    e.currentTarget.value = "";
+  };
+
+  const openFileDialog = () => {
+    // Programmatically open file chooser to avoid label/click issues with custom Button components
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const dtFiles = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+    if (dtFiles.length > 0) handleFiles(dtFiles);
+  };
+
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const removeFile = (id: string) => {
+    setFilePreviews((prev) => {
+      const toRemove = prev.find((p) => p.id === id);
+      if (toRemove && toRemove.url) {
+        URL.revokeObjectURL(toRemove.url);
+      }
+      return prev.filter((p) => p.id !== id);
+    });
+  };
+
+  // Links handlers
+  const validateUrl = (url: string) => {
+    try {
+      const u = new URL(url);
+      return u.protocol === "http:" || u.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+
+  const addLink = () => {
+    if (!linkUrl || !validateUrl(linkUrl)) {
+      alert("URL không hợp lệ (cần bắt đầu bằng http:// hoặc https://)");
+      return;
+    }
+    setLinks((prev) => [...prev, { title: linkTitle || linkUrl, url: linkUrl }]);
+    setLinkTitle("");
+    setLinkUrl("");
+  };
+
+  const removeLink = (index: number) => {
+    setLinks((prev) => prev.filter((_, i) => i !== index));
+  };
+
   return (
     <div className="p-8">
       {/* Top bar */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="p-3 rounded-full hover:bg-slate-100 text-lg">←</button>
+          <Button variant="ghost" onClick={() => navigate(-1)} className="p-2">
+            ←
+          </Button>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white">📝</div>
+            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white">
+              📝
+            </div>
             <div>
               <div className="text-lg font-semibold">Bài tập</div>
-              <div className="text-sm text-slate-500">{isEdit ? "Chỉnh sửa bài tập" : "Tạo bài tập mới"}</div>
+              <div className="text-sm text-slate-500">
+                {isEdit ? "Chỉnh sửa bài tập" : "Tạo bài tập mới"}
+              </div>
             </div>
           </div>
         </div>
         <div>
-          <button onClick={() => handleSave()} disabled={loading} className="bg-blue-600 text-white px-5 py-3 rounded-lg text-lg">
+          <Button onClick={() => handleSave()} disabled={loading}>
             {loading ? "Đang lưu..." : "Lưu"}
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Main layout */}
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-8">
-          <div className="bg-white border rounded-xl p-6 mb-4">
-            <div className="mb-2 text-sm text-slate-600">Tiêu đề*</div>
-            <input
-              className="w-full border-b pb-3 mb-4 text-2xl outline-none"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Tiêu đề"
-            />
+          <Card className="p-6 mb-4">
+            <div className="mb-4">
+              <Label>Tiêu đề*</Label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Tiêu đề"
+                className="mt-2"
+              />
+            </div>
 
-            <div className="mb-2 text-sm text-slate-600">Hướng dẫn (không bắt buộc)</div>
-            <textarea
-              className="w-full border rounded p-4 min-h-[220px] mb-4 text-base"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Nhập mô tả ngắn cho học viên..."
-            />
+            <div className="mb-4">
+              <Label>Hướng dẫn (không bắt buộc)</Label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Nhập mô tả ngắn cho học viên..."
+                className="mt-2 min-h-[160px]"
+              />
+            </div>
 
             <div className="rounded-lg border p-5">
               <div className="text-md font-semibold mb-4">Đính kèm</div>
-              <div className="flex gap-6">
-                <button className="px-4 py-2 bg-slate-100 rounded-lg" disabled>
-                  Thêm tệp (chưa triển khai UI)
-                </button>
-                <button className="px-4 py-2 bg-slate-100 rounded-lg" disabled>
-                  Thêm liên kết (chưa triển khai UI)
-                </button>
+
+              {/* File upload area (like notification) */}
+              <div
+                onDrop={onDrop}
+                onDragOver={onDragOver}
+                className="border-dashed border-2 border-slate-200 rounded-lg p-4 bg-slate-50"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-slate-600">
+                    Kéo thả tệp vào đây hoặc chọn tệp (ảnh, pdf, doc, ...)
+                  </div>
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      id="fileInput"
+                      type="file"
+                      multiple
+                      onChange={handleFilesChange}
+                      className="hidden"
+                    />
+                    {/* Use programmatic click to ensure file chooser opens even if Button is custom */}
+                    <Button size="sm" onClick={openFileDialog}>
+                      Chọn tệp
+                    </Button>
+                  </div>
+                </div>
+
+                {filePreviews.length > 0 && (
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    {filePreviews.map((p) => (
+                      <div key={p.id} className="bg-white border rounded p-2 flex items-start gap-2">
+                        <div className="w-16 h-16 flex items-center justify-center bg-slate-100 rounded overflow-hidden shrink-0">
+                          {p.type === "image" && p.url ? (
+                            <img src={p.url} alt={p.file.name} className="w-full h-full object-cover" />
+                          ) : p.type === "pdf" ? (
+                            <div className="text-slate-600 text-lg">📄 PDF</div>
+                          ) : (
+                            <div className="text-slate-600 text-xl">📎</div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">{p.file.name}</div>
+                          <div className="text-xs text-slate-400 mt-1">
+                            {(p.file.size / 1024).toFixed(0)} KB
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <a
+                            href={p.url ?? "#"}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => {
+                              // if preview exists (image) open object URL; otherwise prevent default (no direct URL)
+                              if (!p.url) e.preventDefault();
+                            }}
+                            className="text-xs text-blue-600 hover:underline"
+                          >
+                            Xem
+                          </a>
+                          <Button size="sm" variant="ghost" onClick={() => removeFile(p.id)}>
+                            Xóa
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Links */}
+              <div className="mt-4">
+                <Label>Thêm liên kết</Label>
+                <div className="grid grid-cols-12 gap-2 items-end mt-2">
+                  <div className="col-span-5">
+                    <Input
+                      placeholder="Tiêu đề (tùy chọn)"
+                      value={linkTitle}
+                      onChange={(e) => setLinkTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-span-6">
+                    <Input
+                      placeholder="https://example.com"
+                      value={linkUrl}
+                      onChange={(e) => setLinkUrl(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-span-1">
+                    <Button size="sm" onClick={addLink}>
+                      Thêm
+                    </Button>
+                  </div>
+                </div>
+
+                {links.length > 0 && (
+                  <ul className="mt-3 space-y-2">
+                    {links.map((l, idx) => (
+                      <li key={idx} className="flex items-center justify-between bg-slate-50 p-2 rounded">
+                        <div className="truncate max-w-[75%]">
+                          <div className="font-medium text-sm">{l.title}</div>
+                          <div className="text-xs text-slate-500">{l.url}</div>
+                        </div>
+                        <div>
+                          <Button size="sm" variant="ghost" onClick={() => removeLink(idx)}>
+                            Xóa
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
-          </div>
+          </Card>
         </div>
 
         <aside className="col-span-12 lg:col-span-4">
           {/* Sidebar: assignment-specific fields */}
-          <div className="bg-white border rounded-xl p-5 space-y-4">
+          <Card className="p-5 space-y-4">
             <div>
-              <div className="text-sm font-semibold mb-2">Hạn nộp</div>
-              <input
+              <Label>Hạn nộp</Label>
+              <Input
                 type="datetime-local"
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
-                className="w-full border rounded px-3 py-2"
+                className="mt-2"
               />
             </div>
 
             <div>
-              <div className="text-sm font-semibold mb-2">Điểm tối đa</div>
-              <input
+              <Label>Điểm tối đa</Label>
+              <Input
                 type="number"
                 value={maxScore}
                 onChange={(e) => {
                   const v = e.target.value;
                   setMaxScore(v === "" ? "" : Number(v));
                 }}
-                className="w-full border rounded px-3 py-2"
                 placeholder="Ví dụ: 100"
                 min={0}
+                className="mt-2"
               />
             </div>
 
             <div>
-              <div className="text-sm font-semibold mb-2">Loại điểm</div>
-              <select value={gradeType} onChange={(e) => setGradeType(e.target.value)} className="w-full border rounded px-3 py-2">
+              <Label>Loại điểm</Label>
+              <select
+                value={gradeType}
+                onChange={(e) => setGradeType(e.target.value)}
+                className="w-full border rounded px-3 py-2 mt-2"
+              >
                 <option value="points">Points</option>
                 <option value="percentage">Percentage</option>
                 <option value="pass_fail">Pass / Fail</option>
@@ -306,21 +538,24 @@ const AddEditClassworkForm: React.FC = () => {
               </select>
             </div>
 
-            <div className="flex items-center gap-3">
-              <input id="allowSubmit" type="checkbox" checked={allowSubmission} onChange={(e) => setAllowSubmission(e.target.checked)} />
-              <label htmlFor="allowSubmit" className="text-sm">Cho phép nộp bài</label>
+            <div className="flex items-center justify-between">
+              <Label>Cho phép nộp bài</Label>
+              <Switch
+                checked={allowSubmission}
+                onCheckedChange={(v) => setAllowSubmission(!!v)}
+              />
             </div>
 
             <div>
-              <div className="text-sm font-semibold mb-2">Hướng dẫn chi tiết (HTML)</div>
-              <textarea
+              <Label>Hướng dẫn chi tiết (HTML)</Label>
+              <Textarea
                 value={instructionsHtml}
                 onChange={(e) => setInstructionsHtml(e.target.value)}
-                className="w-full border rounded px-3 py-2 min-h-[120px]"
                 placeholder="Hướng dẫn chi tiết (HTML hoặc plain text)"
+                className="mt-2 min-h-[120px]"
               />
             </div>
-          </div>
+          </Card>
         </aside>
       </div>
     </div>
