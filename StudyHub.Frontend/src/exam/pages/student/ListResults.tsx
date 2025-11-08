@@ -14,50 +14,50 @@ const ListResults = () => {
   const [examTitles, setExamTitles] = useState<any>({});
   const examService = new ExamService();
 
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-    if (!user.roles.some(role => role.includes("Student"))) {
-      navigate("/");
-      return;
-    }
+  // useEffect(() => {
+  //   if (!user) {
+  //     return;
+  //   }
+  //   if (!user.roles.some(role => role.includes("Student"))) {
+  //     navigate("/");
+  //     return;
+  //   }
     
-    const fetchResults = async () => {
-      try {
-        setLoading(true);
-        let fetchedResults = [];
-        fetchedResults = await examService.getResultsByStudentAndExamId(user.id);
-        fetchedResults = fetchedResults.filter(res => res.studentId == user.id);
+  //   const fetchResults = async () => {
+  //     try {
+  //       setLoading(true);
+  //       let fetchedResults = [];
+  //       fetchedResults = await examService.getResultsByStudentAndExamId(user.id);
+  //       fetchedResults = fetchedResults.filter(res => res.studentId == user.id);
 
-        const examIds = [...new Set(fetchedResults.map(r => r.examId))];
+  //       const examIds = [...new Set(fetchedResults.map(r => r.examId))];
 
-        const examTitlePromises = examIds.map(id => examService.getExamById(id).then(exam => ({ id, title: exam.title })));
+  //       const examTitlePromises = examIds.map(id => examService.getExamById(id).then(exam => ({ id, title: exam.title })));
 
-        const fetchedExamTitles = await Promise.all(examTitlePromises);
-        const examTitleMap = fetchedExamTitles.reduce((acc, curr) => ({ ...acc, [curr.id]: curr.title }), {});
+  //       const fetchedExamTitles = await Promise.all(examTitlePromises);
+  //       const examTitleMap = fetchedExamTitles.reduce((acc, curr) => ({ ...acc, [curr.id]: curr.title }), {});
 
-        setExamTitles(examTitleMap);
-        setResults(fetchedResults);
+  //       setExamTitles(examTitleMap);
+  //       setResults(fetchedResults);
 
-      } catch (err) {
-        console.error("Failed to fetch results:", err);
-        setError("Không thể tải danh sách kết quả.");
-      } finally {
-        setLoading(false);
-      }
-    };
+  //     } catch (err) {
+  //       console.error("Failed to fetch results:", err);
+  //       setError("Không thể tải danh sách kết quả.");
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
-    fetchResults();
-  }, [user]);
+  //   fetchResults();
+  // }, [user]);
 
-  if (error) {
-    return <div className="container mx-auto mt-8 p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>;
-  }
+  // if (error) {
+  //   return <div className="container mx-auto mt-8 p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>;
+  // }
 
   return (
     <div className="container mx-auto mt-8 p-4">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">
+      {/* <h1 className="text-3xl font-bold mb-6 text-gray-800">
         Lịch sử làm bài (Học sinh [Student.Username])
       </h1>
 
@@ -93,7 +93,7 @@ const ListResults = () => {
             </tbody>
           </table>
         </div>
-      )}
+      )} */}
     </div>
   );
 };

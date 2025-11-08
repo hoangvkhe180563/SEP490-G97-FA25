@@ -69,7 +69,7 @@ const ViewExamHistory = () => {
       <p className='mb-5'>Cho phép học sinh xem câu trả lời đúng/sai: <b>{exam.showCorrectAnswers ? 'Có' : 'Không'}</b></p>
 
       <div className="mb-6">
-        <Link to={`/exam/teacher/class-exams/${exam.id}/edit`}>
+        <Link to={`/exam/teacher/edit-exam/${exam.id}`}>
           <Button className='px-4 py-2 bg-yellow-500 text-white hover:bg-yellow-600'>
             Sửa bài kiểm tra
           </Button>

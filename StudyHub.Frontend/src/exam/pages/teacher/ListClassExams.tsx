@@ -48,7 +48,7 @@ const ListClassExams = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Bài kiểm tra đã tạo theo lớp</h1>
         <Link
-          to={`/exam/teacher/class-exams/create-exam?classId=${classId}`}
+          to={`/exam/teacher/create-exam?classId=${classId}`}
           className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300"
         >
           Tạo bài kiểm tra
@@ -69,13 +69,13 @@ const ListClassExams = () => {
               </div>
               <div className="flex justify-end">
                 <Link
-                  to={`/exam/teacher/class-exams/${exam.id}/edit`}
+                  to={`/exam/teacher/edit-exam/${exam.id}`}
                   className="px-4 py-2 mr-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 text-sm"
                 >
                   <Pencil size={16} />
                 </Link>
                 <Link
-                  to={`/exam/teacher/class-exams/${exam.id}/results`}
+                  to={`/exam/teacher/results/${exam.id}`}
                   className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
                 >
                   Xem lịch sử làm bài
