@@ -27,7 +27,7 @@ namespace StudyHub.Backend.UseCases.Services
         public List<Transaction> GetForExport(string? type, string? status) => _txRepo.GetForExport(type, status);
 
         // revenue export helper
-        public List<StudyHub.Backend.UseCases.Dtos.RevenueExportRow> GetRevenueForExport(System.DateTime? from, System.DateTime? to, int? courseId, System.Guid? teacherId, string? mode)
+        public List<RevenueExportRow> GetRevenueForExport(DateTime? from, DateTime? to, int? courseId, Guid? teacherId, string? mode)
         {
             return _txRepo.GetRevenueForExport(from, to, courseId, teacherId, mode);
         }

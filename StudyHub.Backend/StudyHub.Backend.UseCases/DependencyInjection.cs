@@ -21,13 +21,21 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<DocumentCategoryService>();
             services.AddScoped<LocationService>();
             services.AddScoped<ClassService>();
+            services.AddScoped<ClassNotificationService>();
+            services.AddScoped<ClassMemberService>();
+            services.AddScoped<ClassworkService>();
             services.AddScoped<LandingPageService>();
             services.AddScoped<PaymentInfoService>();
             services.AddScoped<PaymentService>();
             services.AddScoped<TransactionService>();
             services.AddScoped<EnrollmentService>();
             services.AddScoped<ProgressService>();
-            services.AddScoped<IEmailService, SmtpEmailService>();
+            services.AddScoped<SmtpEmailService>();
+            services.AddScoped<QATopicService>();
+            services.AddScoped<QAConversationService>();
+            services.AddScoped<QAMessageService>();
+
+            
             return services;
         }
     }

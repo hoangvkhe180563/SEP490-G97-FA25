@@ -10,6 +10,8 @@ interface CreateAccountDto {
   fullname?: string;
   // Gender as integer (1 -> Male, 0 -> Female, maybe 2 -> Other)
   gender: number;
+  phoneNumber?: string;
+  address?: string;
 }
 
 interface EditAccountDto {
@@ -26,6 +28,8 @@ interface EditAccountDto {
   avatarFile?: File | null;
   // Gender as integer (1 -> Male, 0 -> Female)
   gender?: number | null;
+  phoneNumber?: string;
+  address?: string;
 }
 
 interface UpdateProfileDto {
@@ -34,13 +38,16 @@ interface UpdateProfileDto {
   username?: string | null;
   fullname?: string | null;
   // backend expects GUIDs for role ids
-  password?: string | null;
+  oldPassword?: string | null;
+  newPassword?: string | null;
   // backend expects integer commune id
   communeId?: number | null;
   schoolId?: number | null;
   avatarFile?: File | null;
   // Gender as integer (1 -> Male, 0 -> Female)
   gender?: number | null;
+  address?: string | null;
+  phoneNumber?: string | null;
 }
 
 export type { CreateAccountDto, EditAccountDto, UpdateProfileDto };

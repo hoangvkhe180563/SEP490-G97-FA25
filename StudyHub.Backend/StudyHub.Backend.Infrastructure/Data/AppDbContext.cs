@@ -35,10 +35,6 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<ClassNotificationReadStatus> ClassNotificationReadStatuses { get; set; }
 
-    public virtual DbSet<Classwork> Classworks { get; set; }
-
-    public virtual DbSet<ClassworkSubmission> ClassworkSubmissions { get; set; }
-
     public virtual DbSet<Commune> Communes { get; set; }
 
     public virtual DbSet<Course> Courses { get; set; }
@@ -48,6 +44,18 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<DocumentCategory> DocumentCategories { get; set; }
 
     public virtual DbSet<Enrollment> Enrollments { get; set; }
+
+    public virtual DbSet<ForumAppeal> ForumAppeals { get; set; }
+
+    public virtual DbSet<ForumAttachment> ForumAttachments { get; set; }
+
+    public virtual DbSet<ForumComment> ForumComments { get; set; }
+
+    public virtual DbSet<ForumFlair> ForumFlairs { get; set; }
+
+    public virtual DbSet<ForumPost> ForumPosts { get; set; }
+
+    public virtual DbSet<ForumRule> ForumRules { get; set; }
 
     public virtual DbSet<LandingPage> LandingPages { get; set; }
 
@@ -63,6 +71,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<LessonVideo> LessonVideos { get; set; }
 
+    public virtual DbSet<NotificationSubmission> NotificationSubmissions { get; set; }
+
     public virtual DbSet<PaymentInfo> PaymentInfos { get; set; }
 
     public virtual DbSet<Progress> Progresses { get; set; }
@@ -75,6 +85,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<QATopic> QATopics { get; set; }
 
+    public virtual DbSet<RulePattern> RulePatterns { get; set; }
+
     public virtual DbSet<School> Schools { get; set; }
 
     public virtual DbSet<Subject> Subjects { get; set; }
@@ -82,6 +94,10 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<SubmissionFile> SubmissionFiles { get; set; }
 
     public virtual DbSet<Transaction> Transactions { get; set; }
+
+    public virtual DbSet<UserForumStatus> UserForumStatuses { get; set; }
+
+    public virtual DbSet<ViolationRecord> ViolationRecords { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -276,33 +292,33 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("class_notifications");
 
-            entity.HasIndex(e => e.AppUserId, "FK_ClassNotifications_AppUser");
-
-            entity.HasIndex(e => e.ClassId, "FK_ClassNotifications_Class");
+            entity.HasIndex(e => e.ClassId, "FK_ClassNotifications_Classes");
 
             entity.Property(e => e.CreatedAt)
                 .HasMaxLength(6)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+            entity.Property(e => e.Deadline).HasMaxLength(6);
             entity.Property(e => e.DeletedAt).HasMaxLength(6);
             entity.Property(e => e.Description)
                 .HasMaxLength(5000)
                 .UseCollation("utf8mb3_general_ci")
                 .HasCharSet("utf8mb3");
+            entity.Property(e => e.GradeType).HasMaxLength(50);
+            entity.Property(e => e.InstructionsHtml).HasColumnType("text");
+            entity.Property(e => e.MaxScore).HasPrecision(9, 2);
             entity.Property(e => e.Title)
                 .HasMaxLength(200)
                 .UseCollation("utf8mb3_general_ci")
                 .HasCharSet("utf8mb3");
+            entity.Property(e => e.Type)
+                .HasDefaultValueSql("'notification'")
+                .HasColumnType("enum('notification','classwork')");
             entity.Property(e => e.UpdatedAt).HasMaxLength(6);
-
-            entity.HasOne(d => d.AppUser).WithMany(p => p.ClassNotifications)
-                .HasForeignKey(d => d.AppUserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_ClassNotifications_AppUser");
 
             entity.HasOne(d => d.Class).WithMany(p => p.ClassNotifications)
                 .HasForeignKey(d => d.ClassId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("class_notifications_ibfk_1");
+                .HasConstraintName("FK_ClassNotifications_Classes");
         });
 
         modelBuilder.Entity<ClassNotificationComment>(entity =>
@@ -311,9 +327,7 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("class_notification_comments");
 
-            entity.HasIndex(e => e.AppUserId, "AppUserId");
-
-            entity.HasIndex(e => e.NotificationId, "NotificationId");
+            entity.HasIndex(e => e.NotificationId, "FK_NotificationComments_Notifications");
 
             entity.Property(e => e.Content).HasMaxLength(2000);
             entity.Property(e => e.CreatedAt)
@@ -322,14 +336,10 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.DeletedAt).HasMaxLength(6);
             entity.Property(e => e.UpdatedAt).HasMaxLength(6);
 
-            entity.HasOne(d => d.AppUser).WithMany(p => p.ClassNotificationComments)
-                .HasForeignKey(d => d.AppUserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("class_notification_comments_ibfk_2");
-
             entity.HasOne(d => d.Notification).WithMany(p => p.ClassNotificationComments)
                 .HasForeignKey(d => d.NotificationId)
-                .HasConstraintName("class_notification_comments_ibfk_1");
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_NotificationComments_Notifications");
         });
 
         modelBuilder.Entity<ClassNotificationFile>(entity =>
@@ -338,13 +348,15 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("class_notification_files");
 
-            entity.HasIndex(e => e.NotificationId, "NotificationId");
+            entity.HasIndex(e => e.NotificationId, "FK_NotificationFiles_Notifications");
 
             entity.Property(e => e.FileName).HasMaxLength(200);
+            entity.Property(e => e.FileType).HasMaxLength(100);
 
             entity.HasOne(d => d.Notification).WithMany(p => p.ClassNotificationFiles)
                 .HasForeignKey(d => d.NotificationId)
-                .HasConstraintName("class_notification_files_ibfk_1");
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_NotificationFiles_Notifications");
         });
 
         modelBuilder.Entity<ClassNotificationReadStatus>(entity =>
@@ -355,65 +367,14 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("class_notification_read_status");
 
-            entity.HasIndex(e => e.AppUserId, "AppUserId");
-
             entity.Property(e => e.ReadAt)
                 .HasMaxLength(6)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
-            entity.HasOne(d => d.AppUser).WithMany(p => p.ClassNotificationReadStatuses)
-                .HasForeignKey(d => d.AppUserId)
-                .HasConstraintName("class_notification_read_status_ibfk_2");
-
             entity.HasOne(d => d.Notification).WithMany(p => p.ClassNotificationReadStatuses)
                 .HasForeignKey(d => d.NotificationId)
-                .HasConstraintName("class_notification_read_status_ibfk_1");
-        });
-
-        modelBuilder.Entity<Classwork>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("classworks");
-
-            entity.HasIndex(e => e.ClassId, "ClassId");
-
-            entity.Property(e => e.Deadline).HasColumnType("datetime");
-            entity.Property(e => e.Description).HasMaxLength(5000);
-            entity.Property(e => e.Title).HasMaxLength(200);
-
-            entity.HasOne(d => d.Class).WithMany(p => p.Classworks)
-                .HasForeignKey(d => d.ClassId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("classworks_ibfk_1");
-        });
-
-        modelBuilder.Entity<ClassworkSubmission>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("classwork_submissions");
-
-            entity.HasIndex(e => e.AppUserId, "AppUserId");
-
-            entity.HasIndex(e => e.ClassworkId, "ClassworkId");
-
-            entity.Property(e => e.FirstSubmissionTime)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("datetime");
-            entity.Property(e => e.LatestSubmissionTime)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("datetime");
-
-            entity.HasOne(d => d.AppUser).WithMany(p => p.ClassworkSubmissions)
-                .HasForeignKey(d => d.AppUserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("classwork_submissions_ibfk_2");
-
-            entity.HasOne(d => d.Classwork).WithMany(p => p.ClassworkSubmissions)
-                .HasForeignKey(d => d.ClassworkId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("classwork_submissions_ibfk_1");
+                .HasConstraintName("FK_NotificationRead_Notifications");
         });
 
         modelBuilder.Entity<Commune>(entity =>
@@ -549,6 +510,206 @@ public partial class AppDbContext : DbContext
                 .HasConstraintName("enrollments_ibfk_2");
         });
 
+        modelBuilder.Entity<ForumAppeal>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("forum_appeals");
+
+            entity.HasIndex(e => e.SchoolId, "SchoolId");
+
+            entity.HasIndex(e => e.UpdatedBy, "UpdatedBy");
+
+            entity.HasIndex(e => e.UserId, "UserId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Reason).HasMaxLength(2000);
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.School).WithMany(p => p.ForumAppeals)
+                .HasForeignKey(d => d.SchoolId)
+                .HasConstraintName("forum_appeals_ibfk_2");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.ForumAppealUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("forum_appeals_ibfk_3");
+
+            entity.HasOne(d => d.User).WithMany(p => p.ForumAppealUsers)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("forum_appeals_ibfk_1");
+        });
+
+        modelBuilder.Entity<ForumAttachment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("forum_attachments");
+
+            entity.HasIndex(e => e.CommentId, "CommentId");
+
+            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
+
+            entity.HasIndex(e => e.PostId, "PostId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.DeletedAt).HasColumnType("datetime");
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.Comment).WithMany(p => p.ForumAttachments)
+                .HasForeignKey(d => d.CommentId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("forum_attachments_ibfk_2");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumAttachments)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("forum_attachments_ibfk_3");
+
+            entity.HasOne(d => d.Post).WithMany(p => p.ForumAttachments)
+                .HasForeignKey(d => d.PostId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("forum_attachments_ibfk_1");
+        });
+
+        modelBuilder.Entity<ForumComment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("forum_comments");
+
+            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
+
+            entity.HasIndex(e => e.ParentCommentId, "ParentCommentId");
+
+            entity.HasIndex(e => e.PostId, "PostId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.DeletedAt).HasColumnType("datetime");
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumComments)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("forum_comments_ibfk_3");
+
+            entity.HasOne(d => d.ParentComment).WithMany(p => p.InverseParentComment)
+                .HasForeignKey(d => d.ParentCommentId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("forum_comments_ibfk_2");
+
+            entity.HasOne(d => d.Post).WithMany(p => p.ForumComments)
+                .HasForeignKey(d => d.PostId)
+                .HasConstraintName("forum_comments_ibfk_1");
+        });
+
+        modelBuilder.Entity<ForumFlair>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("forum_flairs");
+
+            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
+
+            entity.HasIndex(e => e.SchoolId, "SchoolId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumFlairs)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("forum_flairs_ibfk_2");
+
+            entity.HasOne(d => d.School).WithMany(p => p.ForumFlairs)
+                .HasForeignKey(d => d.SchoolId)
+                .HasConstraintName("forum_flairs_ibfk_1");
+        });
+
+        modelBuilder.Entity<ForumPost>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("forum_posts");
+
+            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
+
+            entity.HasIndex(e => e.FlairId, "FlairId");
+
+            entity.HasIndex(e => e.SchoolId, "SchoolId");
+
+            entity.HasIndex(e => e.SubjectId, "SubjectId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.DeletedAt).HasColumnType("datetime");
+            entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumPosts)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("forum_posts_ibfk_4");
+
+            entity.HasOne(d => d.Flair).WithMany(p => p.ForumPosts)
+                .HasForeignKey(d => d.FlairId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("forum_posts_ibfk_3");
+
+            entity.HasOne(d => d.School).WithMany(p => p.ForumPosts)
+                .HasForeignKey(d => d.SchoolId)
+                .HasConstraintName("forum_posts_ibfk_1");
+
+            entity.HasOne(d => d.Subject).WithMany(p => p.ForumPosts)
+                .HasForeignKey(d => d.SubjectId)
+                .HasConstraintName("forum_posts_ibfk_2");
+        });
+
+        modelBuilder.Entity<ForumRule>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("forum_rules");
+
+            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
+
+            entity.HasIndex(e => e.SchoolId, "SchoolId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.IsActive)
+                .IsRequired()
+                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.RuleType).HasMaxLength(100);
+            entity.Property(e => e.Severity).HasMaxLength(50);
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumRules)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("forum_rules_ibfk_2");
+
+            entity.HasOne(d => d.School).WithMany(p => p.ForumRules)
+                .HasForeignKey(d => d.SchoolId)
+                .HasConstraintName("forum_rules_ibfk_1");
+        });
+
         modelBuilder.Entity<LandingPage>(entity =>
         {
             entity.HasKey(e => e.SchoolId).HasName("PRIMARY");
@@ -668,6 +829,33 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Lesson).WithOne(p => p.LessonVideo)
                 .HasForeignKey<LessonVideo>(d => d.LessonId)
                 .HasConstraintName("lesson_video_ibfk_1");
+        });
+
+        modelBuilder.Entity<NotificationSubmission>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("notification_submissions");
+
+            entity.HasIndex(e => e.NotificationId, "FK_Submissions_Notifications");
+
+            entity.Property(e => e.Feedback).HasColumnType("text");
+            entity.Property(e => e.FirstSubmissionTime)
+                .HasMaxLength(6)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+            entity.Property(e => e.GradedAt).HasMaxLength(6);
+            entity.Property(e => e.LatestSubmissionTime)
+                .HasMaxLength(6)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+            entity.Property(e => e.Score).HasPrecision(9, 2);
+            entity.Property(e => e.SubmissionStatus)
+                .HasMaxLength(50)
+                .HasDefaultValueSql("'submitted'");
+
+            entity.HasOne(d => d.Notification).WithMany(p => p.NotificationSubmissions)
+                .HasForeignKey(d => d.NotificationId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Submissions_Notifications");
         });
 
         modelBuilder.Entity<PaymentInfo>(entity =>
@@ -807,6 +995,35 @@ public partial class AppDbContext : DbContext
                 .HasConstraintName("q&_a_topic_ibfk_1");
         });
 
+        modelBuilder.Entity<RulePattern>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("rule_patterns");
+
+            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
+
+            entity.HasIndex(e => e.RuleId, "RuleId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.IsActive)
+                .IsRequired()
+                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.Pattern).HasMaxLength(500);
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.RulePatterns)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("rule_patterns_ibfk_2");
+
+            entity.HasOne(d => d.Rule).WithMany(p => p.RulePatterns)
+                .HasForeignKey(d => d.RuleId)
+                .HasConstraintName("rule_patterns_ibfk_1");
+        });
+
         modelBuilder.Entity<School>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
@@ -839,14 +1056,14 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("submission_files");
 
-            entity.HasIndex(e => e.SubmissionId, "SubmissionId");
+            entity.HasIndex(e => e.SubmissionId, "FK_SubmissionFiles_Submissions");
 
             entity.Property(e => e.FileName).HasMaxLength(200);
 
             entity.HasOne(d => d.Submission).WithMany(p => p.SubmissionFiles)
                 .HasForeignKey(d => d.SubmissionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("submission_files_ibfk_1");
+                .HasConstraintName("FK_SubmissionFiles_Submissions");
         });
 
         modelBuilder.Entity<Transaction>(entity =>
@@ -889,6 +1106,94 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("transactions_ibfk_1");
+        });
+
+        modelBuilder.Entity<UserForumStatus>(entity =>
+        {
+            entity.HasKey(e => new { e.UserId, e.SchoolId })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+
+            entity.ToTable("user_forum_status");
+
+            entity.HasIndex(e => e.SchoolId, "SchoolId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.MuteUntil).HasColumnType("datetime");
+            entity.Property(e => e.TotalViolationScore).HasDefaultValueSql("'100'");
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.School).WithMany(p => p.UserForumStatuses)
+                .HasForeignKey(d => d.SchoolId)
+                .HasConstraintName("user_forum_status_ibfk_2");
+
+            entity.HasOne(d => d.User).WithMany(p => p.UserForumStatuses)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("user_forum_status_ibfk_1");
+        });
+
+        modelBuilder.Entity<ViolationRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("violation_records");
+
+            entity.HasIndex(e => e.CommentId, "CommentId");
+
+            entity.HasIndex(e => e.MatchedPatternId, "MatchedPatternId");
+
+            entity.HasIndex(e => e.MatchedRuleId, "MatchedRuleId");
+
+            entity.HasIndex(e => e.PostId, "PostId");
+
+            entity.HasIndex(e => e.ReportedBy, "ReportedBy");
+
+            entity.HasIndex(e => e.SchoolId, "SchoolId");
+
+            entity.HasIndex(e => e.UserId, "UserId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.DeletedAt).HasColumnType("datetime");
+            entity.Property(e => e.SourceType)
+                .HasDefaultValueSql("'auto'")
+                .HasColumnType("enum('auto','report','manual')");
+
+            entity.HasOne(d => d.Comment).WithMany(p => p.ViolationRecords)
+                .HasForeignKey(d => d.CommentId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("violation_records_ibfk_4");
+
+            entity.HasOne(d => d.MatchedPattern).WithMany(p => p.ViolationRecords)
+                .HasForeignKey(d => d.MatchedPatternId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("violation_records_ibfk_6");
+
+            entity.HasOne(d => d.MatchedRule).WithMany(p => p.ViolationRecords)
+                .HasForeignKey(d => d.MatchedRuleId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("violation_records_ibfk_5");
+
+            entity.HasOne(d => d.Post).WithMany(p => p.ViolationRecords)
+                .HasForeignKey(d => d.PostId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("violation_records_ibfk_3");
+
+            entity.HasOne(d => d.ReportedByNavigation).WithMany(p => p.ViolationRecordReportedByNavigations)
+                .HasForeignKey(d => d.ReportedBy)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("violation_records_ibfk_7");
+
+            entity.HasOne(d => d.School).WithMany(p => p.ViolationRecords)
+                .HasForeignKey(d => d.SchoolId)
+                .HasConstraintName("violation_records_ibfk_2");
+
+            entity.HasOne(d => d.User).WithMany(p => p.ViolationRecordUsers)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("violation_records_ibfk_1");
         });
 
         OnModelCreatingPartial(modelBuilder);

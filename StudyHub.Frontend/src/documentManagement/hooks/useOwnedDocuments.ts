@@ -1,3 +1,4 @@
+// src/documentManagement/hooks/useOwnedDocuments.ts
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
 import type {
@@ -173,6 +174,8 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
         filtered = filtered.filter((d) => d.isApproved === null);
       } else if (filters.approvalStatus === "rejected") {
         filtered = filtered.filter((d) => d.isApproved === false);
+      } else if (filters.approvalStatus === "editRequest") {
+        filtered = filtered.filter((d) => d.isRequested === true);
       }
 
       return filtered;

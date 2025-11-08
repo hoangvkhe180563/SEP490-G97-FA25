@@ -29,13 +29,14 @@ import { useAppRoleStore } from "@/user/stores/useRoleStore";
 import { Badge } from "@/common/components/ui/badge";
 import { useLocationStore } from "@/user/stores/useLocationStore";
 import toast from "react-hot-toast";
+import { isValidVietnamPhone } from "@/user/utils/phoneUtils";
 
 const schema = z
   .object({
-    email: z.string().email("Invalid email address"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
+    email: z.string().email("Email không hợp lệ"),
+    password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
     confirmPassword: z.string(),
-    username: z.string().min(1, "Required"),
+    username: z.string().min(1, "Tên đăng nhập là bắt buộc"),
     phone: z.string().optional(),
     dob: z.string().optional(),
     communeId: z.union([z.string(), z.number()]).optional(),
@@ -43,6 +44,13 @@ const schema = z
     provinceId: z.string().optional(),
     schoolId: z.string().optional(),
     fullname: z.string().optional(),
+    address: z.string().optional(),
+    phoneNumber: z
+      .string()
+      .optional()
+      .refine((v) => !v || isValidVietnamPhone(v), {
+        message: "Số điện thoại không hợp lệ",
+      }),
     roleIds: z.array(z.union([z.string(), z.number()])).optional(),
     // gender stored as string in form but represents numeric codes: "1"=Male, "0"=Female, "2"=Other
     gender: z
@@ -54,7 +62,7 @@ const schema = z
     path: ["confirmPassword"],
   });
 
-type FormValues = z.infer<typeof schema> & { avatarFile?: File | null };
+type FormValues = z.infer<typeof schema> & { avatar?: File | null };
 
 const CreateAccount: React.FC = () => {
   const navigate = useNavigate();
@@ -76,6 +84,18 @@ const CreateAccount: React.FC = () => {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
+      email: "",
+      username: "",
+      password: "",
+      confirmPassword: "",
+      address: "",
+      phoneNumber: "",
+      fullname: "",
+      cityId: undefined,
+      provinceId: undefined,
+      communeId: undefined,
+      schoolId: undefined,
+      gender: undefined,
       roleIds: [],
     },
   });
@@ -85,9 +105,32 @@ const CreateAccount: React.FC = () => {
     control,
     setValue,
     watch,
-    formState: { isSubmitting },
+    setError,
+    formState,
     getValues,
   } = form;
+
+  const mapBackendKeyToField = (key: string) => {
+    const k = key || "";
+    // map backend avatar keys to our form field name 'avatar'
+    if (k.toLowerCase() === "avatar" || k.toLowerCase() === "avatarfile")
+      return "avatar";
+    return k.charAt(0).toLowerCase() + k.slice(1);
+  };
+
+  const handleMessage = (msg: any) => {
+    if (msg && typeof msg === "object") {
+      Object.entries(msg).forEach(([k, v]) => {
+        const field = mapBackendKeyToField(k);
+        const messageText = Array.isArray(v) ? v.join(", ") : String(v ?? "");
+        try {
+          setError(field as any, { type: "server", message: messageText });
+        } catch (e) {
+          toast.error(messageText || "Tạo tài khoản không thành công");
+        }
+      });
+    }
+  };
 
   const onSubmit = async (data: FormValues) => {
     const dto: CreateAccountDto = {
@@ -102,23 +145,29 @@ const CreateAccount: React.FC = () => {
       // convert gender code to number
       gender: Number(data.gender ?? 0),
       avatarFile: file ?? null,
+      phoneNumber: data.phoneNumber,
+      address: data.address,
     };
 
-    await useAppUserStore.getState().createAccount(
-      dto,
-      () => {
+    try {
+      const res = await useAppUserStore.getState().createAccount(dto);
+      const body = (res as any)?.data ?? res;
+      if (body?.success ?? body?.Success ?? false) {
         navigate(-1);
-      },
-      () => {
-        toast.error("Tạo tài khoản thất bại");
+        toast.success(body?.message ?? "Tạo tài khoản thành công");
+      } else {
+        handleMessage(body?.message ?? body);
       }
-    );
+    } catch (err: any) {
+      const body = err?.response?.data ?? err?.data ?? err;
+      handleMessage(body?.message ?? err?.message ?? body);
+    }
   };
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
     setFile(f);
-    setValue("avatarFile", f || null);
+    setValue("avatar", f || null);
     if (f) {
       const url = URL.createObjectURL(f);
       setPreview(url);
@@ -203,7 +252,7 @@ const CreateAccount: React.FC = () => {
     <Form {...form}>
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="space-y-6 bg-white rounded-xl p-6 shadow-md"
+        className="space-y-6 bg-white rounded-xl p-6 shadow-md max-h-screen overflow-auto"
       >
         <div className="grid grid-cols-4 gap-6">
           <div className="col-span-1 flex flex-col items-center gap-6">
@@ -219,6 +268,11 @@ const CreateAccount: React.FC = () => {
                 <CloudUpload className="text-gray-400" size={36} />
               )}
             </div>
+            {formState.errors?.avatar?.message && (
+              <p className="text-sm text-red-600">
+                {String(formState.errors.avatar.message)}
+              </p>
+            )}
             <div className="w-full text-center">
               <Button
                 type="button"
@@ -347,6 +401,20 @@ const CreateAccount: React.FC = () => {
 
             <FormField
               control={form.control}
+              name="phoneNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Số điện thoại</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Số điện thoại" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="password"
               render={({ field }) => (
                 <FormItem>
@@ -424,6 +492,22 @@ const CreateAccount: React.FC = () => {
                 </FormItem>
               )}
             />
+
+            <div className="col-span-2">
+              <FormField
+                control={control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Địa chỉ</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Địa chỉ" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div className="col-span-2">
               <FormField
@@ -569,7 +653,7 @@ const CreateAccount: React.FC = () => {
           <Button
             type="submit"
             className="bg-black text-white"
-            disabled={isSubmitting}
+            disabled={formState.isSubmitting}
           >
             Tạo tài khoản
           </Button>

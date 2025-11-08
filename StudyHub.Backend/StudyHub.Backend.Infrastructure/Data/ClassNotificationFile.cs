@@ -13,5 +13,9 @@ public partial class ClassNotificationFile
 
     public string FileUrl { get; set; } = null!;
 
+    public string? ThumbnailUrl { get; set; }
+
+    public string? FileType { get; set; }
+
     public virtual ClassNotification Notification { get; set; } = null!;
 }

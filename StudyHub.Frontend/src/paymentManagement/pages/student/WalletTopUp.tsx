@@ -4,6 +4,7 @@ import { Button } from "@/common/components/ui/button";
 import { Input } from "@/common/components/ui/input";
 import { Label } from "@/common/components/ui/label";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { usePaymentStore } from "@/paymentManagement/stores/usePaymentStore";
 import { paymentService } from "@/paymentManagement/services/paymentService";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
@@ -84,6 +85,9 @@ const WalletTopUp: React.FC = () => {
   const [accountNumber, setAccountNumber] = useState<string | null>(null);
   const [accountName, setAccountName] = useState<string | null>(null);
   const [transferNote, setTransferNote] = useState<string | null>(null);
+  const [number, setNumber] = useState<number | null>(null);
+  const result = usePaymentStore((s) => s.result);
+  const fetchPaymentInfo = usePaymentStore((s) => s.fetchPaymentInfo);
 
   useEffect(() => {
     (async () => {
@@ -140,14 +144,34 @@ const WalletTopUp: React.FC = () => {
     }
 
     try {
+      // get payment info for display
       const info = await paymentService.getPaymentInfo(authUser.schoolId);
-      const tn = `CH${authUser?.transferId ?? ""}`;
+
+      const random3 = Math.floor(Math.random() * 1000)
+        .toString()
+        .padStart(3, "0");
+
+      setNumber(Number(random3));
+
+      const tn = `CH${authUser?.transferId ?? ""}${random3}`;
+
+      // generate an orderRef for the top-up so the store can track it
+      const orderRef = `ORD-TOPUP-${Date.now()
+        .toString()
+        .slice(-6)}-${random3}`;
+
+      // populate the global payment store (so result won't be null, matching PaymentCheckout)
+      await fetchPaymentInfo(authUser.schoolId, amount, orderRef, tn);
+
+      // locally build the same QR url for immediate UI update (store also contains qrUrl)
       const url = paymentService.buildSepayQrUrl({
         amount,
         accountNumber: info.accountNumber,
         bank: info.accountBank,
         description: tn,
       });
+
+      // ✅ cập nhật local state
       setAccountNumber(info.accountNumber ?? null);
       setAccountName(info.accountName ?? null);
       setQrUrl(url);
@@ -160,6 +184,28 @@ const WalletTopUp: React.FC = () => {
       });
     }
   };
+
+  useEffect(() => {
+    try {
+      const notification = result?.paymentNotification;
+      console.log(
+        "Payment notification received in WalletTopUp:",
+        notification
+      );
+      if (!notification) return;
+      console.log(number);
+
+      if (number != notification.courseId) return;
+
+      const params = new URLSearchParams();
+      params.set("amount", String(amount));
+      if ((notification as any).reference)
+        params.set("txRef", (notification as any).reference);
+      navigate(`/payment/student/payment-success?${params.toString()}`);
+    } catch (err) {
+      console.error("WalletTopUp PaymentReceived handler error:", err);
+    }
+  }, [result, number, amount, navigate]);
 
   const copyText = (t: string) => navigator.clipboard?.writeText(t);
 
@@ -182,43 +228,16 @@ const WalletTopUp: React.FC = () => {
       });
     }
   };
-
-  // Auto-check nạp tiền
-  useEffect(() => {
-    if (!transferNote) return;
-    const timer: any = setInterval(async () => {
-      try {
-        const statusRes = await paymentService.getStatus(transferNote);
-        if (statusRes?.status === "Paid") {
-          clearInterval(timer);
-          try {
-            await useAuthStore.getState().checkAuth();
-          } catch {
-            // ignore
-          }
-          setDialog({
-            open: true,
-            title: "🎉 Nạp tiền thành công",
-            message: `Số tiền ${formatVnd(amount)} đã được cộng vào ví.`,
-          });
-        }
-      } catch {
-        // ignore
-      }
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [transferNote, amount]);
-
   return (
     <>
       <AppDialog dialog={dialog as any} setDialog={(d: any) => setDialog(d)} />
 
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-100 via-blue-50 to-white overflow-hidden">
+      <div className="h-full bg-gradient-to-br from-sky-100 via-blue-50 to-white overflow-y-auto ">
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="w-full max-w-5xl bg-white rounded-3xl shadow-[0_0_40px_-10px_rgba(56,189,248,0.4)] border border-sky-100 p-10"
+          className="w-full mx-auto max-w-5xl bg-white rounded-3xl shadow-[0_0_40px_-10px_rgba(56,189,248,0.4)] border border-sky-100 p-10"
         >
           {/* Header */}
           <div className="flex items-center gap-4 mb-6">

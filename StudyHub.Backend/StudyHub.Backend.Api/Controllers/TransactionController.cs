@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos;
 using System.Linq;
 using StudyHub.Backend.UseCases.Services;
+using Microsoft.AspNetCore.SignalR;
+using StudyHub.Backend.Api.Hubs;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Utils;
 using System.Threading.Tasks;
@@ -17,12 +19,14 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly TransactionService _txService;
         private readonly PaymentService _paymentService;
         private readonly CloudFileStorageService _fileStorage;
+        private readonly IHubContext<PaymentHub> _hubContext;
 
-        public TransactionController(TransactionService txService, PaymentService paymentService, CloudFileStorageService fileStorage)
+        public TransactionController(TransactionService txService, PaymentService paymentService, CloudFileStorageService fileStorage, IHubContext<PaymentHub> hubContext)
         {
             _txService = txService;
             _paymentService = paymentService;
             _fileStorage = fileStorage;
+            _hubContext = hubContext;
         }
 
         private IActionResult PagedResult<T>(List<T> items, int total, int page, int limit)
@@ -406,7 +410,7 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpPost("{id}/approve")]
-        public IActionResult Approve([FromRoute] int id, [FromBody] TransactionDto body)
+        public async Task<IActionResult> Approve([FromRoute] int id, [FromBody] TransactionDto body)
         {
             // Approve a pending transaction. For Withdraw (we already debited at request), simply mark Success and attach QrcodeUrl if provided.
             var tx = _txService.GetByUser(body.UserId).FirstOrDefault(x => x.Id == id);
@@ -431,11 +435,26 @@ namespace StudyHub.Backend.Api.Controllers
             tx.Status = "Success";
             tx.ProcessedAt = System.DateTime.UtcNow;
             _txService.UpdateTransaction(tx);
+
+            // notify user via SignalR
+            try
+            {
+                await _hubContext.Clients.Group($"user_{tx.UserId}").SendAsync("TransactionStatusChanged", new
+                {
+                    transactionId = tx.Id,
+                    status = tx.Status,
+                    type = tx.Type,
+                    amount = tx.Amount,
+                    processedAt = tx.ProcessedAt
+                });
+            }
+            catch { }
+
             return Ok(new { message = "approved" });
         }
 
         [HttpPost("{id}/reject")]
-        public IActionResult Reject([FromRoute] int id, [FromBody] TransactionDto body)
+        public async Task<IActionResult> Reject([FromRoute] int id, [FromBody] TransactionDto body)
         {
             var tx = _txService.GetByUser(body.UserId).FirstOrDefault(x => x.Id == id);
             if (tx == null) return NotFound();
@@ -452,7 +471,22 @@ namespace StudyHub.Backend.Api.Controllers
             tx.Status = "Cancelled";
             tx.ProcessedAt = System.DateTime.UtcNow;
             _txService.UpdateTransaction(tx);
+
+            try
+            {
+                await _hubContext.Clients.Group($"user_{tx.UserId}").SendAsync("TransactionStatusChanged", new
+                {
+                    transactionId = tx.Id,
+                    status = tx.Status,
+                    type = tx.Type,
+                    amount = tx.Amount,
+                    processedAt = tx.ProcessedAt
+                });
+            }
+            catch { }
+
             return Ok(new { message = "rejected" });
         }
+
     }
 }

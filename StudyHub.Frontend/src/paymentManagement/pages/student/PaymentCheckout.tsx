@@ -29,6 +29,10 @@ const PaymentCheckout: React.FC = () => {
   const result = usePaymentStore((s) => s.result);
   const error = usePaymentStore((s) => s.error);
   const fetchPaymentInfo = usePaymentStore((s) => s.fetchPaymentInfo);
+  // const startPaymentConnection = usePaymentStore(
+  //   (s) => s.startPaymentConnection
+  // );
+  // const stopPaymentConnection = usePaymentStore((s) => s.stopPaymentConnection);
 
   const orderRef = useMemo(() => {
     return `ORD-${Date.now().toString().slice(-6)}-${Math.floor(
@@ -36,19 +40,19 @@ const PaymentCheckout: React.FC = () => {
     )}`;
   }, []);
 
+  // --- STEP 1: Fetch payment info on mount ---
   useEffect(() => {
-    const transferNote = `CH${authUser?.transferId ?? ""}`;
+    const transferNote = `CH${authUser?.transferId ?? ""}${courseId}`;
     fetchPaymentInfo(schoolId || "0", price, orderRef, transferNote);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolId, price, orderRef, name, authUser?.id]);
 
-  // If the payment store reports an error, navigate to the failed page with message
+  // --- STEP 2: Redirect to fail page if error ---
   useEffect(() => {
     if (error) {
       const params = new URLSearchParams();
       params.set("msg", encodeURIComponent(String(error)));
       params.set("orderRef", orderRef);
-      // re-include original checkout params so PaymentFailed can retry
       params.set("price", String(price));
       if (name) params.set("name", encodeURIComponent(name));
       if (schoolId) params.set("schoolId", schoolId);
@@ -57,47 +61,53 @@ const PaymentCheckout: React.FC = () => {
     }
   }, [error, navigate, orderRef, price, name, schoolId, courseId]);
 
-  // Auto-poll payment status: when backend marks txRef as Paid, navigate to success
+  // useEffect(() => {
+  //   let active = true;
+
+  //   const initPaymentConnection = async () => {
+  //     try {
+  //       if (active) {
+  //         await startPaymentConnection();
+  //         console.info("✅ PaymentHub connected");
+  //       }
+  //     } catch (err) {
+  //       if (active) {
+  //         console.error("❌ PaymentHub connection failed:", err);
+  //       }
+  //     }
+  //   };
+
+  //   initPaymentConnection();
+
+  //   return () => {
+  //     active = false;
+  //     console.info("🧹 Stopping PaymentHub connection");
+  //     stopPaymentConnection();
+  //   };
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, []);
+
   useEffect(() => {
-    let timer: any = null;
-    let cancelled = false;
+    try {
+      const notification = result?.paymentNotification;
+      console.log("PaymentReceived notification:", notification);
+      if (!notification) return;
 
-    const startPolling = () => {
-      if (!result?.transferNote) return;
-      // poll every 5s
-      timer = setInterval(async () => {
-        try {
-          const status = await usePaymentStore
-            .getState()
-            .checkStatus(result.transferNote as string);
-          if (status === "Paid") {
-            if (cancelled) return;
-            // stop polling and navigate to success (same behavior as manual button)
-            clearInterval(timer);
-            const params = new URLSearchParams();
-            if (courseId) params.set("courseId", courseId);
-            if (result?.transferNote) params.set("txRef", result.transferNote);
-            navigate(`/payment/student/payment-success?${params.toString()}`);
-          }
-        } catch (err) {
-          // ignore transient errors
-        }
-      }, 5000);
-    };
+      if (Number(courseId) != notification.courseId) return;
+      console.log("Payment notification matches current courseId:", courseId);
 
-    startPolling();
-
-    return () => {
-      cancelled = true;
-      if (timer) clearInterval(timer);
-    };
-    // only re-run when transferNote or courseId changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result?.transferNote, courseId]);
+      const params = new URLSearchParams();
+      if (courseId) params.set("courseId", courseId);
+      params.set("txRef", notification.reference || "");
+      navigate(`/payment/student/payment-success?${params.toString()}`);
+    } catch (err) {
+      console.error("PaymentReceived handler error:", err);
+    }
+    // only re-run when a notification arrives for current result
+  }, [result?.paymentNotification, courseId, navigate]);
 
   const copyText = (t: string) => navigator.clipboard?.writeText(t);
 
-  /** 🖼️ Copy QR image vào clipboard (với AppDialog hiển thị kết quả) */
   const copyImage = async (imageUrl: string) => {
     try {
       const res = await fetch(imageUrl);
@@ -115,7 +125,6 @@ const PaymentCheckout: React.FC = () => {
 
       const item = new ClipboardItem({ [blob.type]: blob });
       await navigator.clipboard.write([item]);
-
       setDialog({
         open: true,
         title: "Thành công",
@@ -132,11 +141,9 @@ const PaymentCheckout: React.FC = () => {
     }
   };
 
-  // When user clicks "I have paid", check transaction status from backend and redirect if paid
-
+  // --- RENDER ---
   return (
     <>
-      {/* AppDialog hiển thị thông báo */}
       <AppDialog dialog={dialog} setDialog={setDialog} />
 
       <div className="min-h-[80vh] flex items-center justify-center bg-gradient-to-br from-sky-50 to-white p-6">
@@ -260,7 +267,6 @@ const PaymentCheckout: React.FC = () => {
           </div>
         </div>
       </div>
-      <AppDialog dialog={dialog} setDialog={setDialog} />
     </>
   );
 };

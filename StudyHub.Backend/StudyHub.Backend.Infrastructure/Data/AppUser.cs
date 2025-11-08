@@ -63,17 +63,23 @@ public partial class AppUser
 
     public virtual ICollection<AppUserSubjectClass> AppUserSubjectClasses { get; set; } = new List<AppUserSubjectClass>();
 
-    public virtual ICollection<ClassNotificationComment> ClassNotificationComments { get; set; } = new List<ClassNotificationComment>();
-
-    public virtual ICollection<ClassNotificationReadStatus> ClassNotificationReadStatuses { get; set; } = new List<ClassNotificationReadStatus>();
-
-    public virtual ICollection<ClassNotification> ClassNotifications { get; set; } = new List<ClassNotification>();
-
-    public virtual ICollection<ClassworkSubmission> ClassworkSubmissions { get; set; } = new List<ClassworkSubmission>();
-
     public virtual Commune? Commune { get; set; }
 
     public virtual ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
+
+    public virtual ICollection<ForumAppeal> ForumAppealUpdatedByNavigations { get; set; } = new List<ForumAppeal>();
+
+    public virtual ICollection<ForumAppeal> ForumAppealUsers { get; set; } = new List<ForumAppeal>();
+
+    public virtual ICollection<ForumAttachment> ForumAttachments { get; set; } = new List<ForumAttachment>();
+
+    public virtual ICollection<ForumComment> ForumComments { get; set; } = new List<ForumComment>();
+
+    public virtual ICollection<ForumFlair> ForumFlairs { get; set; } = new List<ForumFlair>();
+
+    public virtual ICollection<ForumPost> ForumPosts { get; set; } = new List<ForumPost>();
+
+    public virtual ICollection<ForumRule> ForumRules { get; set; } = new List<ForumRule>();
 
     public virtual ICollection<LessonComment> LessonComments { get; set; } = new List<LessonComment>();
 
@@ -83,7 +89,15 @@ public partial class AppUser
 
     public virtual ICollection<QAMessage> QAMessages { get; set; } = new List<QAMessage>();
 
+    public virtual ICollection<RulePattern> RulePatterns { get; set; } = new List<RulePattern>();
+
     public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
+
+    public virtual ICollection<UserForumStatus> UserForumStatuses { get; set; } = new List<UserForumStatus>();
+
+    public virtual ICollection<ViolationRecord> ViolationRecordReportedByNavigations { get; set; } = new List<ViolationRecord>();
+
+    public virtual ICollection<ViolationRecord> ViolationRecordUsers { get; set; } = new List<ViolationRecord>();
 
     public virtual ICollection<AppRole> Roles { get; set; } = new List<AppRole>();
 }

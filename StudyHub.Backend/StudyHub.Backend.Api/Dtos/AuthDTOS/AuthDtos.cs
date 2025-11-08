@@ -88,7 +88,8 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
         public List<int> ClassIds { get; set; } = new();
         public List<short> SubjectIds { get; set; } = new();
         public int? SchoolId { get; set; }
-        public int? transferId { get; set; }
+        public bool IsLoginWithGoogle { get; set; }
+        public int? TransferId { get; set; }
 
         public long Wallet { get; set; }
 

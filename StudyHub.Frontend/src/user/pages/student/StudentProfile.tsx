@@ -8,6 +8,7 @@ import {
   AvatarImage,
   AvatarFallback,
 } from "@/common/components/ui/avatar";
+import type { AppUser } from "@/auth/interfaces/app-user";
 import { Input } from "@/common/components/ui/input";
 import { Button } from "@/common/components/ui/button";
 import { Textarea } from "@/common/components/ui/textarea";
@@ -54,9 +55,24 @@ const profileSchema = z
 
 type ProfileValues = z.infer<typeof profileSchema> & { photo?: File | null };
 
+const defaultUser: AppUser = {
+  id: "student-1",
+  email: "sarah.johnson@email.com",
+  username: "sarah.j",
+  fullname: "John Smith",
+  avatar: "/avatars/user1.png",
+  roles: ["Student"],
+  permissions: [],
+  classIds: [],
+  subjectIds: [],
+  schoolId: 0,
+  isLoginWithGoogle: false,
+  transferId: 0,
+};
+
 export default function StudentProfile() {
   const [preview, setPreview] = useState<string | undefined>(
-    "/avatars/user1.png"
+    defaultUser.avatar
   );
   const [file, setFile] = useState<File | null>(null);
 
@@ -151,8 +167,10 @@ export default function StudentProfile() {
               </div>
             </div>
             <div>
-              <div className="font-medium text-lg">John Smith</div>
-              <div className="text-sm text-gray-500">Role: Student</div>
+              <div className="font-medium text-lg">{defaultUser.fullname}</div>
+              <div className="text-sm text-gray-500">
+                Role: {defaultUser.roles[0] ?? "Student"}
+              </div>
             </div>
           </div>
 

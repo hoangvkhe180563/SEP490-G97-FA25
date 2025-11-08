@@ -24,6 +24,7 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
     s.getEnrollmentForCourse(course.id)
   );
   const enroll = useEnrollmentStore((s: any) => s.enroll);
+  const consumeWallet = useEnrollmentStore((s: any) => s.consumeWallet);
 
   const enrollmentsLoaded = useEnrollmentStore((s: any) =>
     Array.isArray(s.enrollments) ? s.enrollments.length > 0 : false
@@ -223,15 +224,70 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
                     return;
                   }
 
-                  // otherwise go to checkout
-                  const params = new URLSearchParams({
-                    courseId: String(course.id),
-                    price: String(course.price ?? 0),
-                    name: String(course.name ?? ""),
-                    userId: String(authUser.id),
-                    schoolId: String(course.schoolId ?? ""),
-                  });
-                  navigate(`/payment/student/checkout?${params.toString()}`);
+                  // if user has wallet balance, try to use it
+                  const wallet = Number(authUser?.wallet ?? 0);
+                  if (wallet >= priceNum) {
+                    // Enough balance -> enroll directly (backend will debit wallet)
+                    try {
+                      await enroll({
+                        appUserId: String(authUser.id),
+                        courseId: course.id,
+                      });
+                      await fetchEnrollmentsByUser(String(authUser.id));
+                    } catch (err) {
+                      // if enroll fails (e.g. race or server error), fall back to checkout
+                      try {
+                        const params = new URLSearchParams({
+                          courseId: String(course.id),
+                          price: String(priceNum),
+                          name: String(course.name ?? ""),
+                          userId: String(authUser.id),
+                          schoolId: String(course.schoolId ?? ""),
+                        });
+                        navigate(
+                          `/payment/student/checkout?${params.toString()}`
+                        );
+                      } catch (e) {
+                        /* ignore */
+                      }
+                    }
+                    return;
+                  }
+                  // if wallet has some partial balance, attempt to consume wallet on BE
+                  try {
+                    const resp = await consumeWallet({
+                      appUserId: String(authUser.id),
+                      courseId: course.id,
+                    });
+                    if (resp?.created) {
+                      // enrolled
+                      await fetchEnrollmentsByUser(String(authUser.id));
+                      return;
+                    }
+                    const info = resp?.info ?? resp;
+                    const remaining = Number(
+                      info?.remaining ?? Math.max(0, priceNum - wallet)
+                    );
+                    const params = new URLSearchParams({
+                      courseId: String(course.id),
+                      price: String(remaining),
+                      name: String(course.name ?? ""),
+                      userId: String(authUser.id),
+                      schoolId: String(course.schoolId ?? ""),
+                    });
+                    navigate(`/payment/student/checkout?${params.toString()}`);
+                  } catch (err) {
+                    // fallback to checkout if something goes wrong
+                    const remaining = Math.max(0, priceNum - wallet);
+                    const params = new URLSearchParams({
+                      courseId: String(course.id),
+                      price: String(remaining),
+                      name: String(course.name ?? ""),
+                      userId: String(authUser.id),
+                      schoolId: String(course.schoolId ?? ""),
+                    });
+                    navigate(`/payment/student/checkout?${params.toString()}`);
+                  }
                 } catch {
                   /* ignore */
                 }

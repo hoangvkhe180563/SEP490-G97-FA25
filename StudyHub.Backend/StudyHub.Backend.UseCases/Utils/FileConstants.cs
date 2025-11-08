@@ -27,4 +27,5 @@ public static class FileConstants
     public const string LandingPageLogoUploadPath = "LandingPage/Logo";
     public const string LandingPageImagesUploadPath = "LandingPage/Introduction";
     public const string TransactionProofUploadPath = "Transactions/Proofs";
+    public const string ForumPostAttachmentUploadPath = "Forum/Attachments";
 }
