@@ -24,6 +24,8 @@ namespace StudyHub.Backend.Domain.Entities
 
         public DateTime CreatedAt { get; set; }
 
+        public List<QAConversationRead> QAConversationReads { get; set; } = new List<QAConversationRead>();
+
         public List<QAMessage> QAMessages { get; set; } = new List<QAMessage>();
 
         public AppUser Student { get; set; } = null!;

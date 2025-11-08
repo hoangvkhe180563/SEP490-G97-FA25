@@ -83,6 +83,13 @@ namespace StudyHub.Backend.UseCases.Services
             if (cls == null) return false;
             return _classMemberRepository.ConfirmMember(userGuid, classId);
         }
+        public bool? DeclineMemberFromString(int classId, string userId)
+        {
+            if (!Guid.TryParse(userId, out var userGuid)) return null;
+            var cls = _classRepository.GetClassById(classId);
+            if (cls == null) return false;
+            return _classMemberRepository.DeclineMember(userGuid, classId);
+        }
 
         public bool? KickMemberFromString(int classId, string userId)
         {

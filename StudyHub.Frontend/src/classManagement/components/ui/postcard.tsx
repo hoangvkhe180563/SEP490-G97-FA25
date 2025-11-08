@@ -1,9 +1,35 @@
 import React, { useState, useEffect, useRef } from "react";
-import CommentComposer from "@/classManagement/components/ui/commentcomposer";
 import DOMPurify from "dompurify";
+import CommentComposer from "@/classManagement/components/ui/commentcomposer";
 import useClassStore from "@/classManagement/stores/useClassStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-import type { PostComment } from "@/classManagement/components/ui/postcard";
+
+/* shadcn components */
+import { Card } from "@/common/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avatar";
+import { Button } from "@/common/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/common/components/ui/dropdown-menu";
+import { Separator } from "@/common/components/ui/separator";
+import { Tooltip } from "@/common/components/ui/tooltip";
+import { format } from "date-fns";
+
+/* icons */
+import { MoreHorizontal, Share2, Trash2 } from "lucide-react";
+
+export type PostComment = {
+  id: number | string; // allow string for optimistic temp ids
+  notificationId?: number|string;
+  userId?: number | string;
+  userFullname: string;
+  content: string; // HTML content
+  avatarUrl?: string | null;
+  createdAt?: string;
+};
 
 // ====== Types ======
 export type PostFile = {
@@ -123,7 +149,6 @@ const renderContent = (html?: string) => {
         </div>
       );
     } else if (url) {
-      // Not a recognized youtube link — render as sanitized link
       const safeUrl = sanitizeHtml(escapeHtml(url));
       nodes.push(
         <div key={`link-${idx}`} className="my-2">
@@ -131,7 +156,6 @@ const renderContent = (html?: string) => {
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            // Inline styles to guarantee wrapping/breaking even if global CSS forces nowrap
             style={{
               color: "#2563eb",
               textDecoration: "underline",
@@ -179,7 +203,6 @@ const FilePreview: React.FC<{ file: PostFile }> = ({ file }) => {
     ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"].includes(ext);
   const isPdf = ext === "pdf" || /\.pdf$/i.test(url);
 
-  // Build a short display label: prefer hostname + path when name/url is long URL
   const getDisplayName = (): { text: string; full: string } => {
     try {
       const parsedName = new URL(name);
@@ -245,12 +268,11 @@ const FilePreview: React.FC<{ file: PostFile }> = ({ file }) => {
       target="_blank"
       rel="noopener noreferrer"
       className="w-full flex items-center gap-3 bg-white border rounded overflow-hidden px-3 py-2 hover:shadow transition"
-      // Inline styles to ensure no overflow even if global CSS forces nowrap
       style={{
         maxWidth: "100%",
         boxSizing: "border-box",
         overflow: "hidden",
-        wordBreak: "break-all", // break long continuous strings
+        wordBreak: "break-all",
         whiteSpace: "normal",
       }}
       title={display.full}
@@ -289,32 +311,22 @@ const FilePreview: React.FC<{ file: PostFile }> = ({ file }) => {
 // ====== Component ======
 const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const [showComments, setShowComments] = useState(false);
-  // initialize localComments from post.comments (may contain HTML)
   const [localComments, setLocalComments] = useState<PostComment[]>(post.comments ?? []);
+  const [isDeleted, setIsDeleted] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // Keep localComments in sync whenever post.comments prop changes
   useEffect(() => {
     setLocalComments(post.comments ?? []);
   }, [post.comments]);
 
-  // local state to hide card optimistically when deleting
-  const [isDeleted, setIsDeleted] = useState(false);
-
-  // dropdown/menu state
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  // get addComment & deleteNotification action from store
   const addComment = useClassStore((s) => s.addComment);
   const deleteNotification = useClassStore((s) => s.deleteNotification);
 
-  // get current user from auth store to use as author for optimistic comments and request userId
   const { user } = useAuthStore();
   const currentUserId = user?.id ?? "unknown-user";
   const currentUserFullname = user?.fullname ?? "Bạn";
 
   const handleSendComment = async (htmlContent: string) => {
-    // create optimistic comment (temporary id)
     const tempId = `temp-${Date.now()}`;
     const optimistic: PostComment = {
       id: tempId,
@@ -326,7 +338,6 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       createdAt: new Date().toISOString(),
     };
 
-    // show immediately (optimistic UI)
     setLocalComments((c) => [...c, optimistic]);
     setShowComments(true);
 
@@ -337,14 +348,11 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
         userId: currentUserId,
       });
       if (created) {
-        // replace optimistic comment with server comment
         setLocalComments((prev) =>
           prev.map((c) => (String(c.id) === String(tempId) ? created : c))
         );
-
         setShowComments(true);
       } else {
-        // fallback: optimistic local append kept, change id
         setLocalComments((prev) =>
           prev.map((c) => (String(c.id) === String(tempId) ? { ...c, id: Date.now() } : c))
         );
@@ -352,7 +360,6 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       }
     } catch (err) {
       console.error("Failed to send comment", err);
-      // remove optimistic on error
       setLocalComments((prev) => prev.filter((c) => String(c.id) !== String(tempId)));
     }
   };
@@ -361,7 +368,6 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     setMenuOpen(false);
     if (!window.confirm("Bạn có chắc muốn xóa thông báo này?")) return;
 
-    // optimistic hide
     setIsDeleted(true);
 
     try {
@@ -383,6 +389,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     try {
       const d = new Date(iso);
       if (isNaN(d.getTime())) return String(iso);
+      // format with date-fns for consistent output
       return d.toLocaleString("vi-VN");
     } catch {
       return String(iso);
@@ -390,9 +397,13 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   };
 
   return (
-    <div className="bg-white border rounded-lg p-4 shadow-sm">
+    <Card className="p-4">
       <div className="flex items-start gap-4">
-        <img src={post.createdBy ? "/vite.svg" : "/vite.svg"} alt="avatar" className="w-12 h-12 rounded-full object-cover" />
+        <Avatar>
+          <AvatarImage src={post.createdBy ? "/vite.svg" : "/vite.svg"} alt="avatar" />
+          <AvatarFallback>U</AvatarFallback>
+        </Avatar>
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <div>
@@ -400,36 +411,27 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
               <div className="text-xs text-gray-400">{formatDate(post.createdAt)}</div>
             </div>
 
-            {/* three-dot menu */}
-            <div className="relative" ref={menuRef}>
-              <button
-                className="text-sm text-gray-400 cursor-pointer px-2 py-1 hover:text-gray-700"
-                onClick={() => setMenuOpen((s) => !s)}
-                aria-expanded={menuOpen}
-                aria-label="Post actions"
-              >
-                •••
-              </button>
-
-              {menuOpen && (
-                <div className="absolute right-0 mt-2 w-44 bg-white border rounded shadow z-50">
-                  <button
-                    className="w-full text-left px-3 py-2 hover:bg-gray-50"
-                    onClick={handleDelete}
-                  >
-                    Delete
-                  </button>
-                  <button
-                    className="w-full text-left px-3 py-2 hover:bg-gray-50 text-red-500"
-                    onClick={() => {
-                      setMenuOpen(false);
+            <div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="p-1">
+                    <MoreHorizontal className="w-4 h-4 text-gray-500" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem onSelect={handleDelete} className="flex items-center gap-2">
+                    <Trash2 className="w-4 h-4" /> Delete
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => {
                       alert("Dismiss student (chưa triển khai)");
                     }}
+                    className="flex items-center gap-2 text-red-600"
                   >
                     Dismiss student
-                  </button>
-                </div>
-              )}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -445,14 +447,22 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
             </div>
           )}
 
-          <div className="mt-4 border-t pt-3 flex items-center justify-between text-sm text-gray-500">
-            <button className="flex items-center gap-2 hover:text-gray-700" onClick={() => setShowComments((s) => !s)}>
+          <Separator className="my-3" />
+
+          <div className="flex items-center justify-between text-sm text-gray-500">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowComments((s) => !s)}
+              className="flex items-center gap-2"
+            >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
                 <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="currentColor" strokeWidth="1.5" />
               </svg>
               {localComments.length} comments
-            </button>
-            <div className="text-gray-400 cursor-pointer hover:text-gray-600">Share</div>
+            </Button>
+
+            
           </div>
 
           <div className="mt-4">
@@ -463,24 +473,27 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
             <div className="mt-3 space-y-3">
               {localComments.map((c) => (
                 <div key={c.id} className="flex gap-3 items-start">
-                  <img src={c.avatarUrl ?? "/vite.svg"} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
+                  <Avatar>
+                    <AvatarImage src={c.avatarUrl ?? "/vite.svg"} alt="avatar" />
+                    <AvatarFallback>{(c.userFullname || "U").charAt(0)}</AvatarFallback>
+                  </Avatar>
                   <div className="text-sm">
                     <div className="font-medium">
-                      {c.userFullname} <span className="text-gray-400 text-xs ml-2">{formatDate(c.createdAt)}</span>
+                      {c.userFullname}{" "}
+                      <span className="text-gray-400 text-xs ml-2">{formatDate(c.createdAt)}</span>
                     </div>
                     <div
                       className="text-gray-700 mt-1"
-                      // render HTML comments safely
                       dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(c.content ?? "") }}
                     />
                   </div>
                 </div>
               ))}
-            </div>  
+            </div>
           )}
         </div>
       </div>
-    </div>
+    </Card>
   );
 };
 

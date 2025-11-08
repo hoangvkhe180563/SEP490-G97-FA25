@@ -21,7 +21,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             var member = _context.AppUserSubjectClasses
        .Where(m => m.ClassId == classId)
        .GroupBy(m => m.UserId)
-       .Select(g => g.FirstOrDefault()) // lấy bản ghi đầu tiên mỗi UserId
+       .Select(g => g.FirstOrDefault()) 
        .ToList();
             return member.Select(m => new AppUserSubjectClass
             {
@@ -35,12 +35,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                // Nếu đã có record:
+               
                 var existing = _context.AppUserSubjectClasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
 
                 if (existing != null)
                 {
-                    // nếu đã joined, không đổi; nếu bị kicked hoặc invited, set lại invited and null JoinDate
+                  
                     existing.Status = "invited";
                     existing.JoinDate = DateTime.Now;
                     _context.AppUserSubjectClasses.Update(existing);
@@ -55,7 +55,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     UserId = userId,
                     ClassId = classId,
                     JoinDate = DateTime.Now,
-                    Status = "invited"
+                    Status = "invited",
+                    SubjectId=1
                 };
                 _context.AppUserSubjectClasses.Add(newMember);
                 _context.SaveChanges();
@@ -91,6 +92,27 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 // Cập nhật status -> joined và set JoinDate nếu null
                 existing.Status = "joined";
                 existing.JoinDate = existing.JoinDate;
+                _context.AppUserSubjectClasses.Update(existing);
+                _context.SaveChanges();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ClassRepository", "ConfirmMember failed. Inner error: " + ex.Message).LogError();
+                return false;
+            }
+        }
+        public bool DeclineMember(Guid userId, int classId)
+        {
+            try
+            {
+                var existing = _context.AppUserSubjectClasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
+                if (existing == null)
+                {
+                    return false;
+                }
+
+                existing.Status = "";
                 _context.AppUserSubjectClasses.Update(existing);
                 _context.SaveChanges();
                 return true;

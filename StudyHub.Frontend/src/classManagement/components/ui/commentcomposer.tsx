@@ -1,5 +1,10 @@
 import React, { useState } from "react";
 
+/* shadcn components */
+import { Avatar, AvatarImage, AvatarFallback } from "@/common/components/ui/avatar";
+import { Input } from "@/common/components/ui/input";
+import { Button } from "@/common/components/ui/button";
+
 type Props = {
   avatarUrl?: string;
   placeholder?: string;
@@ -19,23 +24,24 @@ const CommentComposer: React.FC<Props> = ({ avatarUrl, placeholder = "Write a co
 
   return (
     <form onSubmit={submit} className="flex items-start gap-3">
-      <img src={avatarUrl ?? "/vite.svg"} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
+      <Avatar>
+        <AvatarImage src={avatarUrl ?? "/vite.svg"} alt="avatar" />
+        <AvatarFallback>U</AvatarFallback>
+      </Avatar>
+
       <div className="flex-1">
-        <input
+        <Input
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={placeholder}
-          className="w-full border rounded px-3 py-2 text-sm"
+          className="min-h-[40px]"
         />
       </div>
+
       <div>
-        <button
-          type="submit"
-          disabled={!text.trim()}
-          className="ml-2 bg-slate-900 text-white px-3 py-1 rounded text-sm disabled:opacity-50"
-        >
+        <Button type="submit" disabled={!text.trim()}>
           Send
-        </button>
+        </Button>
       </div>
     </form>
   );

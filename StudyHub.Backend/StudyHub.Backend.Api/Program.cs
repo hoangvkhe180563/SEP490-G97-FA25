@@ -105,5 +105,6 @@ app.MapHub<ClassNotificationHub>("/hubs/class-notification");
 app.MapHub<QAChatHub>("/hubs/qa-chat");
 app.MapHub<UserPresenseHub>("/hubs/user-presense");
 app.MapHub<PaymentHub>("/hubs/payment");
+app.MapHub<QAReadHub>("/hubs/qa-read");
 
 app.Run();

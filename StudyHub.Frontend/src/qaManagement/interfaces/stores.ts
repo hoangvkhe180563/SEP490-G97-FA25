@@ -16,6 +16,10 @@ interface ConversationState {
   getMine: () => Promise<void>;
   getTeachersWithConversationsForCurrentStudent: () => Promise<void>;
   getStudentsWithConversationsForCurrentTeacher: () => Promise<void>;
+  // read hub (unread counts)
+  startRead?: () => Promise<void>;
+  stopRead?: () => Promise<void>;
+  upsertRead?: (conversationId: string) => Promise<void>;
 }
 interface MessageState {
   messages: Message[];
@@ -49,12 +53,16 @@ interface TopicState {
 interface AppUserState {
   teachers: AppUser[];
   connectedTeachers: AppUser[];
+  subjectTeachers?: AppUser[]; // teachers filtered by currently selected subject
+  subjectTeachersLoading?: boolean;
+  subjectTeachersError?: string | null;
   students: AppUser[];
   connectedStudents: AppUser[];
   isLoading: boolean;
   success: boolean;
   message: string;
   getTeachers: () => Promise<void>;
+  getTeachersBySubject: (subjectId: number) => Promise<void>;
   getConnectedTeachers: () => Promise<void>;
   getStudents: () => Promise<void>;
   getConnectedStudents: () => Promise<void>;

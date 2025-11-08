@@ -17,15 +17,20 @@ import qaRoutes from "@/qaManagement/routes/QARoutes";
 import examRoutes from "@/exam/routes/ExamRoutes";
 import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
 import { usePaymentStore } from "@/paymentManagement/stores/usePaymentStore";
+import { useConversationStore } from "@/qaManagement/stores/useConversationStore";
+import { useMessageStore } from "@/qaManagement/stores/useMessageStore";
 
 const AppRouter = () => {
   const { user, checkAuth } = useAuthStore();
   const { startPresence, stopPresence } = useUserOnlineStore();
   const { startPaymentConnection, stopPaymentConnection } = usePaymentStore();
+  const { startRead, stopRead } = useConversationStore();
+  const { startChat, stopChat } = useMessageStore();
   const [authChecked, setAuthChecked] = useState<boolean>(false);
   const navigate = useNavigate();
   const location = useLocation();
 
+  // on component mount, check auth and start authentication hubs
   useEffect(() => {
     (async () => {
       try {
@@ -36,8 +41,14 @@ const AppRouter = () => {
           if (!currentUser) return;
           await startPresence();
           await startPaymentConnection();
+          await startRead?.();
+          await startChat?.();
+
           // stop presence when the tab/window unloads
           try {
+            window.addEventListener("beforeunload", stopPresence as any);
+            window.addEventListener("beforeunload", stopRead as any);
+            window.addEventListener("beforeunload", stopChat as any);
             window.addEventListener("beforeunload", stopPresence as any);
             window.removeEventListener(
               "beforeunload",
@@ -65,6 +76,8 @@ const AppRouter = () => {
             "beforeunload",
             stopPaymentConnection as any
           );
+          window.removeEventListener("beforeunload", stopRead as any);
+          window.removeEventListener("beforeunload", stopChat as any);
         } catch (err) {
           console.warn("failed to remove unload listener", err);
         }
@@ -72,6 +85,8 @@ const AppRouter = () => {
         if (!currentUser) return;
         stopPresence();
         stopPaymentConnection();
+        stopRead?.();
+        stopChat?.();
       } catch (err) {
         /* ignore */
       }
