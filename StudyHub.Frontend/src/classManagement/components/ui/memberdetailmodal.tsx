@@ -1,6 +1,21 @@
 import React from "react";
 import type { ClassMemberDto } from "@/classManagement/interfaces/class";
 
+/* shadcn components */
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/common/components/ui/dialog";
+import { Button } from "@/common/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avatar";
+import { Badge } from "@/common/components/ui/badge";
+import { Separator } from "@/common/components/ui/separator";
+
 type Props = {
   open: boolean;
   member?: ClassMemberDto | any | null;
@@ -9,8 +24,8 @@ type Props = {
 
 const InfoRow: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, value }) => (
   <div className="flex items-start gap-4 py-2 border-b last:border-b-0">
-    <div className="w-44 text-xs text-gray-500">{label}</div>
-    <div className="flex-1 text-sm text-gray-700 break-words">{value ?? "-"}</div>
+    <div className="w-44 text-xs text-slate-500">{label}</div>
+    <div className="flex-1 text-sm text-slate-700 break-words">{value ?? "-"}</div>
   </div>
 );
 
@@ -72,73 +87,93 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
     email ?? (fullname ? `${fullname.replace(/\s+/g, ".").toLowerCase()}@example.com` : "");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 overflow-hidden">
-        <div className="px-6 py-4 border-b flex items-center justify-between">
-          <h3 className="text-lg font-medium">Chi tiết thành viên</h3>
-          <button onClick={onClose} className="text-gray-500 text-lg" aria-label="Đóng">
-            ✕
-          </button>
-        </div>
+    <Dialog open={open} onOpenChange={(val) => { if (!val) onClose(); }}>
+      <DialogContent className="sm:max-w-3xl w-full">
+        {/* Close button in top-right */}
+        <DialogClose asChild>
+         
+        </DialogClose>
+
+        <DialogHeader className="pt-6 pb-2">
+          <div className="flex items-center justify-between gap-4">
+            <DialogTitle>Chi tiết thành viên</DialogTitle>
+          </div>
+          <DialogDescription className="text-sm text-slate-500">
+            Thông tin chi tiết về thành viên của lớp
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="p-6">
           <div className="flex gap-6">
             <div className="w-28 flex-shrink-0">
               {avatarUrl ? (
-                <img src={avatarUrl} alt="avatar" className="w-28 h-28 rounded-full object-cover" />
+                <Avatar className="h-28 w-28">
+                  <AvatarImage src={avatarUrl} alt={fullname || "avatar"} />
+                  <AvatarFallback>{initials}</AvatarFallback>
+                </Avatar>
               ) : (
-                <div className="w-28 h-28 rounded-full bg-gray-100 flex items-center justify-center text-2xl text-gray-500">
+                <div className="w-28 h-28 rounded-full bg-slate-100 flex items-center justify-center text-2xl text-slate-500">
                   {initials}
                 </div>
               )}
             </div>
 
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between">
-                <div>
-                  <div className="text-xl font-semibold text-gray-800">{fullname || "Không rõ"}</div>
-                  <div className="text-sm text-gray-500 mt-1">
-                    {roles.length ? roles.join(", ") : "Không có vai trò"}
+                <div className="min-w-0">
+                  <div className="text-xl font-semibold text-slate-900 truncate">
+                    {fullname || "Không rõ"}
                   </div>
-                  <div className="text-sm text-gray-400 mt-2">Tham gia: {toLocaleDateTime(joinDate)}</div>
-                </div>
 
-                
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    {roles.length ? (
+                      roles.map((r) => (
+                        <Badge key={r} className="bg-slate-100 text-slate-700">
+                          {r}
+                        </Badge>
+                      ))
+                    ) : (
+                      <div className="text-sm text-slate-500">Không có vai trò</div>
+                    )}
+                  </div>
+
+                  <div className="text-sm text-slate-400 mt-2">
+                    Tham gia: {toLocaleDateTime(joinDate)}
+                  </div>
+                </div>
               </div>
 
-              <div className="mt-6 bg-gray-50 rounded-md p-4">
+              <div className="mt-6 bg-slate-50 rounded-md p-4">
                 <InfoRow label="Họ và tên" value={fullname || "-"} />
                 <InfoRow label="Ngày tham gia" value={toLocaleDateTime(joinDate)} />
                 <InfoRow label="Giới tính" value={gender ?? "-"} />
-                <InfoRow label="Số điện thoại" value={phoneNumber ?? "-"} />
+                <InfoRow label="Số điện thoại" value={safeString(phoneNumber)} />
                 <InfoRow label="Email" value={emailGuess || "-"} />
-                <InfoRow label="Địa chỉ" value={address || "-"} />
+                <InfoRow label="Địa chỉ" value={safeString(address)} />
                 <InfoRow label="Phường/Xã (commune)" value={communes ?? communeId ?? "-"} />
                 <InfoRow label="Tên trường" value={schoolName ?? "-"} />
-                
               </div>
 
               <div className="mt-4 flex gap-2 justify-end">
-                <a
-                  className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                  href={`mailto:${emailGuess}`}
+                <Button
+                  asChild
+                  variant="default"
+                  size="sm"
                 >
-                  Gửi email
-                </a>
-                
-                <button
-                  onClick={onClose}
-                  className="px-3 py-2 border rounded text-sm text-gray-700 hover:bg-gray-50"
-                >
+                  <a href={`mailto:${emailGuess}`}>Gửi email</a>
+                </Button>
+
+                <Button variant="ghost" size="sm" onClick={onClose}>
                   Đóng
-                </button>
+                </Button>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+
+        
+      </DialogContent>
+    </Dialog>
   );
 };
 

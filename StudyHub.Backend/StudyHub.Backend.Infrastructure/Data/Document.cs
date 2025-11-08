@@ -31,6 +31,8 @@ public partial class Document
 
     public bool? Status { get; set; }
 
+    public bool? IsRequested { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public Guid CreatedBy { get; set; }

@@ -8,8 +8,11 @@ import type {
   ClassworkSubmission,
   LinkPayload,
   ClassworkSubmissionFile,
+  ClassNotification,
 } from "@/classManagement/interfaces/class";
 import { isPastDeadline } from "../utils/dateutil";
+import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
+import { Button } from "@/common/components/ui/button";
 
 const AvatarIcon: React.FC = () => (
   <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl shadow">📝</div>
@@ -26,6 +29,47 @@ const Icon: React.FC<{ name: "drive" | "link" | "file" | string }> = ({ name }) 
   if (name === "drive") return (<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M3 17h18l-2-4-4-8H9L5 13l-2 4z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path></svg>);
   if (name === "link") return (<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M10 14a5 5 0 0 1 7.07 0l1.41 1.41a5 5 0 0 1-7.07 7.07l-1.41-1.41" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path><path d="M14 10a5 5 0 0 1-7.07 0L5.52 8.59a5 5 0 0 1 7.07-7.07L14 2.93" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path></svg>);
   return (<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path><path d="M17 3v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path><path d="M7 3v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path></svg>);
+};
+
+const FilePreview: React.FC<{ f: ClassworkSubmissionFile }> = ({ f }) => {
+  const ext = (f.fileName ?? "").split(".").pop()?.toLowerCase() ?? "";
+  const isImage = ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext);
+  const isPdf = ext === "pdf";
+  return (
+    <div className="flex items-center border rounded-lg p-3 bg-white">
+      <div className="w-12 h-12 flex items-center justify-center bg-slate-100 rounded mr-4 overflow-hidden">
+        {isImage ? (
+          <img src={String(f.fileUrl)} alt={f.fileName} className="max-h-12 max-w-full object-cover" />
+        ) : isPdf ? (
+          <svg className="w-6 h-6 text-slate-600" viewBox="0 0 24 24" fill="none"><path d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        ) : (
+          <div className="text-2xl">📎</div>
+        )}
+      </div>
+      <div className="flex-1">
+        <a href={String(f.fileUrl)} target="_blank" rel="noreferrer" className="text-blue-600 underline font-medium">{f.fileName}</a>
+        <div className="text-xs text-slate-500 mt-1">{isImage ? "Hình ảnh" : isPdf ? "PDF" : "Tệp đính kèm"}</div>
+      </div>
+    </div>
+  );
+};
+
+const CommentItem: React.FC<{ c: any }> = ({ c }) => {
+  const name = c.userFullname ?? c.userName ?? c.displayName ?? "Người dùng";
+  return (
+    <div className="flex gap-3 p-3 border-b">
+      <Avatar>
+        <AvatarFallback>{(name || "U").charAt(0)}</AvatarFallback>
+      </Avatar>
+      <div className="flex-1">
+        <div className="text-sm font-medium">
+          {name}
+          <span className="text-xs text-slate-400 ml-2">{c.createdAt ? new Date(c.createdAt).toLocaleString() : ""}</span>
+        </div>
+        <div className="text-sm text-slate-700 mt-1" dangerouslySetInnerHTML={{ __html: c.content ?? c.html ?? c.text ?? "" }} />
+      </div>
+    </div>
+  );
 };
 
 const ClassworkDetail: React.FC = () => {
@@ -57,35 +101,27 @@ const ClassworkDetail: React.FC = () => {
     getClassInfo,
     getSubmissionByUserAndClasswork,
     currentClass,
+    addComment,
   } = useClassStore();
 
   const [classwork, setClasswork] = useState<ClassWork | null | undefined>(undefined);
 
-  // files user selects (raw), links
   const [files, setFiles] = useState<File[]>([]);
   const [linkAttachments, setLinkAttachments] = useState<LinkPayload[]>([]);
-  // all submissions for this classwork (from store)
   const [submissions, setSubmissions] = useState<ClassworkSubmission[]>([]);
-  // the current user's submission (if any)
   const [userSubmission, setUserSubmission] = useState<ClassworkSubmission | null>(null);
 
   const [loadingSubmit, setLoadingSubmit] = useState(false);
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [editingSubmission, setEditingSubmission] = useState(false); // NEW: whether user is editing/resubmitting
+  const [editingSubmission, setEditingSubmission] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // avoid redirect to edit while still loading/resolving classwork
-  useEffect(() => {
-    if (!role || !id || !classworkIdResolved) return;
-    if (classwork !== undefined && classwork !== null && role === "teacher") {
-      if (!location.pathname.includes("/edit")) {
-        navigate(`/class/${role}/${id}/classwork/${classworkIdResolved}/edit`);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, id, classworkIdResolved, classwork]);
+  // comments state for this classwork (notification)
+  const [comments, setComments] = useState<any[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [commentLoading, setCommentLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -101,7 +137,6 @@ const ClassworkDetail: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // sync classwork from store
   useEffect(() => {
     const works = currentClass?.data?.works ?? [];
     if (!classworkIdResolved) {
@@ -116,15 +151,23 @@ const ClassworkDetail: React.FC = () => {
     }
   }, [currentClass?.data?.works, classworkIdResolved]);
 
-  // load submissions list and derive userSubmission (use dedicated endpoint for current user)
+  // helper to display score text
+  const getScoreText = (s?: ClassworkSubmission | null) => {
+    if (!s) return null;
+    const cand = s.score ?? (s as any).raw?.score ?? null;
+    if (cand !== null && cand !== undefined && String(cand).trim() !== "") return `${cand}`;
+    return null;
+  };
+
+  // load submissions and user's submission + comments
   useEffect(() => {
     if (!classwork || !classwork.id) {
       setSubmissions([]);
       setUserSubmission(null);
+      setComments([]);
       return;
     }
 
-    // load all submissions (for list display)
     (async () => {
       try {
         const all = await getClassworkSubmissions(Number(classwork.id));
@@ -135,7 +178,6 @@ const ClassworkDetail: React.FC = () => {
       }
     })();
 
-    // load current user's submission via dedicated endpoint
     (async () => {
       try {
         const currentUserId = user?.id ?? localStorage.getItem("currentUserId") ?? "";
@@ -145,14 +187,31 @@ const ClassworkDetail: React.FC = () => {
         }
         const mine = await getSubmissionByUserAndClasswork(Number(classwork.id), currentUserId);
         setUserSubmission(mine);
-        // if user already has a submission, ensure editing is off by default
         setEditingSubmission(false);
       } catch (err) {
         console.error("getSubmissionByUserAndClasswork error", err);
         setUserSubmission(null);
       }
     })();
-  }, [classwork, getClassworkSubmissions, getSubmissionByUserAndClasswork, user?.id]);
+
+    // load comments: try to find matching notification in currentClass.notifications
+    const noti: ClassNotification | undefined = (currentClass?.data?.notifications ?? []).find(n => Number(n.id) === Number(classwork.id));
+    if (noti) {
+      const normalized = (noti.comments ?? []).map((c: any) => ({
+        id: c.id,
+        notificationId: c.notificationId ?? noti.id,
+        userId: c.appUserId ?? c.app_user_id ?? c.userId ?? null,
+        content: c.content ?? c.text ?? c.html ?? "",
+        createdAt: c.createdAt ?? c.created_at ?? "",
+        userFullname: c.userFullname ?? c.userFullName ?? c.fullName ?? "",
+        imageUrl: c.imageUrl ?? c.avatarUrl ?? null,
+        raw: c,
+      }));
+      setComments(normalized);
+    } else {
+      setComments([]);
+    }
+  }, [classwork, getClassworkSubmissions, getSubmissionByUserAndClasswork, currentClass, user?.id]);
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
@@ -184,38 +243,29 @@ const ClassworkDetail: React.FC = () => {
   const removeFileAt = (index: number) => setFiles((prev) => prev.filter((_, i) => i !== index));
   const removeLinkAt = (index: number) => setLinkAttachments((prev) => prev.filter((_, i) => i !== index));
 
-  // submitClasswork signature: (classworkId, appUserId, files: File[], links?)
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!classwork?.id) return;
-    // if user clicked "Nộp lại" but hasn't picked new files yet, open upload UI instead of submitting.
     if (hasSubmittedAndNotEditing() && files.length === 0 && linkAttachments.length === 0) {
-      // open upload UI for adding new files
       setEditingSubmission(true);
       setMenuOpen(true);
-      // focus will be on menu; user can choose files then press Nộp lại to submit (now with files)
       return;
     }
 
     setLoadingSubmit(true);
     try {
       const appUserId = user?.id ?? localStorage.getItem("currentUserId") ?? "";
-      // call store submit (it expects File[] per your interface)
       await submitClasswork(Number(classwork.id), appUserId, files, linkAttachments);
 
-      // refresh user's submission only (faster) using dedicated endpoint
       const mine = await getSubmissionByUserAndClasswork(Number(classwork.id), appUserId);
       setUserSubmission(mine);
 
-      // also refresh overall submissions list
       const updated = await getClassworkSubmissions(Number(classwork.id));
       setSubmissions(updated ?? []);
 
-      // clear local files/links that were just submitted
       setFiles([]);
       setLinkAttachments([]);
       setMenuOpen(false);
-      // after successful resubmit, exit editing mode
       setEditingSubmission(false);
     } catch (err) {
       console.error("Submit error", err);
@@ -226,6 +276,58 @@ const ClassworkDetail: React.FC = () => {
   };
 
   const classInfo = currentClass?.data?.classInfo ?? null;
+
+  // add a public comment to the classwork (notification)
+  const handleAddComment = async () => {
+    if (!classwork?.id) return;
+    if (!commentText || commentText.trim().length === 0) return;
+    setCommentLoading(true);
+    try {
+      const createdBy = user?.id ?? localStorage.getItem("currentUserId") ?? "";
+      // call store.addComment which should return the created comment object (or null/false)
+      const created = await addComment({
+        notificationId: classwork.id,
+        userId: createdBy,
+        content: commentText,
+      });
+
+      // Immediately append the created comment (if we received an object) for instant UI feedback.
+      // Then refresh server-side notifications in background by reloading class info so store stays consistent.
+      if (created && typeof created === "object") {
+        const createdAny = created as any;
+        const createdUserId = createdAny.userId ?? createdAny.appUserId ?? createdAny.app_user_id ?? createdBy;
+        const mapped = {
+          id: createdAny.id ?? Date.now(),
+          notificationId: classwork.id,
+          userId: createdUserId,
+          content: createdAny.content ?? createdAny.text ?? commentText,
+          createdAt: createdAny.createdAt ?? createdAny.created_at ?? new Date().toISOString(),
+          userFullname: createdAny.userFullname ?? createdAny.userName ?? "",
+          imageUrl: null,
+          raw: createdAny,
+        };
+        setComments(prev => {
+          // dedupe by id to avoid duplicate entries
+          const exists = prev.some(c => String(c.id) === String(mapped.id));
+          if (exists) return prev;
+          return [mapped, ...prev];
+        });
+        // background refresh to sync store/state (non-blocking)
+        void getClassInfo(Number(id));
+      } else {
+        // fallback: try to refresh from server/store
+        await getClassInfo(Number(id));
+        // after refresh, try to re-read notification comments (the useEffect that observes currentClass will run and set comments)
+      }
+
+      setCommentText("");
+    } catch (err) {
+      console.error("add comment error", err);
+      alert("Lỗi khi thêm bình luận");
+    } finally {
+      setCommentLoading(false);
+    }
+  };
 
   if (classwork === undefined) {
     return <div className="p-8"><div className="text-slate-500">Đang tải thông tin bài tập...</div></div>;
@@ -242,7 +344,6 @@ const ClassworkDetail: React.FC = () => {
 
   return (
     <div className="p-8">
-      {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div className="flex items-start gap-5">
           <button
@@ -258,7 +359,7 @@ const ClassworkDetail: React.FC = () => {
             <div className="text-base text-slate-500 mt-1">
               <span>{currentClass?.data?.teacher?.fullname ?? "Giáo viên"} • {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
             </div>
-            <div className="mt-3 text-base text-slate-700">100 điểm</div>
+            <div className="mt-3 text-base text-slate-700">{classwork.maxScore ?? 100} điểm</div>
           </div>
         </div>
         <div className="text-base text-slate-600">{(() => {
@@ -271,10 +372,35 @@ const ClassworkDetail: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-12 gap-6">
-        {/* Left */}
         <div className="col-span-12 lg:col-span-8">
           <div className="bg-white border rounded-xl p-6">
             <div className="text-slate-700 mb-4 text-lg">{classwork.description || "Không có mô tả"}</div>
+
+            {/* Public comments for the classwork (visible to class) */}
+            <div className="mb-6">
+              <div className="mb-3 font-semibold">Bình luận chung</div>
+              <div className="mb-3">
+                <textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Viết bình luận..."
+                  className="w-full border rounded p-3 min-h-[80px]"
+                />
+                <div className="flex justify-end mt-2 gap-2">
+                  <Button onClick={() => setCommentText("")} variant="secondary">Hủy</Button>
+                  <Button onClick={handleAddComment} disabled={commentLoading || !commentText.trim()}>{commentLoading ? "Đang gửi..." : "Gửi bình luận"}</Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {comments.length === 0 ? (
+                  <div className="text-sm text-slate-500">Chưa có bình luận nào.</div>
+                ) : (
+                  comments.map((c) => <CommentItem key={c.id ?? `${c.userId}-${c.createdAt}`} c={c} />)
+                )}
+              </div>
+            </div>
+
             <hr className="my-6" />
             <div className="flex items-center gap-4 text-slate-700 mb-3">
               <svg className="w-6 h-6 text-slate-500" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path></svg>
@@ -285,24 +411,51 @@ const ClassworkDetail: React.FC = () => {
             <div className="mt-8">
               <h4 className="text-lg font-semibold mb-3">Danh sách bài đã nộp</h4>
               <div className="space-y-3">
-                {submissions.length === 0 ? (<div className="text-slate-500 text-base">Chưa có bài nộp nào.</div>) : submissions.map((sub) => (
-                  <div key={sub.id} className="border rounded-lg p-4 bg-slate-50">
-                    <div className="text-base text-slate-800">Nộp lần cuối: {new Date(sub.latestSubmissionTime).toLocaleString()}</div>
-                    <div className="flex flex-wrap gap-3 mt-3">{(sub.files ?? []).map((f) => (<a key={f.id} href={f.fileUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline text-sm">{f.fileName}</a>))}</div>
-                  </div>
-                ))}
+                {submissions.length === 0 ? (<div className="text-slate-500 text-base">Chưa có bài nộp nào.</div>) : submissions.map((sub) => {
+                  const scoreText = getScoreText(sub);
+                  const graded = !!scoreText;
+                  return (
+                    <div key={sub.id} className="border rounded-lg p-4 bg-slate-50">
+                      <div className="flex items-center justify-between">
+                        <div className="text-base text-slate-800">Nộp lần cuối: {new Date(sub.latestSubmissionTime ?? sub.firstSubmissionTime ?? Date.now()).toLocaleString()}</div>
+                        <div className="flex items-center gap-3">
+                          <div className={`px-3 py-1 rounded-full text-sm font-semibold ${graded ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"}`}>
+                            {graded ? `Điểm: ${scoreText}` : "Chưa chấm"}
+                          </div>
+                          {graded && (sub as any).gradedAt && <div className="text-xs text-slate-400">• {new Date((sub as any).gradedAt).toLocaleDateString()}</div>}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2 mt-3">
+                        {(sub.files ?? []).map((f) => <FilePreview key={f.id} f={f} />)}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right */}
         <aside className="col-span-12 lg:col-span-4">
           <RightCard title={hasSubmitted ? "Bài bạn đã nộp" : "Bài tập của bạn"}>
             <div className="flex flex-col gap-4">
               {hasSubmitted && userSubmission && !editingSubmission ? (
                 <>
-                  <div className="text-base text-slate-600">Đã nộp: {new Date(userSubmission.latestSubmissionTime).toLocaleString()}</div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-base text-slate-600">Đã nộp: {new Date(userSubmission.latestSubmissionTime ?? userSubmission.firstSubmissionTime ?? Date.now()).toLocaleString()}</div>
+                    <div>
+                      {/* display score prominently */}
+                      {getScoreText(userSubmission) ? (
+                        <div className="text-right">
+                          <div className="text-xs text-slate-400">Điểm của bạn</div>
+                          <div className="text-2xl font-bold text-green-600">{getScoreText(userSubmission)}</div>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-slate-400">Chưa chấm</div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     {(userSubmission.files ?? []).length === 0 ? (
                       <div className="text-slate-500 text-sm">Không có tệp đính kèm.</div>
@@ -321,7 +474,6 @@ const ClassworkDetail: React.FC = () => {
                 </>
               ) : (
                 <>
-                  {/* Upload UI (used for new submit and editing/resubmit) */}
                   <div className="relative" ref={menuRef}>
                     <button onClick={() => setMenuOpen((s) => !s)} className="w-full border rounded-full py-3 text-base flex items-center justify-center gap-3 font-medium"><span className="text-lg">+</span> Thêm hoặc tạo</button>
                     {menuOpen && (
@@ -353,11 +505,9 @@ const ClassworkDetail: React.FC = () => {
                   {loadingSubmit ? "Đang nộp..." : (hasSubmitted ? (editingSubmission ? "Nộp lại" : "Nộp lại") : "Đánh dấu là đã hoàn thành")}
                 </button>
 
-                {/* If editing, show Cancel button to abandon resubmit */}
                 {editingSubmission && (
                   <button
                     onClick={() => {
-                      // cancel editing/resubmit
                       setEditingSubmission(false);
                       setFiles([]);
                       setLinkAttachments([]);

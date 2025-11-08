@@ -1,4 +1,3 @@
-// url: (update your local file)
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import ClassCard from "@/classManagement/components/ui/classcard";
@@ -10,6 +9,18 @@ import { useClassStore } from "@/classManagement/stores/useClassStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { mapToCoarseRole } from "@/classManagement/utils/roleutil";
 import type { ClassListDto } from "@/classManagement/interfaces/class";
+
+/* shadcn UI components */
+import { Button } from "@/common/components/ui/button";
+import { Input } from "@/common/components/ui/input";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/common/components/ui/select";
+import { Card } from "@/common/components/ui/card";
 
 type ClassItem = ClassListDto & {
   title: string;
@@ -119,7 +130,7 @@ const ClassList: React.FC = () => {
     }
   };
 
-  const handleCreate = async (payload: { title: string; description?: string ;  }) => {
+  const handleCreate = async (payload: { title: string; description?: string }) => {
     // pass createdBy from auth store
     const created = await addClass({ ...payload, createdBy: currentUserId });
     if (created) {
@@ -137,66 +148,69 @@ const ClassList: React.FC = () => {
     setCurrentPage(p);
   };
 
+  const closeCreate = () => {
+    const q = buildQuery();
+    getClasses(q, currentUserId);
+    setShowCreate(false);
+  };
+
+  const closeEdit = () => {
+    const q = buildQuery();
+    getClasses(q, currentUserId);
+    setShowEdit(false);
+  };
+
   return (
     <div className="p-8">
       {/* Filters & create */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 mb-6">
         <div className="flex-1 flex gap-3 items-center">
-          <input
-            type="text"
+          <Input
             placeholder="Tìm theo tên lớp..."
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
               setCurrentPage(1);
             }}
-            className="flex-1 border rounded-lg px-4 py-3 focus:outline-none text-lg"
+            className="text-lg"
           />
-          <select
-            value={subject}
-            onChange={(e) => {
-              setSubject(e.target.value);
-            }}
-            className="border rounded-lg px-4 py-3 text-lg"
-          >
-            <option value="all">Tất cả môn học</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.name}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+
+          
         </div>
 
         <div className="mt-3 sm:mt-0 ml-auto">
           {userRole === "teacher" && (
-            <button onClick={() => setShowCreate(true)} className="bg-blue-600 text-white px-5 py-3 rounded-lg text-lg shadow">
+            <Button onClick={() => setShowCreate(true)} className="text-lg">
               + Tạo lớp học
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {/* Class grid */}
-      <div className="border rounded-xl p-6 min-h-[300px] bg-slate-50">
+      <Card className="border rounded-xl p-6 min-h-[300px] bg-slate-50">
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm text-slate-600">
             Hiển thị {total === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, total)} trên tổng số {total} lớp
           </div>
           <div className="flex items-center gap-3">
-            <label className="text-sm text-slate-600">Số lớp / trang</label>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
+            <div className="text-sm text-slate-600">Số lớp / trang</div>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(val) => {
+                setPageSize(Number(val));
                 setCurrentPage(1);
               }}
-              className="border rounded-lg px-3 py-2"
             >
-              <option value={3}>3</option>
-              <option value={6}>6</option>
-              <option value={9}>9</option>
-            </select>
+              <SelectTrigger className="w-[80px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="3">3</SelectItem>
+                <SelectItem value="6">6</SelectItem>
+                <SelectItem value="9">9</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -206,7 +220,7 @@ const ClassList: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {classItems.map((c) => (
               <div key={c.id} className="transform hover:scale-[1.01] transition">
-                <ClassCard key={c.id} id={c.id} title={c.title} teacher={c.teacher}  userRole={userRole} onView={handleView} onMenu={handleMenu} />
+                <ClassCard id={c.id} title={c.title} teacher={c.teacher}  userRole={userRole} onView={handleView} onMenu={handleMenu} />
               </div>
             ))}
 
@@ -216,36 +230,28 @@ const ClassList: React.FC = () => {
 
         {/* Pagination */}
         <div className="mt-6 flex items-center justify-center gap-3">
-          <button onClick={() => gotoPage(currentPage - 1)} disabled={currentPage === 1} className="px-4 py-2 border rounded disabled:opacity-50">
+          <Button variant="outline" onClick={() => gotoPage(currentPage - 1)} disabled={currentPage === 1}>
             Trước
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button key={p} onClick={() => gotoPage(p)} className={`px-4 py-2 border rounded ${p === currentPage ? "bg-slate-900 text-white" : ""}`}>
-              {p}
-            </button>
-          ))}
-          <button onClick={() => gotoPage(currentPage + 1)} disabled={currentPage === totalPages} className="px-4 py-2 border rounded disabled:opacity-50">
-            Sau
-          </button>
-        </div>
-      </div>
+          </Button>
 
-      <CreateClassModal open={showCreate} onClose={() => {{
-        const q = buildQuery();
-          
-        getClasses(q, currentUserId);
-        setShowCreate(false);
-        }}} onCreate={handleCreate} />
-      <EditClassModal
-        open={showEdit}
-        classItem={editing}
-        onClose={() => {
-          const q = buildQuery();
-          
-          getClasses(q, currentUserId);
-          setShowEdit(false);
-        }}
-      />
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <Button
+              key={p}
+              variant={p === currentPage ? "default" : "ghost"}
+              onClick={() => gotoPage(p)}
+            >
+              {p}
+            </Button>
+          ))}
+
+          <Button variant="outline" onClick={() => gotoPage(currentPage + 1)} disabled={currentPage === totalPages}>
+            Sau
+          </Button>
+        </div>
+      </Card>
+
+      <CreateClassModal open={showCreate} onClose={closeCreate} onCreate={handleCreate} />
+      <EditClassModal open={showEdit} classItem={editing} onClose={closeEdit} />
     </div>
   );
 };

@@ -101,5 +101,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseSession();
 app.MapControllers();
+
 app.MapHub<ClassNotificationHub>("/hubs/class-notification");
+app.MapHub<QAChatHub>("/hubs/qa-chat");
+app.MapHub<UserPresenseHub>("/hubs/user-presense");
+
 app.Run();

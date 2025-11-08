@@ -26,8 +26,8 @@ import {
   FileText,
   Eye,
   Download,
-  AlertCircle,
   ArrowLeft,
+  Edit,
 } from "lucide-react";
 import {
   Form,
@@ -40,7 +40,6 @@ import {
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
 import { axiosInstance } from "@/lib/axios";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-import { Alert, AlertDescription } from "@/common/components/ui/alert";
 
 const schema = z.object({
   name: z.string().min(1, "Tên tài liệu là bắt buộc"),
@@ -136,6 +135,19 @@ export default function UpdateDocument() {
   const onThumbnailFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const validTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
+    if (!validTypes.includes(file.type)) {
+      showToast("error", "Vui lòng chọn file ảnh (JPG, PNG, GIF, WEBP)");
+      e.target.value = "";
+      return;
+    }
 
     setThumbnailFile(file);
     const reader = new FileReader();
@@ -294,7 +306,9 @@ export default function UpdateDocument() {
             accessType = "school";
           }
 
-          const canEdit = docData.isApproved !== true;
+          const canEdit = !(
+            docData.isApproved === true && docData.status === true
+          );
           setIsReadOnly(!canEdit);
 
           form.reset({
@@ -443,15 +457,6 @@ export default function UpdateDocument() {
       </div>
 
       <div className="max-w-7xl mx-auto">
-        {isReadOnly && (
-          <Alert className="mb-4 border-yellow-200 bg-yellow-50">
-            <AlertCircle className="h-4 w-4 text-yellow-600" />
-            <AlertDescription className="text-yellow-800">
-              Tài liệu đã được phê duyệt. Bạn chỉ có thể xem, không thể chỉnh
-              sửa.
-            </AlertDescription>
-          </Alert>
-        )}
         <Button
           variant="ghost"
           onClick={() => navigate(-1)}
@@ -460,6 +465,47 @@ export default function UpdateDocument() {
           <ArrowLeft className="w-4 h-4" />
           Quay lại
         </Button>
+        {document?.isApproved === true &&
+          document?.status === true &&
+          document?.isRequested !== true && (
+            <Button
+              type="button"
+              className="mb-4 bg-orange-600 hover:bg-orange-700 w-full"
+              onClick={async () => {
+                if (!id) return;
+                const { requestEditDocument } = useDocumentStore.getState();
+                const success = await requestEditDocument(parseInt(id));
+                if (success) {
+                  showToast("success", "Đã gửi yêu cầu chỉnh sửa");
+                  setTimeout(() => window.location.reload(), 1000);
+                } else {
+                  showToast("error", "Gửi yêu cầu thất bại");
+                }
+              }}
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Yêu cầu chỉnh sửa
+            </Button>
+          )}
+        {document?.isRequested && (
+          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <Loader2 className="w-5 h-5 text-yellow-600 animate-spin flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-yellow-900 text-sm">
+                  Yêu cầu chỉnh sửa đang chờ xét duyệt
+                </h3>
+                <p className="text-sm text-yellow-700 mt-1">
+                  Bạn đã gửi yêu cầu chỉnh sửa vào lúc{" "}
+                  {document.editRequestedAt
+                    ? new Date(document.editRequestedAt).toLocaleString("vi-VN")
+                    : "Không rõ"}
+                  . Vui lòng chờ quản lý xét duyệt.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-2">
           <div className="lg:col-span-4">
             <Card className="p-6">
@@ -473,12 +519,21 @@ export default function UpdateDocument() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tên tài liệu</FormLabel>
+                        <FormLabel>
+                          Tên tài liệu <span className="text-red-500">*</span>
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
                             placeholder="Nhập tên tài liệu"
-                            disabled={isReadOnly}
+                            onKeyDown={(e) => {
+                              if (
+                                e.key === " " &&
+                                e.currentTarget.selectionStart === 0
+                              ) {
+                                e.preventDefault();
+                              }
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
@@ -548,7 +603,9 @@ export default function UpdateDocument() {
                           name="subject"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Môn học</FormLabel>
+                              <FormLabel>
+                                Môn học <span className="text-red-500">*</span>
+                              </FormLabel>
                               <Select
                                 onValueChange={field.onChange}
                                 value={field.value}
@@ -579,7 +636,9 @@ export default function UpdateDocument() {
                           name="grade"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Khối lớp</FormLabel>
+                              <FormLabel>
+                                Môn học <span className="text-red-500">*</span>
+                              </FormLabel>
                               <Select
                                 onValueChange={field.onChange}
                                 value={field.value}
@@ -616,7 +675,10 @@ export default function UpdateDocument() {
                           name="type"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Loại tài liệu</FormLabel>
+                              <FormLabel>
+                                Loại tài liệu{" "}
+                                <span className="text-red-500">*</span>
+                              </FormLabel>
                               <Select
                                 onValueChange={field.onChange}
                                 value={field.value}
@@ -647,7 +709,10 @@ export default function UpdateDocument() {
                           name="access"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Quyền truy cập</FormLabel>
+                              <FormLabel>
+                                Quyền truy cập{" "}
+                                <span className="text-red-500">*</span>
+                              </FormLabel>
                               <Select
                                 onValueChange={field.onChange}
                                 value={field.value}
@@ -698,7 +763,14 @@ export default function UpdateDocument() {
                                         setClassSearch(e.target.value)
                                       }
                                       className="mb-3"
-                                      disabled={isReadOnly}
+                                      onKeyDown={(e) => {
+                                        if (
+                                          e.key === " " &&
+                                          e.currentTarget.selectionStart === 0
+                                        ) {
+                                          e.preventDefault();
+                                        }
+                                      }}
                                     />
                                     <div className="max-h-[100px] overflow-y-auto flex flex-wrap gap-2">
                                       {localClasses
@@ -763,7 +835,14 @@ export default function UpdateDocument() {
                             {...field}
                             placeholder="Nhập mô tả tài liệu"
                             className="resize-none h-24"
-                            disabled={isReadOnly}
+                            onKeyDown={(e) => {
+                              if (
+                                e.key === " " &&
+                                e.currentTarget.selectionStart === 0
+                              ) {
+                                e.preventDefault();
+                              }
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
@@ -774,7 +853,8 @@ export default function UpdateDocument() {
                   {document && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium">
-                        Tập tài liệu hiện tại
+                        Tập tài liệu mới (thay thế){" "}
+                        <span className="text-red-500">*</span>
                       </label>
                       <Card className="p-4">
                         <div className="flex items-center justify-between">

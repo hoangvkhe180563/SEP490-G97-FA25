@@ -1,8 +1,21 @@
 import React, { useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Button } from "@/common/components/ui/button";
-import { Triangle, Youtube, Upload, Link2, X } from "lucide-react";
+import { X, Youtube, Upload, Link as LinkIcon } from "lucide-react";
 
+/* shadcn components */
+import { Button } from "@/common/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/common/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/common/components/ui/dialog";
+import { Input } from "@/common/components/ui/input";
+
+/* types */
 export type LinkPayload = { url: string; title?: string; thumbnail?: string };
 
 type Attachment =
@@ -28,7 +41,6 @@ export default function PostComposer({
   onPost,
   avatarUrl,
 }: {
-  // onPost(contentHtml, files?, links?, titleHtml?)
   onPost: (
     content: string,
     files?: File[] | undefined,
@@ -41,10 +53,8 @@ export default function PostComposer({
   const editorRef = useRef<HTMLDivElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  // isEmpty means both title and content are empty
   const [isEmpty, setIsEmpty] = useState(true);
 
-  // YouTube modal state
   const [showYoutubeModal, setShowYoutubeModal] = useState(false);
   const [ytQuery, setYtQuery] = useState("");
   const [ytResults, setYtResults] = useState<
@@ -53,7 +63,6 @@ export default function PostComposer({
   const [ytLoading, setYtLoading] = useState(false);
   const [ytError, setYtError] = useState<string | null>(null);
 
-  // Link modal state
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkQuery, setLinkQuery] = useState("");
   const [linkLoading, setLinkLoading] = useState(false);
@@ -97,30 +106,25 @@ export default function PostComposer({
     const html = editorRef.current?.innerHTML.trim() ?? "";
     const titleHtml = titleRef.current?.innerHTML.trim() ?? "";
 
-    // Validate title: server expects Title not empty
     if (!titleHtml || titleHtml === "<br>" || titleHtml === "") {
-      // focus title
       titleRef.current?.focus();
       return;
     }
 
-    // collect File objects (regular uploaded files)
     const filesFromAttachments = attachments
       .filter((a) => a.type === "file")
       .map((a) => (a as any).file as File);
 
-   // collect links (both link and youtube attachments)
     const linksToSend: LinkPayload[] = attachments
       .filter((a) => a.type === "link" || a.type === "youtube")
       .map((a) => {
         return {
-          url: a.url,
-          title: a.title,
-          thumbnail: a.thumbnail,
+          url: (a as any).url,
+          title: (a as any).title,
+          thumbnail: (a as any).thumbnail,
         } as LinkPayload;
       });
 
-    // pass content, files, links and title to parent onPost
     await onPost(
       html,
       filesFromAttachments.length ? filesFromAttachments : undefined,
@@ -128,17 +132,16 @@ export default function PostComposer({
       titleHtml
     );
 
-    // reset
-    editorRef.current!.innerHTML = "";
-    titleRef.current!.innerHTML = "";
+    if (editorRef.current) editorRef.current.innerHTML = "";
+    if (titleRef.current) titleRef.current.innerHTML = "";
     setAttachments([]);
     setIsExpanded(false);
     setIsEmpty(true);
   };
 
   const handleCancel = () => {
-    editorRef.current!.innerHTML = "";
-    titleRef.current!.innerHTML = "";
+    if (editorRef.current) editorRef.current.innerHTML = "";
+    if (titleRef.current) titleRef.current.innerHTML = "";
     setIsExpanded(false);
     setAttachments([]);
     setIsEmpty(true);
@@ -147,7 +150,6 @@ export default function PostComposer({
   const handleFocus = () => {
     setIsExpanded(true);
     setTimeout(() => {
-      // focus title if empty, otherwise editor
       const titleText = titleRef.current?.textContent?.trim() ?? "";
       if (!titleText) titleRef.current?.focus();
       else editorRef.current?.focus();
@@ -167,7 +169,6 @@ export default function PostComposer({
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // YouTube helpers (unchanged)
   const getYouTubeApiKey = () => {
     const viteEnv =
       (typeof import.meta !== "undefined" ? (import.meta as any).env : undefined) || {};
@@ -301,7 +302,6 @@ export default function PostComposer({
     );
   };
 
-  // Insert youtube embed into editor and attachments
   const insertYoutubeEmbed = async (videoUrl: string) => {
     const vid = parseYouTubeIdFromInput(videoUrl);
     if (!vid) {
@@ -345,13 +345,11 @@ export default function PostComposer({
     }
   };
 
-  // Link preview fetcher: try to fetch HTML and parse OG/Twitter meta; if CORS blocks, fallback to no metadata
   const fetchLinkPreview = async (url: string) => {
     setLinkError(null);
     setLinkPreview(null);
     setLinkLoading(true);
     try {
-      // Basic sanity parse to get domain
       let domain: string | undefined = undefined;
       try {
         const u = new URL(url, window.location.href);
@@ -360,13 +358,11 @@ export default function PostComposer({
         domain = undefined;
       }
 
-      // Try fetching page HTML (may be blocked by CORS)
       const res = await fetch(url, { method: "GET" });
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
       const text = await res.text();
-      // parse meta tags quickly using DOMParser
       const parser = new DOMParser();
       const doc = parser.parseFromString(text, "text/html");
       const getMeta = (propNames: string[]) => {
@@ -388,7 +384,6 @@ export default function PostComposer({
       setLinkPreview({ title, thumbnail, domain });
       return { title, thumbnail, domain };
     } catch (err: any) {
-      // CORS or other failure
       setLinkError(
         "Không lấy được metadata trang (có thể do CORS). Sẽ dùng URL làm tiêu đề. " +
           (err?.message ?? String(err))
@@ -400,11 +395,9 @@ export default function PostComposer({
     }
   };
 
-  // Insert link into editor and add attachment
   const insertLinkEmbed = async (rawUrl: string) => {
     const val = rawUrl.trim();
     if (!val) return;
-    // ensure we have absolute URL
     let url = val;
     try {
       const u = new URL(val, window.location.href);
@@ -413,7 +406,6 @@ export default function PostComposer({
       // keep as-is
     }
 
-    // try to fetch preview but do not block insertion if fails
     let preview;
     try {
       preview = await fetchLinkPreview(url);
@@ -421,7 +413,6 @@ export default function PostComposer({
       preview = { title: url, thumbnail: undefined, domain: undefined };
     }
 
-    // Insert anchor into editor
     const display = preview?.title ?? url;
     const safeHtml = `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(display)}</a><p><br></p>`;
     document.execCommand("insertHTML", false, safeHtml);
@@ -439,7 +430,6 @@ export default function PostComposer({
     setAttachments((prev) => [...prev, attachment]);
   };
 
-  // Small helper to escape HTML for inserted link text/href
   const escapeHtml = (s: string) =>
     s
       .replaceAll("&", "&amp;")
@@ -450,14 +440,17 @@ export default function PostComposer({
   return (
     <>
       <motion.div
-        className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 transition-all w-full "
+        className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 transition-all w-full"
         layout
-        transition={{ layout: { duration: 0.3, type: "spring" } }}
+        transition={{ layout: { duration: 0.25, type: "spring" } }}
       >
         <div className="flex space-x-3">
-          {avatarUrl && (
-            <img src={avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full border" />
-          )}
+          <div>
+            <Avatar>
+              <AvatarImage src={avatarUrl ?? "/vite.svg"} alt="avatar" />
+              <AvatarFallback>U</AvatarFallback>
+            </Avatar>
+          </div>
 
           <div className="flex-1">
             {!isExpanded ? (
@@ -470,14 +463,11 @@ export default function PostComposer({
             ) : (
               <motion.div layout className="flex flex-col">
                 <div className="relative mb-2">
-                  {/* Title (single-line, contentEditable) */}
                   <div
                     ref={titleRef}
                     contentEditable
                     suppressContentEditableWarning
-                    onInput={() => {
-                      updateEmptyState();
-                    }}
+                    onInput={updateEmptyState}
                     data-placeholder="Tiêu đề (bắt buộc)"
                     className="min-h-[36px] bg-gray-50 rounded-xl p-2 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white empty:before:content-[attr(data-placeholder)] empty:before:text-gray-500 empty:before:opacity-70"
                     style={{
@@ -486,7 +476,7 @@ export default function PostComposer({
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                     }}
-                  ></div>
+                  />
                 </div>
 
                 <div className="relative">
@@ -494,16 +484,14 @@ export default function PostComposer({
                     ref={editorRef}
                     contentEditable
                     suppressContentEditableWarning
-                    onInput={() => {
-                      updateEmptyState();
-                    }}
+                    onInput={updateEmptyState}
                     data-placeholder="Nội dung mô tả... (có thể định dạng)"
                     className="min-h-[100px] bg-gray-50 rounded-xl p-3 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white empty:before:content-[attr(data-placeholder)] empty:before:text-gray-500 empty:before:opacity-70"
                     style={{
                       wordBreak: "break-word",
                       whiteSpace: "pre-wrap",
                     }}
-                  ></div>
+                  />
                 </div>
 
                 {attachments.length > 0 && (
@@ -511,64 +499,37 @@ export default function PostComposer({
                     <p className="text-xs font-medium text-gray-700 mb-2">📎 File đính kèm:</p>
                     <div className="space-y-2">
                       {attachments.map((att, index) => (
-                        <div
-                          key={att.id}
-                          className="flex items-center justify-between bg-white rounded px-3 py-2 text-sm"
-                        >
+                        <div key={att.id} className="flex items-center justify-between bg-white rounded px-3 py-2 text-sm">
                           <div className="flex items-center gap-3">
-                            {/* Thumbnail / icon */}
                             <div className="w-12 h-12 rounded overflow-hidden bg-gray-100 flex items-center justify-center flex-shrink-0">
                               {att.type === "youtube" ? (
                                 att.thumbnail ? (
-                                  <img
-                                    src={att.thumbnail}
-                                    alt={att.title}
-                                    className="w-full h-full object-cover"
-                                  />
+                                  <img src={att.thumbnail} alt={att.title} className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="text-xs text-gray-500">YT</div>
                                 )
                               ) : att.type === "link" ? (
                                 att.thumbnail ? (
-                                  <img
-                                    src={att.thumbnail}
-                                    alt={att.title}
-                                    className="w-full h-full object-cover"
-                                  />
+                                  <img src={att.thumbnail} alt={att.title} className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="text-xs text-gray-500">LINK</div>
                                 )
                               ) : (
-                                // file preview (image or generic)
                                 (() => {
                                   const file = att.file;
                                   if (file.type.startsWith("image/")) {
                                     const src = URL.createObjectURL(file);
-                                    return (
-                                      <img
-                                        src={src}
-                                        alt={file.name}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    );
+                                    return <img src={src} alt={file.name} className="w-full h-full object-cover" />;
                                   }
                                   const ext = (att.file.name.split(".").pop() || "").toUpperCase();
-                                  return (
-                                    <div className="text-xs text-gray-700 font-medium">
-                                      {ext || "FILE"}
-                                    </div>
-                                  );
+                                  return <div className="text-xs text-gray-700 font-medium">{ext || "FILE"}</div>;
                                 })()
                               )}
                             </div>
 
                             <div className="flex flex-col max-w-xs">
                               <div className="text-sm text-gray-800 truncate underline decoration-dashed">
-                                {att.type === "youtube"
-                                  ? att.title
-                                  : att.type === "link"
-                                  ? att.title
-                                  : att.file.name}
+                                {att.type === "youtube" ? att.title : att.type === "link" ? att.title : att.file.name}
                               </div>
                               <div className="text-xs text-gray-500">
                                 {att.type === "youtube"
@@ -584,21 +545,13 @@ export default function PostComposer({
 
                           <div className="flex items-center gap-2">
                             {att.type === "link" && (
-                              <a
-                                href={att.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 text-xs hover:underline mr-2"
-                              >
+                              <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-xs hover:underline mr-2">
                                 Mở
                               </a>
                             )}
-                            <button
-                              onClick={() => removeAttachment(index)}
-                              className="ml-2 text-red-500 hover:text-red-700 flex-shrink-0"
-                            >
-                              <X size={16} />
-                            </button>
+                            <Button variant="ghost" size="sm" onClick={() => removeAttachment(index)}>
+                              <X size={14} />
+                            </Button>
                           </div>
                         </div>
                       ))}
@@ -608,103 +561,37 @@ export default function PostComposer({
 
                 <div className="flex items-center justify-between border-t border-gray-200 mt-3 pt-2">
                   <div className="flex items-center space-x-2 text-gray-600">
-                    <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => exec("bold")}
-                      className="p-2 hover:text-blue-600 rounded-md hover:bg-gray-100 font-bold"
-                      title="Bold"
-                    >
-                      B
-                    </button>
-                    <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => exec("italic")}
-                      className="p-2 hover:text-blue-600 rounded-md hover:bg-gray-100 italic"
-                      title="Italic"
-                    >
-                      I
-                    </button>
-                    <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => exec("underline")}
-                      className="p-2 hover:text-blue-600 rounded-md hover:bg-gray-100 underline"
-                      title="Underline"
-                    >
-                      U
-                    </button>
-                    <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => exec("strikeThrough")}
-                      className="p-2 hover:text-blue-600 rounded-md hover:bg-gray-100 line-through"
-                      title="Gạch ngang"
-                    >
-                      S
-                    </button>
-                    <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => insertUnorderedListWithMarker()}
-                      className="p-2 hover:text-blue-600 rounded-md hover:bg-gray-100"
-                      title="Danh sách"
-                    >
-                      •
-                    </button>
-                    <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => insertOrderedListWithMarker()}
-                      className="p-2 hover:text-blue-600 rounded-md hover:bg-gray-100"
-                      title="Danh sách số"
-                    >
-                      1.
-                    </button>
+                    <Button variant="ghost" size="sm" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec("bold")} className="font-bold">B</Button>
+                    <Button variant="ghost" size="sm" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec("italic")} className="italic">I</Button>
+                    <Button variant="ghost" size="sm" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec("underline")} className="underline">U</Button>
+                    <Button variant="ghost" size="sm" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec("strikeThrough")}>S</Button>
+                    <Button variant="ghost" size="sm" onMouseDown={(e)=>e.preventDefault()} onClick={insertUnorderedListWithMarker}>•</Button>
+                    <Button variant="ghost" size="sm" onMouseDown={(e)=>e.preventDefault()} onClick={insertOrderedListWithMarker}>1.</Button>
 
-                    <div className="w-px h-5 bg-gray-300"></div>
+                    <div style={{ width: 1, height: 20, background: "#e5e7eb" }} className="mx-1" />
 
-                    <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={clearFormatting}
-                      className="p-2 hover:text-blue-600 rounded-md hover:bg-gray-100"
-                      title="Xóa định dạng"
-                    >
-                      <X size={16} />
-                    </button>
+                    <Button variant="ghost" size="sm" onMouseDown={(e)=>e.preventDefault()} onClick={clearFormatting}>
+                      <X size={14} />
+                    </Button>
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-gray-100" onClick={handleCancel}>
-                      Hủy
-                    </Button>
-                    <Button
-                      size="sm"
-                      className={`rounded-full px-5 text-white ${
-                        isEmpty ? "bg-blue-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-                      }`}
-                      onClick={handlePost}
-                      disabled={isEmpty}
-                    >
+                    <Button variant="ghost" size="sm" onClick={handleCancel}>Hủy</Button>
+                    <Button size="sm" onClick={handlePost} disabled={isEmpty}>
                       Đăng
                     </Button>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-4 mt-3 ml-1 text-gray-500">
-                  <button
-                    title="Video"
-                    className="p-2 hover:text-blue-600 rounded-full hover:bg-gray-100"
-                    onClick={() => {
-                      setYtQuery("");
-                      setYtResults([]);
-                      setYtError(null);
-                      setShowYoutubeModal(true);
-                    }}
-                  >
+                  <Button variant="ghost" size="icon" onClick={() => { setYtQuery(""); setYtResults([]); setYtError(null); setShowYoutubeModal(true); }}>
                     <Youtube size={18} />
-                  </button>
+                  </Button>
 
-                  <label
-                    title="Tải tệp lên"
-                    className="p-2 hover:text-blue-600 rounded-full hover:bg-gray-100 cursor-pointer"
-                  >
-                    <Upload size={18} />
+                  <label title="Tải tệp lên" className="cursor-pointer">
+                    <div className="p-2 hover:text-blue-600 rounded-full hover:bg-gray-100 inline-flex">
+                      <Upload size={18} />
+                    </div>
                     <input
                       type="file"
                       multiple
@@ -721,18 +608,10 @@ export default function PostComposer({
                       className="hidden"
                     />
                   </label>
-                  <button
-                    title="Chèn liên kết"
-                    className="p-2 hover:text-blue-600 rounded-full hover:bg-gray-100"
-                    onClick={() => {
-                      setLinkQuery("");
-                      setLinkPreview(null);
-                      setLinkError(null);
-                      setShowLinkModal(true);
-                    }}
-                  >
-                    <Link2 size={18} />
-                  </button>
+
+                  <Button variant="ghost" size="icon" onClick={() => { setLinkQuery(""); setLinkPreview(null); setLinkError(null); setShowLinkModal(true); }}>
+                    <LinkIcon size={18} />
+                  </Button>
                 </div>
               </motion.div>
             )}
@@ -740,197 +619,91 @@ export default function PostComposer({
         </div>
       </motion.div>
 
-      {/* YouTube modal (unchanged) */}
-      {showYoutubeModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowYoutubeModal(false)} />
-          <div className="relative z-10 w-full max-w-4xl bg-white rounded-lg shadow-lg overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center text-xl font-semibold gap-2">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                    <path d="M23 7.2a3 3 0 00-2.1-2.12C19.44 4.4 12 4.4 12 4.4s-7.44 0-8.9.68A3 3 0 001 7.2 31 31 0 001 12a31 31 0 001.1 4.8 3 3 0 002.1 2.12C4.56 19.6 12 19.6 12 19.6s7.44 0 8.9-.68A3 3 0 0023 16.8 31 31 0 0023 12a31 31 0 00-0-4.8z" fill="#FF0000"/>
-                    <path d="M10 15.5l5.5-3.5L10 8.5v7z" fill="#fff"/>
-                  </svg>
-                  <span>YouTube</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
-                  onClick={() => {
-                    window.open("https://www.youtube.com", "_blank");
-                  }}
-                >
-                  Mở YouTube
-                </button>
-                <button className="text-gray-500 hover:text-gray-700 p-1" onClick={() => setShowYoutubeModal(false)}>
-                  ✕
-                </button>
-              </div>
+      {/* YouTube Dialog */}
+      <Dialog open={showYoutubeModal} onOpenChange={(val) => !val && setShowYoutubeModal(false)}>
+        <DialogContent className="sm:max-w-4xl w-full">
+          <DialogHeader>
+            <DialogTitle>YouTube</DialogTitle>
+            <DialogDescription>Chèn video YouTube bằng link hoặc tìm kiếm.</DialogDescription>
+          </DialogHeader>
+
+          <div className="p-4">
+            <div className="flex gap-2">
+              <Input value={ytQuery} onChange={(e) => setYtQuery(e.target.value)} onKeyDown={(e)=>{ if(e.key==="Enter") searchYouTube(ytQuery); }} placeholder="Dán link hoặc từ khoá..." />
+              <Button onClick={() => searchYouTube(ytQuery)}>Tìm</Button>
+              <Button variant="outline" onClick={() => { const val = ytQuery.trim(); if (!val) return; try { const u = new URL(val, window.location.href); if (u.hostname.includes("youtube.com") || u.hostname.includes("youtu.be")) { insertYoutubeEmbed(val); setShowYoutubeModal(false); return; } } catch { /* empty */ } searchYouTube(ytQuery); }}>Chèn (URL)</Button>
             </div>
 
-            <div className="p-4">
-              <div className="flex gap-2">
-                <input
-                  value={ytQuery}
-                  onChange={(e) => setYtQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") searchYouTube(ytQuery);
-                  }}
-                  placeholder="Tìm video trên YouTube hoặc dán link (nhấn Enter để tìm). Nếu không có API key, dán link/ID để lấy metadata bằng oEmbed."
-                  className="flex-1 border rounded px-3 py-2 outline-none"
-                />
-                <button className="bg-blue-600 text-white rounded px-4 py-2 hover:bg-blue-700" onClick={() => searchYouTube(ytQuery)}>
-                  Tìm
-                </button>
-                <button
-                  className="bg-gray-100 text-gray-700 rounded px-3 py-2 hover:bg-gray-200"
-                  onClick={() => {
-                    const val = ytQuery.trim();
-                    if (!val) return;
-                    try {
-                      const u = new URL(val, window.location.href);
-                      if (u.hostname.includes("youtube.com") || u.hostname.includes("youtu.be")) {
-                        insertYoutubeEmbed(val);
-                        setShowYoutubeModal(false);
-                        return;
-                      }
-                    } catch {
-                      // not a url
-                    }
-                    searchYouTube(ytQuery);
-                  }}
-                >
-                  Chèn (URL)
-                </button>
-              </div>
+            <div className="mt-4">
+              {ytLoading && <div className="text-sm text-gray-500">Đang tìm...</div>}
+              {ytError && <div className="text-sm text-red-500">{ytError}</div>}
 
-              <div className="mt-4">
-                {ytLoading && <div className="text-sm text-gray-500">Đang tìm...</div>}
-                {ytError && <div className="text-sm text-red-500">{ytError}</div>}
-
-                {!ytLoading && ytResults.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {ytResults.map((r) => (
-                      <div
-                        key={r.videoId}
-                        className="border rounded overflow-hidden hover:shadow cursor-pointer"
-                        onClick={() => {
-                          const url = `https://www.youtube.com/watch?v=${r.videoId}`;
-                          insertYoutubeEmbed(url);
-                          setShowYoutubeModal(false);
-                        }}
-                      >
-                        <div className="w-full h-32 bg-gray-200 overflow-hidden">
-                          {r.thumbnail ? (
-                            <img src={r.thumbnail} alt={r.title} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-500">No image</div>
-                          )}
-                        </div>
-                        <div className="p-2 text-xs text-gray-800">{r.title}</div>
+              {!ytLoading && ytResults.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {ytResults.map((r) => (
+                    <div key={r.videoId} className="border rounded overflow-hidden hover:shadow cursor-pointer" onClick={() => { const url = `https://www.youtube.com/watch?v=${r.videoId}`; insertYoutubeEmbed(url); setShowYoutubeModal(false); }}>
+                      <div className="w-full h-32 bg-gray-200 overflow-hidden">
+                        {r.thumbnail ? <img src={r.thumbnail} alt={r.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-500">No image</div>}
                       </div>
-                    ))}
-                  </div>
-                )}
-
-                {!ytLoading && !ytError && ytResults.length === 0 && (
-                  <div className="text-sm text-gray-400 mt-2">Chưa có kết quả. Nhập từ khoá và nhấn Tìm.</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Link modal */}
-      {showLinkModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowLinkModal(false)} />
-          <div className="relative z-10 w-full max-w-2xl bg-white rounded-lg shadow-lg overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center text-lg font-semibold gap-2">
-                  <Link2 size={18} />
-                  <span>Chèn liên kết</span>
+                      <div className="p-2 text-xs text-gray-800">{r.title}</div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button className="text-gray-500 hover:text-gray-700 p-1" onClick={() => setShowLinkModal(false)}>
-                  ✕
-                </button>
-              </div>
-            </div>
+              )}
 
-            <div className="p-4">
-              <div className="flex gap-2">
-                <input
-                  value={linkQuery}
-                  onChange={(e) => setLinkQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") fetchLinkPreview(linkQuery);
-                  }}
-                  placeholder="Dán link ở đây (ví dụ https://example.com) và nhấn 'Lấy preview' hoặc 'Chèn (URL)'."
-                  className="flex-1 border rounded px-3 py-2 outline-none"
-                />
-                <button
-                  className="bg-blue-600 text-white rounded px-4 py-2 hover:bg-blue-700"
-                  onClick={() => fetchLinkPreview(linkQuery)}
-                >
-                  Lấy preview
-                </button>
-                <button
-                  className="bg-gray-100 text-gray-700 rounded px-3 py-2 hover:bg-gray-200"
-                  onClick={async () => {
-                    if (!linkQuery.trim()) return;
-                    await insertLinkEmbed(linkQuery);
-                    setShowLinkModal(false);
-                  }}
-                >
-                  Chèn (URL)
-                </button>
-              </div>
-
-              <div className="mt-4">
-                {linkLoading && <div className="text-sm text-gray-500">Đang lấy preview...</div>}
-                {linkError && <div className="text-sm text-red-500">{linkError}</div>}
-
-                {!linkLoading && linkPreview && (
-                  <div className="flex items-start gap-3 border rounded p-2">
-                    <div className="w-28 h-16 bg-gray-100 overflow-hidden rounded">
-                      {linkPreview.thumbnail ? (
-                        <img src={linkPreview.thumbnail} alt={linkPreview.title} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-500">No image</div>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-800 truncate">{linkPreview.title}</div>
-                      <div className="text-xs text-gray-500">{linkPreview.domain}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        className="text-sm text-blue-600 hover:underline"
-                        onClick={async () => {
-                          await insertLinkEmbed(linkQuery);
-                          setShowLinkModal(false);
-                        }}
-                      >
-                        Chèn
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {!linkLoading && !linkPreview && !linkError && (
-                  <div className="text-sm text-gray-400 mt-2">Chưa có preview. Dán link và nhấn "Lấy preview" hoặc "Chèn (URL)".</div>
-                )}
-              </div>
+              {!ytLoading && !ytError && ytResults.length === 0 && <div className="text-sm text-gray-400 mt-2">Chưa có kết quả. Nhập từ khoá và nhấn Tìm.</div>}
             </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowYoutubeModal(false)}>Đóng</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Link Dialog */}
+      <Dialog open={showLinkModal} onOpenChange={(val) => !val && setShowLinkModal(false)}>
+        <DialogContent className="sm:max-w-2xl w-full">
+          <DialogHeader>
+            <DialogTitle>Chèn liên kết</DialogTitle>
+            <DialogDescription>Dán link để lấy preview hoặc chèn ngay.</DialogDescription>
+          </DialogHeader>
+
+          <div className="p-4">
+            <div className="flex gap-2">
+              <Input value={linkQuery} onChange={(e)=>setLinkQuery(e.target.value)} onKeyDown={(e)=>{ if(e.key==="Enter") fetchLinkPreview(linkQuery); }} placeholder="Dán link ở đây..." />
+              <Button onClick={()=>fetchLinkPreview(linkQuery)}>Lấy preview</Button>
+              <Button variant="outline" onClick={async ()=>{ if(!linkQuery.trim()) return; await insertLinkEmbed(linkQuery); setShowLinkModal(false); }}>Chèn (URL)</Button>
+            </div>
+
+            <div className="mt-4">
+              {linkLoading && <div className="text-sm text-gray-500">Đang lấy preview...</div>}
+              {linkError && <div className="text-sm text-red-500">{linkError}</div>}
+
+              {!linkLoading && linkPreview && (
+                <div className="flex items-start gap-3 border rounded p-2">
+                  <div className="w-28 h-16 bg-gray-100 overflow-hidden rounded">
+                    {linkPreview.thumbnail ? <img src={linkPreview.thumbnail} alt={linkPreview.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-500">No image</div>}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-gray-800 truncate">{linkPreview.title}</div>
+                    <div className="text-xs text-gray-500">{linkPreview.domain}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="link" onClick={async ()=>{ await insertLinkEmbed(linkQuery); setShowLinkModal(false); }}>Chèn</Button>
+                  </div>
+                </div>
+              )}
+
+              {!linkLoading && !linkPreview && !linkError && <div className="text-sm text-gray-400 mt-2">Chưa có preview. Dán link và nhấn "Lấy preview" hoặc "Chèn (URL)".</div>}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={()=>setShowLinkModal(false)}>Đóng</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

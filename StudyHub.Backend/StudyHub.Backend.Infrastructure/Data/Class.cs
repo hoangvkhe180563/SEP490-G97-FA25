@@ -25,8 +25,6 @@ public partial class Class
 
     public virtual ICollection<ClassNotification> ClassNotifications { get; set; } = new List<ClassNotification>();
 
-    public virtual ICollection<Classwork> Classworks { get; set; } = new List<Classwork>();
-
     public virtual ICollection<Exam> Exams { get; set; } = new List<Exam>();
 
     public virtual ICollection<Document> Documents { get; set; } = new List<Document>();
