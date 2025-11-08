@@ -59,7 +59,7 @@ namespace StudyHub.Backend.Api.Controllers
             {
                 return NotFound();
             }
-            return Ok(lessonExam);
+            return Ok(lessonExam.ToDetailsDto());
         }
 
         [HttpGet("className/{classId:int}")]

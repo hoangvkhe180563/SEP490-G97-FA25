@@ -110,7 +110,7 @@ const AddCourse: React.FC = () => {
       return setDialog({
         open: true,
         title: "Lỗi nhập liệu",
-        message: errors.join(" \n"),
+        message: errors.map((err, index) => (<React.Fragment key={`err-${index}`}>{err} {index < errors.length - 1 && <br />}</React.Fragment>)),
       });
 
     setSaving(true);
@@ -458,12 +458,13 @@ const AddCourse: React.FC = () => {
 
                 <div className="flex items-center gap-2">
                   <input
+                    id="featured"
                     type="checkbox"
                     checked={isFeatured}
                     onChange={(e) => setIsFeatured(e.target.checked)}
                     className="w-4 h-4"
                   />
-                  <Label>Khóa học nổi bật</Label>
+                  <Label htmlFor="featured">Khóa học nổi bật</Label>
                 </div>
               </CardContent>
             </Card>

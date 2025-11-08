@@ -41,7 +41,14 @@ namespace StudyHub.Backend.UseCases.Services
 
         public Exam? GetLessonExam(int lessonId)
         {
-            return _examRepo.GetLessonExam(lessonId);
+            var exam = _examRepo.GetLessonExam(lessonId);
+            if (exam != null)
+            {
+                var questionObjectIds = _examRepo.GetExamQuestionObjectIds(exam.Id);
+                var questions = _questionRepo.GetManyQuestionsById(questionObjectIds);
+                exam.Questions = questions;
+            }
+            return exam;
         }
 
         public string GetClassName(int classId)
