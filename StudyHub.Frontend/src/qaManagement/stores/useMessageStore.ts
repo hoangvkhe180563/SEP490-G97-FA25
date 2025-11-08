@@ -3,6 +3,7 @@ import type { MessageState } from "../interfaces/stores";
 import { axiosInstance, axiosMessageErrorHandler } from "@/lib/axios";
 import type { HubConnection } from "@microsoft/signalr";
 import { createChatConnection } from "@/lib/signalR";
+import { useConversationStore } from "@/qaManagement/stores/useConversationStore";
 import { devtools } from "zustand/middleware";
 
 export const useMessageStore = create<MessageState>()(
@@ -24,6 +25,9 @@ export const useMessageStore = create<MessageState>()(
 
           const normalizeMsg = (d: any) => ({
             id: d?.id ?? d?.Id ?? String(Date.now()),
+            conversationId: String(
+              d?.conversationId ?? d?.ConversationId ?? ""
+            ),
             senderId: String(
               d?.senderId ?? d?.SenderId ?? d?.sender ?? d?.userId ?? ""
             ).toString(),
@@ -44,6 +48,16 @@ export const useMessageStore = create<MessageState>()(
                 if (exists) return {} as any;
                 return { messages: [...(state.messages || []), msg] } as any;
               });
+              // If we're currently viewing this conversation, mark it read for current user
+              try {
+                const convId = String(msg.conversationId || "");
+                if (convId) {
+                  // fire-and-forget: upsertRead will optimistically set unreadCount on the conversation store
+                  useConversationStore.getState().upsertRead?.(convId);
+                }
+              } catch (err) {
+                console.warn("auto upsertRead on ReceiveMessage failed", err);
+              }
             } catch (err) {
               console.error("ReceiveMessage handler error", err);
             }
@@ -143,11 +157,41 @@ export const useMessageStore = create<MessageState>()(
           const resp = await axiosInstance.post(`/QAMessage`, message);
           const body = resp.data;
           if (body?.success) {
-            set((state: any) => ({
-              messages: [...(state.messages || []), body.data],
-              success: true,
-              message: body?.message ?? "",
-            }));
+            set((state: any) => {
+              // remove any optimistic temporary messages that match this server message
+              const serverId = String(body.data?.id ?? body.data?.Id ?? "");
+              const serverContent =
+                body.data?.content ?? body.data?.Content ?? "";
+              const serverSender = String(
+                body.data?.senderId ?? body.data?.SenderId ?? ""
+              );
+
+              const filtered = (state.messages || []).filter((m: any) => {
+                const mid = String(m.id ?? "");
+                // drop temp ids that start with tmp- and match content & sender
+                if (
+                  mid.startsWith("tmp-") &&
+                  (m.content ?? m.Content) === serverContent
+                ) {
+                  const mSender = String(m.senderId ?? m.SenderId ?? "");
+                  if (!mSender || mSender === serverSender) return false; // remove this temp
+                }
+                // also avoid keeping any duplicate server message if already present
+                if (String(m.id) === serverId) return false;
+                return true;
+              });
+
+              // append server message if not already present
+              const exists = filtered.some(
+                (m: any) => String(m.id) === serverId
+              );
+              const next = exists ? filtered : [...filtered, body.data];
+              return {
+                messages: next,
+                success: true,
+                message: body?.message ?? "",
+              } as any;
+            });
           } else {
             set({ success: false, message: body?.message ?? "" });
           }

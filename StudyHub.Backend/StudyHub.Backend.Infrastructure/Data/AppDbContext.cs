@@ -81,6 +81,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<QAConversation> QAConversations { get; set; }
 
+    public virtual DbSet<QAConversationRead> QAConversationReads { get; set; }
+
     public virtual DbSet<QAMessage> QAMessages { get; set; }
 
     public virtual DbSet<QATopic> QATopics { get; set; }
@@ -1027,6 +1029,23 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Topic).WithMany(p => p.QAConversations)
                 .HasForeignKey(d => d.TopicId)
                 .HasConstraintName("q&_a_conversation_ibfk_3");
+        });
+
+        modelBuilder.Entity<QAConversationRead>(entity =>
+        {
+            entity.HasKey(e => new { e.ConversationId, e.UserId })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+
+            entity.ToTable("q&_a_conversation_read");
+
+            entity.Property(e => e.LastReadAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Conversation).WithMany(p => p.QAConversationReads)
+                .HasForeignKey(d => d.ConversationId)
+                .HasConstraintName("q&_a_conversation_read_ibfk_1");
         });
 
         modelBuilder.Entity<QAMessage>(entity =>

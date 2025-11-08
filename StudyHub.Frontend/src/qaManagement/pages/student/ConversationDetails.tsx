@@ -79,6 +79,7 @@ const ConversationDetails = () => {
   }, [onlineUsers, conversation?.teacherId]);
 
   const [text, setText] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -195,10 +196,21 @@ const ConversationDetails = () => {
     // start chat connection and join this conversation
     (async () => {
       try {
+        // 1. Start chat connection trước
         await useMessageStore.getState().startChat?.();
         await useMessageStore
           .getState()
           .joinConversation?.(conversationId || "");
+
+        // 2. Sau đó mới start read hub
+        try {
+          // 4. Cuối cùng mới call upsertRead
+          await useConversationStore
+            .getState()
+            .upsertRead?.(conversationId || "");
+        } catch (err) {
+          console.warn("read hub start/upsert failed", err);
+        }
       } catch (err) {
         console.warn("chat join failed", err);
       }
@@ -225,9 +237,11 @@ const ConversationDetails = () => {
 
   const onSend = () => {
     if (!text.trim()) return;
+    if (isSending) return; // prevent double-send jitter
+    setIsSending(true);
     // optimistic UI update
     const m: Partial<Message> = {
-      id: String(Date.now()),
+      id: `tmp-${Date.now()}`,
       senderId: user?.id || "unknown",
       content: text.trim(),
       createdAt: new Date().toISOString(),
@@ -257,6 +271,8 @@ const ConversationDetails = () => {
         setMessages(mapped);
       } catch (err: any) {
         setError(err?.message ?? String(err));
+      } finally {
+        setTimeout(() => setIsSending(false), 60);
       }
     })();
   };
@@ -283,7 +299,7 @@ const ConversationDetails = () => {
       } catch (err) {
         console.warn("sendTyping stop failed", err);
       }
-    }, 10000);
+    }, 3000);
   };
 
   return (
@@ -473,7 +489,11 @@ const ConversationDetails = () => {
             placeholder="Viết tin nhắn..."
             className="flex-1 max-h-36"
           />
-          <Button onClick={onSend} className="flex items-center gap-2">
+          <Button
+            onClick={onSend}
+            disabled={isSending}
+            className="flex items-center gap-2"
+          >
             <Send className="w-4 h-4" /> Gửi
           </Button>
         </div>

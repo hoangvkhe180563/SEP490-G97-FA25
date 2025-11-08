@@ -31,6 +31,7 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<SmtpEmailService>();
             services.AddScoped<QATopicService>();
             services.AddScoped<QAConversationService>();
+            services.AddScoped<QAConversationReadService>();
             services.AddScoped<QAMessageService>();
 
             

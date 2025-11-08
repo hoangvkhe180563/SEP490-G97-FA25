@@ -34,6 +34,7 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<IAppRoleRepository, AppRoleRepositoy>();
             services.AddScoped<IQATopicRepository, QATopicRepository>();
             services.AddScoped<IQAConversationRepository, QAConversationRepository>();
+            services.AddScoped<IQAConversationReadRepository, QAConversationReadRepository>();
             services.AddScoped<IQAMessageRepository, QAMessageRepository>();
 
             services.AddScoped<ICloudinaryRepository>(provider =>
