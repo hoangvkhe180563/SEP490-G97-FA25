@@ -25,7 +25,10 @@ import {
   FormControl,
   FormMessage,
 } from "@/common/components/ui/form";
-import { Camera, Lock } from "lucide-react";
+import { Camera, Lock, Calendar } from "lucide-react";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
+import { format, parse } from "date-fns";
 import { Badge } from "@/common/components/ui/badge";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useLocationStore } from "@/user/stores/useLocationStore";
@@ -34,6 +37,7 @@ import toast from "react-hot-toast";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import type { UpdateProfileDto } from "../interfaces/dtos";
 import { isValidVietnamPhone } from "../utils/phoneUtils";
+import useDobStore from "@/user/stores/useDobStore";
 
 // Vietnam phone validator
 
@@ -48,6 +52,12 @@ const profileSchema = z
       .refine((v) => !v || isValidVietnamPhone(v), {
         message: "Số điện thoại không hợp lệ",
       }),
+      dob: z
+        .string()
+        .optional()
+        .refine((v) => !v || useDobStore.getState().isValidDisplayDob(v), {
+          message: "Ngày sinh không hợp lệ. Định dạng dd/mm/yyyy",
+        }),
     fullname: z.string().optional(),
     communeId: z.union([z.string(), z.number()]).optional(),
     cityId: z.string().optional(),
@@ -103,6 +113,7 @@ export default function UpdateProfile() {
       username: "",
       address: "",
       phoneNumber: "",
+      dob: undefined,
       fullname: "",
       cityId: undefined,
       provinceId: undefined,
@@ -117,6 +128,23 @@ export default function UpdateProfile() {
 
   const { handleSubmit, reset, setValue, setError, formState } = form;
   const { isSubmitting } = formState;
+
+  // DOB calendar state
+  const [dobOpen, setDobOpen] = useState(false);
+  const [selectedDob, setSelectedDob] = useState<Date | undefined>(undefined);
+
+  useEffect(() => {
+    const v = form.getValues("dob");
+    if (v) {
+      try {
+        const d = parse(String(v), "dd/MM/yyyy", new Date());
+        if (!isNaN(d.getTime())) setSelectedDob(d);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -138,6 +166,7 @@ export default function UpdateProfile() {
         provinceId: user.provinceId ? String(user.provinceId) : undefined,
         communeId: user.communeId ? String(user.communeId) : undefined,
         schoolId: user.schoolId ? String(user.schoolId) : undefined,
+  dob: (user as any)?.dob ? useDobStore.getState().isoToDisplay((user as any).dob) ?? undefined : undefined,
         gender:
           typeof user.gender !== "undefined"
             ? user.gender
@@ -216,6 +245,8 @@ export default function UpdateProfile() {
     if (data.oldPassword) dto.oldPassword = data.oldPassword;
     if (data.newPassword) dto.newPassword = data.newPassword;
     if (file) dto.avatarFile = file;
+  // Convert display dob dd/MM/yyyy to ISO yyyy-MM-dd for backend
+  if (data.dob) dto.dob = useDobStore.getState().displayToIso(data.dob) ?? null;
 
     const mapBackendKeyToField = (key: string) => {
       // common mappings from backend keys to our form field names
@@ -371,6 +402,51 @@ export default function UpdateProfile() {
                   <FormLabel>Số điện thoại</FormLabel>
                   <FormControl>
                     <Input {...field} placeholder="Số điện thoại" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="dob"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ngày sinh</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        placeholder="dd/MM/yyyy"
+                        readOnly
+                        onClick={() => setDobOpen((s) => !s)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setDobOpen((s) => !s)}
+                        className="absolute right-2 top-2 p-1"
+                        aria-label="Open calendar"
+                      >
+                        <Calendar size={16} />
+                      </button>
+                      {dobOpen && (
+                        <div className="absolute z-50 mt-2 bg-white rounded-md shadow p-2">
+                          <DayPicker
+                            mode="single"
+                            selected={selectedDob}
+                            onSelect={(d) => {
+                              if (d) {
+                                setSelectedDob(d);
+                                const s = format(d, "dd/MM/yyyy");
+                                field.onChange(s);
+                              }
+                              setDobOpen(false);
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

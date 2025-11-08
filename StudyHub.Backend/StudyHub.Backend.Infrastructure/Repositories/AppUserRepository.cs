@@ -25,6 +25,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 Id = d.Id,
                 Email = d.Email,
+                Dob = d.Dob,
                 Gender = d.Gender,
                 PasswordHash = d.PasswordHash,
                 Username = d.Username,
@@ -59,6 +60,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 PasswordHash = d.PasswordHash,
                 Username = d.Username,
                 Fullname = d.Fullname,
+                Dob = d.Dob,
                 IsVerified = d.IsVerified,
                 SchoolId = d.SchoolId,
                 TransferId = d.TransferId,

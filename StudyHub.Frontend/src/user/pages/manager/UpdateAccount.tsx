@@ -26,7 +26,10 @@ import {
   FormMessage,
 } from "@/common/components/ui/form";
 // textarea not used in update form (kept for create)
-import { Ban, Camera, AlertCircle, Check } from "lucide-react";
+import { Ban, Camera, AlertCircle, Check, Calendar } from "lucide-react";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
+import { format, parse } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
@@ -34,6 +37,7 @@ import { useAppRoleStore } from "@/user/stores/useRoleStore";
 import { useLocationStore } from "@/user/stores/useLocationStore";
 import { Badge } from "@/common/components/ui/badge";
 import toast from "react-hot-toast";
+import useDobStore from "@/user/stores/useDobStore";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -74,6 +78,12 @@ const schema = z.object({
       message: "Số điện thoại không hợp lệ",
     }),
   status: z.boolean().optional(),
+  dob: z
+    .string()
+    .optional()
+    .refine((v) => !v || useDobStore.getState().isValidDisplayDob(v), {
+      message: "Ngày sinh không hợp lệ. Định dạng dd/mm/yyyy",
+    }),
 });
 
 type FormValues = z.infer<typeof schema> & { avatar?: File | null };
@@ -134,6 +144,23 @@ const UpdateAccount: React.FC = () => {
     getValues,
     formState,
   } = form;
+
+  // DOB calendar state
+  const [dobOpen, setDobOpen] = useState(false);
+  const [selectedDob, setSelectedDob] = useState<Date | undefined>(undefined);
+
+  useEffect(() => {
+    const v = form.getValues("dob");
+    if (v) {
+      try {
+        const d = parse(String(v), "dd/MM/yyyy", new Date());
+        if (!isNaN(d.getTime())) setSelectedDob(d);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const mapBackendKeyToField = (key: string) => {
     const k = key || "";
@@ -249,6 +276,10 @@ const UpdateAccount: React.FC = () => {
             email: user.email ?? "",
             username: user.username ?? "",
             fullname: user.fullname ?? user.username ?? "",
+            dob: (user as any)?.dob
+              ? useDobStore.getState().isoToDisplay((user as any).dob) ??
+                undefined
+              : undefined,
             cityId: user.cityId ? String(user.cityId) : undefined,
             provinceId: user.provinceId ? String(user.provinceId) : undefined,
             communeId: user.communeId ? String(user.communeId) : undefined,
@@ -368,6 +399,8 @@ const UpdateAccount: React.FC = () => {
     if (typeof data.status !== "undefined") dto.status = Boolean(data.status);
     if (file) dto.avatarFile = file;
     if (data.address) dto.address = data.address;
+    if (data.dob)
+      dto.dob = useDobStore.getState().displayToIso(data.dob) ?? null;
 
     try {
       await updateAccount(
@@ -532,6 +565,51 @@ const UpdateAccount: React.FC = () => {
                 <FormLabel>Số điện thoại</FormLabel>
                 <FormControl>
                   <Input {...field} placeholder="Số điện thoại" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="dob"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Ngày sinh</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      {...field}
+                      placeholder="dd/MM/yyyy"
+                      readOnly
+                      onClick={() => setDobOpen((s) => !s)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setDobOpen((s) => !s)}
+                      className="absolute right-2 top-2 p-1"
+                      aria-label="Open calendar"
+                    >
+                      <Calendar size={16} />
+                    </button>
+                    {dobOpen && (
+                      <div className="absolute z-50 mt-2 bg-white rounded-md shadow p-2">
+                        <DayPicker
+                          mode="single"
+                          selected={selectedDob}
+                          onSelect={(d) => {
+                            if (d) {
+                              setSelectedDob(d);
+                              const s = format(d, "dd/MM/yyyy");
+                              field.onChange(s);
+                            }
+                            setDobOpen(false);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
