@@ -35,10 +35,6 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<ClassNotificationReadStatus> ClassNotificationReadStatuses { get; set; }
 
-    public virtual DbSet<Classwork> Classworks { get; set; }
-
-    public virtual DbSet<ClassworkSubmission> ClassworkSubmissions { get; set; }
-
     public virtual DbSet<Commune> Communes { get; set; }
 
     public virtual DbSet<Course> Courses { get; set; }
@@ -75,6 +71,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<LessonVideo> LessonVideos { get; set; }
 
+    public virtual DbSet<NotificationSubmission> NotificationSubmissions { get; set; }
+
     public virtual DbSet<PaymentInfo> PaymentInfos { get; set; }
 
     public virtual DbSet<Progress> Progresses { get; set; }
@@ -95,6 +93,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<SubmissionFile> SubmissionFiles { get; set; }
 
+    public virtual DbSet<Transaction> Transactions { get; set; }
+
     public virtual DbSet<UserForumStatus> UserForumStatuses { get; set; }
 
     public virtual DbSet<ViolationRecord> ViolationRecords { get; set; }
@@ -102,7 +102,7 @@ public partial class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
-            .UseCollation("utf8mb4_0900_ai_ci")
+            .UseCollation("utf8mb4_general_ci")
             .HasCharSet("utf8mb4");
 
         modelBuilder.Entity<AppPolicy>(entity =>
@@ -115,12 +115,13 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.ResourceId, "ResourceId");
 
+            entity.Property(e => e.ResourceId).HasColumnType("int(11)");
             entity.Property(e => e.ActionType).HasMaxLength(100);
             entity.Property(e => e.Condition).HasMaxLength(256);
             entity.Property(e => e.Description)
                 .HasMaxLength(256)
-                .UseCollation("utf8mb3_general_ci")
-                .HasCharSet("utf8mb3");
+                .UseCollation("utf8_general_ci")
+                .HasCharSet("utf8");
 
             entity.HasOne(d => d.Resource).WithMany(p => p.AppPolicies)
                 .HasForeignKey(d => d.ResourceId)
@@ -139,6 +140,7 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("app_resources");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.Name).HasMaxLength(256);
             entity.Property(e => e.ResourceType).HasMaxLength(100);
         });
@@ -167,8 +169,9 @@ public partial class AppDbContext : DbContext
             entity.HasIndex(e => e.Username, "Username").IsUnique();
 
             entity.Property(e => e.Address).HasMaxLength(1000);
+            entity.Property(e => e.CommuneId).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Email).HasMaxLength(100);
@@ -183,11 +186,14 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.PhoneNumber).HasMaxLength(11);
             entity.Property(e => e.RefreshTokenExpire).HasColumnType("datetime");
             entity.Property(e => e.ResetPasswordExpire).HasColumnType("datetime");
+            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
             entity.Property(e => e.Status)
                 .IsRequired()
                 .HasDefaultValueSql("'1'");
+            entity.Property(e => e.TransferId).HasColumnType("int(11)");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
             entity.Property(e => e.Username).HasMaxLength(100);
+            entity.Property(e => e.Wallet).HasColumnType("bigint(20)");
 
             entity.HasOne(d => d.Commune).WithMany(p => p.AppUsers)
                 .HasForeignKey(d => d.CommuneId)
@@ -224,8 +230,10 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.SubjectId, "SubjectId");
 
+            entity.Property(e => e.SubjectId).HasColumnType("smallint(6)");
+            entity.Property(e => e.ClassId).HasColumnType("int(11)");
             entity.Property(e => e.JoinDate)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.Status)
                 .HasDefaultValueSql("'joined'")
@@ -252,6 +260,8 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.CourseId, "CourseId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.CourseId).HasColumnType("int(11)");
             entity.Property(e => e.Description).HasColumnType("text");
             entity.Property(e => e.Name).HasMaxLength(255);
             entity.Property(e => e.PostDate).HasColumnType("datetime");
@@ -268,6 +278,7 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("cities");
 
+            entity.Property(e => e.Id).HasColumnType("tinyint(4)");
             entity.Property(e => e.Name).HasMaxLength(100);
         });
 
@@ -277,8 +288,9 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("classes");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
@@ -292,33 +304,35 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("class_notifications");
 
-            entity.HasIndex(e => e.AppUserId, "FK_ClassNotifications_AppUser");
+            entity.HasIndex(e => e.ClassId, "FK_ClassNotifications_Classes");
 
-            entity.HasIndex(e => e.ClassId, "FK_ClassNotifications_Class");
-
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.ClassId).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
                 .HasMaxLength(6)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+                .HasDefaultValueSql("current_timestamp(6)");
+            entity.Property(e => e.Deadline).HasMaxLength(6);
             entity.Property(e => e.DeletedAt).HasMaxLength(6);
             entity.Property(e => e.Description)
                 .HasMaxLength(5000)
-                .UseCollation("utf8mb3_general_ci")
-                .HasCharSet("utf8mb3");
+                .UseCollation("utf8_general_ci")
+                .HasCharSet("utf8");
+            entity.Property(e => e.GradeType).HasMaxLength(50);
+            entity.Property(e => e.InstructionsHtml).HasColumnType("text");
+            entity.Property(e => e.MaxScore).HasPrecision(9, 2);
             entity.Property(e => e.Title)
                 .HasMaxLength(200)
-                .UseCollation("utf8mb3_general_ci")
-                .HasCharSet("utf8mb3");
+                .UseCollation("utf8_general_ci")
+                .HasCharSet("utf8");
+            entity.Property(e => e.Type)
+                .HasDefaultValueSql("'notification'")
+                .HasColumnType("enum('notification','classwork')");
             entity.Property(e => e.UpdatedAt).HasMaxLength(6);
-
-            entity.HasOne(d => d.AppUser).WithMany(p => p.ClassNotifications)
-                .HasForeignKey(d => d.AppUserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_ClassNotifications_AppUser");
 
             entity.HasOne(d => d.Class).WithMany(p => p.ClassNotifications)
                 .HasForeignKey(d => d.ClassId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("class_notifications_ibfk_1");
+                .HasConstraintName("FK_ClassNotifications_Classes");
         });
 
         modelBuilder.Entity<ClassNotificationComment>(entity =>
@@ -327,25 +341,21 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("class_notification_comments");
 
-            entity.HasIndex(e => e.AppUserId, "AppUserId");
+            entity.HasIndex(e => e.NotificationId, "FK_NotificationComments_Notifications");
 
-            entity.HasIndex(e => e.NotificationId, "NotificationId");
-
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.Content).HasMaxLength(2000);
             entity.Property(e => e.CreatedAt)
                 .HasMaxLength(6)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+                .HasDefaultValueSql("current_timestamp(6)");
             entity.Property(e => e.DeletedAt).HasMaxLength(6);
+            entity.Property(e => e.NotificationId).HasColumnType("int(11)");
             entity.Property(e => e.UpdatedAt).HasMaxLength(6);
-
-            entity.HasOne(d => d.AppUser).WithMany(p => p.ClassNotificationComments)
-                .HasForeignKey(d => d.AppUserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("class_notification_comments_ibfk_2");
 
             entity.HasOne(d => d.Notification).WithMany(p => p.ClassNotificationComments)
                 .HasForeignKey(d => d.NotificationId)
-                .HasConstraintName("class_notification_comments_ibfk_1");
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_NotificationComments_Notifications");
         });
 
         modelBuilder.Entity<ClassNotificationFile>(entity =>
@@ -354,13 +364,17 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("class_notification_files");
 
-            entity.HasIndex(e => e.NotificationId, "NotificationId");
+            entity.HasIndex(e => e.NotificationId, "FK_NotificationFiles_Notifications");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.FileName).HasMaxLength(200);
+            entity.Property(e => e.FileType).HasMaxLength(100);
+            entity.Property(e => e.NotificationId).HasColumnType("int(11)");
 
             entity.HasOne(d => d.Notification).WithMany(p => p.ClassNotificationFiles)
                 .HasForeignKey(d => d.NotificationId)
-                .HasConstraintName("class_notification_files_ibfk_1");
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_NotificationFiles_Notifications");
         });
 
         modelBuilder.Entity<ClassNotificationReadStatus>(entity =>
@@ -371,65 +385,15 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("class_notification_read_status");
 
-            entity.HasIndex(e => e.AppUserId, "AppUserId");
-
+            entity.Property(e => e.NotificationId).HasColumnType("int(11)");
             entity.Property(e => e.ReadAt)
                 .HasMaxLength(6)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
-
-            entity.HasOne(d => d.AppUser).WithMany(p => p.ClassNotificationReadStatuses)
-                .HasForeignKey(d => d.AppUserId)
-                .HasConstraintName("class_notification_read_status_ibfk_2");
+                .HasDefaultValueSql("current_timestamp(6)");
 
             entity.HasOne(d => d.Notification).WithMany(p => p.ClassNotificationReadStatuses)
                 .HasForeignKey(d => d.NotificationId)
-                .HasConstraintName("class_notification_read_status_ibfk_1");
-        });
-
-        modelBuilder.Entity<Classwork>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("classworks");
-
-            entity.HasIndex(e => e.ClassId, "ClassId");
-
-            entity.Property(e => e.Deadline).HasColumnType("datetime");
-            entity.Property(e => e.Description).HasMaxLength(5000);
-            entity.Property(e => e.Title).HasMaxLength(200);
-
-            entity.HasOne(d => d.Class).WithMany(p => p.Classworks)
-                .HasForeignKey(d => d.ClassId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("classworks_ibfk_1");
-        });
-
-        modelBuilder.Entity<ClassworkSubmission>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("classwork_submissions");
-
-            entity.HasIndex(e => e.AppUserId, "AppUserId");
-
-            entity.HasIndex(e => e.ClassworkId, "ClassworkId");
-
-            entity.Property(e => e.FirstSubmissionTime)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("datetime");
-            entity.Property(e => e.LatestSubmissionTime)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("datetime");
-
-            entity.HasOne(d => d.AppUser).WithMany(p => p.ClassworkSubmissions)
-                .HasForeignKey(d => d.AppUserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("classwork_submissions_ibfk_2");
-
-            entity.HasOne(d => d.Classwork).WithMany(p => p.ClassworkSubmissions)
-                .HasForeignKey(d => d.ClassworkId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("classwork_submissions_ibfk_1");
+                .HasConstraintName("FK_NotificationRead_Notifications");
         });
 
         modelBuilder.Entity<Commune>(entity =>
@@ -440,7 +404,9 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.ProvinceId, "ProvinceId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.ProvinceId).HasColumnType("smallint(6)");
 
             entity.HasOne(d => d.Province).WithMany(p => p.Communes)
                 .HasForeignKey(d => d.ProvinceId)
@@ -456,16 +422,21 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.SubjectId, "SubjectId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.EndAt).HasColumnType("datetime");
+            entity.Property(e => e.Grade).HasColumnType("tinyint(4)");
             entity.Property(e => e.Information).HasMaxLength(1000);
             entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.Price).HasColumnType("int(10) unsigned");
+            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
             entity.Property(e => e.StartAt).HasColumnType("datetime");
             entity.Property(e => e.Status)
                 .HasDefaultValueSql("'Mở'")
                 .HasColumnType("enum('Mở','Đóng','Nháp')");
+            entity.Property(e => e.SubjectId).HasColumnType("smallint(6)");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.Subject).WithMany(p => p.Courses)
@@ -486,15 +457,20 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.SubjectId, "SubjectId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.DocumentCategoryId).HasColumnType("tinyint(4)");
+            entity.Property(e => e.Grade).HasColumnType("tinyint(4)");
             entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
             entity.Property(e => e.Status)
                 .IsRequired()
                 .HasDefaultValueSql("'1'");
+            entity.Property(e => e.SubjectId).HasColumnType("smallint(6)");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.DocumentCategory).WithMany(p => p.Documents)
@@ -529,6 +505,8 @@ public partial class AppDbContext : DbContext
                             .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
                         j.ToTable("document_classes");
                         j.HasIndex(new[] { "ClassId" }, "ClassId");
+                        j.IndexerProperty<int>("DocumentId").HasColumnType("int(11)");
+                        j.IndexerProperty<int>("ClassId").HasColumnType("int(11)");
                     });
         });
 
@@ -538,6 +516,7 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("document_categories");
 
+            entity.Property(e => e.Id).HasColumnType("tinyint(4)");
             entity.Property(e => e.Description).HasMaxLength(200);
             entity.Property(e => e.Name).HasMaxLength(200);
         });
@@ -552,8 +531,10 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.CourseId, "CourseId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.CourseId).HasColumnType("int(11)");
             entity.Property(e => e.EnrollmentDate)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
 
             entity.HasOne(d => d.AppUser).WithMany(p => p.Enrollments)
@@ -577,10 +558,12 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.UserId, "UserId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.Reason).HasMaxLength(2000);
+            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.School).WithMany(p => p.ForumAppeals)
@@ -608,10 +591,13 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.PostId, "PostId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.CommentId).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
+            entity.Property(e => e.PostId).HasColumnType("int(11)");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.Comment).WithMany(p => p.ForumAttachments)
@@ -642,10 +628,14 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.PostId, "PostId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
+            entity.Property(e => e.ParentCommentId).HasColumnType("int(11)");
+            entity.Property(e => e.PostId).HasColumnType("int(11)");
+            entity.Property(e => e.TotalViolationScore).HasColumnType("int(11)");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumComments)
@@ -673,11 +663,13 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.SchoolId, "SchoolId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
             entity.Property(e => e.Status)
                 .IsRequired()
                 .HasDefaultValueSql("'1'");
@@ -707,11 +699,16 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.SubjectId, "SubjectId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
+            entity.Property(e => e.FlairId).HasColumnType("int(11)");
+            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
+            entity.Property(e => e.SubjectId).HasColumnType("smallint(6)");
             entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.TotalViolationScore).HasColumnType("int(11)");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumPosts)
@@ -743,8 +740,9 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.SchoolId, "SchoolId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.IsActive)
@@ -752,8 +750,10 @@ public partial class AppDbContext : DbContext
                 .HasDefaultValueSql("'1'");
             entity.Property(e => e.Name).HasMaxLength(200);
             entity.Property(e => e.RuleType).HasMaxLength(100);
+            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
             entity.Property(e => e.Severity).HasMaxLength(50);
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+            entity.Property(e => e.ViolationScore).HasColumnType("int(11)");
 
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumRules)
                 .HasForeignKey(d => d.CreatedBy)
@@ -771,7 +771,9 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("landing_pages");
 
-            entity.Property(e => e.SchoolId).ValueGeneratedNever();
+            entity.Property(e => e.SchoolId)
+                .ValueGeneratedNever()
+                .HasColumnType("int(11)");
             entity.Property(e => e.Description).HasMaxLength(500);
 
             entity.HasOne(d => d.School).WithOne(p => p.LandingPage)
@@ -788,7 +790,10 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.LandingPageId, "LandingPageId");
 
-            entity.Property(e => e.Id).ValueGeneratedNever();
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnType("int(11)");
+            entity.Property(e => e.LandingPageId).HasColumnType("int(11)");
 
             entity.HasOne(d => d.LandingPage).WithMany(p => p.LandingPageImages)
                 .HasForeignKey(d => d.LandingPageId)
@@ -806,11 +811,14 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.ResourceId, "ResourceId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.ChapterId).HasColumnType("int(11)");
             entity.Property(e => e.Description).HasColumnType("text");
             entity.Property(e => e.Duration).HasMaxLength(100);
             entity.Property(e => e.IsPreview).HasDefaultValueSql("'0'");
             entity.Property(e => e.Name).HasMaxLength(255);
             entity.Property(e => e.PostDate).HasColumnType("datetime");
+            entity.Property(e => e.ResourceId).HasColumnType("int(11)");
             entity.Property(e => e.Type)
                 .HasDefaultValueSql("'Video'")
                 .HasColumnType("enum('Reading','Video','Exam')");
@@ -836,11 +844,13 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.LessonId, "FK_LessonComments_Lesson");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.Content).HasMaxLength(2000);
             entity.Property(e => e.CreatedAt)
                 .HasMaxLength(6)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+                .HasDefaultValueSql("current_timestamp(6)");
             entity.Property(e => e.DeletedAt).HasMaxLength(6);
+            entity.Property(e => e.LessonId).HasColumnType("int(11)");
             entity.Property(e => e.UpdatedAt).HasMaxLength(6);
 
             entity.HasOne(d => d.AppUser).WithMany(p => p.LessonComments)
@@ -859,7 +869,9 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("lesson_reading");
 
-            entity.Property(e => e.LessonId).ValueGeneratedNever();
+            entity.Property(e => e.LessonId)
+                .ValueGeneratedNever()
+                .HasColumnType("int(11)");
 
             entity.HasOne(d => d.Lesson).WithOne(p => p.LessonReading)
                 .HasForeignKey<LessonReading>(d => d.LessonId)
@@ -871,6 +883,8 @@ public partial class AppDbContext : DbContext
             entity.HasKey(e => e.Id).HasName("PRIMARY");
 
             entity.ToTable("lesson_resource");
+
+            entity.Property(e => e.Id).HasColumnType("int(11)");
         });
 
         modelBuilder.Entity<LessonVideo>(entity =>
@@ -879,11 +893,42 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("lesson_video");
 
-            entity.Property(e => e.LessonId).ValueGeneratedNever();
+            entity.Property(e => e.LessonId)
+                .ValueGeneratedNever()
+                .HasColumnType("int(11)");
 
             entity.HasOne(d => d.Lesson).WithOne(p => p.LessonVideo)
                 .HasForeignKey<LessonVideo>(d => d.LessonId)
                 .HasConstraintName("lesson_video_ibfk_1");
+        });
+
+        modelBuilder.Entity<NotificationSubmission>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("notification_submissions");
+
+            entity.HasIndex(e => e.NotificationId, "FK_Submissions_Notifications");
+
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.Feedback).HasColumnType("text");
+            entity.Property(e => e.FirstSubmissionTime)
+                .HasMaxLength(6)
+                .HasDefaultValueSql("current_timestamp(6)");
+            entity.Property(e => e.GradedAt).HasMaxLength(6);
+            entity.Property(e => e.LatestSubmissionTime)
+                .HasMaxLength(6)
+                .HasDefaultValueSql("current_timestamp(6)");
+            entity.Property(e => e.NotificationId).HasColumnType("int(11)");
+            entity.Property(e => e.Score).HasPrecision(9, 2);
+            entity.Property(e => e.SubmissionStatus)
+                .HasMaxLength(50)
+                .HasDefaultValueSql("'submitted'");
+
+            entity.HasOne(d => d.Notification).WithMany(p => p.NotificationSubmissions)
+                .HasForeignKey(d => d.NotificationId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Submissions_Notifications");
         });
 
         modelBuilder.Entity<PaymentInfo>(entity =>
@@ -892,11 +937,13 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("payment_info");
 
-            entity.Property(e => e.SchoolId).ValueGeneratedNever();
+            entity.Property(e => e.SchoolId)
+                .ValueGeneratedNever()
+                .HasColumnType("int(11)");
             entity.Property(e => e.AccountBank).HasMaxLength(20);
             entity.Property(e => e.AccountName).HasMaxLength(100);
             entity.Property(e => e.AccountNumber).HasMaxLength(20);
-            entity.Property(e => e.ExchangeRate).HasColumnType("mediumint");
+            entity.Property(e => e.ExchangeRate).HasColumnType("mediumint(9)");
             entity.Property(e => e.QrcodeUrl).HasColumnName("QRCodeUrl");
 
             entity.HasOne(d => d.School).WithOne(p => p.PaymentInfo)
@@ -915,9 +962,12 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.LessonId, "LessonId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CompletionDate)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
+            entity.Property(e => e.EnrollmentId).HasColumnType("int(11)");
+            entity.Property(e => e.LessonId).HasColumnType("int(11)");
 
             entity.HasOne(d => d.Enrollment).WithMany(p => p.Progresses)
                 .HasForeignKey(d => d.EnrollmentId)
@@ -936,6 +986,8 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.CityId, "CityId");
 
+            entity.Property(e => e.Id).HasColumnType("smallint(6)");
+            entity.Property(e => e.CityId).HasColumnType("tinyint(4)");
             entity.Property(e => e.Name).HasMaxLength(100);
 
             entity.HasOne(d => d.City).WithMany(p => p.Provinces)
@@ -957,9 +1009,10 @@ public partial class AppDbContext : DbContext
             entity.HasIndex(e => e.TopicId, "TopicId");
 
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.Title).HasMaxLength(255);
+            entity.Property(e => e.TopicId).HasColumnType("smallint(6)");
             entity.Property(e => e.Type).HasColumnType("enum('AI','Teacher')");
 
             entity.HasOne(d => d.Student).WithMany(p => p.QAConversationStudents)
@@ -987,7 +1040,7 @@ public partial class AppDbContext : DbContext
             entity.HasIndex(e => e.SenderId, "SenderId");
 
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.IsFromAi).HasColumnName("IsFromAI");
 
@@ -1008,14 +1061,16 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.SubjectId, "SubjectId");
 
+            entity.Property(e => e.Id).HasColumnType("smallint(6)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.IsActive)
                 .IsRequired()
                 .HasDefaultValueSql("'1'");
             entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.SubjectId).HasColumnType("smallint(6)");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.Subject).WithMany(p => p.QATopics)
@@ -1033,13 +1088,15 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.RuleId, "RuleId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.IsActive)
                 .IsRequired()
                 .HasDefaultValueSql("'1'");
             entity.Property(e => e.Pattern).HasMaxLength(500);
+            entity.Property(e => e.RuleId).HasColumnType("int(11)");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.RulePatterns)
@@ -1060,7 +1117,9 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.CommuneId, "CommuneId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.Address).HasMaxLength(1000);
+            entity.Property(e => e.CommuneId).HasColumnType("int(11)");
             entity.Property(e => e.Name).HasMaxLength(200);
 
             entity.HasOne(d => d.Commune).WithMany(p => p.Schools)
@@ -1075,6 +1134,7 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("subjects");
 
+            entity.Property(e => e.Id).HasColumnType("smallint(6)");
             entity.Property(e => e.Name).HasMaxLength(200);
         });
 
@@ -1084,14 +1144,61 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("submission_files");
 
-            entity.HasIndex(e => e.SubmissionId, "SubmissionId");
+            entity.HasIndex(e => e.SubmissionId, "FK_SubmissionFiles_Submissions");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.FileName).HasMaxLength(200);
+            entity.Property(e => e.SubmissionId).HasColumnType("int(11)");
 
             entity.HasOne(d => d.Submission).WithMany(p => p.SubmissionFiles)
                 .HasForeignKey(d => d.SubmissionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("submission_files_ibfk_1");
+                .HasConstraintName("FK_SubmissionFiles_Submissions");
+        });
+
+        modelBuilder.Entity<Transaction>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("transactions");
+
+            entity.HasIndex(e => e.ConversationId, "ConversationId");
+
+            entity.HasIndex(e => e.CourseId, "CourseId");
+
+            entity.HasIndex(e => e.TransactionCode, "TransactionCode").IsUnique();
+
+            entity.HasIndex(e => e.UserId, "UserId");
+
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.Amount).HasColumnType("bigint(20)");
+            entity.Property(e => e.CourseId).HasColumnType("int(11)");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.ProcessedAt).HasColumnType("datetime");
+            entity.Property(e => e.QrcodeUrl).HasColumnName("QRCodeUrl");
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'Pending'")
+                .HasColumnType("enum('Pending','Success','Failed','Cancelled')");
+            entity.Property(e => e.TransactionCode).HasMaxLength(100);
+            entity.Property(e => e.Type).HasColumnType("enum('Deposit','Withdraw','Refund')");
+
+            entity.HasOne(d => d.Conversation).WithMany(p => p.Transactions)
+                .HasForeignKey(d => d.ConversationId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("transactions_ibfk_3");
+
+            entity.HasOne(d => d.Course).WithMany(p => p.Transactions)
+                .HasForeignKey(d => d.CourseId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("transactions_ibfk_2");
+
+            entity.HasOne(d => d.User).WithMany(p => p.Transactions)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("transactions_ibfk_1");
         });
 
         modelBuilder.Entity<UserForumStatus>(entity =>
@@ -1104,11 +1211,14 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.SchoolId, "SchoolId");
 
+            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.MuteUntil).HasColumnType("datetime");
-            entity.Property(e => e.TotalViolationScore).HasDefaultValueSql("'100'");
+            entity.Property(e => e.TotalViolationScore)
+                .HasDefaultValueSql("'100'")
+                .HasColumnType("int(11)");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.School).WithMany(p => p.UserForumStatuses)
@@ -1140,13 +1250,20 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.UserId, "UserId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.CommentId).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
+            entity.Property(e => e.MatchedPatternId).HasColumnType("int(11)");
+            entity.Property(e => e.MatchedRuleId).HasColumnType("int(11)");
+            entity.Property(e => e.PostId).HasColumnType("int(11)");
+            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
             entity.Property(e => e.SourceType)
                 .HasDefaultValueSql("'auto'")
                 .HasColumnType("enum('auto','report','manual')");
+            entity.Property(e => e.ViolationScore).HasColumnType("int(11)");
 
             entity.HasOne(d => d.Comment).WithMany(p => p.ViolationRecords)
                 .HasForeignKey(d => d.CommentId)

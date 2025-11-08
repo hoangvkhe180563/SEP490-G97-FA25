@@ -3,11 +3,11 @@ using System.Collections.Generic;
 
 namespace StudyHub.Backend.Infrastructure.Data;
 
-public partial class ClassworkSubmission
+public partial class NotificationSubmission
 {
     public int Id { get; set; }
 
-    public int ClassworkId { get; set; }
+    public int NotificationId { get; set; }
 
     public Guid AppUserId { get; set; }
 
@@ -15,9 +15,17 @@ public partial class ClassworkSubmission
 
     public DateTime LatestSubmissionTime { get; set; }
 
-    public virtual AppUser AppUser { get; set; } = null!;
+    public decimal? Score { get; set; }
 
-    public virtual Classwork Classwork { get; set; } = null!;
+    public DateTime? GradedAt { get; set; }
+
+    public Guid? GradedBy { get; set; }
+
+    public string? Feedback { get; set; }
+
+    public string SubmissionStatus { get; set; } = null!;
+
+    public virtual ClassNotification Notification { get; set; } = null!;
 
     public virtual ICollection<SubmissionFile> SubmissionFiles { get; set; } = new List<SubmissionFile>();
 }

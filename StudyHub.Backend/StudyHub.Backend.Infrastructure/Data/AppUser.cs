@@ -63,14 +63,6 @@ public partial class AppUser
 
     public virtual ICollection<AppUserSubjectClass> AppUserSubjectClasses { get; set; } = new List<AppUserSubjectClass>();
 
-    public virtual ICollection<ClassNotificationComment> ClassNotificationComments { get; set; } = new List<ClassNotificationComment>();
-
-    public virtual ICollection<ClassNotificationReadStatus> ClassNotificationReadStatuses { get; set; } = new List<ClassNotificationReadStatus>();
-
-    public virtual ICollection<ClassNotification> ClassNotifications { get; set; } = new List<ClassNotification>();
-
-    public virtual ICollection<ClassworkSubmission> ClassworkSubmissions { get; set; } = new List<ClassworkSubmission>();
-
     public virtual Commune? Commune { get; set; }
 
     public virtual ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
@@ -98,6 +90,8 @@ public partial class AppUser
     public virtual ICollection<QAMessage> QAMessages { get; set; } = new List<QAMessage>();
 
     public virtual ICollection<RulePattern> RulePatterns { get; set; } = new List<RulePattern>();
+
+    public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
 
     public virtual ICollection<UserForumStatus> UserForumStatuses { get; set; } = new List<UserForumStatus>();
 

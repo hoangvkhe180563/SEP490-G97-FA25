@@ -13,7 +13,5 @@ public partial class ClassNotificationReadStatus
 
     public DateTime ReadAt { get; set; }
 
-    public virtual AppUser AppUser { get; set; } = null!;
-
     public virtual ClassNotification Notification { get; set; } = null!;
 }
