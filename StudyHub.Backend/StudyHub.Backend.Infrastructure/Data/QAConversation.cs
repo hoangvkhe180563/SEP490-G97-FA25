@@ -21,6 +21,8 @@ public partial class QAConversation
 
     public DateTime CreatedAt { get; set; }
 
+    public virtual ICollection<QAConversationRead> QAConversationReads { get; set; } = new List<QAConversationRead>();
+
     public virtual ICollection<QAMessage> QAMessages { get; set; } = new List<QAMessage>();
 
     public virtual AppUser Student { get; set; } = null!;
@@ -28,4 +30,6 @@ public partial class QAConversation
     public virtual AppUser? Teacher { get; set; }
 
     public virtual QATopic Topic { get; set; } = null!;
+
+    public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
 }

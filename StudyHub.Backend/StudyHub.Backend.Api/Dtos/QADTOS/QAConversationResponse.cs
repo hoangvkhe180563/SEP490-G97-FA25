@@ -20,5 +20,7 @@
         public string TopicName { get; set; } = null!;
         public string SubjectName { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
+        // Number of unread messages for the requesting user
+        public int UnreadCount { get; set; } = 0;
     }
 }

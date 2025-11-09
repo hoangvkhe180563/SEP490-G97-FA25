@@ -212,7 +212,7 @@ namespace StudyHub.Backend.UseCases.Services
             };
             var roleIds = new List<Guid>
             {
-                _roleRepository.GetRoleByName("Student") ?.Id ?? Guid.Empty
+                _roleRepository.GetRoleByName("External Student") ?.Id ?? Guid.Empty
             };
             try
             {

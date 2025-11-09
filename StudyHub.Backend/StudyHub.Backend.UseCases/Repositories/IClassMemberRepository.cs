@@ -12,6 +12,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         List<AppUserSubjectClass> GetClassMembers(int classId);
         bool InviteMember(Guid userId, int classId);
         bool ConfirmMember(Guid userId, int classId);
-        bool KickMember(Guid userId, int classId);
+        bool KickMember(Guid userId, int classId);  
+        bool DeclineMember(Guid userId, int classId);
     }
 }

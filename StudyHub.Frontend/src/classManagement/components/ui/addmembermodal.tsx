@@ -2,6 +2,23 @@ import React, { useState, useEffect } from "react";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 import type { ClassMemberDto } from "@/classManagement/interfaces/class";
 
+/* shadcn components */
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/common/components/ui/dialog";
+import { Input } from "@/common/components/ui/input";
+import { Button } from "@/common/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avatar";
+import { Badge } from "@/common/components/ui/badge";
+import { ScrollArea } from "@/common/components/ui/scroll-area";
+import { X } from "lucide-react";
+
 type Props = {
   open: boolean;
   classId: number;
@@ -13,21 +30,23 @@ const emailRegex = (s: string) =>
   /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(s.trim());
 
 const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) => {
-  const inviteMembers = useClassStore((s) => s.inviteMembers);
+  // select inviteMembers from store
+  const inviteMembersFromHook = useClassStore((s) => s.inviteMembers);
+  // fallback to direct getter in case selector returns undefined during SSR/hydration edge-cases
+  const inviteMembers = inviteMembersFromHook ?? useClassStore.getState().inviteMembers;
+
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<Array<{ name?: string; email: string }>>([]);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
- 
   const [debounced, setDebounced] = useState(query);
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query), 250);
     return () => clearTimeout(t);
   }, [query]);
 
-  
   useEffect(() => {
     const q = debounced.trim();
     if (!q) {
@@ -38,12 +57,10 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
     let cancelled = false;
     (async () => {
       try {
-        // Try call suggestion endpoint (adjust path if different)
         const res = await fetch(`/User/search?query=${encodeURIComponent(q)}`);
         if (!res.ok) return;
         const data = await res.json();
         if (cancelled) return;
-        // Expect array of { email, fullname }
         if (Array.isArray(data)) {
           setSuggestions(
             data.map((u: any) => ({ name: u.fullname ?? u.name ?? undefined, email: u.email ?? u.userName ?? "" }))
@@ -69,6 +86,7 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
       setSelected([]);
       setSuggestions([]);
       setError(null);
+      setIsSending(false);
     }
   }, [open]);
 
@@ -86,26 +104,56 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
 
   const handleSend = async () => {
     setError(null);
-    // validate selected contain at least one valid email
-    const valid = selected.filter((e) => emailRegex(e));
+    // normalize and dedupe selected items, allow comma separated in query as well
+    const extras = query
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const all = Array.from(new Set([...selected, ...extras]));
+
+    const valid = all.filter((e) => emailRegex(e));
     if (valid.length === 0) {
       setError("Vui lòng thêm ít nhất 1 email hợp lệ.");
       return;
     }
 
+    if (typeof inviteMembers !== "function") {
+      setError("Chức năng mời hiện không khả dụng. Vui lòng thử lại sau.");
+      return;
+    }
+
     setIsSending(true);
+    setError(null);
     try {
-      const result = await inviteMembers(classId, valid, "Student"); // or role selected
-      setIsSending(false);
-      if (result?.success) {
+      // inviteMembers returns either { success, message, data } or throws
+      const result = await inviteMembers(classId, valid, "Student");
+
+      // handle multiple possible shapes of response
+      if (result === true) {
         onInvited?.(result);
         onClose();
-      } else {
-        setError(result?.message ?? "Không thể gửi lời mời.");
+        return;
       }
-    } catch (err) {
-      console.error(err);
-      setError("Lỗi khi gửi lời mời.");
+
+      if (result && typeof result === "object") {
+        if (result.success === true || result?.data) {
+          onInvited?.(result);
+          onClose();
+          return;
+        } else {
+          setError(result?.message ?? "Không thể gửi lời mời.");
+          return;
+        }
+      }
+
+      // fallback: if result is falsy or unexpected
+      setError("Không thể gửi lời mời. Vui lòng thử lại sau.");
+    } catch (err: any) {
+      console.error("inviteMembers error", err);
+      // try to read server message
+      const msg = err?.response?.data?.message ?? err?.message ?? "Lỗi khi gửi lời mời.";
+      setError(msg);
+    } finally {
       setIsSending(false);
     }
   };
@@ -113,85 +161,99 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-24">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-md shadow-lg w-full max-w-2xl mx-4 overflow-hidden">
-        <div className="px-5 py-4 border-b flex items-center justify-between">
-          <h3 className="text-lg font-medium">Mời thành viên</h3>
-          <button onClick={onClose} className="text-gray-500">✕</button>
-        </div>
+    <Dialog open={open} onOpenChange={(val) => { if (!val) onClose(); }}>
+      <DialogContent className="sm:max-w-2xl w-full">
+        <DialogHeader>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <DialogTitle>Mời thành viên</DialogTitle>
+              <DialogDescription className="text-sm text-slate-500">
+                Nhập email hoặc tên để mời thành viên vào lớp
+              </DialogDescription>
+            </div>
+            <DialogClose asChild>
+              <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close">
+                ✕
+              </Button>
+            </DialogClose>
+          </div>
+        </DialogHeader>
 
-        <div className="p-5 space-y-4">
+        <div className="px-4 pb-4">
           <div>
-            <label className="text-sm text-gray-600">Nhập tên hoặc email</label>
-            <input
-              className="mt-2 w-full border rounded px-3 py-2"
+            <label className="text-sm text-slate-600 block mb-2">Nhập tên hoặc email</label>
+            <Input
               placeholder="Nhập email hoặc tên, nhấn Enter để thêm"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  // if query contains comma-separated, split
                   const items = query.split(",").map((s) => s.trim()).filter(Boolean);
                   if (items.length > 1) {
                     items.forEach(addEmail);
                   } else {
-                    // if looks like email, add; else if suggestion exists and selected, add suggestion.email
                     if (emailRegex(query)) addEmail(query);
                     else if (suggestions[0]) addEmail(suggestions[0].email);
+                    else {
+                      // if not an email and no suggestion, still push as raw text so user can edit later
+                      addEmail(query);
+                    }
                   }
                 }
               }}
+              disabled={isSending}
             />
           </div>
 
           {suggestions.length > 0 && (
-            <div className="max-h-44 overflow-y-auto border rounded">
-              {suggestions.map((s, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => addEmail(s.email)}
-                  className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-3"
-                >
-                  <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-sm">
-                    {s.name ? s.name.split(" ").slice(-1)[0].charAt(0) : s.email.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{s.name ?? s.email}</div>
-                    <div className="text-xs text-gray-500">{s.email}</div>
-                  </div>
-                </button>
-              ))}
+            <div className="mt-3 border rounded overflow-hidden">
+              <ScrollArea className="max-h-44">
+                {suggestions.map((s, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => addEmail(s.email)}
+                    className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-3"
+                    type="button"
+                    disabled={isSending}
+                  >
+                    <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-sm">
+                      {s.name ? s.name.split(" ").slice(-1)[0].charAt(0) : s.email.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{s.name ?? s.email}</div>
+                      <div className="text-xs text-slate-500 truncate">{s.email}</div>
+                    </div>
+                  </button>
+                ))}
+              </ScrollArea>
             </div>
           )}
 
           {selected.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               {selected.map((e) => (
-                <div key={e} className="inline-flex items-center px-3 py-1 rounded-full bg-gray-100">
-                  <span className="text-xs mr-2">{e}</span>
-                  <button onClick={() => removeEmail(e)} className="text-xs text-gray-600">✕</button>
+                <div key={e} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100">
+                  <span className="text-xs">{e}</span>
+                 
                 </div>
               ))}
             </div>
           )}
 
-          {error && <div className="text-sm text-red-600">{error}</div>}
+          {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
 
-          <div className="flex justify-end gap-3">
-            <button onClick={onClose} className="px-4 py-2 border rounded">Hủy</button>
-            <button
-              onClick={handleSend}
-              disabled={isSending}
-              className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-60"
-            >
+          <div className="mt-4 flex justify-end gap-3">
+            <Button variant="ghost" onClick={onClose} disabled={isSending}>Hủy</Button>
+            <Button onClick={handleSend} disabled={isSending}>
               {isSending ? "Đang gửi..." : "Mời"}
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
-    </div>
+
+        <DialogFooter />
+      </DialogContent>
+    </Dialog>
   );
 };
 

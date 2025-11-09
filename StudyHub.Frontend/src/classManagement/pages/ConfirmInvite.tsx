@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
-import { axiosInstance } from "@/lib/axios";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { mapToCoarseRole } from "@/classManagement/utils/roleutil";
 
@@ -16,7 +15,8 @@ const ConfirmInvite: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const { getClassInfo, currentClass, getClassMembers } = useClassStore();
+  const { getClassInfo, currentClass, getClassMembers, confirmMember, declineMember } =
+    useClassStore();
   const { user: authUser } = useAuthStore();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -28,18 +28,9 @@ const ConfirmInvite: React.FC = () => {
   const queryUserId = searchParams.get("userId") ?? undefined;
   const storedUserIdFallback = localStorage.getItem("currentUserId") ?? undefined;
 
-  // Determine appUserId preference:
-  // 1) logged in user (zustand auth store)
-  // 2) userId query param in invite link
-  // 3) fallback localStorage (legacy)
   const appUserId =
-    (authUser && (authUser.id)) ??
-    queryUserId ??
-    storedUserIdFallback ??
-    "";
+    (authUser && authUser.id) ?? queryUserId ?? storedUserIdFallback ?? "";
 
-  // Determine current role (coarse) from auth user roles if available.
-  // If user not logged in and we only have queryUserId, default to "student".
   const coarseRoleFromAuth = mapToCoarseRole(authUser?.roles ?? undefined);
   const redirectRole = coarseRoleFromAuth ?? "student";
 
@@ -70,37 +61,23 @@ const ConfirmInvite: React.FC = () => {
     }
 
     try {
-      // Call backend endpoint that sets class_members.status = 'joined'
-      const url = `/Class/${classId}/members/${appUserId}/confirm`;
-      // Controller expects POST without body
-      const res = await axiosInstance.post<ApiResponse>(url);
-      const payload = res?.data;
+      const result = await confirmMember(Number(classIdParam), String(appUserId));
 
-      if (!payload) {
-        setError("Máy chủ không phản hồi. Vui lòng thử lại sau.");
-        setActionLoading(false);
-        return;
+      if (result === true) {
+        setSuccessMessage("Bạn đã tham gia lớp thành công.");
+        try {
+          await getClassMembers(Number(classIdParam));
+        } catch {
+          // ignore refresh errors
+        }
+        setTimeout(() => {
+          navigate(`/class/${redirectRole}/${classIdParam}`);
+        }, 900);
+      } else if (result === false) {
+        setError("Không thể xác nhận lời mời. Vui lòng thử lại sau.");
+      } else {
+        setError("Lỗi: không thể xử lý yêu cầu xác nhận. Vui lòng thử lại.");
       }
-
-      if (!payload.success) {
-        setError(payload.message ?? "Không thể xác nhận lời mời.");
-        setActionLoading(false);
-        return;
-      }
-
-      setSuccessMessage(payload.message ?? "Bạn đã tham gia lớp thành công.");
-
-      // Refresh class members in store (best-effort)
-      try {
-        await getClassMembers(Number(classIdParam));
-      } catch {
-        // ignore
-      }
-
-      // short delay so user sees success, then redirect to class detail with role in URL
-      setTimeout(() => {
-        navigate(`/class/${redirectRole}/${classIdParam}`);
-      }, 900);
     } catch (err: any) {
       console.error("accept invite error", err);
       setError(err?.response?.data?.message ?? "Lỗi khi xác nhận lời mời.");
@@ -109,9 +86,43 @@ const ConfirmInvite: React.FC = () => {
     }
   };
 
-  const handleDecline = () => {
-    // Option: send decline to backend (not implemented). For now, just navigate away.
-    navigate("/");
+  const handleDecline = async () => {
+    setError(null);
+    setActionLoading(true);
+
+    if (!appUserId) {
+      setError("Bạn chưa đăng nhập. Vui lòng đăng nhập hoặc đăng ký để từ chối lời mời.");
+      setActionLoading(false);
+      return;
+    }
+
+    if (!classIdParam) {
+      setError("ClassId không hợp lệ.");
+      setActionLoading(false);
+      return;
+    }
+
+    try {
+      // call declineMember from store
+      const result = await declineMember(Number(classIdParam), String(appUserId));
+
+      if (result === true) {
+        setSuccessMessage("Bạn đã từ chối lời mời.");
+        // optionally navigate away after a short delay
+        setTimeout(() => {
+          navigate("/", { replace: true });
+        }, 700);
+      } else if (result === false) {
+        setError("Không thể từ chối lời mời. Vui lòng thử lại sau.");
+      } else {
+        setError("Lỗi: không thể xử lý yêu cầu từ chối. Vui lòng thử lại.");
+      }
+    } catch (err: any) {
+      console.error("decline invite error", err);
+      setError(err?.response?.data?.message ?? "Lỗi khi từ chối lời mời.");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const classInfo = currentClass?.data?.classInfo ?? null;
@@ -177,9 +188,10 @@ const ConfirmInvite: React.FC = () => {
 
           <button
             onClick={handleDecline}
+            disabled={actionLoading}
             className="px-4 py-2 rounded border text-gray-700"
           >
-            Từ chối
+            {actionLoading ? "Đang xử lý..." : "Từ chối"}
           </button>
 
           <div className="ml-auto text-xs text-gray-400">

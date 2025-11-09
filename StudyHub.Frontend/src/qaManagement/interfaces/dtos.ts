@@ -1,13 +1,13 @@
 interface CreateConversationDTO {
   title: string;
-  teacherId: string;
+  teacherId: string | null;
   topicId: number;
   isPaid: boolean;
 }
 
 interface UpdateConversationDTO {
   title: string;
-  teacherId: string;
+  teacherId: string | null;
   topicId: number;
   isPaid: boolean;
 }
@@ -53,6 +53,7 @@ interface ConversationDto {
   topicName?: string;
   subjectName?: string;
   createdAt: string;
+  unreadCount?: number;
 }
 
 export type {

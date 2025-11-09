@@ -71,7 +71,14 @@ namespace StudyHub.Backend.Api.Controllers
             if (ok == false) return StatusCode(500, new { success = false, message = "Không thể xác nhận thành viên." });
             return Ok(new { success = true, message = "Thành viên đã được xác nhận (joined)." });
         }
-
+        [HttpPost("{userId}/decline")]
+        public IActionResult Decline(int classId, string userId)
+        {
+            var ok = _service.DeclineMemberFromString(classId, userId);
+            if (ok == null) return BadRequest(new { success = false, message = "UserId không hợp lệ." });
+            if (ok == false) return StatusCode(500, new { success = false, message = "Không thể xác nhận thành viên." });
+            return Ok(new { success = true, message = "Thành viên đã được xác nhận (joined)." });
+        }
         [HttpPost("{userId}/kick")]
         public IActionResult Kick(int classId, string userId)
         {

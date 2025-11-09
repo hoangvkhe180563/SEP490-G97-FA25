@@ -8,6 +8,9 @@ interface CreateAccountDto {
   communeId: number;
   avatarFile?: File | null;
   fullname?: string;
+  dob?: string | null;
+  // optional school id (int) - include if available
+  schoolId?: number;
   // Gender as integer (1 -> Male, 0 -> Female, maybe 2 -> Other)
   gender: number;
   phoneNumber?: string;
@@ -30,6 +33,7 @@ interface EditAccountDto {
   gender?: number | null;
   phoneNumber?: string;
   address?: string;
+  dob?: string | null;
 }
 
 interface UpdateProfileDto {
@@ -48,6 +52,7 @@ interface UpdateProfileDto {
   gender?: number | null;
   address?: string | null;
   phoneNumber?: string | null;
+  dob?: string | null;
 }
 
 export type { CreateAccountDto, EditAccountDto, UpdateProfileDto };

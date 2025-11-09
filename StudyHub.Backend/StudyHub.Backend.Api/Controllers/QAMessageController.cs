@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Linq;
 using StudyHub.Backend.UseCases.Services;
 using Microsoft.AspNetCore.SignalR;
 using StudyHub.Backend.Api.Hubs;
@@ -14,11 +16,15 @@ namespace StudyHub.Backend.Api.Controllers
     {
         private readonly QAMessageService _service;
         private readonly IHubContext<QAChatHub> _chatHub;
+        private readonly IHubContext<QAReadHub> _readHub;
+        private readonly QAConversationReadService _readService;
 
-        public QAMessageController(QAMessageService service, IHubContext<QAChatHub> chatHub)
+        public QAMessageController(QAMessageService service, IHubContext<QAChatHub> chatHub, IHubContext<QAReadHub> readHub, QAConversationReadService readService)
         {
             _service = service;
             _chatHub = chatHub;
+            _readHub = readHub;
+            _readService = readService;
         }
 
         [HttpGet]
@@ -80,6 +86,34 @@ namespace StudyHub.Backend.Api.Controllers
                 {
                     var dto = QAMessageMapper.MapToDto(created);
                     await _chatHub.Clients.Group($"conversation-{created.Conversation.Id}").SendAsync("ReceiveMessage", dto);
+
+                    // notify unread count updates to conversation participants (except the sender)
+                    try
+                    {
+                        var conv = created.Conversation;
+                        var senderId = created.Sender.Id;
+                        var participantIds = new List<Guid>();
+                        if (conv.StudentId != Guid.Empty && conv.StudentId != senderId) participantIds.Add(conv.StudentId);
+                        if (conv.TeacherId.HasValue && conv.TeacherId.Value != Guid.Empty && conv.TeacherId.Value != senderId) participantIds.Add(conv.TeacherId.Value);
+
+                        foreach (var pid in participantIds.Distinct())
+                        {
+                            try
+                            {
+                                var unread = _readService.CountUnreadMessagesForUser(created.Conversation.Id, pid);
+                                // send to user (SignalR User identifier should be configured to use user id)
+                                await _readHub.Clients.User(pid.ToString()).SendAsync("UnreadCountUpdated", new { ConversationId = created.Conversation.Id.ToString(), UnreadCount = unread });
+                            }
+                            catch
+                            {
+                                // ignore per-user failures
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // ignore unread notification failures
+                    }
                 }
                 catch
                 {

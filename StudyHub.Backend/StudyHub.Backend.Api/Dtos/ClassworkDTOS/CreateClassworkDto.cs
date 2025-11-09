@@ -7,7 +7,8 @@ namespace StudyHub.Backend.Api.Dtos.ClassworkDTOS
         public int ClassId { get; set; }
         public string Title { get; set; } = "";
         public string? Description { get; set; }
+        public Guid CreatedBy { get; set; }
         public DateTime? Deadline { get; set; }
-        public Classwork ToEntity() => new Classwork { ClassId = ClassId, Title = Title, Description = Description, Deadline = Deadline };
+        public ClassNotification ToEntity() => new ClassNotification { ClassId = ClassId, Title = Title, Description = Description, Deadline = Deadline };
     }
 }

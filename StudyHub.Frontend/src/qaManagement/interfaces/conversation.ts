@@ -17,5 +17,9 @@ interface Conversation {
   topicName: string;
   subjectName: string;
   createdAt: string;
+  // frontend-only: number of unread messages for the current user
+  unreadCount?: number;
+  // whether this conversation is considered read for current user
+  isRead?: boolean;
 }
 export type { Conversation };
