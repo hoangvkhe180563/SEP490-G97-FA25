@@ -19,6 +19,7 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public string? CreatorName { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public Guid? UpdatedBy { get; set; }
+        public List<RulePatternDto> Patterns { get; set; } = new();
     }
 
     public class ForumRuleDetailDto

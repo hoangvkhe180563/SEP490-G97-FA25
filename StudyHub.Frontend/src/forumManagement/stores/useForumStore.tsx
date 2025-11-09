@@ -83,12 +83,46 @@ export const useForumStore = create<ForumState>()(
           conn.on("ReceiveNewPost", (dto: any) => {
             try {
               console.log("ReceiveNewPost", dto);
+
+              const mappedPost = {
+                post_id: dto.postId || dto.post_id,
+                school_id: dto.schoolId || dto.school_id,
+                subject_id: dto.subjectId || dto.subject_id,
+                subject_name: dto.subjectName || dto.subject_name || "N/A",
+                flair_id: dto.flairId || dto.flair_id,
+                flair_name: dto.flairName || dto.flair_name || "N/A",
+                title: dto.title,
+                content: dto.content,
+                created_at: dto.createdAt || dto.created_at,
+                created_by: dto.createdBy || dto.created_by,
+                author_name:
+                  dto.creatorFullname ||
+                  dto.creatorName ||
+                  dto.author_name ||
+                  "Unknown",
+                author_initials: (dto.creatorFullname || dto.creatorName || "U")
+                  .substring(0, 2)
+                  .toUpperCase(),
+                author_class: dto.creatorClass || dto.creatorName || "",
+                comment_count: dto.commentCount || dto.comment_count || 0,
+                comments: [],
+                image_urls:
+                  dto.attachments?.map((a: any) => a.fileUrl).join(",") || "",
+              };
+
               set((state) => {
+                // Check duplicate bằng post_id
                 const exists = state.posts.some(
-                  (p) => p.post_id === dto.post_id
+                  (p) => p.post_id === mappedPost.post_id
                 );
-                if (exists) return {};
-                return { posts: [dto, ...state.posts] };
+                if (exists) {
+                  console.log(
+                    "Post already exists, skipping:",
+                    mappedPost.post_id
+                  );
+                  return {};
+                }
+                return { posts: [mappedPost, ...state.posts] };
               });
             } catch (err) {
               console.error("ReceiveNewPost handler error", err);
@@ -130,27 +164,61 @@ export const useForumStore = create<ForumState>()(
           conn.on("ReceiveNewComment", (dto: any) => {
             try {
               console.log("ReceiveNewComment", dto);
+              const mappedComment = {
+                comment_id: dto.commentId || dto.comment_id,
+                post_id: dto.postId || dto.post_id,
+                parent_comment_id: dto.parentCommentId || dto.parent_comment_id,
+                content: dto.content,
+                created_at:
+                  dto.createdAt || dto.created_at || new Date().toISOString(),
+                created_by: dto.createdBy || dto.created_by,
+                author_name: dto.creatorName || dto.author_name || "Unknown",
+                author_initials: (dto.creatorName || dto.author_name || "U")
+                  .substring(0, 2)
+                  .toUpperCase(),
+                author_class: dto.creatorClass || "",
+                replies: [],
+                image_urls:
+                  dto.attachments?.map((a: any) => a.fileUrl).join(",") || "",
+              };
+
               set((state) => {
+                // Update currentPost nếu đang xem post đó
                 if (
-                  !state.currentPost ||
-                  state.currentPost.post_id !== dto.post_id
-                )
-                  return {};
+                  state.currentPost &&
+                  state.currentPost.post_id === mappedComment.post_id
+                ) {
+                  const existingComments = state.currentPost.comments || [];
+                  const exists = existingComments.some(
+                    (c) => c.comment_id === mappedComment.comment_id
+                  );
 
-                const existingComments = state.currentPost.comments || [];
-                const exists = existingComments.some(
-                  (c) => c.comment_id === dto.comment_id
-                );
-                if (exists) return {};
+                  if (exists) {
+                    console.log(
+                      "Comment already exists, skipping:",
+                      mappedComment.comment_id
+                    );
+                    return {};
+                  }
 
+                  return {
+                    currentPost: {
+                      ...state.currentPost,
+                      comments: [...existingComments, mappedComment],
+                      comment_count: state.currentPost.comment_count + 1,
+                    },
+                    posts: state.posts.map((p) =>
+                      p.post_id === mappedComment.post_id
+                        ? { ...p, comment_count: p.comment_count + 1 }
+                        : p
+                    ),
+                  };
+                }
+
+                // Chỉ update comment count trong posts list
                 return {
-                  currentPost: {
-                    ...state.currentPost,
-                    comments: [...existingComments, dto],
-                    comment_count: state.currentPost.comment_count + 1,
-                  },
                   posts: state.posts.map((p) =>
-                    p.post_id === dto.post_id
+                    p.post_id === mappedComment.post_id
                       ? { ...p, comment_count: p.comment_count + 1 }
                       : p
                   ),
@@ -292,7 +360,6 @@ export const useForumStore = create<ForumState>()(
           console.error("sendTyping failed", err);
         }
       },
-
       getPosts: async (
         schoolId: number,
         subjectId?: number,
@@ -319,8 +386,34 @@ export const useForumStore = create<ForumState>()(
           const body = resp.data;
 
           if (body?.success) {
+            const mappedPosts = (body.data?.items || []).map((item: any) => ({
+              post_id: item.postId || item.post_id,
+              school_id: item.schoolId || item.school_id,
+              subject_id: item.subjectId || item.subject_id,
+              subject_name: item.subjectName || item.subject_name,
+              flair_id: item.flairId || item.flair_id,
+              flair_name: item.flairName || item.flair_name,
+              title: item.title,
+              content: item.content,
+              created_at: item.createdAt || item.created_at,
+              created_by: item.createdBy || item.created_by,
+              author_name:
+                item.creatorFullname ||
+                item.creatorName ||
+                item.author_name ||
+                "Unknown",
+              author_initials: (item.creatorFullname || item.creatorName || "U")
+                .substring(0, 2)
+                .toUpperCase(),
+              author_class: item.creatorName || "",
+              comment_count: item.commentCount || 0,
+              comments: [],
+              image_urls:
+                item.attachments?.map((a: any) => a.fileUrl).join(",") || "",
+            }));
+
             set({
-              posts: body.data?.items || [],
+              posts: mappedPosts,
               success: true,
               message: body?.message || "",
             });
@@ -344,13 +437,59 @@ export const useForumStore = create<ForumState>()(
           const body = resp.data;
 
           if (body?.success) {
+            const item = body.data;
+            const mappedPost = {
+              post_id: item.postId,
+              school_id: item.schoolId,
+              subject_id: item.subjectId,
+              subject_name: item.subjectName,
+              flair_id: item.flairId,
+              flair_name: item.flairName,
+              title: item.title,
+              content: item.content,
+              created_at: item.createdAt,
+              created_by: item.createdBy,
+              author_name: item.creatorFullname || item.creatorName,
+              author_initials:
+                item.creatorName?.substring(0, 2).toUpperCase() || "U",
+              author_class: item.creatorName || "",
+              comment_count: item.comments?.length || 0,
+              comments: (item.comments || []).map((c: any) => ({
+                comment_id: c.commentId,
+                post_id: c.postId,
+                parent_comment_id: c.parentCommentId,
+                content: c.content,
+                created_at: c.createdAt,
+                created_by: c.createdBy,
+                author_name: c.creatorName || c.authorName,
+                author_initials:
+                  c.creatorName?.substring(0, 2).toUpperCase() || "U",
+                replies: (c.replies || []).map((r: any) => ({
+                  comment_id: r.commentId,
+                  post_id: r.postId,
+                  parent_comment_id: r.parentCommentId,
+                  content: r.content,
+                  created_at: r.createdAt,
+                  created_by: r.createdBy,
+                  author_name: r.creatorName || r.authorName,
+                  author_initials:
+                    r.creatorName?.substring(0, 2).toUpperCase() || "U",
+                  replies: [],
+                  image_urls:
+                    r.attachments?.map((a: any) => a.fileUrl).join(",") || "",
+                })),
+                image_urls:
+                  c.attachments?.map((a: any) => a.fileUrl).join(",") || "",
+              })),
+              image_urls:
+                item.attachments?.map((a: any) => a.fileUrl).join(",") || "",
+            };
+
             set({
-              currentPost: body.data,
+              currentPost: mappedPost,
               success: true,
               message: body?.message || "",
             });
-          } else {
-            set({ success: false, message: body?.message || "" });
           }
           return body;
         } catch (err: any) {
@@ -362,6 +501,7 @@ export const useForumStore = create<ForumState>()(
         }
       },
 
+      // Sửa createPost method (Line 363-381)
       createPost: async (formData: FormData) => {
         set({ isLoading: true });
         try {
@@ -375,11 +515,12 @@ export const useForumStore = create<ForumState>()(
           const body = resp.data;
 
           if (body?.success) {
-            set((state) => ({
-              posts: [body.data, ...state.posts],
+            // KHÔNG thêm vào state nữa, để SignalR xử lý
+            // SignalR sẽ broadcast và thêm post với đầy đủ thông tin
+            set({
               success: true,
-              message: body?.message || "",
-            }));
+              message: body?.message || "Tạo bài viết thành công",
+            });
           } else {
             set({ success: false, message: body?.message || "" });
           }
@@ -499,6 +640,7 @@ export const useForumStore = create<ForumState>()(
         }
       },
 
+      // Sửa createComment method (Line 473-507)
       createComment: async (formData: FormData) => {
         set({ isLoading: true });
         try {
@@ -512,27 +654,11 @@ export const useForumStore = create<ForumState>()(
           const body = resp.data;
 
           if (body?.success) {
-            const postId = parseInt(formData.get("postId") as string);
-            set((state) => ({
-              currentPost:
-                state.currentPost?.post_id === postId
-                  ? {
-                      ...state.currentPost,
-                      comments: [
-                        ...(state.currentPost.comments || []),
-                        body.data,
-                      ],
-                      comment_count: state.currentPost.comment_count + 1,
-                    }
-                  : state.currentPost,
-              posts: state.posts.map((p) =>
-                p.post_id === postId
-                  ? { ...p, comment_count: p.comment_count + 1 }
-                  : p
-              ),
+            // KHÔNG thêm vào state, để SignalR handle
+            set({
               success: true,
-              message: body?.message || "",
-            }));
+              message: body?.message || "Tạo bình luận thành công",
+            });
           } else {
             set({ success: false, message: body?.message || "" });
           }

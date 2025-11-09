@@ -36,11 +36,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         public async Task<(List<ForumRule> rules, int totalCount)> GetRulesBySchoolIdAsync(
-            int schoolId,
-            string? ruleType = null,
-            bool? isActive = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+        int schoolId,
+        string? ruleType = null,
+        bool? isActive = null,
+        int? pageNumber = null,
+        int? pageSize = null)
         {
             try
             {
@@ -67,6 +67,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     rule.PatternCount = await _context.RulePatterns
                         .CountAsync(p => p.RuleId == rule.Id);
+
+                    var patterns = await _context.RulePatterns
+                        .Where(p => p.RuleId == rule.Id)
+                        .OrderByDescending(p => p.CreatedAt)
+                        .ToListAsync();
+                    rule.Patterns = patterns.Select(p => MapPatternToEntity(p)).ToList();
                 }
 
                 return (result, totalCount);

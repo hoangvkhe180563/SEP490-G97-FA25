@@ -34,8 +34,7 @@ namespace StudyHub.Backend.Api.Mappers
 
                 UpdatedAt = comment.UpdatedAt,
                 ReplyCount = comment.ReplyCount,
-                Replies = comment.Replies?.Select(r => r.ToListDto()).ToList()
-                    ?? new List<ForumCommentListDto>(),
+                Replies = comment.Replies?.Select(r => r.ToListDto()).ToList() ?? new List<ForumCommentListDto>(),
                 Attachments = comment.Attachments?
                     .Where(a => a.IsApproved == true)
                     .Select(a => new ForumAttachmentDto

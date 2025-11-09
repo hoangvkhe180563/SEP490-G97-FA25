@@ -19,7 +19,10 @@ namespace StudyHub.Backend.Api.Mappers
                 IsActive = rule.IsActive ?? true,
                 Description = rule.Description,
                 PatternCount = rule.PatternCount,
-                CreatedAt = rule.CreatedAt
+                CreatedAt = rule.CreatedAt,
+                CreatedBy = rule.CreatedBy ?? Guid.Empty,
+                Patterns = rule.Patterns?.Select(p => p.ToDto()).ToList()
+                    ?? new List<RulePatternDto>()
             };
         }
 
@@ -37,6 +40,7 @@ namespace StudyHub.Backend.Api.Mappers
                 Description = rule.Description,
                 CreatedAt = rule.CreatedAt,
                 UpdatedAt = rule.UpdatedAt,
+                CreatedBy = rule.CreatedBy ?? Guid.Empty,
                 Patterns = rule.Patterns?.Select(p => p.ToDto()).ToList()
                     ?? new List<RulePatternDto>()
             };
@@ -54,7 +58,8 @@ namespace StudyHub.Backend.Api.Mappers
                 //IsActive = dto.IsActive ?? true,
                 Description = dto.Description,
                 CreatedAt = DateTime.Now,
-                CreatedBy = createdBy
+                CreatedBy = createdBy,
+
             };
         }
 

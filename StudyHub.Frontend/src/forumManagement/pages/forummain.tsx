@@ -123,6 +123,12 @@ const ForumMain = () => {
   const [commentContent, setCommentContent] = useState("");
   const [commentImages, setCommentImages] = useState<File[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [replyContents, setReplyContents] = useState<{ [key: number]: string }>(
+    {}
+  );
+  const [replyImagesList, setReplyImagesList] = useState<{
+    [key: number]: File[];
+  }>({});
 
   const modalPostId = searchParams.get("postId");
   const isModalOpen = !!modalPostId;
@@ -161,21 +167,88 @@ const ForumMain = () => {
     fetchPosts();
   }, [fetchPosts]);
 
+  // Line 119-130 - useEffect cho modalPostId
   useEffect(() => {
-    if (modalPostId) {
-      const postId = parseInt(modalPostId);
-      getPostById(postId);
-      joinPost(postId);
-      getComments(postId);
+    const handleModalPost = async () => {
+      if (modalPostId) {
+        const postId = parseInt(modalPostId);
+
+        // Đợi connection ready trước khi join
+        const conn = (window as any).__forumConn;
+        if (conn?.state === "Connected") {
+          await joinPost(postId);
+        } else {
+          // Retry sau 100ms nếu chưa connected
+          const retryJoin = setInterval(() => {
+            const c = (window as any).__forumConn;
+            if (c?.state === "Connected") {
+              clearInterval(retryJoin);
+              joinPost(postId);
+            }
+          }, 100);
+
+          // Timeout sau 3s
+          setTimeout(() => clearInterval(retryJoin), 3000);
+        }
+
+        getPostById(postId);
+        getComments(postId);
+      }
+
+      return () => {
+        if (modalPostId) {
+          leavePost(parseInt(modalPostId));
+        }
+      };
+    };
+
+    handleModalPost();
+  }, [modalPostId, getPostById, joinPost, getComments, leavePost]);
+  // Thêm sau Line 200
+  const handleReplyImageSelect = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    commentId: number
+  ) => {
+    const files = Array.from(e.target.files || []);
+    const currentImages = replyImagesList[commentId] || [];
+
+    if (files.length + currentImages.length > 4) {
+      alert("Tối đa 4 ảnh");
+      return;
     }
 
-    return () => {
-      if (modalPostId) {
-        leavePost(parseInt(modalPostId));
-      }
-    };
-  }, [modalPostId, getPostById, joinPost, getComments, leavePost]);
+    setReplyImagesList({
+      ...replyImagesList,
+      [commentId]: [...currentImages, ...files],
+    });
+  };
 
+  const handleSubmitReply = async (parentCommentId: number) => {
+    const content = replyContents[parentCommentId];
+    if (!content?.trim() || !modalPostId) return;
+
+    const formData = new FormData();
+    formData.append("postId", modalPostId);
+    formData.append("parentCommentId", parentCommentId.toString());
+    formData.append("content", content);
+
+    const images = replyImagesList[parentCommentId] || [];
+    images.forEach((img) => formData.append("attachments", img));
+
+    const result = await createComment(formData);
+    if (result?.success) {
+      // Clear reply state cho comment này
+      setReplyContents({
+        ...replyContents,
+        [parentCommentId]: "",
+      });
+      setReplyImagesList({
+        ...replyImagesList,
+        [parentCommentId]: [],
+      });
+      setReplyingTo(null);
+    }
+  };
   useEffect(() => {
     const state = {
       searchQuery,
@@ -397,11 +470,13 @@ const ForumMain = () => {
     if (!commentContent.trim() || !modalPostId) return;
 
     const formData = new FormData();
-    formData.append("postId", modalPostId);
+    formData.append("postId", modalPostId); // Đảm bảo key đúng
     formData.append("content", commentContent);
+
     if (replyingTo) {
       formData.append("parentCommentId", replyingTo.toString());
     }
+
     commentImages.forEach((img) => formData.append("attachments", img));
 
     const result = await createComment(formData);
@@ -614,10 +689,31 @@ const ForumMain = () => {
                 </div>
               ) : (
                 <>
+                  // Line 394 - forummain.tsx
                   {filteredPosts.slice(0, visiblePosts).map((post) => (
                     <div
-                      key={post.post_id}
-                      onDoubleClick={() => handleViewDetails(post.post_id)}
+                      key={`post-wrapper-${post.post_id}`} // ← Unique key
+                      onClick={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (
+                          !target.closest("button") &&
+                          !target.closest("input") &&
+                          !target.closest("a") &&
+                          !target.closest('[role="dialog"]')
+                        ) {
+                          handleOpenModal(post.post_id);
+                        }
+                      }}
+                      onDoubleClick={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (
+                          !target.closest("button") &&
+                          !target.closest("input") &&
+                          !target.closest("a")
+                        ) {
+                          handleViewDetails(post.post_id);
+                        }
+                      }}
                     >
                       <PostCard
                         post={post}
@@ -626,7 +722,6 @@ const ForumMain = () => {
                       />
                     </div>
                   ))}
-
                   <div
                     ref={observerTarget}
                     className="h-10 flex items-center justify-center"
@@ -638,7 +733,6 @@ const ForumMain = () => {
                       </div>
                     )}
                   </div>
-
                   {filteredPosts.length === 0 && !isLoading && (
                     <div className="bg-white rounded-lg border p-12 text-center">
                       <p className="text-gray-500 text-lg">
@@ -802,13 +896,15 @@ const ForumMain = () => {
                         </SelectContent>
                       </Select>
                     </div>
-
+                    // Line 650-750 - Trong phần render comments
                     {getSortedComments(currentPost.comments || []).map(
                       (comment) => {
                         const isRepliesExpanded = expandedReplies.has(
                           comment.comment_id
                         );
+                        const isReplying = replyingTo === comment.comment_id;
                         const replies = comment.replies || [];
+
                         return (
                           <div key={comment.comment_id}>
                             <div className="flex gap-3">
@@ -826,16 +922,17 @@ const ForumMain = () => {
                                     {comment.content}
                                   </p>
                                 </div>
+
                                 <div className="flex gap-4 px-4 mt-2">
                                   <button
                                     className="text-xs text-gray-600 hover:text-purple-600 hover:underline font-semibold transition-colors"
-                                    onClick={() =>
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       setReplyingTo(
-                                        replyingTo === comment.comment_id
-                                          ? null
-                                          : comment.comment_id
-                                      )
-                                    }
+                                        isReplying ? null : comment.comment_id
+                                      );
+                                    }}
+                                    onDoubleClick={(e) => e.stopPropagation()}
                                   >
                                     Phản hồi
                                   </button>
@@ -844,11 +941,169 @@ const ForumMain = () => {
                                   </span>
                                 </div>
 
+                                {/* Reply input CHỈ cho comment này */}
+                                {isReplying && (
+                                  <div className="flex gap-2 mt-3 ml-4 animate-in slide-in-from-top-2 duration-200">
+                                    <Avatar className="w-8 h-8">
+                                      <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
+                                        {user?.username
+                                          ?.substring(0, 2)
+                                          .toUpperCase() || "U"}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1">
+                                      <Input
+                                        placeholder="Viết phản hồi..."
+                                        className="rounded-full text-sm hover:border-purple-300 focus:border-purple-500 transition-colors mb-2"
+                                        value={
+                                          replyContents[comment.comment_id] ||
+                                          ""
+                                        }
+                                        onChange={(e) => {
+                                          e.stopPropagation();
+                                          setReplyContents({
+                                            ...replyContents,
+                                            [comment.comment_id]:
+                                              e.target.value,
+                                          });
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onDoubleClick={(e) =>
+                                          e.stopPropagation()
+                                        }
+                                        onFocus={() => handleTyping(true)}
+                                        onBlur={() => handleTyping(false)}
+                                        onKeyPress={(e) => {
+                                          if (
+                                            e.key === "Enter" &&
+                                            !e.shiftKey
+                                          ) {
+                                            e.preventDefault();
+                                            handleSubmitReply(
+                                              comment.comment_id
+                                            );
+                                          }
+                                        }}
+                                      />
+
+                                      {/* Reply images preview */}
+                                      {(replyImagesList[comment.comment_id]
+                                        ?.length || 0) > 0 && (
+                                        <div className="flex gap-2 mb-2">
+                                          {replyImagesList[
+                                            comment.comment_id
+                                          ].map((img, idx) => (
+                                            <div key={idx} className="relative">
+                                              <img
+                                                src={URL.createObjectURL(img)}
+                                                alt={`Preview ${idx + 1}`}
+                                                className="w-16 h-16 object-cover rounded"
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setReplyImagesList({
+                                                    ...replyImagesList,
+                                                    [comment.comment_id]:
+                                                      replyImagesList[
+                                                        comment.comment_id
+                                                      ].filter(
+                                                        (_, i) => i !== idx
+                                                      ),
+                                                  });
+                                                }}
+                                                onDoubleClick={(e) =>
+                                                  e.stopPropagation()
+                                                }
+                                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center"
+                                              >
+                                                <X className="w-3 h-3" />
+                                              </button>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+
+                                      <div className="flex gap-2">
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            document
+                                              .getElementById(
+                                                `reply-images-${comment.comment_id}`
+                                              )
+                                              ?.click();
+                                          }}
+                                          onDoubleClick={(e) =>
+                                            e.stopPropagation()
+                                          }
+                                          disabled={
+                                            (replyImagesList[comment.comment_id]
+                                              ?.length || 0) >= 4
+                                          }
+                                        >
+                                          <ImagePlus className="w-4 h-4 mr-1" />
+                                          Ảnh (
+                                          {replyImagesList[comment.comment_id]
+                                            ?.length || 0}
+                                          /4)
+                                        </Button>
+                                        <input
+                                          id={`reply-images-${comment.comment_id}`}
+                                          type="file"
+                                          accept="image/*"
+                                          multiple
+                                          className="hidden"
+                                          onChange={(e) =>
+                                            handleReplyImageSelect(
+                                              e,
+                                              comment.comment_id
+                                            )
+                                          }
+                                        />
+
+                                        <Button
+                                          size="sm"
+                                          className="rounded-full px-4 hover:scale-105 transition-transform ml-auto"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleSubmitReply(
+                                              comment.comment_id
+                                            );
+                                          }}
+                                          onDoubleClick={(e) =>
+                                            e.stopPropagation()
+                                          }
+                                          disabled={
+                                            isLoading ||
+                                            !replyContents[
+                                              comment.comment_id
+                                            ]?.trim()
+                                          }
+                                        >
+                                          {isLoading ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                          ) : (
+                                            <Send className="w-4 h-4" />
+                                          )}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Show replies button */}
                                 {replies.length > 0 && (
                                   <button
-                                    onClick={() =>
-                                      toggleReplies(comment.comment_id)
-                                    }
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleReplies(comment.comment_id);
+                                    }}
+                                    onDoubleClick={(e) => e.stopPropagation()}
                                     className="flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-purple-600 hover:underline mt-3 ml-4 transition-colors"
                                   >
                                     {isRepliesExpanded ? (
@@ -860,6 +1115,7 @@ const ForumMain = () => {
                                   </button>
                                 )}
 
+                                {/* Replies list */}
                                 {isRepliesExpanded &&
                                   replies.map((reply) => (
                                     <div
@@ -888,54 +1144,6 @@ const ForumMain = () => {
                                       </div>
                                     </div>
                                   ))}
-
-                                {replyingTo === comment.comment_id && (
-                                  <div className="flex gap-2 mt-3 ml-10 animate-in slide-in-from-top-2 duration-200">
-                                    <Avatar className="w-8 h-8">
-                                      <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
-                                        {user?.username
-                                          ?.substring(0, 2)
-                                          .toUpperCase() || "U"}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1 flex gap-2">
-                                      <Input
-                                        placeholder="Viết phản hồi..."
-                                        className="rounded-full text-sm hover:border-purple-300 focus:border-purple-500 transition-colors"
-                                        autoFocus
-                                        value={commentContent}
-                                        onChange={(e) =>
-                                          setCommentContent(e.target.value)
-                                        }
-                                        onFocus={() => handleTyping(true)}
-                                        onBlur={() => handleTyping(false)}
-                                        onKeyPress={(e) => {
-                                          if (
-                                            e.key === "Enter" &&
-                                            !e.shiftKey
-                                          ) {
-                                            e.preventDefault();
-                                            handleSubmitComment();
-                                          }
-                                        }}
-                                      />
-                                      <Button
-                                        size="sm"
-                                        className="rounded-full px-4 hover:scale-105 transition-transform"
-                                        onClick={handleSubmitComment}
-                                        disabled={
-                                          isLoading || !commentContent.trim()
-                                        }
-                                      >
-                                        {isLoading ? (
-                                          <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                          <Send className="w-4 h-4" />
-                                        )}
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
                               </div>
                             </div>
                           </div>
@@ -963,6 +1171,8 @@ const ForumMain = () => {
                         onChange={(e) => setCommentContent(e.target.value)}
                         onFocus={() => handleTyping(true)}
                         onBlur={() => handleTyping(false)}
+                        onClick={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
                         onKeyPress={(e) => {
                           if (e.key === "Enter" && !e.shiftKey) {
                             e.preventDefault();
@@ -970,9 +1180,11 @@ const ForumMain = () => {
                           }
                         }}
                       />
+
                       <Button
                         className="rounded-full px-6 hover:scale-105 transition-transform"
                         onClick={handleSubmitComment}
+                        onDoubleClick={(e) => e.stopPropagation()}
                         disabled={isLoading || !commentContent.trim()}
                       >
                         {isLoading ? (
@@ -1109,6 +1321,9 @@ const ForumMain = () => {
               transform: `scale(${imageZoom})`,
             }}
             onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+            }}
           />
         </div>
       )}

@@ -282,7 +282,7 @@ namespace StudyHub.Backend.UseCases.Services
                 throw new ArgumentException($"File type {extension} không được phép");
 
             if (file.Length > FileConstants.MaxImageSize)
-                throw new ArgumentException($"File size vượt quá {FileConstants.MaxImageSize / (1024 * 1024)}MB");
+                throw new ArgumentException($"File size vượt quá {FileConstants.MaxImageSize / (5 * 1024 * 1024)}MB");
         }
     }
 }

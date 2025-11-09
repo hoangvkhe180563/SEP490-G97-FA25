@@ -24,6 +24,7 @@
         public int CommentCount { get; set; }
         public int AttachmentCount { get; set; }
         public List<ForumAttachment>? Attachments { get; set; }
+        public List<ForumComment>? Comments { get; set; }
         public List<ViolationRecord>? ViolationRecords { get; set; }
     }
 }

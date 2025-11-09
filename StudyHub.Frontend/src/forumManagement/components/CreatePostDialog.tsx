@@ -105,7 +105,7 @@ export const CreatePostDialog = ({
         <DialogHeader>
           <DialogTitle>Tạo bài viết mới</DialogTitle>
           <DialogDescription className="sr-only">
-            Form tạo bài viết mới
+            Form tạo bài viết mới trong diễn đàn
           </DialogDescription>
         </DialogHeader>
 

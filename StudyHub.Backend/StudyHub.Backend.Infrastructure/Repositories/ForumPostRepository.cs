@@ -8,10 +8,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
     public class ForumPostRepository : IForumPostRepository
     {
         private readonly Data.AppDbContext _context;
+        private readonly IForumCommentRepository _commentRepo;
 
-        public ForumPostRepository(Data.AppDbContext context)
+        public ForumPostRepository(Data.AppDbContext context, IForumCommentRepository commentRepo)
         {
             _context = context;
+            _commentRepo = commentRepo;
         }
 
         public async Task<ForumPost?> GetPostByIdAsync(int postId)
@@ -53,6 +55,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 mappedPost.ViolationRecords = await GetViolationRecordsByPostIdAsync(postId);
 
+                var (comments, _) = await _commentRepo.GetCommentsByPostIdAsync(postId);
+                mappedPost.Comments = comments;
+
                 return mappedPost;
             }
             catch (Exception ex)
@@ -61,6 +66,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 return null;
             }
         }
+
 
         public async Task<(List<ForumPost> posts, int totalCount)> GetPublicPostsAsync(
             int schoolId,
@@ -128,6 +134,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                             CreatedBy = a.CreatedBy
                         })
                         .ToListAsync();
+
+                    var (comments, _) = await _commentRepo.GetCommentsByPostIdAsync(post.Id);
+                    post.Comments = comments;
                 }
 
                 return (result, totalCount);
@@ -212,7 +221,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                             CreatedBy = a.CreatedBy
                         })
                         .ToListAsync();
-
+                    var (comments, _) = await _commentRepo.GetCommentsByPostIdAsync(post.Id);
+                    post.Comments = comments;
                     post.ViolationRecords = await GetViolationRecordsByPostIdAsync(post.Id);
                 }
 
@@ -324,7 +334,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                             CreatedBy = a.CreatedBy
                         })
                         .ToListAsync();
-
+                    var (comments, _) = await _commentRepo.GetCommentsByPostIdAsync(post.Id);
+                    post.Comments = comments;
                     post.ViolationRecords = await GetViolationRecordsByPostIdAsync(post.Id);
                 }
 
@@ -528,7 +539,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Username = p.CreatedByNavigation.Username,
                     Fullname = p.CreatedByNavigation.Fullname,
                     Avatar = p.CreatedByNavigation.Avatar
-                } : null
+                } : null,
+                Comments = new List<ForumComment>()
             };
         }
 

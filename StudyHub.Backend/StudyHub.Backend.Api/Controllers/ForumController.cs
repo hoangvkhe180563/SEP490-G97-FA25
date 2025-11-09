@@ -176,7 +176,7 @@ namespace StudyHub.Backend.Api.Controllers
 
                 _logger.LogInformation("User {UserId} created post {PostId}", currentUser.Id, createdPost.Id);
 
-                var postDto = createdPost.ToListDto();
+                var postDto = createdPost.ToDetailDto();
                 await _forumHubContext.Clients.Group($"school-{dto.SchoolId}").SendAsync("ReceiveNewPost", postDto);
 
                 return CreatedAtAction(nameof(GetPostById), new { postId = createdPost.Id },

@@ -196,6 +196,9 @@ const PostCard: React.FC<PostCardProps> = ({
                 e.stopPropagation();
                 setShowQuickComment(!showQuickComment);
               }}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+              }}
               className="flex items-center gap-1 hover:text-purple-600 transition-colors"
             >
               <MessageSquare className="w-4 h-4" />
@@ -211,6 +214,9 @@ const PostCard: React.FC<PostCardProps> = ({
               onClick={(e) => {
                 e.stopPropagation();
                 onViewDetails();
+              }}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
               }}
               className="flex items-center gap-1 hover:text-purple-600 transition-colors ml-auto"
             >
@@ -284,6 +290,9 @@ const PostCard: React.FC<PostCardProps> = ({
                   size="sm"
                   disabled={isLoading || !commentContent.trim()}
                   className="ml-auto"
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                  }}
                 >
                   {isLoading ? (
                     <Loader2 className="w-4 h-4 mr-1 animate-spin" />
