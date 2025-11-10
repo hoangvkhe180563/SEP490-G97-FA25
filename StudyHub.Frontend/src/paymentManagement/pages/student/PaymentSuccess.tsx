@@ -3,7 +3,6 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/common/components/ui/button";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
-import { usePaymentStore } from "@/courseManagement/stores/usePaymentStore";
 
 const PaymentSuccess: React.FC = () => {
   const [search] = useSearchParams();
@@ -13,11 +12,22 @@ const PaymentSuccess: React.FC = () => {
   const getEnrollmentForCourse = useEnrollmentStore(
     (s) => s.getEnrollmentForCourse
   );
-  const checkStatus = usePaymentStore((s) => s.checkStatus);
 
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const rawAmount = search.get("amount");
+  const amount = rawAmount ? Number(rawAmount) : undefined;
+
+  const formatVnd = (v?: number) =>
+    v
+      ? new Intl.NumberFormat("vi-VN", {
+          style: "currency",
+          currency: "VND",
+          maximumFractionDigits: 0,
+        }).format(v)
+      : undefined;
 
   // read courseId and txRef from query params
   const rawCourseId = search.get("courseId");
@@ -41,12 +51,10 @@ const PaymentSuccess: React.FC = () => {
           return;
         }
 
-        // verify status
-        const status = await checkStatus(txRef);
-        if (status !== "Paid") {
-          setError(
-            "Chưa nhận được thanh toán hoặc đang xử lý. Vui lòng thử lại sau vài phút."
-          );
+        // If an amount param exists, this is a wallet top-up flow.
+        // Show receipt with amount and skip course enrollment logic.
+        if (amount && Number.isFinite(amount) && amount > 0) {
+          setMessage(`Nạp tiền thành công: ${formatVnd(amount)}.`);
           setLoading(false);
           return;
         }
@@ -75,6 +83,7 @@ const PaymentSuccess: React.FC = () => {
           await enroll({ appUserId: String(authUser.id), courseId });
           if (cancelled) return;
           setMessage("Bạn đã được ghi danh thành công. Chúc bạn học vui vẻ!");
+          setLoading(false);
         } catch (err: any) {
           console.error("enroll error", err);
           // if enrollment fails, still show payment success but give fallback

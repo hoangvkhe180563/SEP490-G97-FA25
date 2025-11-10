@@ -1189,11 +1189,8 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.UserId, "UserId");
 
-            entity.Property(e => e.Id).HasColumnType("int(11)");
-            entity.Property(e => e.Amount).HasColumnType("bigint(20)");
-            entity.Property(e => e.CourseId).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("current_timestamp()")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.ProcessedAt).HasColumnType("datetime");

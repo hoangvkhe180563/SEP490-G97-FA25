@@ -11,6 +11,7 @@ interface AppUser {
   schoolId: number;
   isLoginWithGoogle: boolean;
   transferId: number;
+  wallet: number;
 }
 
 export type { AppUser };

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { Input } from "@/common/components/ui/input";
@@ -11,6 +11,7 @@ import {
   SelectItem,
 } from "@/common/components/ui/select";
 import { Button } from "@/common/components/ui/button";
+import { Checkbox } from "@/common/components/ui/checkbox";
 import { Label } from "@/common/components/ui/label";
 import { ArrowLeft, Loader2, Upload, X, HelpCircle } from "lucide-react";
 import { useQuill } from "react-quilljs";
@@ -30,6 +31,8 @@ const EditLecture: React.FC = () => {
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(
     chapterIdFromQuery ?? null
   );
+  const [chapterPostDate, setChapterPostDate] = useState<string | null>(null);
+  const [chapterLessons, setChapterLessons] = useState<any[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(
     courseIdFromQuery ?? null
   );
@@ -51,6 +54,8 @@ const EditLecture: React.FC = () => {
   const [resourceUploading, setResourceUploading] = useState(false);
   const [resourceUrl, setResourceUrl] = useState<string | null>(null);
   const [resourceId, setResourceId] = useState<number | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [dialog, setDialog] = useState<DialogProps>({
@@ -162,9 +167,24 @@ const EditLecture: React.FC = () => {
           }
         }
         if (selectedChapterId) {
-          const ch = await fetchChapter(Number(selectedChapterId));
-          if (ch && (ch as any).courseId) {
-            setSelectedCourseId(String((ch as any).courseId));
+          try {
+            const ch = await fetchChapter(Number(selectedChapterId));
+            if (ch) {
+              const post =
+                (ch as any).postDate || (ch as any).createdAt || null;
+              setChapterPostDate(post ? String(post) : null);
+              const lessons =
+                (ch as any).lessons ||
+                (ch as any).lectures ||
+                (ch as any).items ||
+                [];
+              setChapterLessons(Array.isArray(lessons) ? lessons : []);
+              if ((ch as any).courseId) {
+                setSelectedCourseId(String((ch as any).courseId));
+              }
+            }
+          } catch (err) {
+            console.error("failed to load chapter", err);
           }
         }
       } catch (err) {
@@ -215,6 +235,39 @@ const EditLecture: React.FC = () => {
       });
       return;
     }
+    // Prevent uploading a file with the same filename as an existing lesson resource in this chapter
+    if (resourceFile && chapterLessons && chapterLessons.length > 0) {
+      const fname = resourceFile.name.trim().toLowerCase();
+      const existingNames = chapterLessons
+        .map((l: any) => {
+          const url =
+            (l &&
+              (l.resourceUrl ||
+                l.resource?.url ||
+                l.resourceUrlPath ||
+                l.fileUrl)) ||
+            null;
+          if (!url) return null;
+          try {
+            const u = String(url);
+            const parts = u.split("/");
+            return parts[parts.length - 1].split("?")[0].toLowerCase();
+          } catch (e) {
+            return null;
+          }
+        })
+        .filter(Boolean) as string[];
+      if (existingNames.some((n) => n === fname)) {
+        setDialog({
+          open: true,
+          title: "Tệp trùng lặp",
+          message:
+            "Tệp tải lên có tên trùng với tệp đã tồn tại trong chương. Vui lòng đổi tên file trước khi tải lên.",
+        });
+        return;
+      }
+    }
+
     setResourceUploading(true);
     try {
       const uploadRes = await uploadResource(resourceFile);
@@ -294,10 +347,98 @@ const EditLecture: React.FC = () => {
     if (postDate && isNaN(new Date(postDate).getTime()))
       errors.push("Ngày đăng không hợp lệ.");
 
+    // Duration positive
+    if (duration && !Number.isNaN(Number(duration)) && Number(duration) <= 0) {
+      errors.push("Thời lượng phải là số dương (lớn hơn 0).");
+    }
+
+    // If chapter has a postDate, lecture postDate cannot be earlier
+    if (postDate && chapterPostDate) {
+      const lec = new Date(postDate);
+      const chd = new Date(chapterPostDate);
+      if (!isNaN(lec.getTime()) && !isNaN(chd.getTime())) {
+        if (lec.getTime() < chd.getTime()) {
+          errors.push(
+            "Ngày đăng bài giảng không thể nhỏ hơn ngày bắt đầu của chương."
+          );
+        }
+      }
+    }
+
+    // Validate embed/url for video
+    if (type === "video") {
+      if (useEmbed && embedSrc && embedSrc.trim()) {
+        const trimmed = embedSrc.trim();
+        if (trimmed.startsWith("<iframe")) {
+          const m = trimmed.match(/src=["']([^"']+)["']/);
+          if (!m || !m[1])
+            errors.push("Embed iframe không có thuộc tính src hợp lệ.");
+          else {
+            try {
+              new URL(m[1]);
+            } catch (e) {
+              errors.push("URL trong iframe embed không hợp lệ.");
+            }
+          }
+        } else {
+          try {
+            new URL(trimmed);
+          } catch (e) {
+            errors.push("Link embed không phải URL hợp lệ.");
+          }
+        }
+      }
+    }
+
     if (resourceFile) {
       const maxBytes = 50 * 1024 * 1024; // 50MB
       if (resourceFile.size > maxBytes)
         errors.push("Tài nguyên quá lớn. Kích thước tối đa 50MB.");
+    }
+
+    // Title uniqueness within chapter (exclude current lesson)
+    if (title && chapterLessons && chapterLessons.length > 0) {
+      const tnorm = title.trim().toLowerCase();
+      const dup = chapterLessons.some((l: any) => {
+        const lid = Number((l && (l.id || l.lessonId || l.lectureId)) || 0);
+        if (lid && lid === lessonId) return false; // ignore self
+        const name =
+          (l && (l.name || l.title || l.nameText || l.titleText)) || "";
+        return String(name).trim().toLowerCase() === tnorm;
+      });
+      if (dup)
+        errors.push(
+          "Tiêu đề bài giảng trùng với một bài giảng đã tồn tại trong chương."
+        );
+    }
+
+    // Resource file duplication check
+    if (resourceFile && chapterLessons && chapterLessons.length > 0) {
+      const fname = resourceFile.name.trim().toLowerCase();
+      const existingNames = chapterLessons
+        .map((l: any) => {
+          const url =
+            (l &&
+              (l.resourceUrl ||
+                l.resource?.url ||
+                l.resourceUrlPath ||
+                l.fileUrl)) ||
+            null;
+          if (!url) return null;
+          try {
+            const u = String(url);
+            const parts = u.split("/");
+            return parts[parts.length - 1].split("?")[0].toLowerCase();
+          } catch (e) {
+            return null;
+          }
+        })
+        .filter(Boolean) as string[];
+      if (existingNames.some((n) => n === fname)) {
+        errors.push(
+          "Tệp tải lên có tên trùng với tệp đã tồn tại trong chương. Vui lòng đổi tên file trước khi tải lên."
+        );
+      }
     }
 
     if (errors.length) {
@@ -363,14 +504,15 @@ const EditLecture: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <button
+          <Button
+            variant="ghost"
             onClick={() =>
               navigate("/course/teacher/edit-course/" + selectedCourseId)
             }
-            className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
+            className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50 p-0"
           >
             <ArrowLeft className="w-4 h-4 text-[#525252]" />
-          </button>
+          </Button>
           <div>
             <h1 className="text-2xl font-normal text-[#171717]">
               Chỉnh sửa bài giảng
@@ -523,16 +665,14 @@ const EditLecture: React.FC = () => {
               <div className="flex items-center gap-3">
                 <Label>Video URL</Label>
                 <div className="flex items-center gap-2 text-sm">
-                  <input
-                    id="use-embed-edit"
-                    type="checkbox"
+                  <Checkbox
                     checked={useEmbed}
-                    onChange={(e) => setUseEmbed(e.target.checked)}
-                    className="w-4 h-4"
+                    onCheckedChange={(v) => setUseEmbed(!!v)}
                   />
-                  <label htmlFor="use-embed-edit">Embed (iframe)</label>
-                  <button
-                    type="button"
+                  <span>Embed (iframe)</span>
+                  <Button
+                    variant="ghost"
+                    className="ml-2 text-gray-500 hover:text-gray-700 p-0"
                     onClick={() =>
                       setDialog({
                         open: true,
@@ -550,7 +690,7 @@ const EditLecture: React.FC = () => {
                               <li>
                                 <strong>Lấy mã nhúng (Embed)</strong> - Chia sẻ
                                 → Nhúng → Sao chép{" "}
-                                <code>&lt;iframe&gt;...&lt;/iframe&gt;</code>{" "}
+                                <code>&lt;iframe&gt;...&lt;/iframe&gt;</code>
                                 hoặc URL:
                                 <br />
                                 <a
@@ -574,11 +714,10 @@ const EditLecture: React.FC = () => {
                         ),
                       })
                     }
-                    className="ml-2 text-gray-500 hover:text-gray-700"
                     aria-label="Hướng dẫn embed YouTube"
                   >
                     <HelpCircle className="w-4 h-4" />
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -640,15 +779,28 @@ const EditLecture: React.FC = () => {
                 {!resourceUrl ? (
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
                     <input
+                      ref={fileInputRef}
                       type="file"
                       accept="*"
+                      className="hidden"
                       onChange={(e) => {
                         const f = e.target.files && e.target.files[0];
                         if (f) setResourceFile(f);
                         else setResourceFile(null);
                       }}
-                      className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                     />
+
+                    <Button
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-4"
+                    >
+                      Chọn tệp
+                    </Button>
+
+                    <div className="flex-1 text-sm text-gray-700 break-words">
+                      {resourceFile ? resourceFile.name : "Chưa chọn tệp"}
+                    </div>
 
                     <Button
                       onClick={handleUploadResource}
@@ -680,7 +832,7 @@ const EditLecture: React.FC = () => {
                           rel="noreferrer"
                           className="text-blue-600 hover:underline break-all"
                         >
-                          {resourceUrl}
+                          {resourceUrl.split("/").pop()}
                         </a>
                       </p>
                     </div>
@@ -699,14 +851,11 @@ const EditLecture: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2 mt-6">
-              <input
-                id="isPreview"
-                type="checkbox"
+              <Checkbox
                 checked={isPreview}
-                onChange={(e) => setIsPreview(e.target.checked)}
-                className="w-4 h-4"
+                onCheckedChange={(v) => setIsPreview(!!v)}
               />
-              <Label htmlFor="isPreview">Đánh dấu là bản xem trước</Label>
+              <Label>Đánh dấu là bản xem trước</Label>
             </div>
           </div>
         </div>
