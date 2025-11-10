@@ -558,7 +558,33 @@ export const useForumStore = create<ForumState>()(
                 .toUpperCase(),
               author_class: item.creatorName || "",
               comment_count: item.commentCount || 0,
-              comments: [],
+              comments: (item.comments || []).map((c: any) => ({
+                comment_id: c.commentId,
+                post_id: c.postId,
+                parent_comment_id: c.parentCommentId,
+                content: c.content,
+                created_at: c.createdAt,
+                created_by: c.createdBy,
+                author_name: c.authorName || c.creatorName || "Unknown",
+                author_initials:
+                  c.creatorName?.substring(0, 2).toUpperCase() || "U",
+                replies: (c.replies || []).map((r: any) => ({
+                  comment_id: r.commentId,
+                  post_id: r.postId,
+                  parent_comment_id: r.parentCommentId,
+                  content: r.content,
+                  created_at: r.createdAt,
+                  created_by: r.createdBy,
+                  author_name: r.creatorName || r.authorName,
+                  author_initials:
+                    r.creatorName?.substring(0, 2).toUpperCase() || "U",
+                  replies: [],
+                  image_urls:
+                    r.attachments?.map((a: any) => a.fileUrl).join(",") || "",
+                })),
+                image_urls:
+                  c.attachments?.map((a: any) => a.fileUrl).join(",") || "",
+              })),
               image_urls:
                 item.attachments?.map((a: any) => a.fileUrl).join(",") || "",
             }));
@@ -612,7 +638,7 @@ export const useForumStore = create<ForumState>()(
                 content: c.content,
                 created_at: c.createdAt,
                 created_by: c.createdBy,
-                author_name: c.creatorName || c.authorName,
+                author_name: c.authorName || c.creatorName || "Unknown",
                 author_initials:
                   c.creatorName?.substring(0, 2).toUpperCase() || "U",
                 replies: (c.replies || []).map((r: any) => ({

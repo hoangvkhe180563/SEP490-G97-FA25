@@ -16,6 +16,7 @@ import {
   ZoomIn,
   ZoomOut,
   Plus,
+  Send,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -72,6 +73,7 @@ const ForumMain = () => {
     getPostById,
     getComments,
   } = useForumStore();
+  const [modalVisibleComments, setModalVisibleComments] = useState(8);
 
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -154,6 +156,7 @@ const ForumMain = () => {
   useEffect(() => {
     const handleModalPost = async () => {
       if (modalPostId) {
+        setModalVisibleComments(8);
         const postId = parseInt(modalPostId);
 
         const conn = (window as any).__forumConn;
@@ -261,7 +264,8 @@ const ForumMain = () => {
   const handleSortChange = (value: string) => {
     setSortBy(value);
   };
-
+  const [newCommentContent, setNewCommentContent] = useState("");
+  const [newCommentImages, setNewCommentImages] = useState<File[]>([]);
   const handleClearFilters = () => {
     setSearchQuery("");
     setSelectedSubjects([]);
@@ -763,16 +767,85 @@ const ForumMain = () => {
 
                   <CommentSection
                     post={currentPost}
-                    comments={currentPost.comments || []}
-                    isExpanded={true}
+                    comments={(currentPost.comments || []).slice(
+                      0,
+                      modalVisibleComments
+                    )}
+                    isExpanded={false}
                     showSort={true}
                     onRefreshComments={async () => {
                       if (modalPostId) {
                         await getComments(parseInt(modalPostId));
                       }
                     }}
+                    maxVisibleReplies={2}
                   />
+                  {(currentPost.comments || []).length >
+                    modalVisibleComments && (
+                    <button
+                      onClick={() =>
+                        setModalVisibleComments((prev) => prev + 8)
+                      }
+                      className="w-full py-3 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded transition-colors mt-4"
+                    >
+                      Xem thêm bình luận...
+                    </button>
+                  )}
                 </div>
+              </div>
+              <div className="flex-shrink-0 border-t bg-white p-4">
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!newCommentContent.trim()) return;
+
+                    const formData = new FormData();
+                    formData.append("postId", currentPost.post_id.toString());
+                    formData.append("content", newCommentContent);
+                    newCommentImages.forEach((img) =>
+                      formData.append("attachments", img)
+                    );
+
+                    const { createComment } = useForumStore.getState();
+                    const result = await createComment(formData);
+                    if (result?.success) {
+                      setNewCommentContent("");
+                      setNewCommentImages([]);
+                      if (modalPostId) {
+                        await getComments(parseInt(modalPostId));
+                      }
+                    }
+                  }}
+                  className="flex gap-3"
+                >
+                  <Avatar className="w-10 h-10 flex-shrink-0">
+                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm font-bold">
+                      {user?.username?.substring(0, 2).toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex gap-2 mb-2">
+                      <Input
+                        placeholder="Viết bình luận..."
+                        className="rounded-full hover:border-purple-300 focus:border-purple-500 transition-colors"
+                        value={newCommentContent}
+                        onChange={(e) => setNewCommentContent(e.target.value)}
+                      />
+                      <Button
+                        type="submit"
+                        className="rounded-full px-6 hover:scale-105 transition-transform flex-shrink-0"
+                        disabled={isLoading || !newCommentContent.trim()}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4 mr-2" />
+                        )}
+                        Gửi
+                      </Button>
+                    </div>
+                  </div>
+                </form>
               </div>
             </>
           )}

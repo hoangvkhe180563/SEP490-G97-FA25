@@ -166,7 +166,7 @@ namespace StudyHub.Backend.Api.Hubs
                 var dto = commentWithDetails.ToListDto();
 
                 await Clients.Group($"post-{postId}").SendAsync("ReceiveNewComment", dto);
-
+                await Clients.Group($"school-{post.SchoolId}").SendAsync("ReceiveNewComment", dto);
                 var updatedPost = await _postService.GetPostByIdAsync(postId);
                 var updatedPostDto = updatedPost.ToListDto();
 

@@ -22,6 +22,7 @@ interface CommentSectionProps {
   isExpanded: boolean;
   showSort?: boolean;
   onRefreshComments?: () => void;
+  maxVisibleReplies?: number;
 }
 
 const flattenComments = (comments: Comment[]): Comment[] => {
@@ -48,10 +49,13 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   isExpanded,
   showSort = true,
   onRefreshComments,
+  // maxVisibleReplies = 5,
 }) => {
   const { user } = useAuthStore();
   const { createComment, isLoading, sendTyping } = useForumStore();
-
+  const [visibleReplies, setVisibleReplies] = useState<{
+    [key: number]: number;
+  }>({});
   const [commentSort, setCommentSort] = useState("newest");
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [commentContent, setCommentContent] = useState("");
@@ -62,7 +66,12 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   const [replyImagesList, setReplyImagesList] = useState<{
     [key: number]: File[];
   }>({});
-
+  const loadMoreReplies = (commentId: number) => {
+    setVisibleReplies((prev) => ({
+      ...prev,
+      [commentId]: (prev[commentId] || 2) + 5,
+    }));
+  };
   const formatTimestamp = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -89,12 +98,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
           groups[comment.comment_id] = [];
         }
       } else {
-        const topLevelId =
-          flatComments.find(
-            (c) =>
-              c.comment_id === comment.parent_comment_id && !c.parent_comment_id
-          )?.comment_id || comment.parent_comment_id;
-
         let currentParent = comment.parent_comment_id;
         while (currentParent) {
           const parent = flatComments.find(
@@ -219,9 +222,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   };
 
   const topLevelComments = getSortedTopLevelComments();
-  const actualCommentCount = flatComments.filter(
-    (c) => !c.parent_comment_id
-  ).length;
+  const actualCommentCount = flatComments.length;
 
   return (
     <div className="space-y-4">
@@ -430,202 +431,223 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                   </div>
                 )}
 
-                {replies.map((reply: Comment) => (
-                  <div
-                    key={reply.comment_id}
-                    className="flex gap-3 mt-3 ml-10 animate-in slide-in-from-top-2 duration-200"
-                  >
-                    <Avatar className="w-8 h-8 flex-shrink-0">
-                      <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-400 text-white text-xs font-bold">
-                        {reply.author_initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="bg-gray-100 rounded-2xl px-4 py-2 hover:bg-gray-200 transition-colors">
-                        <div className="font-semibold text-xs">
-                          {reply.author_name}
-                        </div>
-                        <p className="text-xs mt-1 break-words whitespace-pre-wrap">
-                          {reply.parent_comment_id !== comment.comment_id && (
-                            <span className="text-purple-600 font-semibold">
-                              @
-                              {
-                                flatComments.find(
-                                  (c) =>
-                                    c.comment_id === reply.parent_comment_id
-                                )?.author_name
-                              }{" "}
-                            </span>
+                {replies
+                  .slice(0, visibleReplies[comment.comment_id] || 2)
+                  .map((reply: Comment) => (
+                    <div
+                      key={reply.comment_id}
+                      className="flex gap-3 mt-3 ml-10 animate-in slide-in-from-top-2 duration-200"
+                    >
+                      <Avatar className="w-8 h-8 flex-shrink-0">
+                        <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-400 text-white text-xs font-bold">
+                          {reply.author_initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="bg-gray-100 rounded-2xl px-4 py-2 hover:bg-gray-200 transition-colors">
+                          <div className="font-semibold text-xs">
+                            {reply.author_name}
+                          </div>
+                          <p className="text-xs mt-1 break-words whitespace-pre-wrap">
+                            {reply.parent_comment_id !== comment.comment_id && (
+                              <span className="text-purple-600 font-semibold">
+                                @
+                                {
+                                  flatComments.find(
+                                    (c) =>
+                                      c.comment_id === reply.parent_comment_id
+                                  )?.author_name
+                                }{" "}
+                              </span>
+                            )}
+                            {reply.content}
+                          </p>
+                          {reply.image_urls && (
+                            <div className="mt-2 flex gap-2 flex-wrap">
+                              {reply.image_urls
+                                .split(",")
+                                .filter((url: string) => url.trim())
+                                .map((img: string, idx: number) => (
+                                  <img
+                                    key={idx}
+                                    src={img}
+                                    alt={`Reply attachment ${idx + 1}`}
+                                    className="max-w-[150px] max-h-[150px] rounded object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                    }}
+                                  />
+                                ))}
+                            </div>
                           )}
-                          {reply.content}
-                        </p>
-                        {reply.image_urls && (
-                          <div className="mt-2 flex gap-2 flex-wrap">
-                            {reply.image_urls
-                              .split(",")
-                              .filter((url: string) => url.trim())
-                              .map((img: string, idx: number) => (
-                                <img
-                                  key={idx}
-                                  src={img}
-                                  alt={`Reply attachment ${idx + 1}`}
-                                  className="max-w-[150px] max-h-[150px] rounded object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        </div>
+                        <div className="flex gap-4 px-4 mt-1">
+                          <button
+                            className="text-xs text-gray-600 hover:text-purple-600 hover:underline font-semibold transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setReplyingTo(reply.comment_id);
+                              setReplyContents({
+                                ...replyContents,
+                                [reply.comment_id]: "",
+                              });
+                            }}
+                            onDoubleClick={(e) => e.stopPropagation()}
+                          >
+                            Phản hồi
+                          </button>
+                          <span className="text-xs text-gray-500">
+                            {formatTimestamp(reply.created_at)}
+                          </span>
+                        </div>
+
+                        {replyingTo === reply.comment_id && (
+                          <div className="flex gap-2 mt-3 animate-in slide-in-from-top-2 duration-200">
+                            <Avatar className="w-8 h-8 flex-shrink-0">
+                              <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
+                                {user?.username
+                                  ?.substring(0, 2)
+                                  .toUpperCase() || "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <Input
+                                placeholder={`Phản hồi @${reply.author_name}...`}
+                                className="rounded-full text-sm hover:border-purple-300 focus:border-purple-500 transition-colors mb-2"
+                                value={replyContents[reply.comment_id] || ""}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  setReplyContents({
+                                    ...replyContents,
+                                    [reply.comment_id]: e.target.value,
+                                  });
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                onDoubleClick={(e) => e.stopPropagation()}
+                                onFocus={() => handleTyping(true)}
+                                onBlur={() => handleTyping(false)}
+                                onKeyPress={(e) => {
+                                  if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSubmitReply(reply.comment_id);
+                                  }
+                                }}
+                              />
+
+                              {(replyImagesList[reply.comment_id]?.length ||
+                                0) > 0 && (
+                                <div className="flex gap-2 mb-2 flex-wrap">
+                                  {replyImagesList[reply.comment_id].map(
+                                    (img, idx) => (
+                                      <div key={idx} className="relative">
+                                        <img
+                                          src={URL.createObjectURL(img)}
+                                          alt={`Preview ${idx + 1}`}
+                                          className="w-16 h-16 object-cover rounded"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setReplyImagesList({
+                                              ...replyImagesList,
+                                              [reply.comment_id]:
+                                                replyImagesList[
+                                                  reply.comment_id
+                                                ].filter((_, i) => i !== idx),
+                                            });
+                                          }}
+                                          onDoubleClick={(e) =>
+                                            e.stopPropagation()
+                                          }
+                                          className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600"
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    )
+                                  )}
+                                </div>
+                              )}
+
+                              <div className="flex gap-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    document
+                                      .getElementById(
+                                        `reply-images-${reply.comment_id}`
+                                      )
+                                      ?.click();
                                   }}
+                                  onDoubleClick={(e) => e.stopPropagation()}
+                                  disabled={
+                                    (replyImagesList[reply.comment_id]
+                                      ?.length || 0) >= 4
+                                  }
+                                >
+                                  <ImagePlus className="w-4 h-4 mr-1" />
+                                  Ảnh (
+                                  {replyImagesList[reply.comment_id]?.length ||
+                                    0}
+                                  /4)
+                                </Button>
+                                <input
+                                  id={`reply-images-${reply.comment_id}`}
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  className="hidden"
+                                  onChange={(e) =>
+                                    handleReplyImageSelect(e, reply.comment_id)
+                                  }
                                 />
-                              ))}
+
+                                <Button
+                                  size="sm"
+                                  className="rounded-full px-4 hover:scale-105 transition-transform ml-auto"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSubmitReply(reply.comment_id);
+                                  }}
+                                  onDoubleClick={(e) => e.stopPropagation()}
+                                  disabled={
+                                    isLoading ||
+                                    !replyContents[reply.comment_id]?.trim()
+                                  }
+                                >
+                                  {isLoading ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Send className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
-                      <div className="flex gap-4 px-4 mt-1">
-                        <button
-                          className="text-xs text-gray-600 hover:text-purple-600 hover:underline font-semibold transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setReplyingTo(reply.comment_id);
-                            setReplyContents({
-                              ...replyContents,
-                              [reply.comment_id]: "",
-                            });
-                          }}
-                          onDoubleClick={(e) => e.stopPropagation()}
-                        >
-                          Phản hồi
-                        </button>
-                        <span className="text-xs text-gray-500">
-                          {formatTimestamp(reply.created_at)}
-                        </span>
-                      </div>
-
-                      {replyingTo === reply.comment_id && (
-                        <div className="flex gap-2 mt-3 animate-in slide-in-from-top-2 duration-200">
-                          <Avatar className="w-8 h-8 flex-shrink-0">
-                            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
-                              {user?.username?.substring(0, 2).toUpperCase() ||
-                                "U"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <Input
-                              placeholder={`Phản hồi @${reply.author_name}...`}
-                              className="rounded-full text-sm hover:border-purple-300 focus:border-purple-500 transition-colors mb-2"
-                              value={replyContents[reply.comment_id] || ""}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                setReplyContents({
-                                  ...replyContents,
-                                  [reply.comment_id]: e.target.value,
-                                });
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              onDoubleClick={(e) => e.stopPropagation()}
-                              onFocus={() => handleTyping(true)}
-                              onBlur={() => handleTyping(false)}
-                              onKeyPress={(e) => {
-                                if (e.key === "Enter" && !e.shiftKey) {
-                                  e.preventDefault();
-                                  handleSubmitReply(reply.comment_id);
-                                }
-                              }}
-                            />
-
-                            {(replyImagesList[reply.comment_id]?.length || 0) >
-                              0 && (
-                              <div className="flex gap-2 mb-2 flex-wrap">
-                                {replyImagesList[reply.comment_id].map(
-                                  (img, idx) => (
-                                    <div key={idx} className="relative">
-                                      <img
-                                        src={URL.createObjectURL(img)}
-                                        alt={`Preview ${idx + 1}`}
-                                        className="w-16 h-16 object-cover rounded"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setReplyImagesList({
-                                            ...replyImagesList,
-                                            [reply.comment_id]: replyImagesList[
-                                              reply.comment_id
-                                            ].filter((_, i) => i !== idx),
-                                          });
-                                        }}
-                                        onDoubleClick={(e) =>
-                                          e.stopPropagation()
-                                        }
-                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  )
-                                )}
-                              </div>
-                            )}
-
-                            <div className="flex gap-2">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  document
-                                    .getElementById(
-                                      `reply-images-${reply.comment_id}`
-                                    )
-                                    ?.click();
-                                }}
-                                onDoubleClick={(e) => e.stopPropagation()}
-                                disabled={
-                                  (replyImagesList[reply.comment_id]?.length ||
-                                    0) >= 4
-                                }
-                              >
-                                <ImagePlus className="w-4 h-4 mr-1" />
-                                Ảnh (
-                                {replyImagesList[reply.comment_id]?.length || 0}
-                                /4)
-                              </Button>
-                              <input
-                                id={`reply-images-${reply.comment_id}`}
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                className="hidden"
-                                onChange={(e) =>
-                                  handleReplyImageSelect(e, reply.comment_id)
-                                }
-                              />
-
-                              <Button
-                                size="sm"
-                                className="rounded-full px-4 hover:scale-105 transition-transform ml-auto"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleSubmitReply(reply.comment_id);
-                                }}
-                                onDoubleClick={(e) => e.stopPropagation()}
-                                disabled={
-                                  isLoading ||
-                                  !replyContents[reply.comment_id]?.trim()
-                                }
-                              >
-                                {isLoading ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <Send className="w-4 h-4" />
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  ))}
+                {replies.length > (visibleReplies[comment.comment_id] || 2) && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      loadMoreReplies(comment.comment_id);
+                    }}
+                    className="ml-10 mt-2 text-sm text-purple-600 hover:text-purple-700 hover:underline"
+                  >
+                    Xem thêm{" "}
+                    {Math.min(
+                      5,
+                      replies.length - (visibleReplies[comment.comment_id] || 2)
+                    )}{" "}
+                    phản hồi...
+                  </button>
+                )}
               </div>
             </div>
           </div>

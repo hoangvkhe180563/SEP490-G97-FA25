@@ -64,6 +64,7 @@ namespace StudyHub.Backend.Api.Mappers
                     CreatedBy = c.CreatedBy,
                     CreatorName = c.Creator?.Username ?? "Unknown",
                     CreatorAvatar = c.Creator?.Avatar,
+                    AuthorName = c.Creator?.Username ?? "Unknown",
                     UpdatedAt = c.UpdatedAt,
                     ReplyCount = c.ReplyCount,
                     Replies = c.Replies?.Select(r => r.ToListDto()).ToList()
