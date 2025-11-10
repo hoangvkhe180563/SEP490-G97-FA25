@@ -38,6 +38,9 @@ const AddLecture: React.FC = () => {
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(
     chapterIdFromQuery ?? null
   );
+  // chapterInfo not required directly; we keep postDate and lessons
+  const [chapterPostDate, setChapterPostDate] = useState<string | null>(null);
+  const [chapterLessons, setChapterLessons] = useState<any[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(
     courseIdFromQuery ?? null
   );
@@ -114,9 +117,25 @@ const AddLecture: React.FC = () => {
         console.error("Failed to load chapters", err);
       }
       if (selectedChapterId) {
-        const ch = await courseApi.getChapter(Number(selectedChapterId));
-        if (ch && (ch as any).courseId) {
-          setSelectedCourseId(String((ch as any).courseId));
+        try {
+          const ch = await courseApi.getChapter(Number(selectedChapterId));
+          if (ch) {
+            // try to read postDate and lessons in a few common shapes
+            const post = (ch as any).postDate || (ch as any).createdAt || null;
+            setChapterPostDate(post ? String(post) : null);
+            // lessons may be called lessons, lectures or items depending on API
+            const lessons =
+              (ch as any).lessons ||
+              (ch as any).lectures ||
+              (ch as any).items ||
+              [];
+            setChapterLessons(Array.isArray(lessons) ? lessons : []);
+            if ((ch as any).courseId) {
+              setSelectedCourseId(String((ch as any).courseId));
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load chapter", err);
         }
       }
     })();
@@ -201,17 +220,105 @@ const AddLecture: React.FC = () => {
       }
     }
 
-    if (duration && Number.isNaN(Number(duration)))
+    if (duration && Number.isNaN(Number(duration))) {
       errors.push("Thời lượng phải là một số hợp lệ (phút).");
+    } else if (duration && Number(duration) <= 0) {
+      errors.push("Thời lượng phải là số dương (lớn hơn 0).");
+    }
 
-    if (postDate && isNaN(new Date(postDate).getTime()))
+    // Post date validity
+    if (postDate && isNaN(new Date(postDate).getTime())) {
       errors.push("Ngày đăng không hợp lệ.");
+    }
+
+    // If chapter has a postDate, the lecture postDate (if provided) cannot be earlier
+    if (postDate && chapterPostDate) {
+      const lec = new Date(postDate);
+      const chd = new Date(chapterPostDate);
+      if (!isNaN(lec.getTime()) && !isNaN(chd.getTime())) {
+        if (lec.getTime() < chd.getTime()) {
+          errors.push(
+            "Ngày đăng bài giảng không thể nhỏ hơn ngày bắt đầu của chương."
+          );
+        }
+      }
+    }
+
+    // Validate embedSrc or videoUrl more strictly
+    if (type === "video") {
+      if (useEmbed && embedSrc && embedSrc.trim()) {
+        // allow raw iframe tags or plain URLs
+        const trimmed = embedSrc.trim();
+        if (trimmed.startsWith("<iframe")) {
+          const m = trimmed.match(/src=["']([^"']+)["']/);
+          if (!m || !m[1])
+            errors.push("Embed iframe không có thuộc tính src hợp lệ.");
+          else {
+            try {
+              new URL(m[1]);
+            } catch (e) {
+              errors.push("URL trong iframe embed không hợp lệ.");
+            }
+          }
+        } else {
+          try {
+            new URL(trimmed);
+          } catch (e) {
+            errors.push("Link embed không phải URL hợp lệ.");
+          }
+        }
+      }
+    }
 
     // resource size limit (if user selected a file but didn't upload)
     if (resourceFile) {
       const maxBytes = 50 * 1024 * 1024; // 50MB
       if (resourceFile.size > maxBytes)
         errors.push("Tài nguyên quá lớn. Kích thước tối đa 50MB.");
+    }
+
+    // Title uniqueness within chapter (case-insensitive)
+    if (title && chapterLessons && chapterLessons.length > 0) {
+      const tnorm = title.trim().toLowerCase();
+      const dup = chapterLessons.some((l: any) => {
+        const name =
+          (l && (l.name || l.title || l.nameText || l.titleText)) || "";
+        return String(name).trim().toLowerCase() === tnorm;
+      });
+      if (dup)
+        errors.push(
+          "Tiêu đề bài giảng trùng với một bài giảng đã tồn tại trong chương."
+        );
+    }
+
+    // Resource file name duplication check against existing lesson resources
+    if (resourceFile && chapterLessons && chapterLessons.length > 0) {
+      const fname = resourceFile.name.trim().toLowerCase();
+      const existingNames = chapterLessons
+        .map((l: any) => {
+          // try several common fields where resource URL might be
+          const url =
+            (l &&
+              (l.resourceUrl ||
+                l.resource?.url ||
+                l.resourceUrlPath ||
+                l.fileUrl)) ||
+            null;
+          if (!url) return null;
+          try {
+            const u = String(url);
+            const parts = u.split("/");
+            return parts[parts.length - 1].split("?")[0].toLowerCase();
+          } catch (e) {
+            return null;
+          }
+        })
+        .filter(Boolean) as string[];
+      if (existingNames.some((n) => n === fname)) {
+        errors.push(
+          "Tệp tải lên có tên trùng với tệp đã tồn tại trong chương. Vui lòng đổi tên file trước khi tải lên."
+        );
+      }
     }
 
     return errors;
@@ -225,6 +332,38 @@ const AddLecture: React.FC = () => {
         title: "Chưa chọn file",
         message: "Vui lòng chọn file trước khi tải lên.",
       });
+    // Prevent uploading a file with the same filename as an existing lesson resource in this chapter
+    if (resourceFile && chapterLessons && chapterLessons.length > 0) {
+      const fname = resourceFile.name.trim().toLowerCase();
+      const existingNames = chapterLessons
+        .map((l: any) => {
+          const url =
+            (l &&
+              (l.resourceUrl ||
+                l.resource?.url ||
+                l.resourceUrlPath ||
+                l.fileUrl)) ||
+            null;
+          if (!url) return null;
+          try {
+            const u = String(url);
+            const parts = u.split("/");
+            return parts[parts.length - 1].split("?")[0].toLowerCase();
+          } catch (e) {
+            return null;
+          }
+        })
+        .filter(Boolean) as string[];
+      if (existingNames.some((n) => n === fname)) {
+        return setDialog({
+          open: true,
+          title: "Tệp trùng lặp",
+          message:
+            "Tệp tải lên có tên trùng với tệp đã tồn tại trong chương. Vui lòng đổi tên file trước khi tải lên.",
+        });
+      }
+    }
+
     setResourceUploading(true);
     try {
       const uploadRes = await courseApi.uploadResource(resourceFile);
@@ -342,14 +481,15 @@ const AddLecture: React.FC = () => {
 
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <button
+          <Button
+            variant="ghost"
             onClick={() =>
               navigate("/course/teacher/edit-course/" + selectedCourseId)
             }
-            className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
+            className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50 p-0"
           >
             <ArrowLeft className="w-4 h-4 text-[#525252]" />
-          </button>
+          </Button>
 
           <div>
             <h1 className="text-2xl font-normal text-[#171717]">

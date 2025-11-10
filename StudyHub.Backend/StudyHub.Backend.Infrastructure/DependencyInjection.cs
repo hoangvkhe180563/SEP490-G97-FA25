@@ -36,6 +36,7 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<IAppRoleRepository, AppRoleRepositoy>();
             services.AddScoped<IQATopicRepository, QATopicRepository>();
             services.AddScoped<IQAConversationRepository, QAConversationRepository>();
+            services.AddScoped<IQAConversationReadRepository, QAConversationReadRepository>();
             services.AddScoped<IQAMessageRepository, QAMessageRepository>();
             services.AddScoped<IExamRepository, ExamRepository>();
             services.AddScoped<IExamResultRepository, ExamResultRepository>();
@@ -50,6 +51,7 @@ namespace StudyHub.Backend.Infrastructure
             });
 
             services.AddScoped<IPaymentInfoRepository, PaymentInfoRepository>();
+            services.AddScoped<ITransactionRepository, TransactionRepository>();
 
             return services;
         }

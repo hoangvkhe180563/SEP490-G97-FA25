@@ -65,3 +65,9 @@ public class ProgressDto
     public int LessonId { get; set; }
     public DateTime CompletionDate { get; set; }
 }
+
+public class ConsumeWalletDto
+{
+    public Guid AppUserId { get; set; }
+    public int CourseId { get; set; }
+}

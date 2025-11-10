@@ -26,7 +26,10 @@ import {
   FormMessage,
 } from "@/common/components/ui/form";
 // textarea not used in update form (kept for create)
-import { Ban, Camera, AlertCircle, Check } from "lucide-react";
+import { Ban, Camera, AlertCircle, Check, Calendar } from "lucide-react";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
+import { format, parse } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
@@ -34,6 +37,7 @@ import { useAppRoleStore } from "@/user/stores/useRoleStore";
 import { useLocationStore } from "@/user/stores/useLocationStore";
 import { Badge } from "@/common/components/ui/badge";
 import toast from "react-hot-toast";
+import useDobStore from "@/user/stores/useDobStore";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -57,7 +61,7 @@ const isValidVietnamPhone = (s?: string | null) => {
 };
 
 const schema = z.object({
-  email: z.string().email("Invalid email").optional(),
+  email: z.string().email("Email không hợp lệ").optional(),
   username: z.string().optional(),
   fullname: z.string().optional(),
   communeId: z.union([z.string(), z.number()]).optional(),
@@ -74,6 +78,12 @@ const schema = z.object({
       message: "Số điện thoại không hợp lệ",
     }),
   status: z.boolean().optional(),
+  dob: z
+    .string()
+    .optional()
+    .refine((v) => !v || useDobStore.getState().isValidDisplayDob(v), {
+      message: "Ngày sinh không hợp lệ. Định dạng dd/mm/yyyy",
+    }),
 });
 
 type FormValues = z.infer<typeof schema> & { avatar?: File | null };
@@ -135,6 +145,23 @@ const UpdateAccount: React.FC = () => {
     formState,
   } = form;
 
+  // DOB calendar state
+  const [dobOpen, setDobOpen] = useState(false);
+  const [selectedDob, setSelectedDob] = useState<Date | undefined>(undefined);
+
+  useEffect(() => {
+    const v = form.getValues("dob");
+    if (v) {
+      try {
+        const d = parse(String(v), "dd/MM/yyyy", new Date());
+        if (!isNaN(d.getTime())) setSelectedDob(d);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const mapBackendKeyToField = (key: string) => {
     const k = key || "";
     if (k.toLowerCase() === "avatar" || k.toLowerCase() === "avatarfile")
@@ -143,16 +170,62 @@ const UpdateAccount: React.FC = () => {
   };
 
   const handleMessage = (msg: any) => {
-    if (msg && typeof msg === "object") {
+    // Defensive handling of server messages/errors.
+    // The backend sometimes returns a structured validation error object
+    // (e.g. { Email: ["..."] }) or, in other cases, the full user object.
+    // If it's the latter we should NOT set form field errors using the
+    // field values (that causes the UI to display the current value as an error).
+    if (!msg) return;
+
+    if (typeof msg === "string") {
+      toast.error(msg);
+      return;
+    }
+
+    if (typeof msg === "object") {
       Object.entries(msg).forEach(([k, v]) => {
         const field = mapBackendKeyToField(k);
-        const messageText = Array.isArray(v) ? v.join(", ") : String(v ?? "");
-        try {
-          setError(field as any, { type: "server", message: messageText });
-        } catch (e) {
-          toast.error(messageText || "Cập nhật thất bại");
+
+        // Only treat arrays of strings or plain string messages as validation
+        // errors. If backend returned booleans/numbers/objects (common when it
+        // returns the entity), skip setting a form error to avoid showing
+        // values as error messages (e.g. avatar URL, true/false).
+        if (Array.isArray(v)) {
+          const messageText = v.join(", ");
+          try {
+            setError(field as any, { type: "server", message: messageText });
+          } catch (e) {
+            toast.error(messageText || "Cập nhật thất bại");
+          }
+          return;
         }
+
+        if (typeof v === "string") {
+          const messageText = v;
+          // Skip obvious non-error strings such as URLs or when the message
+          // equals the current form value (the backend returned the entity).
+          if (/^https?:\/\//i.test(messageText)) return;
+          try {
+            const current = form.getValues(field as any);
+            if (String(current) === messageText) return;
+            setError(field as any, { type: "server", message: messageText });
+          } catch (e) {
+            toast.error(messageText || "Cập nhật thất bại");
+          }
+          return;
+        }
+
+        // For booleans/numbers/objects skip setting field errors
+        return;
       });
+      return;
+    }
+
+    // Fallback: show whatever arrived
+    try {
+      toast.error(String(msg));
+    } catch (e) {
+      /* ignore */
     }
   };
 
@@ -203,9 +276,15 @@ const UpdateAccount: React.FC = () => {
             email: user.email ?? "",
             username: user.username ?? "",
             fullname: user.fullname ?? user.username ?? "",
+            dob: (user as any)?.dob
+              ? useDobStore.getState().isoToDisplay((user as any).dob) ??
+                undefined
+              : undefined,
             cityId: user.cityId ? String(user.cityId) : undefined,
             provinceId: user.provinceId ? String(user.provinceId) : undefined,
             communeId: user.communeId ? String(user.communeId) : undefined,
+            address: user.address ?? "",
+            phoneNumber: user.phoneNumber ?? "",
             schoolId: user.schoolId ? String(user.schoolId) : undefined,
             roleIds: mappedRoleIds,
             gender:
@@ -320,15 +399,20 @@ const UpdateAccount: React.FC = () => {
     if (typeof data.status !== "undefined") dto.status = Boolean(data.status);
     if (file) dto.avatarFile = file;
     if (data.address) dto.address = data.address;
+    if (data.dob)
+      dto.dob = useDobStore.getState().displayToIso(data.dob) ?? null;
 
     try {
-      const res = await updateAccount(id, dto);
-      const body = (res as any)?.data ?? res;
-      if (body?.success ?? body?.Success ?? false) {
-        toast.success(body?.message ?? "Cập nhật tài khoản thành công");
-      } else {
-        handleMessage(body?.message ?? body);
-      }
+      await updateAccount(
+        id,
+        dto,
+        () => {
+          toast.success("Cập nhật tài khoản thành công");
+        },
+        () => {
+          handleMessage("Cập nhật tài khoản thất bại");
+        }
+      );
     } catch (err: any) {
       const body = err?.response?.data ?? err?.data ?? err;
       handleMessage(body?.message ?? err?.message ?? body);
@@ -481,6 +565,51 @@ const UpdateAccount: React.FC = () => {
                 <FormLabel>Số điện thoại</FormLabel>
                 <FormControl>
                   <Input {...field} placeholder="Số điện thoại" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="dob"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Ngày sinh</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      {...field}
+                      placeholder="dd/MM/yyyy"
+                      readOnly
+                      onClick={() => setDobOpen((s) => !s)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setDobOpen((s) => !s)}
+                      className="absolute right-2 top-2 p-1"
+                      aria-label="Open calendar"
+                    >
+                      <Calendar size={16} />
+                    </button>
+                    {dobOpen && (
+                      <div className="absolute z-50 mt-2 bg-white rounded-md shadow p-2">
+                        <DayPicker
+                          mode="single"
+                          selected={selectedDob}
+                          onSelect={(d) => {
+                            if (d) {
+                              setSelectedDob(d);
+                              const s = format(d, "dd/MM/yyyy");
+                              field.onChange(s);
+                            }
+                            setDobOpen(false);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>

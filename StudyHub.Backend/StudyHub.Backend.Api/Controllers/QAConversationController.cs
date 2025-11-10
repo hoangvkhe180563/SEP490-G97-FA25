@@ -16,12 +16,14 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly QAConversationService _service;
         private readonly AppUserService _userService;
         private readonly AuthService _authService;
+        private readonly QAConversationReadService _readService;
 
-        public QAConversationController(QAConversationService service, AppUserService userService, AuthService authService)
+        public QAConversationController(QAConversationService service, AppUserService userService, AuthService authService, QAConversationReadService readService)
         {
             _service = service;
             _userService = userService;
             _authService = authService;
+            _readService = readService;
         }
 
         [HttpGet]
@@ -78,6 +80,18 @@ namespace StudyHub.Backend.Api.Controllers
             {
                 var list = _service.GetConversationsForCurrentUser();
                 var dtos = list.Select(c => QAConversationMapper.MapToDto(c)).ToList();
+                // attach unread counts per conversation for current user
+                foreach (var d in dtos)
+                {
+                    try
+                    {
+                        d.UnreadCount = _readService.CountUnreadMessagesForCurrentUser(d.Id);
+                    }
+                    catch
+                    {
+                        d.UnreadCount = 0;
+                    }
+                }
                 return Ok(new { Success = true, Message = "Lấy danh sách conversation của người dùng thành công.", Data = dtos });
             }
             catch (Exception)
@@ -114,6 +128,20 @@ namespace StudyHub.Backend.Api.Controllers
             catch (Exception)
             {
                 return StatusCode(500, new { Success = false, Message = "Lỗi server khi lấy danh sách teachers.", Data = (object?)null });
+            }
+        }
+
+        [HttpGet("teachers/by-subject/{subjectId}")]
+        public IActionResult GetQATeachersBySubject(short subjectId)
+        {
+            try
+            {
+                var teachers = _userService.GetQATeachersBySubject(subjectId);
+                return Ok(new { Success = true, Message = "Lấy danh sách QA teachers theo môn thành công.", Data = teachers });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lỗi server khi lấy danh sách QA teachers theo môn.", Data = (object?)null });
             }
         }
 

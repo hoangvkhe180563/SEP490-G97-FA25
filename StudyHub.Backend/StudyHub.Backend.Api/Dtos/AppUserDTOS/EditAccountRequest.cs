@@ -9,6 +9,7 @@
         public int? CommuneId { get; set; }
         public bool? Status { get; set; }
         public IFormFile? AvatarFile { get; set; }
+    public DateOnly? Dob { get; set; }
         // Gender: 1 -> Male, 0 -> Female
         public int? Gender { get; set; }
         public int? SchoolId { get; set; }

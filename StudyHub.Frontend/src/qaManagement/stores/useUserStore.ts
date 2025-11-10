@@ -6,6 +6,9 @@ import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
 export const useQAUserStore = create<AppUserState>()((set) => ({
   teachers: [],
   connectedTeachers: [],
+  subjectTeachers: [],
+  subjectTeachersLoading: false,
+  subjectTeachersError: null,
   students: [],
   connectedStudents: [],
   isLoading: false,
@@ -28,6 +31,29 @@ export const useQAUserStore = create<AppUserState>()((set) => ({
       return null;
     } finally {
       set({ isLoading: false });
+    }
+  },
+  getTeachersBySubject: async (subjectId: number) => {
+    set({ subjectTeachersLoading: true, subjectTeachersError: null });
+    try {
+      // const resp = await axiosInstance.get(
+      //   `/QAConversation/teachers/by-subject/${subjectId}`
+      // );
+      const resp = await axiosInstance.get(`/QAConversation/teachers`);
+      const body = resp.data;
+      set({
+        subjectTeachers: body?.data ?? [],
+        success: body?.success ?? true,
+        message: body?.message ?? "",
+      });
+      return body;
+    } catch (err: any) {
+      const errMsg = axiosMessageErrorHandler(err);
+      set({ subjectTeachersError: errMsg, success: false, message: errMsg });
+      console.error(err);
+      return null;
+    } finally {
+      set({ subjectTeachersLoading: false });
     }
   },
   getConnectedTeachers: async () => {

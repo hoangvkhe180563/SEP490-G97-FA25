@@ -7,7 +7,7 @@ export const axiosInstance = axios.create({
 
 export const axiosMessageErrorHandler = (error: unknown) => {
   if (axios.isAxiosError(error)) {
-    return error.response?.data?.message || "An error occurred";
+    return error.response?.data?.message || "Server hiện không phản hồi";
   } else {
     return "Unexpected error occurred";
   }

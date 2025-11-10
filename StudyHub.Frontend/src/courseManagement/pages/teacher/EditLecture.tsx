@@ -34,6 +34,8 @@ const EditLecture: React.FC = () => {
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(
     chapterIdFromQuery ?? null
   );
+  const [chapterPostDate, setChapterPostDate] = useState<string | null>(null);
+  const [chapterLessons, setChapterLessons] = useState<any[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(
     courseIdFromQuery ?? null
   );
@@ -183,9 +185,24 @@ const EditLecture: React.FC = () => {
           }
         }
         if (selectedChapterId) {
-          const ch = await fetchChapter(Number(selectedChapterId));
-          if (ch && (ch as any).courseId) {
-            setSelectedCourseId(String((ch as any).courseId));
+          try {
+            const ch = await fetchChapter(Number(selectedChapterId));
+            if (ch) {
+              const post =
+                (ch as any).postDate || (ch as any).createdAt || null;
+              setChapterPostDate(post ? String(post) : null);
+              const lessons =
+                (ch as any).lessons ||
+                (ch as any).lectures ||
+                (ch as any).items ||
+                [];
+              setChapterLessons(Array.isArray(lessons) ? lessons : []);
+              if ((ch as any).courseId) {
+                setSelectedCourseId(String((ch as any).courseId));
+              }
+            }
+          } catch (err) {
+            console.error("failed to load chapter", err);
           }
         }
       } catch (err) {
@@ -236,6 +253,39 @@ const EditLecture: React.FC = () => {
       });
       return;
     }
+    // Prevent uploading a file with the same filename as an existing lesson resource in this chapter
+    if (resourceFile && chapterLessons && chapterLessons.length > 0) {
+      const fname = resourceFile.name.trim().toLowerCase();
+      const existingNames = chapterLessons
+        .map((l: any) => {
+          const url =
+            (l &&
+              (l.resourceUrl ||
+                l.resource?.url ||
+                l.resourceUrlPath ||
+                l.fileUrl)) ||
+            null;
+          if (!url) return null;
+          try {
+            const u = String(url);
+            const parts = u.split("/");
+            return parts[parts.length - 1].split("?")[0].toLowerCase();
+          } catch (e) {
+            return null;
+          }
+        })
+        .filter(Boolean) as string[];
+      if (existingNames.some((n) => n === fname)) {
+        setDialog({
+          open: true,
+          title: "Tệp trùng lặp",
+          message:
+            "Tệp tải lên có tên trùng với tệp đã tồn tại trong chương. Vui lòng đổi tên file trước khi tải lên.",
+        });
+        return;
+      }
+    }
+
     setResourceUploading(true);
     try {
       const uploadRes = await uploadResource(resourceFile);
@@ -357,10 +407,98 @@ const EditLecture: React.FC = () => {
     if (postDate && isNaN(new Date(postDate).getTime()))
       errors.push("Ngày đăng không hợp lệ.");
 
+    // Duration positive
+    if (duration && !Number.isNaN(Number(duration)) && Number(duration) <= 0) {
+      errors.push("Thời lượng phải là số dương (lớn hơn 0).");
+    }
+
+    // If chapter has a postDate, lecture postDate cannot be earlier
+    if (postDate && chapterPostDate) {
+      const lec = new Date(postDate);
+      const chd = new Date(chapterPostDate);
+      if (!isNaN(lec.getTime()) && !isNaN(chd.getTime())) {
+        if (lec.getTime() < chd.getTime()) {
+          errors.push(
+            "Ngày đăng bài giảng không thể nhỏ hơn ngày bắt đầu của chương."
+          );
+        }
+      }
+    }
+
+    // Validate embed/url for video
+    if (type === "video") {
+      if (useEmbed && embedSrc && embedSrc.trim()) {
+        const trimmed = embedSrc.trim();
+        if (trimmed.startsWith("<iframe")) {
+          const m = trimmed.match(/src=["']([^"']+)["']/);
+          if (!m || !m[1])
+            errors.push("Embed iframe không có thuộc tính src hợp lệ.");
+          else {
+            try {
+              new URL(m[1]);
+            } catch (e) {
+              errors.push("URL trong iframe embed không hợp lệ.");
+            }
+          }
+        } else {
+          try {
+            new URL(trimmed);
+          } catch (e) {
+            errors.push("Link embed không phải URL hợp lệ.");
+          }
+        }
+      }
+    }
+
     if (resourceFile) {
       const maxBytes = 50 * 1024 * 1024; // 50MB
       if (resourceFile.size > maxBytes)
         errors.push("Tài nguyên quá lớn. Kích thước tối đa 50MB.");
+    }
+
+    // Title uniqueness within chapter (exclude current lesson)
+    if (title && chapterLessons && chapterLessons.length > 0) {
+      const tnorm = title.trim().toLowerCase();
+      const dup = chapterLessons.some((l: any) => {
+        const lid = Number((l && (l.id || l.lessonId || l.lectureId)) || 0);
+        if (lid && lid === lessonId) return false; // ignore self
+        const name =
+          (l && (l.name || l.title || l.nameText || l.titleText)) || "";
+        return String(name).trim().toLowerCase() === tnorm;
+      });
+      if (dup)
+        errors.push(
+          "Tiêu đề bài giảng trùng với một bài giảng đã tồn tại trong chương."
+        );
+    }
+
+    // Resource file duplication check
+    if (resourceFile && chapterLessons && chapterLessons.length > 0) {
+      const fname = resourceFile.name.trim().toLowerCase();
+      const existingNames = chapterLessons
+        .map((l: any) => {
+          const url =
+            (l &&
+              (l.resourceUrl ||
+                l.resource?.url ||
+                l.resourceUrlPath ||
+                l.fileUrl)) ||
+            null;
+          if (!url) return null;
+          try {
+            const u = String(url);
+            const parts = u.split("/");
+            return parts[parts.length - 1].split("?")[0].toLowerCase();
+          } catch (e) {
+            return null;
+          }
+        })
+        .filter(Boolean) as string[];
+      if (existingNames.some((n) => n === fname)) {
+        errors.push(
+          "Tệp tải lên có tên trùng với tệp đã tồn tại trong chương. Vui lòng đổi tên file trước khi tải lên."
+        );
+      }
     }
 
     if (errors.length) {
@@ -447,14 +585,15 @@ const EditLecture: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <button
+          <Button
+            variant="ghost"
             onClick={() =>
               navigate("/course/teacher/edit-course/" + selectedCourseId)
             }
-            className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
+            className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50 p-0"
           >
             <ArrowLeft className="w-4 h-4 text-[#525252]" />
-          </button>
+          </Button>
           <div>
             <h1 className="text-2xl font-normal text-[#171717]">
               Chỉnh sửa bài giảng ({type === 'video' ? 'Video' : type === 'reading' ? 'Tài liệu đọc' : 'Bài kiểm tra'})

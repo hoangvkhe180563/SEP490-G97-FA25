@@ -18,6 +18,7 @@ import {
   SelectItem,
 } from "@/common/components/ui/select";
 import { Button } from "@/common/components/ui/button";
+import { Checkbox } from "@/common/components/ui/checkbox";
 import { Label } from "@/common/components/ui/label";
 import {
   ArrowLeft,
@@ -84,6 +85,7 @@ const EditCourse: React.FC = () => {
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [chaptersLocal, setChaptersLocal] = useState<ChapterListDto[]>([]);
   const [modalChapter, setModalChapter] = useState<ChapterListDto | undefined>(
     undefined
@@ -200,11 +202,20 @@ const EditCourse: React.FC = () => {
     if (!status || (typeof status === "string" && status.trim() === ""))
       errors.push("Vui lòng chọn trạng thái khóa học.");
 
-    if (startAt && isNaN(new Date(startAt).getTime()))
-      errors.push("Ngày bắt đầu không hợp lệ.");
-    if (endAt && isNaN(new Date(endAt).getTime()))
-      errors.push("Ngày kết thúc không hợp lệ.");
-    if (startAt && endAt && new Date(startAt) > new Date(endAt))
+    // validate course dates
+    const hasStart = Boolean(startAt);
+    const hasEnd = Boolean(endAt);
+    let startDate: Date | null = null;
+    let endDate: Date | null = null;
+    if (hasStart) {
+      startDate = new Date(startAt);
+      if (isNaN(startDate.getTime())) errors.push("Ngày bắt đầu không hợp lệ.");
+    }
+    if (hasEnd) {
+      endDate = new Date(endAt);
+      if (isNaN(endDate.getTime())) errors.push("Ngày kết thúc không hợp lệ.");
+    }
+    if (startDate && endDate && startDate > endDate)
       errors.push("Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc.");
 
     // Ensure there is at least one chapter with at least one lesson
@@ -213,6 +224,54 @@ const EditCourse: React.FC = () => {
     else {
       const hasLesson = chaptersLocal.some((c) => (c.lessons || []).length > 0);
       if (!hasLesson) errors.push("Ít nhất một chương phải chứa một bài học.");
+    }
+
+    // Per-chapter and per-lesson validation
+    if (Array.isArray(chaptersLocal)) {
+      chaptersLocal.forEach((ch, chIndex) => {
+        const title = (ch as any).name ?? "";
+        if (!title || !String(title).trim()) {
+          errors.push(`Phần ${chIndex + 1}: Tiêu đề phần là bắt buộc.`);
+        }
+
+        // postDate may be a Date or a parsable string
+        const pdRaw: any = (ch as any).postDate ?? null;
+        if (pdRaw) {
+          const pd = pdRaw instanceof Date ? pdRaw : new Date(pdRaw);
+          if (isNaN(pd.getTime())) {
+            errors.push(
+              `Phần ${title || chIndex + 1}: Ngày đăng không hợp lệ.`
+            );
+          } else {
+            if (startDate && pd < startDate)
+              errors.push(
+                `Phần ${
+                  title || chIndex + 1
+                }: Ngày đăng phải lớn hơn hoặc bằng ngày bắt đầu khóa học.`
+              );
+            if (endDate && pd > endDate)
+              errors.push(
+                `Phần ${
+                  title || chIndex + 1
+                }: Ngày đăng phải nhỏ hơn hoặc bằng ngày kết thúc khóa học.`
+              );
+          }
+        }
+
+        // lessons basic checks
+        const lessons = (ch as any).lessons ?? [];
+        if (Array.isArray(lessons)) {
+          lessons.forEach((ls: any, li: number) => {
+            if (!ls || !ls.name || !String(ls.name).trim()) {
+              errors.push(
+                `Phần ${title || chIndex + 1} - Bài ${
+                  li + 1
+                }: Tiêu đề bài học là bắt buộc.`
+              );
+            }
+          });
+        }
+      });
     }
 
     // Optional: thumbnail size check (if user selected a file but not uploaded yet)
@@ -528,12 +587,13 @@ const EditCourse: React.FC = () => {
         {/* Page Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <button
+            <Button
+              variant="ghost"
               onClick={() => navigate("/course/teacher/courses")}
-              className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
+              className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50 p-0"
             >
               <ArrowLeft className="w-4 h-4 text-[#525252]" />
-            </button>
+            </Button>
 
             <div>
               <h1 className="text-2xl font-normal text-[#171717]">
@@ -790,29 +850,32 @@ const EditCourse: React.FC = () => {
 
                           {/* Action Buttons */}
                           <div className="flex items-center gap-2 ml-4 mt-1">
-                            <button
-                              onClick={() => openChapterModal(ch.id, "edit")}
+                            <Button
+                              variant="ghost"
                               className="p-2 border rounded-md hover:bg-muted transition-colors"
+                              onClick={() => openChapterModal(ch.id, "edit")}
                               title="Chỉnh sửa chương"
                             >
                               <Pencil className="w-4 h-4" />
-                            </button>
+                            </Button>
 
-                            <button
-                              onClick={() => openChapterModal(ch.id, "view")}
+                            <Button
+                              variant="ghost"
                               className="p-2 border rounded-md hover:bg-muted transition-colors"
+                              onClick={() => openChapterModal(ch.id, "view")}
                               title="Xem chương"
                             >
                               <Eye className="w-4 h-4" />
-                            </button>
+                            </Button>
 
-                            <button
-                              onClick={() => handleDeleteChapter(ch.id)}
+                            <Button
+                              variant="ghost"
                               className="p-1 hover:bg-gray-100 rounded"
+                              onClick={() => handleDeleteChapter(ch.id)}
                               title="Xóa chương"
                             >
                               <Trash2 className="w-3.5 h-4 text-[#A3A3A3]" />
-                            </button>
+                            </Button>
                           </div>
                         </div>
 
@@ -844,50 +907,48 @@ const EditCourse: React.FC = () => {
                                   {l.type === "Video" ? "Video" : l.type === "Reading" ? "Đọc" : "Kiểm tra"}
                                 </span>
 
-                                <button
+                                <Button
+                                  variant="ghost"
+                                  className="p-1 hover:bg-gray-100 rounded"
                                   title="Xem chi tiết"
                                   onClick={() =>
                                     navigate(`/course/teacher/lecture/${l.id}`)
                                   }
-                                  className="p-1 hover:bg-gray-100 rounded"
                                 >
                                   <Eye className="w-4 h-4 text-[#525252]" />
-                                </button>
+                                </Button>
 
-                                <button
+                                <Button
+                                  variant="ghost"
+                                  className="p-1 hover:bg-gray-100 rounded"
                                   title="Chỉnh sửa"
                                   onClick={() =>
                                     navigate(
                                       `/course/teacher/edit-lecture/${l.id}`
                                     )
                                   }
-                                  className="p-1 hover:bg-gray-100 rounded"
                                 >
                                   <Edit2 className="w-4 h-4 text-[#525252]" />
-                                </button>
+                                </Button>
 
-                                <button
+                                <Button
+                                  variant="ghost"
+                                  className="p-1 hover:bg-gray-100 rounded text-rose-600"
                                   title="Xóa bài giảng"
                                   onClick={() => deleteLesson(l.id)}
-                                  className="p-1 hover:bg-gray-100 rounded text-rose-600"
                                 >
                                   <Trash2 className="w-4 h-4" />
-                                </button>
+                                </Button>
                               </div>
                             </div>
                           ))}
-                          <div
-                            role="button"
-                            tabIndex={0}
+                          <Button
+                            variant="outline"
                             onClick={() => handleAddLessonToChapter(ch.id)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ")
-                                handleAddLessonToChapter(ch.id);
-                            }}
-                            className="w-full h-[38px] border border-dashed border-[#D4D4D4] rounded flex items-center justify-center gap-2 text-sm text-[#525252] hover:bg-gray-50 cursor-pointer"
+                            className="w-full h-[38px] border-dashed border-[#D4D4D4] rounded flex items-center justify-center gap-2 text-sm text-[#525252] hover:bg-gray-50"
                           >
                             <Plus className="w-3 h-3.5" /> Thêm bài học
-                          </div>
+                          </Button>
                         </div>
                       </div>
                     ))
@@ -949,8 +1010,9 @@ const EditCourse: React.FC = () => {
 
                     {/* Khu vực chọn và tải lên ảnh */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                      {/* Input ẩn + label tùy chỉnh */}
+                      {/* Hidden file input triggered by a shadcn Button */}
                       <input
+                        ref={fileInputRef}
                         id="thumbnail-upload"
                         type="file"
                         accept="image/*"
@@ -967,14 +1029,12 @@ const EditCourse: React.FC = () => {
                         }}
                       />
 
-                      <label
-                        htmlFor="thumbnail-upload"
-                        className="cursor-pointer inline-flex items-center justify-center px-4 py-2 
-                   bg-[#f28d3d] text-white text-sm font-medium rounded-lg 
-                   hover:bg-[#e77c1e] transition shadow-sm"
+                      <Button
+                        className="inline-flex items-center justify-center px-4 py-2 bg-[#f28d3d] text-white text-sm font-medium rounded-lg hover:bg-[#e77c1e] transition shadow-sm"
+                        onClick={() => fileInputRef.current?.click()}
                       >
                         Chọn ảnh
-                      </label>
+                      </Button>
 
                       <Button
                         variant="outline"
@@ -1088,12 +1148,9 @@ const EditCourse: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input
-                        id="featured"
-                        type="checkbox"
-                        className="w-4 h-4"
+                      <Checkbox
                         checked={isFeatured}
-                        onChange={(e) => setIsFeatured(e.target.checked)}
+                        onCheckedChange={(v) => setIsFeatured(!!v)}
                       />
                       <Label htmlFor="featured">Khóa học nổi bật</Label>
                     </div>
@@ -1191,22 +1248,24 @@ const EditCourse: React.FC = () => {
                     >
                       <div>{ls.name}</div>
                       <div className="flex gap-2">
-                        <button
+                        <Button
+                          variant="link"
+                          className="text-sm"
                           onClick={() =>
                             navigate(`/course/teacher/lecture/${ls.id}`)
                           }
-                          className="text-sm"
                         >
                           Xem
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          variant="link"
+                          className="text-sm"
                           onClick={() =>
                             navigate(`/course/teacher/edit-lecture/${ls.id}`)
                           }
-                          className="text-sm"
                         >
                           Chỉnh sửa
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ))}

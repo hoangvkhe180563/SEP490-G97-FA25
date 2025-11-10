@@ -42,8 +42,6 @@ const LecturePlayer: React.FC = () => {
   const recordProgress = useEnrollmentStore((s: any) => s.recordProgress);
   const fetchProgresses = useEnrollmentStore((s: any) => s.fetchProgresses);
   const _enrollAction = useEnrollmentStore((s: any) => s.enroll);
-  // subscribe reactively to the enrollment for this course so UI updates when
-  // another component (LectureFilters) creates the enrollment
   const enrollment = useEnrollmentStore((s: any) =>
     s.getEnrollmentForCourse(cid)
   );
@@ -628,13 +626,14 @@ const LecturePlayer: React.FC = () => {
           <main className="col-span-12 lg:col-span-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <button
+                <Button
+                  variant="ghost"
                   onClick={() => navigate(`/course/student/courses/${cid}`)}
-                  className="w-9 h-9 mb-3 border rounded-md bg-white shadow-sm flex items-center justify-center"
+                  className="w-9 h-9 mb-3 p-0 flex items-center justify-center"
                   aria-label="Go back"
                 >
                   ←
-                </button>
+                </Button>
                 <div className="text-sm text-gray-500 mb-2">
                   Khóa học của tôi / Khóa học
                 </div>
@@ -691,7 +690,7 @@ const LecturePlayer: React.FC = () => {
                               <span className="font-semibold text-gray-900 dark:text-gray-100">
                                 Hoàn thành:
                               </span>{" "}
-                              Bạn chỉ có thể bấm{" "}
+                              Hệ thống sẽ tự động{" "}
                               <span className="px-1.5 py-0.5 bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 rounded-md font-medium">
                                 Đánh dấu hoàn thành
                               </span>{" "}

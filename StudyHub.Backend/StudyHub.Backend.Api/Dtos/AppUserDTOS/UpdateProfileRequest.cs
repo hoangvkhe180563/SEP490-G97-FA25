@@ -9,6 +9,7 @@ namespace StudyHub.Backend.Api.Dtos.AppUserDTOS
         public string? OldPassword { get; set; }
         public string? NewPassword { get; set; }
         public string? Fullname { get; set; }
+    public DateOnly? Dob { get; set; }
         public int? CommuneId { get; set; }
         public IFormFile? AvatarFile { get; set; }
         // Gender: 1 -> Male, 0 -> Female

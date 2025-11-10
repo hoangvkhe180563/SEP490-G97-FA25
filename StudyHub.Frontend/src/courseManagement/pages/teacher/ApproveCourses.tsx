@@ -159,28 +159,31 @@ const ApproveCourses: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 {/* Thông tin */}
                 <div className="flex items-center gap-4">
-                  <img
-                    src={c.imageUrl ?? "/placeholder.jpg"}
-                    className="w-20 h-14 object-cover rounded-lg shadow-sm"
-                    alt="thumb"
-                  />
-                  <div
+                  <Button
+                    variant="ghost"
                     onClick={() => navigate(`/course/teacher/courses/${c.id}`)}
-                    className="cursor-pointer"
+                    className="flex items-start gap-4 p-0 text-left"
                   >
-                    <div className="font-semibold text-lg text-gray-800 transition-colors">
-                      {c.name}
+                    <img
+                      src={c.imageUrl ?? "/placeholder.jpg"}
+                      className="w-20 h-14 object-cover rounded-lg shadow-sm"
+                      alt="thumb"
+                    />
+                    <div className="text-left">
+                      <div className="font-semibold text-lg text-gray-800 transition-colors">
+                        {c.name}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {subjects.find((s: any) => s.id === c.subjectId)?.name}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Tạo bởi: {c.createdBy ?? "—"} •{" "}
+                        {c.createdAt
+                          ? format(new Date(c.createdAt), "yyyy-MM-dd")
+                          : ""}
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-500">
-                      {subjects.find((s: any) => s.id === c.subjectId)?.name}
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      Tạo bởi: {c.createdBy ?? "—"} •{" "}
-                      {c.createdAt
-                        ? format(new Date(c.createdAt), "yyyy-MM-dd")
-                        : ""}
-                    </div>
-                  </div>
+                  </Button>
                 </div>
 
                 {/* Nút hành động */}
