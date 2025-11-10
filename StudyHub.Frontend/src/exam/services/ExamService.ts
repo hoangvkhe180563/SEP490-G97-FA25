@@ -228,7 +228,7 @@ export class ExamService {
         throw new Error(`Status: ${res.status}`);
       }
     } catch (error) {
-      console.error("Error createResult: ", error);
+      console.error("Error submitResult: ", error);
     }
     return false;
   }
@@ -252,7 +252,7 @@ export class ExamService {
         throw new Error(`Status: ${res.status}`);
       }
     } catch (error) {
-      console.error("Error getClassExamResultsByStudent: ", error);
+      console.error("Error getResultsByStudentAndExamId: ", error);
     }
     return [];
   }
@@ -355,5 +355,19 @@ export class ExamService {
       console.error("Error checkExamStatus: ", error);
     }
     return false;
+  }
+
+  getCourseIdByLessonId = async (lessonId: number): Promise<number> => {
+    try {
+      const res = await axiosInstance.get(`/exam/return-lesson-course/${lessonId}`);
+      if (res.status === 200) {
+        return res.data;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error checkExamStatus: ", error);
+    }
+    return 0;
   }
 }

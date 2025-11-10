@@ -2,6 +2,7 @@
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories.Exam;
+using System;
 
 namespace StudyHub.Backend.Infrastructure.Repositories.Exam
 {
@@ -313,6 +314,22 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                 new InfrastructureException("ExamRepository", "UpdateExamQuestions exception. Inner error: " + ex.Message).LogError();
             }
             return false;
+        }
+
+        public int GetCourseIdByLessonId(int lessonId)
+        {
+            try
+            {
+                return _context.Lessons
+                    .Where(l => l.Id == lessonId)
+                    .Select(l => l.Chapter.CourseId)
+                    .FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ExamRepository", "GetCourseIdByLessonId exception. Inner error: " + ex.Message).LogError();
+            }
+            return 0;
         }
     }
 }

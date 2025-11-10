@@ -99,9 +99,9 @@ const LectureResources: React.FC = () => {
                     href={r.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-blue-600 hover:underline truncate"
+                    className="text-blue-600 hover:underline wrap-anywhere"
                   >
-                    {r.url.split("/").pop()}
+                    {r.url}
                   </a>
                 </li>
               ))}

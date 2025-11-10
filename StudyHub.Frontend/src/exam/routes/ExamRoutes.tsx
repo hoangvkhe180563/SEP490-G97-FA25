@@ -10,7 +10,6 @@ import CreateExam from "../pages/teacher/CreateExam";
 import ViewExamHistory from "../pages/teacher/ViewExamHistory";
 import UpdateExam from "../pages/teacher/UpdateExam";
 import ViewExamDetail from "../pages/student/ViewExamDetail";
-import StudentLessonExam from "../pages/student/LessonExam";
 import TeacherLessonExam from "../pages/teacher/LessonExam";
 
 const examRoutes: RouteObject[] = [
@@ -53,10 +52,6 @@ const examRoutes: RouteObject[] = [
   {
     path: ExamRouteConfig.TEACHER.CLASS.EXAM_RESULT_LIST,
     element: <TeacherClassResults />
-  },
-  {
-    path: ExamRouteConfig.STUDENT.LESSON.LESSON_EXAM,
-    element: <StudentLessonExam />
   },
   {
     path: ExamRouteConfig.TEACHER.LESSON.LESSON_EXAM,

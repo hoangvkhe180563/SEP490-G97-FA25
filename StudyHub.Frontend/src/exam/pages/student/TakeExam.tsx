@@ -146,7 +146,7 @@ const TakeExam = () => {
   }, [timeLeft, isSubmitted]);
 
   useEffect(() => {
-    if (isVisible && exam.duration) {
+    if (isVisible && exam.duration && !isSubmitted) {
       setCheatTimes(ct => ct + 1);
       setCheatDialogOpen(true);
     }

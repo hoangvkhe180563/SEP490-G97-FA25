@@ -151,7 +151,7 @@ namespace StudyHub.Backend.UseCases.Services
             if (result == null) return null;
 
             var exam = _examRepo.GetExamById(result.ExamId);
-            
+
             var resultObjectId = result.Id;
             var answers = _answerRepo.GetAnswersByResultId(resultObjectId, exam.ShowAnswers, exam.ShowCorrectAnswers);
             result.Answers = answers;
@@ -311,7 +311,31 @@ namespace StudyHub.Backend.UseCases.Services
             };
 
             bool isResultSubmitted = _examResultRepo.SubmitExam(result);
-            return isResultSubmitted;
+            if (!isResultSubmitted)
+            {
+                new UseCaseException("ExamService", "SubmitExamResult error: Exam submitting failed!").LogError();
+                return false;
+            }
+
+            //6. update learning progress if it is the lesson exam
+            if (exam.LessonId != 0)
+            {
+                int enrollmentId = _examResultRepo.GetEnrollmentId(resultId, exam.LessonId);
+                if (enrollmentId == 0)
+                {
+                    new UseCaseException("ExamService", "SubmitExamResult error: No lesson provided!").LogError();
+                    return false;
+                }
+
+                return _examResultRepo.CreateProgress(enrollmentId, exam.LessonId);
+
+            }
+            else return isResultSubmitted;
+        }
+
+        public int GetCourseIdByLessonId(int lessonId)
+        {
+            return _examRepo.GetCourseIdByLessonId(lessonId);
         }
     }
 }

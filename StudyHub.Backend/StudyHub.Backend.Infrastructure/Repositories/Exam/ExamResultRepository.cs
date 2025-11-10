@@ -195,5 +195,50 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
             }
             return false;
         }
+
+        public int GetEnrollmentId(string resultId, int lessonId)
+        {
+            try
+            {
+                var examResult = GetExamResultById(resultId);
+                if (examResult == null) return 0;
+                Guid studentId = examResult.StudentId;
+
+                int courseId = _context.Lessons
+                    .Where(l => l.Id == lessonId)
+                    .Select(l => l.Chapter.CourseId)
+                    .FirstOrDefault();
+
+                var enrollment = _context.Enrollments.FirstOrDefault(e => e.AppUserId == studentId && e.CourseId == courseId);
+                return enrollment?.Id ?? 0;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ExamResultRepository", "GetEnrollmentId exception. Inner error: " + ex.Message).LogError();
+            }
+            return 0;
+        }
+
+        public bool CreateProgress(int enrollmentId, int lessonId)
+        {
+            try
+            {
+                var progress = new Progress
+                {
+                    EnrollmentId = enrollmentId,
+                    LessonId = lessonId,
+                    CompletionDate = DateTime.Now
+                };
+
+                _context.Progresses.Add(progress);
+                _context.SaveChanges();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ExamResultRepository", "CreateProgress exception. Inner error: " + ex.Message).LogError();
+            }
+            return false;
+        }
     }
 }

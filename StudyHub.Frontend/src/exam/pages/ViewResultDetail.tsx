@@ -21,6 +21,7 @@ const ViewResultDetail = () => {
   const examService = new ExamService();
   const [showAnswers, setShowAnswers] = useState<boolean>(false);
   const [showCorrectAnswers, setShowCorrectAnswers] = useState<boolean>(false);
+  const [returnCourseId, setReturnCourseId] = useState<number>(0);
 
   useEffect(() => {
     if (!user) {
@@ -44,7 +45,16 @@ const ViewResultDetail = () => {
         setExam(fetchedExam);
         setShowAnswers(fetchedExam.showAnswers);
         setShowCorrectAnswers(fetchedExam.showCorrectAnswers);
-        console.log(fetchedExam);
+
+        if (fetchedExam.lessonId) {
+          const courseId = await examService.getCourseIdByLessonId(fetchedExam.lessonId);
+
+          if (courseId == 0) {
+            setError("Bài kiểm tra theo bài học phải có id!");
+            return;
+          }
+          setReturnCourseId(courseId);
+        }
       } catch (err) {
         console.error("Failed to fetch result details:", err);
         setError("Không thể tải chi tiết kết quả.");
@@ -110,15 +120,22 @@ const ViewResultDetail = () => {
   return (
     <div className="w-full h-full overflow-y-auto p-6">
       <Button variant='outline' className='flex items-center' onClick={() => {
-        console.log(user);
         if (user?.roles.some(role => role.includes("Student"))) {
-          navigate('/exam/student/class-exams');
+          if (exam.classId) {
+            navigate('/exam/student/class-exams');
+            return;
+          } else if (exam.lessonId) {
+            navigate(`/course/student/courses/${returnCourseId}/lecture/${exam.lessonId}`)
+            return;
+          }
         } else if (user?.roles.some(role => role.includes("Teacher"))) {
           if (exam.classId) {
             navigate('/exam/teacher/class-exams/' + exam.classId);
+            return;
           }
         }
-        navigate("/")
+        console.log("DM REACT NGU LOZ");
+        // navigate("/")
       }}>
         <ArrowLeft />
         <span>Quay lại</span>

@@ -168,5 +168,12 @@ namespace StudyHub.Backend.Api.Controllers
             List<string> questionObjectIds = _service.UpdateExamQuestions(examId, questionEntities);
             return Ok(questionObjectIds);
         }
+
+        [HttpGet("return-lesson-course/{lessonId:int}")]
+        public IActionResult GetCourseIdByLessonId(int lessonId)
+        {
+            var courseId = _service.GetCourseIdByLessonId(lessonId);
+            return courseId == 0 ? NotFound() : Ok(courseId);
+        }
     }
 }
