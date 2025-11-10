@@ -183,7 +183,8 @@ namespace StudyHub.Backend.UseCases.Services
                 await _moderationRepo.MuteUserAsync(comment.CreatedBy, comment.SchoolId, DateTime.Now.AddDays(7));
             }
 
-            return createdComment;
+            var commentWithDetails = await _commentRepo.GetCommentByIdAsync(createdComment.CommentId);
+            return commentWithDetails ?? createdComment;
         }
 
         public async Task<ForumComment> UpdateCommentAsync(ForumComment comment)

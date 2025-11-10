@@ -79,7 +79,6 @@ export const useForumStore = create<ForumState>()(
 
           const conn: HubConnection = createForumFuncConnection();
           (window as any).__forumConn = conn;
-
           conn.on("ReceiveNewPost", (dto: any) => {
             try {
               console.log("ReceiveNewPost", dto);
@@ -103,7 +102,7 @@ export const useForumStore = create<ForumState>()(
                 author_initials: (dto.creatorFullname || dto.creatorName || "U")
                   .substring(0, 2)
                   .toUpperCase(),
-                author_class: dto.creatorClass || dto.creatorName || "",
+                author_class: dto.creatorClass || "",
                 comment_count: dto.commentCount || dto.comment_count || 0,
                 comments: [],
                 image_urls:
@@ -111,7 +110,6 @@ export const useForumStore = create<ForumState>()(
               };
 
               set((state) => {
-                // Check duplicate bằng post_id
                 const exists = state.posts.some(
                   (p) => p.post_id === mappedPost.post_id
                 );
@@ -126,6 +124,114 @@ export const useForumStore = create<ForumState>()(
               });
             } catch (err) {
               console.error("ReceiveNewPost handler error", err);
+            }
+          });
+
+          conn.on("ReceiveNewComment", (dto: any) => {
+            try {
+              console.log("ReceiveNewComment RAW DTO:", dto);
+
+              const mappedComment = {
+                comment_id: dto.commentId || dto.comment_id,
+                post_id: dto.postId || dto.post_id,
+                parent_comment_id: dto.parentCommentId || dto.parent_comment_id,
+                content: dto.content,
+                created_at:
+                  dto.createdAt || dto.created_at || new Date().toISOString(),
+                created_by: dto.createdBy || dto.created_by,
+                author_name: dto.creatorName || dto.authorName || "Unknown",
+                author_initials: (dto.creatorName || dto.authorName || "U")
+                  .substring(0, 2)
+                  .toUpperCase(),
+                author_class: dto.creatorClass || "",
+                replies: [],
+                image_urls:
+                  dto.attachments?.map((a: any) => a.fileUrl).join(",") || "",
+              };
+
+              set((state) => {
+                if (
+                  state.currentPost &&
+                  state.currentPost.post_id === mappedComment.post_id
+                ) {
+                  const existingComments = state.currentPost.comments || [];
+
+                  const isDuplicate = (
+                    comments: any[],
+                    targetId: number
+                  ): boolean => {
+                    for (const c of comments) {
+                      if (c.comment_id === targetId) return true;
+                      if (c.replies && isDuplicate(c.replies, targetId))
+                        return true;
+                    }
+                    return false;
+                  };
+
+                  if (isDuplicate(existingComments, mappedComment.comment_id)) {
+                    console.log(
+                      "Comment already exists, skipping:",
+                      mappedComment.comment_id
+                    );
+                    return {};
+                  }
+
+                  if (mappedComment.parent_comment_id) {
+                    const addReplyToComment = (comments: any[]): any[] => {
+                      return comments.map((c) => {
+                        if (c.comment_id === mappedComment.parent_comment_id) {
+                          return {
+                            ...c,
+                            replies: [...(c.replies || []), mappedComment],
+                          };
+                        }
+                        if (c.replies && c.replies.length > 0) {
+                          return {
+                            ...c,
+                            replies: addReplyToComment(c.replies),
+                          };
+                        }
+                        return c;
+                      });
+                    };
+
+                    return {
+                      currentPost: {
+                        ...state.currentPost,
+                        comments: addReplyToComment(existingComments),
+                        comment_count: state.currentPost.comment_count,
+                      },
+                      posts: state.posts.map((p) =>
+                        p.post_id === mappedComment.post_id ? { ...p } : p
+                      ),
+                    };
+                  } else {
+                    return {
+                      currentPost: {
+                        ...state.currentPost,
+                        comments: [...existingComments, mappedComment],
+                        comment_count: state.currentPost.comment_count + 1,
+                      },
+                      posts: state.posts.map((p) =>
+                        p.post_id === mappedComment.post_id
+                          ? { ...p, comment_count: p.comment_count + 1 }
+                          : p
+                      ),
+                    };
+                  }
+                }
+
+                return {
+                  posts: state.posts.map((p) =>
+                    p.post_id === mappedComment.post_id &&
+                    !mappedComment.parent_comment_id
+                      ? { ...p, comment_count: p.comment_count + 1 }
+                      : p
+                  ),
+                };
+              });
+            } catch (err) {
+              console.error("ReceiveNewComment handler error", err);
             }
           });
 
@@ -163,7 +269,8 @@ export const useForumStore = create<ForumState>()(
 
           conn.on("ReceiveNewComment", (dto: any) => {
             try {
-              console.log("ReceiveNewComment", dto);
+              console.log("ReceiveNewComment RAW DTO:", dto);
+
               const mappedComment = {
                 comment_id: dto.commentId || dto.comment_id,
                 post_id: dto.postId || dto.post_id,
@@ -172,8 +279,8 @@ export const useForumStore = create<ForumState>()(
                 created_at:
                   dto.createdAt || dto.created_at || new Date().toISOString(),
                 created_by: dto.createdBy || dto.created_by,
-                author_name: dto.creatorName || dto.author_name || "Unknown",
-                author_initials: (dto.creatorName || dto.author_name || "U")
+                author_name: dto.creatorName || dto.authorName || "Unknown",
+                author_initials: (dto.creatorName || dto.authorName || "U")
                   .substring(0, 2)
                   .toUpperCase(),
                 author_class: dto.creatorClass || "",
@@ -183,17 +290,25 @@ export const useForumStore = create<ForumState>()(
               };
 
               set((state) => {
-                // Update currentPost nếu đang xem post đó
                 if (
                   state.currentPost &&
                   state.currentPost.post_id === mappedComment.post_id
                 ) {
                   const existingComments = state.currentPost.comments || [];
-                  const exists = existingComments.some(
-                    (c) => c.comment_id === mappedComment.comment_id
-                  );
 
-                  if (exists) {
+                  const isDuplicate = (
+                    comments: any[],
+                    targetId: number
+                  ): boolean => {
+                    for (const c of comments) {
+                      if (c.comment_id === targetId) return true;
+                      if (c.replies && isDuplicate(c.replies, targetId))
+                        return true;
+                    }
+                    return false;
+                  };
+
+                  if (isDuplicate(existingComments, mappedComment.comment_id)) {
                     console.log(
                       "Comment already exists, skipping:",
                       mappedComment.comment_id
@@ -201,28 +316,64 @@ export const useForumStore = create<ForumState>()(
                     return {};
                   }
 
-                  return {
-                    currentPost: {
-                      ...state.currentPost,
-                      comments: [...existingComments, mappedComment],
-                      comment_count: state.currentPost.comment_count + 1,
-                    },
-                    posts: state.posts.map((p) =>
-                      p.post_id === mappedComment.post_id
-                        ? { ...p, comment_count: p.comment_count + 1 }
-                        : p
-                    ),
-                  };
+                  if (mappedComment.parent_comment_id) {
+                    const addReplyToComment = (comments: any[]): any[] => {
+                      return comments.map((c) => {
+                        if (c.comment_id === mappedComment.parent_comment_id) {
+                          return {
+                            ...c,
+                            replies: [...(c.replies || []), mappedComment],
+                          };
+                        }
+                        if (c.replies && c.replies.length > 0) {
+                          return {
+                            ...c,
+                            replies: addReplyToComment(c.replies),
+                          };
+                        }
+                        return c;
+                      });
+                    };
+
+                    const newComments = addReplyToComment(existingComments);
+                    const topLevelCount = newComments.filter(
+                      (c) => !c.parent_comment_id
+                    ).length;
+
+                    return {
+                      currentPost: {
+                        ...state.currentPost,
+                        comments: newComments,
+                        comment_count: topLevelCount,
+                      },
+                      posts: state.posts.map((p) =>
+                        p.post_id === mappedComment.post_id
+                          ? { ...p, comment_count: topLevelCount }
+                          : p
+                      ),
+                    };
+                  } else {
+                    const newComments = [...existingComments, mappedComment];
+                    const topLevelCount = newComments.filter(
+                      (c) => !c.parent_comment_id
+                    ).length;
+
+                    return {
+                      currentPost: {
+                        ...state.currentPost,
+                        comments: newComments,
+                        comment_count: topLevelCount,
+                      },
+                      posts: state.posts.map((p) =>
+                        p.post_id === mappedComment.post_id
+                          ? { ...p, comment_count: topLevelCount }
+                          : p
+                      ),
+                    };
+                  }
                 }
 
-                // Chỉ update comment count trong posts list
-                return {
-                  posts: state.posts.map((p) =>
-                    p.post_id === mappedComment.post_id
-                      ? { ...p, comment_count: p.comment_count + 1 }
-                      : p
-                  ),
-                };
+                return {};
               });
             } catch (err) {
               console.error("ReceiveNewComment handler error", err);
@@ -501,7 +652,6 @@ export const useForumStore = create<ForumState>()(
         }
       },
 
-      // Sửa createPost method (Line 363-381)
       createPost: async (formData: FormData) => {
         set({ isLoading: true });
         try {
@@ -515,8 +665,6 @@ export const useForumStore = create<ForumState>()(
           const body = resp.data;
 
           if (body?.success) {
-            // KHÔNG thêm vào state nữa, để SignalR xử lý
-            // SignalR sẽ broadcast và thêm post với đầy đủ thông tin
             set({
               success: true,
               message: body?.message || "Tạo bài viết thành công",
@@ -616,17 +764,51 @@ export const useForumStore = create<ForumState>()(
           );
           const body = resp.data;
 
-          if (body?.success && get().currentPost?.post_id === postId) {
-            set((state) => ({
-              currentPost: state.currentPost
-                ? {
-                    ...state.currentPost,
-                    comments: body.data?.items || [],
-                  }
-                : null,
-              success: true,
-              message: body?.message || "",
-            }));
+          if (body?.success) {
+            const mapCommentWithReplies = (comment: any): any => {
+              return {
+                comment_id: comment.commentId || comment.comment_id,
+                post_id: comment.postId || comment.post_id,
+                parent_comment_id:
+                  comment.parentCommentId || comment.parent_comment_id,
+                content: comment.content,
+                created_at: comment.createdAt || comment.created_at,
+                created_by: comment.createdBy || comment.created_by,
+                author_name:
+                  comment.creatorName || comment.authorName || "Unknown",
+                author_initials: (
+                  comment.creatorName ||
+                  comment.authorName ||
+                  "U"
+                )
+                  .substring(0, 2)
+                  .toUpperCase(),
+                author_class: comment.creatorClass || "",
+                replies: (comment.replies || []).map(mapCommentWithReplies),
+                image_urls:
+                  comment.attachments?.map((a: any) => a.fileUrl).join(",") ||
+                  "",
+              };
+            };
+
+            const mappedComments = (body.data?.items || []).map(
+              mapCommentWithReplies
+            );
+
+            if (get().currentPost?.post_id === postId) {
+              set((state) => ({
+                currentPost: state.currentPost
+                  ? {
+                      ...state.currentPost,
+                      comments: mappedComments,
+                    }
+                  : null,
+                success: true,
+                message: body?.message || "",
+              }));
+            }
+
+            return body;
           } else {
             set({ success: false, message: body?.message || "" });
           }
@@ -640,7 +822,6 @@ export const useForumStore = create<ForumState>()(
         }
       },
 
-      // Sửa createComment method (Line 473-507)
       createComment: async (formData: FormData) => {
         set({ isLoading: true });
         try {
@@ -654,7 +835,6 @@ export const useForumStore = create<ForumState>()(
           const body = resp.data;
 
           if (body?.success) {
-            // KHÔNG thêm vào state, để SignalR handle
             set({
               success: true,
               message: body?.message || "Tạo bình luận thành công",

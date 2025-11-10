@@ -56,6 +56,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 mappedPost.ViolationRecords = await GetViolationRecordsByPostIdAsync(postId);
 
                 var (comments, _) = await _commentRepo.GetCommentsByPostIdAsync(postId);
+                mappedPost.CommentCount = await _context.ForumComments
+         .CountAsync(c => c.PostId == postId && c.DeletedAt == null);
                 mappedPost.Comments = comments;
 
                 return mappedPost;
@@ -119,6 +121,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                     post.CommentCount = await _context.ForumComments
                         .CountAsync(c => c.PostId == post.Id && c.DeletedAt == null);
+
                     post.AttachmentCount = await _context.ForumAttachments
                         .CountAsync(a => a.PostId == post.Id && a.DeletedAt == null);
 
@@ -206,6 +209,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                     post.CommentCount = await _context.ForumComments
                         .CountAsync(c => c.PostId == post.Id && c.DeletedAt == null);
+
                     post.AttachmentCount = await _context.ForumAttachments
                         .CountAsync(a => a.PostId == post.Id && a.DeletedAt == null);
 
@@ -221,9 +225,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                             CreatedBy = a.CreatedBy
                         })
                         .ToListAsync();
+
                     var (comments, _) = await _commentRepo.GetCommentsByPostIdAsync(post.Id);
                     post.Comments = comments;
-                    post.ViolationRecords = await GetViolationRecordsByPostIdAsync(post.Id);
                 }
 
                 return (result, totalCount);

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿﻿using Microsoft.AspNetCore.Http;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Utils;
@@ -227,7 +227,8 @@ namespace StudyHub.Backend.UseCases.Services
                 await _moderationRepo.MuteUserAsync(post.CreatedBy, post.SchoolId, DateTime.Now.AddDays(7));
             }
 
-            return createdPost;
+            var postWithDetails = await _postRepo.GetPostByIdAsync(createdPost.Id);
+            return postWithDetails ?? createdPost;
         }
 
         public async Task<ForumPost> UpdatePostAsync(ForumPost post)
@@ -327,7 +328,7 @@ namespace StudyHub.Backend.UseCases.Services
                 throw new ArgumentException($"File type {extension} không được phép");
 
             if (file.Length > FileConstants.MaxImageSize)
-                throw new ArgumentException($"File size vượt quá {FileConstants.MaxImageSize / ( 5 * 1024 * 1024)}MB");
+                throw new ArgumentException($"File size vượt quá {FileConstants.MaxImageSize / (5 * 1024 * 1024)}MB");
         }
     }
 }

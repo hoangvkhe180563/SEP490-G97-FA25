@@ -378,6 +378,20 @@ namespace StudyHub.Backend.Api.Controllers
                 var commentDto = createdComment.ToListDto();
                 await _forumHubContext.Clients.Group($"post-{dto.PostId}").SendAsync("ReceiveNewComment", commentDto);
 
+                var updatedPost = await _postService.GetPostByIdAsync(dto.PostId);
+
+                await _forumHubContext.Clients.Group($"post-{dto.PostId}").SendAsync("UpdateCommentCount", new
+                {
+                    postId = dto.PostId,
+                    commentCount = updatedPost.CommentCount
+                });
+
+                await _forumHubContext.Clients.Group($"school-{post.SchoolId}").SendAsync("UpdateCommentCount", new
+                {
+                    postId = dto.PostId,
+                    commentCount = updatedPost.CommentCount
+                });
+
                 return Ok(new { success = true, data = commentDto });
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("vi phạm") || ex.Message.Contains("kiểm duyệt"))
@@ -1948,4 +1962,4 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
     }
-} 
+}

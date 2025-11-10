@@ -248,13 +248,29 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     TotalViolationScore = comment.TotalViolationScore,
                     Status = comment.Status,
                     CreatedAt = comment.CreatedAt,
-                    CreatedBy = comment.CreatedBy
+                    CreatedBy = comment.CreatedBy,
                 };
 
                 _context.ForumComments.Add(entity);
                 await _context.SaveChangesAsync();
 
                 comment.CommentId = entity.Id;
+
+                var createdCommentWithDetails = await _context.ForumComments
+                    .Include(c => c.CreatedByNavigation)
+                    .FirstOrDefaultAsync(c => c.Id == entity.Id);
+
+                if (createdCommentWithDetails != null)
+                {
+                    comment.Creator = createdCommentWithDetails.CreatedByNavigation != null ? new AppUser
+                    {
+                        Id = Guid.Parse(createdCommentWithDetails.CreatedByNavigation.Id.ToString()),
+                        Username = createdCommentWithDetails.CreatedByNavigation.Username,
+                        Fullname = createdCommentWithDetails.CreatedByNavigation.Fullname,
+                        Avatar = createdCommentWithDetails.CreatedByNavigation.Avatar
+                    } : null;
+                }
+
                 return comment;
             }
             catch (Exception ex)

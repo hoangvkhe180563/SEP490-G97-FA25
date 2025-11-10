@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using StudyHub.Backend.UseCases.Services;
+using Microsoft.EntityFrameworkCore;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.Domain.Entities;
-
+using StudyHub.Backend.UseCases.Services;
 namespace StudyHub.Backend.Api.Hubs
 {
     public class ForumHub : Hub
@@ -106,7 +106,9 @@ namespace StudyHub.Backend.Api.Hubs
 
                 var createdPost = await _postService.CreatePostAsync(post, null);
 
-                var dto = createdPost.ToListDto();
+                var postWithDetails = await _postService.GetPostByIdAsync(createdPost.Id);
+                var dto = postWithDetails.ToListDto();
+
                 await Clients.Group($"school-{schoolId}").SendAsync("ReceiveNewPost", dto);
 
                 return new { success = true, data = dto };
@@ -160,8 +162,16 @@ namespace StudyHub.Backend.Api.Hubs
 
                 var createdComment = await _commentService.CreateCommentAsync(comment, null);
 
-                var dto = createdComment.ToListDto();
+                var commentWithDetails = await _commentService.GetCommentByIdAsync(createdComment.CommentId);
+                var dto = commentWithDetails.ToListDto();
+
                 await Clients.Group($"post-{postId}").SendAsync("ReceiveNewComment", dto);
+
+                var updatedPost = await _postService.GetPostByIdAsync(postId);
+                var updatedPostDto = updatedPost.ToListDto();
+
+                await Clients.Group($"post-{postId}").SendAsync("PostUpdated", updatedPostDto);
+                await Clients.Group($"school-{post.SchoolId}").SendAsync("PostUpdated", updatedPostDto);
 
                 return new { success = true, data = dto };
             }

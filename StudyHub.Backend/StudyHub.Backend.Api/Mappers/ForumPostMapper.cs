@@ -36,7 +36,7 @@ namespace StudyHub.Backend.Api.Mappers
                 CreatedBy = post.CreatedBy,
                 CreatorName = authorName,
                 CreatorAvatar = post.Creator?.Avatar,
-
+                AuthorInitials = authorInitials,
                 AuthorName = authorName,
                 Attachments = post.Attachments?.Select(a => new ForumAttachmentDto
                 {
@@ -127,27 +127,31 @@ namespace StudyHub.Backend.Api.Mappers
                     TotalViolationScore = c.TotalViolationScore,
                     Status = c.Status,
                     StatusText = c.Status == null
-                        ? "Pending"
-                        : (c.Status.Value ? "Approved" : "Rejected"),
+         ? "Pending"
+         : (c.Status.Value ? "Approved" : "Rejected"),
                     IsHidden = c.IsHidden,
                     CreatedAt = c.CreatedAt,
                     CreatedBy = c.CreatedBy,
                     CreatorName = c.Creator?.Username ?? "Unknown",
                     CreatorAvatar = c.Creator?.Avatar,
+                    AuthorName = c.Creator?.Username ?? "Unknown",
+                    AuthorInitials = c.Creator?.Username?.Length >= 2
+         ? c.Creator.Username.Substring(0, 2).ToUpper()
+         : "U",
                     UpdatedAt = c.UpdatedAt,
                     ReplyCount = c.ReplyCount,
                     Replies = c.Replies?.Select(r => r.ToListDto()).ToList()
-                        ?? new List<ForumCommentListDto>(),
-                    Attachments = c.Attachments?
-                        .Where(a => a.IsApproved == true)
-                        .Select(a => new ForumAttachmentDto
-                        {
-                            AttachmentId = a.Id,
-                            CommentId = a.CommentId,
-                            FileUrl = a.FileUrl ?? string.Empty,
-                            IsApproved = a.IsApproved,
-                            CreatedAt = a.CreatedAt
-                        }).ToList() ?? new List<ForumAttachmentDto>()
+         ?? new List<ForumCommentListDto>(),
+                    Attachments = c.Attachments?.Where(a => a.IsApproved == true)
+         .Select(a => new ForumAttachmentDto
+         {
+             AttachmentId = a.Id,
+             CommentId = a.CommentId,
+             FileUrl = a.FileUrl ?? string.Empty,
+             IsApproved = a.IsApproved,
+             CreatedAt = a.CreatedAt
+         }).ToList()
+         ?? new List<ForumAttachmentDto>()
                 }).ToList() ?? new List<ForumCommentListDto>(),
                 ViolationRecords = post.ViolationRecords?.Select(v => new ViolationRecordDto
                 {
