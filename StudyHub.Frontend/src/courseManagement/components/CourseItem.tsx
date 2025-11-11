@@ -18,6 +18,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/common/components/ui/alert-dialog";
+import { Button } from "@/common/components/ui/button";
 
 type Props = {
   course: Course;
@@ -219,14 +220,15 @@ const CourseItem: React.FC<Props> = ({ course }) => {
           {course.status !== "Đóng" && isOwner && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <button
-                  title={course.status === "Mở" ? "Đóng khóa học" : "Xóa"}
-                  className={`p-1.5 hover:bg-gray-100 rounded ${
+                <Button
+                  variant="ghost"
+                  className={`p-1.5 rounded ${
                     course.status === "Mở" ? "text-amber-600" : "text-rose-600"
                   }`}
+                  title={course.status === "Mở" ? "Đóng khóa học" : "Xóa"}
                 >
                   <Trash2 className="w-4 h-4" />
-                </button>
+                </Button>
               </AlertDialogTrigger>
 
               <AlertDialogContent>

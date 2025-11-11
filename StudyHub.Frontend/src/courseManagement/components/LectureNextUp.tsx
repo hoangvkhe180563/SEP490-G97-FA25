@@ -65,9 +65,6 @@ const LectureNextUp: React.FC = () => {
                   );
                 }}
                 disabled={selected ? !getLessonCompleted(selected.id) : false}
-                aria-disabled={
-                  selected ? !getLessonCompleted(selected.id) : false
-                }
                 title={
                   selected && !getLessonCompleted(selected.id)
                     ? "Hoàn thành bài học hiện tại để mở bài tiếp theo"

@@ -22,6 +22,74 @@ public class EnrollmentController : ControllerBase
         _courseService = courseService;
     }
 
+    /// <summary>
+    /// Consume available wallet for a course registration. If the wallet fully covers the course price
+    /// this endpoint will debit the wallet and create the enrollment (same as Enroll). If the wallet
+    /// is insufficient it will debit whatever is available and return the remaining amount to be paid.
+    /// </summary>
+    [HttpPost("consume-wallet")]
+    public IActionResult ConsumeWallet([FromBody] ConsumeWalletDto dto)
+    {
+        if (dto == null) return BadRequest();
+
+        var course = _courseService.GetCourse(dto.CourseId);
+        if (course == null) return BadRequest("Course not found");
+
+        var price = (long)course.Price;
+
+        // free course: create enrollment immediately
+        if (price <= 0)
+        {
+            var entityFree = new EnrollmentDto { AppUserId = dto.AppUserId, CourseId = dto.CourseId }.ToEntity();
+            var createdFree = _enrollService.CreateEnrollment(entityFree);
+            return CreatedAtAction(nameof(GetEnrollment), new { id = createdFree.Id }, createdFree.ToListDto());
+        }
+
+        var wallet = _paymentService.GetWalletByUserId(dto.AppUserId);
+        if (wallet == null) return BadRequest("User not found");
+
+        // wallet fully covers price -> debit and create enrollment
+        if (wallet >= price)
+        {
+            var debitResult = _paymentService.DebitWalletByUserId(dto.AppUserId, price);
+            if (debitResult == null) return BadRequest("User not found");
+            if (debitResult == -1) return BadRequest("Insufficient wallet balance"); // unlikely since we checked
+
+            try
+            {
+                var entity = new EnrollmentDto { AppUserId = dto.AppUserId, CourseId = dto.CourseId }.ToEntity();
+                var created = _enrollService.CreateEnrollment(entity);
+                return CreatedAtAction(nameof(GetEnrollment), new { id = created.Id }, created.ToListDto());
+            }
+            catch (Exception)
+            {
+                // refund
+                try { _paymentService.CreditWalletByUserId(dto.AppUserId, price); } catch { }
+                return StatusCode(500, "Failed to create enrollment after charging. Refunded.");
+            }
+        }
+
+        // wallet is positive but less than price -> consume wallet and return remaining
+        var toDeduct = wallet.Value > 0 ? wallet.Value : 0L;
+        long deducted = 0;
+        if (toDeduct > 0)
+        {
+            var debitPartial = _paymentService.DebitWalletByUserId(dto.AppUserId, toDeduct);
+            if (debitPartial == null) return BadRequest("User not found");
+            if (debitPartial == -1)
+            {
+                // should not happen because toDeduct <= wallet
+                return StatusCode(500, "Failed to deduct wallet.");
+            }
+            deducted = toDeduct;
+        }
+
+        var remaining = price - deducted;
+        var balanceAfter = _paymentService.GetWalletByUserId(dto.AppUserId) ?? 0L;
+
+        return Ok(new { deducted, remaining, balance = balanceAfter, courseId = dto.CourseId, price });
+    }
+
     [HttpPost]
     public IActionResult Enroll([FromBody] EnrollmentDto dto)
     {
@@ -52,7 +120,7 @@ public class EnrollmentController : ControllerBase
             catch (Exception)
             {
                 // refund
-                try { _paymentService.CreditWalletByUserId(dto.AppUserId, (long)course.Price); } 
+                try { _paymentService.CreditWalletByUserId(dto.AppUserId, (long)course.Price); }
                 catch { /* ignore */ }
                 return StatusCode(500, "Failed to create enrollment after charging. Refunded.");
             }

@@ -1,54 +1,63 @@
+import { useAuthStore } from '@/auth/stores/useAuthStore';
 import { useLoading } from '@/common/hooks/useLoading';
 import type { ExamResult } from '@/exam/interfaces/models/ExamResult';
 import { ExamService } from '@/exam/services/ExamService';
-import { MOCK_DATA_USERS } from '@/exam/services/MockData';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const ListResults = () => {
-  const user = MOCK_DATA_USERS[1];
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [results, setResults] = useState<ExamResult[]>([]);
   const { setLoading } = useLoading();
   const [error, setError] = useState<string>('');
   const [examTitles, setExamTitles] = useState<any>({});
   const examService = new ExamService();
 
-  useEffect(() => {
-    const fetchResults = async () => {
-      try {
-        setLoading(true);
-        let fetchedResults = [];
-        fetchedResults = await examService.getAllStudentResults(user.id);
-        fetchedResults = fetchedResults.filter(res => res.studentId == user.id);
+  // useEffect(() => {
+  //   if (!user) {
+  //     return;
+  //   }
+  //   if (!user.roles.some(role => role.includes("Student"))) {
+  //     navigate("/");
+  //     return;
+  //   }
+    
+  //   const fetchResults = async () => {
+  //     try {
+  //       setLoading(true);
+  //       let fetchedResults = [];
+  //       fetchedResults = await examService.getResultsByStudentAndExamId(user.id);
+  //       fetchedResults = fetchedResults.filter(res => res.studentId == user.id);
 
-        const examIds = [...new Set(fetchedResults.map(r => r.examId))];
+  //       const examIds = [...new Set(fetchedResults.map(r => r.examId))];
 
-        const examTitlePromises = examIds.map(id => examService.getExamById(id).then(exam => ({ id, title: exam.title })));
+  //       const examTitlePromises = examIds.map(id => examService.getExamById(id).then(exam => ({ id, title: exam.title })));
 
-        const fetchedExamTitles = await Promise.all(examTitlePromises);
-        const examTitleMap = fetchedExamTitles.reduce((acc, curr) => ({ ...acc, [curr.id]: curr.title }), {});
+  //       const fetchedExamTitles = await Promise.all(examTitlePromises);
+  //       const examTitleMap = fetchedExamTitles.reduce((acc, curr) => ({ ...acc, [curr.id]: curr.title }), {});
 
-        setExamTitles(examTitleMap);
-        setResults(fetchedResults);
+  //       setExamTitles(examTitleMap);
+  //       setResults(fetchedResults);
 
-      } catch (err) {
-        console.error("Failed to fetch results:", err);
-        setError("Không thể tải danh sách kết quả.");
-      } finally {
-        setLoading(false);
-      }
-    };
+  //     } catch (err) {
+  //       console.error("Failed to fetch results:", err);
+  //       setError("Không thể tải danh sách kết quả.");
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
-    fetchResults();
-  }, [user]);
+  //   fetchResults();
+  // }, [user]);
 
-  if (error) {
-    return <div className="container mx-auto mt-8 p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>;
-  }
+  // if (error) {
+  //   return <div className="container mx-auto mt-8 p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>;
+  // }
 
   return (
     <div className="container mx-auto mt-8 p-4">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">
+      {/* <h1 className="text-3xl font-bold mb-6 text-gray-800">
         Lịch sử làm bài (Học sinh [Student.Username])
       </h1>
 
@@ -69,8 +78,8 @@ const ListResults = () => {
               {results.map((result) => (
                 <tr key={result.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{examTitles[result.examId] || 'Đang tải...'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{result.score}/{result.totalQuestions}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(result.submissionDate).toLocaleString("vi-VN")}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{result.score}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{result.submissionTime?.toLocaleString("vi-VN")}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <Link
                       to={`/results/${result.id}`}
@@ -84,7 +93,7 @@ const ListResults = () => {
             </tbody>
           </table>
         </div>
-      )}
+      )} */}
     </div>
   );
 };

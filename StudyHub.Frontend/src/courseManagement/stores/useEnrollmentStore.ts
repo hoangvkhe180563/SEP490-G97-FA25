@@ -7,6 +7,10 @@ type EnrollmentState = {
   progresses: Record<number, string | null>;
   fetchByUser: (userId: string) => Promise<any[] | null>;
   enroll: (payload: { appUserId: string; courseId: number }) => Promise<any>;
+  consumeWallet: (payload: {
+    appUserId: string;
+    courseId: number;
+  }) => Promise<any>;
   getEnrollmentForCourse: (courseId: number) => any | null;
   recordProgress: (
     enrollmentId: number,
@@ -46,6 +50,30 @@ export const useEnrollmentStore = create<EnrollmentState>((set, get) => ({
         loading: false,
       }));
       return created;
+    } catch (err) {
+      set({ loading: false });
+      throw err;
+    }
+  },
+  consumeWallet: async (payload: { appUserId: string; courseId: number }) => {
+    set({ loading: true });
+    try {
+      const res = await enrollmentService.consumeWallet(payload);
+      // if backend created enrollment, status is 201 and data contains created enrollment
+      if (res.status === 201) {
+        const created =
+          res.data?.data ?? res.data ?? res.data?.Data ?? res.data;
+        set((s: any) => ({
+          enrollments: [...(s.enrollments || []), created],
+          loading: false,
+        }));
+        return { created };
+      }
+
+      // otherwise, expect object with deducted/remaining
+      const info = res.data ?? {};
+      set({ loading: false });
+      return { info };
     } catch (err) {
       set({ loading: false });
       throw err;

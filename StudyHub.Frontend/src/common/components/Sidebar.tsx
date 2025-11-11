@@ -80,7 +80,7 @@ export const Sidebar = (props: {
         {expanded ? (
           <div className="flex-1 flex items-center ml-3">
             <div className="w-32 transition-opacity duration-150">
-              <p className="font-medium">{props.user.username}</p>
+              <p className="font-medium">{props.user.fullname}</p>
               <p className="text-sm text-gray-600 line-clamp-1">
                 {props.user.email}
               </p>

@@ -16,16 +16,6 @@ type Props = {
   courseId?: number;
 };
 
-const formatDate = (iso?: string) => {
-  if (!iso) return "";
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString();
-  } catch {
-    return iso;
-  }
-};
-
 const LectureDiscussion: React.FC<Props> = ({ lessonId, courseId }) => {
   // ===== STORE =====
   const commentsMap = useLessonCommentStore((s: any) => s.commentsByLesson);
@@ -154,7 +144,7 @@ const LectureDiscussion: React.FC<Props> = ({ lessonId, courseId }) => {
                       </p>
                       <div className="flex items-center text-xs text-gray-500 mt-0.5">
                         <Clock className="w-3.5 h-3.5 mr-1 text-gray-400" />
-                        <span>{formatDate(c.createdAt)}</span>
+                        <span>{new Date(c.createdAt).toLocaleString("vi-VN")}</span>
                       </div>
                     </div>
 

@@ -1,33 +1,320 @@
+import { useAuthStore } from '@/auth/stores/useAuthStore';
 import { Button } from '@/common/components/ui/button';
 import { Checkbox } from '@/common/components/ui/checkbox';
 import { Label } from '@/common/components/ui/label';
 import { useLoading } from '@/common/hooks/useLoading';
-import { BLANK_PLACEHOLDER, DEFAULT_QUESTION, EXAM_TYPE } from '@/exam/constants/Constants';
+import { BLANK_PLACEHOLDER, EXAM_TYPE } from '@/exam/constants/Constants';
 import type { Exam } from '@/exam/interfaces/models/Exam';
 import type { Question } from '@/exam/interfaces/models/Question';
 import { ExamService } from '@/exam/services/ExamService';
-import { MOCK_DATA_USERS } from '@/exam/services/MockData';
+import { getFormattedDateTime } from '@/exam/utils/ExamUtils';
 import { ArrowLeft } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 
 const CreateExam = () => {
-  const user = MOCK_DATA_USERS[0];
+  const { user } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const [classId, setClassId] = useState<number>(0);
+  const [className, setClassName] = useState<string>('');
+  const [lessonId, setLessonId] = useState<number>(0);
+  const [lessonName, setLessonName] = useState<string>('');
   const navigate = useNavigate();
   const [examTitle, setExamTitle] = useState('');
   const [examDescription, setExamDescription] = useState('');
   const [examDuration, setExamDuration] = useState<string>('');
   const [questions, setQuestions] = useState<Question[]>([]);
   const { setLoading } = useLoading();
-  const [error, setError] = useState<string>('');
   const [excelFileError, setExcelFileError] = useState<string>('');
   const [showAnswers, setShowAnswers] = useState<boolean>(true);
   const [showCorrectAnswers, setShowCorrectAnswers] = useState<boolean>(false);
+  const [openTime, setOpenTime] = useState<string>(getFormattedDateTime(new Date()));
+  const [closeTime, setCloseTime] = useState<string>('');
   const examService = new ExamService();
 
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    if (!user.roles.some(role => role.includes("Teacher"))) {
+      navigate("/");
+      return;
+    }
+    const fetchData = async () => {
+      const classIdQuery = Number(searchParams.get("classId"));
+      const lessonIdQuery = Number(searchParams.get("lessonId"));
+      if (lessonIdQuery) {
+        setLessonId(lessonIdQuery);
+        const lessonName = await examService.getLessonName(lessonIdQuery);
+        setLessonName(lessonName);
+      } else if (classIdQuery) {
+        setClassId(classIdQuery);
+        const className = await examService.getClassName(classIdQuery);
+        setClassName(className);
+      } else {
+        toast.error("Chưa có id của lớp hoặc bài học để tạo bài kiểm tra!");
+        navigate("/");
+      }
+    }
+    fetchData().catch(console.error);
+  }, [user])
+
+  const handleExcelFileUpload: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    if (!e.target.files) {
+      setExcelFileError("Vui lòng chọn một file Excel.");
+      return;
+    }
+    const file = e.target.files[0];
+
+    setExcelFileError('');
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        if (json.length < 2) {
+          setExcelFileError("File Excel không có dữ liệu câu hỏi.");
+          return;
+        }
+
+        const header: any = json[0]; // Hàng tiêu đề
+        const questionRows = json.slice(1); // Dữ liệu câu hỏi
+
+        const newQuestions: Question[] = [];
+        let rowErrors: string[] = [];
+
+        questionRows.forEach((row: any, rowIndex) => {
+          const question: Question = {
+            id: Date.now(),
+            type: 'single-choice',
+            questionText: '',
+            options: [],
+            correctAnswer: null
+          };
+          let isValidRow = true;
+
+          const questionType = String(row[header.indexOf('Loại câu hỏi')] || '').toLowerCase();
+          const questionText = String(row[header.indexOf('Tên câu hỏi')] || '').trim();
+          const correctAnswerRaw = String(row[header.indexOf('Đáp án đúng')] || '').trim();
+
+          if (!questionType || !questionText || !correctAnswerRaw) {
+            rowErrors.push(`Hàng ${rowIndex + 2}: Thiếu loại câu hỏi, nội dung hoặc đáp án đúng.`);
+            isValidRow = false;
+          }
+
+          if (isValidRow) {
+            question.id = Date.now() + rowIndex;
+            question.questionText = questionText;
+            question.type = questionType as "single-choice" | "multiple-choice" | "text-input" | "fill-blank";
+            question.options = [];
+
+            if (questionType === EXAM_TYPE.SINGLE_CHOICE || questionType === EXAM_TYPE.MULTI_CHOICE) {
+              const options: string[] = [];
+              for (let i = header.indexOf('Các đáp án…'); i < row.length; i++) {
+                const optionValue = row[i];
+                if (optionValue !== undefined && optionValue !== null && String(optionValue).trim() !== '') {
+                  options.push(String(optionValue).trim());
+                }
+              }
+              if (options.length === 0) {
+                rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi trắc nghiệm phải có ít nhất một lựa chọn.`);
+                isValidRow = false;
+              }
+              question.options = options;
+
+              if (questionType === EXAM_TYPE.SINGLE_CHOICE) {
+                question.correctAnswer = options.findIndex(o => o === correctAnswerRaw);
+                if (!options.includes(correctAnswerRaw)) {
+                  rowErrors.push(`Hàng ${rowIndex + 2}: Đáp án đúng không nằm trong các lựa chọn.`);
+                  isValidRow = false;
+                }
+              } else {
+                const correctAnswersArray = correctAnswerRaw.split(',').map(ans => ans.trim()).filter(ans => ans !== '');
+                if (correctAnswersArray.length === 0) {
+                  rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi nhiều đáp án phải có ít nhất một đáp án đúng.`);
+                  isValidRow = false;
+                }
+                if (!correctAnswersArray.every(ans => options.includes(ans))) {
+                  rowErrors.push(`Hàng ${rowIndex + 2}: Một hoặc nhiều đáp án đúng không nằm trong các lựa chọn.`);
+                  isValidRow = false;
+                }
+                const correctAnswersIndex = correctAnswersArray.map(ans => options.findIndex(o => o === ans));
+                question.correctAnswer = correctAnswersIndex;
+              }
+            } else if (questionType === EXAM_TYPE.TEXT_INPUT) {
+              question.correctAnswer = correctAnswerRaw;
+            } else if (questionType === EXAM_TYPE.FILL_IN_BLANK) {
+              const expectedBlanks = (questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+              const correctAnswersArray = correctAnswerRaw.split(',').map(ans => ans.trim()).filter(ans => ans !== '');
+
+              if (expectedBlanks === 0) {
+                rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi điền khuyết phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
+                isValidRow = false;
+              } else if (correctAnswersArray.length !== expectedBlanks) {
+                rowErrors.push(`Hàng ${rowIndex + 2}: Số lượng đáp án đúng (${correctAnswersArray.length}) không khớp với số chỗ trống (${expectedBlanks}).`);
+                isValidRow = false;
+              }
+              question.correctAnswer = correctAnswersArray;
+            } else {
+              rowErrors.push(`Hàng ${rowIndex + 2}: Loại câu hỏi không hợp lệ (${questionType}).`);
+              isValidRow = false;
+            }
+          }
+
+          if (isValidRow) {
+            newQuestions.push(question);
+          }
+        });
+
+        if (rowErrors.length > 0) {
+          setExcelFileError(`Có lỗi khi đọc file Excel:<br/>${rowErrors.slice(0, 10).join('<br/>')} ${rowErrors.length > 10 && '<br/>(Quá nhiều lỗi, vui lòng nhập đúng cấu trúc trong file mẫu!)'}`);
+          return;
+        }
+        if (newQuestions.length === 0) {
+          setExcelFileError("Không có câu hỏi hợp lệ nào được tìm thấy trong file Excel.");
+          return;
+        }
+
+        setQuestions(prevQuestions => [...prevQuestions, ...newQuestions]);
+        toast.success(`Đã nhập thành công ${newQuestions.length} câu hỏi từ file Excel.`, {
+          style: { maxWidth: 600 }
+        });
+
+      } catch (err) {
+        console.error("Error reading Excel file:", err);
+        setExcelFileError(`Lỗi khi đọc file Excel.`);
+      } finally {
+        e.target.value = '';
+      }
+    };
+
+    reader.onerror = (error) => {
+      console.error("FileReader error:", error);
+      setExcelFileError("Lỗi đọc file. Vui lòng thử lại.");
+    };
+
+    reader.readAsArrayBuffer(file);
+  }
+
+  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
+    e.preventDefault();
+
+    if (!user) {
+      toast.error("Chưa đăng nhập vui lòng thử lại!");
+      return;
+    }
+    setLoading(true);
+
+    if (!examTitle || !examDescription || !examDuration || questions.length === 0) {
+      toast.error("Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi.");
+      setLoading(false);
+      return;
+    }
+
+    if (closeTime && closeTime < openTime) {
+      toast.error("Ngày bắt đầu phải trước ngày kết thúc!");
+      setLoading(false);
+      return;
+    }
+
+    // Basic validation for questions
+    for (const q of questions) {
+      if (!q.questionText.trim()) {
+        toast.error("Vui lòng nhập nội dung cho tất cả các câu hỏi.");
+        setLoading(false);
+        return;
+      }
+      if (q.type === EXAM_TYPE.SINGLE_CHOICE || q.type === EXAM_TYPE.MULTI_CHOICE) {
+        if (q.options.some(opt => !String(opt).trim())) {
+          toast.error(`Vui lòng nhập nội dung cho tất cả các lựa chọn hoặc xóa lựa chọn trống cho câu hỏi "${q.questionText}".`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (q.type === EXAM_TYPE.SINGLE_CHOICE) {
+        if (!String(q.correctAnswer).trim()) {
+          toast.error(`Vui lòng chọn đáp án đúng cho câu hỏi "${q.questionText}".`);
+          setLoading(false);
+          return;
+        }
+      } else if (q.type === EXAM_TYPE.MULTI_CHOICE) {
+        if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length === 0 || q.correctAnswer.some(ans => !String(ans).trim())) {
+          toast.error(`Vui lòng chọn ít nhất một đáp án đúng cho câu hỏi "${q.questionText}".`);
+          setLoading(false);
+          return;
+        }
+      } else if (q.type === EXAM_TYPE.TEXT_INPUT) {
+        if (!String(q.correctAnswer).trim()) {
+          toast.error(`Vui lòng nhập đáp án đúng cho câu hỏi "${q.questionText}".`);
+          setLoading(false);
+          return;
+        }
+      } else if (q.type === EXAM_TYPE.FILL_IN_BLANK) {
+        const expectedBlanks = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+        if (expectedBlanks === 0) {
+          toast.error(`Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
+          setLoading(false);
+          return;
+        }
+        if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length !== expectedBlanks || q.correctAnswer.some(ans => !String(ans).trim())) {
+          toast.error(`Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${q.questionText}".`);
+          setLoading(false);
+          return;
+        }
+      }
+    }
+
+    const newExam: Exam = {
+      id: 999,
+      title: examTitle,
+      description: examDescription,
+      duration: parseInt(examDuration),
+      createdBy: user.id,
+      questions: questions.map(({ id, ...rest }, index) => {
+        return {
+          id: index + 1, ...rest
+        }
+      }),
+      showAnswers: showAnswers,
+      showCorrectAnswers: showCorrectAnswers,
+      classId: classId,
+      lessonId: lessonId,
+      openTime: new Date(openTime),
+      closeTime: closeTime ? new Date(closeTime) : undefined
+    };
+
+    try {
+      const success = await examService.createExam(newExam);
+      if (success) {
+        toast.success('Tạo bài kiểm tra thành công!');
+        navigate(`/exam/teacher/class-exams/${classId}`);
+      } else {
+        toast.error('Tạo bài kiểm tra thất bại. Vui lòng thử lại.');
+      }
+    } catch (err) {
+      console.error("Failed to create exam:", err);
+      toast.error("Tạo bài kiểm tra thất bại. Vui lòng thử lại.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const addQuestion = (type: string) => {
-    let newQuestion = DEFAULT_QUESTION;
+    let newQuestion: Question = {
+      id: Date.now(),
+      type: 'single-choice',
+      questionText: '',
+      options: [],
+      correctAnswer: ''
+    };
     newQuestion.type = type as "single-choice" | "multiple-choice" | "text-input" | "fill-blank";
 
     if (type === EXAM_TYPE.SINGLE_CHOICE) {
@@ -103,244 +390,20 @@ const CreateExam = () => {
     setQuestions(questions.filter(q => q.id !== id));
   };
 
-  const handleExcelFileUpload: React.ChangeEventHandler<HTMLInputElement> = (e) => {
-    if (!e.target.files) {
-      setExcelFileError("Vui lòng chọn một file Excel.");
-      return;
-    }
-    const file = e.target.files[0];
-
-    setExcelFileError('');
-    const reader = new FileReader();
-
-    reader.onload = (event) => {
-      try {
-        const data = new Uint8Array(event.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-        if (json.length < 2) {
-          setExcelFileError("File Excel không có dữ liệu câu hỏi.");
-          return;
-        }
-
-        const header: any = json[0]; // Hàng tiêu đề
-        const questionRows = json.slice(1); // Dữ liệu câu hỏi
-
-        const newQuestions: Question[] = [];
-        let rowErrors: string[] = [];
-
-        questionRows.forEach((row: any, rowIndex) => {
-          const question: Question = DEFAULT_QUESTION;
-          let isValidRow = true;
-
-          const questionType = String(row[header.indexOf('Loại câu hỏi')] || '').toLowerCase();
-          const questionText = String(row[header.indexOf('Tên câu hỏi')] || '').trim();
-          const correctAnswerRaw = String(row[header.indexOf('Đáp án đúng')] || '').trim();
-
-          if (!questionType || !questionText || !correctAnswerRaw) {
-            rowErrors.push(`Hàng ${rowIndex + 2}: Thiếu loại câu hỏi, nội dung hoặc đáp án đúng.`);
-            isValidRow = false;
-          }
-
-          if (isValidRow) {
-            question.id = Date.now() + rowIndex;
-            question.questionText = questionText;
-            question.type = questionType as "single-choice" | "multiple-choice" | "text-input" | "fill-blank";
-            question.options = [];
-
-            if (questionType === EXAM_TYPE.SINGLE_CHOICE || questionType === EXAM_TYPE.MULTI_CHOICE) {
-              const options: string[] = [];
-              for (let i = header.indexOf('Các đáp án…'); i < row.length; i++) {
-                const optionValue = row[i];
-                if (optionValue !== undefined && optionValue !== null && String(optionValue).trim() !== '') {
-                  options.push(String(optionValue).trim());
-                }
-              }
-              if (options.length === 0) {
-                rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi trắc nghiệm phải có ít nhất một lựa chọn.`);
-                isValidRow = false;
-              }
-              question.options = options;
-
-              if (questionType === EXAM_TYPE.SINGLE_CHOICE) {
-                question.correctAnswer = correctAnswerRaw;
-                if (!options.includes(question.correctAnswer)) {
-                  rowErrors.push(`Hàng ${rowIndex + 2}: Đáp án đúng không nằm trong các lựa chọn.`);
-                  isValidRow = false;
-                }
-              } else {
-                const correctAnswersArray = correctAnswerRaw.split(',').map(ans => ans.trim()).filter(ans => ans !== '');
-                if (correctAnswersArray.length === 0) {
-                  rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi nhiều đáp án phải có ít nhất một đáp án đúng.`);
-                  isValidRow = false;
-                }
-                if (!correctAnswersArray.every(ans => options.includes(ans))) {
-                  rowErrors.push(`Hàng ${rowIndex + 2}: Một hoặc nhiều đáp án đúng không nằm trong các lựa chọn.`);
-                  isValidRow = false;
-                }
-                question.correctAnswer = correctAnswersArray;
-              }
-            } else if (questionType === EXAM_TYPE.TEXT_INPUT) {
-              question.correctAnswer = correctAnswerRaw;
-            } else if (questionType === EXAM_TYPE.FILL_IN_BLANK) {
-              const expectedBlanks = (questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
-              const correctAnswersArray = correctAnswerRaw.split(',').map(ans => ans.trim()).filter(ans => ans !== '');
-
-              if (expectedBlanks === 0) {
-                rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi điền khuyết phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
-                isValidRow = false;
-              } else if (correctAnswersArray.length !== expectedBlanks) {
-                rowErrors.push(`Hàng ${rowIndex + 2}: Số lượng đáp án đúng (${correctAnswersArray.length}) không khớp với số chỗ trống (${expectedBlanks}).`);
-                isValidRow = false;
-              }
-              question.correctAnswer = correctAnswersArray;
-            } else {
-              rowErrors.push(`Hàng ${rowIndex + 2}: Loại câu hỏi không hợp lệ (${questionType}).`);
-              isValidRow = false;
-            }
-          }
-
-          if (isValidRow) {
-            newQuestions.push(question);
-          }
-        });
-
-        if (rowErrors.length > 0) {
-          setExcelFileError(`Có lỗi khi đọc file Excel:<br/>${rowErrors.slice(0, 10).join('<br/>')} ${rowErrors.length > 10 && '<br/>(Quá nhiều lỗi, vui lòng nhập đúng cấu trúc trong file mẫu!)'}`);
-          return;
-        }
-        if (newQuestions.length === 0) {
-          setExcelFileError("Không có câu hỏi hợp lệ nào được tìm thấy trong file Excel.");
-          return;
-        }
-
-        setQuestions(prevQuestions => [...prevQuestions, ...newQuestions]);
-        alert(`Đã nhập thành công ${newQuestions.length} câu hỏi từ file Excel.`);
-
-      } catch (err) {
-        console.error("Error reading Excel file:", err);
-        setExcelFileError(`Lỗi khi đọc file Excel.`);
-      } finally {
-        e.target.value = '';
-      }
-    };
-
-    reader.onerror = (error) => {
-      console.error("FileReader error:", error);
-      setExcelFileError("Lỗi đọc file. Vui lòng thử lại.");
-    };
-
-    reader.readAsArrayBuffer(file);
-  }
-
-  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    if (!user || user.role !== 'teacher') {
-      setError("Bạn không có quyền tạo bài kiểm tra.");
-      setLoading(false);
-      return;
-    }
-
-    if (!examTitle || !examDescription || !examDuration || questions.length === 0) {
-      setError("Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi.");
-      setLoading(false);
-      return;
-    }
-
-    // Basic validation for questions
-    for (const q of questions) {
-      if (!q.questionText.trim()) {
-        setError("Vui lòng nhập nội dung cho tất cả các câu hỏi.");
-        setLoading(false);
-        return;
-      }
-      if (q.type === EXAM_TYPE.SINGLE_CHOICE || q.type === EXAM_TYPE.MULTI_CHOICE) {
-        if (q.options.some(opt => !String(opt).trim())) {
-          setError(`Vui lòng nhập nội dung cho tất cả các lựa chọn hoặc xóa lựa chọn trống cho câu hỏi "${q.questionText}".`);
-          setLoading(false);
-          return;
-        }
-      }
-
-      if (q.type === EXAM_TYPE.SINGLE_CHOICE) {
-        if (!String(q.correctAnswer).trim()) {
-          setError(`Vui lòng chọn đáp án đúng cho câu hỏi "${q.questionText}".`);
-          setLoading(false);
-          return;
-        }
-      } else if (q.type === EXAM_TYPE.MULTI_CHOICE) {
-        if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length === 0 || q.correctAnswer.some(ans => !String(ans).trim())) {
-          setError(`Vui lòng chọn ít nhất một đáp án đúng cho câu hỏi "${q.questionText}".`);
-          setLoading(false);
-          return;
-        }
-      } else if (q.type === EXAM_TYPE.TEXT_INPUT) {
-        if (!String(q.correctAnswer).trim()) {
-          setError(`Vui lòng nhập đáp án đúng cho câu hỏi "${q.questionText}".`);
-          setLoading(false);
-          return;
-        }
-      } else if (q.type === EXAM_TYPE.FILL_IN_BLANK) {
-        const expectedBlanks = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
-        if (expectedBlanks === 0) {
-          setError(`Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
-          setLoading(false);
-          return;
-        }
-        if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length !== expectedBlanks || q.correctAnswer.some(ans => !String(ans).trim())) {
-          setError(`Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${q.questionText}".`);
-          setLoading(false);
-          return;
-        }
-      }
-    }
-
-    const newExam: Exam = {
-      id: 999,
-      title: examTitle,
-      description: examDescription,
-      duration: parseInt(examDuration),
-      createdBy: Number(user.id),
-      questions: questions.map(({ id, ...rest }, index) => {
-        return {
-          id: index + 1, ...rest
-        }
-      }),
-    };
-
-    try {
-      await examService.createExam(newExam);
-      alert('Tạo bài kiểm tra thành công!');
-      navigate('/teacher/exams');
-    } catch (err) {
-      console.error("Failed to create exam:", err);
-      setError("Tạo bài kiểm tra thất bại. Vui lòng thử lại.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="container mx-auto mt-8 p-6 bg-white shadow-lg rounded-lg">
-      <Button variant='outline' className='flex items-center' onClick={() => navigate('/exam/teacher/exams')}>
+    <div className="h-full overflow-y-auto p-6">
+      <Button variant='outline' className='flex items-center' onClick={() => history.back()}>
         <ArrowLeft />
         <span>Quay lại</span>
       </Button>
 
-      <h1 className="text-4xl font-bold mb-6 text-gray-800">Tạo bài kiểm tra mới</h1>
-
-      {error && <div className="p-3 mb-4 bg-red-100 text-red-700 rounded-lg">{error}</div>}
+      {classId !== 0 && <h1 className="text-4xl font-bold mb-6 text-gray-800">Tạo bài kiểm tra mới cho lớp {className}</h1>}
+      {lessonId !== 0 && <h1 className="text-4xl font-bold mb-6 text-gray-800">Tạo bài kiểm tra mới cho bài học {lessonName}</h1>}
 
       <form onSubmit={handleSubmit}>
         <div className="mb-6">
-          <label htmlFor="examTitle" className="block text-gray-700 text-lg font-bold mb-2">
-            Tiêu đề bài kiểm tra
+          <label htmlFor="examTitle" className="text-gray-700 text-lg font-bold mb-2">
+            Tiêu đề bài kiểm tra <span className='text-red-500'>*</span>
           </label>
           <input
             type="text"
@@ -352,9 +415,9 @@ const CreateExam = () => {
           />
         </div>
 
-        <div className="mb-6">
-          <label htmlFor="examDescription" className="block text-gray-700 text-lg font-bold mb-2">
-            Mô tả
+        <div className="mb-3">
+          <label htmlFor="examDescription" className="text-gray-700 text-lg font-bold mb-2">
+            Mô tả <span className='text-red-500'>*</span>
           </label>
           <textarea
             id="examDescription"
@@ -365,9 +428,39 @@ const CreateExam = () => {
           ></textarea>
         </div>
 
+        <div className="mb-6 flex space-x-3">
+          <div className='w-1/2 space-x-3 flex items-center'>
+            <label htmlFor="openTime" className="text-gray-700 text-lg font-bold">
+              Thời gian mở bài thi <span className='text-red-500'>*</span>:
+            </label>
+            <input
+              type="datetime-local"
+              id="openTime"
+              className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+              value={openTime}
+              onChange={(e) => {
+                setOpenTime(e.target.value)
+              }}
+              required
+            />
+          </div>
+          <div className='w-1/2 space-x-3 flex items-center'>
+            <label htmlFor="closeTime" className="text-gray-700 text-lg font-bold">
+              Thời gian đóng bài thi:
+            </label>
+            <input
+              type="datetime-local"
+              id="closeTime"
+              className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+              value={closeTime}
+              onChange={(e) => setCloseTime(e.target.value)}
+            />
+          </div>
+        </div>
+
         <div className="mb-6">
           <label htmlFor="examDuration" className="block text-gray-700 text-lg font-bold mb-2">
-            Thời lượng (phút)
+            Thời lượng (phút) <span className='text-red-500'>*</span>
           </label>
           <input
             type="number"
@@ -395,7 +488,7 @@ const CreateExam = () => {
           <Label htmlFor="showCorrectAnswers">Hiện đáp án đúng/sai</Label>
         </div>
 
-        <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Câu hỏi</h2>
+        <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Câu hỏi <span className='text-red-500'>*</span></h2>
 
         <div className="mb-8 p-6 bg-blue-50 rounded-lg border border-blue-200">
           <h3 className="text-2xl font-semibold mb-3 text-blue-800">Nhập câu hỏi từ File Excel</h3>
@@ -516,7 +609,7 @@ const CreateExam = () => {
 
               {q.type === EXAM_TYPE.FILL_IN_BLANK && (
                 <div className="mb-4">
-                  <label className="block text-gray-700 text-sm font-bold mb-2">Các đáp án đúng cho chỗ trống</label>
+                  <label className="text-gray-700 text-sm font-bold mb-2">Các đáp án đúng cho chỗ trống</label>
                   {(q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).map((_, index) => (
                     <div key={index} className="flex items-center mb-2">
                       <span className="mr-2 text-gray-600">Chỗ trống {index + 1}:</span>
@@ -535,7 +628,7 @@ const CreateExam = () => {
           ))}
         </div>
 
-        <div className="mt-8 space-x-4">
+        <div className="mt-8 grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => addQuestion(EXAM_TYPE.SINGLE_CHOICE)}

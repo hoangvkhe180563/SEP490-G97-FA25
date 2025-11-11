@@ -10,7 +10,8 @@ const useDocumentVisibility = () => {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange, true);
-    setInterval(() => {
+    
+    const reloadInterval = setInterval(() => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.addEventListener('visibilitychange', handleVisibilityChange, true);
     }, 2000);
@@ -18,6 +19,7 @@ const useDocumentVisibility = () => {
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(reloadInterval);
     };
   }, []);
 

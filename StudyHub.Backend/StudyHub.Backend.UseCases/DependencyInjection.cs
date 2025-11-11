@@ -26,6 +26,7 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<LandingPageService>();
             services.AddScoped<PaymentInfoService>();
             services.AddScoped<PaymentService>();
+            services.AddScoped<TransactionService>();
             services.AddScoped<EnrollmentService>();
             services.AddScoped<ProgressService>();
             services.AddScoped<SmtpEmailService>();
@@ -33,6 +34,7 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<QAConversationService>();
             services.AddScoped<QAConversationReadService>();
             services.AddScoped<QAMessageService>();
+            services.AddScoped<ExamService>();
 
             
             return services;

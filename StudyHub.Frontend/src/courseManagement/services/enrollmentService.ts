@@ -25,6 +25,13 @@ export const enrollmentService = {
     return res.data;
   },
 
+  // consume available wallet for a course (may create enrollment or return remaining)
+  consumeWallet: async (payload: { appUserId: string; courseId: number }) => {
+    // return full response so callers can inspect status and data
+    const res = await axiosInstance.post(`/Enrollment/consume-wallet`, payload);
+    return res;
+  },
+
   // record/update progress for an enrollment
   recordProgress: async (
     enrollmentId: number,
