@@ -68,7 +68,7 @@ export const Sidebar = (props: {
 
       <div className="p-2 text-gray-500 border-t border-gray-300 flex items-center justify-center">
         <Avatar className="size-8">
-          <AvatarImage src="" alt="User Avatar" />
+          <AvatarImage src={props.user.avatar} alt="User Avatar" />
           <AvatarFallback>
             {props.user.username.charAt(0).toUpperCase()}
           </AvatarFallback>
@@ -106,14 +106,15 @@ export const Sidebar = (props: {
 export const SidebarItem = (props: ISidebarItem) => {
   const { expanded } = useContext(SidebarContext);
   const location = useLocation();
-  const currentUrl = location.pathname;
+  const currentFunction = location.pathname.split("/")[1];
+  const linkFunction = props.link.split("/")[1];
 
   return (
     <li>
       <Link
         to={props.link}
         className={`relative flex items-center py-2 px-3 my-1 font-medium rounded-md cursor-pointer transition-colors leading-4 group
-      ${currentUrl === props.link
+      ${currentFunction === linkFunction
             ? "bg-gradient-to-tr from-sky-500 to-sky-200 text-blue-800"
             : "hover:bg-sky-200 text-gray-600"
           }
@@ -143,7 +144,8 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
   const { expanded } = useContext(SidebarContext);
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const currentUrl = location.pathname;
+  const currentFunction = location.pathname.split("/")[1];
+  const linkFunction = props.link.split("/")[1];
 
   const handleToggle = (e: any) => {
     e.stopPropagation();
@@ -194,7 +196,7 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
               <Link
                 to={child.link}
                 className={`relative flex items-center py-2 px-3 my-1 ml-3 font-medium rounded-md cursor-pointer transition-colors leading-4 group text-sm
-                  ${currentUrl === child.link
+                  ${currentFunction === linkFunction
                     ? "bg-gradient-to-tr from-sky-400 to-sky-100 text-blue-800"
                     : "hover:bg-sky-100 text-gray-600"
                   }
