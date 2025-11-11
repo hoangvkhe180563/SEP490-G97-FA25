@@ -14,8 +14,10 @@ namespace StudyHub.Backend.UseCases.Services
         private readonly ILogger<ImageDectectService> _logger;
         private readonly IConfiguration _configuration;
         private readonly List<ModerationModel> _models;
-        private const int MAX_RETRIES = 3;
-        private const int RETRY_DELAY_MS = 3000;
+        private const int MAX_RETRIES = 1;
+        private const int RETRY_DELAY_MS = 1000;
+        private const int PARALLEL_LIMIT = 10;
+
         public ImageDectectService(
             ILogger<ImageDectectService> logger,
             IConfiguration configuration)
@@ -29,9 +31,12 @@ namespace StudyHub.Backend.UseCases.Services
 
             _httpClient = new HttpClient
             {
-                Timeout = TimeSpan.FromSeconds(60)
+                Timeout = TimeSpan.FromSeconds(15),
+                DefaultRequestVersion = HttpVersion.Version20,
+                DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrHigher
             };
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            _httpClient.DefaultRequestHeaders.ConnectionClose = false;
 
             _models = new List<ModerationModel>
             {
@@ -39,18 +44,18 @@ namespace StudyHub.Backend.UseCases.Services
                 {
                     Name = "NSFW Detector",
                     ModelPath = "google/vit-base-patch16-224",
-                    Threshold = 0.7,
+                    Threshold = 0.6,
                     ViolationLabels = new List<string> { "nsfw", "porn", "sexy", "hentai", "drawing" },
                     ViolationType = "NSFW"
                 },
-                new ModerationModel
-                {
-                    Name = "NSFW Classifier",
-                    ModelPath = "microsoft/resnet-50",
-                    Threshold = 0.65,
-                    ViolationLabels = new List<string> { "porn", "sexy", "nude" },
-                    ViolationType = "NSFW"
-                }
+                //new ModerationModel
+                //{
+                //    Name = "NSFW Classifier",
+                //    ModelPath = "microsoft/resnet-50",
+                //    Threshold = 0.65,
+                //    ViolationLabels = new List<string> { "porn", "sexy", "nude" },
+                //    ViolationType = "NSFW"
+                //}
             };
 
             var customModels = _configuration.GetSection("HuggingFace:Models").Get<List<ModerationModel>>();
@@ -69,7 +74,7 @@ namespace StudyHub.Backend.UseCases.Services
                 _logger.LogInformation($"Moderating image through {_models.Count} models: {imageUrl}");
 
                 byte[] imageBytes;
-                using (var imageClient = new HttpClient { Timeout = TimeSpan.FromSeconds(20) })
+                using (var imageClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) })
                 {
                     imageBytes = await imageClient.GetByteArrayAsync(imageUrl);
                 }
@@ -109,173 +114,107 @@ namespace StudyHub.Backend.UseCases.Services
 
         private async Task<ImageModerationResult> CheckAllModels(byte[] imageBytes)
         {
-            var allScores = new Dictionary<string, double>();
+            var tasks = _models.Select(model => CheckWithModel(imageBytes, model)).ToList();
 
-            foreach (var model in _models)
+            while (tasks.Any())
             {
+                var completedTask = await Task.WhenAny(tasks);
+                tasks.Remove(completedTask);
+
                 try
                 {
-                    var result = await CheckWithModel(imageBytes, model);
-
-                    foreach (var score in result.AllScores)
-                    {
-                        allScores[$"{model.ViolationType}_{score.Key}"] = score.Value;
-                    }
+                    var result = await completedTask;
 
                     if (result.IsViolation)
                     {
-                        _logger.LogWarning($"[{model.Name}] Violation detected: {result.ViolationType}");
-                        result.AllScores = allScores;
+                        _logger.LogWarning($"Violation detected: {result.ViolationType}");
                         return result;
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, $"Error checking model {model.Name}, skipping...");
+                    _logger.LogWarning(ex, $"Error checking model, skipping...");
                 }
             }
 
-            _logger.LogInformation($"Image passed all {_models.Count} moderation checks");
             return new ImageModerationResult
             {
                 IsViolation = false,
                 ViolationType = null,
                 Likelihood = "0.0000",
-                Details = "Passed all moderation checks",
-                AllScores = allScores
+                Details = "Passed",
+                AllScores = new Dictionary<string, double>()
             };
         }
 
         private async Task<ImageModerationResult> CheckWithModel(byte[] imageBytes, ModerationModel model)
         {
             var modelUrl = $"https://router.huggingface.co/hf-inference/models/{model.ModelPath}";
-            Exception? lastException = null;
 
-            for (int attempt = 1; attempt <= MAX_RETRIES; attempt++)
+            var content = new ByteArrayContent(imageBytes);
+            content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+
+            var response = await _httpClient.PostAsync(modelUrl, content);
+
+            if (!response.IsSuccessStatusCode)
             {
-                try
+                throw new InvalidOperationException($"Error from {model.Name}: {response.StatusCode}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var data = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(json);
+
+            if (data == null || data.Count == 0)
+            {
+                throw new InvalidOperationException($"API returned empty data");
+            }
+
+            double maxScore = 0;
+            bool foundViolation = false;
+
+            foreach (var item in data)
+            {
+                if (item.ContainsKey("label") && item.ContainsKey("score"))
                 {
-                    var content = new ByteArrayContent(imageBytes);
-                    content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+                    var label = item["label"].GetString()?.ToLower() ?? "";
+                    var score = item["score"].GetDouble();
 
-                    var response = await _httpClient.PostAsync(modelUrl, content);
-
-                    if (response.StatusCode == HttpStatusCode.Forbidden)
+                    if (model.ViolationLabels.Contains(label) && score > model.Threshold)
                     {
-                        var errorContent = await response.Content.ReadAsStringAsync();
-                        _logger.LogError($"[{model.Name}] 403 Forbidden: {errorContent}");
-                        throw new InvalidOperationException("HuggingFace token is invalid or expired.");
+                        foundViolation = true;
+                        if (score > maxScore) maxScore = score;
                     }
-
-                    if (response.StatusCode == HttpStatusCode.Gone)
-                    {
-                        var errorBody = await response.Content.ReadAsStringAsync();
-                        _logger.LogError($"[{model.Name}] 410 Gone - Model no longer exists: {errorBody}");
-                        throw new InvalidOperationException($"Model {model.Name} no longer exists (410 Gone)");
-                    }
-
-                    if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
-                    {
-                        var errorJson = await response.Content.ReadAsStringAsync();
-                        if (errorJson.Contains("loading") && attempt < MAX_RETRIES)
-                        {
-                            var delay = RETRY_DELAY_MS * attempt;
-                            _logger.LogWarning($"[{model.Name}] Model loading, waiting {delay}ms...");
-                            await Task.Delay(delay);
-                            continue;
-                        }
-                    }
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var errorContent = await response.Content.ReadAsStringAsync();
-                        _logger.LogError($"[{model.Name}] HTTP {(int)response.StatusCode} - {errorContent}");
-
-                        if (attempt < MAX_RETRIES)
-                        {
-                            await Task.Delay(RETRY_DELAY_MS);
-                            continue;
-                        }
-                        throw new InvalidOperationException($"Error from {model.Name}: {response.StatusCode}");
-                    }
-
-                    var json = await response.Content.ReadAsStringAsync();
-                    var data = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(json);
-
-                    if (data == null || data.Count == 0)
-                    {
-                        throw new InvalidOperationException($"[{model.Name}] API returned empty data");
-                    }
-
-                    var scores = new Dictionary<string, double>();
-                    foreach (var item in data)
-                    {
-                        if (item.ContainsKey("label") && item.ContainsKey("score"))
-                        {
-                            var label = item["label"].GetString()?.ToLower() ?? "";
-                            var score = item["score"].GetDouble();
-                            scores[label] = score;
-                        }
-                    }
-
-                    double totalScore = scores.Values.Sum();
-                    double maxViolationScore = 0;
-                    double maxViolationRatio = 0;
-
-                    foreach (var label in model.ViolationLabels)
-                    {
-                        if (scores.ContainsKey(label))
-                        {
-                            double ratio = totalScore > 0 ? scores[label] / totalScore : 0;
-                            if (ratio > maxViolationRatio)
-                            {
-                                maxViolationRatio = ratio;
-                                maxViolationScore = scores[label];
-                            }
-                        }
-                    }
-
-                    bool isViolation = maxViolationRatio > model.Threshold;
-
-                    return new ImageModerationResult
-                    {
-                        IsViolation = isViolation,
-                        ViolationType = isViolation ? model.ViolationType : null,
-                        Likelihood = maxViolationScore.ToString("0.0000"),
-                        Details = string.Join(", ", scores.Select(s => $"{s.Key}={s.Value:0.0000}")),
-                        AllScores = scores
-                    };
-                }
-                catch (TaskCanceledException ex)
-                {
-                    lastException = ex;
-                    _logger.LogWarning($"[{model.Name}] Timeout at attempt {attempt}");
-                    if (attempt < MAX_RETRIES)
-                    {
-                        await Task.Delay(RETRY_DELAY_MS);
-                        continue;
-                    }
-                }
-                catch (HttpRequestException ex)
-                {
-                    lastException = ex;
-                    _logger.LogWarning(ex, $"[{model.Name}] Network error at attempt {attempt}");
-                    if (attempt < MAX_RETRIES)
-                    {
-                        await Task.Delay(RETRY_DELAY_MS);
-                        continue;
-                    }
-                }
-                catch (InvalidOperationException)
-                {
-                    throw;
                 }
             }
 
-            throw new InvalidOperationException(
-                $"Cannot check model {model.Name} after {MAX_RETRIES} attempts.",
-                lastException);
+            return new ImageModerationResult
+            {
+                IsViolation = foundViolation,
+                ViolationType = foundViolation ? model.ViolationType : null,
+                Likelihood = maxScore.ToString("0.00"),
+                Details = foundViolation ? "Violation" : "Safe",
+                AllScores = new Dictionary<string, double>(),
+                ModelPath = model.ModelPath
+            };
+        }
+
+        public async Task<List<ImageModerationResult>> ModerateBatchAsync(List<byte[]> imageBytesList)
+        {
+            var semaphore = new SemaphoreSlim(PARALLEL_LIMIT);
+            var tasks = imageBytesList.Select(async imageBytes =>
+            {
+                await semaphore.WaitAsync();
+                try
+                {
+                    return await CheckAllModels(imageBytes);
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
+
+            return (await Task.WhenAll(tasks)).ToList();
         }
     }
 }
-
