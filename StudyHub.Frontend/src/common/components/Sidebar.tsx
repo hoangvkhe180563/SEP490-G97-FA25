@@ -43,13 +43,9 @@ export const Sidebar = (props: {
   const [expanded, setExpanded] = useState<boolean>(true);
 
   return (
-    <aside className="transition-all max-w-[250px] inline-flex flex-col border-r border-gray-300 shadow-lg bg-slate-200">
+    <aside className="transition-all inline-flex flex-col border-r border-gray-300 shadow-lg bg-slate-200">
       <div className="p-4 pb-2 flex justify-between items-center">
-        <p
-          className={`overflow-hidden transition-all text-center font-bold text-lg ${
-            expanded ? "flex-1 w-32" : "w-0"
-          }`}
-        >
+        <p className={`overflow-hidden transition-all text-center font-bold text-lg ${expanded ? "flex-1 w-32" : "w-0"}`}>
           Danh mục
         </p>
         <Button
@@ -70,42 +66,38 @@ export const Sidebar = (props: {
         <ul className="flex-1 px-3">{props.children}</ul>
       </SidebarContext.Provider>
 
-      <div className="p-3 text-gray-500 border-t border-gray-300 flex items-center justify-center">
+      <div className="p-2 text-gray-500 border-t border-gray-300 flex items-center justify-center">
         <Avatar className="size-8">
           <AvatarImage src="" alt="User Avatar" />
           <AvatarFallback>
             {props.user.username.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        {expanded ? (
-          <div className="flex-1 flex items-center ml-3">
-            <div className="w-32 transition-opacity duration-150">
-              <p className="font-medium">{props.user.fullname}</p>
-              <p className="text-sm text-gray-600 line-clamp-1">
-                {props.user.email}
-              </p>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={`hover:bg-sky-400 hover:text-white w-10 ml-3`}
-                >
-                  <EllipsisVertical size={16} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-50 ml-3">
-                <DropdownMenuItem>
-                  <CircleUser className="mr-2 h-4 w-4" /> Thông tin cá nhân
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-red-600" onClick={logout}>
-                  <LogOut className="mr-2 h-4 w-4 stroke-red-600" />{" "}
-                  <span className="w-full hover:text-red-600">Đăng xuất</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+        <div className={`flex items-center transition-all overflow-hidden ${expanded ? 'ml-3 flex-1' : 'w-0'}`}>
+          <div>
+            <p className="font-medium">{props.user.fullname}</p>
+            <p className="text-sm text-gray-600">{props.user.email}</p>
           </div>
-        ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className={`hover:bg-sky-400 hover:text-white overflow-hidden ${expanded ? 'ml-2 w-10' : 'w-0'}`}
+              >
+                <EllipsisVertical size={16} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-50 ml-3">
+              <DropdownMenuItem>
+                <CircleUser className="mr-2 h-4 w-4" /> Thông tin cá nhân
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-red-600" onClick={logout}>
+                <LogOut className="mr-2 h-4 w-4 stroke-red-600" />{" "}
+                <span className="w-full hover:text-red-600">Đăng xuất</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </aside>
   );
@@ -121,18 +113,16 @@ export const SidebarItem = (props: ISidebarItem) => {
       <Link
         to={props.link}
         className={`relative flex items-center py-2 px-3 my-1 font-medium rounded-md cursor-pointer transition-colors leading-4 group
-      ${
-        currentUrl === props.link
-          ? "bg-gradient-to-tr from-sky-500 to-sky-200 text-blue-800"
-          : "hover:bg-sky-200 text-gray-600"
-      }
+      ${currentUrl === props.link
+            ? "bg-gradient-to-tr from-sky-500 to-sky-200 text-blue-800"
+            : "hover:bg-sky-200 text-gray-600"
+          }
     `}
       >
         {props.icon}
         <span
-          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${
-            expanded ? "w-40 ml-3" : "w-0"
-          }`}
+          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${expanded ? "w-40 ml-3" : "w-0"
+            }`}
         >
           {props.text}
         </span>
@@ -168,9 +158,8 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
       >
         {props.icon}
         <span
-          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${
-            expanded ? "w-40 ml-3" : "w-0"
-          }`}
+          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${expanded ? "w-40 ml-3" : "w-0"
+            }`}
         >
           {props.text}
         </span>
@@ -194,11 +183,10 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
         )}
       </li>
       <ul
-        className={`transition-all duration-300 ${
-          isOpen && expanded
-            ? "max-h-96 opacity-100 w-full"
-            : "max-h-0 opacity-0 w-0"
-        }`}
+        className={`transition-all duration-300 ${isOpen && expanded
+          ? "max-h-96 opacity-100 w-full"
+          : "max-h-0 opacity-0 w-0"
+          }`}
       >
         {props.children &&
           props.children.map((child, index) => (
@@ -206,12 +194,11 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
               <Link
                 to={child.link}
                 className={`relative flex items-center py-2 px-3 my-1 ml-3 font-medium rounded-md cursor-pointer transition-colors leading-4 group text-sm
-      ${
-        currentUrl === child.link
-          ? "bg-gradient-to-tr from-sky-400 to-sky-100 text-blue-800"
-          : "hover:bg-sky-100 text-gray-600"
-      }
-    `}
+                  ${currentUrl === child.link
+                    ? "bg-gradient-to-tr from-sky-400 to-sky-100 text-blue-800"
+                    : "hover:bg-sky-100 text-gray-600"
+                  }
+                `}
               >
                 {child.icon}
                 <span
