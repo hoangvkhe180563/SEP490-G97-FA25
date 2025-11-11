@@ -111,6 +111,35 @@ export const courseApi = {
     return { ...l, content: l.readingContent ?? null } as LessonListDto;
   },
 
+  async getInteractiveQuestions(lessonId: number) {
+    const res = await axiosInstance.get<any[]>(
+      `/lecture/lesson/${lessonId}/interactive-questions`
+    );
+    const arr = res.data || [];
+    // normalize options to arrays and keep fields consistent with frontend expectations
+    return arr.map((q: any) => ({
+      id: q.id,
+      timeSec: q.timeSec,
+      question: q.question,
+      type: q.type,
+      options: Array.isArray(q.options)
+        ? q.options
+        : q.options
+        ? JSON.parse(q.options)
+        : undefined,
+      correctIndex: typeof q.correctIndex === "number" ? q.correctIndex : null,
+      correctAnswer: q.correctAnswer ?? null,
+    }));
+  },
+
+  async submitInteractiveResponse(lessonId: number, payload: any) {
+    const res = await axiosInstance.post(
+      `/lecture/lesson/${lessonId}/interactive-response`,
+      payload
+    );
+    return res.data;
+  },
+
   async createChapter(dto: Partial<ChapterDto>) {
     const res = await axiosInstance.post<ChapterListDto>(
       `/lecture/chapter`,

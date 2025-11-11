@@ -81,6 +81,8 @@ public partial class AppUser
 
     public virtual ICollection<ForumRule> ForumRules { get; set; } = new List<ForumRule>();
 
+    public virtual ICollection<InteractiveResponse> InteractiveResponses { get; set; } = new List<InteractiveResponse>();
+
     public virtual ICollection<LessonComment> LessonComments { get; set; } = new List<LessonComment>();
 
     public virtual ICollection<QAConversation> QAConversationStudents { get; set; } = new List<QAConversation>();

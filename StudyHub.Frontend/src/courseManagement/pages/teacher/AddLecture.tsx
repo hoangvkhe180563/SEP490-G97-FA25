@@ -37,6 +37,7 @@ const AddLecture: React.FC = () => {
   // chapterInfo not required directly; we keep postDate and lessons
   const [chapterPostDate, setChapterPostDate] = useState<string | null>(null);
   const [chapterLessons, setChapterLessons] = useState<any[]>([]);
+  const [courseEndDate, setCourseEndDate] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(
     courseIdFromQuery ?? null
   );
@@ -46,6 +47,19 @@ const AddLecture: React.FC = () => {
   const [videoUrl, setVideoUrl] = useState("");
   const [duration, setDuration] = useState("");
   const [postDate, setPostDate] = useState("");
+  // Interactive questions metadata (local only until saved to backend)
+  const [interactiveQuestions, setInteractiveQuestions] = useState<
+    Array<{
+      id: string; // temporary client id
+      timeSec: number; // seconds
+      timeLabel: string; // user input like 01:23
+      question: string;
+      type: "mc" | "text";
+      options?: string[]; // for mc
+      correctIndex?: number | null;
+      correctAnswer?: string | null; // expected answer for text questions
+    }>
+  >([]);
   const [isPreview, setIsPreview] = useState(false);
   const [resourceFile, setResourceFile] = useState<File | null>(null);
   const [resourceUploading, setResourceUploading] = useState(false);
@@ -128,6 +142,15 @@ const AddLecture: React.FC = () => {
             setChapterLessons(Array.isArray(lessons) ? lessons : []);
             if ((ch as any).courseId) {
               setSelectedCourseId(String((ch as any).courseId));
+              // fetch course end date
+              try {
+                const course = await courseApi.getCourseById(
+                  Number((ch as any).courseId)
+                );
+                if (course) setCourseEndDate(course.endAt ?? null);
+              } catch (err) {
+                console.warn("Failed to load course for end date", err);
+              }
             }
           }
         } catch (err) {
@@ -195,6 +218,19 @@ const AddLecture: React.FC = () => {
         if (lec.getTime() < chd.getTime()) {
           errors.push(
             "Ngày đăng bài giảng không thể nhỏ hơn ngày bắt đầu của chương."
+          );
+        }
+      }
+    }
+
+    // If course end date is known, lecture postDate must not be after course end
+    if (postDate && courseEndDate) {
+      const lec = new Date(postDate);
+      const ced = new Date(courseEndDate);
+      if (!isNaN(lec.getTime()) && !isNaN(ced.getTime())) {
+        if (lec.getTime() > ced.getTime()) {
+          errors.push(
+            "Ngày đăng bài giảng phải nhỏ hơn hoặc bằng ngày kết thúc khóa học."
           );
         }
       }
@@ -277,7 +313,223 @@ const AddLecture: React.FC = () => {
       }
     }
 
+    // interactive questions validation
+    if (interactiveQuestions && interactiveQuestions.length > 0) {
+      const seen = new Set<number>();
+      for (const q of interactiveQuestions) {
+        if (
+          !q ||
+          typeof q.timeSec !== "number" ||
+          !isFinite(q.timeSec) ||
+          q.timeSec < 0
+        ) {
+          errors.push("Một câu hỏi tương tác có thời gian không hợp lệ.");
+          break;
+        }
+        if (seen.has(q.timeSec)) {
+          errors.push(
+            "Có hai câu hỏi cùng thời điểm. Vui lòng đảm bảo mỗi thời điểm chỉ có một câu hỏi."
+          );
+          break;
+        }
+        seen.add(q.timeSec);
+      }
+    }
+
     return errors;
+  };
+
+  // helper: parse mm:ss or seconds to seconds
+  const parseTimeToSeconds = (s: string) => {
+    if (!s) return NaN;
+    const t = s.trim();
+    if (/^\d+:\d{2}$/.test(t)) {
+      const [m, sec] = t.split(":");
+      return Number(m) * 60 + Number(sec);
+    }
+    if (/^\d+(\.\d+)?$/.test(t)) return Number(t);
+    return NaN;
+  };
+
+  // Small inline editor component to create an interactive question
+  const InteractiveQuestionEditor: React.FC<{
+    onAdd: (q: any) => void;
+  }> = ({ onAdd }) => {
+    const [timeLabel, setTimeLabel] = useState("0:00");
+    const [questionText, setQuestionText] = useState("");
+    const [qtype, setQtype] = useState<"mc" | "text">("mc");
+    const [options, setOptions] = useState<string[]>(["", ""]);
+    const [correctIndex, setCorrectIndex] = useState<number | null>(0);
+    const [correctAnswer, setCorrectAnswer] = useState<string>("");
+
+    const reset = () => {
+      setTimeLabel("0:00");
+      setQuestionText("");
+      setQtype("mc");
+      setOptions(["", ""]);
+      setCorrectIndex(0);
+      setCorrectAnswer("");
+    };
+
+    const doAdd = () => {
+      const sec = parseTimeToSeconds(timeLabel);
+      if (Number.isNaN(sec) || sec < 0) {
+        setDialog({
+          open: true,
+          title: "Lỗi thời gian",
+          message: "Thời gian không hợp lệ. Dùng mm:ss hoặc số giây.",
+        });
+        return;
+      }
+      if (!questionText.trim()) {
+        setDialog({
+          open: true,
+          title: "Lỗi câu hỏi",
+          message: "Nội dung câu hỏi không thể để trống.",
+        });
+        return;
+      }
+      if (qtype === "mc") {
+        const cleaned = options.map((o) => (o || "").trim()).filter(Boolean);
+        if (cleaned.length < 2) {
+          setDialog({
+            open: true,
+            title: "Lỗi lựa chọn",
+            message: "Câu hỏi nhiều lựa chọn cần ít nhất 2 phương án.",
+          });
+          return;
+        }
+      }
+      // For text-type questions, teacher may provide the expected answer (optional)
+
+      const newQ = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        timeSec: sec,
+        timeLabel,
+        question: questionText,
+        type: qtype,
+        options:
+          qtype === "mc"
+            ? options.map((o) => o.trim()).filter(Boolean)
+            : undefined,
+        correctIndex:
+          qtype === "mc"
+            ? typeof correctIndex === "number"
+              ? correctIndex
+              : null
+            : null,
+        // include expected answer for text questions
+        correctAnswer:
+          qtype === "text"
+            ? correctAnswer
+              ? correctAnswer.trim()
+              : null
+            : null,
+      };
+      onAdd(newQ);
+      reset();
+    };
+
+    return (
+      <div className="border rounded p-3 bg-white">
+        <div className="grid grid-cols-12 gap-2 items-start">
+          <div className="col-span-2">
+            <Input
+              value={timeLabel}
+              onChange={(e) => setTimeLabel(e.target.value)}
+              placeholder="mm:ss hoặc giây"
+            />
+          </div>
+          <div className="col-span-6">
+            <Input
+              value={questionText}
+              onChange={(e) => setQuestionText(e.target.value)}
+              placeholder="Nội dung câu hỏi"
+            />
+            <div className="flex items-center gap-2 mt-2 text-sm">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="qtype"
+                  checked={qtype === "mc"}
+                  onChange={() => setQtype("mc")}
+                />{" "}
+                MC
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="qtype"
+                  checked={qtype === "text"}
+                  onChange={() => setQtype("text")}
+                />{" "}
+                Text
+              </label>
+            </div>
+          </div>
+          <div className="col-span-4 flex items-center gap-2 justify-end">
+            <Button onClick={doAdd}>Thêm câu hỏi</Button>
+          </div>
+
+          {qtype === "mc" && (
+            <div className="col-span-12 mt-3">
+              <div className="space-y-2">
+                {options.map((opt, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      checked={correctIndex === idx}
+                      onChange={() => setCorrectIndex(idx)}
+                    />
+                    <Input
+                      value={opt}
+                      onChange={(e) =>
+                        setOptions((s) =>
+                          s.map((v, i) => (i === idx ? e.target.value : v))
+                        )
+                      }
+                      placeholder={`Lựa chọn ${idx + 1}`}
+                    />
+                    <Button
+                      variant="ghost"
+                      onClick={() =>
+                        setOptions((s) => s.filter((_, i) => i !== idx))
+                      }
+                    >
+                      Xóa
+                    </Button>
+                  </div>
+                ))}
+                <div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setOptions((s) => [...s, ""])}
+                  >
+                    Thêm lựa chọn
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          {qtype === "text" && (
+            <div className="col-span-12 mt-3">
+              <div className="space-y-2">
+                <Label>Đáp án mong đợi (tùy chọn)</Label>
+                <Input
+                  value={correctAnswer}
+                  onChange={(e) => setCorrectAnswer(e.target.value)}
+                  placeholder="Nhập đáp án đúng (so sánh text)"
+                />
+                <div className="text-xs text-gray-500">
+                  Nếu để trống, câu hỏi text sẽ không có đáp án mong đợi.
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   // Upload resource (file) -> upload to storage then persist LessonResource row
@@ -370,6 +622,19 @@ const AddLecture: React.FC = () => {
         postDate: postDate ? new Date(postDate) : null,
         isPreview,
         ResourceId: resourceId ?? null,
+        // send interactive questions as part of the lesson payload
+        interactiveQuestions:
+          interactiveQuestions && interactiveQuestions.length
+            ? interactiveQuestions.map((q) => ({
+                timeSec: q.timeSec,
+                question: q.question,
+                type: q.type,
+                options: q.options ?? null,
+                correctIndex:
+                  typeof q.correctIndex === "number" ? q.correctIndex : null,
+                correctAnswer: q.correctAnswer ?? null,
+              }))
+            : null,
       };
 
       const created = createLesson
@@ -638,6 +903,70 @@ const AddLecture: React.FC = () => {
                     onChange={(e) => setPostDate(e.target.value)}
                   />
                 </div>
+              </div>
+
+              {/* Interactive questions editor */}
+              <div className="space-y-2 pt-4">
+                <div className="flex items-center justify-between">
+                  <Label> Câu hỏi tương tác (Interactive questions)</Label>
+                  <div className="text-sm text-gray-500">
+                    Hiển thị trên video tại thời điểm
+                  </div>
+                </div>
+
+                {/* list existing questions */}
+                <div className="space-y-2">
+                  {interactiveQuestions.length === 0 ? (
+                    <div className="text-sm text-gray-500">
+                      Chưa có câu hỏi tương tác.
+                    </div>
+                  ) : (
+                    interactiveQuestions.map((q) => (
+                      <div
+                        key={q.id}
+                        className="flex items-start gap-3 bg-white border rounded p-3"
+                      >
+                        <div className="w-28 text-sm font-mono text-gray-700">
+                          {q.timeLabel}
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-sm font-medium">
+                            {q.question}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {q.type === "mc"
+                              ? `MC — ${q.options?.length ?? 0} lựa chọn`
+                              : `Text${
+                                  q.correctAnswer
+                                    ? ` — đáp án: ${q.correctAnswer}`
+                                    : ""
+                                }`}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setInteractiveQuestions((prev) =>
+                                prev.filter((x) => x.id !== q.id)
+                              );
+                            }}
+                          >
+                            Xóa
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* add new question form (simple inline) */}
+                <InteractiveQuestionEditor
+                  onAdd={(newQ) => {
+                    setInteractiveQuestions((prev) => [...prev, newQ]);
+                  }}
+                />
               </div>
 
               {/* Teacher Name + Preview */}

@@ -8,7 +8,7 @@ import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import type { LessonListDto } from "@/courseManagement/interfaces/types";
 import { useNavigate, useParams } from "react-router-dom";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
-import { Check, HelpCircle } from "lucide-react";
+import { Check, HelpCircle, X } from "lucide-react";
 import {
   Popover,
   PopoverTrigger,
@@ -30,6 +30,113 @@ const LecturePlayer: React.FC = () => {
   ) as LessonListDto | null;
   const fetchChapters = useLectureStore((s: any) => s.fetchChapters);
   const fetchLesson = useLectureStore((s: any) => s.fetchLesson);
+  const fetchInteractiveQuestions = useLectureStore(
+    (s: any) => s.fetchInteractiveQuestions
+  );
+  const submitInteractiveResponse = useLectureStore(
+    (s: any) => s.submitInteractiveResponse
+  );
+
+  const [interactiveQuestions, setInteractiveQuestions] = useState<any[]>([]);
+  const [activeQuestion, setActiveQuestion] = useState<any | null>(null);
+  const activeQuestionRef = useRef<any | null>(null);
+  const answeredQuestionIdsRef = useRef<Set<any>>(new Set());
+  const [interactiveAnswerText, setInteractiveAnswerText] =
+    useState<string>("");
+
+  // submit handler: use store method if available
+  const handleSubmitAnswer = async (answer: any) => {
+    const q = activeQuestionRef.current ?? activeQuestion;
+    if (!q) return;
+    setIsSubmitting(true);
+    if (typeof answer === "object" && answer.selectedIndex !== undefined) {
+      setSelectedOptionIndex(answer.selectedIndex);
+    }
+
+    let serverResp: any = null;
+    let isCorrect = false;
+    try {
+      if (submitInteractiveResponse) {
+        serverResp = await submitInteractiveResponse(lid, {
+          questionId: q.id,
+          answer,
+        });
+      }
+    } catch (err) {
+      console.warn("submitInteractiveResponse failed", err);
+    }
+
+    // determine correctness: prefer server response, otherwise local check
+    try {
+      if (serverResp && typeof serverResp.isCorrect === "boolean") {
+        isCorrect = serverResp.isCorrect;
+      } else if (q.type === "mc") {
+        isCorrect =
+          (answer && answer.selectedIndex) === (q.correctIndex ?? null);
+      } else if (q.type === "text") {
+        if (q.correctAnswer) {
+          const given = String(answer ?? "")
+            .trim()
+            .toLowerCase();
+          const expect = String(q.correctAnswer ?? "")
+            .trim()
+            .toLowerCase();
+          isCorrect = given === expect;
+        } else {
+          // unknown: treat as incorrect by default
+          isCorrect = false;
+        }
+      }
+    } catch {
+      isCorrect = false;
+    }
+
+    setSubmissionResult(isCorrect);
+    setIsSubmitting(false);
+
+    // show feedback briefly then mark answered and resume playback
+    window.setTimeout(() => {
+      try {
+        answeredQuestionIdsRef.current.add(q.id);
+      } catch {
+        // ignore
+      }
+      setActiveQuestion(null);
+      activeQuestionRef.current = null;
+      setInteractiveAnswerText("");
+      setSubmissionResult(null);
+      setSelectedOptionIndex(null);
+
+      // resume playback
+      try {
+        if (ytPlayerRef.current && (ytPlayerRef.current.playVideo as any)) {
+          try {
+            ytPlayerRef.current.playVideo();
+          } catch {
+            // ignore
+          }
+        }
+        if (videoRef.current) {
+          try {
+            void videoRef.current.play();
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }, 1100);
+  };
+
+  // nicer UI state for overlay
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionResult, setSubmissionResult] = useState<boolean | null>(
+    null
+  );
+  const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(
+    null
+  );
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [_localProgress, setLocalProgress] = useState<number>(0);
@@ -117,7 +224,19 @@ const LecturePlayer: React.FC = () => {
 
   useEffect(() => {
     if (cid) fetchChapters(cid);
-    if (lid) fetchLesson(lid);
+    if (lid) {
+      fetchLesson(lid);
+      (async () => {
+        try {
+          if (fetchInteractiveQuestions) {
+            const qs = await fetchInteractiveQuestions(lid);
+            if (Array.isArray(qs)) setInteractiveQuestions(qs);
+          }
+        } catch (err) {
+          console.warn("failed to fetch interactive questions", err);
+        }
+      })();
+    }
     void _enrollAction;
     (async () => {
       try {
@@ -142,6 +261,7 @@ const LecturePlayer: React.FC = () => {
     authUser?.id,
     fetchChapters,
     fetchLesson,
+    fetchInteractiveQuestions,
     fetchEnrollmentsByUser,
     fetchProgresses,
     _enrollAction,
@@ -323,16 +443,13 @@ const LecturePlayer: React.FC = () => {
                         let now = ytPlayerRef.current.getCurrentTime() || 0;
                         const duration = ytPlayerRef.current.getDuration() || 0;
 
-                        // if the user attempted to seek (large jump), revert to lastTick
+                        // prevent seeking forward
                         if (Math.abs(now - lastTick) > 2) {
-                          try {
-                            ytPlayerRef.current.seekTo(lastTick, true);
-                            now = lastTick;
-                          } catch {
-                            // ignore
-                          }
+                          ytPlayerRef.current.seekTo(lastTick, true);
+                          now = lastTick;
                         }
 
+                        // update watched
                         if (isPlaying) {
                           const start = Math.min(lastTick, now);
                           const end = Math.max(lastTick, now);
@@ -345,13 +462,31 @@ const LecturePlayer: React.FC = () => {
                           setLocalProgress(pct);
                           setCurrentTime(Math.round(now));
                         }
-                        try {
-                          await checkAutoComplete(
-                            ytPlayerRef.current.getDuration() || 0
+
+                        // 🔥 CHECK INTERACTIVE QUESTION NGAY Ở ĐÂY
+                        if (
+                          interactiveQuestions &&
+                          interactiveQuestions.length > 0 &&
+                          !activeQuestionRef.current
+                        ) {
+                          const q = interactiveQuestions.find(
+                            (x: any) =>
+                              !answeredQuestionIdsRef.current.has(x.id) &&
+                              Math.abs(now - (x.timeSec || 0)) <= 0.5
                           );
-                        } catch {
-                          // ignore
+                          if (q) {
+                            try {
+                              ytPlayerRef.current.pauseVideo();
+                            } catch {
+                              // ignore
+                            }
+                            activeQuestionRef.current = q;
+                            setActiveQuestion(q);
+                          }
                         }
+
+                        // check auto-complete
+                        await checkAutoComplete(duration);
                       } catch {
                         // ignore
                       }
@@ -366,31 +501,26 @@ const LecturePlayer: React.FC = () => {
                     ]);
                   }
                   isPlaying = false;
+
                   try {
                     const duration = ytPlayerRef.current.getDuration() || 0;
                     const pct = Math.round((now / (duration || 1)) * 100);
                     setLocalProgress(pct);
                     await saveProgress(pct);
                     await checkAutoComplete(duration);
-                    // only record completion to server when we've reached 100% (or autoCompleted was triggered)
-                    if (
-                      enrollmentId &&
-                      selectedLesson?.id &&
-                      (pct >= 100 || autoCompleted)
-                    ) {
-                      try {
-                        await recordProgress(enrollmentId, {
-                          lessonId: selectedLesson.id,
-                          completionDate: new Date().toISOString(),
-                        });
-                        await fetchProgresses(enrollmentId);
-                      } catch {
-                        // ignore
-                      }
+
+                    // 🧠 chỉ nên record progress khi dừng hoặc kết thúc
+                    if (enrollmentId && selectedLesson?.id && pct >= 100) {
+                      await recordProgress(enrollmentId, {
+                        lessonId: selectedLesson.id,
+                        completionDate: new Date().toISOString(),
+                      });
+                      await fetchProgresses(enrollmentId);
                     }
                   } catch {
                     // ignore
                   }
+
                   if (pollId) {
                     window.clearInterval(pollId as any);
                     pollId = null;
@@ -491,6 +621,31 @@ const LecturePlayer: React.FC = () => {
       // periodically check if we've watched enough
       try {
         void checkAutoComplete();
+      } catch {
+        // ignore
+      }
+      // check interactive questions (HTML5 video)
+      try {
+        if (
+          interactiveQuestions &&
+          interactiveQuestions.length > 0 &&
+          !activeQuestionRef.current
+        ) {
+          const q = interactiveQuestions.find(
+            (x: any) =>
+              !answeredQuestionIdsRef.current.has(x.id) &&
+              Math.abs((v.currentTime || 0) - (x.timeSec || 0)) <= 0.5
+          );
+          if (q) {
+            try {
+              v.pause();
+            } catch {
+              // ignore
+            }
+            activeQuestionRef.current = q;
+            setActiveQuestion(q);
+          }
+        }
       } catch {
         // ignore
       }
@@ -609,6 +764,8 @@ const LecturePlayer: React.FC = () => {
     fetchProgresses,
     enrollmentId,
     recordProgress,
+    interactiveQuestions,
+    submitInteractiveResponse,
   ]);
 
   // LecturePlayer no longer fetches or displays resources; sidebar component handles resources.
@@ -801,6 +958,118 @@ const LecturePlayer: React.FC = () => {
               <div className="bg-black w-full aspect-video rounded-lg mb-4 flex items-center justify-center text-white overflow-hidden shadow-lg">
                 <div className="text-white text-lg">
                   Không có nội dung cho bài học này.
+                </div>
+              </div>
+            )}
+
+            {/* Interactive question overlay */}
+            {activeQuestion && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                <div className="bg-white dark:bg-zinc-900 rounded-lg p-6 max-w-2xl w-full mx-4">
+                  <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-gray-100">
+                    {activeQuestion.question}
+                  </h3>
+                  {activeQuestion.type === "mc" ? (
+                    <div className="space-y-3">
+                      {(activeQuestion.options || []).map(
+                        (opt: any, idx: number) => {
+                          const disabled =
+                            isSubmitting || submissionResult !== null;
+                          const isCorrectOpt =
+                            submissionResult !== null &&
+                            idx === (activeQuestion.correctIndex ?? -1);
+                          const isChosenWrong =
+                            submissionResult !== null &&
+                            selectedOptionIndex === idx &&
+                            !submissionResult;
+                          const baseCls = `w-full text-left p-3 rounded-md flex items-center justify-between transition-all`;
+                          const bgCls = isCorrectOpt
+                            ? "bg-green-50 border border-green-200"
+                            : isChosenWrong
+                            ? "bg-red-50 border border-red-200"
+                            : "bg-gray-100 hover:bg-gray-200";
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                if (disabled) return;
+                                handleSubmitAnswer({ selectedIndex: idx });
+                              }}
+                              disabled={disabled}
+                              className={`${baseCls} ${bgCls}`}
+                            >
+                              <span className="flex-1">{opt}</span>
+                              <span className="ml-3">
+                                {isCorrectOpt && (
+                                  <Check className="w-5 h-5 text-green-600" />
+                                )}
+                                {isChosenWrong && (
+                                  <X className="w-5 h-5 text-red-600" />
+                                )}
+                              </span>
+                            </button>
+                          );
+                        }
+                      )}
+                      {submissionResult !== null && (
+                        <div className="mt-3 text-sm flex items-center gap-2">
+                          {submissionResult ? (
+                            <span className="text-green-700 font-semibold">
+                              Đúng — tiếp tục phát
+                            </span>
+                          ) : (
+                            <span className="text-red-700 font-semibold">
+                              Sai — đáp án đúng đã được đánh dấu
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <textarea
+                        value={interactiveAnswerText}
+                        onChange={(e) =>
+                          setInteractiveAnswerText(e.target.value)
+                        }
+                        className="w-full border rounded p-2 min-h-[80px] text-gray-900 dark:text-gray-100"
+                        disabled={isSubmitting || submissionResult !== null}
+                      />
+                      <div className="flex items-center justify-between">
+                        <div>
+                          {submissionResult !== null && (
+                            <div className="text-sm">
+                              {submissionResult ? (
+                                <span className="text-green-700 font-semibold">
+                                  Đúng
+                                </span>
+                              ) : (
+                                <span className="text-red-700 font-semibold">
+                                  Sai
+                                </span>
+                              )}
+                              {!submissionResult &&
+                                activeQuestion.correctAnswer && (
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    Đáp án: {activeQuestion.correctAnswer}
+                                  </div>
+                                )}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex justify-end">
+                          <Button
+                            onClick={() =>
+                              handleSubmitAnswer(interactiveAnswerText)
+                            }
+                            disabled={isSubmitting || submissionResult !== null}
+                          >
+                            Gửi
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
