@@ -272,6 +272,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 existing.Email = user.Email;
                 existing.PasswordHash = user.PasswordHash;
                 existing.Username = user.Username;
+                existing.Avatar = user.Avatar;
                 existing.Fullname = user.Fullname;
                 existing.Dob = user.Dob;
                 existing.Gender = user.Gender;
