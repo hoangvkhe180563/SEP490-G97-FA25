@@ -5,6 +5,7 @@ const UserRouteConfig = {
     ACCOUNT_LIST: "accounts",
     ADD_ACCOUNT: "add-account",
     UPDATE_ACCOUNT: "update-account/:id",
+    ACCOUNT_RECOVERY_LIST: "account-recoveries",
   },
   USER: {
     INDEX: "user",

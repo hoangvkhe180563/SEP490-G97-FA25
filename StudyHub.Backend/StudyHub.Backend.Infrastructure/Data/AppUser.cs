@@ -61,11 +61,15 @@ public partial class AppUser
 
     public DateTime? DeletedAt { get; set; }
 
+    public virtual ICollection<AccountRecoveryRequest> AccountRecoveryRequests { get; set; } = new List<AccountRecoveryRequest>();
+
     public virtual ICollection<AppUserSubjectClass> AppUserSubjectClasses { get; set; } = new List<AppUserSubjectClass>();
 
     public virtual Commune? Commune { get; set; }
 
     public virtual ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
+
+    public virtual ICollection<ExamResult> ExamResults { get; set; } = new List<ExamResult>();
 
     public virtual ICollection<ForumAppeal> ForumAppealUpdatedByNavigations { get; set; } = new List<ForumAppeal>();
 
@@ -80,8 +84,6 @@ public partial class AppUser
     public virtual ICollection<ForumPost> ForumPosts { get; set; } = new List<ForumPost>();
 
     public virtual ICollection<ForumRule> ForumRules { get; set; } = new List<ForumRule>();
-
-    public virtual ICollection<ExamResult> ExamResults { get; set; } = new List<ExamResult>();
 
     public virtual ICollection<LessonComment> LessonComments { get; set; } = new List<LessonComment>();
 

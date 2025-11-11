@@ -1,3 +1,7 @@
+import type {
+  AccountRecoveryItem,
+  CreateAccountRecoveryRequest,
+} from "./account-recovery";
 import type { AppRole } from "./app-role";
 import type { AppUser, CurrentUser } from "./app-user";
 import type { City } from "./city";
@@ -91,4 +95,22 @@ interface LocationState {
   setSelectedSchool: (school: School) => void;
 }
 
-export type { AppUserState, AppRoleState, LocationState };
+interface AccountRecoveryState {
+  items: AccountRecoveryItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  isLoading: boolean;
+  error: string | null;
+  fetch: (
+    search?: string | null,
+    status?: string | null,
+    page?: number,
+    limit?: number
+  ) => Promise<void>;
+  updateStatus: (id: string, status: string) => Promise<void>;
+  createRequest: (payload: CreateAccountRecoveryRequest) => Promise<void>;
+}
+
+export type { AppUserState, AppRoleState, LocationState, AccountRecoveryState };

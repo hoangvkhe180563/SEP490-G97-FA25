@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useAuthStore } from "../stores/useAuthStore";
-import { axiosInstance, axiosMessageErrorHandler } from "@/lib/axios";
+import { axiosMessageErrorHandler } from "@/lib/axios";
+import useAccountRecoveryStore from "@/user/stores/useAccountRecoveryStore";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -30,6 +31,8 @@ const ActivateFormModal: React.FC = () => {
     setReason("");
   };
 
+  const createRequest = useAccountRecoveryStore((s) => s.createRequest);
+
   const onSubmit = async () => {
     // client-side validation
     const nextErrors: typeof errors = {};
@@ -45,13 +48,12 @@ const ActivateFormModal: React.FC = () => {
     setIsSubmitting(true);
     setMessage(null);
     try {
-      // Best-effort API call; backend may not have this endpoint yet.
-      const res = await axiosInstance.post("/Auth/request-activation", {
+      // Use the centralized account recovery store to create the request.
+      await createRequest({
         identifier: identifier.trim(),
         reason: reason.trim(),
       });
-      const data = res.data;
-      setMessage(data?.message || "Đã gửi yêu cầu. Vui lòng chờ phản hồi.");
+      setMessage("Đã gửi yêu cầu. Vui lòng kiểm tra email và chờ phản hồi.");
       // close form after a short delay
       setTimeout(() => onClose(), 1200);
     } catch (err: unknown) {

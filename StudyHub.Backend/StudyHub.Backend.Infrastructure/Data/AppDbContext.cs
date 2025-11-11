@@ -11,6 +11,8 @@ public partial class AppDbContext : DbContext
     {
     }
 
+    public virtual DbSet<AccountRecoveryRequest> AccountRecoveryRequests { get; set; }
+
     public virtual DbSet<AppPolicy> AppPolicies { get; set; }
 
     public virtual DbSet<AppResource> AppResources { get; set; }
@@ -45,6 +47,12 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<Enrollment> Enrollments { get; set; }
 
+    public virtual DbSet<Exam> Exams { get; set; }
+
+    public virtual DbSet<ExamQuestion> ExamQuestions { get; set; }
+
+    public virtual DbSet<ExamResult> ExamResults { get; set; }
+
     public virtual DbSet<ForumAppeal> ForumAppeals { get; set; }
 
     public virtual DbSet<ForumAttachment> ForumAttachments { get; set; }
@@ -56,12 +64,6 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<ForumPost> ForumPosts { get; set; }
 
     public virtual DbSet<ForumRule> ForumRules { get; set; }
-
-    public virtual DbSet<Exam> Exams { get; set; }
-
-    public virtual DbSet<ExamQuestion> ExamQuestions { get; set; }
-
-    public virtual DbSet<ExamResult> ExamResults { get; set; }
 
     public virtual DbSet<LandingPage> LandingPages { get; set; }
 
@@ -112,6 +114,29 @@ public partial class AppDbContext : DbContext
         modelBuilder
             .UseCollation("utf8mb4_0900_ai_ci")
             .HasCharSet("utf8mb4");
+
+        modelBuilder.Entity<AccountRecoveryRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("account_recovery_requests");
+
+            entity.HasIndex(e => e.UserId, "UserId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.ProcessedAt).HasColumnType("datetime");
+            entity.Property(e => e.RequestReason).HasMaxLength(1000);
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'Pending'")
+                .HasColumnType("enum('Pending','Approved','Rejected')");
+
+            entity.HasOne(d => d.User).WithMany(p => p.AccountRecoveryRequests)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("account_recovery_requests_ibfk_1");
+        });
 
         modelBuilder.Entity<AppPolicy>(entity =>
         {
@@ -302,24 +327,22 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.ClassId, "FK_ClassNotifications_Classes");
 
-            entity.Property(e => e.Id).HasColumnType("int(11)");
-            entity.Property(e => e.ClassId).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
                 .HasMaxLength(6)
-                .HasDefaultValueSql("current_timestamp(6)");
+                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
             entity.Property(e => e.Deadline).HasMaxLength(6);
             entity.Property(e => e.DeletedAt).HasMaxLength(6);
             entity.Property(e => e.Description)
                 .HasMaxLength(5000)
-                .UseCollation("utf8_general_ci")
-                .HasCharSet("utf8");
+                .UseCollation("utf8mb3_general_ci")
+                .HasCharSet("utf8mb3");
             entity.Property(e => e.GradeType).HasMaxLength(50);
             entity.Property(e => e.InstructionsHtml).HasColumnType("text");
             entity.Property(e => e.MaxScore).HasPrecision(9, 2);
             entity.Property(e => e.Title)
                 .HasMaxLength(200)
-                .UseCollation("utf8_general_ci")
-                .HasCharSet("utf8");
+                .UseCollation("utf8mb3_general_ci")
+                .HasCharSet("utf8mb3");
             entity.Property(e => e.Type)
                 .HasDefaultValueSql("'notification'")
                 .HasColumnType("enum('notification','classwork')");
@@ -339,7 +362,6 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.NotificationId, "FK_NotificationComments_Notifications");
 
-            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.Content).HasMaxLength(2000);
             entity.Property(e => e.CreatedAt)
                 .HasMaxLength(6)
@@ -363,7 +385,6 @@ public partial class AppDbContext : DbContext
 
             entity.Property(e => e.FileName).HasMaxLength(200);
             entity.Property(e => e.FileType).HasMaxLength(100);
-            entity.Property(e => e.NotificationId).HasColumnType("int(11)");
 
             entity.HasOne(d => d.Notification).WithMany(p => p.ClassNotificationFiles)
                 .HasForeignKey(d => d.NotificationId)
@@ -379,7 +400,6 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("class_notification_read_status");
 
-            entity.Property(e => e.NotificationId).HasColumnType("int(11)");
             entity.Property(e => e.ReadAt)
                 .HasMaxLength(6)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
@@ -523,225 +543,6 @@ public partial class AppDbContext : DbContext
                 .HasConstraintName("enrollments_ibfk_2");
         });
 
-        modelBuilder.Entity<ForumAppeal>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("forum_appeals");
-
-            entity.HasIndex(e => e.SchoolId, "SchoolId");
-
-            entity.HasIndex(e => e.UpdatedBy, "UpdatedBy");
-
-            entity.HasIndex(e => e.UserId, "UserId");
-
-            entity.Property(e => e.Id).HasColumnType("int(11)");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("current_timestamp()")
-                .HasColumnType("datetime");
-            entity.Property(e => e.Reason).HasMaxLength(2000);
-            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
-            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
-
-            entity.HasOne(d => d.School).WithMany(p => p.ForumAppeals)
-                .HasForeignKey(d => d.SchoolId)
-                .HasConstraintName("forum_appeals_ibfk_2");
-
-            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.ForumAppealUpdatedByNavigations)
-                .HasForeignKey(d => d.UpdatedBy)
-                .HasConstraintName("forum_appeals_ibfk_3");
-
-            entity.HasOne(d => d.User).WithMany(p => p.ForumAppealUsers)
-                .HasForeignKey(d => d.UserId)
-                .HasConstraintName("forum_appeals_ibfk_1");
-        });
-
-        modelBuilder.Entity<ForumAttachment>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("forum_attachments");
-
-            entity.HasIndex(e => e.CommentId, "CommentId");
-
-            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
-
-            entity.HasIndex(e => e.PostId, "PostId");
-
-            entity.Property(e => e.Id).HasColumnType("int(11)");
-            entity.Property(e => e.CommentId).HasColumnType("int(11)");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("current_timestamp()")
-                .HasColumnType("datetime");
-            entity.Property(e => e.DeletedAt).HasColumnType("datetime");
-            entity.Property(e => e.PostId).HasColumnType("int(11)");
-            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
-
-            entity.HasOne(d => d.Comment).WithMany(p => p.ForumAttachments)
-                .HasForeignKey(d => d.CommentId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("forum_attachments_ibfk_2");
-
-            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumAttachments)
-                .HasForeignKey(d => d.CreatedBy)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("forum_attachments_ibfk_3");
-
-            entity.HasOne(d => d.Post).WithMany(p => p.ForumAttachments)
-                .HasForeignKey(d => d.PostId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("forum_attachments_ibfk_1");
-        });
-
-        modelBuilder.Entity<ForumComment>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("forum_comments");
-
-            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
-
-            entity.HasIndex(e => e.ParentCommentId, "ParentCommentId");
-
-            entity.HasIndex(e => e.PostId, "PostId");
-
-            entity.Property(e => e.Id).HasColumnType("int(11)");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("current_timestamp()")
-                .HasColumnType("datetime");
-            entity.Property(e => e.DeletedAt).HasColumnType("datetime");
-            entity.Property(e => e.ParentCommentId).HasColumnType("int(11)");
-            entity.Property(e => e.PostId).HasColumnType("int(11)");
-            entity.Property(e => e.TotalViolationScore).HasColumnType("int(11)");
-            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
-
-            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumComments)
-                .HasForeignKey(d => d.CreatedBy)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("forum_comments_ibfk_3");
-
-            entity.HasOne(d => d.ParentComment).WithMany(p => p.InverseParentComment)
-                .HasForeignKey(d => d.ParentCommentId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("forum_comments_ibfk_2");
-
-            entity.HasOne(d => d.Post).WithMany(p => p.ForumComments)
-                .HasForeignKey(d => d.PostId)
-                .HasConstraintName("forum_comments_ibfk_1");
-        });
-
-        modelBuilder.Entity<ForumFlair>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("forum_flairs");
-
-            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
-
-            entity.HasIndex(e => e.SchoolId, "SchoolId");
-
-            entity.Property(e => e.Id).HasColumnType("int(11)");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("current_timestamp()")
-                .HasColumnType("datetime");
-            entity.Property(e => e.Description).HasMaxLength(500);
-            entity.Property(e => e.Name).HasMaxLength(100);
-            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
-            entity.Property(e => e.Status)
-                .IsRequired()
-                .HasDefaultValueSql("'1'");
-            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
-
-            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumFlairs)
-                .HasForeignKey(d => d.CreatedBy)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("forum_flairs_ibfk_2");
-
-            entity.HasOne(d => d.School).WithMany(p => p.ForumFlairs)
-                .HasForeignKey(d => d.SchoolId)
-                .HasConstraintName("forum_flairs_ibfk_1");
-        });
-
-        modelBuilder.Entity<ForumPost>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("forum_posts");
-
-            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
-
-            entity.HasIndex(e => e.FlairId, "FlairId");
-
-            entity.HasIndex(e => e.SchoolId, "SchoolId");
-
-            entity.HasIndex(e => e.SubjectId, "SubjectId");
-
-            entity.Property(e => e.Id).HasColumnType("int(11)");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("current_timestamp()")
-                .HasColumnType("datetime");
-            entity.Property(e => e.DeletedAt).HasColumnType("datetime");
-            entity.Property(e => e.FlairId).HasColumnType("int(11)");
-            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
-            entity.Property(e => e.SubjectId).HasColumnType("smallint(6)");
-            entity.Property(e => e.Title).HasMaxLength(200);
-            entity.Property(e => e.TotalViolationScore).HasColumnType("int(11)");
-            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
-
-            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumPosts)
-                .HasForeignKey(d => d.CreatedBy)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("forum_posts_ibfk_4");
-
-            entity.HasOne(d => d.Flair).WithMany(p => p.ForumPosts)
-                .HasForeignKey(d => d.FlairId)
-                .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("forum_posts_ibfk_3");
-
-            entity.HasOne(d => d.School).WithMany(p => p.ForumPosts)
-                .HasForeignKey(d => d.SchoolId)
-                .HasConstraintName("forum_posts_ibfk_1");
-
-            entity.HasOne(d => d.Subject).WithMany(p => p.ForumPosts)
-                .HasForeignKey(d => d.SubjectId)
-                .HasConstraintName("forum_posts_ibfk_2");
-        });
-
-        modelBuilder.Entity<ForumRule>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("forum_rules");
-
-            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
-
-            entity.HasIndex(e => e.SchoolId, "SchoolId");
-
-            entity.Property(e => e.Id).HasColumnType("int(11)");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("current_timestamp()")
-                .HasColumnType("datetime");
-            entity.Property(e => e.Description).HasMaxLength(1000);
-            entity.Property(e => e.IsActive)
-                .IsRequired()
-                .HasDefaultValueSql("'1'");
-            entity.Property(e => e.Name).HasMaxLength(200);
-            entity.Property(e => e.RuleType).HasMaxLength(100);
-            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
-            entity.Property(e => e.Severity).HasMaxLength(50);
-            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
-            entity.Property(e => e.ViolationScore).HasColumnType("int(11)");
-
-            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumRules)
-                .HasForeignKey(d => d.CreatedBy)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("forum_rules_ibfk_2");
-
-            entity.HasOne(d => d.School).WithMany(p => p.ForumRules)
-                .HasForeignKey(d => d.SchoolId)
-                .HasConstraintName("forum_rules_ibfk_1");
-        });
-
         modelBuilder.Entity<Exam>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
@@ -814,6 +615,206 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.StudentId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("exam_results_ibfk_2");
+        });
+
+        modelBuilder.Entity<ForumAppeal>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("forum_appeals");
+
+            entity.HasIndex(e => e.SchoolId, "SchoolId");
+
+            entity.HasIndex(e => e.UpdatedBy, "UpdatedBy");
+
+            entity.HasIndex(e => e.UserId, "UserId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Reason).HasMaxLength(2000);
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.School).WithMany(p => p.ForumAppeals)
+                .HasForeignKey(d => d.SchoolId)
+                .HasConstraintName("forum_appeals_ibfk_2");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.ForumAppealUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("forum_appeals_ibfk_3");
+
+            entity.HasOne(d => d.User).WithMany(p => p.ForumAppealUsers)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("forum_appeals_ibfk_1");
+        });
+
+        modelBuilder.Entity<ForumAttachment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("forum_attachments");
+
+            entity.HasIndex(e => e.CommentId, "CommentId");
+
+            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
+
+            entity.HasIndex(e => e.PostId, "PostId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.DeletedAt).HasColumnType("datetime");
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.Comment).WithMany(p => p.ForumAttachments)
+                .HasForeignKey(d => d.CommentId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("forum_attachments_ibfk_2");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumAttachments)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("forum_attachments_ibfk_3");
+
+            entity.HasOne(d => d.Post).WithMany(p => p.ForumAttachments)
+                .HasForeignKey(d => d.PostId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("forum_attachments_ibfk_1");
+        });
+
+        modelBuilder.Entity<ForumComment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("forum_comments");
+
+            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
+
+            entity.HasIndex(e => e.ParentCommentId, "ParentCommentId");
+
+            entity.HasIndex(e => e.PostId, "PostId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.DeletedAt).HasColumnType("datetime");
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumComments)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("forum_comments_ibfk_3");
+
+            entity.HasOne(d => d.ParentComment).WithMany(p => p.InverseParentComment)
+                .HasForeignKey(d => d.ParentCommentId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("forum_comments_ibfk_2");
+
+            entity.HasOne(d => d.Post).WithMany(p => p.ForumComments)
+                .HasForeignKey(d => d.PostId)
+                .HasConstraintName("forum_comments_ibfk_1");
+        });
+
+        modelBuilder.Entity<ForumFlair>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("forum_flairs");
+
+            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
+
+            entity.HasIndex(e => e.SchoolId, "SchoolId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumFlairs)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("forum_flairs_ibfk_2");
+
+            entity.HasOne(d => d.School).WithMany(p => p.ForumFlairs)
+                .HasForeignKey(d => d.SchoolId)
+                .HasConstraintName("forum_flairs_ibfk_1");
+        });
+
+        modelBuilder.Entity<ForumPost>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("forum_posts");
+
+            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
+
+            entity.HasIndex(e => e.FlairId, "FlairId");
+
+            entity.HasIndex(e => e.SchoolId, "SchoolId");
+
+            entity.HasIndex(e => e.SubjectId, "SubjectId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.DeletedAt).HasColumnType("datetime");
+            entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumPosts)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("forum_posts_ibfk_4");
+
+            entity.HasOne(d => d.Flair).WithMany(p => p.ForumPosts)
+                .HasForeignKey(d => d.FlairId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("forum_posts_ibfk_3");
+
+            entity.HasOne(d => d.School).WithMany(p => p.ForumPosts)
+                .HasForeignKey(d => d.SchoolId)
+                .HasConstraintName("forum_posts_ibfk_1");
+
+            entity.HasOne(d => d.Subject).WithMany(p => p.ForumPosts)
+                .HasForeignKey(d => d.SubjectId)
+                .HasConstraintName("forum_posts_ibfk_2");
+        });
+
+        modelBuilder.Entity<ForumRule>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("forum_rules");
+
+            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
+
+            entity.HasIndex(e => e.SchoolId, "SchoolId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.IsActive)
+                .IsRequired()
+                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.RuleType).HasMaxLength(100);
+            entity.Property(e => e.Severity).HasMaxLength(50);
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.ForumRules)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("forum_rules_ibfk_2");
+
+            entity.HasOne(d => d.School).WithMany(p => p.ForumRules)
+                .HasForeignKey(d => d.SchoolId)
+                .HasConstraintName("forum_rules_ibfk_1");
         });
 
         modelBuilder.Entity<LandingPage>(entity =>
@@ -945,16 +946,14 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.NotificationId, "FK_Submissions_Notifications");
 
-            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.Feedback).HasColumnType("text");
             entity.Property(e => e.FirstSubmissionTime)
                 .HasMaxLength(6)
-                .HasDefaultValueSql("current_timestamp(6)");
+                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
             entity.Property(e => e.GradedAt).HasMaxLength(6);
             entity.Property(e => e.LatestSubmissionTime)
                 .HasMaxLength(6)
-                .HasDefaultValueSql("current_timestamp(6)");
-            entity.Property(e => e.NotificationId).HasColumnType("int(11)");
+                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
             entity.Property(e => e.Score).HasPrecision(9, 2);
             entity.Property(e => e.SubmissionStatus)
                 .HasMaxLength(50)
@@ -1130,15 +1129,13 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.RuleId, "RuleId");
 
-            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("current_timestamp()")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime");
             entity.Property(e => e.IsActive)
                 .IsRequired()
                 .HasDefaultValueSql("'1'");
             entity.Property(e => e.Pattern).HasMaxLength(500);
-            entity.Property(e => e.RuleId).HasColumnType("int(11)");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.RulePatterns)
@@ -1245,14 +1242,11 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.SchoolId, "SchoolId");
 
-            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("current_timestamp()")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime");
             entity.Property(e => e.MuteUntil).HasColumnType("datetime");
-            entity.Property(e => e.TotalViolationScore)
-                .HasDefaultValueSql("'100'")
-                .HasColumnType("int(11)");
+            entity.Property(e => e.TotalViolationScore).HasDefaultValueSql("'100'");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.School).WithMany(p => p.UserForumStatuses)
@@ -1284,20 +1278,13 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.UserId, "UserId");
 
-            entity.Property(e => e.Id).HasColumnType("int(11)");
-            entity.Property(e => e.CommentId).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("current_timestamp()")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
-            entity.Property(e => e.MatchedPatternId).HasColumnType("int(11)");
-            entity.Property(e => e.MatchedRuleId).HasColumnType("int(11)");
-            entity.Property(e => e.PostId).HasColumnType("int(11)");
-            entity.Property(e => e.SchoolId).HasColumnType("int(11)");
             entity.Property(e => e.SourceType)
                 .HasDefaultValueSql("'auto'")
                 .HasColumnType("enum('auto','report','manual')");
-            entity.Property(e => e.ViolationScore).HasColumnType("int(11)");
 
             entity.HasOne(d => d.Comment).WithMany(p => p.ViolationRecords)
                 .HasForeignKey(d => d.CommentId)

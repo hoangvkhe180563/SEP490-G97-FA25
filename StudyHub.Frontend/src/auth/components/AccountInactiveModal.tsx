@@ -7,7 +7,6 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogCancel,
   AlertDialogAction,
 } from "@/common/components/ui/alert-dialog";
 // Button from alert-dialog's Action/Cancel used; no direct Button import needed
@@ -54,9 +53,6 @@ export function AccountInactiveModal() {
             >
               Yêu cầu kích hoạt
             </button>
-            <AlertDialogCancel onClick={() => setAccountInactiveOpen(false)}>
-              Đóng
-            </AlertDialogCancel>
             <AlertDialogAction onClick={onLogout}>Đăng xuất</AlertDialogAction>
           </div>
         </AlertDialogFooter>

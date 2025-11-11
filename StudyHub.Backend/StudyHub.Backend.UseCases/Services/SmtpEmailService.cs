@@ -147,5 +147,81 @@ namespace StudyHub.Backend.Api.Services
             if (!string.IsNullOrEmpty(user)) client.Credentials = new System.Net.NetworkCredential(user, pass);
             await client.SendMailAsync(message);
         }
+
+        public async Task SendAccountRecoveryStatusEmailAsync(string toEmail, string username, string status, string reason = "")
+        {
+            var smtp = _configuration.GetSection("Smtp");
+            var host = smtp.GetValue<string>("Host");
+            var port = smtp.GetValue<int?>("Port") ?? 25;
+            var user = smtp.GetValue<string>("User");
+            var pass = smtp.GetValue<string>("Password");
+            var from = smtp.GetValue<string>("From") ?? "no-reply@example.com";
+
+            var baseUrl = _configuration["App:BaseUrl"] ?? "http://localhost:5173";
+            var appName = _configuration["App:Name"] ?? "StudyHub";
+
+            string subject;
+            string body;
+
+            if (status?.Equals("Đã phê duyệt", System.StringComparison.OrdinalIgnoreCase) == true || status?.Equals("Approved", System.StringComparison.OrdinalIgnoreCase) == true)
+            {
+                subject = $"{appName} - Yêu cầu khôi phục: Đã phê duyệt";
+                body = $@"
+                    <html>
+                    <body style='font-family: Arial, sans-serif; color: #222;'>
+                      <h2 style='color:#333'>{appName}</h2>
+                      <p>Xin chào {System.Net.WebUtility.HtmlEncode(username ?? "")},</p>
+                      <p>Yêu cầu khôi phục tài khoản của bạn đã được <strong>phê duyệt</strong>. Bạn có thể đăng nhập lại vào hệ thống.</p>
+                      {(string.IsNullOrWhiteSpace(reason) ? "" : $"<p>Lý do: {System.Net.WebUtility.HtmlEncode(reason)}</p>")}
+                      <hr/>
+                      <small>{appName} Team</small>
+                    </body>
+                    </html>
+                ";
+            }
+            else if (status?.Equals("Đã từ chối", System.StringComparison.OrdinalIgnoreCase) == true || status?.Equals("Rejected", System.StringComparison.OrdinalIgnoreCase) == true)
+            {
+                subject = $"{appName} - Yêu cầu khôi phục: Đã từ chối";
+                body = $@"
+                    <html>
+                    <body style='font-family: Arial, sans-serif; color: #222;'>
+                      <h2 style='color:#333'>{appName}</h2>
+                      <p>Xin chào {System.Net.WebUtility.HtmlEncode(username ?? "")},</p>
+                      <p>Rất tiếc, yêu cầu khôi phục tài khoản của bạn đã bị <strong>từ chối</strong>.</p>
+                      {(string.IsNullOrWhiteSpace(reason) ? "" : $"<p>Lý do: {System.Net.WebUtility.HtmlEncode(reason)}</p>")}
+                      <hr/>
+                      <small>{appName} Team</small>
+                    </body>
+                    </html>
+                ";
+            }
+            else
+            {
+                subject = $"{appName} - Yêu cầu khôi phục";
+                body = $@"
+                    <html>
+                    <body style='font-family: Arial, sans-serif; color: #222;'>
+                      <h2 style='color:#333'>{appName}</h2>
+                      <p>Xin chào {System.Net.WebUtility.HtmlEncode(username ?? "")},</p>
+                      <p>Trạng thái yêu cầu khôi phục tài khoản của bạn: <strong>{System.Net.WebUtility.HtmlEncode(status ?? "")}</strong></p>
+                      {(string.IsNullOrWhiteSpace(reason) ? "" : $"<p>Lý do: {System.Net.WebUtility.HtmlEncode(reason)}</p>")}
+                      <hr/>
+                      <small>{appName} Team</small>
+                    </body>
+                    </html>
+                ";
+            }
+
+            var message = new System.Net.Mail.MailMessage(from, toEmail)
+            {
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = true
+            };
+
+            using var client = new System.Net.Mail.SmtpClient(host, port);
+            if (!string.IsNullOrEmpty(user)) client.Credentials = new System.Net.NetworkCredential(user, pass);
+            await client.SendMailAsync(message);
+        }
     }
 }
