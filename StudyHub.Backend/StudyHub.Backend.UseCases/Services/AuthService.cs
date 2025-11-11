@@ -14,6 +14,7 @@ using StudyHub.Backend.Api.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using StudyHub.Backend.UseCases.Exceptions;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -73,6 +74,9 @@ namespace StudyHub.Backend.UseCases.Services
             if (!ok) return (null, "invalid");
 
             if (!user.IsVerified) return (null, "unverified");
+
+            // If account is explicitly marked inactive (Status == false) reject login
+            if (user.Status == false) return (null, "inactive");
 
             // Load roles and user claims and create a jwt access token including permissions
             var roles = _roleRepository.GetRolesForUser(user.Id);
@@ -185,7 +189,7 @@ namespace StudyHub.Backend.UseCases.Services
         /// <param name="fullname">The full name of the new user.</param>
         /// <param name="communeId">The commune id of the new user.</param>
         /// <returns>The newly created <see cref="AppUser"/> if the sign up is successful, otherwise null.</returns>
-        public AppUser? Signup(string email, string password, string username, string phoneNumber, int communeId, int? schoolId = null, string? fullname = null, string? avatar = null, int? gender = null)
+        public async Task<AppUser?> Signup(string email, string password, string username, string phoneNumber, int communeId, int? schoolId = null, string? fullname = null, string? avatar = null, int? gender = null)
         {
             // Check if the email already exists, if it does, return null
             var existing = _userRepository.GetByEmail(email);
@@ -220,7 +224,7 @@ namespace StudyHub.Backend.UseCases.Services
                 string? token = CreateVerificationTokenForEmail(email);
                 if (token != null)
                 {
-                    _emailService.SendVerificationEmailAsync(email, token);
+                   await _emailService.SendVerificationEmailAsync(email, token);
                 }
                 return user;
             }
@@ -359,6 +363,12 @@ namespace StudyHub.Backend.UseCases.Services
                     if (!string.IsNullOrEmpty(name)) user.Fullname = name;
                     if (!string.IsNullOrEmpty(picture)) user.Avatar = picture;
                     _userRepository.UpdateUser(user);
+                    // If the existing user is inactive, disallow Google login
+                    if (user.Status == false)
+                    {
+                        // throw a specific exception so controller can return the proper payload
+                        throw new AccountInactiveException();
+                    }
                 }
 
                 // Build roles/claims and issue tokens
@@ -413,6 +423,11 @@ namespace StudyHub.Backend.UseCases.Services
                     SubjectIds = subjectIds,
                     ClassIds = classIds
                 };
+            }
+            catch (AccountInactiveException)
+            {
+                // propagate account-inactive so controller can return structured payload
+                throw;
             }
             catch
             {
@@ -513,6 +528,11 @@ namespace StudyHub.Backend.UseCases.Services
                 var idToken = idt.GetString();
                 if (string.IsNullOrEmpty(idToken)) return null;
                 return LoginWithGoogle(idToken);
+            }
+            catch (AccountInactiveException)
+            {
+                // let controller handle inactive-account specially
+                throw;
             }
             catch
             {

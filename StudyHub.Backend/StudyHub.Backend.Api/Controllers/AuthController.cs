@@ -1,4 +1,5 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -6,6 +7,7 @@ using StudyHub.Backend.Api.Dtos.AuthDTOS;
 using StudyHub.Backend.Api.Filters;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.Api.Services;
+using StudyHub.Backend.UseCases.Exceptions;
 using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -27,7 +29,7 @@ namespace StudyHub.Backend.Api.Controllers
 
         [HttpPost("signup")]
         [SkipAutoModelValidation]
-        public IActionResult Signup([FromBody] SignupRequest req)
+        public async Task<IActionResult> Signup([FromBody] SignupRequest req)
         {
             if (!ModelState.IsValid)
             {
@@ -39,7 +41,7 @@ namespace StudyHub.Backend.Api.Controllers
                 return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ", errors });
             }
 
-            var user = _authService.Signup(req.Email, req.Password, req.Username, req.PhoneNumber, req.CommuneId, req.SchoolId, req.Fullname);
+            var user = await _authService.Signup(req.Email, req.Password, req.Username, req.PhoneNumber, req.CommuneId, req.SchoolId, req.Fullname);
             if (user == null)
             {
                 return BadRequest(new SignupResponse { Success = false, Message = "Người dùng đã tồn tại" });
@@ -55,6 +57,8 @@ namespace StudyHub.Backend.Api.Controllers
             {
                 if (error == "unverified")
                     return StatusCode(StatusCodes.Status403Forbidden, new LoginResponse { Success = false, Message = "Email chưa được xác thực" });
+                if (error == "inactive")
+                    return StatusCode(StatusCodes.Status403Forbidden, new { success = false, error = "AccountInactive", message = "Tài khoản của bạn đang bị vô hiệu hóa." });
                 return Unauthorized(new LoginResponse { Success = false, Message = "Thông tin đăng nhập không hợp lệ" });
             }
             SetTokenInCookie(result);
@@ -216,12 +220,19 @@ namespace StudyHub.Backend.Api.Controllers
             if (string.IsNullOrEmpty(code))
                 return BadRequest(new { success = false, message = "Thiếu tham số authorization code" });
 
-            var loginResult = _authService.HandleGoogleCallback(code!);
-            if (loginResult == null) return Unauthorized(new { success = false, message = "Đăng nhập với Google thất bại", error });
+            try
+            {
+                var loginResult = _authService.HandleGoogleCallback(code!);
+                if (loginResult == null) return Unauthorized(new { success = false, message = "Đăng nhập với Google thất bại", error });
 
-            SetTokenInCookie(loginResult);
-            var userInfo = AuthMapper.ToUserInfoResponse(loginResult);
-            return Ok(new GenericResponse { Success = true, Message = "Đăng nhập với Google thành công!", Data = userInfo });
+                SetTokenInCookie(loginResult);
+                var userInfo = AuthMapper.ToUserInfoResponse(loginResult);
+                return Ok(new GenericResponse { Success = true, Message = "Đăng nhập với Google thành công!", Data = userInfo });
+            }
+            catch (AccountInactiveException)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { success = false, error = "AccountInactive", message = "Tài khoản của bạn đang bị vô hiệu hóa." });
+            }
         }
 
         [HttpGet("check-auth")]

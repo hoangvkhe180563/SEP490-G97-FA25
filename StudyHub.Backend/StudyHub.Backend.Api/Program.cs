@@ -1,11 +1,11 @@
-﻿using StudyHub.Backend.Api.Middleware;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Domain;
 using StudyHub.Backend.Infrastructure;
 using StudyHub.Backend.UseCases;
 using StudyHub.Backend.UseCases.Utils;
 using StudyHub.Backend.Api.Filters;
 using StudyHub.Backend.Api.Hubs;
+using StudyHub.Backend.Api.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -97,6 +97,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
+// Check that authenticated users are still active. If not, return a consistent AccountInactive payload.
+app.UseMiddleware<AccountActiveMiddleware>();
 app.UseAuthorization();
 app.UseSession();
 app.MapControllers();

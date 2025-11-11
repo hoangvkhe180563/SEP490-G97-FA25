@@ -74,6 +74,13 @@ const profileSchema = z
       path: ["confirmNewPassword"],
       message: "Mật khẩu xác nhận không khớp",
     }
+  )
+  .refine(
+    (d) => (d.newPassword ? !!d.oldPassword && d.oldPassword.length > 0 : true),
+    {
+      path: ["oldPassword"],
+      message: "Vui lòng nhập mật khẩu cũ để đổi mật khẩu",
+    }
   );
 
 type FormValues = z.infer<typeof profileSchema> & { photo?: File | null };
@@ -239,6 +246,8 @@ export default function UpdateProfile() {
     if (data.email) dto.email = data.email;
     if (data.username) dto.username = data.username;
     if (data.fullname) dto.fullname = data.fullname;
+    if (data.phoneNumber) dto.phoneNumber = data.phoneNumber;
+    if (data.address) dto.address = data.address;
     if (typeof data.communeId !== "undefined" && data.communeId !== undefined)
       dto.communeId = Number(data.communeId);
     if (typeof data.schoolId !== "undefined" && data.schoolId !== undefined)
@@ -275,14 +284,12 @@ export default function UpdateProfile() {
     };
 
     try {
-      if (data.address) dto.address = data.address;
-      if (data.phoneNumber) dto.phoneNumber = data.phoneNumber;
-
       const res = await updateProfile(dto);
       const body = res?.data ?? res;
       if (body?.success ?? true) {
         setDisplayedUsername(body?.username ?? undefined);
-        setDisplayedOldPassword(true);
+        console.log("data", data);
+        if (data.newPassword) setDisplayedOldPassword(true);
         toast.success(body?.message ?? "Cập nhật hồ sơ thành công");
       } else {
         handleMessage(body?.message);

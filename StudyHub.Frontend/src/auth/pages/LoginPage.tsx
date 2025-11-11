@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuthStore } from "../stores/useAuthStore";
+import ActivateFormModal from "../components/ActivateFormModal";
 import { Input } from "@/common/components/ui/input";
 import { Button } from "@/common/components/ui/button";
 import {
@@ -30,11 +31,11 @@ export default function LoginPage() {
     isLoading,
     loginError,
     loginMessage,
-    isAuthenticated,
     sendEmailVerification,
     getGoogleRedirectURL,
     googleRedirectURL,
   } = useAuthStore();
+  const { setActivateFormOpen } = useAuthStore();
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -87,7 +88,7 @@ export default function LoginPage() {
             return;
           }
         }
-        navigate("/")
+        navigate("/");
       });
     } else {
       await login(identifier, "", data.password, (user) => {
@@ -97,7 +98,7 @@ export default function LoginPage() {
             return;
           }
         }
-        navigate("/")
+        navigate("/");
       });
     }
     setLastIdentifier(identifier);
@@ -110,6 +111,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <ActivateFormModal />
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
@@ -210,6 +212,20 @@ export default function LoginPage() {
               <div className="text-sm text-red-700 bg-red-50 p-2 rounded">
                 <div>{loginError}</div>
                 {/* if error indicates unverified email, show resend option */}
+                {/* If the error indicates an inactive account, offer the activation form */}
+                {typeof loginError === "string" &&
+                  (loginError.toLowerCase().includes("accountinactive") ||
+                    loginError.toLowerCase().includes("vô hiệu")) && (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={() => setActivateFormOpen(true)}
+                        className="text-indigo-600 hover:text-indigo-500 underline"
+                      >
+                        Yêu cầu khôi phục tài khoản
+                      </button>
+                    </div>
+                  )}
                 {typeof loginError === "string" &&
                   loginError.toLowerCase().includes("chưa được xác thực") && (
                     <div className="mt-2">

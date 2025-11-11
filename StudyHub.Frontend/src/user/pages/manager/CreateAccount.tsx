@@ -61,7 +61,9 @@ const schema = z
       .refine((v) => !v || isValidVietnamPhone(v), {
         message: "Số điện thoại không hợp lệ",
       }),
-    roleIds: z.array(z.union([z.string(), z.number()])).optional(),
+    roleIds: z
+      .array(z.union([z.string(), z.number()]))
+      .min(1, "Phải chọn ít nhất một vai trò"),
     // gender stored as string in form but represents numeric codes: "1"=Male, "0"=Female, "2"=Other
     gender: z
       .union([z.literal("0"), z.literal("1"), z.literal("2")])
@@ -231,11 +233,11 @@ const CreateAccount: React.FC = () => {
     try {
       await useAppUserStore.getState().createAccount(
         dto,
-        (message?: string) => {
-          toast.success(message || "Tạo tài khoản thành công");
+        (message: any) => {
+          toast.success(message);
         },
-        (message?: string) => {
-          toast.error(message || "Tạo tài khoản không thành công");
+        (message: any) => {
+          handleMessage(message);
         }
       );
     } catch (err: any) {
@@ -443,6 +445,11 @@ const CreateAccount: React.FC = () => {
                   </>
                 )}
               </div>
+              {formState.errors?.roleIds?.message && (
+                <p className="text-sm text-red-600 mt-2">
+                  {String(formState.errors.roleIds.message)}
+                </p>
+              )}
             </FormItem>
           </div>
 
