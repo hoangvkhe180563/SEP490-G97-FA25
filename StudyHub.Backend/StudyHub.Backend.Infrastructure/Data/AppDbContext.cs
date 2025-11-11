@@ -60,6 +60,11 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<InteractiveQuestion> InteractiveQuestions { get; set; }
 
     public virtual DbSet<InteractiveResponse> InteractiveResponses { get; set; }
+    public virtual DbSet<Exam> Exams { get; set; }
+
+    public virtual DbSet<ExamQuestion> ExamQuestions { get; set; }
+
+    public virtual DbSet<ExamResult> ExamResults { get; set; }
 
     public virtual DbSet<LandingPage> LandingPages { get; set; }
 
@@ -784,6 +789,79 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Question).WithMany(p => p.InteractiveResponses)
                 .HasForeignKey(d => d.QuestionId)
                 .HasConstraintName("interactive_responses_ibfk_1");
+        });
+        modelBuilder.Entity<Exam>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("exams");
+
+            entity.HasIndex(e => e.ClassId, "ClassId");
+
+            entity.HasIndex(e => e.LessonId, "LessonId").IsUnique();
+
+            entity.Property(e => e.Attempts).HasDefaultValueSql("'1'");
+            entity.Property(e => e.CloseTime).HasColumnType("datetime");
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.OpenTime)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.ShowAnswers)
+                .IsRequired()
+                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.Title).HasMaxLength(500);
+
+            entity.HasOne(d => d.Class).WithMany(p => p.Exams)
+                .HasForeignKey(d => d.ClassId)
+                .HasConstraintName("exams_ibfk_1");
+        });
+
+        modelBuilder.Entity<ExamQuestion>(entity =>
+        {
+            entity.HasKey(e => e.QuestionObjectId).HasName("PRIMARY");
+
+            entity.ToTable("exam_questions");
+
+            entity.HasIndex(e => e.ExamId, "ExamId");
+
+            entity.Property(e => e.QuestionObjectId)
+                .HasMaxLength(24)
+                .IsFixedLength();
+
+            entity.HasOne(d => d.Exam).WithMany(p => p.ExamQuestions)
+                .HasForeignKey(d => d.ExamId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("exam_questions_ibfk_1");
+        });
+
+        modelBuilder.Entity<ExamResult>(entity =>
+        {
+            entity.HasKey(e => e.ResultObjectId).HasName("PRIMARY");
+
+            entity.ToTable("exam_results");
+
+            entity.HasIndex(e => e.ExamId, "ExamId");
+
+            entity.HasIndex(e => e.StudentId, "StudentId");
+
+            entity.Property(e => e.ResultObjectId)
+                .HasMaxLength(24)
+                .IsFixedLength();
+            entity.Property(e => e.CheatTimes)
+                .HasDefaultValueSql("'0'")
+                .HasColumnType("mediumint");
+            entity.Property(e => e.FinishTime).HasColumnType("datetime");
+            entity.Property(e => e.Score).HasPrecision(4, 2);
+            entity.Property(e => e.SubmissionTime).HasColumnType("datetime");
+
+            entity.HasOne(d => d.Exam).WithMany(p => p.ExamResults)
+                .HasForeignKey(d => d.ExamId)
+                .HasConstraintName("exam_results_ibfk_1");
+
+            entity.HasOne(d => d.Student).WithMany(p => p.ExamResults)
+                .HasForeignKey(d => d.StudentId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("exam_results_ibfk_2");
         });
 
         modelBuilder.Entity<LandingPage>(entity =>

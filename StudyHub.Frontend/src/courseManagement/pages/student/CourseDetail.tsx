@@ -406,38 +406,38 @@ const CourseDetail: React.FC = () => {
                         {teacher ?? "Giáo viên"}
                       </div>
 
-                      <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
-                        <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 font-medium shadow-sm">
-                          Khối {selectedCourse?.grade ?? "-"}
-                        </span>
-                        <span className="text-gray-400">|</span>
-                        <span className="text-gray-500">
-                          {teacher ?? "Giáo viên"}
-                        </span>
+                        <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
+                          <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 font-medium shadow-sm">
+                            Khối {selectedCourse?.grade ?? "-"}
+                          </span>
+                          <span className="text-gray-400">|</span>
+                          <span className="text-gray-500">
+                            {teacher ?? "Giáo viên"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="ml-auto text-right">
+                      <div className="text-sm text-gray-500">Thời gian</div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {selectedCourse?.startAt && selectedCourse?.endAt ? (
+                          <>
+                            <Calendar
+                              className="inline-block w-4 h-4 mr-1 text-gray-500"
+                              aria-hidden
+                            />
+                            {`${new Date(
+                              selectedCourse.startAt
+                            ).toLocaleDateString("vi-VN")} - ${new Date(
+                              selectedCourse.endAt
+                            ).toLocaleDateString("vi-VN")}`}
+                          </>
+                        ) : (
+                          "-"
+                        )}
                       </div>
                     </div>
                   </div>
-                  <div className="ml-auto text-right">
-                    <div className="text-sm text-gray-500">Thời gian</div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {selectedCourse?.startAt && selectedCourse?.endAt ? (
-                        <>
-                          <Calendar
-                            className="inline-block w-4 h-4 mr-1 text-gray-500"
-                            aria-hidden
-                          />
-                          {`${new Date(
-                            selectedCourse.startAt
-                          ).toLocaleDateString()} - ${new Date(
-                            selectedCourse.endAt
-                          ).toLocaleDateString()}`}
-                        </>
-                      ) : (
-                        "-"
-                      )}
-                    </div>
-                  </div>
-                </div>
 
                 {enrollment ? (
                   <div className="mt-6 p-5 border border-gray-100 rounded-xl bg-white shadow-sm">

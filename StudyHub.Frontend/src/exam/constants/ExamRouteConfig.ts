@@ -1,16 +1,23 @@
 const ExamRouteConfig = {
   STUDENT: {
-    EXAM_LIST: "student/exams",
     EXAM_DETAIL: "student/exams/:id",
     TAKE_EXAM: "student/take-exam/:id",
-    EXAM_RESULT_LIST: "student/results",
+    CLASS: {
+      EXAM_LIST: "student/class-exams",
+      EXAM_RESULT_LIST: "student/class-exams/results"
+    }
   },
   TEACHER: {
-    EXAM_LIST: "teacher/exams",
+    CLASS: {
+      EXAM_LIST: "teacher/class-exams/:classId",
+      EXAM_RESULT_LIST: "teacher/class-exams/results"
+    },
+    LESSON: {
+      LESSON_EXAM: "teacher/lesson-exam/:lessonId"
+    },
     CREATE_EXAM: "teacher/create-exam",
-    EXAM_HISTORY: "teacher/exams/:id/results",
-    EXAM_EDIT: "teacher/exams/:id/edit",
-    EXAM_RESULT_LIST: "teacher/results"
+    EDIT_EXAM: "teacher/edit-exam/:id",
+    EXAM_DETAILS: "teacher/results/:id"
   },
   EXAM_RESULT_DETAIL: "results/:id"
 };

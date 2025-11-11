@@ -191,14 +191,9 @@ const CourseDetail: React.FC = () => {
                                       className="w-full text-left p-2 rounded-lg flex items-start justify-between"
                                     >
                                       <div>
-                                        <div className="font-medium text-[#171717] hover:text-[#2563EB] transition-colors">
+                                        <div className="font-medium text-[#171717] hover:text-blue-500 transition-colors">
                                           {l.name}
                                         </div>
-                                        {l.description && (
-                                          <p className="text-xs text-gray-600 mt-1">
-                                            {l.description}
-                                          </p>
-                                        )}
                                       </div>
 
                                       {l.isPreview && (
