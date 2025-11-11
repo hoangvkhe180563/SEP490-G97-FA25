@@ -27,3 +27,21 @@ export function createChatConnection() {
     .withAutomaticReconnect()
     .build();
 }
+
+export function createPaymentConnection() {
+  const base = hubBase();
+  const url = `${base}/hubs/payment`;
+  return new signalR.HubConnectionBuilder()
+    .withUrl(url, {
+      withCredentials: true,
+    })
+    .withAutomaticReconnect()
+    .build();
+}
+export function createReadConnection() {
+  const base = hubBase();
+  return new signalR.HubConnectionBuilder()
+    .withUrl(`${base}/hubs/qa-read`, { withCredentials: true })
+    .withAutomaticReconnect()
+    .build();
+}

@@ -4,7 +4,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Repositories;
+using StudyHub.Backend.Infrastructure.Repositories.Exam;
 using StudyHub.Backend.UseCases.Repositories;
+using StudyHub.Backend.UseCases.Repositories.Exam;
 
 namespace StudyHub.Backend.Infrastructure
 {
@@ -19,6 +21,8 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<ICourseRepository, CourseRepository>();
             services.AddScoped<IChapterRepository, ChapterRepository>();
             services.AddScoped<ILessonRepository, LessonRepository>();
+            services.AddScoped<IInteractiveQuestionRepository, InteractiveQuestionRepository>();
+            services.AddScoped<IInteractiveResponseRepository, InteractiveResponseRepository>();
             services.AddScoped<ILessonResourceRepository, LessonResourceRepository>();
             services.AddScoped<ILandingPageRepository, LandingPageRepository>();
             services.AddScoped<IDocumentRepository, DocumentRepository>();
@@ -34,7 +38,10 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<IAppRoleRepository, AppRoleRepositoy>();
             services.AddScoped<IQATopicRepository, QATopicRepository>();
             services.AddScoped<IQAConversationRepository, QAConversationRepository>();
+            services.AddScoped<IQAConversationReadRepository, QAConversationReadRepository>();
             services.AddScoped<IQAMessageRepository, QAMessageRepository>();
+            services.AddScoped<IExamRepository, ExamRepository>();
+            services.AddScoped<IExamResultRepository, ExamResultRepository>();
 
             services.AddScoped<ICloudinaryRepository>(provider =>
             {
@@ -46,6 +53,7 @@ namespace StudyHub.Backend.Infrastructure
             });
 
             services.AddScoped<IPaymentInfoRepository, PaymentInfoRepository>();
+            services.AddScoped<ITransactionRepository, TransactionRepository>();
 
             return services;
         }

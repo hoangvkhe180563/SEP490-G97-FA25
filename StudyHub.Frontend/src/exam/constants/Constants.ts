@@ -1,7 +1,6 @@
 import type { Answer } from "../interfaces/models/Answer";
 import type { Exam } from "../interfaces/models/Exam";
 import type { ExamResult } from "../interfaces/models/ExamResult";
-import type { Question } from "../interfaces/models/Question";
 
 export const EXAM_TYPE = {
   SINGLE_CHOICE: "single-choice",
@@ -15,32 +14,27 @@ export const BLANK_PLACEHOLDER = "[BLANK]";
 export const DEFAULT_EXAM: Exam = {
   id: 0,
   title: '',
-  createdBy: 0,
+  createdBy: '',
   duration: 0,
   description: '',
-  questions: []
-}
-
-export const DEFAULT_QUESTION: Question = {
-  id: 0,
-  type: 'single-choice',
-  questionText: '',
-  options: [],
-  correctAnswer: null
+  questions: [],
+  showAnswers: true,
+  showCorrectAnswers: false,
+  openTime: new Date()
 }
 
 export const DEFAULT_EXAM_RESULT: ExamResult = {
-  id: 0,
+  id: '',
   examId: 0,
   score: 0,
-  studentId: 0,
-  submissionDate: new Date(),
-  totalQuestions: 0,
-  answers: []
+  studentId: '',
+  answers: [],
+  cheatTimes: 0,
+  finishTime: new Date()
 }
 
 export const DEFAULT_ANSWER: Answer = {
   questionId: 0,
-  studentAnswer: null,
+  jsonAnswers: null,
   isCorrect: false
 }

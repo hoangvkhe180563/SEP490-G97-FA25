@@ -13,6 +13,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/common/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/common/components/ui/collapsible";
 import { Button } from "@/common/components/ui/button";
 import { Edit2, ArrowLeft } from "lucide-react";
 import { documentService } from "@/documentManagement/services/documentService";
@@ -83,12 +88,14 @@ const CourseDetail: React.FC = () => {
     <div className="max-w-[1200px] mx-auto px-8 py-6 h-full flex flex-col">
       {/* === Breadcrumb === */}
       <div className="flex items-center gap-4">
-        <button
+        <Button
+          variant="ghost"
           onClick={() => navigate(-1)}
-          className="w-8 h-8 mb-4 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
+          className="w-8 h-8 mb-4 p-0 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
+          aria-label="Go back"
         >
           <ArrowLeft className="w-4 h-4 text-[#525252]" />
-        </button>
+        </Button>
         <div className="text-sm text-[#525252] mb-3">
           Khóa học / Chi tiết khóa học
         </div>
@@ -162,38 +169,31 @@ const CourseDetail: React.FC = () => {
                 {selectedCourse?.chapters?.length ? (
                   selectedCourse.chapters.map(
                     (ch: ChapterListDto, idx: number) => (
-                      <details
-                        key={ch.id ?? idx}
-                        className="border rounded p-3 bg-gray-50"
-                        open
-                      >
-                        <summary className="cursor-pointer font-semibold">
-                          {ch.name}
-                        </summary>
-                        <div className="mt-2">
-                          {ch.lessons?.length ? (
-                            <ul className="list-disc pl-5 text-sm">
-                              {ch.lessons.map(
-                                (l: LessonListDto, liIdx: number) => (
-                                  <li
-                                    key={l.id ?? liIdx}
-                                    className="py-1 cursor-pointer group"
-                                    onClick={() =>
-                                      navigate(
-                                        `/course/teacher/lecture/${l.id}`
-                                      )
-                                    }
-                                  >
-                                    <div className="flex items-start justify-between transition-colors group-hover:bg-gray-50 p-2 rounded-lg">
+                      <Collapsible key={ch.id ?? idx} defaultOpen>
+                        <div className="border rounded p-3 bg-gray-50">
+                          <CollapsibleTrigger className="w-full text-left font-semibold flex items-center justify-between">
+                            <span>{ch.name}</span>
+                          </CollapsibleTrigger>
+
+                          <CollapsibleContent className="mt-2">
+                            {ch.lessons?.length ? (
+                              <div className="space-y-2">
+                                {ch.lessons.map(
+                                  (l: LessonListDto, liIdx: number) => (
+                                    <Button
+                                      key={l.id ?? liIdx}
+                                      variant="ghost"
+                                      onClick={() =>
+                                        navigate(
+                                          `/course/teacher/lecture/${l.id}`
+                                        )
+                                      }
+                                      className="w-full text-left p-2 rounded-lg flex items-start justify-between"
+                                    >
                                       <div>
-                                        <div className="font-medium text-[#171717] group-hover:text-[#2563EB] transition-colors">
+                                        <div className="font-medium text-[#171717] hover:text-blue-500 transition-colors">
                                           {l.name}
                                         </div>
-                                        {l.description && (
-                                          <p className="text-xs text-gray-600 mt-1">
-                                            {l.description}
-                                          </p>
-                                        )}
                                       </div>
 
                                       {l.isPreview && (
@@ -201,18 +201,18 @@ const CourseDetail: React.FC = () => {
                                           Preview
                                         </span>
                                       )}
-                                    </div>
-                                  </li>
-                                )
-                              )}
-                            </ul>
-                          ) : (
-                            <div className="text-sm text-gray-500">
-                              Chưa có bài học nào trong chương này.
-                            </div>
-                          )}
+                                    </Button>
+                                  )
+                                )}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-gray-500">
+                                Chưa có bài học nào trong chương này.
+                              </div>
+                            )}
+                          </CollapsibleContent>
                         </div>
-                      </details>
+                      </Collapsible>
                     )
                   )
                 ) : (

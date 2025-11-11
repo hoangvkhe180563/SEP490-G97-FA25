@@ -10,6 +10,7 @@ namespace StudyHub.Backend.Api.Dtos.AppUserDTOS
         public string Email { get; set; } = null!;
         public string? Username { get; set; }
         public string? Fullname { get; set; }
+    public DateOnly? Dob { get; set; }
         // Gender friendly string: "Male" or "Female"
         public bool? Gender { get; set; }
         public string? Avatar { get; set; }

@@ -45,6 +45,12 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<Enrollment> Enrollments { get; set; }
 
+    public virtual DbSet<Exam> Exams { get; set; }
+
+    public virtual DbSet<ExamQuestion> ExamQuestions { get; set; }
+
+    public virtual DbSet<ExamResult> ExamResults { get; set; }
+
     public virtual DbSet<ForumAppeal> ForumAppeals { get; set; }
 
     public virtual DbSet<ForumAttachment> ForumAttachments { get; set; }
@@ -56,6 +62,10 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<ForumPost> ForumPosts { get; set; }
 
     public virtual DbSet<ForumRule> ForumRules { get; set; }
+
+    public virtual DbSet<InteractiveQuestion> InteractiveQuestions { get; set; }
+
+    public virtual DbSet<InteractiveResponse> InteractiveResponses { get; set; }
 
     public virtual DbSet<LandingPage> LandingPages { get; set; }
 
@@ -80,6 +90,8 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<Province> Provinces { get; set; }
 
     public virtual DbSet<QAConversation> QAConversations { get; set; }
+
+    public virtual DbSet<QAConversationRead> QAConversationReads { get; set; }
 
     public virtual DbSet<QAMessage> QAMessages { get; set; }
 
@@ -546,6 +558,88 @@ public partial class AppDbContext : DbContext
                 .HasConstraintName("enrollments_ibfk_2");
         });
 
+        modelBuilder.Entity<Exam>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("exams");
+
+            entity.HasIndex(e => e.ClassId, "ClassId");
+
+            entity.HasIndex(e => e.LessonId, "LessonId").IsUnique();
+
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.Attempts)
+                .HasDefaultValueSql("'1'")
+                .HasColumnType("tinyint(3) unsigned");
+            entity.Property(e => e.ClassId).HasColumnType("int(11)");
+            entity.Property(e => e.CloseTime).HasColumnType("datetime");
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.Duration).HasColumnType("int(10) unsigned");
+            entity.Property(e => e.LessonId).HasColumnType("int(11)");
+            entity.Property(e => e.OpenTime)
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("datetime");
+            entity.Property(e => e.ShowAnswers)
+                .IsRequired()
+                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.Title).HasMaxLength(500);
+
+            entity.HasOne(d => d.Class).WithMany(p => p.Exams)
+                .HasForeignKey(d => d.ClassId)
+                .HasConstraintName("exams_ibfk_1");
+        });
+
+        modelBuilder.Entity<ExamQuestion>(entity =>
+        {
+            entity.HasKey(e => e.QuestionObjectId).HasName("PRIMARY");
+
+            entity.ToTable("exam_questions");
+
+            entity.HasIndex(e => e.ExamId, "ExamId");
+
+            entity.Property(e => e.QuestionObjectId)
+                .HasMaxLength(24)
+                .IsFixedLength();
+            entity.Property(e => e.ExamId).HasColumnType("int(11)");
+
+            entity.HasOne(d => d.Exam).WithMany(p => p.ExamQuestions)
+                .HasForeignKey(d => d.ExamId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("exam_questions_ibfk_1");
+        });
+
+        modelBuilder.Entity<ExamResult>(entity =>
+        {
+            entity.HasKey(e => e.ResultObjectId).HasName("PRIMARY");
+
+            entity.ToTable("exam_results");
+
+            entity.HasIndex(e => e.ExamId, "ExamId");
+
+            entity.HasIndex(e => e.StudentId, "StudentId");
+
+            entity.Property(e => e.ResultObjectId)
+                .HasMaxLength(24)
+                .IsFixedLength();
+            entity.Property(e => e.CheatTimes)
+                .HasDefaultValueSql("'0'")
+                .HasColumnType("mediumint(9)");
+            entity.Property(e => e.ExamId).HasColumnType("int(11)");
+            entity.Property(e => e.FinishTime).HasColumnType("datetime");
+            entity.Property(e => e.Score).HasPrecision(4, 2);
+            entity.Property(e => e.SubmissionTime).HasColumnType("datetime");
+
+            entity.HasOne(d => d.Exam).WithMany(p => p.ExamResults)
+                .HasForeignKey(d => d.ExamId)
+                .HasConstraintName("exam_results_ibfk_1");
+
+            entity.HasOne(d => d.Student).WithMany(p => p.ExamResults)
+                .HasForeignKey(d => d.StudentId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("exam_results_ibfk_2");
+        });
+
         modelBuilder.Entity<ForumAppeal>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
@@ -763,6 +857,87 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.School).WithMany(p => p.ForumRules)
                 .HasForeignKey(d => d.SchoolId)
                 .HasConstraintName("forum_rules_ibfk_1");
+        });
+
+        modelBuilder.Entity<InteractiveQuestion>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("interactive_questions");
+
+            entity.HasIndex(e => e.LessonId, "LessonId");
+
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.CorrectAnswer)
+                .HasComment("Đáp án đúng nếu là câu hỏi dạng text")
+                .HasColumnType("text");
+            entity.Property(e => e.CorrectIndex)
+                .HasComment("Chỉ số đáp án đúng (0-based) nếu là MC")
+                .HasColumnType("int(11)");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("datetime");
+            entity.Property(e => e.LessonId).HasColumnType("int(11)");
+            entity.Property(e => e.Options)
+                .HasComment("Danh sách lựa chọn (JSON array) nếu là MC")
+                .HasColumnType("json");
+            entity.Property(e => e.QuestionText).HasColumnType("text");
+            entity.Property(e => e.TimeSec)
+                .HasComment("Thời điểm tính bằng giây trong video")
+                .HasColumnType("int(11)");
+            entity.Property(e => e.Type)
+                .HasDefaultValueSql("'mc'")
+                .HasComment("mc = multiple choice, text = trả lời tự do")
+                .HasColumnType("enum('mc','text')");
+            entity.Property(e => e.UpdatedAt)
+                .ValueGeneratedOnAddOrUpdate()
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Lesson).WithMany(p => p.InteractiveQuestions)
+                .HasForeignKey(d => d.LessonId)
+                .HasConstraintName("interactive_questions_ibfk_1");
+        });
+
+        modelBuilder.Entity<InteractiveResponse>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("interactive_responses");
+
+            entity.HasIndex(e => e.AppUserId, "AppUserId");
+
+            entity.HasIndex(e => e.LessonId, "LessonId");
+
+            entity.HasIndex(e => e.QuestionId, "QuestionId");
+
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.AnswerText)
+                .HasComment("Câu trả lời nếu dạng text")
+                .HasColumnType("text");
+            entity.Property(e => e.AppUserId).HasComment("Người học trả lời (nullable cho khách)");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("datetime");
+            entity.Property(e => e.IsCorrect).HasComment("TRUE = đúng, FALSE = sai, NULL = không xác định");
+            entity.Property(e => e.LessonId).HasColumnType("int(11)");
+            entity.Property(e => e.QuestionId).HasColumnType("int(11)");
+            entity.Property(e => e.SelectedIndex)
+                .HasComment("Chỉ số lựa chọn nếu dạng MC")
+                .HasColumnType("int(11)");
+
+            entity.HasOne(d => d.AppUser).WithMany(p => p.InteractiveResponses)
+                .HasForeignKey(d => d.AppUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("interactive_responses_ibfk_3");
+
+            entity.HasOne(d => d.Lesson).WithMany(p => p.InteractiveResponses)
+                .HasForeignKey(d => d.LessonId)
+                .HasConstraintName("interactive_responses_ibfk_2");
+
+            entity.HasOne(d => d.Question).WithMany(p => p.InteractiveResponses)
+                .HasForeignKey(d => d.QuestionId)
+                .HasConstraintName("interactive_responses_ibfk_1");
         });
 
         modelBuilder.Entity<LandingPage>(entity =>
@@ -1027,6 +1202,23 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Topic).WithMany(p => p.QAConversations)
                 .HasForeignKey(d => d.TopicId)
                 .HasConstraintName("q&_a_conversation_ibfk_3");
+        });
+
+        modelBuilder.Entity<QAConversationRead>(entity =>
+        {
+            entity.HasKey(e => new { e.ConversationId, e.UserId })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+
+            entity.ToTable("q&_a_conversation_read");
+
+            entity.Property(e => e.LastReadAt)
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Conversation).WithMany(p => p.QAConversationReads)
+                .HasForeignKey(d => d.ConversationId)
+                .HasConstraintName("q&_a_conversation_read_ibfk_1");
         });
 
         modelBuilder.Entity<QAMessage>(entity =>

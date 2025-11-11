@@ -1,5 +1,9 @@
 import * as React from "react";
 import { useEffect, useState, useRef } from "react";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
+import { format, parse } from "date-fns";
+import { Calendar } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -30,6 +34,7 @@ import { Badge } from "@/common/components/ui/badge";
 import { useLocationStore } from "@/user/stores/useLocationStore";
 import toast from "react-hot-toast";
 import { isValidVietnamPhone } from "@/user/utils/phoneUtils";
+import useDobStore from "@/user/stores/useDobStore";
 
 const schema = z
   .object({
@@ -38,7 +43,12 @@ const schema = z
     confirmPassword: z.string(),
     username: z.string().min(1, "Tên đăng nhập là bắt buộc"),
     phone: z.string().optional(),
-    dob: z.string().optional(),
+    dob: z
+      .string()
+      .optional()
+      .refine((v) => !v || useDobStore.getState().isValidDisplayDob(v), {
+        message: "Ngày sinh không hợp lệ. Định dạng dd/mm/yyyy",
+      }),
     communeId: z.union([z.string(), z.number()]).optional(),
     cityId: z.string().optional(),
     provinceId: z.string().optional(),
@@ -110,6 +120,24 @@ const CreateAccount: React.FC = () => {
     getValues,
   } = form;
 
+  // DOB calendar state
+  const [dobOpen, setDobOpen] = useState(false);
+  const [selectedDob, setSelectedDob] = useState<Date | undefined>(undefined);
+
+  // initialize selectedDob from existing display value if present
+  useEffect(() => {
+    const v = form.getValues("dob");
+    if (v) {
+      try {
+        const d = parse(String(v), "dd/MM/yyyy", new Date());
+        if (!isNaN(d.getTime())) setSelectedDob(d);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const mapBackendKeyToField = (key: string) => {
     const k = key || "";
     // map backend avatar keys to our form field name 'avatar'
@@ -119,16 +147,62 @@ const CreateAccount: React.FC = () => {
   };
 
   const handleMessage = (msg: any) => {
-    if (msg && typeof msg === "object") {
+    // Defensive handling of server messages/errors.
+    // The backend sometimes returns a structured validation error object
+    // (e.g. { Email: ["..."] }) or, in other cases, the full user object.
+    // If it's the latter we should NOT set form field errors using the
+    // field values (that causes the UI to display the current value as an error).
+    if (!msg) return;
+
+    if (typeof msg === "string") {
+      toast.error(msg);
+      return;
+    }
+
+    if (typeof msg === "object") {
       Object.entries(msg).forEach(([k, v]) => {
         const field = mapBackendKeyToField(k);
-        const messageText = Array.isArray(v) ? v.join(", ") : String(v ?? "");
-        try {
-          setError(field as any, { type: "server", message: messageText });
-        } catch (e) {
-          toast.error(messageText || "Tạo tài khoản không thành công");
+
+        // Only treat arrays of strings or plain string messages as validation
+        // errors. If backend returned booleans/numbers/objects (common when it
+        // returns the entity), skip setting a form error to avoid showing
+        // values as error messages (e.g. avatar URL, true/false).
+        if (Array.isArray(v)) {
+          const messageText = v.join(", ");
+          try {
+            setError(field as any, { type: "server", message: messageText });
+          } catch (e) {
+            toast.error(messageText || "Cập nhật thất bại");
+          }
+          return;
         }
+
+        if (typeof v === "string") {
+          const messageText = v;
+          // Skip obvious non-error strings such as URLs or when the message
+          // equals the current form value (the backend returned the entity).
+          if (/^https?:\/\//i.test(messageText)) return;
+          try {
+            const current = form.getValues(field as any);
+            if (String(current) === messageText) return;
+            setError(field as any, { type: "server", message: messageText });
+          } catch (e) {
+            toast.error(messageText || "Cập nhật thất bại");
+          }
+          return;
+        }
+
+        // For booleans/numbers/objects skip setting field errors
+        return;
       });
+      return;
+    }
+
+    // Fallback: show whatever arrived
+    try {
+      toast.error(String(msg));
+    } catch (e) {
+      /* ignore */
     }
   };
 
@@ -139,6 +213,11 @@ const CreateAccount: React.FC = () => {
       username: data.username,
       // ensure communeId is numeric (backend expects int)
       communeId: Number(data.communeId ?? 0),
+      // include schoolId when provided
+      schoolId: Number(data.schoolId ?? 0),
+      // include dob if provided (frontend stores dob as string)
+      // send dob as ISO yyyy-MM-dd to backend (convert from display dd/MM/yyyy)
+      dob: useDobStore.getState().displayToIso(data.dob ?? null),
       fullname: data.fullname,
       // ensure roleIds are strings (GUIDs expected by backend)
       roleIds: (data.roleIds ?? []).map((r: any) => String(r)),
@@ -150,14 +229,15 @@ const CreateAccount: React.FC = () => {
     };
 
     try {
-      const res = await useAppUserStore.getState().createAccount(dto);
-      const body = (res as any)?.data ?? res;
-      if (body?.success ?? body?.Success ?? false) {
-        navigate(-1);
-        toast.success(body?.message ?? "Tạo tài khoản thành công");
-      } else {
-        handleMessage(body?.message ?? body);
-      }
+      await useAppUserStore.getState().createAccount(
+        dto,
+        (message?: string) => {
+          toast.success(message || "Tạo tài khoản thành công");
+        },
+        (message?: string) => {
+          toast.error(message || "Tạo tài khoản không thành công");
+        }
+      );
     } catch (err: any) {
       const body = err?.response?.data ?? err?.data ?? err;
       handleMessage(body?.message ?? err?.message ?? body);
@@ -407,6 +487,51 @@ const CreateAccount: React.FC = () => {
                   <FormLabel>Số điện thoại</FormLabel>
                   <FormControl>
                     <Input {...field} placeholder="Số điện thoại" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={control}
+              name="dob"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ngày sinh</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        placeholder="dd/MM/yyyy"
+                        readOnly
+                        onClick={() => setDobOpen((s) => !s)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setDobOpen((s) => !s)}
+                        className="absolute right-2 top-2 p-1"
+                        aria-label="Open calendar"
+                      >
+                        <Calendar size={16} />
+                      </button>
+                      {dobOpen && (
+                        <div className="absolute z-50 mt-2 bg-white rounded-md shadow p-2">
+                          <DayPicker
+                            mode="single"
+                            selected={selectedDob}
+                            onSelect={(d) => {
+                              if (d) {
+                                setSelectedDob(d);
+                                const s = format(d, "dd/MM/yyyy");
+                                field.onChange(s);
+                              }
+                              setDobOpen(false);
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

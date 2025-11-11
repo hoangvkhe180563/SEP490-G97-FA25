@@ -82,6 +82,29 @@ namespace StudyHub.Backend.UseCases.Services
             return items;
         }
 
+        // Return QA teachers for a given subject id
+        public List<AppUserListDto> GetQATeachersBySubject(short subjectId)
+        {
+            var users = _userRepository.GetQATeachersBySubject(subjectId);
+            var items = new List<AppUserListDto>();
+            foreach (var u in users)
+            {
+                var roles = _roleRepository.GetRolesForUser(u.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+                items.Add(new AppUserListDto
+                {
+                    Id = u.Id,
+                    Email = u.Email,
+                    Username = u.Username,
+                    Fullname = u.Fullname,
+                    Avatar = u.Avatar,
+                    Status = (u.Status == true) ? "Active" : "Inactive",
+                    CreatedAt = u.CreatedAt.ToString("yyyy/MM/dd"),
+                    Roles = roles
+                });
+            }
+            return items;
+        }
+
         // Admin / management methods
         public AppUser? GetUserById(Guid id)
         {
@@ -92,7 +115,7 @@ namespace StudyHub.Backend.UseCases.Services
         public AppUser? GetUserByEmail(string email) => _userRepository.GetByEmail(email);
 
         // Async create account with optional avatar upload handled here (clean architecture: business logic in service)
-        public async Task<AppUser> CreateAccountAsync(string email, string password, string username, IEnumerable<Guid>? roleIds, int communeId, int schoolId, string? fullname = null, IFormFile? avatarFile = null, int gender = 0, string? address = null, string? phoneNumber = null)
+    public async Task<AppUser> CreateAccountAsync(string email, string password, string username, IEnumerable<Guid>? roleIds, int communeId, int schoolId, string? fullname = null, DateOnly? dob = null, IFormFile? avatarFile = null, int gender = 0, string? address = null, string? phoneNumber = null)
         {
             Dictionary<string, string> errors = new Dictionary<string, string>();
 
@@ -125,9 +148,10 @@ namespace StudyHub.Backend.UseCases.Services
                 PasswordHash = hash,
                 Username = username,
                 Fullname = fullname,
+                Dob = dob,
                 CommuneId = communeId,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now,
                 Status = true,
                 Avatar = uploadedUrl,
                 Gender = (gender == 1),
@@ -157,7 +181,7 @@ namespace StudyHub.Backend.UseCases.Services
         }
 
         // Async edit account with optional avatar upload and old-avatar deletion
-        public async Task<AppUser?> EditAccountAsync(Guid id, string? email = null, string? username = null, string? fullname = null, int? communeId = null, bool? status = null, IFormFile? avatarFile = null, int? gender = null, IEnumerable<Guid>? roleIds = null, int? schoolId = null, string? address = null, string? phoneNumber = null)
+    public async Task<AppUser?> EditAccountAsync(Guid id, string? email = null, string? username = null, string? fullname = null, DateOnly? dob = null, int? communeId = null, bool? status = null, IFormFile? avatarFile = null, int? gender = null, IEnumerable<Guid>? roleIds = null, int? schoolId = null, string? address = null, string? phoneNumber = null)
         {
             Dictionary<string, string> errors = new Dictionary<string, string>();
 
@@ -177,6 +201,7 @@ namespace StudyHub.Backend.UseCases.Services
                 user.Username = username;
             }
             if (!string.IsNullOrEmpty(fullname)) user.Fullname = fullname;
+            if (dob.HasValue) user.Dob = dob.Value;
             if (communeId.HasValue) user.CommuneId = communeId.Value;
             if (!string.IsNullOrEmpty(address)) user.Address = address;
             if (!string.IsNullOrEmpty(phoneNumber)) user.PhoneNumber = phoneNumber;
@@ -184,7 +209,7 @@ namespace StudyHub.Backend.UseCases.Services
 
             if (status.HasValue) user.Status = status.Value;
             if (gender.HasValue) user.Gender = (gender.Value == 1);
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
 
             string? oldAvatar = user.Avatar;
             string? uploadedUrl = null;
@@ -232,7 +257,7 @@ namespace StudyHub.Backend.UseCases.Services
                 throw new InvalidOperationException("Cập nhật dữ liệu không thành công: " + ex.Message, ex);
             }
         }
-        public async Task<AppUser?> UpdateProfile(AppUser user, string? email = null, string? username = null, string? fullname = null, int? communeId = null, string? oldPassword = null, string? newPassword = null, IFormFile? avatarFile = null, int? gender = null, int? schoolId = null, string? address = null, string? phoneNumber = null)
+    public async Task<AppUser?> UpdateProfile(AppUser user, string? email = null, string? username = null, string? fullname = null, DateOnly? dob = null, int? communeId = null, string? oldPassword = null, string? newPassword = null, IFormFile? avatarFile = null, int? gender = null, int? schoolId = null, string? address = null, string? phoneNumber = null)
         {
             Dictionary<string, string> errors = new Dictionary<string, string>();
 
@@ -249,6 +274,7 @@ namespace StudyHub.Backend.UseCases.Services
                 user.Username = username;
             }
             if (!string.IsNullOrEmpty(fullname)) user.Fullname = fullname;
+            if (dob.HasValue) user.Dob = dob.Value;
             if (communeId.HasValue) user.CommuneId = communeId.Value;
             if (!string.IsNullOrEmpty(address)) user.Address = address;
             if (!string.IsNullOrEmpty(phoneNumber)) user.PhoneNumber = phoneNumber;
@@ -279,7 +305,7 @@ namespace StudyHub.Backend.UseCases.Services
                 user.IsLoginWithGoogle = false; // chuyển sang đăng nhập bằng mật khẩu
             }
             if (gender.HasValue) user.Gender = (gender.Value == 1);
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
 
             string? oldAvatar = user.Avatar;
             string? uploadedUrl = null;
@@ -329,79 +355,12 @@ namespace StudyHub.Backend.UseCases.Services
             }
         }
 
-        public AppUser CreateAccount(string email, string password, string username, IEnumerable<Guid>? roleIds, int communeId, string? fullname = null, string? avatar = null, int gender = 0)
-        {
-            var existing = _userRepository.GetByEmail(email);
-            if (existing != null) throw new InvalidOperationException("Email already exists");
-
-            string hash = BCrypt.Net.BCrypt.HashPassword(password, SALT_ROUNDS);
-            var user = new AppUser
-            {
-                Id = Guid.NewGuid(),
-                Email = email,
-                PasswordHash = hash,
-                Username = username,
-                Fullname = fullname,
-                CommuneId = communeId,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-                Status = true,
-                Avatar = avatar,
-                Gender = (gender == 1)
-            };
-
-            try
-            {
-                _userRepository.CreateUser(user, roleIds);
-                return user;
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException("Failed to create account: " + ex.Message, ex);
-            }
-        }
-
-        public AppUser? EditAccount(Guid id, string? email = null, string? username = null, string? fullname = null, int? communeId = null, bool? status = null, string? avatar = null, int? gender = null, IEnumerable<Guid>? roleIds = null)
-        {
-            var user = _userRepository.GetById(id);
-            if (user == null) return null;
-
-            if (!string.IsNullOrEmpty(email))
-            {
-                var existing = _userRepository.GetByEmail(email);
-                if (existing != null) throw new InvalidOperationException("Email already exists");
-                user.Email = email;
-            }
-            if (!string.IsNullOrEmpty(username))
-            {
-                var existing = _userRepository.GetByUsername(username);
-                if (existing != null) throw new InvalidOperationException("Username already exists");
-                user.Username = username;
-            }
-            if (!string.IsNullOrEmpty(fullname)) user.Fullname = fullname;
-            if (communeId.HasValue) user.CommuneId = communeId.Value;
-            if (status.HasValue) user.Status = status.Value;
-            if (!string.IsNullOrEmpty(avatar)) user.Avatar = avatar;
-            if (gender.HasValue) user.Gender = (gender.Value == 1);
-            user.UpdatedAt = DateTime.UtcNow;
-
-            try
-            {
-                _userRepository.UpdateUser(user, roleIds);
-                return user;
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException("Failed to update account: " + ex.Message, ex);
-            }
-        }
-
         public bool DeactivateAccount(Guid id)
         {
             var user = _userRepository.GetById(id);
             if (user == null) return false;
             user.Status = false;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
             try
             {
                 _userRepository.UpdateUser(user);
@@ -418,7 +377,7 @@ namespace StudyHub.Backend.UseCases.Services
             var user = _userRepository.GetById(id);
             if (user == null) return false;
             user.Status = true;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
             try
             {
                 _userRepository.UpdateUser(user);

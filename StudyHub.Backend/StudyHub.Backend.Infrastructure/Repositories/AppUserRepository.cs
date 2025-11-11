@@ -25,6 +25,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 Id = d.Id,
                 Email = d.Email,
+                Dob = d.Dob,
                 Gender = d.Gender,
                 PasswordHash = d.PasswordHash,
                 Username = d.Username,
@@ -59,6 +60,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 PasswordHash = d.PasswordHash,
                 Username = d.Username,
                 Fullname = d.Fullname,
+                Dob = d.Dob,
                 IsVerified = d.IsVerified,
                 SchoolId = d.SchoolId,
                 TransferId = d.TransferId,
@@ -108,6 +110,27 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             catch (Exception ex)
             {
                 new InfrastructureException("AppUserRepository", "GetQATeachers failed. Inner error: " + ex.Message).LogError();
+                return new List<Domain.Entities.AppUser>();
+            }
+        }
+
+        public List<Domain.Entities.AppUser> GetQATeachersBySubject(short subjectId)
+        {
+            try
+            {
+                var users = _context.AppUsers
+                    .Include(u => u.Roles)
+                    .Include(u => u.AppUserSubjectClasses)
+                        .ThenInclude(a => a.Subject)
+                    .Where(u => u.Roles.Any(r => (r.Name ?? "").Contains("Q&A Teacher"))
+                                && u.AppUserSubjectClasses.Any(a => a.SubjectId == subjectId))
+                    .ToList();
+
+                return users.Select(u => ToDomain(u)).ToList();
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("AppUserRepository", "GetQATeachersBySubject failed. Inner error: " + ex.Message).LogError();
                 return new List<Domain.Entities.AppUser>();
             }
         }

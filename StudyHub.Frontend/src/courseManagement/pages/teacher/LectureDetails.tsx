@@ -6,6 +6,11 @@ import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { documentService } from "@/documentManagement/services/documentService";
 import { Button } from "@/common/components/ui/button";
 import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/common/components/ui/collapsible";
+import {
   Card,
   CardContent,
   CardHeader,
@@ -28,10 +33,14 @@ const LectureDetails: React.FC = () => {
   );
   const [resources, setResources] = useState<{ id: number; url: string }[]>([]);
   const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
+  const [interactiveQuestions, setInteractiveQuestions] = useState<any[]>([]);
 
   const getAppUserById = useAppUserStore((s) => s.getAppUserById);
   const getLessonById = useLectureStore((s) => s.fetchLesson);
   const getChapterById = useLectureStore((s) => s.fetchChapter);
+  const fetchInteractiveQuestions = useLectureStore(
+    (s: any) => s.fetchInteractiveQuestions
+  );
   const getLessonResource = useCourseStore((s) => s.getLessonResource);
   const fetchCourseById = useCourseStore((s) => s.fetchCourseById);
 
@@ -46,6 +55,16 @@ const LectureDetails: React.FC = () => {
 
         const lessonData = await getLessonById(lessonId);
         if (!lessonData) return;
+
+        // load interactive questions for this lesson (teacher view)
+        try {
+          if (fetchInteractiveQuestions) {
+            const qs = await fetchInteractiveQuestions(lessonId);
+            if (Array.isArray(qs)) setInteractiveQuestions(qs);
+          }
+        } catch (err) {
+          // ignore
+        }
 
         const chapterData = await getChapterById(lessonData.chapterId);
         if (!chapterData) return;
@@ -84,6 +103,7 @@ const LectureDetails: React.FC = () => {
     getAppUserById,
     fetchCourseById,
     getLessonResource,
+    fetchInteractiveQuestions,
   ]);
 
   const { currentLesson, currentChapter } = useMemo(() => {
@@ -107,12 +127,13 @@ const LectureDetails: React.FC = () => {
     <div className="max-w-[1200px] mx-auto px-6 py-6 h-full overflow-y-auto scrollbar-hide">
       {/* === Header navigation === */}
       <div className="flex items-center gap-4 mb-4">
-        <button
+        <Button
+          variant="ghost"
           onClick={() => navigate(-1)}
-          className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
+          className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50 p-0"
         >
           <ArrowLeft className="w-4 h-4 text-[#525252]" />
-        </button>
+        </Button>
         <div className="text-sm text-[#525252]">
           {selectedCourse?.name || "Khóa học"} /{" "}
           {currentChapter?.name || "Chương"} /{" "}
@@ -179,6 +200,63 @@ const LectureDetails: React.FC = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* Interactive questions list */}
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>Câu hỏi tương tác</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {interactiveQuestions && interactiveQuestions.length ? (
+                <ul className="space-y-3">
+                  {interactiveQuestions.map((q: any) => (
+                    <li key={q.id} className="p-3 border rounded-md">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="font-semibold text-sm text-[#171717]">
+                            {q.question}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Thời điểm: {Math.floor((q.timeSec || 0) / 60)}:
+                            {String((q.timeSec || 0) % 60).padStart(2, "0")} •
+                            Loại: {q.type === "mc" ? "Trắc nghiệm" : "Tự luận"}
+                          </div>
+                          {q.type === "mc" && Array.isArray(q.options) && (
+                            <div className="mt-2 space-y-1">
+                              {q.options.map((opt: any, idx: number) => (
+                                <div
+                                  key={idx}
+                                  className={`text-sm p-2 rounded ${
+                                    idx === (q.correctIndex ?? -1)
+                                      ? "bg-green-50 border border-green-200"
+                                      : "bg-gray-50"
+                                  }`}
+                                >
+                                  {opt}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {q.type === "text" && q.correctAnswer && (
+                            <div className="mt-2 text-sm text-gray-700">
+                              Đáp án mong đợi:{" "}
+                              <span className="font-medium">
+                                {q.correctAnswer}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500 italic">
+                  Không có câu hỏi tương tác cho bài học này.
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* === SIDEBAR === */}
@@ -192,28 +270,35 @@ const LectureDetails: React.FC = () => {
               {selectedCourse?.chapters?.length ? (
                 <div className="space-y-2">
                   {selectedCourse.chapters.map((ch: any) => (
-                    <details key={ch.id} open={ch.id === currentChapter?.id}>
-                      <summary className="cursor-pointer font-semibold text-sm text-[#171717]">
+                    <Collapsible
+                      key={ch.id}
+                      defaultOpen={ch.id === currentChapter?.id}
+                    >
+                      <CollapsibleTrigger className="w-full text-left cursor-pointer font-semibold text-sm text-[#171717] py-1">
                         {ch.name}
-                      </summary>
-                      <ul className="mt-1 pl-4 text-sm text-[#404040]">
-                        {ch.lessons?.map((l: any) => (
-                          <li
-                            key={l.id}
-                            className={`py-1 cursor-pointer ${
-                              l.id === lessonId
-                                ? "font-semibold text-blue-600"
-                                : "hover:text-blue-600"
-                            }`}
-                            onClick={() =>
-                              navigate(`/course/teacher/lecture/${l.id}`)
-                            }
-                          >
-                            {l.name}
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <ul className="mt-1 pl-2 text-sm text-[#404040] space-y-1">
+                          {ch.lessons?.map((l: any) => (
+                            <li key={l.id}>
+                              <Button
+                                variant="ghost"
+                                className={`w-full justify-start py-1 ${
+                                  l.id === lessonId
+                                    ? "font-semibold text-blue-600"
+                                    : "hover:text-blue-600"
+                                }`}
+                                onClick={() =>
+                                  navigate(`/course/teacher/lecture/${l.id}`)
+                                }
+                              >
+                                {l.name}
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                      </CollapsibleContent>
+                    </Collapsible>
                   ))}
                 </div>
               ) : (
@@ -240,7 +325,7 @@ const LectureDetails: React.FC = () => {
                         rel="noreferrer"
                         className="text-blue-600 hover:underline truncate"
                       >
-                        {r.url}
+                        {r.url.split("/").pop()}
                       </a>
                     </li>
                   ))}

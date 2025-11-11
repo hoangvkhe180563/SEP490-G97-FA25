@@ -6,7 +6,9 @@ import type {
   ChapterDto,
   LessonListDto,
   LessonDto,
+  Exam,
 } from "@/courseManagement/interfaces/types";
+import { formatISO } from "date-fns";
 
 export type PagedResponse<T> = {
   items: T[];
@@ -111,6 +113,35 @@ export const courseApi = {
     return { ...l, content: l.readingContent ?? null } as LessonListDto;
   },
 
+  async getInteractiveQuestions(lessonId: number) {
+    const res = await axiosInstance.get<any[]>(
+      `/lecture/lesson/${lessonId}/interactive-questions`
+    );
+    const arr = res.data || [];
+    // normalize options to arrays and keep fields consistent with frontend expectations
+    return arr.map((q: any) => ({
+      id: q.id,
+      timeSec: q.timeSec,
+      question: q.question,
+      type: q.type,
+      options: Array.isArray(q.options)
+        ? q.options
+        : q.options
+        ? JSON.parse(q.options)
+        : undefined,
+      correctIndex: typeof q.correctIndex === "number" ? q.correctIndex : null,
+      correctAnswer: q.correctAnswer ?? null,
+    }));
+  },
+
+  async submitInteractiveResponse(lessonId: number, payload: any) {
+    const res = await axiosInstance.post(
+      `/lecture/lesson/${lessonId}/interactive-response`,
+      payload
+    );
+    return res.data;
+  },
+
   async createChapter(dto: Partial<ChapterDto>) {
     const res = await axiosInstance.post<ChapterListDto>(
       `/lecture/chapter`,
@@ -158,6 +189,89 @@ export const courseApi = {
   async deleteLesson(id: number) {
     await axiosInstance.delete(`/lecture/lesson/${id}`);
     return true;
+  },
+
+  async getExamByLessonId(lessonId: number): Promise<Exam | null> {
+      try {
+        const res = await axiosInstance.get(`/exam/lesson/${lessonId}`);
+        if (res.status === 200) {
+          const data = res.data;
+          return {
+            id: data.id,
+            title: data.title,
+            description: data.description,
+            openTime: new Date(data.openTime),
+            lessonId: data.lessonId === 0 ? undefined : data.lessonId,
+            duration: data.duration,
+            createdBy: data.createdBy,
+            showAnswers: data.showAnswers,
+            showCorrectAnswers: data.showCorrectAnswers,
+            questions: data.questions
+          };
+        } else {
+          throw new Error(`Status: ${res.status}`);
+        }
+      } catch (error) {
+        console.error("Error getExamById: ", error);
+      }
+      return null;
+    },
+
+  async createExam(examData: Exam): Promise<boolean> {
+    const payload = {
+      ...examData,
+      openTime: formatISO(examData.openTime),
+      closeTime: examData.closeTime && formatISO(examData.closeTime)
+    }
+    try {
+      const res = await axiosInstance.post("/exam", payload, {
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      if (res.status === 200) {
+        return true;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error getStudentClassExams: ", error);
+    }
+    return false;
+  },
+
+  async updateExam(examData: Exam): Promise<boolean> {
+    try {
+      const updateQuestionRes = await axiosInstance.put(`/exam/${examData.id}/update-questions`, examData.questions, {
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (updateQuestionRes.status !== 200) {
+        throw new Error(`Update questions failed. Status: ${updateQuestionRes.status}`);
+      }
+
+      const payload = {
+        ...examData,
+        questionObjectIds: updateQuestionRes.data,
+        openTime: formatISO(examData.openTime),
+        closeTime: examData.closeTime && formatISO(examData.closeTime)
+      }
+      const res = await axiosInstance.put("/exam", payload, {
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      if (res.status === 200) {
+        return true;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error updateExam: ", error);
+    }
+    return false;
   },
 
   async uploadThumbnail(file: File) {

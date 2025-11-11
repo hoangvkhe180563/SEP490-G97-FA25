@@ -1,11 +1,13 @@
 import type { Answer } from "./Answer";
 
 export interface ExamResult {
-  id: number,
+  id: string,
   examId: number,
-  studentId: number,
-  submissionDate: Date,
-  score: number,
-  totalQuestions: number,
-  answers: Answer[]
+  studentId: string,
+  studentName?: string,
+  finishTime: Date,
+  submissionTime?: Date,
+  score?: number,
+  answers: Answer[],
+  cheatTimes: number
 }

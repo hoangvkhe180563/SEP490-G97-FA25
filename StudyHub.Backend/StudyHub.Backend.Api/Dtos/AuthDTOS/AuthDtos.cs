@@ -91,6 +91,8 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
         public bool IsLoginWithGoogle { get; set; }
         public int? TransferId { get; set; }
 
+        public long Wallet { get; set; }
+
     }
 
     public class GenericResponse

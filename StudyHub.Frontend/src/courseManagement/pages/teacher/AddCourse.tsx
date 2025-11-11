@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import {
@@ -42,6 +42,7 @@ const AddCourse: React.FC = () => {
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [price, setPrice] = useState<number | "">("");
   const [grade, setGrade] = useState<number | "">("");
   const [SubjectId, setSubjectId] = useState<number | null>(null);
@@ -49,7 +50,6 @@ const AddCourse: React.FC = () => {
   const [status, setStatus] = useState<string | "">("");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
-  // const [createdBy, setCreatedBy] = useState("");
 
   const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
 
@@ -89,18 +89,29 @@ const AddCourse: React.FC = () => {
       errors.push("Vui lòng chọn trạng thái.");
 
     // start/end dates: if provided, must be valid and start <= end
+    // start/end dates: bắt buộc — nếu không chọn thì báo lỗi
     let startDate: Date | null = null;
     let endDate: Date | null = null;
-    if (startAt) {
+
+    // Bắt buộc phải chọn cả 2 ngày
+    if (!startAt || !String(startAt).trim()) {
+      errors.push("Vui lòng chọn Ngày bắt đầu.");
+    } else {
       startDate = new Date(startAt);
       if (isNaN(startDate.getTime())) errors.push("Ngày bắt đầu không hợp lệ.");
     }
-    if (endAt) {
+
+    if (!endAt || !String(endAt).trim()) {
+      errors.push("Vui lòng chọn Ngày kết thúc.");
+    } else {
       endDate = new Date(endAt);
       if (isNaN(endDate.getTime())) errors.push("Ngày kết thúc không hợp lệ.");
     }
-    if (startDate && endDate && startDate.getTime() > endDate.getTime())
+
+    // Nếu cả hai đều hợp lệ thì kiểm tra thứ tự ngày
+    if (startDate && endDate && startDate.getTime() > endDate.getTime()) {
       errors.push("Ngày kết thúc phải sau hoặc cùng ngày với ngày bắt đầu.");
+    }
 
     // thumbnail file size limit (optional): 5MB
     if (thumbnailFile && thumbnailFile.size > 5 * 1024 * 1024)
@@ -110,7 +121,7 @@ const AddCourse: React.FC = () => {
       return setDialog({
         open: true,
         title: "Lỗi nhập liệu",
-        message: errors.join(" \n"),
+        message: errors.map((err, index) => (<React.Fragment key={`err-${index}`}>{err} {index < errors.length - 1 && <br />}</React.Fragment>)),
       });
 
     setSaving(true);
@@ -170,12 +181,13 @@ const AddCourse: React.FC = () => {
         {/* Page Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <button
+            <Button
+              variant="ghost"
               onClick={() => navigate("/course/teacher/courses")}
-              className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
+              className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50 p-0"
             >
               <ArrowLeft className="w-4 h-4 text-[#525252]" />
-            </button>
+            </Button>
 
             <div>
               <h1 className="text-2xl font-normal text-[#171717]">
@@ -353,16 +365,13 @@ const AddCourse: React.FC = () => {
 
                   {/* Input + Button */}
                   <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-3">
+                    {/* Hidden native file input; triggered by the Choose button */}
                     <input
+                      ref={fileInputRef}
+                      id="thumbnailInput"
                       type="file"
                       accept="image/*"
-                      id="thumbnailInput"
-                      className="block w-full text-sm text-gray-700
-                                  file:mr-4 file:py-2.5 file:px-4
-                                  file:rounded-lg file:border-0
-                                  file:font-medium file:bg-[#f28d3d] file:text-white
-                                  hover:file:bg-[#e77c1e] cursor-pointer
-                                  file:transition-all"
+                      className="hidden"
                       onChange={(e) => {
                         const f = e.target.files && e.target.files[0];
                         if (f) {
@@ -374,6 +383,18 @@ const AddCourse: React.FC = () => {
                         }
                       }}
                     />
+
+                    <Button
+                      variant="outline"
+                      className="border-[#f28d3d] text-[#f28d3d] hover:bg-[#f28d3d] hover:text-white font-medium transition-all"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Chọn ảnh
+                    </Button>
+
+                    <div className="flex-1 text-sm text-gray-700 break-words">
+                      {thumbnailFile ? thumbnailFile.name : "Chưa chọn ảnh"}
+                    </div>
 
                     <Button
                       variant="outline"
@@ -458,12 +479,12 @@ const AddCourse: React.FC = () => {
 
                 <div className="flex items-center gap-2">
                   <input
+                    id="featured"
                     type="checkbox"
                     checked={isFeatured}
                     onChange={(e) => setIsFeatured(e.target.checked)}
-                    className="w-4 h-4"
                   />
-                  <Label>Khóa học nổi bật</Label>
+                  <Label htmlFor="featured">Khóa học nổi bật</Label>
                 </div>
               </CardContent>
             </Card>
