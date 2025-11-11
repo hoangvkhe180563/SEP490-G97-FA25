@@ -136,3 +136,28 @@ export type CommentDto = {
   userFullname?: string;
   userAvatar?: string | null;
 };
+
+export interface Question {
+  id: number,
+  questionObjectId?: string,
+  questionText: string,
+  type: "single-choice" | "multiple-choice" | "text-input" | "fill-blank",
+  options: string[],
+  correctAnswer: any
+}
+
+export interface Exam {
+  id: number,
+  title: string,
+  description: string,
+  duration: number,
+  createdBy?: string,
+  questions: Question[],
+  showAnswers: boolean,
+  showCorrectAnswers: boolean,
+  totalQuestions?: number,
+  classId?: number,
+  lessonId?: number,
+  openTime: Date,
+  closeTime?: Date
+}

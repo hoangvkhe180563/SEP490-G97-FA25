@@ -55,5 +55,16 @@ namespace StudyHub.Backend.UseCases.Services
             _userRepo.UpdateUser(user);
             return user.Wallet;
         }
+
+        /// <summary>
+        /// Get current wallet balance for a user by Guid.
+        /// Returns null if user not found.
+        /// </summary>
+        public long? GetWalletByUserId(Guid userId)
+        {
+            var user = _userRepo.GetById(userId);
+            if (user == null) return null;
+            return user.Wallet;
+        }
     }
 }

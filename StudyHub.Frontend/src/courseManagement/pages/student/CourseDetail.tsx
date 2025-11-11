@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/common/components/ui/button";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/common/components/ui/select";
 import CourseNavSidebar from "@/courseManagement/components/CourseDetailFiltersStudent";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { Calendar, ChevronDown, Check } from "lucide-react";
@@ -94,6 +101,8 @@ const CourseDetail: React.FC = () => {
   const enrollment = useEnrollmentStore((s) =>
     s.getEnrollmentForCourse(courseId)
   );
+  const enroll = useEnrollmentStore((s) => s.enroll);
+  const consumeWallet = useEnrollmentStore((s) => s.consumeWallet);
   const fetchProgresses = useEnrollmentStore((s) => s.fetchProgresses);
 
   const getLessonCompleted = useEnrollmentStore((s) => s.getLessonCompleted);
@@ -376,54 +385,26 @@ const CourseDetail: React.FC = () => {
             </div>
           </div>
         </div>
+        <main className="mb-6">
+          <div className="bg-white rounded-lg border p-6 mb-6 shadow-sm">
+            <div className="flex flex-col lg:flex-row items-start gap-6">
+              <div className="flex-1">
+                <div className="inline-block bg-blue-100 text-blue-800 text-lg font-semibold px-4 py-2 rounded-full shadow-sm">
+                  {subjectLabel}
+                </div>
 
-        <div className="grid grid-cols-12 gap-6">
-          <aside className="col-span-12 lg:col-span-3">
-            <CourseNavSidebar
-              filters={progressFilters}
-              setFilters={setProgressFilters}
-              contentTypes={contentTypes}
-              setContentTypes={setContentTypes}
-              duration={durationFilter}
-              setDuration={setDurationFilter}
-              onClear={() => {
-                setProgressFilters({
-                  completed: false,
-                  inProgress: false,
-                  notStarted: false,
-                });
-                setContentTypes({
-                  video: false,
-                  reading: false,
-                  assignment: false,
-                  quiz: false,
-                });
-                setDurationFilter("all");
-              }}
-              stats={enrollment ? stats : undefined}
-            />
-          </aside>
+                <div className="flex items-center gap-4 mt-4 text-base text-gray-800">
+                  <div className="flex items-center gap-4">
+                    {/* Avatar chữ cái */}
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-lg font-bold text-blue-700 shadow-sm border border-blue-50">
+                      {teacher ? teacher.charAt(0).toUpperCase() : "G"}
+                    </div>
 
-          <main className="col-span-12 lg:col-span-9 mb-6">
-            <div className="bg-white rounded-lg border p-6 mb-6 shadow-sm">
-              <div className="flex flex-col lg:flex-row items-start gap-6">
-                <div className="flex-1">
-                  <div className="inline-block bg-blue-100 text-blue-800 text-lg font-semibold px-4 py-2 rounded-full shadow-sm">
-                    {subjectLabel}
-                  </div>
-
-                  <div className="flex items-center gap-4 mt-4 text-base text-gray-800">
-                    <div className="flex items-center gap-4">
-                      {/* Avatar chữ cái */}
-                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-lg font-bold text-blue-700 shadow-sm border border-blue-50">
-                        {teacher ? teacher.charAt(0).toUpperCase() : "G"}
+                    {/* Thông tin giáo viên */}
+                    <div>
+                      <div className="font-semibold text-gray-900 text-lg leading-snug">
+                        {teacher ?? "Giáo viên"}
                       </div>
-
-                      {/* Thông tin giáo viên */}
-                      <div>
-                        <div className="font-semibold text-gray-900 text-lg leading-snug">
-                          {teacher ?? "Giáo viên"}
-                        </div>
 
                         <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
                           <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 font-medium shadow-sm">
@@ -447,9 +428,9 @@ const CourseDetail: React.FC = () => {
                             />
                             {`${new Date(
                               selectedCourse.startAt
-                            ).toLocaleDateString()} - ${new Date(
+                            ).toLocaleDateString("vi-VN")} - ${new Date(
                               selectedCourse.endAt
-                            ).toLocaleDateString()}`}
+                            ).toLocaleDateString("vi-VN")}`}
                           </>
                         ) : (
                           "-"
@@ -458,287 +439,404 @@ const CourseDetail: React.FC = () => {
                     </div>
                   </div>
 
-                  {enrollment ? (
-                    <div className="mt-6 p-5 border border-gray-100 rounded-xl bg-white shadow-sm">
-                      {/* Header */}
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <div className="p-2 rounded-md bg-sky-100 text-sky-600">
-                            <Clock className="w-4 h-4" />
-                          </div>
-                          <span className="text-base font-semibold text-gray-800">
-                            Tiến độ khóa học
-                          </span>
+                {enrollment ? (
+                  <div className="mt-6 p-5 border border-gray-100 rounded-xl bg-white shadow-sm">
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-md bg-sky-100 text-sky-600">
+                          <Clock className="w-4 h-4" />
                         </div>
-
-                        <span className="text-sm font-medium text-sky-700">
-                          {completionPercent}% hoàn thành
+                        <span className="text-base font-semibold text-gray-800">
+                          Tiến độ khóa học
                         </span>
                       </div>
 
-                      <Progress
-                        value={completionPercent}
-                        className="h-3 bg-gray-100 [&>div]:bg-sky-500"
-                      />
-
-                      {/* Thông tin chi tiết */}
-                      <div className="flex justify-between mt-3 text-sm text-gray-600">
-                        <span className="font-medium text-gray-700">
-                          {stats.completed} bài hoàn thành
-                        </span>
-                        <span>{stats.remaining} bài còn lại</span>
-                      </div>
+                      <span className="text-sm font-medium text-sky-700">
+                        {completionPercent}% hoàn thành
+                      </span>
                     </div>
-                  ) : null}
+
+                    <Progress
+                      value={completionPercent}
+                      className="h-3 bg-gray-100 [&>div]:bg-sky-500"
+                    />
+
+                    {/* Thông tin chi tiết */}
+                    <div className="flex justify-between mt-3 text-sm text-gray-600">
+                      <span className="font-medium text-gray-700">
+                        {stats.completed} bài hoàn thành
+                      </span>
+                      <span>{stats.remaining} bài còn lại</span>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="w-full lg:w-44 flex-shrink-0">
+                <div className="w-full rounded-md overflow-hidden bg-gray-100 shadow-sm">
+                  {selectedCourse?.imageUrl ? (
+                    <img
+                      src={selectedCourse.imageUrl}
+                      alt="Course image"
+                      className="w-full h-36 object-cover"
+                      onError={(e) =>
+                        (e.currentTarget.src =
+                          "https://placehold.co/300x200?text=No+Image")
+                      }
+                    />
+                  ) : (
+                    <div className="w-full h-36 flex items-center justify-center text-sm text-gray-400">
+                      Không có hình ảnh
+                    </div>
+                  )}
                 </div>
 
-                <div className="w-full lg:w-44 flex-shrink-0">
-                  <div className="w-full rounded-md overflow-hidden bg-gray-100 shadow-sm">
-                    {selectedCourse?.imageUrl ? (
-                      <img
-                        src={selectedCourse.imageUrl}
-                        alt="Course image"
-                        className="w-full h-36 object-cover"
-                        onError={(e) =>
-                          (e.currentTarget.src =
-                            "https://placehold.co/300x200?text=No+Image")
+                <div className="mt-4">
+                  <div className="text-sm text-gray-500">Giá</div>
+                  <div className="text-xl font-semibold text-gray-900">
+                    {fmtPrice(selectedCourse?.price)}
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <Button
+                    onClick={async () => {
+                      try {
+                        // ensure user is logged in
+                        if (!authUser?.id) {
+                          navigate(`/auth/login`);
+                          return;
                         }
-                      />
-                    ) : (
-                      <div className="w-full h-36 flex items-center justify-center text-sm text-gray-400">
-                        Không có hình ảnh
-                      </div>
-                    )}
-                  </div>
 
-                  <div className="mt-4">
-                    <div className="text-sm text-gray-500">Giá</div>
-                    <div className="text-xl font-semibold text-gray-900">
-                      {fmtPrice(selectedCourse?.price)}
-                    </div>
-                  </div>
+                        // if already enrolled, do nothing
+                        if (enrollment) return;
 
-                  <div className="mt-4">
-                    <Button
-                      onClick={async () => {
+                        const priceNum = Number(
+                          (selectedCourse as any)?.price ?? 0
+                        );
+
+                        // free course -> enroll directly
+                        if (!priceNum || priceNum <= 0) {
+                          try {
+                            await enroll({
+                              appUserId: String(authUser.id),
+                              courseId,
+                            });
+                            await fetchEnrollmentsByUser(String(authUser.id));
+                          } catch (err) {
+                            // ignore
+                          }
+                          return;
+                        }
+
+                        // check wallet balance
+                        const wallet = Number(authUser?.wallet ?? 0);
+                        if (wallet >= priceNum) {
+                          // enough balance: enroll directly (backend will debit wallet)
+                          try {
+                            await enroll({
+                              appUserId: String(authUser.id),
+                              courseId,
+                            });
+                            await fetchEnrollmentsByUser(String(authUser.id));
+                          } catch (err) {
+                            // fallback: navigate to checkout for full price
+                            const params = new URLSearchParams({
+                              courseId: String(courseId),
+                              price: String(priceNum),
+                              name: String((selectedCourse as any)?.name ?? ""),
+                              userId: String(authUser.id),
+                              schoolId: String(
+                                (selectedCourse as any)?.schoolId ?? ""
+                              ),
+                            });
+                            navigate(
+                              `/payment/student/checkout?${params.toString()}`
+                            );
+                          }
+                          return;
+                        }
+
+                        // partial wallet -> go to checkout for remaining amount
                         try {
-                          // ensure user is logged in
-                          if (!authUser?.id) {
-                            navigate(`/auth/login`);
+                          const resp = await consumeWallet({
+                            appUserId: String(authUser.id),
+                            courseId,
+                          });
+                          if (resp?.created) {
+                            await fetchEnrollmentsByUser(String(authUser.id));
+                            const newEnrollment = useEnrollmentStore
+                              .getState()
+                              .getEnrollmentForCourse(courseId);
+                            if (newEnrollment?.id) {
+                              try {
+                                await fetchProgresses(newEnrollment.id);
+                              } catch {
+                                // ignore
+                              }
+                            }
                             return;
                           }
-
-                          // if already enrolled, do nothing
-                          if (enrollment) return;
-
-                          // navigate to payment checkout with required query params
+                          const info = resp?.info ?? resp;
+                          const remaining = Number(
+                            info?.remaining ?? Math.max(0, priceNum - wallet)
+                          );
                           const params = new URLSearchParams({
                             courseId: String(courseId),
-                            price: String((selectedCourse as any)?.price ?? 0),
+                            price: String(remaining),
                             name: String((selectedCourse as any)?.name ?? ""),
                             userId: String(authUser.id),
                             schoolId: String(
                               (selectedCourse as any)?.schoolId ?? ""
                             ),
                           });
-
                           navigate(
-                            `/course/student/payments/checkout?${params.toString()}`
+                            `/payment/student/checkout?${params.toString()}`
                           );
                         } catch (err) {
-                          // ignore
+                          const remaining = Math.max(0, priceNum - wallet);
+                          const params = new URLSearchParams({
+                            courseId: String(courseId),
+                            price: String(remaining),
+                            name: String((selectedCourse as any)?.name ?? ""),
+                            userId: String(authUser.id),
+                            schoolId: String(
+                              (selectedCourse as any)?.schoolId ?? ""
+                            ),
+                          });
+                          navigate(
+                            `/payment/student/checkout?${params.toString()}`
+                          );
                         }
-                      }}
-                      className={`w-full py-2 text-white rounded-md ${
-                        enrollment
-                          ? "bg-gray-400 cursor-not-allowed"
-                          : "bg-sky-600 hover:bg-sky-700"
-                      }`}
-                    >
-                      {enrollment ? "Đã đăng ký" : "Đăng ký ngay"}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Course description: show more/less for long texts */}
-            {courseDescription && (
-              <div className="bg-white rounded-lg border p-6 mb-6">
-                <div className="text-lg font-medium mb-3">Mô tả khóa học</div>
-                <div className="text-sm text-gray-700 leading-relaxed">
-                  {expandedDesc || courseDescription.length <= 600
-                    ? courseDescription
-                    : `${courseDescription.slice(0, 600)}...`}
-                </div>
-                {courseDescription.length > 600 && (
-                  <div className="mt-3">
-                    <button
-                      onClick={() => setExpandedDesc((s) => !s)}
-                      className="text-sm text-sky-600 hover:underline"
-                    >
-                      {expandedDesc ? "Thu gọn" : "Xem thêm"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="bg-white rounded-lg border p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-lg font-medium">Nội dung khóa học</div>
-                <div className="flex items-center gap-3">
-                  <select
-                    className="border rounded px-3 py-1 text-sm"
-                    value={contentSort}
-                    onChange={(e) => setContentSort(e.target.value)}
+                      } catch (err) {
+                        // ignore
+                      }
+                    }}
+                    className={`w-full py-2 text-white rounded-md ${
+                      enrollment
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-sky-600 hover:bg-sky-700"
+                    }`}
                   >
-                    <option value="default">Sắp xếp theo: Mặc định</option>
-                    <option value="name">Tên</option>
-                    <option value="duration">Thời gian</option>
-                  </select>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setContentView("list")}
-                      className={`px-3 py-2 rounded-md text-sm border transition-all ${
-                        contentView === "list"
-                          ? "bg-white border-gray-800 text-gray-900"
-                          : "bg-transparent border-gray-200 text-gray-500"
-                      }`}
-                    >
-                      Danh sách
-                    </button>
-                    <button
-                      onClick={() => setContentView("grid")}
-                      className={`px-3 py-2 rounded-md text-sm border transition-all ${
-                        contentView === "grid"
-                          ? "bg-white border-gray-800 text-gray-900 shadow"
-                          : "bg-transparent border-gray-200 text-gray-500"
-                      }`}
-                    >
-                      Lưới
-                    </button>
-                  </div>
+                    {enrollment ? "Đã đăng ký" : "Đăng ký ngay"}
+                  </Button>
                 </div>
               </div>
+            </div>
+          </div>
 
-              <div className="space-y-4">
-                {/** show only first 10 chapters by default, allow expanding to view all */}
-                {(() => {
-                  const visibleChapters = showAllChapters
-                    ? chapters
-                    : chapters.slice(0, 10);
-                  return visibleChapters.map((ch: ChapterListDto) => {
-                    const allLessons =
-                      lessonsByChapter[ch.id] ?? ch.lessons ?? [];
-                    const lessons = sortLessons(allLessons).filter((l) =>
-                      filterLesson(l)
-                    );
-                    const chapterCompleted =
-                      Array.isArray(allLessons) && allLessons.length > 0
-                        ? allLessons.every((l) => getLessonCompleted(l.id))
-                        : false;
-                    return (
-                      <div key={ch.id} className="mb-4">
-                        <div
-                          className={`bg-white rounded-lg border p-3 shadow-sm`}
-                        >
-                          <button
-                            onClick={() => toggleChapter(ch)}
-                            className="w-full flex items-center justify-between text-left"
-                          >
-                            <div className="font-medium text-base truncate flex items-center gap-2">
-                              {chapterCompleted && (
-                                <Check className="w-4 h-4 text-green-600" />
-                              )}
-                              <span className="truncate">{ch.name}</span>
-                            </div>
-                            <ChevronDown
-                              className={`w-5 h-5 text-gray-400 transform transition-transform ${
-                                expandedChapters.has(ch.id) ? "rotate-180" : ""
-                              }`}
-                            />
-                          </button>
-
-                          {expandedChapters.has(ch.id) && (
-                            <div className="mt-3">
-                              {lessons.length === 0 ? (
-                                <div className="text-sm text-gray-400">
-                                  Không có bài học nào phù hợp với bộ lọc hiện
-                                  tại.
-                                </div>
-                              ) : contentView === "list" ? (
-                                <div className="space-y-2">
-                                  {lessons.map((ls: LessonListDto) => {
-                                    const isPreview = Boolean(ls.isPreview);
-                                    return (
-                                      <CourseContentItem
-                                        key={ls.id}
-                                        title={ls.name}
-                                        subtitle={ls.description ?? ""}
-                                        duration={ls.duration ?? ""}
-                                        isPreview={isPreview}
-                                        isCompleted={getLessonCompleted(ls.id)}
-                                        variant="list"
-                                        onClick={() => {
-                                          if (!isPreview && !enrollment) return;
-                                          navigate(
-                                            `/course/student/courses/${courseId}/lecture/${ls.id}`
-                                          );
-                                        }}
-                                      />
-                                    );
-                                  })}
-                                </div>
-                              ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                  {lessons.map((ls: LessonListDto) => {
-                                    const isPreview = Boolean(ls.isPreview);
-                                    return (
-                                      <CourseContentItem
-                                        key={ls.id}
-                                        title={ls.name}
-                                        subtitle={ls.description ?? ""}
-                                        duration={ls.duration ?? ""}
-                                        isPreview={isPreview}
-                                        isCompleted={getLessonCompleted(ls.id)}
-                                        variant="grid"
-                                        onClick={() => {
-                                          if (!isPreview && !enrollment) return;
-                                          navigate(
-                                            `/course/student/courses/${courseId}/lecture/${ls.id}`
-                                          );
-                                        }}
-                                      />
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
+          {courseDescription && (
+            <div className="bg-white rounded-lg border p-6 mb-6">
+              <div className="text-lg font-medium mb-3">Mô tả khóa học</div>
+              <div className="text-sm text-gray-700 leading-relaxed">
+                {expandedDesc || courseDescription.length <= 600
+                  ? courseDescription
+                  : `${courseDescription.slice(0, 600)}...`}
+              </div>
+              {courseDescription.length > 600 && (
+                <div className="mt-3">
+                  <button
+                    onClick={() => setExpandedDesc((s) => !s)}
+                    className="text-sm text-sky-600 hover:underline"
+                  >
+                    {expandedDesc ? "Thu gọn" : "Xem thêm"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="grid grid-cols-12 gap-6">
+            <aside className="col-span-12 lg:col-span-3">
+              <CourseNavSidebar
+                filters={progressFilters}
+                setFilters={setProgressFilters}
+                contentTypes={contentTypes}
+                setContentTypes={setContentTypes}
+                duration={durationFilter}
+                setDuration={setDurationFilter}
+                onClear={() => {
+                  setProgressFilters({
+                    completed: false,
+                    inProgress: false,
+                    notStarted: false,
                   });
-                })()}
-
-                {/* show/hide more chapters control when there are many chapters */}
-                {chapters.length > 10 && (
-                  <div className="mt-2 text-center">
-                    <button
-                      onClick={() => setShowAllChapters((s) => !s)}
-                      className="px-4 py-2 rounded-md text-sm border bg-white"
+                  setContentTypes({
+                    video: false,
+                    reading: false,
+                    assignment: false,
+                    quiz: false,
+                  });
+                  setDurationFilter("all");
+                }}
+                stats={enrollment ? stats : undefined}
+              />
+            </aside>
+            <div className="col-span-12 lg:col-span-9">
+              <div className="bg-white rounded-lg border p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-lg font-medium">Nội dung khóa học</div>
+                  <div className="flex items-center gap-3">
+                    <Select
+                      value={contentSort}
+                      onValueChange={(v) => setContentSort(v)}
                     >
-                      {showAllChapters
-                        ? "Ẩn bớt chương"
-                        : `Hiện thêm chương (${chapters.length - 10})`}
-                    </button>
+                      <SelectTrigger className="w-[220px]">
+                        <SelectValue placeholder="Sắp xếp theo: Mặc định" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="default">Mặc định</SelectItem>
+                        <SelectItem value="name">Tên</SelectItem>
+                        <SelectItem value="duration">Thời gian</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant={contentView === "list" ? undefined : "ghost"}
+                        onClick={() => setContentView("list")}
+                        className="px-3 py-2 rounded-md text-sm"
+                      >
+                        Danh sách
+                      </Button>
+                      <Button
+                        variant={contentView === "grid" ? undefined : "ghost"}
+                        onClick={() => setContentView("grid")}
+                        className="px-3 py-2 rounded-md text-sm"
+                      >
+                        Lưới
+                      </Button>
+                    </div>
                   </div>
-                )}
+                </div>
+
+                <div className="space-y-4">
+                  {/** show only first 10 chapters by default, allow expanding to view all */}
+                  {(() => {
+                    const visibleChapters = showAllChapters
+                      ? chapters
+                      : chapters.slice(0, 10);
+                    return visibleChapters.map((ch: ChapterListDto) => {
+                      const allLessons =
+                        lessonsByChapter[ch.id] ?? ch.lessons ?? [];
+                      const lessons = sortLessons(allLessons).filter((l) =>
+                        filterLesson(l)
+                      );
+                      const chapterCompleted =
+                        Array.isArray(allLessons) && allLessons.length > 0
+                          ? allLessons.every((l) => getLessonCompleted(l.id))
+                          : false;
+                      return (
+                        <div key={ch.id} className="mb-4">
+                          <div
+                            className={`bg-white rounded-lg border p-3 shadow-sm`}
+                          >
+                            <Button
+                              onClick={() => toggleChapter(ch)}
+                              variant="ghost"
+                              className="w-full flex items-center justify-between text-left p-3"
+                            >
+                              <div className="font-medium text-base truncate flex items-center gap-2">
+                                {chapterCompleted && (
+                                  <Check className="w-4 h-4 text-green-600" />
+                                )}
+                                <span className="truncate">{ch.name}</span>
+                              </div>
+                              <ChevronDown
+                                className={`w-5 h-5 text-gray-400 transform transition-transform ${
+                                  expandedChapters.has(ch.id)
+                                    ? "rotate-180"
+                                    : ""
+                                }`}
+                              />
+                            </Button>
+
+                            {expandedChapters.has(ch.id) && (
+                              <div className="mt-3">
+                                {lessons.length === 0 ? (
+                                  <div className="text-sm text-gray-400">
+                                    Không có bài học nào phù hợp với bộ lọc hiện
+                                    tại.
+                                  </div>
+                                ) : contentView === "list" ? (
+                                  <div className="space-y-2">
+                                    {lessons.map((ls: LessonListDto) => {
+                                      const isPreview = Boolean(ls.isPreview);
+                                      return (
+                                        <CourseContentItem
+                                          key={ls.id}
+                                          title={ls.name}
+                                          subtitle={ls.description ?? ""}
+                                          duration={ls.duration ?? ""}
+                                          isPreview={isPreview}
+                                          isCompleted={getLessonCompleted(
+                                            ls.id
+                                          )}
+                                          variant="list"
+                                          onClick={() => {
+                                            if (!isPreview && !enrollment)
+                                              return;
+                                            navigate(
+                                              `/course/student/courses/${courseId}/lecture/${ls.id}`
+                                            );
+                                          }}
+                                        />
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                    {lessons.map((ls: LessonListDto) => {
+                                      const isPreview = Boolean(ls.isPreview);
+                                      return (
+                                        <CourseContentItem
+                                          key={ls.id}
+                                          title={ls.name}
+                                          subtitle={ls.description ?? ""}
+                                          duration={ls.duration ?? ""}
+                                          isPreview={isPreview}
+                                          isCompleted={getLessonCompleted(
+                                            ls.id
+                                          )}
+                                          variant="grid"
+                                          onClick={() => {
+                                            if (!isPreview && !enrollment)
+                                              return;
+                                            navigate(
+                                              `/course/student/courses/${courseId}/lecture/${ls.id}`
+                                            );
+                                          }}
+                                        />
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+
+                  {/* show/hide more chapters control when there are many chapters */}
+                  {chapters.length > 10 && (
+                    <div className="mt-2 text-center">
+                      <Button
+                        onClick={() => setShowAllChapters((s) => !s)}
+                        className="px-4 py-2 rounded-md text-sm"
+                      >
+                        {showAllChapters
+                          ? "Ẩn bớt chương"
+                          : `Hiện thêm chương (${chapters.length - 10})`}
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
     </div>
   );

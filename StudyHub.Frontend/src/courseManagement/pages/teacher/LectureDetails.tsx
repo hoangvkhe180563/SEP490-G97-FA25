@@ -6,6 +6,11 @@ import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { documentService } from "@/documentManagement/services/documentService";
 import { Button } from "@/common/components/ui/button";
 import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/common/components/ui/collapsible";
+import {
   Card,
   CardContent,
   CardHeader,
@@ -107,12 +112,13 @@ const LectureDetails: React.FC = () => {
     <div className="max-w-[1200px] mx-auto px-6 py-6 h-full overflow-y-auto scrollbar-hide">
       {/* === Header navigation === */}
       <div className="flex items-center gap-4 mb-4">
-        <button
+        <Button
+          variant="ghost"
           onClick={() => navigate(-1)}
-          className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
+          className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50 p-0"
         >
           <ArrowLeft className="w-4 h-4 text-[#525252]" />
-        </button>
+        </Button>
         <div className="text-sm text-[#525252]">
           {selectedCourse?.name || "Khóa học"} /{" "}
           {currentChapter?.name || "Chương"} /{" "}
@@ -192,28 +198,35 @@ const LectureDetails: React.FC = () => {
               {selectedCourse?.chapters?.length ? (
                 <div className="space-y-2">
                   {selectedCourse.chapters.map((ch: any) => (
-                    <details key={ch.id} open={ch.id === currentChapter?.id}>
-                      <summary className="cursor-pointer font-semibold text-sm text-[#171717]">
+                    <Collapsible
+                      key={ch.id}
+                      defaultOpen={ch.id === currentChapter?.id}
+                    >
+                      <CollapsibleTrigger className="w-full text-left cursor-pointer font-semibold text-sm text-[#171717] py-1">
                         {ch.name}
-                      </summary>
-                      <ul className="mt-1 pl-4 text-sm text-[#404040]">
-                        {ch.lessons?.map((l: any) => (
-                          <li
-                            key={l.id}
-                            className={`py-1 cursor-pointer ${
-                              l.id === lessonId
-                                ? "font-semibold text-blue-600"
-                                : "hover:text-blue-600"
-                            }`}
-                            onClick={() =>
-                              navigate(`/course/teacher/lecture/${l.id}`)
-                            }
-                          >
-                            {l.name}
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <ul className="mt-1 pl-2 text-sm text-[#404040] space-y-1">
+                          {ch.lessons?.map((l: any) => (
+                            <li key={l.id}>
+                              <Button
+                                variant="ghost"
+                                className={`w-full justify-start py-1 ${
+                                  l.id === lessonId
+                                    ? "font-semibold text-blue-600"
+                                    : "hover:text-blue-600"
+                                }`}
+                                onClick={() =>
+                                  navigate(`/course/teacher/lecture/${l.id}`)
+                                }
+                              >
+                                {l.name}
+                              </Button>
+                            </li>
+                          ))}
+                        </ul>
+                      </CollapsibleContent>
+                    </Collapsible>
                   ))}
                 </div>
               ) : (
@@ -240,7 +253,7 @@ const LectureDetails: React.FC = () => {
                         rel="noreferrer"
                         className="text-blue-600 hover:underline truncate"
                       >
-                        {r.url}
+                        {r.url.split("/").pop()}
                       </a>
                     </li>
                   ))}

@@ -7,6 +7,16 @@ import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import type { CourseListDto } from "@/courseManagement/types/api";
 import type { CourseListDto as Course } from "@/courseManagement/interfaces/types";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { Input } from "@/common/components/ui/input";
+import { Button } from "@/common/components/ui/button";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/common/components/ui/select";
+import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination";
 
 const CourseList: React.FC = () => {
   const courses = useCourseStore((s) => s.courses);
@@ -107,12 +117,10 @@ const CourseList: React.FC = () => {
 
   // pagination display calculations
   const currentPage = page ?? 1;
-  const startItem = total === 0 ? 0 : (currentPage - 1) * effectivePageSize + 1;
-  const endItem = Math.min(currentPage * effectivePageSize, total);
 
   return (
-    <div className="max-w-[1300px] mx-auto my-3 w-full h-full overflow-y-auto scrollbar-hide">
-      <div className="flex items-center justify-between mb-4">
+    <div className="p-4 mx-auto w-full h-full overflow-y-auto scrollbar-hide">
+      <div className="mb-4">
         <div className="text-2xl font-normal text-[#171717]">
           Tất cả các khóa học
         </div>
@@ -128,22 +136,20 @@ const CourseList: React.FC = () => {
         <div className="col-span-12 lg:col-span-9 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <button
+              <Button
+                variant={viewMode === "grid" ? undefined : "ghost"}
                 onClick={() => setViewMode("grid")}
-                className={`w-8 h-8 rounded border bg-white flex items-center justify-center ${
-                  viewMode === "grid" ? "ring-2 ring-black" : ""
-                }`}
+                className="w-8 h-8 p-0 flex items-center justify-center"
               >
                 ▦
-              </button>
-              <button
+              </Button>
+              <Button
+                variant={viewMode === "list" ? undefined : "ghost"}
                 onClick={() => setViewMode("list")}
-                className={`w-8 h-8 rounded border bg-white flex items-center justify-center ${
-                  viewMode === "list" ? "ring-2 ring-black" : ""
-                }`}
+                className="w-8 h-8 p-0 flex items-center justify-center"
               >
                 ≡
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -151,32 +157,34 @@ const CourseList: React.FC = () => {
             {/* Ô tìm kiếm */}
             <div className="flex items-center gap-2 flex-1 min-w-[180px]">
               <i className="ri-search-line text-gray-500 text-base" />
-              <input
+              <Input
                 placeholder="Tìm kiếm khóa học..."
                 className="w-full border-none outline-none text-sm text-gray-700 placeholder-gray-400 bg-transparent"
                 value={q ?? ""}
-                onChange={(e) => applySearch(e.target.value || undefined)}
+                onChange={(e: any) => applySearch(e.target.value || undefined)}
               />
             </div>
 
             {/* Bộ sắp xếp */}
-            <select
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400 transition"
+            <Select
               value={sort ?? ""}
-              onChange={(e) => applySort(e.target.value || undefined)}
+              onValueChange={(v) => applySort(v || undefined)}
             >
-              <option value="">Sắp xếp: Mức độ liên quan</option>
-              <option value="newest">Thời gian: Mới nhất</option>
-              <option value="priceAsc">Giá: Thấp → Cao</option>
-              <option value="priceDesc">Giá: Cao → Thấp</option>
-            </select>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Sắp xếp: Mức độ liên quan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Thời gian: Mới nhất</SelectItem>
+                <SelectItem value="priceAsc">Giá: Thấp → Cao</SelectItem>
+                <SelectItem value="priceDesc">Giá: Cao → Thấp</SelectItem>
+              </SelectContent>
+            </Select>
 
             {/* Page size */}
-            <select
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white hover:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400 transition"
-              value={selectedPageSize ?? pageSize}
-              onChange={(e) => {
-                const next = Number(e.target.value);
+            <Select
+              value={String(selectedPageSize ?? pageSize ?? 6)}
+              onValueChange={(v) => {
+                const next = Number(v);
                 setSelectedPageSize(next);
 
                 if (authUser?.schoolId)
@@ -192,16 +200,21 @@ const CourseList: React.FC = () => {
                   });
               }}
             >
-              <option value={6}>6 / trang</option>
-              <option value={12}>12 / trang</option>
-              <option value={24}>24 / trang</option>
-            </select>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={String(6)}>6 / trang</SelectItem>
+                <SelectItem value={String(12)}>12 / trang</SelectItem>
+                <SelectItem value={String(24)}>24 / trang</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-12 gap-6">
-        <aside className="col-span-12 lg:col-span-3">
+        <aside className="col-span-12 lg:col-span-3 lg:sticky lg:top-24 self-start">
           <CourseFilters
             filters={filters}
             teachers={teachers}
@@ -209,7 +222,7 @@ const CourseList: React.FC = () => {
           />
         </aside>
 
-        <section className="col-span-12 lg:col-span-9">
+        <section className="col-span-12 lg:col-span-9 lg:overflow-y-auto lg:max-h-[calc(100vh-6rem)] scrollbar-hide">
           <div
             className={
               viewMode === "grid"
@@ -274,42 +287,27 @@ const CourseList: React.FC = () => {
                 })}
           </div>
 
-          <div className="flex items-center justify-between mt-4 mb-8">
-            <div className="text-sm text-gray-600">
-              {total === 0 ? (
-                <>Hiển thị 0 của 0</>
-              ) : (
-                <>
-                  Hiển thị {startItem} - {endItem} của {total}
-                </>
-              )}
-            </div>
+          <div className="flex items-center justify-between mt-4">
+            <span className="text-sm text-gray-600">
+              {total > 0
+                ? `Hiển thị từ ${
+                    (currentPage - 1) * effectivePageSize + 1
+                  } đến ${Math.min(
+                    total,
+                    (currentPage - 1) * effectivePageSize + courses.length
+                  )} trong tổng số ${total} kết quả`
+                : "Không tìm thấy kết quả nào"}
+            </span>
 
-            <nav className="inline-flex items-center gap-2">
-              <button
-                className={`p-2 ${
-                  currentPage <= 1 ? "pointer-events-none opacity-50" : ""
-                }`}
-                onClick={() => goPage(currentPage - 1)}
-              >
-                Trước
-              </button>
-
-              <button className="p-2 bg-black text-white rounded">
-                {currentPage}
-              </button>
-
-              <button
-                className={`p-2 ${
-                  currentPage * effectivePageSize >= total
-                    ? "pointer-events-none opacity-50"
-                    : ""
-                }`}
-                onClick={() => goPage(currentPage + 1)}
-              >
-                Tiếp theo
-              </button>
-            </nav>
+            <DocumentPagination
+              pagination={{
+                currentPage: currentPage,
+                totalPages: Math.max(1, Math.ceil(total / effectivePageSize)),
+                totalCount: total,
+                pageSize: effectivePageSize,
+              }}
+              onPageChange={(p: number) => goPage(p)}
+            />
           </div>
         </section>
       </div>

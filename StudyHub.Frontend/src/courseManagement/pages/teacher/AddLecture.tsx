@@ -19,8 +19,13 @@ import { useQuill } from "react-quilljs";
 import "quill/dist/quill.snow.css";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
+import type { Exam, Question } from "@/courseManagement/interfaces/types";
+import LessonExamQuestions from "@/courseManagement/components/LessonExamQuestions";
+import { EXAM_TYPE } from "@/courseManagement/constants/ExamType";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const AddLecture: React.FC = () => {
+  const { user } = useAuthStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialType = searchParams.get("type") || "video";
@@ -33,6 +38,9 @@ const AddLecture: React.FC = () => {
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(
     chapterIdFromQuery ?? null
   );
+  // chapterInfo not required directly; we keep postDate and lessons
+  const [chapterPostDate, setChapterPostDate] = useState<string | null>(null);
+  const [chapterLessons, setChapterLessons] = useState<any[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(
     courseIdFromQuery ?? null
   );
@@ -47,6 +55,7 @@ const AddLecture: React.FC = () => {
   const [resourceUploading, setResourceUploading] = useState(false);
   const [resourceUrl, setResourceUrl] = useState<string | null>(null);
   const [resourceId, setResourceId] = useState<number | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [saving, setSaving] = useState(false);
 
   const [dialog, setDialog] = useState<DialogProps>({
@@ -108,9 +117,25 @@ const AddLecture: React.FC = () => {
         console.error("Failed to load chapters", err);
       }
       if (selectedChapterId) {
-        const ch = await courseApi.getChapter(Number(selectedChapterId));
-        if (ch && (ch as any).courseId) {
-          setSelectedCourseId(String((ch as any).courseId));
+        try {
+          const ch = await courseApi.getChapter(Number(selectedChapterId));
+          if (ch) {
+            // try to read postDate and lessons in a few common shapes
+            const post = (ch as any).postDate || (ch as any).createdAt || null;
+            setChapterPostDate(post ? String(post) : null);
+            // lessons may be called lessons, lectures or items depending on API
+            const lessons =
+              (ch as any).lessons ||
+              (ch as any).lectures ||
+              (ch as any).items ||
+              [];
+            setChapterLessons(Array.isArray(lessons) ? lessons : []);
+            if ((ch as any).courseId) {
+              setSelectedCourseId(String((ch as any).courseId));
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load chapter", err);
         }
       }
     })();
@@ -148,23 +173,152 @@ const AddLecture: React.FC = () => {
         if (!embedSrc || !embedSrc.trim())
           errors.push("Vui lòng dán link nhúng (embed) hợp lệ.");
       }
-    } else {
+    } else if (type === "reading") {
       // reading
       const cleaned = (readingContent || "").replace(/<(.|\n)*?>/g, "").trim();
       if (!cleaned) errors.push("Nội dung đọc không được bỏ trống.");
+    } else {
+      if (!duration) {
+        errors.push("Với loại bài giảng kiểm tra thì thời gian là bắt buộc!");
+      }
+
+      if (questions.length === 0) {
+        errors.push("Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi.");
+      }
+
+      for (const q of questions) {
+        if (!q.questionText.trim()) {
+          errors.push("Vui lòng nhập nội dung cho tất cả các câu hỏi.");
+        }
+        if (q.type === EXAM_TYPE.SINGLE_CHOICE || q.type === EXAM_TYPE.MULTI_CHOICE) {
+          if (q.options.some(opt => !String(opt).trim())) {
+            errors.push(`Vui lòng nhập nội dung cho tất cả các lựa chọn hoặc xóa lựa chọn trống cho câu hỏi "${q.questionText}".`);
+          }
+        }
+
+        if (q.type === EXAM_TYPE.SINGLE_CHOICE) {
+          if (!String(q.correctAnswer).trim()) {
+            errors.push(`Vui lòng chọn đáp án đúng cho câu hỏi "${q.questionText}".`);
+          }
+        } else if (q.type === EXAM_TYPE.MULTI_CHOICE) {
+          if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length === 0 || q.correctAnswer.some(ans => !String(ans).trim())) {
+            errors.push(`Vui lòng chọn ít nhất một đáp án đúng cho câu hỏi "${q.questionText}".`);
+          }
+        } else if (q.type === EXAM_TYPE.TEXT_INPUT) {
+          if (!String(q.correctAnswer).trim()) {
+            errors.push(`Vui lòng nhập đáp án đúng cho câu hỏi "${q.questionText}".`);
+          }
+        } else if (q.type === EXAM_TYPE.FILL_IN_BLANK) {
+          const expectedBlanks = (q.questionText.match(new RegExp("[BLANK]".replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+          if (expectedBlanks === 0) {
+            errors.push(`Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '[BLANK]'.`);
+          }
+          if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length !== expectedBlanks || q.correctAnswer.some(ans => !String(ans).trim())) {
+            errors.push(`Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${q.questionText}".`);
+          }
+        }
+      }
     }
 
-    if (duration && Number.isNaN(Number(duration)))
+    if (duration && Number.isNaN(Number(duration))) {
       errors.push("Thời lượng phải là một số hợp lệ (phút).");
+    } else if (duration && Number(duration) <= 0) {
+      errors.push("Thời lượng phải là số dương (lớn hơn 0).");
+    }
 
-    if (postDate && isNaN(new Date(postDate).getTime()))
+    // Post date validity
+    if (postDate && isNaN(new Date(postDate).getTime())) {
       errors.push("Ngày đăng không hợp lệ.");
+    }
+
+    // If chapter has a postDate, the lecture postDate (if provided) cannot be earlier
+    if (postDate && chapterPostDate) {
+      const lec = new Date(postDate);
+      const chd = new Date(chapterPostDate);
+      if (!isNaN(lec.getTime()) && !isNaN(chd.getTime())) {
+        if (lec.getTime() < chd.getTime()) {
+          errors.push(
+            "Ngày đăng bài giảng không thể nhỏ hơn ngày bắt đầu của chương."
+          );
+        }
+      }
+    }
+
+    // Validate embedSrc or videoUrl more strictly
+    if (type === "video") {
+      if (useEmbed && embedSrc && embedSrc.trim()) {
+        // allow raw iframe tags or plain URLs
+        const trimmed = embedSrc.trim();
+        if (trimmed.startsWith("<iframe")) {
+          const m = trimmed.match(/src=["']([^"']+)["']/);
+          if (!m || !m[1])
+            errors.push("Embed iframe không có thuộc tính src hợp lệ.");
+          else {
+            try {
+              new URL(m[1]);
+            } catch (e) {
+              errors.push("URL trong iframe embed không hợp lệ.");
+            }
+          }
+        } else {
+          try {
+            new URL(trimmed);
+          } catch (e) {
+            errors.push("Link embed không phải URL hợp lệ.");
+          }
+        }
+      }
+    }
 
     // resource size limit (if user selected a file but didn't upload)
     if (resourceFile) {
       const maxBytes = 50 * 1024 * 1024; // 50MB
       if (resourceFile.size > maxBytes)
         errors.push("Tài nguyên quá lớn. Kích thước tối đa 50MB.");
+    }
+
+    // Title uniqueness within chapter (case-insensitive)
+    if (title && chapterLessons && chapterLessons.length > 0) {
+      const tnorm = title.trim().toLowerCase();
+      const dup = chapterLessons.some((l: any) => {
+        const name =
+          (l && (l.name || l.title || l.nameText || l.titleText)) || "";
+        return String(name).trim().toLowerCase() === tnorm;
+      });
+      if (dup)
+        errors.push(
+          "Tiêu đề bài giảng trùng với một bài giảng đã tồn tại trong chương."
+        );
+    }
+
+    // Resource file name duplication check against existing lesson resources
+    if (resourceFile && chapterLessons && chapterLessons.length > 0) {
+      const fname = resourceFile.name.trim().toLowerCase();
+      const existingNames = chapterLessons
+        .map((l: any) => {
+          // try several common fields where resource URL might be
+          const url =
+            (l &&
+              (l.resourceUrl ||
+                l.resource?.url ||
+                l.resourceUrlPath ||
+                l.fileUrl)) ||
+            null;
+          if (!url) return null;
+          try {
+            const u = String(url);
+            const parts = u.split("/");
+            return parts[parts.length - 1].split("?")[0].toLowerCase();
+          } catch (e) {
+            return null;
+          }
+        })
+        .filter(Boolean) as string[];
+      if (existingNames.some((n) => n === fname)) {
+        errors.push(
+          "Tệp tải lên có tên trùng với tệp đã tồn tại trong chương. Vui lòng đổi tên file trước khi tải lên."
+        );
+      }
     }
 
     return errors;
@@ -178,6 +332,38 @@ const AddLecture: React.FC = () => {
         title: "Chưa chọn file",
         message: "Vui lòng chọn file trước khi tải lên.",
       });
+    // Prevent uploading a file with the same filename as an existing lesson resource in this chapter
+    if (resourceFile && chapterLessons && chapterLessons.length > 0) {
+      const fname = resourceFile.name.trim().toLowerCase();
+      const existingNames = chapterLessons
+        .map((l: any) => {
+          const url =
+            (l &&
+              (l.resourceUrl ||
+                l.resource?.url ||
+                l.resourceUrlPath ||
+                l.fileUrl)) ||
+            null;
+          if (!url) return null;
+          try {
+            const u = String(url);
+            const parts = u.split("/");
+            return parts[parts.length - 1].split("?")[0].toLowerCase();
+          } catch (e) {
+            return null;
+          }
+        })
+        .filter(Boolean) as string[];
+      if (existingNames.some((n) => n === fname)) {
+        return setDialog({
+          open: true,
+          title: "Tệp trùng lặp",
+          message:
+            "Tệp tải lên có tên trùng với tệp đã tồn tại trong chương. Vui lòng đổi tên file trước khi tải lên.",
+        });
+      }
+    }
+
     setResourceUploading(true);
     try {
       const uploadRes = await courseApi.uploadResource(resourceFile);
@@ -209,7 +395,7 @@ const AddLecture: React.FC = () => {
       setDialog({
         open: true,
         title: "Thiếu hoặc sai thông tin",
-        message: errors.join("\n"),
+        message: errors.map((err, index) => (<React.Fragment key={`err-${index}`}>{err} {index < errors.length - 1 && <br />}</React.Fragment>)),
       });
       return;
     }
@@ -220,12 +406,12 @@ const AddLecture: React.FC = () => {
         name: title,
         chapterId: selectedChapterId ? Number(selectedChapterId) : 0,
         status: true,
-        type: type === "video" ? "Video" : "Reading",
+        type: type === "video" ? "Video" : type === "reading" ? "Reading" : "Exam",
         videoUrl: type === "video" ? (useEmbed ? embedSrc : videoUrl) : null,
         readingContent: type !== "video" ? readingContent : null,
         duration: duration || null,
         description: description || null,
-        postDate: postDate ? new Date(postDate) : null,
+        postDate: postDate ? new Date(postDate) : new Date(),
         isPreview,
         ResourceId: resourceId ?? null,
       };
@@ -234,7 +420,34 @@ const AddLecture: React.FC = () => {
         ? await createLesson(dto)
         : await courseApi.createLesson(dto);
 
-      if (created && created.id) {
+      if (!created || !created.id) {
+        setDialog({
+          open: true,
+          title: "Thất bại",
+          message: "Tạo bài giảng thất bại.",
+        });
+      }
+
+      const newExam: Exam = {
+        id: 999,
+        title: title,
+        description: description.length !== 0 ? description : title,
+        duration: parseInt(duration),
+        createdBy: user?.id ?? '',
+        questions: questions.map(({ id, ...rest }, index) => {
+          return {
+            id: index + 1, ...rest
+          }
+        }),
+        showAnswers: true,
+        showCorrectAnswers: true,
+        lessonId: created.id,
+        openTime: postDate ? new Date(postDate) : new Date()
+      };
+
+      const isExamCreated = type === 'exam' ? await courseApi.createExam(newExam) : true;
+
+      if (isExamCreated) {
         setDialog({
           open: true,
           title: "Thành công",
@@ -261,21 +474,22 @@ const AddLecture: React.FC = () => {
   };
 
   return (
-    <div className="max-w-[1200px] px-8 h-full flex flex-col">
+    <div className="w-full px-8 h-full flex flex-col">
       <div className="text-sm text-[#525252] my-3">
         Bài giảng / Thêm bài giảng
       </div>
 
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <button
+          <Button
+            variant="ghost"
             onClick={() =>
               navigate("/course/teacher/edit-course/" + selectedCourseId)
             }
-            className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50"
+            className="w-8 h-8 flex items-center justify-center border border-[#E5E5E5] rounded-lg hover:bg-gray-50 p-0"
           >
             <ArrowLeft className="w-4 h-4 text-[#525252]" />
-          </button>
+          </Button>
 
           <div>
             <h1 className="text-2xl font-normal text-[#171717]">
@@ -308,7 +522,7 @@ const AddLecture: React.FC = () => {
             <div className="col-span-12 space-y-4">
               {/* Chapter */}
               <div className="space-y-2">
-                <Label>Chương</Label>
+                <Label>Chương <span className='text-red-500'>*</span></Label>
                 {chapters.length ? (
                   <Select
                     value={selectedChapterId ?? undefined}
@@ -334,7 +548,7 @@ const AddLecture: React.FC = () => {
 
               {/* Type */}
               <div className="space-y-2">
-                <Label>Loại bài giảng</Label>
+                <Label>Loại bài giảng <span className='text-red-500'>*</span></Label>
                 <Select value={type} onValueChange={setType}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Chọn loại bài giảng" />
@@ -342,13 +556,14 @@ const AddLecture: React.FC = () => {
                   <SelectContent>
                     <SelectItem value="video">Bài giảng video</SelectItem>
                     <SelectItem value="reading">Tài liệu đọc</SelectItem>
+                    <SelectItem value="exam">Bài kiểm tra</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Title */}
               <div className="space-y-2">
-                <Label>Tên bài giảng</Label>
+                <Label>Tên bài giảng <span className='text-red-500'>*</span></Label>
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -367,124 +582,9 @@ const AddLecture: React.FC = () => {
                 />
               </div>
 
-              {/* File Upload / Embed */}
-              {type === "video" ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Label>Video URL</Label>
-                    <div className="flex items-center gap-2 text-sm">
-                      <input
-                        id="use-embed"
-                        type="checkbox"
-                        checked={useEmbed}
-                        onChange={(e) => setUseEmbed(e.target.checked)}
-                        className="w-4 h-4"
-                      />
-                      <label htmlFor="use-embed">Embed (iframe)</label>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setDialog({
-                            open: true,
-                            title: "Hướng dẫn lấy link nhúng YouTube",
-                            message: (
-                              <div className="space-y-2 text-sm">
-                                <p>
-                                  📹 <strong>Các bước thực hiện:</strong>
-                                </p>
-                                <ol className="list-decimal ml-5">
-                                  <li>
-                                    <strong>Tải video lên YouTube</strong> -
-                                    Đăng nhập → Tạo → Tải video lên
-                                  </li>
-                                  <li>
-                                    <strong>Lấy mã nhúng (Embed)</strong> - Chia
-                                    sẻ → Nhúng → Sao chép{" "}
-                                    <code>
-                                      &lt;iframe&gt;...&lt;/iframe&gt;
-                                    </code>{" "}
-                                    hoặc URL:
-                                    <br />
-                                    <a
-                                      href="https://www.youtube.com/embed/VIDEO_ID"
-                                      target="_blank"
-                                      className="text-blue-600 underline"
-                                    >
-                                      https://www.youtube.com/embed/VIDEO_ID
-                                    </a>
-                                  </li>
-                                  <li>
-                                    <strong>Dán vào hệ thống</strong> - Quay lại
-                                    form → dán vào ô Embed
-                                  </li>
-                                </ol>
-                                <p className="italic text-gray-500">
-                                  💡 Gợi ý: Để video không công khai, đặt chế độ
-                                  “Không công khai (Unlisted)”.
-                                </p>
-                              </div>
-                            ),
-                          })
-                        }
-                        className="ml-2 text-gray-500 hover:text-gray-700"
-                        aria-label="Hướng dẫn embed YouTube"
-                      >
-                        <HelpCircle className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {!useEmbed ? (
-                    <Input
-                      placeholder="https://example.com/video.mp4"
-                      value={videoUrl}
-                      onChange={(e) => setVideoUrl(e.target.value)}
-                    />
-                  ) : (
-                    <div className="space-y-2">
-                      <Input
-                        placeholder="Dán link embed YouTube (vd: https://www.youtube.com/embed/...)"
-                        value={embedSrc}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const match = val.match(/src="([^"]+)"/);
-                          setEmbedSrc(match ? match[1] : val);
-                        }}
-                      />
-                      <div className="border rounded overflow-hidden">
-                        {embedSrc ? (
-                          <iframe
-                            title="embed-preview"
-                            src={embedSrc}
-                            className="w-full aspect-video rounded-md border border-gray-200"
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                            referrerPolicy="strict-origin-when-cross-origin"
-                            allowFullScreen
-                          />
-                        ) : (
-                          <div className="p-3 text-sm text-gray-500">
-                            Nhập link embed (ví dụ YouTube embed URL) để xem
-                            trước
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label>Nội dung đọc</Label>
-                  <div
-                    ref={quillRef}
-                    className="bg-white rounded-md min-h-[250px] p-2"
-                  />
-                </div>
-              )}
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Thời gian (phút)</Label>
+                  <Label>Thời gian (phút) <span className={`text-red-500 ${type === 'exam' ? '' : 'hidden'}`}>*</span></Label>
                   <Input
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
@@ -500,7 +600,6 @@ const AddLecture: React.FC = () => {
                 </div>
               </div>
 
-              {/* Teacher Name + Preview */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <Label className="text-gray-800 font-medium text-sm">
@@ -576,13 +675,129 @@ const AddLecture: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2 mt-6">
                   <input
+                    id="preview"
                     type="checkbox"
                     checked={isPreview}
                     onChange={(e) => setIsPreview(e.target.checked)}
                     className="w-4 h-4"
                   />
-                  <Label>Cho phép xem trước bài giảng</Label>
+                  <Label htmlFor="preview">Cho phép xem trước bài giảng</Label>
                 </div>
+              </div>
+
+              <div className={`space-y-4 ${type === 'video' ? 'block' : 'hidden'}`}>
+                <div className="flex items-center gap-3">
+                  <Label>Video URL <span className='text-red-500'>*</span></Label>
+                  <div className="flex items-center gap-2 text-sm">
+                    <input
+                      id="use-embed"
+                      type="checkbox"
+                      checked={useEmbed}
+                      onChange={(e) => setUseEmbed(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="use-embed">Embed (iframe)</label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDialog({
+                          open: true,
+                          title: "Hướng dẫn lấy link nhúng YouTube",
+                          message: (
+                            <div className="space-y-2 text-sm">
+                              <p>
+                                📹 <strong>Các bước thực hiện:</strong>
+                              </p>
+                              <ol className="list-decimal ml-5">
+                                <li>
+                                  <strong>Tải video lên YouTube</strong> -
+                                  Đăng nhập → Tạo → Tải video lên
+                                </li>
+                                <li>
+                                  <strong>Lấy mã nhúng (Embed)</strong> - Chia
+                                  sẻ → Nhúng → Sao chép{" "}
+                                  <code>
+                                    &lt;iframe&gt;...&lt;/iframe&gt;
+                                  </code>{" "}
+                                  hoặc URL:
+                                  <br />
+                                  <a
+                                    href="https://www.youtube.com/embed/VIDEO_ID"
+                                    target="_blank"
+                                    className="text-blue-600 underline"
+                                  >
+                                    https://www.youtube.com/embed/VIDEO_ID
+                                  </a>
+                                </li>
+                                <li>
+                                  <strong>Dán vào hệ thống</strong> - Quay lại
+                                  form → dán vào ô Embed
+                                </li>
+                              </ol>
+                              <p className="italic text-gray-500">
+                                💡 Gợi ý: Để video không công khai, đặt chế độ
+                                “Không công khai (Unlisted)”.
+                              </p>
+                            </div>
+                          ),
+                        })
+                      }
+                      className="ml-2 text-gray-500 hover:text-gray-700"
+                      aria-label="Hướng dẫn embed YouTube"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {!useEmbed ? (
+                  <Input
+                    placeholder="https://example.com/video.mp4"
+                    value={videoUrl}
+                    onChange={(e) => setVideoUrl(e.target.value)}
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Dán link embed YouTube (vd: https://www.youtube.com/embed/...)"
+                      value={embedSrc}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const match = val.match(/src="([^"]+)"/);
+                        setEmbedSrc(match ? match[1] : val);
+                      }}
+                    />
+                    <div className="border rounded overflow-hidden">
+                      {embedSrc ? (
+                        <iframe
+                          title="embed-preview"
+                          src={embedSrc}
+                          className="w-full aspect-video rounded-md border border-gray-200"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          referrerPolicy="strict-origin-when-cross-origin"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <div className="p-3 text-sm text-gray-500">
+                          Nhập link embed (ví dụ YouTube embed URL) để xem
+                          trước
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className={`space-y-2 ${type === 'reading' ? 'block' : 'hidden'}`}>
+                <Label>Nội dung đọc <span className='text-red-500'>*</span></Label>
+                <div
+                  ref={quillRef}
+                  className="bg-white rounded-md min-h-[250px] p-2"
+                />
+              </div>
+              <div className={`space-y-2 ${type === 'exam' ? 'block' : 'hidden'}`}>
+                <Label>Câu hỏi <span className='text-red-500'>*</span></Label>
+                <LessonExamQuestions questions={questions} setQuestions={setQuestions} />
               </div>
             </div>
           </div>
