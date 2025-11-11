@@ -6,11 +6,12 @@ import UpdateAccount from "../pages/manager/UpdateAccount";
 import ManagerLayout from "../components/layouts/ManagerLayout";
 import UpdateProfile from "../pages/UpdateProfile";
 import AccountRecoveryList from "../pages/manager/AccountRecoveryList";
+import AccountDashboard from "../pages/manager/AccountDashboard";
 
 const managerRoutes = [
   {
     index: true,
-    element: <div>Dashboard</div>,
+    element: <AccountDashboard />,
   },
   {
     path: UserRouteConfig.MANAGER.ACCOUNT_LIST,
