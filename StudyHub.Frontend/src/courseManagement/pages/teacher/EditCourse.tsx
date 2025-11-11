@@ -496,6 +496,50 @@ const EditCourse: React.FC = () => {
         title: "Thất bại",
         message: "Cập nhật không khả dụng",
       });
+    // Validate modal chapter postDate against course start/end (if provided)
+    try {
+      const pdRaw: any = (modalChapter as any).postDate ?? null;
+      if (pdRaw) {
+        const pd = pdRaw instanceof Date ? pdRaw : new Date(pdRaw);
+        if (isNaN(pd.getTime())) {
+          setDialog({
+            open: true,
+            title: "Lỗi",
+            message: "Ngày đăng phần không hợp lệ.",
+          });
+          return;
+        }
+
+        if (startAt) {
+          const s = new Date(startAt);
+          if (!isNaN(s.getTime()) && pd < s) {
+            setDialog({
+              open: true,
+              title: "Lỗi ngày",
+              message:
+                "Ngày đăng phần phải lớn hơn hoặc bằng ngày bắt đầu khóa học.",
+            });
+            return;
+          }
+        }
+
+        if (endAt) {
+          const e = new Date(endAt);
+          if (!isNaN(e.getTime()) && pd > e) {
+            setDialog({
+              open: true,
+              title: "Lỗi ngày",
+              message:
+                "Ngày đăng phần phải nhỏ hơn hoặc bằng ngày kết thúc khóa học.",
+            });
+            return;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Chapter date validation failed", err);
+    }
+
     setChapterModalSaving(true);
     try {
       const dto: any = {

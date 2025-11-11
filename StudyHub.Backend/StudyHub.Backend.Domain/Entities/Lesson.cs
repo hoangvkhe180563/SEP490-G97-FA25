@@ -16,5 +16,7 @@ public class Lesson
     public LessonReading? LessonReading { get; set; }
     public List<Progress> Progresses { get; set; } = new List<Progress>();
     public LessonResource? Resource { get; set; }
+    // interactive questions attached to this lesson (not persisted by this class directly)
+    public List<InteractiveQuestion>? InteractiveQuestions { get; set; }
 
 }
