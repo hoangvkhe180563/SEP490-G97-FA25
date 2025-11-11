@@ -14,11 +14,12 @@ const Homepage = () => {
   const navigate = useNavigate();
   const uiManagementService = new UiManagementService();
 
-  if (user && user.schoolId !== 0) {
-    navigate(`/ui/${user.schoolId}/landing`);
-  }
-
   useEffect(() => {
+    if (user && user.schoolId !== 0) {
+      navigate(`/ui/${user.schoolId}/landing`);
+      return;
+    }
+
     const fetchData = async () => {
       try {
         const landingPageData = await uiManagementService.getLandingPageGeneral();

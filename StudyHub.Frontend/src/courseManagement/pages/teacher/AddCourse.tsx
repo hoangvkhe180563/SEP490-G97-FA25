@@ -18,7 +18,6 @@ import {
   SelectItem,
 } from "@/common/components/ui/select";
 import { Button } from "@/common/components/ui/button";
-import { Checkbox } from "@/common/components/ui/checkbox";
 import { Label } from "@/common/components/ui/label";
 import { ArrowLeft, Loader2, Upload } from "lucide-react";
 import { documentService } from "@/documentManagement/services/documentService";
@@ -51,7 +50,6 @@ const AddCourse: React.FC = () => {
   const [status, setStatus] = useState<string | "">("");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
-  // const [createdBy, setCreatedBy] = useState("");
 
   const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
 
@@ -112,7 +110,7 @@ const AddCourse: React.FC = () => {
       return setDialog({
         open: true,
         title: "Lỗi nhập liệu",
-        message: errors.join(" \n"),
+        message: errors.map((err, index) => (<React.Fragment key={`err-${index}`}>{err} {index < errors.length - 1 && <br />}</React.Fragment>)),
       });
 
     setSaving(true);
@@ -469,11 +467,13 @@ const AddCourse: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Checkbox
+                  <input
+                    id="featured"
+                    type="checkbox"
                     checked={isFeatured}
-                    onCheckedChange={(v) => setIsFeatured(!!v)}
+                    onChange={(e) => setIsFeatured(e.target.checked)}
                   />
-                  <Label>Khóa học nổi bật</Label>
+                  <Label htmlFor="featured">Khóa học nổi bật</Label>
                 </div>
               </CardContent>
             </Card>

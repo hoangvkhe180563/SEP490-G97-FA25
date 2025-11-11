@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StudyHub.Backend.Infrastruc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StudyHub.Backend.Api", "StudyHub.Backend.Api\StudyHub.Backend.Api.csproj", "{01892759-94B9-4085-A258-2E5097B698ED}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StudyHub.Backend.Infrastructure.MongoDb", "StudyHub.Backend.Infrastructure.MongoDb\StudyHub.Backend.Infrastructure.MongoDb.csproj", "{BD3905F5-FC94-4AD1-807F-E0A10EAF1EA1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{01892759-94B9-4085-A258-2E5097B698ED}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{01892759-94B9-4085-A258-2E5097B698ED}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{01892759-94B9-4085-A258-2E5097B698ED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BD3905F5-FC94-4AD1-807F-E0A10EAF1EA1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BD3905F5-FC94-4AD1-807F-E0A10EAF1EA1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BD3905F5-FC94-4AD1-807F-E0A10EAF1EA1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BD3905F5-FC94-4AD1-807F-E0A10EAF1EA1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

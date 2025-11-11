@@ -32,6 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\StudyHub.Backend.Infrastructure.MongoDb\StudyHub.Backend.Infrastructure.MongoDb.csproj" />
     <ProjectReference Include="..\StudyHub.Backend.Infrastructure\StudyHub.Backend.Infrastructure.csproj" />
     <ProjectReference Include="..\StudyHub.Backend.UseCases\StudyHub.Backend.UseCases.csproj" />
   </ItemGroup>

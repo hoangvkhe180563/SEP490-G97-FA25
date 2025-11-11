@@ -621,7 +621,7 @@ const EditCourse: React.FC = () => {
                   setDialog({
                     open: true,
                     title: "Thiếu hoặc sai thông tin",
-                    message: errors.join("\n"),
+                    message: errors.map((err, index) => (<React.Fragment key={`err-${index}`}>{err} {index < errors.length - 1 && <br />}</React.Fragment>)),
                   });
                   return;
                 }
@@ -904,7 +904,7 @@ const EditCourse: React.FC = () => {
                               {/* === Right: Action buttons === */}
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-[#8A8A8A] mr-3">
-                                  {l.type}
+                                  {l.type === "Video" ? "Video" : l.type === "Reading" ? "Đọc" : "Kiểm tra"}
                                 </span>
 
                                 <Button
@@ -1135,7 +1135,7 @@ const EditCourse: React.FC = () => {
                           <span className="float-right">
                             {formatDate(
                               selectedCourse?.updatedAt ??
-                                selectedCourse?.createdAt
+                              selectedCourse?.createdAt
                             )}
                           </span>
                         </div>
@@ -1152,7 +1152,7 @@ const EditCourse: React.FC = () => {
                         checked={isFeatured}
                         onCheckedChange={(v) => setIsFeatured(!!v)}
                       />
-                      <Label>Khóa học nổi bật</Label>
+                      <Label htmlFor="featured">Khóa học nổi bật</Label>
                     </div>
                   </div>
                 </CardContent>
@@ -1220,8 +1220,8 @@ const EditCourse: React.FC = () => {
                       value={
                         (modalChapter as any).postDate
                           ? new Date((modalChapter as any).postDate)
-                              .toISOString()
-                              .slice(0, 10)
+                            .toISOString()
+                            .slice(0, 10)
                           : ""
                       }
                       onChange={(e) =>

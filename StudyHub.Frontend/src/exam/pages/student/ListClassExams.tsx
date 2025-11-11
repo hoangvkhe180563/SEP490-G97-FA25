@@ -1,31 +1,33 @@
+import { useAuthStore } from '@/auth/stores/useAuthStore';
+import { Button } from '@/common/components/ui/button';
 import { useLoading } from '@/common/hooks/useLoading';
 import type { Exam } from '@/exam/interfaces/models/Exam';
-import type { ExamResult } from '@/exam/interfaces/models/ExamResult';
 import { ExamService } from '@/exam/services/ExamService';
-import { MOCK_DATA_USERS } from '@/exam/services/MockData';
+import { Eye } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
-const ListExams = () => {
-  const user = MOCK_DATA_USERS[1];
+const ListClassExams = () => {
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [exams, setExams] = useState<Exam[]>([]);
-  const [userResults, setUserResults] = useState<ExamResult[]>([]);
   const { setLoading } = useLoading();
   const [error, setError] = useState<string>('');
   const examService = new ExamService();
 
-  //phân quyền?
-
   useEffect(() => {
+    if (!user) {
+      return;
+    }
+    if (!user.roles.some(role => role.includes("Student"))) {
+      navigate("/");
+      return;
+    }
     const fetchExamsAndResults = async () => {
       try {
         setLoading(true);
-        const [allExams, results] = await Promise.all([
-          examService.getExams(),
-          examService.getResultsByStudent(user.id)
-        ]);
+        const allExams = await examService.getStudentClassExams(user.id);
         setExams(allExams);
-        setUserResults(results);
       } catch (err) {
         console.error("Failed to fetch exams or results:", err);
         setError("Không thể tải danh sách bài kiểm tra.");
@@ -37,17 +39,13 @@ const ListExams = () => {
     fetchExamsAndResults();
   }, [user]);
 
-  const hasTakenExam = (examId: number) => {
-    return userResults.some(result => result.examId == examId);
-  };
-
   if (error) {
     return <div className="container mx-auto mt-8 p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>;
   }
 
   return (
-    <div className="container mx-auto mt-8 p-4">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Các bài kiểm tra có sẵn</h1>
+    <div className="p-4 overflow-y-auto h-full">
+      <h1 className="text-3xl font-bold mb-6 text-gray-800">Các bài kiểm tra trong lớp</h1>
 
       {exams.length === 0 ? (
         <p className="text-gray-600">Hiện chưa có bài kiểm tra nào.</p>
@@ -58,22 +56,18 @@ const ListExams = () => {
               <h2 className="text-2xl font-semibold mb-2 text-gray-800">{exam.title}</h2>
               <p className="text-gray-600 mb-4 line-clamp-2">{exam.description}</p>
               <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-                <span>{exam.questions.length} câu hỏi</span>
+                <span>{exam.totalQuestions} câu hỏi</span>
                 <span>{exam.duration} phút</span>
               </div>
               <div className="flex justify-end">
-                {hasTakenExam(exam.id) ? (
-                  <span className="px-4 py-2 bg-gray-400 text-white rounded-lg text-sm cursor-not-allowed">
-                    Đã hoàn thành
-                  </span>
-                ) : (
-                  <Link
-                    to={`/exam/student/take-exam/${exam.id}`}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                  >
-                    Bắt đầu làm bài
-                  </Link>
-                )}
+                <Link
+                  to={`/exam/student/exams/${exam.id}`}
+                >
+                  <Button
+                    className="bg-blue-600 text-white hover:bg-blue-700 space-x-1">
+                    <Eye /> <span>Xem chi tiết</span>
+                  </Button>
+                </Link>
               </div>
             </div>
           ))}
@@ -83,4 +77,4 @@ const ListExams = () => {
   );
 };
 
-export default ListExams;
+export default ListClassExams;

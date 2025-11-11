@@ -4,7 +4,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Repositories;
+using StudyHub.Backend.Infrastructure.Repositories.Exam;
 using StudyHub.Backend.UseCases.Repositories;
+using StudyHub.Backend.UseCases.Repositories.Exam;
 
 namespace StudyHub.Backend.Infrastructure
 {
@@ -36,6 +38,8 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<IQAConversationRepository, QAConversationRepository>();
             services.AddScoped<IQAConversationReadRepository, QAConversationReadRepository>();
             services.AddScoped<IQAMessageRepository, QAMessageRepository>();
+            services.AddScoped<IExamRepository, ExamRepository>();
+            services.AddScoped<IExamResultRepository, ExamResultRepository>();
 
             services.AddScoped<ICloudinaryRepository>(provider =>
             {

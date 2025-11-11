@@ -15,6 +15,10 @@ import {
   PopoverContent,
 } from "@/common/components/ui/popover";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { formatISO } from "date-fns";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/common/components/ui/alert-dialog";
+import courseApi from "@/courseManagement/services/courseService";
+import toast from "react-hot-toast";
 // Progress UI removed for Video lessons; keep setters used by auto-complete logic
 
 const LecturePlayer: React.FC = () => {
@@ -45,6 +49,7 @@ const LecturePlayer: React.FC = () => {
     s.getEnrollmentForCourse(cid)
   );
   const enrollmentId = enrollment?.id ?? null;
+  const [examDialogOpen, setExamDialogOpen] = useState<boolean>(false);
 
   const localKey = React.useCallback(
     (lessonId: number) => `studyhub_local_progress_${lessonId}`,
@@ -98,7 +103,7 @@ const LecturePlayer: React.FC = () => {
         try {
           await recordProgress(enrollmentId, {
             lessonId: selectedLesson.id,
-            completionDate: new Date().toISOString(),
+            completionDate: formatISO(new Date()),
           });
           await fetchProgresses(enrollmentId); // refresh local store
         } catch (err) {
@@ -264,7 +269,7 @@ const LecturePlayer: React.FC = () => {
             if (enrollmentId && selectedLesson?.id) {
               await recordProgress(enrollmentId, {
                 lessonId: selectedLesson.id,
-                completionDate: new Date().toISOString(),
+                completionDate: formatISO(new Date()),
               });
               await fetchProgresses(enrollmentId);
             }
@@ -381,7 +386,7 @@ const LecturePlayer: React.FC = () => {
                       try {
                         await recordProgress(enrollmentId, {
                           lessonId: selectedLesson.id,
-                          completionDate: new Date().toISOString(),
+                          completionDate: formatISO(new Date()),
                         });
                         await fetchProgresses(enrollmentId);
                       } catch {
@@ -459,7 +464,7 @@ const LecturePlayer: React.FC = () => {
           if (enrollmentId && selectedLesson?.id) {
             await recordProgress(enrollmentId, {
               lessonId: selectedLesson.id,
-              completionDate: new Date().toISOString(),
+              completionDate: formatISO(new Date()),
             });
             // refresh local progresses
             await fetchProgresses(enrollmentId);
@@ -537,7 +542,7 @@ const LecturePlayer: React.FC = () => {
         try {
           await recordProgress(enrollmentId, {
             lessonId: selectedLesson.id,
-            completionDate: new Date().toISOString(),
+            completionDate: formatISO(new Date()),
           });
           await fetchProgresses(enrollmentId);
         } catch {
@@ -580,7 +585,7 @@ const LecturePlayer: React.FC = () => {
         try {
           await recordProgress(enrollmentId, {
             lessonId: selectedLesson.id,
-            completionDate: new Date().toISOString(),
+            completionDate: formatISO(new Date()),
           });
           await fetchProgresses(enrollmentId);
         } catch {
@@ -611,12 +616,18 @@ const LecturePlayer: React.FC = () => {
     recordProgress,
   ]);
 
-  // LecturePlayer no longer fetches or displays resources; sidebar component handles resources.
-
-  // formatTime removed — time display for videos is no longer shown in the player UI
+  const handleStartExam = async () => {
+    const exam = await courseApi.getExamByLessonId(lessonId);
+    if (exam) {
+      console.log(exam.id);
+      location.href = `/exam/student/take-exam/${exam.id}`;
+    } else {
+      toast.error("Không có bài kiểm tra!");
+    }
+  }
 
   return (
-    <div className="w-full bg-gray-50 min-h-screen py-8 h-full overflow-y-auto scrollbar-hide">
+    <div className="w-full bg-gray-50 min-h-screen p-4 h-full overflow-y-auto scrollbar-hide">
       <div className="max-w-screen-xl mx-auto">
         <div className="grid grid-cols-12 gap-6">
           <aside className="col-span-12 lg:col-span-3">
@@ -648,13 +659,11 @@ const LecturePlayer: React.FC = () => {
                   {selectedLesson?.type === "Video" && (
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="w-9 h-9 p-0 flex items-center justify-center rounded-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 shadow-sm transition-all"
-                          aria-label="Hướng dẫn xem video"
+                        <button
+                          className="w-9 h-9 flex items-center justify-center rounded-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 shadow-sm transition-all"
                         >
                           <HelpCircle className="w-5 h-5" />
-                        </Button>
+                        </button>
                       </PopoverTrigger>
 
                       <PopoverContent
@@ -684,7 +693,7 @@ const LecturePlayer: React.FC = () => {
                               <span className="font-semibold text-gray-900 dark:text-gray-100">
                                 Lưu tiến độ:
                               </span>{" "}
-                              Tiến độ được lưu cục bộ và sẽ tự động khôi phục
+                              Tiến độ được lưu tạm thời và sẽ tự động khôi phục
                               khi tải lại trang.
                             </li>
                             <li>
@@ -730,9 +739,8 @@ const LecturePlayer: React.FC = () => {
                     if (isEmbed || (!isMp4 && src.startsWith("http"))) {
                       const isYouTubeEmbed = /youtube|youtu\.be/.test(lower);
                       if (isYouTubeEmbed) {
-                        const elId = `yt-player-${
-                          selectedLesson?.id ?? "unknown"
-                        }`;
+                        const elId = `yt-player-${selectedLesson?.id ?? "unknown"
+                          }`;
                         return <div id={elId} className="w-full h-full" />;
                       }
 
@@ -797,6 +805,10 @@ const LecturePlayer: React.FC = () => {
                   ) : null}
                 </div>
               </div>
+            ) : selectedLesson?.type === 'Exam' ? (
+              <Button variant='outline' className="mb-2" onClick={() => setExamDialogOpen(true)} disabled={isLessonCompleted}>
+                {isLessonCompleted ? 'Đã hoàn thành' : 'Bắt đầu làm bài'}
+              </Button>
             ) : (
               <div className="bg-black w-full aspect-video rounded-lg mb-4 flex items-center justify-center text-white overflow-hidden shadow-lg">
                 <div className="text-white text-lg">
@@ -831,6 +843,21 @@ const LecturePlayer: React.FC = () => {
           </aside>
         </div>
       </div>
+
+      <AlertDialog open={examDialogOpen} onOpenChange={setExamDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className='text-center'>Bắt đầu làm bài</AlertDialogTitle>
+            <AlertDialogDescription className='text-center'>
+              Bạn có muốn bắt đầu làm bài?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className='mx-auto'>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={handleStartExam}>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
