@@ -1,3 +1,4 @@
+// .../pages/ForumMain.tsx
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
@@ -9,7 +10,6 @@ import {
   ChevronDown,
   X,
   Filter,
-  Users,
   ArrowUp,
   ExternalLink,
   Plus,
@@ -49,16 +49,19 @@ import { CommentSection } from "../components/CommentSection";
 import { ImageModal } from "../components/ImageModal";
 import { ImageGrid } from "../components/ImageGrid";
 import { formatTimestamp } from "../utils/dateUtils";
+import { ForumSidebar } from "../components/ForumSidebar";
 
 const ForumMain = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const observerTarget = useRef<HTMLDivElement>(null);
-
+  const { topPosts, getTopPosts } = useForumStore();
   const { user } = useAuthStore();
   const schoolId = user?.schoolId || 1;
-
+  useEffect(() => {
+    getTopPosts(schoolId, 5);
+  }, [schoolId, getTopPosts]);
   const {
     posts,
     currentPost,
@@ -68,12 +71,12 @@ const ForumMain = () => {
     startForum,
     stopForum,
     joinSchoolForum,
+    leaveSchoolForum,
     joinPost,
     leavePost,
     getPosts,
     getPostById,
     getComments,
-    createComment,
     sendTyping,
   } = useForumStore();
 
@@ -136,9 +139,17 @@ const ForumMain = () => {
     loadFlairs(schoolId);
 
     return () => {
+      leaveSchoolForum(schoolId);
       stopForum();
     };
-  }, [startForum, stopForum, joinSchoolForum, schoolId, loadFlairs]);
+  }, [
+    startForum,
+    stopForum,
+    joinSchoolForum,
+    leaveSchoolForum,
+    schoolId,
+    loadFlairs,
+  ]);
 
   const fetchPosts = useCallback(() => {
     const subjectId =
@@ -376,18 +387,28 @@ const ForumMain = () => {
     }
     if (!newCommentContent.trim() || !currentPost) return;
 
-    const formData = new FormData();
-    formData.append("postId", currentPost.post_id.toString());
-    formData.append("content", newCommentContent);
-    newCommentImages.forEach((img) => formData.append("attachments", img));
+    const conn = (window as any).__forumConn;
+    if (!conn || conn.state !== "Connected") {
+      alert("Mất kết nối SignalR");
+      return;
+    }
 
-    const result = await createComment(formData);
-    if (result?.success) {
-      setNewCommentContent("");
-      setNewCommentImages([]);
-      if (modalPostId) {
-        await getComments(parseInt(modalPostId));
+    try {
+      const result = await conn.invoke(
+        "CreateComment",
+        currentPost.post_id,
+        null,
+        newCommentContent
+      );
+
+      if (result?.success) {
+        setNewCommentContent("");
+        setNewCommentImages([]);
+      } else {
+        alert(result?.message || "Có lỗi xảy ra");
       }
+    } catch (err: any) {
+      alert(err.message);
     }
   };
 
@@ -649,24 +670,7 @@ const ForumMain = () => {
               )}
             </div>
           </main>
-          <aside className="col-span-3 space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-green-500" />
-                  <h3 className="font-bold text-lg">Thống kê</h3>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between items-center p-2 hover:bg-gray-50 rounded transition-colors">
-                  <span className="text-sm text-gray-600">Tổng bài viết</span>
-                  <span className="font-bold text-lg text-purple-600">
-                    {posts.length}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </aside>
+          <ForumSidebar totalPosts={posts.length} topPosts={topPosts} />
         </div>
       </div>
 

@@ -1,3 +1,4 @@
+// .../components.tsx
 import type React from "react";
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
@@ -11,6 +12,16 @@ import { CommentSection } from "./CommentSection";
 import { ImageModal } from "./ImageModal";
 import { ImageGrid } from "./ImageGrid";
 import { formatTimestamp } from "../utils/dateUtils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/common/components/ui/dropdown-menu";
+import { MoreVertical, Flag, Edit } from "lucide-react";
+import { ReportModal } from "./ReportModal";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { Button } from "@/common/components/ui/button";
 
 interface PostCardProps {
   post: Post;
@@ -19,79 +30,29 @@ interface PostCardProps {
 }
 
 const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
-  const { joinPost, leavePost, getComments } = useForumStore();
-
+  const { joinPost, leavePost } = useForumStore();
+  const [showReportModal, setShowReportModal] = useState(false);
+  const { user } = useAuthStore();
+  const canEdit = user?.id === post.created_by;
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [cardImages, setCardImages] = useState<string[]>([]);
   const [imageZoom, setImageZoom] = useState(1);
   const [showComments, setShowComments] = useState(false);
-  const [loadedComments, setLoadedComments] = useState<any[]>([]);
   const [visibleComments] = useState(3);
   const images = post.image_urls
     ? post.image_urls.split(",").filter((url) => url.trim())
     : [];
+  const displayComments = post.comments || [];
 
   const handleToggleComments = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!showComments) {
       await joinPost(post.post_id);
-      const result = await getComments(post.post_id);
-      if (result?.success && result.data?.items) {
-        const mapCommentWithReplies = (comment: any): any => {
-          return {
-            comment_id: comment.commentId || comment.comment_id,
-            post_id: comment.postId || comment.post_id,
-            parent_comment_id:
-              comment.parentCommentId || comment.parent_comment_id,
-            content: comment.content,
-            created_at: comment.createdAt || comment.created_at,
-            created_by: comment.createdBy || comment.created_by,
-            author_name: comment.creatorName || comment.authorName || "Unknown",
-            author_initials: (comment.creatorName || comment.authorName || "U")
-              .substring(0, 2)
-              .toUpperCase(),
-            author_class: comment.creatorClass || "",
-            replies: (comment.replies || []).map(mapCommentWithReplies),
-            image_urls:
-              comment.attachments?.map((a: any) => a.fileUrl).join(",") || "",
-          };
-        };
-
-        setLoadedComments(result.data.items.map(mapCommentWithReplies));
-      }
     } else {
       await leavePost(post.post_id);
-      setLoadedComments([]);
     }
     setShowComments(!showComments);
-  };
-
-  const handleRefreshComments = async () => {
-    const result = await getComments(post.post_id);
-    if (result?.success && result.data?.items) {
-      const mapCommentWithReplies = (comment: any): any => {
-        return {
-          comment_id: comment.commentId || comment.comment_id,
-          post_id: comment.postId || comment.post_id,
-          parent_comment_id:
-            comment.parentCommentId || comment.parent_comment_id,
-          content: comment.content,
-          created_at: comment.createdAt || comment.created_at,
-          created_by: comment.createdBy || comment.created_by,
-          author_name: comment.creatorName || comment.authorName || "Unknown",
-          author_initials: (comment.creatorName || comment.authorName || "U")
-            .substring(0, 2)
-            .toUpperCase(),
-          author_class: comment.creatorClass || "",
-          replies: (comment.replies || []).map(mapCommentWithReplies),
-          image_urls:
-            comment.attachments?.map((a: any) => a.fileUrl).join(",") || "",
-        };
-      };
-
-      setLoadedComments(result.data.items.map(mapCommentWithReplies));
-    }
   };
 
   const handleImageClick = (idx: number) => {
@@ -128,6 +89,40 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
                   {post.author_initials}
                 </AvatarFallback>
               </Avatar>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {canEdit && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDetails();
+                      }}
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      <span className="font-medium">Chỉnh sửa</span>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowReportModal(true);
+                    }}
+                  >
+                    <Flag className="w-4 h-4 mr-2" />
+                    <span className="font-medium">Báo cáo</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <div>
                 <div className="font-semibold">{post.author_name}</div>
                 <div className="text-xs text-gray-500">
@@ -135,6 +130,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
                 </div>
               </div>
             </div>
+
             <div className="flex gap-2">
               <Badge
                 className={`${getSubjectBadgeColor(
@@ -201,13 +197,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
             <div className="mt-4 pt-4 border-t">
               <CommentSection
                 post={post}
-                comments={loadedComments.slice(0, visibleComments)}
+                comments={displayComments.slice(0, visibleComments)}
                 isExpanded={true}
                 showSort={false}
-                onRefreshComments={handleRefreshComments}
+                onRefreshComments={undefined}
                 maxVisibleReplies={2}
               />
-              {loadedComments.length > visibleComments && (
+              {displayComments.length > visibleComments && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -246,6 +242,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
           onIndexChange={(index) => setSelectedImageIndex(index)}
         />
       )}
+      <ReportModal
+        open={showReportModal}
+        onOpenChange={setShowReportModal}
+        targetId={post.post_id}
+        targetType="post"
+      />
     </>
   );
 };

@@ -15,6 +15,7 @@ interface ForumState {
   isLoading: boolean;
   success: boolean;
   message: string;
+  rules: Array<{ id: number; content: string }>;
 
   loadFlairs: (schoolId?: number) => Promise<void>;
   startForum: () => Promise<void>;
@@ -38,7 +39,8 @@ interface ForumState {
   createPost: (formData: FormData) => Promise<any>;
   updatePost: (postId: number, formData: FormData) => Promise<any>;
   deletePost: (postId: number) => Promise<any>;
-
+  topPosts: Post[];
+  getTopPosts: (schoolId: number, limit?: number) => Promise<any>;
   getComments: (
     postId: number,
     pageNumber?: number,
@@ -47,6 +49,13 @@ interface ForumState {
   createComment: (formData: FormData) => Promise<any>;
   updateComment: (commentId: number, formData: FormData) => Promise<any>;
   deleteComment: (commentId: number) => Promise<any>;
+  loadRules: (schoolId?: number) => Promise<void>;
+  createReport: (
+    targetId: number,
+    targetType: "post" | "comment",
+    ruleId: number,
+    content: string
+  ) => Promise<any>;
 }
 
 const mapPost = (dto: any) => ({
@@ -114,6 +123,8 @@ export const useForumStore = create<ForumState>()(
       posts: [],
       currentPost: null,
       flairs: [],
+      topPosts: [],
+      rules: [],
       isForumConnected: false,
       isLoading: false,
       success: false,
@@ -150,18 +161,32 @@ export const useForumStore = create<ForumState>()(
             const mappedComment = mapComment(dto);
 
             set((state) => {
+              const updatedPosts = state.posts.map((p) => {
+                if (p.post_id !== mappedComment.post_id) return p;
+
+                const existingCommentIds = (p.comments || []).map(
+                  (c) => c.comment_id
+                );
+                if (existingCommentIds.includes(mappedComment.comment_id)) {
+                  return p;
+                }
+
+                const newComments = mappedComment.parent_comment_id
+                  ? addReplyToComment(p.comments || [], mappedComment)
+                  : [...(p.comments || []), mappedComment];
+
+                return {
+                  ...p,
+                  comments: newComments,
+                  comment_count: p.comment_count + 1,
+                };
+              });
+
               if (
                 !state.currentPost ||
                 state.currentPost.post_id !== mappedComment.post_id
               ) {
-                return {
-                  posts: state.posts.map((p) =>
-                    p.post_id === mappedComment.post_id &&
-                    !mappedComment.parent_comment_id
-                      ? { ...p, comment_count: p.comment_count + 1 }
-                      : p
-                  ),
-                };
+                return { posts: updatedPosts };
               }
 
               const existingComments = state.currentPost.comments || [];
@@ -169,7 +194,7 @@ export const useForumStore = create<ForumState>()(
               if (
                 isDuplicateComment(existingComments, mappedComment.comment_id)
               ) {
-                return {};
+                return { posts: updatedPosts };
               }
 
               let newComments: any[];
@@ -187,20 +212,40 @@ export const useForumStore = create<ForumState>()(
               ).length;
 
               return {
+                posts: updatedPosts,
                 currentPost: {
                   ...state.currentPost,
                   comments: newComments,
                   comment_count: topLevelCount,
                 },
+              };
+            });
+          });
+          conn.on("CommentDeleted", (commentId: number) => {
+            set((state) => {
+              if (!state.currentPost) return {};
+
+              const newCommentCount = Math.max(
+                0,
+                state.currentPost.comment_count - 1
+              );
+
+              return {
+                currentPost: {
+                  ...state.currentPost,
+                  comments: state.currentPost.comments.filter(
+                    (c) => c.comment_id !== commentId
+                  ),
+                  comment_count: newCommentCount,
+                },
                 posts: state.posts.map((p) =>
-                  p.post_id === mappedComment.post_id
-                    ? { ...p, comment_count: topLevelCount }
+                  p.post_id === state.currentPost?.post_id
+                    ? { ...p, comment_count: newCommentCount }
                     : p
                 ),
               };
             });
           });
-
           conn.on("PostUpdated", (dto: any) => {
             set((state) => ({
               posts: state.posts.map((p) =>
@@ -260,9 +305,7 @@ export const useForumStore = create<ForumState>()(
             });
           });
 
-          conn.on("UserTyping", () => {
-            // Handle typing indicator if needed
-          });
+          conn.on("UserTyping", () => {});
 
           await conn.start();
           set({ isForumConnected: true });
@@ -274,9 +317,7 @@ export const useForumStore = create<ForumState>()(
       stopForum: async () => {
         const conn: HubConnection | undefined = (window as any).__forumConn;
         if (conn) {
-          await conn.stop().catch(() => {
-            // Silent fail
-          });
+          await conn.stop().catch(() => {});
           delete (window as any).__forumConn;
         }
         set({ isForumConnected: false });
@@ -285,41 +326,31 @@ export const useForumStore = create<ForumState>()(
       joinSchoolForum: async (schoolId: number) => {
         const conn: HubConnection | undefined = (window as any).__forumConn;
         if (!conn || conn.state !== "Connected") return;
-        await conn.invoke("JoinSchoolForum", schoolId).catch(() => {
-          // Silent fail
-        });
+        await conn.invoke("JoinSchoolForum", schoolId).catch(() => {});
       },
 
       leaveSchoolForum: async (schoolId: number) => {
         const conn: HubConnection | undefined = (window as any).__forumConn;
         if (!conn) return;
-        await conn.invoke("LeaveSchoolForum", schoolId).catch(() => {
-          // Silent fail
-        });
+        await conn.invoke("LeaveSchoolForum", schoolId).catch(() => {});
       },
 
       joinPost: async (postId: number) => {
         const conn: HubConnection | undefined = (window as any).__forumConn;
         if (!conn) return;
-        await conn.invoke("JoinPost", postId).catch(() => {
-          // Silent fail
-        });
+        await conn.invoke("JoinPost", postId).catch(() => {});
       },
 
       leavePost: async (postId: number) => {
         const conn: HubConnection | undefined = (window as any).__forumConn;
         if (!conn) return;
-        await conn.invoke("LeavePost", postId).catch(() => {
-          // Silent fail
-        });
+        await conn.invoke("LeavePost", postId).catch(() => {});
       },
 
       sendTyping: async (postId: number, isTyping: boolean) => {
         const conn: HubConnection | undefined = (window as any).__forumConn;
         if (!conn) return;
-        await conn.invoke("TypingInPost", postId, isTyping).catch(() => {
-          // Silent fail
-        });
+        await conn.invoke("TypingInPost", postId, isTyping).catch(() => {});
       },
 
       getPosts: async (
@@ -372,7 +403,30 @@ export const useForumStore = create<ForumState>()(
           set({ isLoading: false });
         }
       },
+      getTopPosts: async (schoolId: number, limit: number = 5) => {
+        try {
+          const params = new URLSearchParams();
+          params.append("schoolId", schoolId.toString());
+          params.append("sortBy", "mostCommented");
+          params.append("pageNumber", "1");
+          params.append("pageSize", limit.toString());
 
+          const resp = await axiosInstance.get(
+            `/Forum/posts?${params.toString()}`
+          );
+          const body = resp.data;
+
+          if (body?.success) {
+            const mappedPosts = (body.data?.items || []).map((item: any) =>
+              mapPost(item)
+            );
+            set({ topPosts: mappedPosts });
+          }
+          return body;
+        } catch (err: any) {
+          return null;
+        }
+      },
       getPostById: async (postId: number) => {
         set({ isLoading: true });
         try {
@@ -647,6 +701,46 @@ export const useForumStore = create<ForumState>()(
             set({ success: false, message: body?.message || "" });
           }
           return body;
+        } catch (err: any) {
+          set({ success: false, message: axiosMessageErrorHandler(err) });
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      loadRules: async (schoolId?: number) => {
+        try {
+          const result = await forumService.getRules(schoolId);
+          set({ rules: result });
+        } catch {
+          set({ rules: [] });
+        }
+      },
+
+      createReport: async (
+        targetId: number,
+        targetType: "post" | "comment",
+        ruleId: number,
+        content: string
+      ) => {
+        set({ isLoading: true });
+        try {
+          const result = await forumService.createReport(
+            targetId,
+            targetType,
+            ruleId,
+            content
+          );
+
+          if (result?.success) {
+            set({
+              success: true,
+              message: result?.message || "Báo cáo thành công",
+            });
+          } else {
+            set({ success: false, message: result?.message || "" });
+          }
+          return result;
         } catch (err: any) {
           set({ success: false, message: axiosMessageErrorHandler(err) });
           return null;

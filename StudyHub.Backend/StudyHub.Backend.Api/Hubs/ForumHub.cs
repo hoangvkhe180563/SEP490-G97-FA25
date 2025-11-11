@@ -167,11 +167,20 @@ namespace StudyHub.Backend.Api.Hubs
 
                 await Clients.Group($"post-{postId}").SendAsync("ReceiveNewComment", dto);
                 await Clients.Group($"school-{post.SchoolId}").SendAsync("ReceiveNewComment", dto);
-                var updatedPost = await _postService.GetPostByIdAsync(postId);
-                var updatedPostDto = updatedPost.ToListDto();
 
-                await Clients.Group($"post-{postId}").SendAsync("PostUpdated", updatedPostDto);
-                await Clients.Group($"school-{post.SchoolId}").SendAsync("PostUpdated", updatedPostDto);
+                var updatedPost = await _postService.GetPostByIdAsync(postId);
+                var postDto = updatedPost.ToListDto();
+
+                await Clients.Group($"post-{postId}").SendAsync("UpdateCommentCount", new
+                {
+                    postId = postId,
+                    commentCount = updatedPost.CommentCount
+                });
+                await Clients.Group($"school-{post.SchoolId}").SendAsync("UpdateCommentCount", new
+                {
+                    postId = postId,
+                    commentCount = updatedPost.CommentCount
+                });
 
                 return new { success = true, data = dto };
             }

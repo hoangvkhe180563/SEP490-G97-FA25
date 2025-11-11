@@ -15,6 +15,14 @@ import { useAuthStore } from "@/auth/stores/useAuthStore";
 import type { Post } from "../interfaces/forum";
 import type { Comment } from "../interfaces/comment";
 import { formatTimestamp } from "../utils/dateUtils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/common/components/ui/dropdown-menu";
+import { MoreVertical, Flag, Edit } from "lucide-react";
+import { ReportModal } from "./ReportModal";
 
 interface CommentSectionProps {
   post: Post;
@@ -52,6 +60,10 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
 }) => {
   const { user } = useAuthStore();
   const { createComment, isLoading, sendTyping } = useForumStore();
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [showReportModal, setShowReportModal] = useState(false);
+  const canEdit = user?.id === post.created_by;
   const [visibleReplies, setVisibleReplies] = useState<{
     [key: number]: number;
   }>({});
@@ -486,6 +498,43 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                             {formatTimestamp(reply.created_at)}
                           </span>
                         </div>
+                        {/* <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                            >
+                              <MoreVertical className="w-3 h-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {user?.id === comment.created_by && (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setEditingCommentId(comment.comment_id)
+                                }
+                              >
+                                <Edit className="w-4 h-4 mr-2" />
+                                <span className="font-medium italic">
+                                  Chỉnh sửa
+                                </span>
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setReportTarget({
+                                  id: comment.comment_id,
+                                  type: "comment",
+                                });
+                                setShowReportModal(true);
+                              }}
+                            >
+                              <Flag className="w-4 h-4 mr-2" />
+                              <span className="font-bold">Báo cáo</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu> */}
 
                         {replyingTo === reply.comment_id && (
                           <div className="flex gap-2 mt-3 animate-in slide-in-from-top-2 duration-200">
