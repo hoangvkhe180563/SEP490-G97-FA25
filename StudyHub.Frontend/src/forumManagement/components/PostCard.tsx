@@ -1,20 +1,17 @@
-//PostCard.tsx
 import type React from "react";
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
 import { Badge } from "@/common/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
-import {
-  MessageSquare,
-  ImageIcon,
-  ExternalLink,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-react";
+import { MessageSquare, ImageIcon, ExternalLink } from "lucide-react";
 import type { Post } from "../interfaces/forum";
 import { useForumStore } from "../stores/useForumStore";
 import { getSubjectBadgeColor, getFlairColor } from "../utils/colorUtils";
 import { CommentSection } from "./CommentSection";
+import { ImageModal } from "./ImageModal";
+import { ImageGrid } from "./ImageGrid";
+import { formatTimestamp } from "../utils/dateUtils";
+
 interface PostCardProps {
   post: Post;
   onOpenComments: () => void;
@@ -97,24 +94,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
     }
   };
 
-  const formatTimestamp = (dateString: string) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60)
-    );
-
-    if (diffInHours < 24) {
-      return `${diffInHours} giờ trước`;
-    } else {
-      const diffInDays = Math.floor(diffInHours / 24);
-      return `${diffInDays} ngày trước`;
-    }
-  };
-
-  const handleImageClick = (e: React.MouseEvent, idx: number) => {
-    e.stopPropagation();
+  const handleImageClick = (idx: number) => {
     setCardImages(images);
     setSelectedImageIndex(idx);
     setImageZoom(1);
@@ -178,40 +158,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
             <h2 className="text-xl font-bold mb-2">{post.title}</h2>
             <p className="text-gray-700 mb-4">{post.content}</p>
           </div>
-          {images.length > 0 && (
-            <div
-              className={`mb-4 ${
-                images.length === 1
-                  ? ""
-                  : images.length === 2
-                  ? "grid grid-cols-2 gap-2"
-                  : "grid grid-cols-2 gap-2"
-              }`}
-            >
-              {images.slice(0, 4).map((img, idx) => (
-                <div
-                  key={idx}
-                  className={`relative rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity ${
-                    images.length === 1 ? "h-64" : "h-40"
-                  }`}
-                  onClick={(e) => handleImageClick(e, idx)}
-                >
-                  <img
-                    src={img || "/placeholder.svg"}
-                    alt={`${post.title} ${idx + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                  {idx === 3 && images.length > 4 && (
-                    <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
-                      <span className="text-white text-2xl font-bold">
-                        +{images.length - 4}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+
+          <ImageGrid
+            images={images}
+            onImageClick={handleImageClick}
+            className="mb-4"
+          />
+
           <div className="flex items-center gap-4 text-sm text-gray-600 mb-3 pt-2 border-t">
             <button
               onClick={handleToggleComments}
@@ -271,77 +224,27 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
       </Card>
 
       {showImageModal && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-95 z-[100] flex items-center justify-center p-4"
-          onClick={handleCloseImageModal}
-        >
-          <button
-            className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 w-12 h-12 flex items-center justify-center"
-            onClick={handleCloseImageModal}
-          >
-            ×
-          </button>
-
-          <div className="absolute top-4 left-4 flex gap-2">
-            <button
-              className="text-white bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70"
-              onClick={handleZoomIn}
-            >
-              <ZoomIn className="w-5 h-5" />
-            </button>
-            <button
-              className="text-white bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70"
-              onClick={handleZoomOut}
-            >
-              <ZoomOut className="w-5 h-5" />
-            </button>
-            <span className="text-white bg-black bg-opacity-50 rounded-full px-3 h-10 flex items-center">
-              {Math.round(imageZoom * 100)}%
-            </span>
-          </div>
-
-          {cardImages.length > 1 && (
-            <>
-              <button
-                className="absolute left-4 text-white text-4xl hover:text-gray-300 w-12 h-12 flex items-center justify-center bg-black bg-opacity-50 rounded-full"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedImageIndex((prev) =>
-                    prev === 0 ? cardImages.length - 1 : prev - 1
-                  );
-                }}
-              >
-                ‹
-              </button>
-              <button
-                className="absolute right-4 text-white text-4xl hover:text-gray-300 w-12 h-12 flex items-center justify-center bg-black bg-opacity-50 rounded-full"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedImageIndex((prev) =>
-                    prev === cardImages.length - 1 ? 0 : prev + 1
-                  );
-                }}
-              >
-                ›
-              </button>
-              <div className="absolute bottom-4 text-white text-sm">
-                {selectedImageIndex + 1} / {cardImages.length}
-              </div>
-            </>
-          )}
-
-          <img
-            src={cardImages[selectedImageIndex] || "/placeholder.svg"}
-            alt="Full size"
-            className="object-contain transition-transform duration-200"
-            style={{
-              maxWidth: "90vw",
-              maxHeight: "90vh",
-              transform: `scale(${imageZoom})`,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
+        <ImageModal
+          images={cardImages}
+          selectedIndex={selectedImageIndex}
+          zoom={imageZoom}
+          onClose={handleCloseImageModal}
+          onPrevious={(e) => {
+            e.stopPropagation();
+            setSelectedImageIndex((prev) =>
+              prev === 0 ? cardImages.length - 1 : prev - 1
+            );
+          }}
+          onNext={(e) => {
+            e.stopPropagation();
+            setSelectedImageIndex((prev) =>
+              prev === cardImages.length - 1 ? 0 : prev + 1
+            );
+          }}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onIndexChange={(index) => setSelectedImageIndex(index)}
+        />
       )}
     </>
   );

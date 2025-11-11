@@ -1,4 +1,3 @@
-// src/forumManagement/components/CommentSection.tsx
 import React, { useState, useMemo } from "react";
 import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
 import { Input } from "@/common/components/ui/input";
@@ -15,6 +14,7 @@ import { useForumStore } from "../stores/useForumStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import type { Post } from "../interfaces/forum";
 import type { Comment } from "../interfaces/comment";
+import { formatTimestamp } from "../utils/dateUtils";
 
 interface CommentSectionProps {
   post: Post;
@@ -49,7 +49,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   isExpanded,
   showSort = true,
   onRefreshComments,
-  // maxVisibleReplies = 5,
 }) => {
   const { user } = useAuthStore();
   const { createComment, isLoading, sendTyping } = useForumStore();
@@ -66,25 +65,12 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   const [replyImagesList, setReplyImagesList] = useState<{
     [key: number]: File[];
   }>({});
+
   const loadMoreReplies = (commentId: number) => {
     setVisibleReplies((prev) => ({
       ...prev,
       [commentId]: (prev[commentId] || 2) + 5,
     }));
-  };
-  const formatTimestamp = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60)
-    );
-
-    if (diffInHours < 24) {
-      return `${diffInHours} giờ trước`;
-    } else {
-      const diffInDays = Math.floor(diffInHours / 24);
-      return `${diffInDays} ngày trước`;
-    }
   };
 
   const flatComments = useMemo(() => flattenComments(comments), [comments]);
@@ -533,7 +519,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                                   }
                                 }}
                               />
-
                               {(replyImagesList[reply.comment_id]?.length ||
                                 0) > 0 && (
                                 <div className="flex gap-2 mb-2 flex-wrap">

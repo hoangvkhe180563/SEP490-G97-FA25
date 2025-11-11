@@ -51,8 +51,8 @@ export const CreatePostDialog = ({
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + images.length > 4) {
-      alert("Tối đa 4 ảnh");
+    if (files.length + images.length > 10) {
+      alert("Tối đa 10 ảnh");
       return;
     }
 
@@ -186,10 +186,10 @@ export const CreatePostDialog = ({
               type="button"
               variant="outline"
               onClick={() => document.getElementById("post-images")?.click()}
-              disabled={images.length >= 4}
+              disabled={images.length >= 10}
             >
               <ImagePlus className="w-4 h-4 mr-2" />
-              Thêm ảnh ({images.length}/4)
+              Thêm ảnh ({images.length}/10)
             </Button>
             <input
               id="post-images"

@@ -1,4 +1,3 @@
-// forummain.tsx
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
@@ -13,10 +12,9 @@ import {
   Users,
   ArrowUp,
   ExternalLink,
-  ZoomIn,
-  ZoomOut,
   Plus,
   Send,
+  ImagePlus,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -36,6 +34,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/common/components/ui/dialog";
 import PostCard from "../components/PostCard";
 import { CreatePostDialog } from "../components/CreatePostDialog";
@@ -46,8 +45,10 @@ import { useForumStore } from "../stores/useForumStore";
 import { documentService } from "@/documentManagement/services/documentService";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { getSubjectBadgeColor, getFlairColor } from "../utils/colorUtils";
-import { DialogDescription } from "@/common/components/ui/dialog";
 import { CommentSection } from "../components/CommentSection";
+import { ImageModal } from "../components/ImageModal";
+import { ImageGrid } from "../components/ImageGrid";
+import { formatTimestamp } from "../utils/dateUtils";
 
 const ForumMain = () => {
   const navigate = useNavigate();
@@ -72,8 +73,13 @@ const ForumMain = () => {
     getPosts,
     getPostById,
     getComments,
+    createComment,
+    sendTyping,
   } = useForumStore();
+
   const [modalVisibleComments, setModalVisibleComments] = useState(8);
+  const [newCommentContent, setNewCommentContent] = useState("");
+  const [newCommentImages, setNewCommentImages] = useState<File[]>([]);
 
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -226,21 +232,6 @@ const ForumMain = () => {
     setSearchParams,
   ]);
 
-  const formatTimestamp = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60)
-    );
-
-    if (diffInHours < 24) {
-      return `${diffInHours} giờ trước`;
-    } else {
-      const diffInDays = Math.floor(diffInHours / 24);
-      return `${diffInDays} ngày trước`;
-    }
-  };
-
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
   };
@@ -264,8 +255,7 @@ const ForumMain = () => {
   const handleSortChange = (value: string) => {
     setSortBy(value);
   };
-  const [newCommentContent, setNewCommentContent] = useState("");
-  const [newCommentImages, setNewCommentImages] = useState<File[]>([]);
+
   const handleClearFilters = () => {
     setSearchQuery("");
     setSelectedSubjects([]);
@@ -345,12 +335,7 @@ const ForumMain = () => {
     };
   }, [visiblePosts, filteredPosts.length, isLoading]);
 
-  const handleImageClick = (
-    e: React.MouseEvent,
-    images: string[],
-    idx: number
-  ) => {
-    e.stopPropagation();
+  const handleImageClick = (images: string[], idx: number) => {
     setModalImages(images);
     setSelectedImageIndex(idx);
     setImageZoom(1);
@@ -371,6 +356,39 @@ const ForumMain = () => {
   const handleZoomOut = (e: React.MouseEvent) => {
     e.stopPropagation();
     setImageZoom((prev) => Math.max(prev - 0.25, 0.5));
+  };
+
+  const handleNewCommentImageSelect = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + newCommentImages.length > 4) {
+      alert("Tối đa 4 ảnh");
+      return;
+    }
+    setNewCommentImages((prev) => [...prev, ...files]);
+  };
+
+  const handleSubmitNewComment = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!newCommentContent.trim() || !currentPost) return;
+
+    const formData = new FormData();
+    formData.append("postId", currentPost.post_id.toString());
+    formData.append("content", newCommentContent);
+    newCommentImages.forEach((img) => formData.append("attachments", img));
+
+    const result = await createComment(formData);
+    if (result?.success) {
+      setNewCommentContent("");
+      setNewCommentImages([]);
+      if (modalPostId) {
+        await getComments(parseInt(modalPostId));
+      }
+    }
   };
 
   return (
@@ -631,7 +649,6 @@ const ForumMain = () => {
               )}
             </div>
           </main>
-
           <aside className="col-span-3 space-y-4">
             <Card>
               <CardHeader className="pb-3">
@@ -680,7 +697,7 @@ const ForumMain = () => {
               </DialogHeader>
 
               <div className="flex-1 overflow-y-auto min-h-0">
-                <div className="p-6 pb-0">
+                <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <Avatar className="w-12 h-12">
@@ -729,31 +746,13 @@ const ForumMain = () => {
                         .filter((url) => url.trim());
                       return (
                         images.length > 0 && (
-                          <div
-                            className={`mb-6 ${
-                              images.length === 1
-                                ? ""
-                                : "grid grid-cols-2 gap-3"
-                            }`}
-                          >
-                            {images.map((img, idx) => (
-                              <div
-                                key={idx}
-                                className={`rounded-lg overflow-hidden cursor-pointer hover:opacity-95 transition-opacity ${
-                                  images.length === 1 ? "h-96" : "h-60"
-                                }`}
-                                onClick={(e) =>
-                                  handleImageClick(e, images, idx)
-                                }
-                              >
-                                <img
-                                  src={img}
-                                  alt={`${currentPost.title} ${idx + 1}`}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            ))}
-                          </div>
+                          <ImageGrid
+                            images={images}
+                            onImageClick={(idx) =>
+                              handleImageClick(images, idx)
+                            }
+                            className="mb-6"
+                          />
                         )
                       );
                     })()}
@@ -793,31 +792,9 @@ const ForumMain = () => {
                   )}
                 </div>
               </div>
+
               <div className="flex-shrink-0 border-t bg-white p-4">
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (!newCommentContent.trim()) return;
-
-                    const formData = new FormData();
-                    formData.append("postId", currentPost.post_id.toString());
-                    formData.append("content", newCommentContent);
-                    newCommentImages.forEach((img) =>
-                      formData.append("attachments", img)
-                    );
-
-                    const { createComment } = useForumStore.getState();
-                    const result = await createComment(formData);
-                    if (result?.success) {
-                      setNewCommentContent("");
-                      setNewCommentImages([]);
-                      if (modalPostId) {
-                        await getComments(parseInt(modalPostId));
-                      }
-                    }
-                  }}
-                  className="flex gap-3"
-                >
+                <form onSubmit={handleSubmitNewComment} className="flex gap-3">
                   <Avatar className="w-10 h-10 flex-shrink-0">
                     <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm font-bold">
                       {user?.username?.substring(0, 2).toUpperCase() || "U"}
@@ -830,10 +807,23 @@ const ForumMain = () => {
                         className="rounded-full hover:border-purple-300 focus:border-purple-500 transition-colors"
                         value={newCommentContent}
                         onChange={(e) => setNewCommentContent(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
+                        onFocus={() => sendTyping(currentPost.post_id, true)}
+                        onBlur={() => sendTyping(currentPost.post_id, false)}
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSubmitNewComment();
+                          }
+                        }}
                       />
+
                       <Button
                         type="submit"
                         className="rounded-full px-6 hover:scale-105 transition-transform flex-shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
                         disabled={isLoading || !newCommentContent.trim()}
                       >
                         {isLoading ? (
@@ -844,6 +834,62 @@ const ForumMain = () => {
                         Gửi
                       </Button>
                     </div>
+
+                    {newCommentImages.length > 0 && (
+                      <div className="flex gap-2 mb-2 flex-wrap">
+                        {newCommentImages.map((img, idx) => (
+                          <div key={idx} className="relative">
+                            <img
+                              src={URL.createObjectURL(img)}
+                              alt={`Preview ${idx + 1}`}
+                              className="w-16 h-16 object-cover rounded"
+                            />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setNewCommentImages((prev) =>
+                                  prev.filter((_, i) => i !== idx)
+                                );
+                              }}
+                              onDoubleClick={(e) => e.stopPropagation()}
+                              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          document
+                            .getElementById(
+                              `modal-comment-images-${currentPost.post_id}`
+                            )
+                            ?.click();
+                        }}
+                        onDoubleClick={(e) => e.stopPropagation()}
+                        disabled={newCommentImages.length >= 4}
+                      >
+                        <ImagePlus className="w-4 h-4 mr-1" />
+                        Thêm ảnh ({newCommentImages.length}/4)
+                      </Button>
+                      <input
+                        id={`modal-comment-images-${currentPost.post_id}`}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={handleNewCommentImageSelect}
+                      />
+                    </div>
                   </div>
                 </form>
               </div>
@@ -853,80 +899,27 @@ const ForumMain = () => {
       </Dialog>
 
       {showImageModal && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-95 z-[100] flex items-center justify-center p-4"
-          onClick={handleCloseImageModal}
-        >
-          <button
-            className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 w-12 h-12 flex items-center justify-center"
-            onClick={handleCloseImageModal}
-          >
-            ×
-          </button>
-
-          <div className="absolute top-4 left-4 flex gap-2">
-            <button
-              className="text-white bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70"
-              onClick={handleZoomIn}
-            >
-              <ZoomIn className="w-5 h-5" />
-            </button>
-            <button
-              className="text-white bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70"
-              onClick={handleZoomOut}
-            >
-              <ZoomOut className="w-5 h-5" />
-            </button>
-            <span className="text-white bg-black bg-opacity-50 rounded-full px-3 h-10 flex items-center">
-              {Math.round(imageZoom * 100)}%
-            </span>
-          </div>
-
-          {modalImages.length > 1 && (
-            <>
-              <button
-                className="absolute left-4 text-white text-4xl hover:text-gray-300 w-12 h-12 flex items-center justify-center bg-black bg-opacity-50 rounded-full"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedImageIndex((prev) =>
-                    prev === 0 ? modalImages.length - 1 : prev - 1
-                  );
-                }}
-              >
-                ‹
-              </button>
-              <button
-                className="absolute right-4 text-white text-4xl hover:text-gray-300 w-12 h-12 flex items-center justify-center bg-black bg-opacity-50rounded-full"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedImageIndex((prev) =>
-                    prev === modalImages.length - 1 ? 0 : prev + 1
-                  );
-                }}
-              >
-                ›
-              </button>
-              <div className="absolute bottom-4 text-white text-sm">
-                {selectedImageIndex + 1} / {modalImages.length}
-              </div>
-            </>
-          )}
-
-          <img
-            src={modalImages[selectedImageIndex]}
-            alt="Full size"
-            className="object-contain transition-transform duration-200"
-            style={{
-              maxWidth: "90vw",
-              maxHeight: "90vh",
-              transform: `scale(${imageZoom})`,
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-            }}
-          />
-        </div>
+        <ImageModal
+          images={modalImages}
+          selectedIndex={selectedImageIndex}
+          zoom={imageZoom}
+          onClose={handleCloseImageModal}
+          onPrevious={(e) => {
+            e.stopPropagation();
+            setSelectedImageIndex((prev) =>
+              prev === 0 ? modalImages.length - 1 : prev - 1
+            );
+          }}
+          onNext={(e) => {
+            e.stopPropagation();
+            setSelectedImageIndex((prev) =>
+              prev === modalImages.length - 1 ? 0 : prev + 1
+            );
+          }}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onIndexChange={(index) => setSelectedImageIndex(index)}
+        />
       )}
 
       <CreatePostDialog
@@ -937,5 +930,4 @@ const ForumMain = () => {
     </div>
   );
 };
-
 export default ForumMain;
