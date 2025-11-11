@@ -177,8 +177,40 @@ namespace StudyHub.Backend.Api.Controllers
                     }
                 }
 
+                // compute correctness if possible by looking up the question
+                try
+                {
+                    var qs = _service.GetInteractiveQuestions(lessonId);
+                    var q = qs?.FirstOrDefault(x => x.Id == questionId);
+                    if (q != null)
+                    {
+                        bool? isCorrect = null;
+                        if (q.Type == "mc")
+                        {
+                            if (resp.SelectedIndex.HasValue && q.CorrectIndex.HasValue)
+                            {
+                                isCorrect = resp.SelectedIndex.Value == q.CorrectIndex.Value;
+                            }
+                        }
+                        else if (q.Type == "text")
+                        {
+                            if (!string.IsNullOrEmpty(q.CorrectAnswer))
+                            {
+                                var given = (resp.AnswerText ?? string.Empty).Trim().ToLowerInvariant();
+                                var expect = q.CorrectAnswer.Trim().ToLowerInvariant();
+                                isCorrect = given == expect;
+                            }
+                        }
+                        resp.IsCorrect = isCorrect;
+                    }
+                }
+                catch
+                {
+                    // ignore correctness computation failures
+                }
+
                 var createdResp = _service.CreateInteractiveResponse(resp);
-                return Ok(new { success = true, data = createdResp });
+                return Ok(new { success = true, data = createdResp, isCorrect = resp.IsCorrect });
             }
             catch (Exception ex)
             {

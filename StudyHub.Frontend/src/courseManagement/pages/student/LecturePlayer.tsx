@@ -486,7 +486,7 @@ const LecturePlayer: React.FC = () => {
                           const q = interactiveQuestions.find(
                             (x: any) =>
                               !answeredQuestionIdsRef.current.has(x.id) &&
-                              Math.abs(now - (x.timeSec || 0)) <= 0.5
+                              Math.abs(now - (x.timeSec || 0)) <= 1.5
                           );
                           if (q) {
                             try {
@@ -655,7 +655,7 @@ const LecturePlayer: React.FC = () => {
           const q = interactiveQuestions.find(
             (x: any) =>
               !answeredQuestionIdsRef.current.has(x.id) &&
-              Math.abs((v.currentTime || 0) - (x.timeSec || 0)) <= 0.5
+              Math.abs((v.currentTime || 0) - (x.timeSec || 0)) <= 1.5
           );
           if (q) {
             try {

@@ -33,10 +33,14 @@ const LectureDetails: React.FC = () => {
   );
   const [resources, setResources] = useState<{ id: number; url: string }[]>([]);
   const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
+  const [interactiveQuestions, setInteractiveQuestions] = useState<any[]>([]);
 
   const getAppUserById = useAppUserStore((s) => s.getAppUserById);
   const getLessonById = useLectureStore((s) => s.fetchLesson);
   const getChapterById = useLectureStore((s) => s.fetchChapter);
+  const fetchInteractiveQuestions = useLectureStore(
+    (s: any) => s.fetchInteractiveQuestions
+  );
   const getLessonResource = useCourseStore((s) => s.getLessonResource);
   const fetchCourseById = useCourseStore((s) => s.fetchCourseById);
 
@@ -51,6 +55,16 @@ const LectureDetails: React.FC = () => {
 
         const lessonData = await getLessonById(lessonId);
         if (!lessonData) return;
+
+        // load interactive questions for this lesson (teacher view)
+        try {
+          if (fetchInteractiveQuestions) {
+            const qs = await fetchInteractiveQuestions(lessonId);
+            if (Array.isArray(qs)) setInteractiveQuestions(qs);
+          }
+        } catch (err) {
+          // ignore
+        }
 
         const chapterData = await getChapterById(lessonData.chapterId);
         if (!chapterData) return;
@@ -89,6 +103,7 @@ const LectureDetails: React.FC = () => {
     getAppUserById,
     fetchCourseById,
     getLessonResource,
+    fetchInteractiveQuestions,
   ]);
 
   const { currentLesson, currentChapter } = useMemo(() => {
@@ -185,6 +200,63 @@ const LectureDetails: React.FC = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* Interactive questions list */}
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>Câu hỏi tương tác</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {interactiveQuestions && interactiveQuestions.length ? (
+                <ul className="space-y-3">
+                  {interactiveQuestions.map((q: any) => (
+                    <li key={q.id} className="p-3 border rounded-md">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="font-semibold text-sm text-[#171717]">
+                            {q.question}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Thời điểm: {Math.floor((q.timeSec || 0) / 60)}:
+                            {String((q.timeSec || 0) % 60).padStart(2, "0")} •
+                            Loại: {q.type === "mc" ? "Trắc nghiệm" : "Tự luận"}
+                          </div>
+                          {q.type === "mc" && Array.isArray(q.options) && (
+                            <div className="mt-2 space-y-1">
+                              {q.options.map((opt: any, idx: number) => (
+                                <div
+                                  key={idx}
+                                  className={`text-sm p-2 rounded ${
+                                    idx === (q.correctIndex ?? -1)
+                                      ? "bg-green-50 border border-green-200"
+                                      : "bg-gray-50"
+                                  }`}
+                                >
+                                  {opt}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {q.type === "text" && q.correctAnswer && (
+                            <div className="mt-2 text-sm text-gray-700">
+                              Đáp án mong đợi:{" "}
+                              <span className="font-medium">
+                                {q.correctAnswer}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500 italic">
+                  Không có câu hỏi tương tác cho bài học này.
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* === SIDEBAR === */}

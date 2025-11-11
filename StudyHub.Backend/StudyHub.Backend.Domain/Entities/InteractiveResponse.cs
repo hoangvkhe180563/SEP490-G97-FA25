@@ -8,5 +8,6 @@ public class InteractiveResponse
     public Guid AppUserId { get; set; }
     public string? AnswerText { get; set; }
     public int? SelectedIndex { get; set; }
+    public bool? IsCorrect { get; set; }
     public DateTime CreatedAt { get; set; }
 }
