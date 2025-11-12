@@ -6,7 +6,8 @@ export const EXAM_TYPE = {
   SINGLE_CHOICE: "single-choice",
   MULTI_CHOICE: "multiple-choice",
   TEXT_INPUT: "text-input",
-  FILL_IN_BLANK: "fill-blank"
+  FILL_IN_BLANK: "fill-blank",
+  MATCHING: "matching"
 }
 
 export const BLANK_PLACEHOLDER = "[BLANK]";

@@ -41,6 +41,10 @@ namespace StudyHub.Backend.Api.Dtos.ExamDTOS
 
         public List<string> Options { get; set; } = new List<string>();
 
+        public List<string> Terms { get; set; } = new List<string>();
+
+        public List<string> Definitions { get; set; } = new List<string>();
+
         [Required(ErrorMessage = "Câu hỏi phải có ít nhất 1 câu trả lời đúng!")]
         public object CorrectAnswer { get; set; }
     }

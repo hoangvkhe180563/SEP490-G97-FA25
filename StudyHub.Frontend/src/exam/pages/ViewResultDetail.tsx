@@ -113,6 +113,15 @@ const ViewResultDetail = () => {
       return Array.isArray(question.correctAnswer)
         ? question.correctAnswer.join(', ')
         : 'Không có đáp án đúng';
+    } else if (question.type === EXAM_TYPE.MATCHING) {
+      const correctMatches = question.correctAnswer as Record<number, number>;
+      const matchPairs: string[] = [];
+      Object.entries(correctMatches).forEach(([termIdx, defIdx]) => {
+        const term = question.terms?.[parseInt(termIdx)] || `Term ${parseInt(termIdx) + 1}`;
+        const definition = question.definitions?.[defIdx] || `Definition ${String.fromCharCode(65 + defIdx)}`;
+        matchPairs.push(`${term} → ${definition}`);
+      });
+      return matchPairs.join('; ');
     }
     return question.correctAnswer;
   };
@@ -134,8 +143,7 @@ const ViewResultDetail = () => {
             return;
           }
         }
-        console.log("DM REACT NGU LOZ");
-        // navigate("/")
+        navigate("/")
       }}>
         <ArrowLeft />
         <span>Quay lại</span>
@@ -236,8 +244,67 @@ const ViewResultDetail = () => {
 
                     {question.type === EXAM_TYPE.FILL_IN_BLANK && renderFillBlankQuestionText(question, studentAnswer)}
 
+                    {question.type === EXAM_TYPE.MATCHING && (
+                      <div className="mt-4">
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <h4 className="font-semibold text-gray-700 mb-2">Thuật ngữ</h4>
+                            {(question.terms || []).map((term, termIndex) => (
+                              <div key={termIndex} className="p-2 bg-blue-50 border border-blue-200 rounded mb-2">
+                                {termIndex + 1}. {term}
+                              </div>
+                            ))}
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-gray-700 mb-2">Định nghĩa</h4>
+                            {(question.definitions || []).map((definition, defIndex) => (
+                              <div key={defIndex} className="p-2 bg-green-50 border border-green-200 rounded mb-2">
+                                {String.fromCharCode(65 + defIndex)}. {definition}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-700 mb-2">Các cặp ghép của bạn</h4>
+                          {(() => {
+                            const studentMatches = studentAnswer;
+                            const correctMatches = question.correctAnswer as Record<number, number>;
+                            
+                            return (question.terms || []).map((term, termIndex) => {
+                              const studentDefIdx = studentMatches[termIndex];
+                              const correctDefIdx = correctMatches[termIndex];
+                              const isMatch = studentDefIdx === correctDefIdx;
+                              const studentDef = question.definitions?.[studentDefIdx] || 'Không trả lời';
+                              
+                              return (
+                                <div key={termIndex} className={`flex items-center mb-2 p-2 rounded ${
+                                  showCorrectAnswers 
+                                    ? (isMatch ? 'bg-green-100 border border-green-300' : 'bg-red-100 border border-red-300')
+                                    : 'bg-gray-100'
+                                }`}>
+                                  <span className="w-1/3 font-medium">{termIndex + 1}. {term}</span>
+                                  <span className="text-gray-500 mx-2">→</span>
+                                  <span className="flex-1">
+                                    {studentDefIdx !== undefined && studentDefIdx !== -1 
+                                      ? `${String.fromCharCode(65 + studentDefIdx)}. ${studentDef}`
+                                      : 'Không trả lời'
+                                    }
+                                  </span>
+                                  {showCorrectAnswers && !isMatch && (
+                                    <span className="ml-2 text-sm text-red-600">
+                                      (Đúng: {String.fromCharCode(65 + correctDefIdx)}. {question.definitions?.[correctDefIdx]})
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </div>
+                    )}
+
                     {
-                      showCorrectAnswers && (
+                      showCorrectAnswers && question.type !== EXAM_TYPE.MATCHING && (
                         <p>
                           <strong>Đáp án đúng:</strong> {renderCorrectAnswer(question)}
                         </p>

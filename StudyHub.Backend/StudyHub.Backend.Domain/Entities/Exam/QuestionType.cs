@@ -5,6 +5,7 @@
         SingleChoice,
         MultipleChoice,
         TextInput,
-        FillBlank
+        FillBlank,
+        Matching
     }
 }
