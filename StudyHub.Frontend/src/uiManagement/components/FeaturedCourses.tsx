@@ -1,5 +1,6 @@
 import { BookOpen, GraduationCap } from "lucide-react";
 import type { IFeaturedCourse } from "../interfaces/IFeaturedCourse";
+import { Link } from "react-router-dom";
 
 const FeaturedCourses = (props: { data: IFeaturedCourse[] }) => {
   return (
@@ -13,9 +14,10 @@ const FeaturedCourses = (props: { data: IFeaturedCourse[] }) => {
             <div className="w-full text-center italic">Không có dữ liệu!</div>
           )}
           {props.data.map((course) => (
-            <div
+            <Link
+              to={`/course/student/courses/${course.id}`}
               key={course.id}
-              className="flex items-center gap-6 p-6 bg-white rounded-lg shadow-md"
+              className="flex items-center gap-6 p-6 bg-white rounded-lg shadow-md hover:scale-103 transition-transform duration-200"
             >
               <div className="flex-shrink-0 w-32 h-20 bg-gray-200 rounded-md flex items-center justify-center text-sm font-semibold text-gray-600 overflow-hidden">
                 <img className="h-full w-full" src={course.thumbnail} alt="" />
@@ -33,7 +35,7 @@ const FeaturedCourses = (props: { data: IFeaturedCourse[] }) => {
                   </span>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
