@@ -2,6 +2,7 @@
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories;
+using System.Linq;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
@@ -71,13 +72,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
 
         public async Task<(List<ForumPost> posts, int totalCount)> GetPublicPostsAsync(
-            int schoolId,
-            int? subjectId = null,
-            int? flairId = null,
-            string? query = null,
-            string? sortBy = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+     int schoolId,
+     List<short>? subjectIds = null,
+     List<int>? flairIds = null,
+     string? query = null,
+     string? sortBy = null,
+     int? pageNumber = null,
+     int? pageSize = null)
         {
             try
             {
@@ -87,11 +88,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(p => p.CreatedByNavigation)
                     .Where(p => p.SchoolId == schoolId && p.DeletedAt == null && p.Status == true && p.IsHidden == false);
 
-                if (subjectId.HasValue)
-                    dbQuery = dbQuery.Where(p => p.SubjectId == subjectId.Value);
+                if (subjectIds != null && subjectIds.Any())
+                    dbQuery = dbQuery.Where(p => subjectIds.Contains(p.SubjectId));
 
-                if (flairId.HasValue)
-                    dbQuery = dbQuery.Where(p => p.FlairId == flairId.Value);
+                if (flairIds != null && flairIds.Any())
+                    dbQuery = dbQuery.Where(p => flairIds.Contains(p.FlairId!.Value));
 
                 if (!string.IsNullOrWhiteSpace(query))
                     dbQuery = dbQuery.Where(p => p.Title.Contains(query));
@@ -152,16 +153,16 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         public async Task<(List<ForumPost> posts, int totalCount)> GetOwnedPostsAsync(
-            Guid userId,
-            int schoolId,
-            int? subjectId = null,
-            int? flairId = null,
-            string? query = null,
-            bool? status = null,
-            DateTime? createdFrom = null,
-            DateTime? createdTo = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+        Guid userId,
+        int schoolId,
+        List<short>? subjectIds = null,
+        List<int>? flairIds = null,
+        string? query = null,
+        bool? status = null,
+        DateTime? createdFrom = null,
+        DateTime? createdTo = null,
+        int? pageNumber = null,
+        int? pageSize = null)
         {
             try
             {
@@ -171,11 +172,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(p => p.CreatedByNavigation)
                     .Where(p => p.SchoolId == schoolId && p.CreatedBy == userId && p.DeletedAt == null);
 
-                if (subjectId.HasValue)
-                    dbQuery = dbQuery.Where(p => p.SubjectId == subjectId.Value);
+                if (subjectIds != null && subjectIds.Any())
+                    dbQuery = dbQuery.Where(p => subjectIds.Contains(p.SubjectId));
 
-                if (flairId.HasValue)
-                    dbQuery = dbQuery.Where(p => p.FlairId == flairId.Value);
+                if (flairIds != null && flairIds.Any())
+                    dbQuery = dbQuery.Where(p => flairIds.Contains(p.FlairId!.Value));
 
                 if (!string.IsNullOrWhiteSpace(query))
                     dbQuery = dbQuery.Where(p => p.Title.Contains(query));
@@ -240,18 +241,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         public async Task<(List<ForumPost> posts, int totalCount)> GetModeratorPostsAsync(
-            int schoolId,
-            int? subjectId = null,
-            int? flairId = null,
-            string? query = null,
-            string? postStatus = null,
-            int? minViolationScore = null,
-            int? maxViolationScore = null,
-            DateTime? createdFrom = null,
-            DateTime? createdTo = null,
-            string? sortBy = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+         int schoolId,
+         List<short>? subjectIds = null,
+         List<int>? flairIds = null,
+         string? query = null,
+         string? postStatus = null,
+         int? minViolationScore = null,
+         int? maxViolationScore = null,
+         DateTime? createdFrom = null,
+         DateTime? createdTo = null,
+         string? sortBy = null,
+         int? pageNumber = null,
+         int? pageSize = null)
         {
             try
             {
@@ -261,11 +262,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(p => p.CreatedByNavigation)
                     .Where(p => p.SchoolId == schoolId && p.DeletedAt == null);
 
-                if (subjectId.HasValue)
-                    dbQuery = dbQuery.Where(p => p.SubjectId == subjectId.Value);
+                if (subjectIds != null && subjectIds.Any())
+                    dbQuery = dbQuery.Where(p => subjectIds.Contains(p.SubjectId));
 
-                if (flairId.HasValue)
-                    dbQuery = dbQuery.Where(p => p.FlairId == flairId.Value);
+                if (flairIds != null && flairIds.Any())
+                    dbQuery = dbQuery.Where(p => flairIds.Contains(p.FlairId!.Value));
 
                 if (!string.IsNullOrWhiteSpace(query))
                     dbQuery = dbQuery.Where(p => p.Title.Contains(query));

@@ -50,7 +50,7 @@ export const CommentInput: React.FC<CommentInputProps> = ({
   return (
     <form onSubmit={handleSubmit} className="flex gap-3">
       <Avatar className="w-10 h-10 flex-shrink-0">
-        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm font-bold">
+        <AvatarFallback className="bg-gradient-to-br from-sky-500 to-sky-600 text-white text-sm font-bold">
           {userInitials}
         </AvatarFallback>
       </Avatar>
@@ -58,7 +58,7 @@ export const CommentInput: React.FC<CommentInputProps> = ({
         <div className="flex gap-2 mb-2">
           <Input
             placeholder={placeholder}
-            className="rounded-full hover:border-purple-300 focus:border-purple-500 transition-colors"
+            className="rounded-full hover:border-sky-300 focus:border-sky-500 transition-colors"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onClick={(e) => e.stopPropagation()}

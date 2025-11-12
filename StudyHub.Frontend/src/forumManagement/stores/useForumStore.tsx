@@ -12,6 +12,7 @@ interface ForumState {
   currentPost: Post | null;
   flairs: Flair[];
   isForumConnected: boolean;
+  myPosts: Post[];
   isLoading: boolean;
   success: boolean;
   message: string;
@@ -50,6 +51,15 @@ interface ForumState {
   updateComment: (commentId: number, formData: FormData) => Promise<any>;
   deleteComment: (commentId: number) => Promise<any>;
   loadRules: (schoolId?: number) => Promise<void>;
+  getMyPosts: (
+    schoolId: number,
+    subjectId?: number,
+    flairId?: number,
+    query?: string,
+    sortBy?: string,
+    pageNumber?: number,
+    pageSize?: number
+  ) => Promise<any>;
   createReport: (
     targetId: number,
     targetType: "post" | "comment",
@@ -125,6 +135,7 @@ export const useForumStore = create<ForumState>()(
       flairs: [],
       topPosts: [],
       rules: [],
+      myPosts: [],
       isForumConnected: false,
       isLoading: false,
       success: false,
@@ -150,6 +161,7 @@ export const useForumStore = create<ForumState>()(
             }
             try {
               await existingConn.stop();
+              await new Promise((resolve) => setTimeout(resolve, 500));
             } catch (e) {
               console.log("Error stopping old connection:", e);
             }
@@ -166,10 +178,10 @@ export const useForumStore = create<ForumState>()(
 
             if (error) {
               setTimeout(async () => {
-                const store = get();
-                if (!store.isForumConnected) {
+                const currentConn = (window as any).__forumConn;
+                if (!currentConn || currentConn.state !== "Connected") {
                   try {
-                    await store.startForum();
+                    await get().startForum();
                   } catch (e) {
                     console.error("Reconnection failed:", e);
                   }
@@ -408,8 +420,8 @@ export const useForumStore = create<ForumState>()(
 
       getPosts: async (
         schoolId: number,
-        subjectId?: number,
-        flairId?: number,
+        subjectIds?: number[],
+        flairIds?: number[],
         query?: string,
         sortBy?: string,
         pageNumber: number = 1,
@@ -419,8 +431,10 @@ export const useForumStore = create<ForumState>()(
         try {
           const params = new URLSearchParams();
           params.append("schoolId", schoolId.toString());
-          if (subjectId) params.append("subjectId", subjectId.toString());
-          if (flairId) params.append("flairId", flairId.toString());
+          if (subjectIds && subjectIds.length > 0)
+            params.append("subjectIds", subjectIds.join(","));
+          if (flairIds && flairIds.length > 0)
+            params.append("flairIds", flairIds.join(","));
           if (query) params.append("query", query);
           if (sortBy) params.append("sortBy", sortBy);
           params.append("pageNumber", pageNumber.toString());
@@ -442,6 +456,56 @@ export const useForumStore = create<ForumState>()(
 
             set({
               posts: mappedPosts,
+              success: true,
+              message: body?.message || "",
+            });
+          } else {
+            set({ success: false, message: body?.message || "" });
+          }
+          return body;
+        } catch (err: any) {
+          set({ success: false, message: axiosMessageErrorHandler(err) });
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      getMyPosts: async (
+        schoolId: number,
+        subjectId?: number,
+        flairId?: number,
+        query?: string,
+        sortBy?: string,
+        pageNumber: number = 1,
+        pageSize: number = 10
+      ) => {
+        set({ isLoading: true });
+        try {
+          const params = new URLSearchParams();
+          params.append("schoolId", schoolId.toString());
+          if (subjectId) params.append("subjectId", subjectId.toString());
+          if (flairId) params.append("flairId", flairId.toString());
+          if (query) params.append("query", query);
+          if (sortBy) params.append("sortBy", sortBy);
+          params.append("pageNumber", pageNumber.toString());
+          params.append("pageSize", pageSize.toString());
+
+          const resp = await axiosInstance.get(
+            `/Forum/my-posts?${params.toString()}`
+          );
+          const body = resp.data;
+
+          if (body?.success) {
+            const mappedPosts = (body.data?.items || []).map((item: any) => ({
+              ...mapPost(item),
+              comments: (item.comments || []).map((c: any) => ({
+                ...mapComment(c),
+                replies: (c.replies || []).map((r: any) => mapComment(r)),
+              })),
+            }));
+
+            set({
+              myPosts: mappedPosts,
               success: true,
               message: body?.message || "",
             });
@@ -784,33 +848,6 @@ export const useForumStore = create<ForumState>()(
           set({ rules: result });
         } catch {
           set({ rules: [] });
-        }
-      },
-
-      // src/forumManagement/services/ForumService.ts
-      createReport: async (
-        targetId: number,
-        targetType: "post" | "comment",
-        ruleId: number,
-        content: string
-      ) => {
-        try {
-          const endpoint =
-            targetType === "post"
-              ? `/Forum/posts/${targetId}/report`
-              : `/Forum/comments/${targetId}/report`;
-
-          const payload = {
-            RuleId: ruleId,
-            Reason: content,
-          };
-
-          const response = await axiosInstance.post(endpoint, payload);
-
-          return response.data;
-        } catch (error: any) {
-          console.error("Error message:", error.message);
-          throw error;
         }
       },
     }),

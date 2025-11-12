@@ -78,7 +78,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
     setImageZoom((prev) => Math.max(prev - 0.25, 0.5));
   };
 
-  // PostCard.tsx - Sửa phần render return
   return (
     <>
       <Card className="mb-4 hover:shadow-lg transition-all duration-200">
@@ -86,7 +85,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <Avatar className="w-10 h-10">
-                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold text-sm">
+                <AvatarFallback className="bg-gradient-to-br from-sky-500 to-sky-600 text-white font-bold text-sm">
                   {post.author_initials}
                 </AvatarFallback>
               </Avatar>
@@ -135,7 +134,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
               onDoubleClick={(e) => {
                 e.stopPropagation();
               }}
-              className="flex items-center gap-1 hover:text-purple-600 transition-colors"
+              className="flex items-center gap-1 hover:text-sky-600 transition-colors"
             >
               <MessageSquare className="w-4 h-4" />
               <span>{post.comment_count} bình luận</span>
@@ -154,7 +153,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
               onDoubleClick={(e) => {
                 e.stopPropagation();
               }}
-              className="flex items-center gap-1 hover:text-purple-600 transition-colors ml-auto"
+              className="flex items-center gap-1 hover:text-sky-600 transition-colors ml-auto"
             >
               <ExternalLink className="w-4 h-4" />
               <span>Xem chi tiết</span>
@@ -211,7 +210,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
                     e.stopPropagation();
                     onViewDetails();
                   }}
-                  className="w-full py-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded transition-colors mt-2"
+                  className="w-full py-2 text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded transition-colors mt-2"
                 >
                   Xem thêm bình luận...
                 </button>

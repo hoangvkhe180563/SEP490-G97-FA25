@@ -85,16 +85,14 @@ namespace StudyHub.Backend.Api.Controllers
                     _logger.LogWarning("Unauthorized access to posts for school {SchoolId}", filter.SchoolId);
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập với tài khoản thuộc trường này" });
                 }
-
                 var (posts, totalCount) = await _postService.GetPublicPostsAsync(
                     filter.SchoolId,
-                    filter.SubjectId,
-                    filter.FlairId,
+                    filter.SubjectIds,
+                    filter.FlairIds,
                     filter.Query,
                     filter.SortBy,
                     filter.PageNumber,
                     filter.PageSize);
-
                 var dtos = posts.Select(p => p.ToListDto()).ToList();
                 return PagedResult(dtos, totalCount, filter.PageNumber, filter.PageSize);
             }
@@ -383,13 +381,13 @@ namespace StudyHub.Backend.Api.Controllers
                 await _forumHubContext.Clients.Group($"post-{dto.PostId}").SendAsync("UpdateCommentCount", new
                 {
                     postId = dto.PostId,
-                    commentCount = updatedPost.CommentCount
+                    commentCount = updatedPost?.CommentCount
                 });
 
                 await _forumHubContext.Clients.Group($"school-{post.SchoolId}").SendAsync("UpdateCommentCount", new
                 {
                     postId = dto.PostId,
-                    commentCount = updatedPost.CommentCount
+                    commentCount = updatedPost?.CommentCount
                 });
 
                 return Ok(new { success = true, data = commentDto });
@@ -506,11 +504,10 @@ namespace StudyHub.Backend.Api.Controllers
                     _logger.LogWarning("Unauthorized access to moderator posts for school {SchoolId}", filter.SchoolId);
                     return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
                 }
-
                 var (posts, totalCount) = await _postService.GetModeratorPostsAsync(
                     filter.SchoolId,
-                    filter.SubjectId,
-                    filter.FlairId,
+                    filter.SubjectIds,
+                    filter.FlairIds,
                     filter.Query,
                     filter.PostStatus,
                     filter.MinViolationScore,
@@ -520,7 +517,6 @@ namespace StudyHub.Backend.Api.Controllers
                     filter.SortBy,
                     filter.PageNumber,
                     filter.PageSize);
-
                 var dtos = posts.Select(p => p.ToListDto()).ToList();
                 return PagedResult(dtos, totalCount, filter.PageNumber, filter.PageSize);
             }
@@ -584,7 +580,7 @@ namespace StudyHub.Backend.Api.Controllers
                 _logger.LogInformation("Moderator {UserId} approved post {PostId}", currentUser.Id, postId);
 
                 var post = await _postService.GetPostByIdAsync(postId);
-                await _forumHubContext.Clients.Group($"moderators-{post.SchoolId}").SendAsync("ModerationAction", new
+                await _forumHubContext.Clients.Group($"moderators-{post?.SchoolId}").SendAsync("ModerationAction", new
                 {
                     ContentType = "post",
                     ContentId = postId,
@@ -623,7 +619,7 @@ namespace StudyHub.Backend.Api.Controllers
                 _logger.LogInformation("Moderator {UserId} rejected post {PostId}", currentUser.Id, postId);
 
                 var post = await _postService.GetPostByIdAsync(postId);
-                await _forumHubContext.Clients.Group($"moderators-{post.SchoolId}").SendAsync("ModerationAction", new
+                await _forumHubContext.Clients.Group($"moderators-{post?.SchoolId}").SendAsync("ModerationAction", new
                 {
                     ContentType = "post",
                     ContentId = postId,
@@ -660,7 +656,7 @@ namespace StudyHub.Backend.Api.Controllers
                 _logger.LogInformation("User {UserId} reported post {PostId}", currentUser.Id, postId);
 
                 var post = await _postService.GetPostByIdAsync(postId);
-                await _forumHubContext.Clients.Group($"moderators-{post.SchoolId}").SendAsync("NewReport", new
+                await _forumHubContext.Clients.Group($"moderators-{post?.SchoolId}").SendAsync("NewReport", new
                 {
                     ContentType = "post",
                     ContentId = postId,
@@ -697,8 +693,8 @@ namespace StudyHub.Backend.Api.Controllers
                 _logger.LogInformation("User {UserId} reported comment {CommentId}", currentUser.Id, commentId);
 
                 var comment = await _commentService.GetCommentByIdAsync(commentId);
-                var post = await _postService.GetPostByIdAsync(comment.PostId);
-                await _forumHubContext.Clients.Group($"moderators-{post.SchoolId}").SendAsync("NewReport", new
+                var post = await _postService.GetPostByIdAsync(comment!.PostId);
+                await _forumHubContext.Clients.Group($"moderators-{post?.SchoolId}").SendAsync("NewReport", new
                 {
                     ContentType = "comment",
                     ContentId = commentId,
@@ -735,7 +731,7 @@ namespace StudyHub.Backend.Api.Controllers
                 _logger.LogInformation("Moderator {UserId} hid post {PostId}", currentUser.Id, postId);
 
                 var post = await _postService.GetPostByIdAsync(postId);
-                await _forumHubContext.Clients.Group($"school-{post.SchoolId}").SendAsync("PostHidden", postId);
+                await _forumHubContext.Clients.Group($"school-{post?.SchoolId}").SendAsync("PostHidden", postId);
 
                 return Ok(new { success = true, message = "Đã ẩn bài viết" });
             }
@@ -765,7 +761,7 @@ namespace StudyHub.Backend.Api.Controllers
                 _logger.LogInformation("Moderator {UserId} hid comment {CommentId}", currentUser.Id, commentId);
 
                 var comment = await _commentService.GetCommentByIdAsync(commentId);
-                await _forumHubContext.Clients.Group($"post-{comment.PostId}").SendAsync("CommentHidden", commentId);
+                await _forumHubContext.Clients.Group($"post-{comment?.PostId}").SendAsync("CommentHidden", commentId);
 
                 return Ok(new { success = true, message = "Đã ẩn bình luận" });
             }
@@ -1303,7 +1299,7 @@ namespace StudyHub.Backend.Api.Controllers
                 }
 
                 var rule = await _moderationService.GetRuleByIdAsync(existingPattern.RuleId);
-                if (currentUser.SchoolId != rule.SchoolId)
+                if (currentUser.SchoolId != rule?.SchoolId)
                 {
                     return Forbid();
                 }
@@ -1341,7 +1337,7 @@ namespace StudyHub.Backend.Api.Controllers
                 }
 
                 var rule = await _moderationService.GetRuleByIdAsync(pattern.RuleId);
-                if (currentUser.SchoolId != rule.SchoolId)
+                if (currentUser.SchoolId != rule?.SchoolId)
                 {
                     return Forbid();
                 }
@@ -1381,7 +1377,7 @@ namespace StudyHub.Backend.Api.Controllers
                 }
 
                 var rule = await _moderationService.GetRuleByIdAsync(pattern.RuleId);
-                if (currentUser.SchoolId != rule.SchoolId)
+                if (currentUser.SchoolId != rule?.SchoolId)
                 {
                     return Forbid();
                 }
@@ -1786,19 +1782,17 @@ namespace StudyHub.Backend.Api.Controllers
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
                 }
-
                 var (posts, totalCount) = await _postService.GetOwnedPostsAsync(
                     currentUser.Id,
                     filter.SchoolId,
-                    filter.SubjectId,
-                    filter.FlairId,
+                    filter.SubjectIds,
+                    filter.FlairIds,
                     filter.Query,
                     null,
                     filter.CreatedFrom,
                     filter.CreatedTo,
                     filter.PageNumber,
                     filter.PageSize);
-
                 var dtos = posts.Select(p => p.ToListDto()).ToList();
                 return PagedResult(dtos, totalCount, filter.PageNumber, filter.PageSize);
             }

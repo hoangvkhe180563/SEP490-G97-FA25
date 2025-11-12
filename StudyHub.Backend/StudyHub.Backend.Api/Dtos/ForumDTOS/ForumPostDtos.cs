@@ -107,16 +107,16 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
     public class ForumPostFilterDto
     {
         public int SchoolId { get; set; }
-        public short? SubjectId { get; set; }
-        public int? FlairId { get; set; }
+        public List<short>? SubjectIds { get; set; }
+        public List<int>? FlairIds { get; set; }
         public string? Query { get; set; }
-        public string? PostStatus { get; set; } 
+        public string? PostStatus { get; set; }
         public int? MinViolationScore { get; set; }
         public int? MaxViolationScore { get; set; }
         public bool? IsHidden { get; set; }
         public DateTime? CreatedFrom { get; set; }
         public DateTime? CreatedTo { get; set; }
-        public string? SortBy { get; set; } 
+        public string? SortBy { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 20;
     }

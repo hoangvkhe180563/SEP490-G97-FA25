@@ -1,72 +1,103 @@
-// .../components/ForumSidebar.tsx
+// src/forumManagement/components/ForumSidebar.tsx
 import { useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
 import { Badge } from "@/common/components/ui/badge";
-import { Users, BookOpen } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { getSubjectBadgeColor } from "../utils/colorUtils";
+import { TrendingUp, Users, BookOpen } from "lucide-react";
 import type { Post } from "../interfaces/forum";
+import { getSubjectBadgeColor } from "../utils/colorUtils";
+import { useNavigate } from "react-router-dom";
+import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
 import { useForumStore } from "../stores/useForumStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-
 interface ForumSidebarProps {
-  totalPosts: number;
-  topPosts?: Post[];
+  totalPosts?: number;
+  topPosts: Post[];
+  currentSubjectId?: number;
+  currentPostId?: number;
+  showStats?: boolean;
+  showRules?: boolean;
+  showRelatedPosts?: boolean;
 }
 
 export const ForumSidebar = ({
-  totalPosts,
-  topPosts = [],
+  topPosts,
+  currentSubjectId,
+  currentPostId,
+  showStats = true,
+  showRules = true,
+  showRelatedPosts = false,
 }: ForumSidebarProps) => {
   const navigate = useNavigate();
-  const { rules, loadRules } = useForumStore();
+  const { onlineCount, startPresence, stopPresence } = useUserOnlineStore();
+  const { rules, loadRules, posts } = useForumStore();
   const { user } = useAuthStore();
   const schoolId = user?.schoolId || 1;
+  useEffect(() => {
+    startPresence();
+    return () => {
+      stopPresence();
+    };
+  }, [startPresence, stopPresence]);
 
   useEffect(() => {
-    loadRules(schoolId);
-  }, [schoolId, loadRules]);
+    if (showRules) {
+      loadRules(schoolId);
+    }
+  }, [loadRules, showRules, schoolId]);
+
+  const relatedPosts =
+    showRelatedPosts && currentSubjectId
+      ? posts
+          .filter(
+            (p) =>
+              p.subject_id === currentSubjectId && p.post_id !== currentPostId
+          )
+          .slice(0, 5)
+      : [];
+
+  const handlePostClick = (postId: number) => {
+    navigate(`/forum/student/forums/details/${postId}`);
+  };
 
   return (
-    <aside className="col-span-3 space-y-4">
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-green-500" />
-            <h3 className="font-bold text-lg">Thống kê</h3>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex justify-between items-center p-2 hover:bg-gray-50 rounded transition-colors">
-            <span className="text-sm text-gray-600">Tổng bài viết</span>
-            <span className="font-bold text-lg text-purple-600">
-              {totalPosts}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      {topPosts.length > 0 && (
+    <div className="space-y-4">
+      {showStats && (
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-purple-600" />
-              <h3 className="font-bold text-lg">Bài viết nổi bật</h3>
+              <TrendingUp className="w-5 h-5 text-sky-600" />
+              <h3 className="font-bold text-lg">Thống kê</h3>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-4">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-sky-600">
+                  {onlineCount}
+                </div>
+                <div className="text-sm text-gray-600">Người online</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {showRelatedPosts && relatedPosts.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-sky-600" />
+              <h3 className="font-bold text-lg">Bài viết liên quan</h3>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {topPosts.map((post) => (
-              <button
+            {relatedPosts.map((post) => (
+              <div
                 key={post.post_id}
-                className="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors"
-                onClick={() =>
-                  navigate(`/forum/student/forums/details/${post.post_id}`)
-                }
+                onClick={() => handlePostClick(post.post_id)}
+                className="p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer border"
               >
-                <p className="font-medium text-sm mb-2 line-clamp-2">
-                  {post.title}
-                </p>
-                <div className="flex items-center justify-between">
+                <div className="flex items-start gap-2 mb-2">
                   <Badge
                     className={`${getSubjectBadgeColor(
                       post.subject_name
@@ -74,35 +105,81 @@ export const ForumSidebar = ({
                   >
                     {post.subject_name}
                   </Badge>
-                  <span className="text-xs text-gray-500">
-                    {post.comment_count} bình luận
-                  </span>
                 </div>
-              </button>
+                <h4 className="font-semibold text-sm line-clamp-2 mb-1">
+                  {post.title}
+                </h4>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>{post.author_name}</span>
+                  <span>•</span>
+                  <span>{post.comment_count} bình luận</span>
+                </div>
+              </div>
             ))}
           </CardContent>
         </Card>
       )}
 
-      <Card>
-        <CardHeader className="pb-3">
-          <h3 className="font-bold text-lg">Quy tắc Forum</h3>
-        </CardHeader>
-        <CardContent>
-          {rules.length > 0 ? (
-            <ul className="space-y-2 text-sm text-gray-600">
+      {!showRelatedPosts && topPosts.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-sky-600" />
+              <h3 className="font-bold text-lg">Bài viết nổi bật</h3>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {topPosts.map((post) => (
+              <div
+                key={post.post_id}
+                onClick={() => handlePostClick(post.post_id)}
+                className="p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer border"
+              >
+                <div className="flex items-start gap-2 mb-2">
+                  <Badge
+                    className={`${getSubjectBadgeColor(
+                      post.subject_name
+                    )} text-white text-xs`}
+                  >
+                    {post.subject_name}
+                  </Badge>
+                </div>
+                <h4 className="font-semibold text-sm line-clamp-2 mb-1">
+                  {post.title}
+                </h4>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>{post.author_name}</span>
+                  <span>•</span>
+                  <span>{post.comment_count} bình luận</span>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {showRules && rules.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-sky-600" />
+              <h3 className="font-bold text-lg">Nội quy diễn đàn</h3>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-sm">
               {rules.map((rule) => (
                 <li key={rule.id} className="flex gap-2">
-                  <span className="text-purple-600">•</span>
-                  <span>{rule.content}</span>
+                  <span className="text-sky-600 font-bold flex-shrink-0">
+                    {rule.id}.
+                  </span>
+                  <span className="text-gray-700">{rule.content}</span>
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="text-sm text-gray-500 italic">Đang tải quy tắc...</p>
-          )}
-        </CardContent>
-      </Card>
-    </aside>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 };

@@ -271,7 +271,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
             Bình luận ({actualCommentCount})
           </h3>
           <Select value={commentSort} onValueChange={setCommentSort}>
-            <SelectTrigger className="w-32 h-9 text-sm hover:border-purple-300 transition-colors">
+            <SelectTrigger className="w-32 h-9 text-sm hover:border-sky-300 transition-colors">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -408,7 +408,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
 
                 <div className="flex gap-4 px-4 mt-2">
                   <button
-                    className="text-xs text-gray-600 hover:text-purple-600 hover:underline font-semibold transition-colors"
+                    className="text-xs text-gray-600 hover:text-sky-600 hover:underline font-semibold transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
                       const isCurrentlyReplying =
@@ -462,14 +462,14 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                 {isReplying && (
                   <div className="flex gap-2 mt-3 ml-4 animate-in slide-in-from-top-2 duration-200">
                     <Avatar className="w-8 h-8 flex-shrink-0">
-                      <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
+                      <AvatarFallback className="bg-gradient-to-br from-sky-500 to-sky-600 text-white text-xs font-bold">
                         {user?.username?.substring(0, 2).toUpperCase() || "U"}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <Input
                         placeholder={`Phản hồi @${comment.author_name}...`}
-                        className="rounded-full text-sm hover:border-purple-300 focus:border-purple-500 transition-colors mb-2"
+                        className="rounded-full text-sm hover:border-sky-300 focus:border-sky-500 transition-colors mb-2"
                         value={replyContents[comment.comment_id] || ""}
                         onChange={(e) => {
                           e.stopPropagation();
@@ -593,7 +593,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                         className="flex gap-3 mt-3 ml-10 animate-in slide-in-from-top-2 duration-200"
                       >
                         <Avatar className="w-8 h-8 flex-shrink-0">
-                          <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-400 text-white text-xs font-bold">
+                          <AvatarFallback className="bg-gradient-to-br from-blue-400 to-sky-400 text-white text-xs font-bold">
                             {reply.author_initials}
                           </AvatarFallback>
                         </Avatar>
@@ -691,7 +691,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                               <p className="text-xs mt-1 break-words whitespace-pre-wrap">
                                 {reply.parent_comment_id !==
                                   comment.comment_id && (
-                                  <span className="text-purple-600 font-semibold">
+                                  <span className="font-bold italic">
                                     @
                                     {
                                       flatComments.find(
@@ -726,7 +726,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                           )}
                           <div className="flex gap-4 px-4 mt-1">
                             <button
-                              className="text-xs text-gray-600 hover:text-purple-600 hover:underline font-semibold transition-colors"
+                              className="text-xs text-gray-600 hover:text-sky-600 hover:underline font-semibold transition-colors"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setReplyingTo(reply.comment_id);
@@ -780,7 +780,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                           {replyingTo === reply.comment_id && (
                             <div className="flex gap-2 mt-3 animate-in slide-in-from-top-2 duration-200">
                               <Avatar className="w-8 h-8 flex-shrink-0">
-                                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
+                                <AvatarFallback className="bg-gradient-to-br from-sky-500 to-sky-600 text-white text-xs font-bold">
                                   {user?.username
                                     ?.substring(0, 2)
                                     .toUpperCase() || "U"}
@@ -789,7 +789,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                               <div className="flex-1 min-w-0">
                                 <Input
                                   placeholder={`Phản hồi @${reply.author_name}...`}
-                                  className="rounded-full text-sm hover:border-purple-300 focus:border-purple-500 transition-colors mb-2"
+                                  className="rounded-full text-sm hover:border-sky-300 focus:border-sky-500 transition-colors mb-2"
                                   value={replyContents[reply.comment_id] || ""}
                                   onChange={(e) => {
                                     e.stopPropagation();
@@ -917,7 +917,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                       e.stopPropagation();
                       loadMoreReplies(comment.comment_id);
                     }}
-                    className="ml-10 mt-2 text-sm text-purple-600 hover:text-purple-700 hover:underline"
+                    className="ml-10 mt-2 text-sm text-sky-600 hover:text-sky-600 hover:underline"
                   >
                     Xem thêm{" "}
                     {Math.min(
@@ -939,7 +939,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
           className="flex gap-3 mt-4 border-t pt-4"
         >
           <Avatar className="w-10 h-10 flex-shrink-0">
-            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm font-bold">
+            <AvatarFallback className="bg-gradient-to-br from-sky-500 to-sky-500 text-white text-sm font-bold">
               {user?.username?.substring(0, 2).toUpperCase() || "U"}
             </AvatarFallback>
           </Avatar>
@@ -947,7 +947,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
             <div className="flex gap-2 mb-2">
               <Input
                 placeholder="Viết bình luận..."
-                className="rounded-full hover:border-purple-300 focus:border-purple-500 transition-colors"
+                className="rounded-full hover:border-sky-300 focus:border-sky-500 transition-colors"
                 value={commentContent}
                 onChange={(e) => setCommentContent(e.target.value)}
                 onClick={(e) => e.stopPropagation()}

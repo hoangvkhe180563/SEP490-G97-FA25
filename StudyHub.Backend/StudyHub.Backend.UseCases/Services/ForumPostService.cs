@@ -34,23 +34,23 @@ namespace StudyHub.Backend.UseCases.Services
         }
 
         public async Task<(List<ForumPost> posts, int totalCount)> GetPublicPostsAsync(
-            int schoolId,
-            int? subjectId = null,
-            int? flairId = null,
-            string? query = null,
-            string? sortBy = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+        int schoolId,
+        List<short>? subjectIds = null,
+        List<int>? flairIds = null,
+        string? query = null,
+        string? sortBy = null,
+        int? pageNumber = null,
+        int? pageSize = null)
         {
             return await _postRepo.GetPublicPostsAsync(
-                schoolId, subjectId, flairId, query, sortBy, pageNumber, pageSize);
+                schoolId, subjectIds, flairIds, query, sortBy, pageNumber, pageSize);
         }
 
         public async Task<(List<ForumPost> posts, int totalCount)> GetOwnedPostsAsync(
             Guid userId,
             int schoolId,
-            int? subjectId = null,
-            int? flairId = null,
+            List<short>? subjectIds = null,
+            List<int>? flairIds = null,
             string? query = null,
             bool? status = null,
             DateTime? createdFrom = null,
@@ -59,14 +59,14 @@ namespace StudyHub.Backend.UseCases.Services
             int? pageSize = null)
         {
             return await _postRepo.GetOwnedPostsAsync(
-                userId, schoolId, subjectId, flairId, query, status,
+                userId, schoolId, subjectIds, flairIds, query, status,
                 createdFrom, createdTo, pageNumber, pageSize);
         }
 
         public async Task<(List<ForumPost> posts, int totalCount)> GetModeratorPostsAsync(
             int schoolId,
-            int? subjectId = null,
-            int? flairId = null,
+            List<short>? subjectIds = null,
+            List<int>? flairIds = null,
             string? query = null,
             string? postStatus = null,
             int? minViolationScore = null,
@@ -78,7 +78,7 @@ namespace StudyHub.Backend.UseCases.Services
             int? pageSize = null)
         {
             return await _postRepo.GetModeratorPostsAsync(
-                schoolId, subjectId, flairId, query, postStatus,
+                schoolId, subjectIds, flairIds, query, postStatus,
                 minViolationScore, maxViolationScore, createdFrom, createdTo,
                 sortBy, pageNumber, pageSize);
         }

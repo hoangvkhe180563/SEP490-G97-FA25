@@ -35,9 +35,9 @@ export const getFlairColor = (flairName: string): string => {
       border: "border-yellow-300",
     },
     {
-      bg: "bg-purple-100",
-      text: "text-purple-700",
-      border: "border-purple-300",
+      bg: "bg-sky-100",
+      text: "text-sky-700",
+      border: "border-sky-300",
     },
     { bg: "bg-pink-100", text: "text-pink-700", border: "border-pink-300" },
     {
@@ -69,7 +69,7 @@ export const getSubjectBadgeColor = (subjectName: string): string => {
 
   const colors = [
     "bg-blue-500",
-    "bg-purple-500",
+    "bg-sky-500",
     "bg-green-500",
     "bg-orange-500",
     "bg-pink-500",
@@ -79,7 +79,7 @@ export const getSubjectBadgeColor = (subjectName: string): string => {
     "bg-indigo-500",
     "bg-cyan-500",
     "bg-emerald-500",
-    "bg-violet-500",
+    "bg-sky-400",
     "bg-fuchsia-500",
     "bg-rose-500",
     "bg-amber-500",

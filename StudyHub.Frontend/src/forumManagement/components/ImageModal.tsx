@@ -156,7 +156,7 @@ export const ImageModal: React.FC<ImageModalProps> = ({
                   }}
                   className={`w-16 h-16 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${
                     idx === selectedIndex
-                      ? "border-purple-500 scale-110"
+                      ? "border-sky-500 scale-110"
                       : "border-white/30 opacity-60 hover:opacity-100 hover:border-white/60"
                   }`}
                 >

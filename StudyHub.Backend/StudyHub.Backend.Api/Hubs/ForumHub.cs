@@ -107,7 +107,7 @@ namespace StudyHub.Backend.Api.Hubs
                 var createdPost = await _postService.CreatePostAsync(post, null);
 
                 var postWithDetails = await _postService.GetPostByIdAsync(createdPost.Id);
-                var dto = postWithDetails.ToListDto();
+                var dto = postWithDetails?.ToListDto();
 
                 await Clients.Group($"school-{schoolId}").SendAsync("ReceiveNewPost", dto);
 
@@ -117,7 +117,7 @@ namespace StudyHub.Backend.Api.Hubs
             {
                 return new { success = false, message = ex.Message };
             }
-            catch (Exception ex)
+            catch (Exception )
             {
                 return new { success = false, message = "Có lỗi xảy ra khi tạo bài viết" };
             }
@@ -163,23 +163,23 @@ namespace StudyHub.Backend.Api.Hubs
                 var createdComment = await _commentService.CreateCommentAsync(comment, null);
 
                 var commentWithDetails = await _commentService.GetCommentByIdAsync(createdComment.CommentId);
-                var dto = commentWithDetails.ToListDto();
+                var dto = commentWithDetails?.ToListDto();
 
                 await Clients.Group($"post-{postId}").SendAsync("ReceiveNewComment", dto);
                 await Clients.Group($"school-{post.SchoolId}").SendAsync("ReceiveNewComment", dto);
 
                 var updatedPost = await _postService.GetPostByIdAsync(postId);
-                var postDto = updatedPost.ToListDto();
+                var postDto = updatedPost?.ToListDto();
 
                 await Clients.Group($"post-{postId}").SendAsync("UpdateCommentCount", new
                 {
                     postId = postId,
-                    commentCount = updatedPost.CommentCount
+                    commentCount = updatedPost?.CommentCount
                 });
                 await Clients.Group($"school-{post.SchoolId}").SendAsync("UpdateCommentCount", new
                 {
                     postId = postId,
-                    commentCount = updatedPost.CommentCount
+                    commentCount = updatedPost?.CommentCount
                 });
 
                 return new { success = true, data = dto };
@@ -188,7 +188,7 @@ namespace StudyHub.Backend.Api.Hubs
             {
                 return new { success = false, message = ex.Message };
             }
-            catch (Exception ex)
+            catch (Exception )
             {
                 return new { success = false, message = "Có lỗi xảy ra khi tạo bình luận" };
             }

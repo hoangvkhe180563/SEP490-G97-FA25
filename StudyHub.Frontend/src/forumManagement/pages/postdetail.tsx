@@ -50,6 +50,7 @@ const PostDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuthStore();
+  const { getPosts } = useForumStore();
 
   const {
     currentPost,
@@ -90,6 +91,7 @@ const PostDetail = () => {
   const [replyContent, setReplyContent] = useState("");
   const [newCommentContent, setNewCommentContent] = useState("");
   const [newCommentImages, setNewCommentImages] = useState<File[]>([]);
+  const post = currentPost;
 
   useEffect(() => {
     if (postId) {
@@ -134,9 +136,19 @@ const PostDetail = () => {
       setEditFlairId(currentPost.flair_id);
     }
   }, [currentPost]);
-
-  const post = currentPost;
-
+  useEffect(() => {
+    if (currentPost?.subject_id) {
+      getPosts(
+        currentPost.school_id,
+        currentPost.subject_id,
+        undefined,
+        "",
+        "newest",
+        1,
+        10
+      );
+    }
+  }, [currentPost?.subject_id, currentPost?.school_id, getPosts]);
   const handleBack = () => {
     if (location.state?.fromModal) {
       navigate("/forum/student/forums", { state: { fromModal: true } });
@@ -350,7 +362,7 @@ const PostDetail = () => {
                 <p className="text-gray-700 mb-2">{comment.content}</p>
                 <div className="flex gap-3 items-center">
                   <button
-                    className="text-sm text-gray-600 hover:text-purple-600 font-bold"
+                    className="text-sm text-gray-600 hover:text-sky-600 font-bold"
                     onClick={() =>
                       setReplyingTo(
                         replyingTo === comment.comment_id
@@ -364,7 +376,7 @@ const PostDetail = () => {
                   {replies.length > 0 && (
                     <button
                       onClick={() => toggleReplies(comment.comment_id)}
-                      className="text-sm text-gray-600 hover:text-purple-600 font-bold flex items-center gap-1"
+                      className="text-sm text-gray-600 hover:text-sky-600 font-bold flex items-center gap-1"
                     >
                       {isRepliesExpanded ? (
                         <ChevronUp className="w-3 h-3" />
@@ -429,7 +441,7 @@ const PostDetail = () => {
             {replyingTo === comment.comment_id && (
               <div className="flex gap-2 mt-3">
                 <Avatar className="w-8 h-8">
-                  <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
+                  <AvatarFallback className="bg-gradient-to-br from-sky-500 to-sky-600 text-white text-xs font-bold">
                     {user?.username?.substring(0, 2).toUpperCase() || "U"}
                   </AvatarFallback>
                 </Avatar>
@@ -475,7 +487,7 @@ const PostDetail = () => {
       <div className="w-full h-full flex items-center justify-center p-6">
         <div className="bg-white rounded-lg p-8 text-center border">
           {isLoading ? (
-            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-purple-600" />
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-sky-600" />
           ) : (
             <>
               <p className="text-lg mb-4">Không tìm thấy bài viết</p>
@@ -546,7 +558,7 @@ const PostDetail = () => {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <Avatar className="w-12 h-12">
-                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold">
+                        <AvatarFallback className="bg-gradient-to-br from-sky-500 to-sky-600 text-white font-bold">
                           {post.author_initials}
                         </AvatarFallback>
                       </Avatar>
@@ -706,7 +718,7 @@ const PostDetail = () => {
 
                     <div className="flex gap-3 mb-6 pb-6 border-b">
                       <Avatar className="w-10 h-10">
-                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold">
+                        <AvatarFallback className="bg-gradient-to-br from-sky-500 to-sky-600 text-white font-bold">
                           {user?.username?.substring(0, 2).toUpperCase() || "U"}
                         </AvatarFallback>
                       </Avatar>
@@ -802,12 +814,20 @@ const PostDetail = () => {
               )}
             </div>
             <div className="col-span-4">
-              <ForumSidebar totalPosts={1} topPosts={[]} />
-
               <Card className="mt-6">
                 <CardContent className="p-4">
                   <h3 className="font-bold mb-4">Thông tin chi tiết</h3>
                   <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Tác giả</span>
+                      <span className="font-medium">{post.author_name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Thời gian</span>
+                      <span className="font-medium">
+                        {formatTimestamp(post.created_at)}
+                      </span>
+                    </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Môn học</span>
                       <Badge
@@ -827,19 +847,17 @@ const PostDetail = () => {
                         {post.flair_name}
                       </Badge>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Lớp</span>
-                      <span className="font-medium">{post.author_class}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Thời gian</span>
-                      <span className="font-medium">
-                        {formatTimestamp(post.created_at)}
-                      </span>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
+              <ForumSidebar
+                topPosts={[]}
+                currentSubjectId={post.subject_id}
+                currentPostId={post.post_id}
+                showStats={false}
+                showRules={true}
+                showRelatedPosts={true}
+              />
             </div>
           </div>
         </div>
