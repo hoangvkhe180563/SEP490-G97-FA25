@@ -141,10 +141,42 @@ export const useForumStore = create<ForumState>()(
 
       startForum: async () => {
         try {
-          if ((window as any).__forumConn) return;
+          const existingConn = (window as any).__forumConn;
+          if (existingConn) {
+            if (existingConn.state === "Connected") {
+              console.log("Forum already connected");
+              set({ isForumConnected: true });
+              return;
+            }
+            try {
+              await existingConn.stop();
+            } catch (e) {
+              console.log("Error stopping old connection:", e);
+            }
+            delete (window as any).__forumConn;
+          }
 
           const conn: HubConnection = createForumFuncConnection();
           (window as any).__forumConn = conn;
+
+          conn.onclose(async (error) => {
+            console.log("SignalR disconnected:", error);
+            set({ isForumConnected: false });
+            delete (window as any).__forumConn;
+
+            if (error) {
+              setTimeout(async () => {
+                const store = get();
+                if (!store.isForumConnected) {
+                  try {
+                    await store.startForum();
+                  } catch (e) {
+                    console.error("Reconnection failed:", e);
+                  }
+                }
+              }, 5000);
+            }
+          });
 
           conn.on("ReceiveNewPost", (dto: any) => {
             const mappedPost = mapPost(dto);
@@ -164,16 +196,17 @@ export const useForumStore = create<ForumState>()(
               const updatedPosts = state.posts.map((p) => {
                 if (p.post_id !== mappedComment.post_id) return p;
 
-                const existingCommentIds = (p.comments || []).map(
-                  (c) => c.comment_id
-                );
-                if (existingCommentIds.includes(mappedComment.comment_id)) {
+                const existingComments = p.comments || [];
+
+                if (
+                  isDuplicateComment(existingComments, mappedComment.comment_id)
+                ) {
                   return p;
                 }
 
                 const newComments = mappedComment.parent_comment_id
-                  ? addReplyToComment(p.comments || [], mappedComment)
-                  : [...(p.comments || []), mappedComment];
+                  ? addReplyToComment(existingComments, mappedComment)
+                  : [...existingComments, mappedComment];
 
                 return {
                   ...p,
@@ -221,6 +254,7 @@ export const useForumStore = create<ForumState>()(
               };
             });
           });
+
           conn.on("CommentDeleted", (commentId: number) => {
             set((state) => {
               if (!state.currentPost) return {};
@@ -247,15 +281,23 @@ export const useForumStore = create<ForumState>()(
             });
           });
           conn.on("PostUpdated", (dto: any) => {
-            set((state) => ({
-              posts: state.posts.map((p) =>
-                p.post_id === dto.post_id ? { ...p, ...dto } : p
-              ),
-              currentPost:
-                state.currentPost?.post_id === dto.post_id
-                  ? { ...state.currentPost, ...dto }
-                  : state.currentPost,
-            }));
+            const mappedPost = mapPost(dto);
+
+            set((state) => {
+              const updatedPosts = state.posts.map((p) =>
+                p.post_id === mappedPost.post_id ? { ...p, ...mappedPost } : p
+              );
+
+              let updatedCurrentPost = state.currentPost;
+              if (state.currentPost?.post_id === mappedPost.post_id) {
+                updatedCurrentPost = { ...state.currentPost, ...mappedPost };
+              }
+
+              return {
+                posts: updatedPosts,
+                currentPost: updatedCurrentPost,
+              };
+            });
           });
 
           conn.on("PostDeleted", (postId: number) => {
@@ -269,38 +311,35 @@ export const useForumStore = create<ForumState>()(
           });
 
           conn.on("CommentUpdated", (dto: any) => {
-            set((state) => {
-              if (!state.currentPost) return {};
-              return {
-                currentPost: {
-                  ...state.currentPost,
-                  comments: state.currentPost.comments.map((c) =>
-                    c.comment_id === dto.comment_id ? { ...c, ...dto } : c
-                  ),
-                },
-              };
-            });
-          });
+            const mappedComment = mapComment(dto);
 
-          conn.on("CommentDeleted", (commentId: number) => {
             set((state) => {
-              if (!state.currentPost) return {};
+              if (
+                !state.currentPost ||
+                state.currentPost.post_id !== mappedComment.post_id
+              ) {
+                return {};
+              }
+
+              const updateCommentInTree = (comments: any[]): any[] => {
+                return comments.map((c) => {
+                  if (c.comment_id === mappedComment.comment_id) {
+                    return { ...c, ...mappedComment, replies: c.replies };
+                  }
+                  if (c.replies && c.replies.length > 0) {
+                    return { ...c, replies: updateCommentInTree(c.replies) };
+                  }
+                  return c;
+                });
+              };
+
               return {
                 currentPost: {
                   ...state.currentPost,
-                  comments: state.currentPost.comments.filter(
-                    (c) => c.comment_id !== commentId
-                  ),
-                  comment_count: Math.max(
-                    0,
-                    state.currentPost.comment_count - 1
+                  comments: updateCommentInTree(
+                    state.currentPost.comments || []
                   ),
                 },
-                posts: state.posts.map((p) =>
-                  p.post_id === state.currentPost?.post_id
-                    ? { ...p, comment_count: Math.max(0, p.comment_count - 1) }
-                    : p
-                ),
               };
             });
           });
@@ -309,15 +348,29 @@ export const useForumStore = create<ForumState>()(
 
           await conn.start();
           set({ isForumConnected: true });
-        } catch {
+        } catch (error) {
+          console.error("Failed to start forum connection:", error);
+          const existingConn = (window as any).__forumConn;
+          if (existingConn) {
+            try {
+              await existingConn.stop();
+            } catch (e) {
+              console.error("Failed to start forum connection:", error);
+            }
+          }
           delete (window as any).__forumConn;
+          set({ isForumConnected: false });
         }
       },
 
       stopForum: async () => {
         const conn: HubConnection | undefined = (window as any).__forumConn;
         if (conn) {
-          await conn.stop().catch(() => {});
+          try {
+            await conn.stop();
+          } catch (e) {
+            console.error("Error stopping connection:", e);
+          }
           delete (window as any).__forumConn;
         }
         set({ isForumConnected: false });
@@ -501,13 +554,15 @@ export const useForumStore = create<ForumState>()(
           const body = resp.data;
 
           if (body?.success) {
+            const mappedPost = mapPost(body.data);
+
             set((state) => ({
               posts: state.posts.map((p) =>
-                p.post_id === postId ? body.data : p
+                p.post_id === postId ? mappedPost : p
               ),
               currentPost:
                 state.currentPost?.post_id === postId
-                  ? body.data
+                  ? { ...state.currentPost, ...mappedPost }
                   : state.currentPost,
               success: true,
               message: body?.message || "",
@@ -523,7 +578,6 @@ export const useForumStore = create<ForumState>()(
           set({ isLoading: false });
         }
       },
-
       deletePost: async (postId: number) => {
         set({ isLoading: true });
         try {
@@ -643,18 +697,34 @@ export const useForumStore = create<ForumState>()(
           const body = resp.data;
 
           if (body?.success) {
-            set((state) => ({
-              currentPost: state.currentPost
-                ? {
-                    ...state.currentPost,
-                    comments: state.currentPost.comments.map((c) =>
-                      c.comment_id === commentId ? body.data : c
-                    ),
+            const mappedComment = mapComment(body.data);
+
+            set((state) => {
+              if (!state.currentPost) return { success: true };
+
+              const updateCommentInTree = (comments: any[]): any[] => {
+                return comments.map((c) => {
+                  if (c.comment_id === commentId) {
+                    return { ...c, ...mappedComment, replies: c.replies };
                   }
-                : null,
-              success: true,
-              message: body?.message || "",
-            }));
+                  if (c.replies && c.replies.length > 0) {
+                    return { ...c, replies: updateCommentInTree(c.replies) };
+                  }
+                  return c;
+                });
+              };
+
+              return {
+                currentPost: {
+                  ...state.currentPost,
+                  comments: updateCommentInTree(
+                    state.currentPost.comments || []
+                  ),
+                },
+                success: true,
+                message: body?.message || "",
+              };
+            });
           } else {
             set({ success: false, message: body?.message || "" });
           }
@@ -717,35 +787,30 @@ export const useForumStore = create<ForumState>()(
         }
       },
 
+      // src/forumManagement/services/ForumService.ts
       createReport: async (
         targetId: number,
         targetType: "post" | "comment",
         ruleId: number,
         content: string
       ) => {
-        set({ isLoading: true });
         try {
-          const result = await forumService.createReport(
-            targetId,
-            targetType,
-            ruleId,
-            content
-          );
+          const endpoint =
+            targetType === "post"
+              ? `/Forum/posts/${targetId}/report`
+              : `/Forum/comments/${targetId}/report`;
 
-          if (result?.success) {
-            set({
-              success: true,
-              message: result?.message || "Báo cáo thành công",
-            });
-          } else {
-            set({ success: false, message: result?.message || "" });
-          }
-          return result;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
+          const payload = {
+            RuleId: ruleId,
+            Reason: content,
+          };
+
+          const response = await axiosInstance.post(endpoint, payload);
+
+          return response.data;
+        } catch (error: any) {
+          console.error("Error message:", error.message);
+          throw error;
         }
       },
     }),

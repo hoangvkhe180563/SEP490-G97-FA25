@@ -20,11 +20,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 var comment = await _context.ForumComments
                     .Include(c => c.CreatedByNavigation)
+                    .Include(c => c.Post) 
                     .FirstOrDefaultAsync(c => c.Id == commentId && c.DeletedAt == null);
 
                 if (comment == null) return null;
 
                 var mappedComment = MapCommentToEntity(comment);
+                mappedComment.SchoolId = comment.Post?.SchoolId ?? 0; 
 
                 mappedComment.Attachments = await _context.ForumAttachments
                     .Where(a => a.CommentId == commentId && a.DeletedAt == null)

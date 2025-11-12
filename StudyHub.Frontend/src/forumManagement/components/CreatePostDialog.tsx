@@ -41,6 +41,12 @@ export const CreatePostDialog = ({
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [errors, setErrors] = useState({
+    title: false,
+    content: false,
+    subjectId: false,
+    flairId: false,
+  });
 
   useEffect(() => {
     if (open) {
@@ -74,8 +80,16 @@ export const CreatePostDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title.trim() || !content.trim() || !subjectId || !flairId) {
-      alert("Vui lòng điền đầy đủ thông tin");
+    const newErrors = {
+      title: !title.trim(),
+      content: !content.trim(),
+      subjectId: !subjectId,
+      flairId: !flairId,
+    };
+
+    setErrors(newErrors);
+
+    if (Object.values(newErrors).some((error) => error)) {
       return;
     }
 
@@ -95,13 +109,19 @@ export const CreatePostDialog = ({
       setFlairId("");
       setImages([]);
       setImagePreviews([]);
+      setErrors({
+        title: false,
+        content: false,
+        subjectId: false,
+        flairId: false,
+      });
       onOpenChange(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="!max-w-3xl sm:!max-w-3xl">
         <DialogHeader>
           <DialogTitle>Tạo bài viết mới</DialogTitle>
           <DialogDescription className="sr-only">
@@ -111,55 +131,104 @@ export const CreatePostDialog = ({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <Select value={subjectId} onValueChange={setSubjectId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Chọn môn học" />
-              </SelectTrigger>
-              <SelectContent>
-                {subjects.map((s) => (
-                  <SelectItem key={s.id} value={s.id.toString()}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div>
+              <div className="flex items-center gap-1 mb-1">
+                <span className="text-sm">Môn học</span>
+                <span className="text-red-500">*</span>
+              </div>
+              <Select
+                value={subjectId}
+                onValueChange={(value) => {
+                  setSubjectId(value);
+                  setErrors((prev) => ({ ...prev, subjectId: false }));
+                }}
+              >
+                <SelectTrigger
+                  className={errors.subjectId ? "border-red-500" : ""}
+                >
+                  <SelectValue placeholder="Chọn môn học" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects.map((s) => (
+                    <SelectItem key={s.id} value={s.id.toString()}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select value={flairId} onValueChange={setFlairId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Chọn loại bài viết" />
-              </SelectTrigger>
-              <SelectContent>
-                {flairs && flairs.length > 0 ? (
-                  flairs
-                    .filter((f) => f?.id)
-                    .map((f) => (
-                      <SelectItem key={f.id} value={f.id.toString()}>
-                        {f.name || "N/A"}
-                      </SelectItem>
-                    ))
-                ) : (
-                  <SelectItem value="no-flairs" disabled>
-                    Không có loại bài viết
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
+            <div>
+              <div className="flex items-center gap-1 mb-1">
+                <span className="text-sm">Loại bài viết</span>
+                <span className="text-red-500">*</span>
+              </div>
+              <Select
+                value={flairId}
+                onValueChange={(value) => {
+                  setFlairId(value);
+                  setErrors((prev) => ({ ...prev, flairId: false }));
+                }}
+              >
+                <SelectTrigger
+                  className={errors.flairId ? "border-red-500" : ""}
+                >
+                  <SelectValue placeholder="Chọn loại bài viết" />
+                </SelectTrigger>
+                <SelectContent>
+                  {flairs && flairs.length > 0 ? (
+                    flairs
+                      .filter((f) => f?.id)
+                      .map((f) => (
+                        <SelectItem key={f.id} value={f.id.toString()}>
+                          {f.name || "N/A"}
+                        </SelectItem>
+                      ))
+                  ) : (
+                    <SelectItem value="no-flairs" disabled>
+                      Không có loại bài viết
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <Input
-            placeholder="Tiêu đề bài viết"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={200}
-          />
+          <div>
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-sm">Tiêu đề</span>
+              <span className="text-red-500">*</span>
+            </div>
+            <Input
+              placeholder="Tiêu đề bài viết"
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setErrors((prev) => ({ ...prev, title: false }));
+              }}
+              maxLength={200}
+              className={errors.title ? "border-red-500" : ""}
+            />
+          </div>
 
-          <Textarea
-            placeholder="Nội dung bài viết..."
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={6}
-            maxLength={2000}
-          />
+          <div>
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-sm">Nội dung</span>
+              <span className="text-red-500">*</span>
+            </div>
+            <Textarea
+              placeholder="Nội dung bài viết..."
+              value={content}
+              onChange={(e) => {
+                setContent(e.target.value);
+                setErrors((prev) => ({ ...prev, content: false }));
+              }}
+              rows={6}
+              maxLength={2000}
+              className={errors.content ? "border-red-500" : ""}
+            />
+          </div>
+
           {imagePreviews.length > 0 && (
             <div className="grid grid-cols-4 gap-2">
               {imagePreviews.map((preview, idx) => (

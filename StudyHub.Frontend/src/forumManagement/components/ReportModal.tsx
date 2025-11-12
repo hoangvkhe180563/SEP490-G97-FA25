@@ -1,4 +1,4 @@
-// .../components/ReportModal.tsx
+// src/forumManagement/components/ReportModal.tsx
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -8,9 +8,10 @@ import {
 } from "@/common/components/ui/dialog";
 import { Button } from "@/common/components/ui/button";
 import { Textarea } from "@/common/components/ui/textarea";
+import { Alert, AlertDescription } from "@/common/components/ui/alert";
 import { useForumStore } from "../stores/useForumStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
 interface ReportModalProps {
   open: boolean;
@@ -27,6 +28,8 @@ export const ReportModal = ({
 }: ReportModalProps) => {
   const [content, setContent] = useState("");
   const [selectedRuleId, setSelectedRuleId] = useState<number | null>(null);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const { rules, loadRules, createReport, isLoading } = useForumStore();
   const { user } = useAuthStore();
   const schoolId = user?.schoolId || 1;
@@ -37,31 +40,45 @@ export const ReportModal = ({
     }
   }, [open, rules.length, schoolId, loadRules]);
 
+  useEffect(() => {
+    if (open) {
+      setError("");
+      setSuccess("");
+    }
+  }, [open]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim() || !selectedRuleId) {
-      alert("Vui lòng chọn quy tắc và nhập nội dung báo cáo");
+    setError("");
+    setSuccess("");
+
+    if (!selectedRuleId) {
+      setError("Vui lòng chọn quy tắc");
       return;
     }
 
-    try {
-      const result = await createReport(
-        targetId,
-        targetType,
-        selectedRuleId,
-        content
-      );
+    if (!content.trim() || content.trim().length < 10) {
+      setError("Nội dung báo cáo phải có ít nhất 10 ký tự");
+      return;
+    }
 
-      if (result?.success) {
-        alert("Báo cáo thành công");
+    const result = await createReport(
+      targetId,
+      targetType,
+      selectedRuleId,
+      content.trim()
+    );
+
+    if (result?.success) {
+      setSuccess("Báo cáo của bạn đã được gửi");
+      setTimeout(() => {
         onOpenChange(false);
         setContent("");
         setSelectedRuleId(null);
-      } else {
-        alert(result?.message || "Báo cáo thất bại");
-      }
-    } catch (error) {
-      alert("Có lỗi xảy ra khi gửi báo cáo");
+        setSuccess("");
+      }, 1500);
+    } else {
+      setError(result?.message || "Báo cáo thất bại");
     }
   };
 
@@ -72,6 +89,20 @@ export const ReportModal = ({
           <DialogTitle>Báo cáo vi phạm</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <XCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {success && (
+            <Alert className="border-green-500 text-green-700">
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertDescription>{success}</AlertDescription>
+            </Alert>
+          )}
+
           <div>
             <label className="text-sm font-medium mb-2 block">
               Chọn quy tắc bị vi phạm
@@ -94,10 +125,11 @@ export const ReportModal = ({
               Nội dung báo cáo
             </label>
             <Textarea
-              placeholder="Mô tả chi tiết về vi phạm..."
+              placeholder="Mô tả chi tiết về vi phạm (tối thiểu 10 ký tự)..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={4}
+              minLength={10}
             />
           </div>
           <div className="flex gap-2 justify-end">

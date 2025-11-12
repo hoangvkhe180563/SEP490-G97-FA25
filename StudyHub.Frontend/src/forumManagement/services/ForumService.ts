@@ -38,7 +38,11 @@ export const forumService = {
       );
 
       if (response.data?.success && response.data?.data?.items) {
-        return response.data.data.items;
+        return response.data.data.items.map((rule: any) => ({
+          id: rule.id || rule.ruleId,
+          content: rule.description || rule.ruleName || rule.content || "",
+          ruleType: rule.ruleType,
+        }));
       }
 
       return [];
@@ -54,25 +58,16 @@ export const forumService = {
     ruleId: number,
     content: string
   ) => {
-    try {
-      const formData = new FormData();
-      formData.append("targetId", targetId.toString());
-      formData.append("targetType", targetType);
-      formData.append("ruleId", ruleId.toString());
-      formData.append("content", content);
+    const endpoint =
+      targetType === "post"
+        ? `/Forum/posts/${targetId}/report`
+        : `/Forum/comments/${targetId}/report`;
 
-      const response = await axiosInstance.post(
-        `/Forum/reports/create`,
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
+    const response = await axiosInstance.post(endpoint, {
+      RuleId: ruleId,
+      Reason: content,
+    });
 
-      return response.data;
-    } catch (error) {
-      console.error("Error creating report:", error);
-      throw error;
-    }
+    return response.data;
   },
 };

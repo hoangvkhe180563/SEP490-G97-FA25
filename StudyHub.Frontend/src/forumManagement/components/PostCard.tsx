@@ -1,4 +1,4 @@
-// .../components.tsx
+// .../PostCard.tsx
 import type React from "react";
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
@@ -78,6 +78,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
     setImageZoom((prev) => Math.max(prev - 0.25, 0.5));
   };
 
+  // PostCard.tsx - Sửa phần render return
   return (
     <>
       <Card className="mb-4 hover:shadow-lg transition-all duration-200">
@@ -89,40 +90,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
                   {post.author_initials}
                 </AvatarFallback>
               </Avatar>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {canEdit && (
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onViewDetails();
-                      }}
-                    >
-                      <Edit className="w-4 h-4 mr-2" />
-                      <span className="font-medium">Chỉnh sửa</span>
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowReportModal(true);
-                    }}
-                  >
-                    <Flag className="w-4 h-4 mr-2" />
-                    <span className="font-medium">Báo cáo</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+
               <div>
                 <div className="font-semibold">{post.author_name}</div>
                 <div className="text-xs text-gray-500">
@@ -191,6 +159,40 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
               <ExternalLink className="w-4 h-4" />
               <span>Xem chi tiết</span>
             </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical className="w-5 h-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canEdit && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewDetails();
+                    }}
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    <span className="font-medium">Chỉnh sửa</span>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowReportModal(true);
+                  }}
+                >
+                  <Flag className="w-4 h-4 mr-2" />
+                  <span className="font-medium">Báo cáo</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {showComments && (

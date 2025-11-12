@@ -72,6 +72,7 @@ const ForumMain = () => {
     stopForum,
     joinSchoolForum,
     leaveSchoolForum,
+    createComment,
     joinPost,
     leavePost,
     getPosts,
@@ -139,8 +140,11 @@ const ForumMain = () => {
     loadFlairs(schoolId);
 
     return () => {
-      leaveSchoolForum(schoolId);
-      stopForum();
+      const cleanup = async () => {
+        await leaveSchoolForum(schoolId);
+        await stopForum();
+      };
+      cleanup();
     };
   }, [
     startForum,
@@ -387,28 +391,17 @@ const ForumMain = () => {
     }
     if (!newCommentContent.trim() || !currentPost) return;
 
-    const conn = (window as any).__forumConn;
-    if (!conn || conn.state !== "Connected") {
-      alert("Mất kết nối SignalR");
-      return;
-    }
+    const formData = new FormData();
+    formData.append("postId", currentPost.post_id.toString());
+    formData.append("content", newCommentContent);
+    newCommentImages.forEach((img) => formData.append("attachments", img));
 
-    try {
-      const result = await conn.invoke(
-        "CreateComment",
-        currentPost.post_id,
-        null,
-        newCommentContent
-      );
-
-      if (result?.success) {
-        setNewCommentContent("");
-        setNewCommentImages([]);
-      } else {
-        alert(result?.message || "Có lỗi xảy ra");
-      }
-    } catch (err: any) {
-      alert(err.message);
+    const result = await createComment(formData);
+    if (result?.success) {
+      setNewCommentContent("");
+      setNewCommentImages([]);
+    } else {
+      alert(result?.message || "Có lỗi xảy ra");
     }
   };
 
@@ -678,6 +671,7 @@ const ForumMain = () => {
         open={isModalOpen}
         onOpenChange={(open) => !open && handleCloseModal()}
       >
+        <DialogTitle>neat</DialogTitle>
         <DialogContent className="!max-w-[95vw] !w-[60vw] h-[90vh] p-0 flex flex-col">
           {currentPost && (
             <>

@@ -294,4 +294,4 @@ namespace StudyHub.Backend.Api.Hubs
             });
         }
     }
-}
+}   

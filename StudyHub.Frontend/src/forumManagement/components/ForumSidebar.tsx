@@ -89,14 +89,18 @@ export const ForumSidebar = ({
           <h3 className="font-bold text-lg">Quy tắc Forum</h3>
         </CardHeader>
         <CardContent>
-          <ul className="space-y-2 text-sm text-gray-600">
-            {rules.map((rule) => (
-              <li key={rule.id} className="flex gap-2">
-                <span className="text-purple-600">•</span>
-                <span>{rule.content}</span>
-              </li>
-            ))}
-          </ul>
+          {rules.length > 0 ? (
+            <ul className="space-y-2 text-sm text-gray-600">
+              {rules.map((rule) => (
+                <li key={rule.id} className="flex gap-2">
+                  <span className="text-purple-600">•</span>
+                  <span>{rule.content}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-gray-500 italic">Đang tải quy tắc...</p>
+          )}
         </CardContent>
       </Card>
     </aside>
