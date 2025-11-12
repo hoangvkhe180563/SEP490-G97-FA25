@@ -84,7 +84,7 @@ const UpdateExam = () => {
       options: [],
       correctAnswer: null
     }
-    newQuestion.type = type as "single-choice" | "multiple-choice" | "text-input" | "fill-blank";
+    newQuestion.type = type as "single-choice" | "multiple-choice" | "text-input" | "fill-blank" | "matching";
 
     if (type === EXAM_TYPE.SINGLE_CHOICE) {
       newQuestion.options = [''];
@@ -95,6 +95,10 @@ const UpdateExam = () => {
     } else if (type === EXAM_TYPE.FILL_IN_BLANK) {
       newQuestion.questionText = `Câu hỏi có ${BLANK_PLACEHOLDER} thứ nhất và ${BLANK_PLACEHOLDER} thứ hai.`;
       newQuestion.correctAnswer = ['', ''];
+    } else if (type === EXAM_TYPE.MATCHING) {
+      newQuestion.terms = [''];
+      newQuestion.definitions = [''];
+      newQuestion.correctAnswer = { 0: 0 };
     }
     setQuestions([...questions, newQuestion]);
   };
@@ -151,6 +155,52 @@ const UpdateExam = () => {
         newCorrectAnswers[optionIndex] = value;
         return { ...q, correctAnswer: newCorrectAnswers };
       }
+      if (field === 'terms' && optionIndex !== null) {
+        const newTerms = [...(q.terms || [])];
+        newTerms[optionIndex] = value;
+        return { ...q, terms: newTerms };
+      }
+      if (field === 'definitions' && optionIndex !== null) {
+        const newDefinitions = [...(q.definitions || [])];
+        newDefinitions[optionIndex] = value;
+        return { ...q, definitions: newDefinitions };
+      }
+      if (field === 'addTerm') {
+        const newTerms = [...(q.terms || []), ''];
+        const newCorrectAnswer = { ...q.correctAnswer, [newTerms.length - 1]: 0 };
+        return { ...q, terms: newTerms, correctAnswer: newCorrectAnswer };
+      }
+      if (field === 'addDefinition') {
+        return { ...q, definitions: [...(q.definitions || []), ''] };
+      }
+      if (field === 'removeTerm' && optionIndex !== null) {
+        const newTerms = (q.terms || []).filter((_, idx) => idx !== optionIndex);
+        const newCorrectAnswer = { ...q.correctAnswer };
+        delete newCorrectAnswer[optionIndex];
+        const reindexed: any = {};
+        Object.keys(newCorrectAnswer).forEach((key) => {
+          const oldIndex = parseInt(key);
+          const newIndex = oldIndex > optionIndex ? oldIndex - 1 : oldIndex;
+          reindexed[newIndex] = newCorrectAnswer[oldIndex];
+        });
+        return { ...q, terms: newTerms, correctAnswer: reindexed };
+      }
+      if (field === 'removeDefinition' && optionIndex !== null) {
+        const newDefinitions = (q.definitions || []).filter((_, idx) => idx !== optionIndex);
+        const newCorrectAnswer = { ...q.correctAnswer };
+        Object.keys(newCorrectAnswer).forEach((termIdx) => {
+          if (newCorrectAnswer[termIdx] === optionIndex) {
+            newCorrectAnswer[termIdx] = 0;
+          } else if (newCorrectAnswer[termIdx] > optionIndex) {
+            newCorrectAnswer[termIdx] -= 1;
+          }
+        });
+        return { ...q, definitions: newDefinitions, correctAnswer: newCorrectAnswer };
+      }
+      if (field === 'matchingAnswer') {
+        const [termIndex, defIndex] = value;
+        return { ...q, correctAnswer: { ...q.correctAnswer, [termIndex]: defIndex } };
+      }
       return { ...q, [field]: value };
     }));
   };
@@ -175,7 +225,7 @@ const UpdateExam = () => {
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
 
         if (json.length < 2) {
           setExcelFileError("File Excel không có dữ liệu câu hỏi.");
@@ -272,7 +322,7 @@ const UpdateExam = () => {
         });
 
         if (rowErrors.length > 0) {
-          setExcelFileError(`Có lỗi khi đọc file Excel:<br/>${rowErrors.slice(0, 10).join('<br/>')} ${rowErrors.length > 10 && '<br/>(Quá nhiều lỗi, vui lòng nhập đúng cấu trúc trong file mẫu!)'}`);
+          setExcelFileError(`Có lỗi khi đọc file Excel:<br/>${rowErrors.slice(0, 10).join('<br/>')} ${rowErrors.length > 10 ? '<br/>(Quá nhiều lỗi, vui lòng nhập đúng cấu trúc trong file mẫu!)' : ''}`);
           return;
         }
         if (newQuestions.length === 0) {
@@ -630,6 +680,95 @@ const UpdateExam = () => {
                       />
                     </div>
                   ))}
+                </div>
+              )}
+
+              {q.type === EXAM_TYPE.MATCHING && (
+                <div className="mb-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-gray-700 text-sm font-bold mb-2">Thuật ngữ</label>
+                      {(q.terms || []).map((term, termIndex) => (
+                        <div key={termIndex} className="flex items-center mb-2">
+                          <input
+                            type="text"
+                            className="grow p-2 border border-gray-300 rounded-lg text-gray-800"
+                            value={term}
+                            onChange={(e) => updateQuestion(q.id, 'terms', e.target.value, termIndex)}
+                            placeholder={`Thuật ngữ ${termIndex + 1}`}
+                            required
+                          />
+                          {(q.terms || []).length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => updateQuestion(q.id, 'removeTerm', null, termIndex)}
+                              className="ml-2 text-red-500 hover:text-red-700"
+                            >
+                              &times;
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => updateQuestion(q.id, 'addTerm', null)}
+                        className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+                      >
+                        Thêm thuật ngữ
+                      </button>
+                    </div>
+                    <div>
+                      <label className="block text-gray-700 text-sm font-bold mb-2">Định nghĩa</label>
+                      {(q.definitions || []).map((definition, defIndex) => (
+                        <div key={defIndex} className="flex items-center mb-2">
+                          <input
+                            type="text"
+                            className="grow p-2 border border-gray-300 rounded-lg text-gray-800"
+                            value={definition}
+                            onChange={(e) => updateQuestion(q.id, 'definitions', e.target.value, defIndex)}
+                            placeholder={`Định nghĩa ${defIndex + 1}`}
+                            required
+                          />
+                          {(q.definitions || []).length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => updateQuestion(q.id, 'removeDefinition', null, defIndex)}
+                              className="ml-2 text-red-500 hover:text-red-700"
+                            >
+                              &times;
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => updateQuestion(q.id, 'addDefinition', null)}
+                        className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+                      >
+                        Thêm định nghĩa
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <label className="block text-gray-700 text-sm font-bold mb-2">Ghép đúng</label>
+                    {(q.terms || []).map((term, termIndex) => (
+                      <div key={termIndex} className="flex items-center mb-2">
+                        <span className="mr-2 text-gray-600 w-1/3">{term || `Thuật ngữ ${termIndex + 1}`}:</span>
+                        <select
+                          className="grow p-2 border border-gray-300 rounded-lg text-gray-800"
+                          value={q.correctAnswer?.[termIndex] ?? 0}
+                          onChange={(e) => updateQuestion(q.id, 'matchingAnswer', [termIndex, parseInt(e.target.value)])}
+                          required
+                        >
+                          {(q.definitions || []).map((def, defIndex) => (
+                            <option key={defIndex} value={defIndex}>
+                              {def || `Định nghĩa ${defIndex + 1}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

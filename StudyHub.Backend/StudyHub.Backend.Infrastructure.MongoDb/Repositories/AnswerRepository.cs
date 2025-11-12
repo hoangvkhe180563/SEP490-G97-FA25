@@ -82,46 +82,5 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
             }
             return false;
         }
-        //public string AddExamResult(ExamResult examResult)
-        //{
-        //    try
-        //    {
-        //        var resultData = examResult.ToResultData();
-        //        List<Answer> answers = new List<Answer>();
-        //        foreach (var answer in examResult.Answers)
-        //        {
-        //            Answer answerData = new Answer();
-        //            answerData.QuestionId = ObjectId.Parse(answer.QuestionId);
-        //            answerData.IsCorrect = answer.IsCorrect;
-        //            QuestionType type = _questionRepo.GetQuestionType(answer.QuestionId);
-        //            switch (type)
-        //            {
-        //                case QuestionType.SingleChoice:
-        //                    answerData.StudentAnswer = BsonValue.Create(int.Parse(answer.JsonAnswers));
-        //                    break;
-        //                case QuestionType.MultipleChoice:
-        //                    answerData.StudentAnswer = BsonValue.Create(JsonSerializer.Deserialize<List<int>>(answer.JsonAnswers));
-        //                    break;
-        //                case QuestionType.TextInput:
-        //                    answerData.StudentAnswer = BsonValue.Create(answer.JsonAnswers);
-        //                    break;
-        //                case QuestionType.FillBlank:
-        //                    answerData.StudentAnswer = BsonValue.Create(JsonSerializer.Deserialize<List<string>>(answer.JsonAnswers));
-        //                    break;
-        //            }
-
-        //            answers.Add(answerData);
-        //        }
-        //        resultData.Answers = answers;
-
-        //        _resultCollection.InsertOne(resultData);
-        //        return resultData.Id.ToString();
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Console.WriteLine(ex.Message);
-        //    }
-        //    return string.Empty;
-        //}
     }
 }

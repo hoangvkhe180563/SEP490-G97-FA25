@@ -106,8 +106,11 @@ export const Sidebar = (props: {
 export const SidebarItem = (props: ISidebarItem) => {
   const { expanded } = useContext(SidebarContext);
   const location = useLocation();
-  const currentFunction = location.pathname.split("/")[1];
+  let currentFunction = location.pathname.split("/")[1];
   const linkFunction = props.link.split("/")[1];
+  if (currentFunction === 'ui') {
+    currentFunction = '';
+  }
 
   return (
     <li>
