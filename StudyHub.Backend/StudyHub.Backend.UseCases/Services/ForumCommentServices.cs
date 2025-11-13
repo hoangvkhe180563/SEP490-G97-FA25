@@ -2,7 +2,6 @@
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Utils;
-using StudyHub.Backend.UseCases.IServices;
 
 namespace StudyHub.Backend.UseCases.Services
 {

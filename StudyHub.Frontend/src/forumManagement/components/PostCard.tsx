@@ -126,6 +126,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
             images={images}
             onImageClick={handleImageClick}
             className="mb-4"
+            isNsfwContent={
+              post.flair_name?.toLowerCase().includes("nhạy cảm") || false
+            }
           />
 
           <div className="flex items-center gap-4 text-sm text-gray-600 mb-3 pt-2 border-t">

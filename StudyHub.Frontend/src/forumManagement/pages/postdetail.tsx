@@ -673,6 +673,10 @@ const PostDetail = () => {
                       images={images}
                       onImageClick={(idx) => handleImageClick(images, idx)}
                       className="mb-6 [&_img]:max-h-[400px]"
+                      isNsfwContent={
+                        post.flair_name?.toLowerCase().includes("nhạy cảm") ||
+                        false
+                      }
                     />
                   )}
 

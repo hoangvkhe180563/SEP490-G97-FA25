@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using StudyHub.Backend.Api.Services;
-using StudyHub.Backend.UseCases.IServices;
 using StudyHub.Backend.UseCases.Services;
 namespace StudyHub.Backend.UseCases
 {

@@ -43,6 +43,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 mappedPost.Attachments = await _context.ForumAttachments
                     .Where(a => a.PostId == postId && a.DeletedAt == null)
+                    .Where(a => mappedPost.Status == null || a.IsApproved == true)
                     .Select(a => new ForumAttachment
                     {
                         Id = a.Id,
@@ -58,7 +59,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 var (comments, _) = await _commentRepo.GetCommentsByPostIdAsync(postId);
                 mappedPost.CommentCount = await _context.ForumComments
-         .CountAsync(c => c.PostId == postId && c.DeletedAt == null);
+                    .CountAsync(c => c.PostId == postId && c.DeletedAt == null);
                 mappedPost.Comments = comments;
 
                 return mappedPost;
@@ -69,7 +70,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 return null;
             }
         }
-
 
         public async Task<(List<ForumPost> posts, int totalCount)> GetPublicPostsAsync(
      int schoolId,
@@ -459,7 +459,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (entity == null) return false;
 
                 entity.Status = false;
-                entity.DeletedAt = DateTime.Now;
                 entity.UpdatedAt = DateTime.Now;
                 entity.UpdatedBy = moderatorId;
 

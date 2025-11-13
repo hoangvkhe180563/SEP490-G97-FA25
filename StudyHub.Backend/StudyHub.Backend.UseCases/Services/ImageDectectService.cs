@@ -1,13 +1,17 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StudyHub.Backend.Domain.Entities;
-using StudyHub.Backend.UseCases.IServices;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace StudyHub.Backend.UseCases.Services
 {
+    public interface IImageModerationService
+    {
+        Task<ImageModerationResult> ModerateImageAsync(string imageUrl);
+        Task<ImageModerationResult> ModerateImageFromStreamAsync(Stream imageStream);
+    }
     public class ImageDectectService : IImageModerationService
     {
         private readonly HttpClient _httpClient;

@@ -145,7 +145,10 @@ export const PostDetailModal = ({
               <ImageGrid
                 images={images}
                 onImageClick={(idx) => onImageClick(images, idx)}
-                className="mb-6"
+                className="mb-4"
+                isNsfwContent={
+                  post.flair_name?.toLowerCase().includes("nhạy cảm") || false
+                }
               />
             )}
 

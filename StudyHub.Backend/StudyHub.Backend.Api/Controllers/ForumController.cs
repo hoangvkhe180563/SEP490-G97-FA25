@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using StudyHub.Backend.Api.Dtos.ForumDTOs;
-using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.Api.Hubs;
+using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.UseCases.Services;
+using StudyHub.Backend.UseCases.Utils;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -19,7 +20,7 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly AuthService _authService;
         private readonly IHubContext<ForumHub> _forumHubContext;
         private readonly ILogger<ForumController> _logger;
-
+        //private readonly AbacUtils _abacUtils;
         public ForumController(
             ForumPostService postService,
             ForumCommentService commentService,
@@ -127,6 +128,17 @@ namespace StudyHub.Backend.Api.Controllers
                     _logger.LogWarning("User {UserId} attempted to access post {PostId} from different school",
                         currentUser.Id, postId);
                     return Forbid();
+                }
+
+                bool isOwner = post.CreatedBy == currentUser.Id;
+                bool isModerator = IsModerator();
+                bool isApproved = post.Status == true;
+
+                if (!isApproved && !isOwner && !isModerator)
+                {
+                    _logger.LogWarning("User {UserId} attempted to access pending/hidden post {PostId} without permission",
+                        currentUser.Id, postId);
+                    return NotFound(new { success = false, message = "Không tìm thấy bài viết" });
                 }
 
                 return Ok(new { success = true, data = post.ToDetailDto() });
@@ -1954,6 +1966,11 @@ namespace StudyHub.Backend.Api.Controllers
                 _logger.LogError(ex, "Error getting forum statistics");
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
             }
+        }
+        private bool IsModerator()
+        {
+            var roleClaim = User.FindFirst("http://schemas.microsoft.com/ws/2008/06/identity/claims/role");
+            return roleClaim?.Value == "Moderator" || roleClaim?.Value == "School Moderator";
         }
     }
 }

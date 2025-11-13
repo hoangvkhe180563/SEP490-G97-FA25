@@ -2,7 +2,7 @@
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Utils;
-using StudyHub.Backend.UseCases.IServices;
+using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -82,7 +82,6 @@ namespace StudyHub.Backend.UseCases.Services
                 minViolationScore, maxViolationScore, createdFrom, createdTo,
                 sortBy, pageNumber, pageSize);
         }
-
         public async Task<ForumPost> CreatePostAsync(ForumPost post, List<IFormFile>? attachments = null)
         {
             var violations = await _moderationRepo.CheckContentViolationAsync(post.Content, post.SchoolId);
@@ -97,6 +96,7 @@ namespace StudyHub.Backend.UseCases.Services
             bool hasProtectedFlair = flair?.IsProtected ?? false;
 
             List<ForumAttachment> processedAttachments = new List<ForumAttachment>();
+            List<string> violationFileUrls = new List<string>();
             bool hasImageViolation = false;
 
             if (attachments != null && attachments.Any())
@@ -119,6 +119,28 @@ namespace StudyHub.Backend.UseCases.Services
                             if (moderationResult.IsViolation)
                             {
                                 hasImageViolation = true;
+
+                                var violationFileUrl = await _fileStorage.UploadFileAsync(file, FileConstants.ForumPostAttachmentUploadPath);
+
+                                if (string.IsNullOrWhiteSpace(violationFileUrl))
+                                {
+                                    throw new InvalidOperationException($"Không thể tải lên file {file.FileName}");
+                                }
+
+                                if (hasProtectedFlair)
+                                {
+                                    processedAttachments.Add(new ForumAttachment
+                                    {
+                                        FileUrl = violationFileUrl,
+                                        CreatedBy = post.CreatedBy,
+                                        CreatedAt = DateTime.Now,
+                                        IsApproved = false
+                                    });
+                                }
+                                else
+                                {
+                                    violationFileUrls.Add(violationFileUrl);
+                                }
                                 continue;
                             }
                         }
@@ -129,16 +151,16 @@ namespace StudyHub.Backend.UseCases.Services
                         }
                     }
 
-                    var fileUrl = await _fileStorage.UploadFileAsync(file, FileConstants.ForumPostAttachmentUploadPath);
+                    var normalFileUrl = await _fileStorage.UploadFileAsync(file, FileConstants.ForumPostAttachmentUploadPath);
 
-                    if (string.IsNullOrWhiteSpace(fileUrl))
+                    if (string.IsNullOrWhiteSpace(normalFileUrl))
                     {
                         throw new InvalidOperationException($"Không thể tải lên file {file.FileName}");
                     }
 
                     processedAttachments.Add(new ForumAttachment
                     {
-                        FileUrl = fileUrl,
+                        FileUrl = normalFileUrl,
                         CreatedBy = post.CreatedBy,
                         CreatedAt = DateTime.Now,
                         IsApproved = true
@@ -171,16 +193,31 @@ namespace StudyHub.Backend.UseCases.Services
                     post.IsHidden = true;
                     post.Title = "[Bài viết vi phạm]";
                     post.Content = "Nội dung này đã bị ẩn do vi phạm quy định cộng đồng.";
+
+                    foreach (var violation in violations)
+                    {
+                        await _moderationRepo.AddViolationScoreAsync(post.CreatedBy, post.SchoolId, violation.ViolationScore);
+                    }
+
+                    if (hasImageViolation)
+                    {
+                        await _moderationRepo.AddViolationScoreAsync(post.CreatedBy, post.SchoolId, 10);
+                    }
+
+                    foreach (var fileUrl in violationFileUrls)
+                    {
+                        await _fileStorage.DeleteFileAsync(fileUrl);
+                    }
                 }
             }
             else
             {
-                post.Status = hasProtectedFlair ? true : true;
+                post.Status = hasProtectedFlair ? null : true;
             }
 
             var createdPost = await _postRepo.CreatePostAsync(post);
 
-            if (hasTextViolations)
+            if (hasTextViolations && !hasProtectedFlair)
             {
                 foreach (var violation in violations)
                 {
@@ -195,12 +232,10 @@ namespace StudyHub.Backend.UseCases.Services
                         SourceType = "auto",
                         CreatedAt = DateTime.Now
                     });
-
-                    await _moderationRepo.AddViolationScoreAsync(post.CreatedBy, post.SchoolId, violation.ViolationScore);
                 }
             }
 
-            if (hasImageViolation)
+            if (hasImageViolation && !hasProtectedFlair)
             {
                 await _moderationRepo.CreateViolationRecordAsync(new ViolationRecord
                 {
@@ -211,8 +246,6 @@ namespace StudyHub.Backend.UseCases.Services
                     SourceType = "auto",
                     CreatedAt = DateTime.Now
                 });
-
-                await _moderationRepo.AddViolationScoreAsync(post.CreatedBy, post.SchoolId, 10);
             }
 
             foreach (var attachment in processedAttachments)
@@ -221,10 +254,13 @@ namespace StudyHub.Backend.UseCases.Services
                 await _configRepo.CreateAttachmentAsync(attachment);
             }
 
-            var userStatus = await _moderationRepo.GetUserForumStatusAsync(post.CreatedBy, post.SchoolId);
-            if (userStatus != null && userStatus.TotalViolationScore <= 0)
+            if (!hasProtectedFlair && (hasTextViolations || hasImageViolation))
             {
-                await _moderationRepo.MuteUserAsync(post.CreatedBy, post.SchoolId, DateTime.Now.AddDays(7));
+                var userStatus = await _moderationRepo.GetUserForumStatusAsync(post.CreatedBy, post.SchoolId);
+                if (userStatus != null && userStatus.TotalViolationScore <= 0)
+                {
+                    await _moderationRepo.MuteUserAsync(post.CreatedBy, post.SchoolId, DateTime.Now.AddDays(7));
+                }
             }
 
             var postWithDetails = await _postRepo.GetPostByIdAsync(createdPost.Id);
@@ -243,6 +279,15 @@ namespace StudyHub.Backend.UseCases.Services
 
         public async Task<bool> ApprovePostAsync(int postId, string moderatorId)
         {
+            var post = await _postRepo.GetPostByIdAsync(postId);
+            if (post == null) return false;
+
+            var attachments = await _configRepo.GetAttachmentsByPostIdAsync(postId);
+            foreach (var att in attachments.Where(a => !a.IsApproved))
+            {
+                await _configRepo.ApproveAttachmentAsync(att.Id, Guid.Parse(moderatorId));
+            }
+
             return await _postRepo.ApprovePostAsync(postId, Guid.Parse(moderatorId));
         }
 
@@ -251,21 +296,35 @@ namespace StudyHub.Backend.UseCases.Services
             var post = await _postRepo.GetPostByIdAsync(postId);
             if (post == null) return false;
 
-            await _moderationRepo.CreateViolationRecordAsync(new ViolationRecord
+            var attachments = await _configRepo.GetAttachmentsByPostIdAsync(postId);
+            foreach (var att in attachments)
             {
-                UserId = post.CreatedBy,
-                SchoolId = post.SchoolId,
-                PostId = postId,
-                ViolationScore = 5,
-                SourceType = "manual",
-                CreatedAt = DateTime.Now
-            });
+                await _fileStorage.DeleteFileAsync(att.FileUrl);
+                await _configRepo.SoftDeleteAttachmentAsync(att.Id);
+            }
 
-            await _moderationRepo.AddViolationScoreAsync(post.CreatedBy, post.SchoolId, 5);
+            post.IsHidden = true;
+            post.Title = "[Bài viết vi phạm]";
+            post.Content = "Nội dung này đã bị ẩn do vi phạm quy định cộng đồng.";
+            await _postRepo.UpdatePostAsync(post);
+
+            if (post.TotalViolationScore > 0)
+            {
+                await _moderationRepo.CreateViolationRecordAsync(new ViolationRecord
+                {
+                    UserId = post.CreatedBy,
+                    SchoolId = post.SchoolId,
+                    PostId = postId,
+                    ViolationScore = post.TotalViolationScore,
+                    SourceType = "manual",
+                    CreatedAt = DateTime.Now
+                });
+
+                await _moderationRepo.AddViolationScoreAsync(post.CreatedBy, post.SchoolId, post.TotalViolationScore);
+            }
 
             return await _postRepo.RejectPostAsync(postId, Guid.Parse(moderatorId));
         }
-
         public async Task<bool> ReportPostAsync(int postId, Guid reportedBy, int ruleId, string reason)
         {
             var post = await _postRepo.GetPostByIdAsync(postId);
