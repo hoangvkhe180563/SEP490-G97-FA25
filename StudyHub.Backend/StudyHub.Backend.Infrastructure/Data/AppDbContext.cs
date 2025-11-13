@@ -21,6 +21,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<AppUser> AppUsers { get; set; }
 
+    public virtual DbSet<AppUserLoginHistory> AppUserLoginHistories { get; set; }
+
     public virtual DbSet<AppUserSubjectClass> AppUserSubjectClasses { get; set; }
 
     public virtual DbSet<Chapter> Chapters { get; set; }
@@ -129,8 +131,8 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.ProcessedAt).HasColumnType("datetime");
             entity.Property(e => e.RequestReason).HasMaxLength(1000);
             entity.Property(e => e.Status)
-                .HasDefaultValueSql("'Pending'")
-                .HasColumnType("enum('Pending','Approved','Rejected')");
+                .HasDefaultValueSql("'Đang chờ'")
+                .HasColumnType("enum('Đang chờ','Đã phê duyệt','Đã từ chối')");
 
             entity.HasOne(d => d.User).WithMany(p => p.AccountRecoveryRequests)
                 .HasForeignKey(d => d.UserId)
@@ -243,6 +245,29 @@ public partial class AppDbContext : DbContext
                         j.ToTable("app_user_role");
                         j.HasIndex(new[] { "RoleId" }, "RoleId");
                     });
+        });
+
+        modelBuilder.Entity<AppUserLoginHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("app_user_login_history");
+
+            entity.HasIndex(e => e.UserId, "UserId");
+
+            entity.Property(e => e.IsActiveSession).HasDefaultValueSql("'1'");
+            entity.Property(e => e.IsSuccess)
+                .IsRequired()
+                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.LastSeen).HasColumnType("datetime");
+            entity.Property(e => e.LoginAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.LogoutAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.User).WithMany(p => p.AppUserLoginHistories)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("app_user_login_history_ibfk_1");
         });
 
         modelBuilder.Entity<AppUserSubjectClass>(entity =>

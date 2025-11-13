@@ -63,6 +63,8 @@ public partial class AppUser
 
     public virtual ICollection<AccountRecoveryRequest> AccountRecoveryRequests { get; set; } = new List<AccountRecoveryRequest>();
 
+    public virtual ICollection<AppUserLoginHistory> AppUserLoginHistories { get; set; } = new List<AppUserLoginHistory>();
+
     public virtual ICollection<AppUserSubjectClass> AppUserSubjectClasses { get; set; } = new List<AppUserSubjectClass>();
 
     public virtual Commune? Commune { get; set; }
