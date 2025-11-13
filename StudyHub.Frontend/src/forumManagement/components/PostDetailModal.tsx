@@ -84,7 +84,7 @@ export const PostDetailModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogTitle>neat</DialogTitle>
+      <DialogTitle></DialogTitle>
       <DialogContent className="!max-w-[95vw] !w-[60vw] h-[90vh] p-0 flex flex-col">
         <DialogHeader className="p-4 border-b flex-shrink-0">
           <DialogTitle className="sr-only">{post.title}</DialogTitle>

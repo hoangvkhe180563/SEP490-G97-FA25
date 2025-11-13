@@ -95,7 +95,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     dbQuery = dbQuery.Where(p => flairIds.Contains(p.FlairId!.Value));
 
                 if (!string.IsNullOrWhiteSpace(query))
-                    dbQuery = dbQuery.Where(p => p.Title.Contains(query));
+                    dbQuery = dbQuery.Where(p =>
+                        p.Title.Contains(query) ||
+                        p.CreatedByNavigation.Fullname.Contains(query));
 
                 var totalCount = await dbQuery.CountAsync();
 
@@ -103,6 +105,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     "date_asc" => dbQuery.OrderBy(p => p.CreatedAt),
                     "violation_score" => dbQuery.OrderByDescending(p => p.TotalViolationScore),
+                    "comment_count" => dbQuery.OrderByDescending(p => _context.ForumComments
+        .Count(c => c.PostId == p.Id && c.DeletedAt == null)),
                     _ => dbQuery.OrderByDescending(p => p.CreatedAt)
                 };
 
@@ -179,7 +183,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     dbQuery = dbQuery.Where(p => flairIds.Contains(p.FlairId!.Value));
 
                 if (!string.IsNullOrWhiteSpace(query))
-                    dbQuery = dbQuery.Where(p => p.Title.Contains(query));
+                    dbQuery = dbQuery.Where(p =>
+                        p.Title.Contains(query) ||
+                        p.CreatedByNavigation.Fullname.Contains(query));
 
                 if (status.HasValue)
                     dbQuery = dbQuery.Where(p => p.Status == status.Value);
@@ -269,7 +275,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     dbQuery = dbQuery.Where(p => flairIds.Contains(p.FlairId!.Value));
 
                 if (!string.IsNullOrWhiteSpace(query))
-                    dbQuery = dbQuery.Where(p => p.Title.Contains(query));
+                    dbQuery = dbQuery.Where(p =>
+                        p.Title.Contains(query) ||
+                        p.CreatedByNavigation.Fullname.Contains(query));
 
                 if (!string.IsNullOrWhiteSpace(postStatus))
                 {
@@ -305,6 +313,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     "date_asc" => dbQuery.OrderBy(p => p.CreatedAt),
                     "violation_score" => dbQuery.OrderByDescending(p => p.TotalViolationScore),
+                    "comment_count" => dbQuery.OrderByDescending(p => _context.ForumComments
+        .Count(c => c.PostId == p.Id && c.DeletedAt == null)),
                     _ => dbQuery.OrderByDescending(p => p.CreatedAt)
                 };
 

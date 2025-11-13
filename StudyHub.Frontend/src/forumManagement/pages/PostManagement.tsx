@@ -1,5 +1,6 @@
 // StudyHub.Frontend/src/forumManagement/moderator/pages/PostManagement.tsx
-import { useState, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
 import { Input } from "@/common/components/ui/input";
 import { Button } from "@/common/components/ui/button";
@@ -25,6 +26,7 @@ import {
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
+  DropdownMenuItem,
 } from "@/common/components/ui/dropdown-menu";
 import {
   Search,
@@ -34,92 +36,148 @@ import {
   Eye,
   Filter,
   ChevronDown,
+  MoreVertical,
 } from "lucide-react";
-import type { Post, Subject, Flair } from "../interfaces/forum";
+import type { Post } from "../interfaces/forum";
 import type { PaginationInfo } from "../interfaces/pagination";
 import ForumPagination from "@/documentManagement/components/documents/DocumentPagination";
+import { useForumStore } from "../stores/useForumStore";
+import { documentService } from "@/documentManagement/services/documentService";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { PostDetailModal } from "@/forumManagement/components/PostDetailModal";
+import { HidePostModal } from "@/forumManagement/components/HidePostModal";
+
+interface ModeratorPost extends Post {
+  status: boolean | null;
+  violation_score?: number;
+}
 
 const PostManagement = () => {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const schoolId = user?.schoolId || 1;
+  const {
+    flairs,
+    loadFlairs,
+    getModeratorPosts,
+    approvePost,
+    rejectPost,
+    hidePost,
+    currentPost,
+    getPostById,
+    getComments,
+    joinPost,
+    leavePost,
+    isLoading,
+  } = useForumStore();
+
+  const [posts, setPosts] = useState<ModeratorPost[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedSubjects, setSelectedSubjects] = useState<number[]>([]);
   const [selectedFlairs, setSelectedFlairs] = useState<number[]>([]);
   const [sortBy, setSortBy] = useState("newest");
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const pageSize = 10;
-
-  const posts: Post[] = useMemo(
-    () => [
-      {
-        post_id: 1,
-        subject_id: 1,
-        subject_name: "Toán",
-        flair_id: 1,
-        flair_name: "Câu hỏi",
-        title: "Cách giải phương trình bậc hai",
-        content:
-          "Mình đang học về phương trình bậc hai nhưng vẫn chưa hiểu rõ cách tính delta...",
-        created_at: "2024-10-23T10:00:00",
-        created_by: "user-001",
-        author_name: "Nguyễn Minh An",
-        author_initials: "AN",
-        author_class: "10A1",
-        comment_count: 3,
-        image_urls: "",
-        comments: [],
-      },
-      {
-        post_id: 2,
-        subject_id: 2,
-        subject_name: "Vật Lý",
-        flair_id: 1,
-        flair_name: "Câu hỏi",
-        title: "Định luật Newton thứ ba",
-        content: "Ai giải thích định luật Newton thứ ba giúp mình với!",
-        created_at: "2024-10-23T09:00:00",
-        created_by: "user-002",
-        author_name: "Trần Văn B",
-        author_initials: "VB",
-        author_class: "11A2",
-        comment_count: 5,
-        image_urls: "",
-        comments: [],
-      },
-      {
-        post_id: 3,
-        subject_id: 1,
-        subject_name: "Toán",
-        flair_id: 2,
-        flair_name: "Kiến thức",
-        title: "Tổng hợp công thức đạo hàm",
-        content:
-          "Mình tổng hợp các công thức đạo hàm cơ bản cho các bạn tham khảo",
-        created_at: "2024-10-22T15:30:00",
-        created_by: "user-003",
-        author_name: "Lê Thị C",
-        author_initials: "TC",
-        author_class: "12A1",
-        comment_count: 8,
-        image_urls: "",
-        comments: [],
-      },
-    ],
+  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
+  const [modalVisibleComments, setModalVisibleComments] = useState(8);
+  const [hideModalOpen, setHideModalOpen] = useState(false);
+  const [postToHide, setPostToHide] = useState<number | null>(null);
+  const [subjects, setSubjects] = useState<Array<{ id: number; name: string }>>(
     []
   );
 
-  const subjects: Subject[] = [
-    { id: 1, name: "Toán" },
-    { id: 2, name: "Vật Lý" },
-    { id: 3, name: "Hóa học" },
-    { id: 4, name: "Văn" },
-    { id: 5, name: "Tiếng Anh" },
-  ];
+  useEffect(() => {
+    if (selectedPostId) {
+      getPostById(selectedPostId);
+      getComments(selectedPostId);
+      joinPost(selectedPostId);
+    }
+    return () => {
+      if (selectedPostId) leavePost(selectedPostId);
+    };
+  }, [selectedPostId, getPostById, getComments, joinPost, leavePost]);
 
-  const flairs: Flair[] = [
-    { id: 1, name: "Câu hỏi" },
-    { id: 2, name: "Kiến thức" },
-    { id: 3, name: "Thảo luận" },
-  ];
+  useEffect(() => {
+    documentService.getSubjects().then(setSubjects);
+    loadFlairs(schoolId);
+  }, [schoolId, loadFlairs]);
+
+  const fetchModeratorPosts = useCallback(async () => {
+    const sortByParam =
+      sortBy === "oldest"
+        ? "date_asc"
+        : sortBy === "mostCommented"
+        ? "comment_count"
+        : undefined;
+
+    const postStatusParam =
+      statusFilter === "pending"
+        ? "Pending"
+        : statusFilter === "approved"
+        ? "Approved"
+        : statusFilter === "rejected"
+        ? "Rejected"
+        : undefined;
+
+    const result = await getModeratorPosts(
+      schoolId,
+      selectedSubjects.length > 0 ? selectedSubjects : undefined,
+      selectedFlairs.length > 0 ? selectedFlairs : undefined,
+      searchQuery || undefined,
+      postStatusParam,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      sortByParam,
+      currentPage,
+      pageSize
+    );
+
+    if (result?.data) {
+      setTotalCount(result.data.total || 0);
+      const mappedPosts = (result.data.items || []).map((item: any) => ({
+        post_id: item.postId || item.post_id,
+        school_id: item.schoolId || item.school_id,
+        subject_id: item.subjectId || item.subject_id,
+        subject_name: item.subjectName || item.subject_name || "N/A",
+        flair_id: item.flairId || item.flair_id,
+        flair_name: item.flairName || item.flair_name || "N/A",
+        title: item.title || "",
+        content: item.content || "",
+        created_at: item.createdAt || item.created_at,
+        created_by: item.createdBy || item.created_by,
+        author_name: item.creatorFullname || item.creatorName || "Unknown",
+        author_initials: (item.creatorFullname || item.creatorName || "U")
+          .substring(0, 2)
+          .toUpperCase(),
+        author_class: item.creatorClass || "",
+        comment_count: item.commentCount || item.comment_count || 0,
+        status: item.status ?? null,
+        violation_score: item.violationScore ?? 0,
+        image_urls: "",
+        comments: [],
+      }));
+      setPosts(mappedPosts);
+    }
+  }, [
+    schoolId,
+    searchQuery,
+    selectedSubjects,
+    selectedFlairs,
+    sortBy,
+    statusFilter,
+    currentPage,
+    getModeratorPosts,
+  ]);
+
+  const displayPosts = posts;
+
+  useEffect(() => {
+    fetchModeratorPosts();
+  }, [fetchModeratorPosts]);
 
   const toggleSubject = (subjectId: number) => {
     setSelectedSubjects((prev) =>
@@ -139,62 +197,10 @@ const PostManagement = () => {
     setCurrentPage(1);
   };
 
-  const filteredAndSortedPosts = useMemo(() => {
-    const filtered = posts.filter((post) => {
-      const matchesSearch =
-        post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.author_name.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesSubject =
-        selectedSubjects.length === 0 ||
-        selectedSubjects.includes(post.subject_id);
-
-      const matchesFlair =
-        selectedFlairs.length === 0 || selectedFlairs.includes(post.flair_id);
-
-      const matchesStatus = statusFilter === "all" || true; // Add status logic here
-
-      return matchesSearch && matchesSubject && matchesFlair && matchesStatus;
-    });
-
-    // Sort
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "newest":
-          return (
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
-        case "oldest":
-          return (
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          );
-        case "mostCommented":
-          return b.comment_count - a.comment_count;
-        default:
-          return 0;
-      }
-    });
-
-    return filtered;
-  }, [
-    posts,
-    searchQuery,
-    selectedSubjects,
-    selectedFlairs,
-    statusFilter,
-    sortBy,
-  ]);
-
-  const paginatedPosts = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    return filteredAndSortedPosts.slice(startIndex, startIndex + pageSize);
-  }, [filteredAndSortedPosts, currentPage]);
-
   const pagination: PaginationInfo = {
     currentPage,
-    totalPages: Math.ceil(filteredAndSortedPosts.length / pageSize),
-    totalCount: filteredAndSortedPosts.length,
+    totalPages: Math.ceil(totalCount / pageSize),
+    totalCount,
     pageSize,
   };
 
@@ -229,6 +235,37 @@ const PostManagement = () => {
     setCurrentPage(1);
   };
 
+  const handleApprove = async (e: React.MouseEvent, postId: number) => {
+    e.stopPropagation();
+    const result = await approvePost(postId);
+    if (result?.success) {
+      fetchModeratorPosts();
+    }
+  };
+
+  const handleReject = async (e: React.MouseEvent, postId: number) => {
+    e.stopPropagation();
+    const result = await rejectPost(postId);
+    if (result?.success) {
+      fetchModeratorPosts();
+    }
+  };
+
+  const handleOpenHideModal = (e: React.MouseEvent, postId: number) => {
+    e.stopPropagation();
+    setPostToHide(postId);
+    setHideModalOpen(true);
+  };
+
+  const handleHideSubmit = async (postId: number, violationScore: number) => {
+    const result = await hidePost(postId, violationScore);
+    return result;
+  };
+  const handleViewModal = (e: React.MouseEvent, postId: number) => {
+    e.stopPropagation();
+    setSelectedPostId(postId);
+  };
+
   return (
     <div className="w-full h-full overflow-auto p-6 bg-gray-50">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -238,12 +275,6 @@ const PostManagement = () => {
             <p className="text-gray-600 mt-1">
               Xem và điều hành các bài viết trong forum
             </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" className="gap-2">
-              <CheckCircle className="w-4 h-4" />
-              Duyệt hàng loạt
-            </Button>
           </div>
         </div>
 
@@ -316,7 +347,6 @@ const PostManagement = () => {
                   value={statusFilter}
                   onValueChange={(value) => {
                     setStatusFilter(value);
-                    setCurrentPage(1);
                   }}
                 >
                   <SelectTrigger className="w-48">
@@ -327,13 +357,13 @@ const PostManagement = () => {
                     <SelectItem value="pending">Chờ duyệt</SelectItem>
                     <SelectItem value="approved">Đã duyệt</SelectItem>
                     <SelectItem value="rejected">Đã từ chối</SelectItem>
-                    <SelectItem value="hidden">Bị ẩn</SelectItem>
                   </SelectContent>
                 </Select>
 
                 <Select
                   value={sortBy}
                   onValueChange={(value) => {
+                    console.log("SortBy changed to:", value);
                     setSortBy(value);
                     setCurrentPage(1);
                   }}
@@ -362,13 +392,16 @@ const PostManagement = () => {
               </div>
 
               <div className="text-sm text-gray-600">
-                Tìm thấy <strong>{filteredAndSortedPosts.length}</strong> bài
-                viết
+                Tìm thấy <strong>{totalCount}</strong> bài viết
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            {paginatedPosts.length > 0 ? (
+            {isLoading ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">Đang tải...</p>
+              </div>
+            ) : displayPosts.length > 0 ? (
               <>
                 <Table>
                   <TableHeader>
@@ -384,7 +417,7 @@ const PostManagement = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedPosts.map((post) => (
+                    {displayPosts.map((post) => (
                       <TableRow key={post.post_id}>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -423,41 +456,64 @@ const PostManagement = () => {
                         <TableCell className="text-sm text-gray-600">
                           {formatDate(post.created_at)}
                         </TableCell>
-                        <TableCell>{getStatusBadge(null)}</TableCell>
+                        <TableCell>{getStatusBadge(post.status)}</TableCell>
                         <TableCell>
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="gap-1"
-                              title="Xem chi tiết"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="gap-1 text-green-600 hover:text-green-700"
-                              title="Duyệt"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="gap-1 text-red-600 hover:text-red-700"
-                              title="Từ chối"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="gap-1 text-orange-600 hover:text-orange-700"
-                              title="Ẩn bài"
-                            >
-                              <AlertTriangle className="w-4 h-4" />
-                            </Button>
+                          <div className="flex justify-end">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={(e) =>
+                                    handleViewModal(e, post.post_id)
+                                  }
+                                >
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  Xem nhanh
+                                </DropdownMenuItem>
+                                {post.status === null && (
+                                  <>
+                                    <DropdownMenuItem
+                                      onClick={(e) =>
+                                        handleApprove(e, post.post_id)
+                                      }
+                                      className="text-green-600"
+                                    >
+                                      <CheckCircle className="w-4 h-4 mr-2" />
+                                      Duyệt
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={(e) =>
+                                        handleReject(e, post.post_id)
+                                      }
+                                      className="text-red-600"
+                                    >
+                                      <XCircle className="w-4 h-4 mr-2" />
+                                      Từ chối
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {post.status === true && (
+                                  <DropdownMenuItem
+                                    onClick={(e) =>
+                                      handleOpenHideModal(e, post.post_id)
+                                    }
+                                    className="text-orange-600"
+                                  >
+                                    <AlertTriangle className="w-4 h-4 mr-2" />
+                                    Ẩn bài
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -486,6 +542,30 @@ const PostManagement = () => {
           </CardContent>
         </Card>
       </div>
+
+      <PostDetailModal
+        isOpen={!!selectedPostId}
+        post={currentPost}
+        visibleComments={modalVisibleComments}
+        isLoading={isLoading}
+        onClose={() => setSelectedPostId(null)}
+        onViewDetails={(postId) => navigate(`/forum/moderator/posts/${postId}`)}
+        onRefreshComments={async () => {
+          if (selectedPostId) await getComments(selectedPostId);
+        }}
+        onLoadMoreComments={() => setModalVisibleComments((prev) => prev + 8)}
+        onSubmitComment={async () => {}}
+        onImageClick={() => {}}
+        onTyping={() => {}}
+      />
+
+      <HidePostModal
+        open={hideModalOpen}
+        onOpenChange={setHideModalOpen}
+        postId={postToHide || 0}
+        onSuccess={fetchModeratorPosts}
+        onHide={handleHideSubmit}
+      />
     </div>
   );
 };

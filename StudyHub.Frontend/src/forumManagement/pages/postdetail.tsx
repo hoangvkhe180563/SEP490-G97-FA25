@@ -94,38 +94,26 @@ const PostDetail = () => {
   const post = currentPost;
 
   useEffect(() => {
-    if (postId) {
-      const id = parseInt(postId);
-      getPostById(id);
-      getComments(id);
+    if (!postId) return;
 
-      const joinPostWhenReady = async () => {
-        const maxRetries = 30;
-        let retries = 0;
+    const id = parseInt(postId);
 
-        const tryJoin = async () => {
-          const conn = (window as any).__forumConn;
-          if (conn?.state === "Connected") {
-            await joinPost(id);
-            return true;
-          }
-          return false;
-        };
+    const initPostDetail = async () => {
+      await getPostById(id);
 
-        while (retries < maxRetries) {
-          if (await tryJoin()) break;
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          retries++;
-        }
-      };
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
-      joinPostWhenReady();
-    }
+      const conn = (window as any).__forumConn;
+      if (conn?.state === "Connected") {
+        await joinPost(id);
+        await getComments(id);
+      }
+    };
+
+    initPostDetail();
 
     return () => {
-      if (postId) {
-        leavePost(parseInt(postId));
-      }
+      leavePost(id);
     };
   }, [postId, getPostById, getComments, joinPost, leavePost]);
 

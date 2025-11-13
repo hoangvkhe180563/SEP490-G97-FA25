@@ -30,7 +30,7 @@ interface PostCardProps {
 }
 
 const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
-  const { joinPost, leavePost } = useForumStore();
+  const { joinPost, leavePost, getComments } = useForumStore();
   const [showReportModal, setShowReportModal] = useState(false);
   const { user } = useAuthStore();
   const canEdit = user?.id === post.created_by;
@@ -49,6 +49,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
     e.stopPropagation();
     if (!showComments) {
       await joinPost(post.post_id);
+      await getComments(post.post_id);
     } else {
       await leavePost(post.post_id);
     }

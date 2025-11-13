@@ -34,7 +34,7 @@ const ForumMain = () => {
     flairs,
     loadFlairs,
     startForum,
-    stopForum,
+    // stopForum,
     joinSchoolForum,
     leaveSchoolForum,
     createComment,
@@ -89,6 +89,7 @@ const ForumMain = () => {
   useEffect(() => {
     const initForum = async () => {
       await startForum();
+      await new Promise((resolve) => setTimeout(resolve, 200));
       await joinSchoolForum(schoolId);
     };
 
@@ -97,20 +98,9 @@ const ForumMain = () => {
     loadFlairs(schoolId);
 
     return () => {
-      const cleanup = async () => {
-        await leaveSchoolForum(schoolId);
-        await stopForum();
-      };
-      cleanup();
+      leaveSchoolForum(schoolId);
     };
-  }, [
-    startForum,
-    stopForum,
-    joinSchoolForum,
-    leaveSchoolForum,
-    schoolId,
-    loadFlairs,
-  ]);
+  }, [startForum, joinSchoolForum, leaveSchoolForum, schoolId, loadFlairs]);
 
   useEffect(() => {
     getTopPosts(schoolId, 5);

@@ -6,13 +6,17 @@ import type { HubConnection } from "@microsoft/signalr";
 import { createForumFuncConnection } from "@/lib/signalR";
 import type { Post, Flair } from "../interfaces/forum";
 import { forumService } from "../services/ForumService";
-
+interface ModeratorPost extends Post {
+  status: boolean | null;
+  violation_score?: number;
+}
 interface ForumState {
   posts: Post[];
   currentPost: Post | null;
   flairs: Flair[];
   isForumConnected: boolean;
   myPosts: Post[];
+  moderatorPosts: ModeratorPost[];
   isLoading: boolean;
   success: boolean;
   message: string;
@@ -66,6 +70,23 @@ interface ForumState {
     ruleId: number,
     content: string
   ) => Promise<any>;
+  getModeratorPosts: (
+    schoolId: number,
+    subjectIds?: number[],
+    flairIds?: number[],
+    query?: string,
+    sortBy?: string,
+    postStatus?: string,
+    minViolationScore?: number,
+    maxViolationScore?: number,
+    createdFrom?: string,
+    createdTo?: string,
+    pageNumber?: number,
+    pageSize?: number
+  ) => Promise<any>;
+  approvePost: (postId: number) => Promise<any>;
+  rejectPost: (postId: number) => Promise<any>;
+  hidePost: (postId: number, violationScore: number) => Promise<any>;
 }
 
 const mapPost = (dto: any) => ({
@@ -136,6 +157,7 @@ export const useForumStore = create<ForumState>()(
       topPosts: [],
       rules: [],
       myPosts: [],
+      moderatorPosts: [],
       isForumConnected: false,
       isLoading: false,
       success: false,
@@ -153,12 +175,31 @@ export const useForumStore = create<ForumState>()(
       startForum: async () => {
         try {
           const existingConn = (window as any).__forumConn;
+          if (existingConn?.state === "Connected") {
+            console.log("Forum already connected");
+            set({ isForumConnected: true });
+            return;
+          }
+
+          if (existingConn?.state === "Connecting") {
+            console.log("Forum connection in progress, waiting...");
+            await new Promise((resolve) => {
+              const checkInterval = setInterval(() => {
+                if (existingConn.state === "Connected") {
+                  clearInterval(checkInterval);
+                  set({ isForumConnected: true });
+                  resolve(true);
+                }
+              }, 100);
+              setTimeout(() => {
+                clearInterval(checkInterval);
+                resolve(false);
+              }, 5000);
+            });
+            return;
+          }
+
           if (existingConn) {
-            if (existingConn.state === "Connected") {
-              console.log("Forum already connected");
-              set({ isForumConnected: true });
-              return;
-            }
             try {
               await existingConn.stop();
               await new Promise((resolve) => setTimeout(resolve, 500));
@@ -175,19 +216,6 @@ export const useForumStore = create<ForumState>()(
             console.log("SignalR disconnected:", error);
             set({ isForumConnected: false });
             delete (window as any).__forumConn;
-
-            if (error) {
-              setTimeout(async () => {
-                const currentConn = (window as any).__forumConn;
-                if (!currentConn || currentConn.state !== "Connected") {
-                  try {
-                    await get().startForum();
-                  } catch (e) {
-                    console.error("Reconnection failed:", e);
-                  }
-                }
-              }, 5000);
-            }
           });
 
           conn.on("ReceiveNewPost", (dto: any) => {
@@ -360,6 +388,7 @@ export const useForumStore = create<ForumState>()(
 
           await conn.start();
           set({ isForumConnected: true });
+          console.log("Forum connection started successfully");
         } catch (error) {
           console.error("Failed to start forum connection:", error);
           const existingConn = (window as any).__forumConn;
@@ -848,6 +877,154 @@ export const useForumStore = create<ForumState>()(
           set({ rules: result });
         } catch {
           set({ rules: [] });
+        }
+      },
+      getModeratorPosts: async (
+        schoolId: number,
+        subjectIds?: number[],
+        flairIds?: number[],
+        query?: string,
+        postStatus?: string,
+        minViolationScore?: number,
+        maxViolationScore?: number,
+        createdFrom?: string,
+        createdTo?: string,
+        sortBy?: string,
+        pageNumber: number = 1,
+        pageSize: number = 10
+      ) => {
+        set({ isLoading: true });
+        try {
+          const params = new URLSearchParams();
+          params.append("schoolId", schoolId.toString());
+          if (subjectIds && subjectIds.length > 0)
+            params.append("subjectIds", subjectIds.join(","));
+          if (flairIds && flairIds.length > 0)
+            params.append("flairIds", flairIds.join(","));
+          if (query) params.append("query", query);
+          if (postStatus) params.append("postStatus", postStatus);
+          if (minViolationScore !== undefined)
+            params.append("minViolationScore", minViolationScore.toString());
+          if (maxViolationScore !== undefined)
+            params.append("maxViolationScore", maxViolationScore.toString());
+          if (createdFrom) params.append("createdFrom", createdFrom);
+          if (createdTo) params.append("createdTo", createdTo);
+          if (sortBy) params.append("sortBy", sortBy);
+          params.append("pageNumber", pageNumber.toString());
+          params.append("pageSize", pageSize.toString());
+
+          console.log(
+            "API URL:",
+            `/Forum/moderator/posts?${params.toString()}`
+          );
+
+          const resp = await axiosInstance.get(
+            `/Forum/moderator/posts?${params.toString()}`
+          );
+          const body = resp.data;
+
+          if (body?.success) {
+            const mappedPosts = (body.data?.items || []).map((item: any) => ({
+              ...mapPost(item),
+              status: item.status ?? null,
+              violation_score: item.violationScore ?? 0,
+            }));
+
+            set({
+              moderatorPosts: mappedPosts,
+              success: true,
+              message: body?.message || "",
+            });
+          } else {
+            set({ success: false, message: body?.message || "" });
+          }
+          return body;
+        } catch (err: any) {
+          set({ success: false, message: axiosMessageErrorHandler(err) });
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      approvePost: async (postId: number) => {
+        set({ isLoading: true });
+        try {
+          const resp = await axiosInstance.post(
+            `/Forum/posts/${postId}/approve`
+          );
+          const body = resp.data;
+
+          if (body?.success) {
+            set({
+              success: true,
+              message: body?.message || "Đã duyệt bài viết",
+            });
+          } else {
+            set({ success: false, message: body?.message || "" });
+          }
+          return body;
+        } catch (err: any) {
+          set({ success: false, message: axiosMessageErrorHandler(err) });
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      rejectPost: async (postId: number) => {
+        set({ isLoading: true });
+        try {
+          const resp = await axiosInstance.post(
+            `/Forum/posts/${postId}/reject`
+          );
+          const body = resp.data;
+
+          if (body?.success) {
+            set({
+              success: true,
+              message: body?.message || "Đã từ chối bài viết",
+            });
+          } else {
+            set({ success: false, message: body?.message || "" });
+          }
+          return body;
+        } catch (err: any) {
+          set({ success: false, message: axiosMessageErrorHandler(err) });
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      // Dòng ~880 trong useForumStore.ts
+      hidePost: async (
+        postId: number,
+        violationScore: number,
+        reason?: string
+      ) => {
+        set({ isLoading: true });
+        try {
+          const payload: any = { violationScore };
+          if (reason) payload.reason = reason; // Thêm reason nếu có
+
+          const resp = await axiosInstance.post(
+            `/Forum/posts/${postId}/hide`,
+            payload
+          );
+          const body = resp.data;
+
+          if (body?.success) {
+            set({ success: true, message: body?.message || "Đã ẩn bài viết" });
+          } else {
+            set({ success: false, message: body?.message || "" });
+          }
+          return body;
+        } catch (err: any) {
+          set({ success: false, message: axiosMessageErrorHandler(err) });
+          return null;
+        } finally {
+          set({ isLoading: false });
         }
       },
     }),

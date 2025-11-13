@@ -41,7 +41,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
           <div
             key={idx}
             className={`relative rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity ${
-              images.length === 1 ? "h-64" : "h-40"
+              images.length === 1 ? "h-128" : "h-40"
             }`}
             onClick={(e) => {
               if (shouldBlur) return;
