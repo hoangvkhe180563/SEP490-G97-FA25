@@ -41,6 +41,7 @@ const AddLecture: React.FC = () => {
   // chapterInfo not required directly; we keep postDate and lessons
   const [chapterPostDate, setChapterPostDate] = useState<string | null>(null);
   const [chapterLessons, setChapterLessons] = useState<any[]>([]);
+  const [courseEndDate, setCourseEndDate] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(
     courseIdFromQuery ?? null
   );
@@ -50,6 +51,19 @@ const AddLecture: React.FC = () => {
   const [videoUrl, setVideoUrl] = useState("");
   const [duration, setDuration] = useState("");
   const [postDate, setPostDate] = useState("");
+  // Interactive questions metadata (local only until saved to backend)
+  const [interactiveQuestions, setInteractiveQuestions] = useState<
+    Array<{
+      id: string; // temporary client id
+      timeSec: number; // seconds
+      timeLabel: string; // user input like 01:23
+      question: string;
+      type: "mc" | "text";
+      options?: string[]; // for mc
+      correctIndex?: number | null;
+      correctAnswer?: string | null; // expected answer for text questions
+    }>
+  >([]);
   const [isPreview, setIsPreview] = useState(false);
   const [resourceFile, setResourceFile] = useState<File | null>(null);
   const [resourceUploading, setResourceUploading] = useState(false);
@@ -132,6 +146,15 @@ const AddLecture: React.FC = () => {
             setChapterLessons(Array.isArray(lessons) ? lessons : []);
             if ((ch as any).courseId) {
               setSelectedCourseId(String((ch as any).courseId));
+              // fetch course end date
+              try {
+                const course = await courseApi.getCourseById(
+                  Number((ch as any).courseId)
+                );
+                if (course) setCourseEndDate(course.endAt ?? null);
+              } catch (err) {
+                console.warn("Failed to load course for end date", err);
+              }
             }
           }
         } catch (err) {
@@ -183,38 +206,71 @@ const AddLecture: React.FC = () => {
       }
 
       if (questions.length === 0) {
-        errors.push("Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi.");
+        errors.push(
+          "Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi."
+        );
       }
 
       for (const q of questions) {
         if (!q.questionText.trim()) {
           errors.push("Vui lòng nhập nội dung cho tất cả các câu hỏi.");
         }
-        if (q.type === EXAM_TYPE.SINGLE_CHOICE || q.type === EXAM_TYPE.MULTI_CHOICE) {
-          if (q.options.some(opt => !String(opt).trim())) {
-            errors.push(`Vui lòng nhập nội dung cho tất cả các lựa chọn hoặc xóa lựa chọn trống cho câu hỏi "${q.questionText}".`);
+        if (
+          q.type === EXAM_TYPE.SINGLE_CHOICE ||
+          q.type === EXAM_TYPE.MULTI_CHOICE
+        ) {
+          if (q.options.some((opt) => !String(opt).trim())) {
+            errors.push(
+              `Vui lòng nhập nội dung cho tất cả các lựa chọn hoặc xóa lựa chọn trống cho câu hỏi "${q.questionText}".`
+            );
           }
         }
 
         if (q.type === EXAM_TYPE.SINGLE_CHOICE) {
           if (!String(q.correctAnswer).trim()) {
-            errors.push(`Vui lòng chọn đáp án đúng cho câu hỏi "${q.questionText}".`);
+            errors.push(
+              `Vui lòng chọn đáp án đúng cho câu hỏi "${q.questionText}".`
+            );
           }
         } else if (q.type === EXAM_TYPE.MULTI_CHOICE) {
-          if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length === 0 || q.correctAnswer.some(ans => !String(ans).trim())) {
-            errors.push(`Vui lòng chọn ít nhất một đáp án đúng cho câu hỏi "${q.questionText}".`);
+          if (
+            !Array.isArray(q.correctAnswer) ||
+            q.correctAnswer.length === 0 ||
+            q.correctAnswer.some((ans) => !String(ans).trim())
+          ) {
+            errors.push(
+              `Vui lòng chọn ít nhất một đáp án đúng cho câu hỏi "${q.questionText}".`
+            );
           }
         } else if (q.type === EXAM_TYPE.TEXT_INPUT) {
           if (!String(q.correctAnswer).trim()) {
-            errors.push(`Vui lòng nhập đáp án đúng cho câu hỏi "${q.questionText}".`);
+            errors.push(
+              `Vui lòng nhập đáp án đúng cho câu hỏi "${q.questionText}".`
+            );
           }
         } else if (q.type === EXAM_TYPE.FILL_IN_BLANK) {
-          const expectedBlanks = (q.questionText.match(new RegExp("[BLANK]".replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+          const expectedBlanks = (
+            q.questionText.match(
+              new RegExp(
+                // eslint-disable-next-line no-useless-escape
+                "[BLANK]".replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
+                "g"
+              )
+            ) || []
+          ).length;
           if (expectedBlanks === 0) {
-            errors.push(`Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '[BLANK]'.`);
+            errors.push(
+              `Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '[BLANK]'.`
+            );
           }
-          if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length !== expectedBlanks || q.correctAnswer.some(ans => !String(ans).trim())) {
-            errors.push(`Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${q.questionText}".`);
+          if (
+            !Array.isArray(q.correctAnswer) ||
+            q.correctAnswer.length !== expectedBlanks ||
+            q.correctAnswer.some((ans) => !String(ans).trim())
+          ) {
+            errors.push(
+              `Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${q.questionText}".`
+            );
           }
         }
       }
@@ -239,6 +295,19 @@ const AddLecture: React.FC = () => {
         if (lec.getTime() < chd.getTime()) {
           errors.push(
             "Ngày đăng bài giảng không thể nhỏ hơn ngày bắt đầu của chương."
+          );
+        }
+      }
+    }
+
+    // If course end date is known, lecture postDate must not be after course end
+    if (postDate && courseEndDate) {
+      const lec = new Date(postDate);
+      const ced = new Date(courseEndDate);
+      if (!isNaN(lec.getTime()) && !isNaN(ced.getTime())) {
+        if (lec.getTime() > ced.getTime()) {
+          errors.push(
+            "Ngày đăng bài giảng phải nhỏ hơn hoặc bằng ngày kết thúc khóa học."
           );
         }
       }
@@ -321,7 +390,223 @@ const AddLecture: React.FC = () => {
       }
     }
 
+    // interactive questions validation
+    if (interactiveQuestions && interactiveQuestions.length > 0) {
+      const seen = new Set<number>();
+      for (const q of interactiveQuestions) {
+        if (
+          !q ||
+          typeof q.timeSec !== "number" ||
+          !isFinite(q.timeSec) ||
+          q.timeSec < 0
+        ) {
+          errors.push("Một câu hỏi tương tác có thời gian không hợp lệ.");
+          break;
+        }
+        if (seen.has(q.timeSec)) {
+          errors.push(
+            "Có hai câu hỏi cùng thời điểm. Vui lòng đảm bảo mỗi thời điểm chỉ có một câu hỏi."
+          );
+          break;
+        }
+        seen.add(q.timeSec);
+      }
+    }
+
     return errors;
+  };
+
+  // helper: parse mm:ss or seconds to seconds
+  const parseTimeToSeconds = (s: string) => {
+    if (!s) return NaN;
+    const t = s.trim();
+    if (/^\d+:\d{2}$/.test(t)) {
+      const [m, sec] = t.split(":");
+      return Number(m) * 60 + Number(sec);
+    }
+    if (/^\d+(\.\d+)?$/.test(t)) return Number(t);
+    return NaN;
+  };
+
+  // Small inline editor component to create an interactive question
+  const InteractiveQuestionEditor: React.FC<{
+    onAdd: (q: any) => void;
+  }> = ({ onAdd }) => {
+    const [timeLabel, setTimeLabel] = useState("0:00");
+    const [questionText, setQuestionText] = useState("");
+    const [qtype, setQtype] = useState<"mc" | "text">("mc");
+    const [options, setOptions] = useState<string[]>(["", ""]);
+    const [correctIndex, setCorrectIndex] = useState<number | null>(0);
+    const [correctAnswer, setCorrectAnswer] = useState<string>("");
+
+    const reset = () => {
+      setTimeLabel("0:00");
+      setQuestionText("");
+      setQtype("mc");
+      setOptions(["", ""]);
+      setCorrectIndex(0);
+      setCorrectAnswer("");
+    };
+
+    const doAdd = () => {
+      const sec = parseTimeToSeconds(timeLabel);
+      if (Number.isNaN(sec) || sec < 0) {
+        setDialog({
+          open: true,
+          title: "Lỗi thời gian",
+          message: "Thời gian không hợp lệ. Dùng mm:ss hoặc số giây.",
+        });
+        return;
+      }
+      if (!questionText.trim()) {
+        setDialog({
+          open: true,
+          title: "Lỗi câu hỏi",
+          message: "Nội dung câu hỏi không thể để trống.",
+        });
+        return;
+      }
+      if (qtype === "mc") {
+        const cleaned = options.map((o) => (o || "").trim()).filter(Boolean);
+        if (cleaned.length < 2) {
+          setDialog({
+            open: true,
+            title: "Lỗi lựa chọn",
+            message: "Câu hỏi nhiều lựa chọn cần ít nhất 2 phương án.",
+          });
+          return;
+        }
+      }
+      // For text-type questions, teacher may provide the expected answer (optional)
+
+      const newQ = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        timeSec: sec,
+        timeLabel,
+        question: questionText,
+        type: qtype,
+        options:
+          qtype === "mc"
+            ? options.map((o) => o.trim()).filter(Boolean)
+            : undefined,
+        correctIndex:
+          qtype === "mc"
+            ? typeof correctIndex === "number"
+              ? correctIndex
+              : null
+            : null,
+        // include expected answer for text questions
+        correctAnswer:
+          qtype === "text"
+            ? correctAnswer
+              ? correctAnswer.trim()
+              : null
+            : null,
+      };
+      onAdd(newQ);
+      reset();
+    };
+
+    return (
+      <div className="border rounded p-3 bg-white">
+        <div className="grid grid-cols-12 gap-2 items-start">
+          <div className="col-span-2">
+            <Input
+              value={timeLabel}
+              onChange={(e) => setTimeLabel(e.target.value)}
+              placeholder="mm:ss hoặc giây"
+            />
+          </div>
+          <div className="col-span-6">
+            <Input
+              value={questionText}
+              onChange={(e) => setQuestionText(e.target.value)}
+              placeholder="Nội dung câu hỏi"
+            />
+            <div className="flex items-center gap-2 mt-2 text-sm">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="qtype"
+                  checked={qtype === "mc"}
+                  onChange={() => setQtype("mc")}
+                />{" "}
+                MC
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="qtype"
+                  checked={qtype === "text"}
+                  onChange={() => setQtype("text")}
+                />{" "}
+                Text
+              </label>
+            </div>
+          </div>
+          <div className="col-span-4 flex items-center gap-2 justify-end">
+            <Button onClick={doAdd}>Thêm câu hỏi</Button>
+          </div>
+
+          {qtype === "mc" && (
+            <div className="col-span-12 mt-3">
+              <div className="space-y-2">
+                {options.map((opt, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      checked={correctIndex === idx}
+                      onChange={() => setCorrectIndex(idx)}
+                    />
+                    <Input
+                      value={opt}
+                      onChange={(e) =>
+                        setOptions((s) =>
+                          s.map((v, i) => (i === idx ? e.target.value : v))
+                        )
+                      }
+                      placeholder={`Lựa chọn ${idx + 1}`}
+                    />
+                    <Button
+                      variant="ghost"
+                      onClick={() =>
+                        setOptions((s) => s.filter((_, i) => i !== idx))
+                      }
+                    >
+                      Xóa
+                    </Button>
+                  </div>
+                ))}
+                <div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setOptions((s) => [...s, ""])}
+                  >
+                    Thêm lựa chọn
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          {qtype === "text" && (
+            <div className="col-span-12 mt-3">
+              <div className="space-y-2">
+                <Label>Đáp án mong đợi (tùy chọn)</Label>
+                <Input
+                  value={correctAnswer}
+                  onChange={(e) => setCorrectAnswer(e.target.value)}
+                  placeholder="Nhập đáp án đúng (so sánh text)"
+                />
+                <div className="text-xs text-gray-500">
+                  Nếu để trống, câu hỏi text sẽ không có đáp án mong đợi.
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   // Upload resource (file) -> upload to storage then persist LessonResource row
@@ -395,7 +680,11 @@ const AddLecture: React.FC = () => {
       setDialog({
         open: true,
         title: "Thiếu hoặc sai thông tin",
-        message: errors.map((err, index) => (<React.Fragment key={`err-${index}`}>{err} {index < errors.length - 1 && <br />}</React.Fragment>)),
+        message: errors.map((err, index) => (
+          <React.Fragment key={`err-${index}`}>
+            {err} {index < errors.length - 1 && <br />}
+          </React.Fragment>
+        )),
       });
       return;
     }
@@ -406,7 +695,8 @@ const AddLecture: React.FC = () => {
         name: title,
         chapterId: selectedChapterId ? Number(selectedChapterId) : 0,
         status: true,
-        type: type === "video" ? "Video" : type === "reading" ? "Reading" : "Exam",
+        type:
+          type === "video" ? "Video" : type === "reading" ? "Reading" : "Exam",
         videoUrl: type === "video" ? (useEmbed ? embedSrc : videoUrl) : null,
         readingContent: type !== "video" ? readingContent : null,
         duration: duration || null,
@@ -414,6 +704,19 @@ const AddLecture: React.FC = () => {
         postDate: postDate ? new Date(postDate) : new Date(),
         isPreview,
         ResourceId: resourceId ?? null,
+        // send interactive questions as part of the lesson payload
+        interactiveQuestions:
+          interactiveQuestions && interactiveQuestions.length
+            ? interactiveQuestions.map((q) => ({
+                timeSec: q.timeSec,
+                question: q.question,
+                type: q.type,
+                options: q.options ?? null,
+                correctIndex:
+                  typeof q.correctIndex === "number" ? q.correctIndex : null,
+                correctAnswer: q.correctAnswer ?? null,
+              }))
+            : null,
       };
 
       const created = createLesson
@@ -433,19 +736,21 @@ const AddLecture: React.FC = () => {
         title: title,
         description: description.length !== 0 ? description : title,
         duration: parseInt(duration),
-        createdBy: user?.id ?? '',
+        createdBy: user?.id ?? "",
         questions: questions.map(({ id, ...rest }, index) => {
           return {
-            id: index + 1, ...rest
-          }
+            id: index + 1,
+            ...rest,
+          };
         }),
         showAnswers: true,
         showCorrectAnswers: true,
         lessonId: created.id,
-        openTime: postDate ? new Date(postDate) : new Date()
+        openTime: postDate ? new Date(postDate) : new Date(),
       };
 
-      const isExamCreated = type === 'exam' ? await courseApi.createExam(newExam) : true;
+      const isExamCreated =
+        type === "exam" ? await courseApi.createExam(newExam) : true;
 
       if (isExamCreated) {
         setDialog({
@@ -522,7 +827,9 @@ const AddLecture: React.FC = () => {
             <div className="col-span-12 space-y-4">
               {/* Chapter */}
               <div className="space-y-2">
-                <Label>Chương <span className='text-red-500'>*</span></Label>
+                <Label>
+                  Chương <span className="text-red-500">*</span>
+                </Label>
                 {chapters.length ? (
                   <Select
                     value={selectedChapterId ?? undefined}
@@ -548,7 +855,9 @@ const AddLecture: React.FC = () => {
 
               {/* Type */}
               <div className="space-y-2">
-                <Label>Loại bài giảng <span className='text-red-500'>*</span></Label>
+                <Label>
+                  Loại bài giảng <span className="text-red-500">*</span>
+                </Label>
                 <Select value={type} onValueChange={setType}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Chọn loại bài giảng" />
@@ -563,7 +872,9 @@ const AddLecture: React.FC = () => {
 
               {/* Title */}
               <div className="space-y-2">
-                <Label>Tên bài giảng <span className='text-red-500'>*</span></Label>
+                <Label>
+                  Tên bài giảng <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -584,7 +895,16 @@ const AddLecture: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Thời gian (phút) <span className={`text-red-500 ${type === 'exam' ? '' : 'hidden'}`}>*</span></Label>
+                  <Label>
+                    Thời gian (phút){" "}
+                    <span
+                      className={`text-red-500 ${
+                        type === "exam" ? "" : "hidden"
+                      }`}
+                    >
+                      *
+                    </span>
+                  </Label>
                   <Input
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
@@ -600,6 +920,71 @@ const AddLecture: React.FC = () => {
                 </div>
               </div>
 
+              {/* Interactive questions editor */}
+              <div className="space-y-2 pt-4">
+                <div className="flex items-center justify-between">
+                  <Label> Câu hỏi tương tác (Interactive questions)</Label>
+                  <div className="text-sm text-gray-500">
+                    Hiển thị trên video tại thời điểm
+                  </div>
+                </div>
+
+                {/* list existing questions */}
+                <div className="space-y-2">
+                  {interactiveQuestions.length === 0 ? (
+                    <div className="text-sm text-gray-500">
+                      Chưa có câu hỏi tương tác.
+                    </div>
+                  ) : (
+                    interactiveQuestions.map((q) => (
+                      <div
+                        key={q.id}
+                        className="flex items-start gap-3 bg-white border rounded p-3"
+                      >
+                        <div className="w-28 text-sm font-mono text-gray-700">
+                          {q.timeLabel}
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-sm font-medium">
+                            {q.question}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {q.type === "mc"
+                              ? `MC — ${q.options?.length ?? 0} lựa chọn`
+                              : `Text${
+                                  q.correctAnswer
+                                    ? ` — đáp án: ${q.correctAnswer}`
+                                    : ""
+                                }`}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setInteractiveQuestions((prev) =>
+                                prev.filter((x) => x.id !== q.id)
+                              );
+                            }}
+                          >
+                            Xóa
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* add new question form (simple inline) */}
+                <InteractiveQuestionEditor
+                  onAdd={(newQ) => {
+                    setInteractiveQuestions((prev) => [...prev, newQ]);
+                  }}
+                />
+              </div>
+
+              {/* Teacher Name + Preview */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <Label className="text-gray-800 font-medium text-sm">
@@ -685,9 +1070,13 @@ const AddLecture: React.FC = () => {
                 </div>
               </div>
 
-              <div className={`space-y-4 ${type === 'video' ? 'block' : 'hidden'}`}>
+              <div
+                className={`space-y-4 ${type === "video" ? "block" : "hidden"}`}
+              >
                 <div className="flex items-center gap-3">
-                  <Label>Video URL <span className='text-red-500'>*</span></Label>
+                  <Label>
+                    Video URL <span className="text-red-500">*</span>
+                  </Label>
                   <div className="flex items-center gap-2 text-sm">
                     <input
                       id="use-embed"
@@ -710,15 +1099,13 @@ const AddLecture: React.FC = () => {
                               </p>
                               <ol className="list-decimal ml-5">
                                 <li>
-                                  <strong>Tải video lên YouTube</strong> -
-                                  Đăng nhập → Tạo → Tải video lên
+                                  <strong>Tải video lên YouTube</strong> - Đăng
+                                  nhập → Tạo → Tải video lên
                                 </li>
                                 <li>
                                   <strong>Lấy mã nhúng (Embed)</strong> - Chia
                                   sẻ → Nhúng → Sao chép{" "}
-                                  <code>
-                                    &lt;iframe&gt;...&lt;/iframe&gt;
-                                  </code>{" "}
+                                  <code>&lt;iframe&gt;...&lt;/iframe&gt;</code>{" "}
                                   hoặc URL:
                                   <br />
                                   <a
@@ -780,24 +1167,36 @@ const AddLecture: React.FC = () => {
                         />
                       ) : (
                         <div className="p-3 text-sm text-gray-500">
-                          Nhập link embed (ví dụ YouTube embed URL) để xem
-                          trước
+                          Nhập link embed (ví dụ YouTube embed URL) để xem trước
                         </div>
                       )}
                     </div>
                   </div>
                 )}
               </div>
-              <div className={`space-y-2 ${type === 'reading' ? 'block' : 'hidden'}`}>
-                <Label>Nội dung đọc <span className='text-red-500'>*</span></Label>
+              <div
+                className={`space-y-2 ${
+                  type === "reading" ? "block" : "hidden"
+                }`}
+              >
+                <Label>
+                  Nội dung đọc <span className="text-red-500">*</span>
+                </Label>
                 <div
                   ref={quillRef}
                   className="bg-white rounded-md min-h-[250px] p-2"
                 />
               </div>
-              <div className={`space-y-2 ${type === 'exam' ? 'block' : 'hidden'}`}>
-                <Label>Câu hỏi <span className='text-red-500'>*</span></Label>
-                <LessonExamQuestions questions={questions} setQuestions={setQuestions} />
+              <div
+                className={`space-y-2 ${type === "exam" ? "block" : "hidden"}`}
+              >
+                <Label>
+                  Câu hỏi <span className="text-red-500">*</span>
+                </Label>
+                <LessonExamQuestions
+                  questions={questions}
+                  setQuestions={setQuestions}
+                />
               </div>
             </div>
           </div>

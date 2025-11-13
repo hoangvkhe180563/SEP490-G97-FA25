@@ -53,6 +53,28 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                         Type = QuestionType.FillBlank,
                         CorrectAnswer = question.CorrectAnswer.AsBsonArray.Select(a => a.AsString).ToList()
                     };
+                case "matching":
+                    {
+                        BsonDocument correctMatchesDoc = question.CorrectAnswer.AsBsonDocument;
+                        Dictionary<int, int> correctMatches = new Dictionary<int, int>();
+                        foreach (var element in correctMatchesDoc)
+                        {
+                            if (int.TryParse(element.Name, out int key))
+                            {
+                                correctMatches[key] = element.Value.AsInt32;
+                            }
+                        }
+
+                        return new MatchingQuestion
+                        {
+                            Id = question.Id.ToString(),
+                            QuestionText = question.QuestionText,
+                            Type = QuestionType.Matching,
+                            Terms = question.Terms,
+                            Definitions = question.Definitions,
+                            CorrectMatches = correctMatches
+                        };
+                    }
             }
         }
 
@@ -83,6 +105,20 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                 case QuestionType.FillBlank:
                     questionData.Type = "fill-blank";
                     questionData.CorrectAnswer = question is FillBlankQuestion fbq ? [.. fbq.CorrectAnswer] : new BsonArray();
+                    break;
+                case QuestionType.Matching:
+                    questionData.Type = "matching";
+                    if (question is MatchingQuestion mq)
+                    {
+                        questionData.Terms = mq.Terms;
+                        questionData.Definitions = mq.Definitions;
+                        BsonDocument correctMatchesDoc = new BsonDocument();
+                        foreach (var kvp in mq.CorrectMatches)
+                        {
+                            correctMatchesDoc[kvp.Key.ToString()] = kvp.Value;
+                        }
+                        questionData.CorrectAnswer = correctMatchesDoc;
+                    }
                     break;
             }
 

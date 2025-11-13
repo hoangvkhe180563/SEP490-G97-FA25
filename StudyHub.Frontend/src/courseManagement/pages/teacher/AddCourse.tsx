@@ -89,18 +89,29 @@ const AddCourse: React.FC = () => {
       errors.push("Vui lòng chọn trạng thái.");
 
     // start/end dates: if provided, must be valid and start <= end
+    // start/end dates: bắt buộc — nếu không chọn thì báo lỗi
     let startDate: Date | null = null;
     let endDate: Date | null = null;
-    if (startAt) {
+
+    // Bắt buộc phải chọn cả 2 ngày
+    if (!startAt || !String(startAt).trim()) {
+      errors.push("Vui lòng chọn Ngày bắt đầu.");
+    } else {
       startDate = new Date(startAt);
       if (isNaN(startDate.getTime())) errors.push("Ngày bắt đầu không hợp lệ.");
     }
-    if (endAt) {
+
+    if (!endAt || !String(endAt).trim()) {
+      errors.push("Vui lòng chọn Ngày kết thúc.");
+    } else {
       endDate = new Date(endAt);
       if (isNaN(endDate.getTime())) errors.push("Ngày kết thúc không hợp lệ.");
     }
-    if (startDate && endDate && startDate.getTime() > endDate.getTime())
+
+    // Nếu cả hai đều hợp lệ thì kiểm tra thứ tự ngày
+    if (startDate && endDate && startDate.getTime() > endDate.getTime()) {
       errors.push("Ngày kết thúc phải sau hoặc cùng ngày với ngày bắt đầu.");
+    }
 
     // thumbnail file size limit (optional): 5MB
     if (thumbnailFile && thumbnailFile.size > 5 * 1024 * 1024)

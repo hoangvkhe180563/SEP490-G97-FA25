@@ -26,7 +26,11 @@ namespace StudyHub.Backend.Api.Mappers
             SchoolLogoUrl = landingPage.SchoolLogoUrl,
             Description = landingPage.Description,
             LandingPageImages = landingPage.LandingPageImages,
-            FeaturedTeachers = [],
+            FeaturedTeachers = landingPage.FeaturedTeachers.Select(ft => new LandingPageTeacherDisplayDto
+            {
+                Name = ft.Fullname ?? "",
+                ImageUrl = ft.Avatar ?? ""
+            }).ToList(),
             FeaturedDocuments = landingPage.FeaturedDocuments.Select(fd => new LandingPageDocumentDisplayDto
             {
                 Id = fd.Id,
