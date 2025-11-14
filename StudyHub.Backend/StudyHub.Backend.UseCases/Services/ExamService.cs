@@ -290,6 +290,47 @@ namespace StudyHub.Backend.UseCases.Services
                             }
                         }
                         break;
+                    case QuestionType.Matching:
+                        {
+                            MatchingQuestion mq = questions[i] as MatchingQuestion;
+                            Dictionary<string, int> tempAnswer = JsonSerializer.Deserialize<Dictionary<string, int>>(answers[i].JsonAnswers) ?? new Dictionary<string, int>();
+                            Dictionary<int, int> studentAnswer = new Dictionary<int, int>();
+                            foreach (var kvp in tempAnswer)
+                            {
+                                if (int.TryParse(kvp.Key, out int key))
+                                {
+                                    studentAnswer[key] = kvp.Value;
+                                }
+                            }
+
+                            bool isCorrect = true;
+                            if (studentAnswer.Count != mq.CorrectMatches.Count)
+                            {
+                                isCorrect = false;
+                            }
+                            else
+                            {
+                                foreach (var kvp in mq.CorrectMatches)
+                                {
+                                    if (!studentAnswer.ContainsKey(kvp.Key) || studentAnswer[kvp.Key] != kvp.Value)
+                                    {
+                                        isCorrect = false;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (isCorrect)
+                            {
+                                corrects++;
+                                answers[i].IsCorrect = true;
+                            }
+                            else
+                            {
+                                answers[i].IsCorrect = false;
+                            }
+                        }
+                        break;
                 }
             }
             decimal score = ((decimal)corrects / questions.Count) * 10;

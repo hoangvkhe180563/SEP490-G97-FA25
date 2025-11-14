@@ -19,6 +19,7 @@ import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
 import { usePaymentStore } from "@/paymentManagement/stores/usePaymentStore";
 import { useConversationStore } from "@/qaManagement/stores/useConversationStore";
 import { useMessageStore } from "@/qaManagement/stores/useMessageStore";
+import NotFound from "@/common/pages/NotFound";
 
 const AppRouter = () => {
   const { user, checkAuth } = useAuthStore();
@@ -161,6 +162,10 @@ const AppRouter = () => {
       element: <RegisteredLayout user={user} />,
       children: examRoutes,
     },
+    {
+      path: "*",
+      element: <NotFound />
+    }
   ];
 
   const routesElement = useRoutes(appRoutes);

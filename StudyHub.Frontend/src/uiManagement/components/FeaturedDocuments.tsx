@@ -1,5 +1,6 @@
 import { BookOpen, GraduationCap } from "lucide-react";
 import type { IFeaturedDocument } from "../interfaces/IFeaturedDocument"
+import { Link } from "react-router-dom";
 
 const FeaturedDocuments = (props: { data: IFeaturedDocument[] }) => {
 
@@ -11,13 +12,12 @@ const FeaturedDocuments = (props: { data: IFeaturedDocument[] }) => {
       <div className="w-4/5">
         <h1 className='text-2xl py-2 font-bold text-center'>TÀI LIỆU NỔI BẬT</h1>
         <div className="container mx-auto grid grid-cols-1 md:grid-cols-2 gap-12">
-          {/* SÁCH GIÁO KHOA */}
           <div>
             <h3 className="text-2xl font-semibold mb-6 text-gray-800 text-center">SÁCH GIÁO KHOA</h3>
             <div className="space-y-6">
               {textbooks.length === 0 && <div className="w-full text-center italic">Không có dữ liệu!</div>}
               {textbooks.map((book) => (
-                <div key={book.id} className="flex items-center gap-4 bg-white p-4 rounded-lg shadow-sm">
+                <Link to={`/document/student/details/${book.id}`} key={book.id} className="flex items-center gap-4 bg-white p-4 rounded-lg shadow-sm hover:scale-103 transition-transform">
                   <div className="flex-shrink-0 w-20 h-20 object-cover bg-gray-200 rounded-md flex items-center justify-center text-sm text-gray-600 overflow-hidden">
                     <img src={book.thumbnail} alt="" className="w-20 h-auto object-cover rounded-md" />
                   </div>
@@ -30,7 +30,7 @@ const FeaturedDocuments = (props: { data: IFeaturedDocument[] }) => {
                       <GraduationCap size={16} className="fill-orange-500 stroke-orange-500" /> Lớp <b>{book.grade}</b>
                     </p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -41,7 +41,7 @@ const FeaturedDocuments = (props: { data: IFeaturedDocument[] }) => {
             <div className="space-y-6">
               {references.length === 0 && <div className="w-full text-center italic">Không có dữ liệu!</div>}
               {references.map((book) => (
-                <div key={book.id} className="flex items-center gap-4 bg-white p-4 rounded-lg shadow-sm">
+                <Link to={`/document/student/details/${book.id}`} key={book.id} className="flex items-center gap-4 bg-white p-4 rounded-lg shadow-sm hover:scale-103 transition-transform">
                   <div className="flex-shrink-0 w-20 h-20 object-cover bg-gray-200 rounded-md flex items-center justify-center text-sm text-gray-600 overflow-hidden">
                     <img src={book.thumbnail} alt="" className="w-20 h-auto object-cover rounded-md" />
                   </div>
@@ -54,7 +54,7 @@ const FeaturedDocuments = (props: { data: IFeaturedDocument[] }) => {
                       <GraduationCap size={16} className="fill-orange-500 stroke-orange-500" /> Lớp <b>{book.grade}</b>
                     </p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>

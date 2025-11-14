@@ -136,6 +136,16 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
                             _questionCollection.UpdateOne(q => q.Id == questionData.Id, update);
                             break;
                         }
+                    case "matching":
+                        {
+                            var update = Builders<Question>.Update
+                                .Set(q => q.QuestionText, questionData.QuestionText)
+                                .Set(q => q.Terms, questionData.Terms)
+                                .Set(q => q.Definitions, questionData.Definitions)
+                                .Set(q => q.CorrectAnswer, questionData.CorrectAnswer);
+                            _questionCollection.UpdateOne(q => q.Id == questionData.Id, update);
+                            break;
+                        }
                     default:
                         return false;
                 }
@@ -223,6 +233,8 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
                             return QuestionType.TextInput;
                         case "fill-blank":
                             return QuestionType.FillBlank;
+                        case "matching":
+                            return QuestionType.Matching;
                     }
                 }
             }

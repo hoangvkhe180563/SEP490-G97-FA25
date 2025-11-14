@@ -85,6 +85,22 @@ namespace StudyHub.Backend.Api.Mappers
                             }
                             break;
                         }
+                    case "matching":
+                        {
+                            if (question.CorrectAnswer is JsonElement jsonElement)
+                            {
+                                Dictionary<int, int> correctMatches = jsonElement.Deserialize<Dictionary<int, int>>() ?? new Dictionary<int, int>();
+                                questions.Add(new MatchingQuestion
+                                {
+                                    QuestionText = question.QuestionText,
+                                    Type = QuestionType.Matching,
+                                    Terms = question.Terms,
+                                    Definitions = question.Definitions,
+                                    CorrectMatches = correctMatches
+                                });
+                            }
+                            break;
+                        }
                 }
             }
 
@@ -175,6 +191,17 @@ namespace StudyHub.Backend.Api.Mappers
                             }
                         }
                         break;
+                    case QuestionType.Matching:
+                        {
+                            if (question is MatchingQuestion matching)
+                            {
+                                q.Type = "matching";
+                                q.Terms = matching.Terms;
+                                q.Definitions = matching.Definitions;
+                                q.CorrectAnswer = matching.CorrectMatches;
+                            }
+                        }
+                        break;
                 }
 
                 questionDto.Add(q);
@@ -246,6 +273,23 @@ namespace StudyHub.Backend.Api.Mappers
                                 QuestionText = questionDto.QuestionText,
                                 Type = QuestionType.FillBlank,
                                 CorrectAnswer = correctAnsArray.ToList()
+                            };
+                        }
+                        break;
+                    }
+                case "matching":
+                    {
+                        if (questionDto.CorrectAnswer is JsonElement jsonElement)
+                        {
+                            Dictionary<int, int> correctMatches = jsonElement.Deserialize<Dictionary<int, int>>() ?? new Dictionary<int, int>();
+                            return new MatchingQuestion
+                            {
+                                Id = questionDto.QuestionObjectId,
+                                QuestionText = questionDto.QuestionText,
+                                Type = QuestionType.Matching,
+                                Terms = questionDto.Terms,
+                                Definitions = questionDto.Definitions,
+                                CorrectMatches = correctMatches
                             };
                         }
                         break;

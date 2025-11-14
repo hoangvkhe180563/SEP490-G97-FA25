@@ -8,7 +8,7 @@ import type { Exam } from '@/exam/interfaces/models/Exam';
 import type { Question } from '@/exam/interfaces/models/Question';
 import { ExamService } from '@/exam/services/ExamService';
 import { getFormattedDateTime } from '@/exam/utils/ExamUtils';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -77,7 +77,7 @@ const CreateExam = () => {
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
 
         if (json.length < 2) {
           setExcelFileError("File Excel không có dữ liệu câu hỏi.");
@@ -162,6 +162,36 @@ const CreateExam = () => {
                 isValidRow = false;
               }
               question.correctAnswer = correctAnswersArray;
+            } else if (questionType === EXAM_TYPE.MATCHING) {
+              const termsRaw = String(row[header.indexOf('Các đáp án…')] || '').trim();
+              const definitionsRaw = correctAnswerRaw;
+
+              if (!termsRaw) {
+                rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi ghép đôi phải có thuật ngữ trong cột "Các đáp án".`);
+                isValidRow = false;
+              }
+
+              const terms = termsRaw.split(',').map(t => t.trim()).filter(t => t !== '');
+              const definitions = definitionsRaw.split(',').map(d => d.trim()).filter(d => d !== '');
+
+              if (terms.length === 0 || definitions.length === 0) {
+                rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi ghép đôi phải có ít nhất một thuật ngữ và một định nghĩa.`);
+                isValidRow = false;
+              }
+
+              if (terms.length !== definitions.length) {
+                rowErrors.push(`Hàng ${rowIndex + 2}: Số lượng thuật ngữ (${terms.length}) và định nghĩa (${definitions.length}) phải bằng nhau.`);
+                isValidRow = false;
+              }
+
+              question.terms = terms;
+              question.definitions = definitions;
+              // Create default 1-to-1 mapping (term index -> definition index)
+              const correctMatches: any = {};
+              for (let i = 0; i < terms.length; i++) {
+                correctMatches[i] = i;
+              }
+              question.correctAnswer = correctMatches;
             } else {
               rowErrors.push(`Hàng ${rowIndex + 2}: Loại câu hỏi không hợp lệ (${questionType}).`);
               isValidRow = false;
@@ -174,7 +204,7 @@ const CreateExam = () => {
         });
 
         if (rowErrors.length > 0) {
-          setExcelFileError(`Có lỗi khi đọc file Excel:<br/>${rowErrors.slice(0, 10).join('<br/>')} ${rowErrors.length > 10 && '<br/>(Quá nhiều lỗi, vui lòng nhập đúng cấu trúc trong file mẫu!)'}`);
+          setExcelFileError(`Có lỗi khi đọc file Excel:<br/>${rowErrors.slice(0, 10).join('<br/>')} ${rowErrors.length > 10 ? '<br/>(Quá nhiều lỗi, vui lòng nhập đúng cấu trúc trong file mẫu!)' : ''}`);
           return;
         }
         if (newQuestions.length === 0) {
@@ -269,6 +299,22 @@ const CreateExam = () => {
           setLoading(false);
           return;
         }
+      } else if (q.type === EXAM_TYPE.MATCHING) {
+        if (!q.terms || q.terms.length === 0 || q.terms.some(term => !String(term).trim())) {
+          toast.error(`Vui lòng nhập đầy đủ các thuật ngữ cho câu hỏi ghép đôi "${q.questionText}".`);
+          setLoading(false);
+          return;
+        }
+        if (!q.definitions || q.definitions.length === 0 || q.definitions.some(def => !String(def).trim())) {
+          toast.error(`Vui lòng nhập đầy đủ các định nghĩa cho câu hỏi ghép đôi "${q.questionText}".`);
+          setLoading(false);
+          return;
+        }
+        if (q.terms.length !== q.definitions.length) {
+          toast.error(`Số lượng thuật ngữ và định nghĩa phải bằng nhau cho câu hỏi "${q.questionText}".`);
+          setLoading(false);
+          return;
+        }
       }
     }
 
@@ -326,6 +372,10 @@ const CreateExam = () => {
     } else if (type === EXAM_TYPE.FILL_IN_BLANK) {
       newQuestion.questionText = `Câu hỏi có ${BLANK_PLACEHOLDER} thứ nhất và ${BLANK_PLACEHOLDER} thứ hai.`;
       newQuestion.correctAnswer = ['', ''];
+    } else if (type === EXAM_TYPE.MATCHING) {
+      newQuestion.terms = [''];
+      newQuestion.definitions = [''];
+      newQuestion.correctAnswer = { 0: 0 }; // Term index -> Definition index
     }
     setQuestions([...questions, newQuestion]);
   };
@@ -381,6 +431,54 @@ const CreateExam = () => {
         const newCorrectAnswers = [...q.correctAnswer];
         newCorrectAnswers[optionIndex] = value;
         return { ...q, correctAnswer: newCorrectAnswers };
+      }
+      if (field === 'terms' && optionIndex !== null) {
+        const newTerms = [...(q.terms || [])];
+        newTerms[optionIndex] = value;
+        return { ...q, terms: newTerms };
+      }
+      if (field === 'definitions' && optionIndex !== null) {
+        const newDefinitions = [...(q.definitions || [])];
+        newDefinitions[optionIndex] = value;
+        return { ...q, definitions: newDefinitions };
+      }
+      if (field === 'addTerm') {
+        const newTerms = [...(q.terms || []), ''];
+        const newCorrectAnswer = { ...q.correctAnswer, [newTerms.length - 1]: 0 };
+        return { ...q, terms: newTerms, correctAnswer: newCorrectAnswer };
+      }
+      if (field === 'addDefinition') {
+        return { ...q, definitions: [...(q.definitions || []), ''] };
+      }
+      if (field === 'removeTerm' && optionIndex !== null) {
+        const newTerms = (q.terms || []).filter((_, idx) => idx !== optionIndex);
+        const newCorrectAnswer = { ...q.correctAnswer };
+        delete newCorrectAnswer[optionIndex];
+        // Reindex the correct answers
+        const reindexed: any = {};
+        Object.keys(newCorrectAnswer).forEach((key) => {
+          const oldIndex = parseInt(key);
+          const newIndex = oldIndex > optionIndex ? oldIndex - 1 : oldIndex;
+          reindexed[newIndex] = newCorrectAnswer[oldIndex];
+        });
+        return { ...q, terms: newTerms, correctAnswer: reindexed };
+      }
+      if (field === 'removeDefinition' && optionIndex !== null) {
+        const newDefinitions = (q.definitions || []).filter((_, idx) => idx !== optionIndex);
+        // Update correct answer mappings
+        const newCorrectAnswer = { ...q.correctAnswer };
+        Object.keys(newCorrectAnswer).forEach((termIdx) => {
+          if (newCorrectAnswer[termIdx] === optionIndex) {
+            newCorrectAnswer[termIdx] = 0;
+          } else if (newCorrectAnswer[termIdx] > optionIndex) {
+            newCorrectAnswer[termIdx] -= 1;
+          }
+        });
+        return { ...q, definitions: newDefinitions, correctAnswer: newCorrectAnswer };
+      }
+      if (field === 'matchingAnswer') {
+        const [termIndex, defIndex] = value;
+        return { ...q, correctAnswer: { ...q.correctAnswer, [termIndex]: defIndex } };
       }
       return { ...q, [field]: value };
     }));
@@ -526,6 +624,7 @@ const CreateExam = () => {
                 {q.type === EXAM_TYPE.MULTI_CHOICE && <span className='font-bold'>Trắc nghiệm nhiều đáp án</span>}
                 {q.type === EXAM_TYPE.TEXT_INPUT && <span className='font-bold'>Điền từ/Trả lời ngắn</span>}
                 {q.type === EXAM_TYPE.FILL_IN_BLANK && <span className='font-bold'>Điền khuyết</span>}
+                {q.type === EXAM_TYPE.MATCHING && <span className='font-bold'>Ghép đôi thuật ngữ và định nghĩa</span>}
               </div>
 
               <div className="mb-4">
@@ -624,38 +723,134 @@ const CreateExam = () => {
                   ))}
                 </div>
               )}
+
+              {q.type === EXAM_TYPE.MATCHING && (
+                <div className="mb-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-gray-700 text-sm font-bold mb-2">Thuật ngữ</label>
+                      {(q.terms || []).map((term, termIndex) => (
+                        <div key={termIndex} className="flex items-center mb-2">
+                          <input
+                            type="text"
+                            className="grow p-2 border border-gray-300 rounded-lg text-gray-800"
+                            value={term}
+                            onChange={(e) => updateQuestion(q.id, 'terms', e.target.value, termIndex)}
+                            placeholder={`Thuật ngữ ${termIndex + 1}`}
+                            required
+                          />
+                          {(q.terms || []).length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => updateQuestion(q.id, 'removeTerm', null, termIndex)}
+                              className="ml-2 text-red-500 hover:text-red-700"
+                            >
+                              &times;
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => updateQuestion(q.id, 'addTerm', null)}
+                        className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+                      >
+                        Thêm thuật ngữ
+                      </button>
+                    </div>
+                    <div>
+                      <label className="block text-gray-700 text-sm font-bold mb-2">Định nghĩa</label>
+                      {(q.definitions || []).map((definition, defIndex) => (
+                        <div key={defIndex} className="flex items-center mb-2">
+                          <input
+                            type="text"
+                            className="grow p-2 border border-gray-300 rounded-lg text-gray-800"
+                            value={definition}
+                            onChange={(e) => updateQuestion(q.id, 'definitions', e.target.value, defIndex)}
+                            placeholder={`Định nghĩa ${defIndex + 1}`}
+                            required
+                          />
+                          {(q.definitions || []).length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => updateQuestion(q.id, 'removeDefinition', null, defIndex)}
+                              className="ml-2 text-red-500 hover:text-red-700"
+                            >
+                              &times;
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => updateQuestion(q.id, 'addDefinition', null)}
+                        className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+                      >
+                        Thêm định nghĩa
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <label className="block text-gray-700 text-sm font-bold mb-2">Ghép đúng</label>
+                    {(q.terms || []).map((term, termIndex) => (
+                      <div key={termIndex} className="flex items-center mb-2">
+                        <span className="mr-2 text-gray-600 w-1/3">{term || `Thuật ngữ ${termIndex + 1}`}:</span>
+                        <select
+                          className="grow p-2 border border-gray-300 rounded-lg text-gray-800"
+                          value={q.correctAnswer?.[termIndex] ?? 0}
+                          onChange={(e) => updateQuestion(q.id, 'matchingAnswer', [termIndex, parseInt(e.target.value)])}
+                          required
+                        >
+                          {(q.definitions || []).map((def, defIndex) => (
+                            <option key={defIndex} value={defIndex}>
+                              {def || `Định nghĩa ${defIndex + 1}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-2">
+        <div className="mt-8 grid grid-cols-5 gap-2">
           <button
             type="button"
             onClick={() => addQuestion(EXAM_TYPE.SINGLE_CHOICE)}
-            className="px-5 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600"
+            className="px-5 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex justify-center items-center"
           >
-            Thêm câu trắc nghiệm (1 đáp án)
+            <Plus size={16} className='mr-3'/> Trắc nghệm 1 đ.án
           </button>
           <button
             type="button"
             onClick={() => addQuestion(EXAM_TYPE.MULTI_CHOICE)}
-            className="px-5 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600"
+            className="px-5 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex justify-center items-center"
           >
-            Thêm câu trắc nghiệm (Nhiều đáp án)
+            <Plus size={16} className='mr-3' /> Trắc nghệm nhiều đ.án
           </button>
           <button
             type="button"
             onClick={() => addQuestion(EXAM_TYPE.TEXT_INPUT)}
-            className="px-5 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600"
+            className="px-5 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex justify-center items-center"
           >
-            Thêm câu điền từ/trả lời ngắn
+            <Plus size={16} className='mr-3' /> Điền từ/trả lời ngắn
           </button>
           <button
             type="button"
             onClick={() => addQuestion(EXAM_TYPE.FILL_IN_BLANK)}
-            className="px-5 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+            className="px-5 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 flex justify-center items-center"
           >
-            Thêm câu điền khuyết
+            <Plus size={16} className='mr-3' /> Điền khuyết
+          </button>
+          <button
+            type="button"
+            onClick={() => addQuestion(EXAM_TYPE.MATCHING)}
+            className="px-5 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 flex justify-center items-center"
+          >
+             <Plus size={16} className='mr-3'/> Ghép đôi
           </button>
         </div>
 
