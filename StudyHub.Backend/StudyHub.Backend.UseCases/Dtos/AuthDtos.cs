@@ -16,6 +16,8 @@ namespace StudyHub.Backend.UseCases.Dtos
         public List<string> Permissions { get; set; } = new List<string>();
         public List<short> SubjectIds { get; set; } = new List<short>();
         public List<int> ClassIds { get; set; } = new List<int>();
+        // Session id created for this login - stored in DB and returned as cookie
+        public Guid? SessionId { get; set; }
     }
 
 

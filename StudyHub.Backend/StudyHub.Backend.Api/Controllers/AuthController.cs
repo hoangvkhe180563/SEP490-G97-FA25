@@ -63,6 +63,19 @@ namespace StudyHub.Backend.Api.Controllers
             }
             SetTokenInCookie(result);
 
+            // set session id cookie when available
+            if (result.SessionId.HasValue)
+            {
+                var sessionCookieOptions = new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Strict,
+                    Expires = result.Tokens.RefreshTokenExpire.ToUniversalTime()
+                };
+                Response.Cookies.Append("session_id", result.SessionId.Value.ToString(), sessionCookieOptions);
+            }
+
             // Build user info response (do not return tokens in body)
             var userInfo = AuthMapper.ToUserInfoResponse(result);
 
@@ -171,6 +184,7 @@ namespace StudyHub.Backend.Api.Controllers
             // clear cookies on client
             Response.Cookies.Delete("access_token");
             Response.Cookies.Delete("refresh_token");
+            Response.Cookies.Delete("session_id");
 
             return Ok();
         }
@@ -226,6 +240,17 @@ namespace StudyHub.Backend.Api.Controllers
                 if (loginResult == null) return Unauthorized(new { success = false, message = "Đăng nhập với Google thất bại", error });
 
                 SetTokenInCookie(loginResult);
+                if (loginResult.SessionId.HasValue)
+                {
+                    var sessionCookieOptions = new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = true,
+                        SameSite = SameSiteMode.Strict,
+                        Expires = loginResult.Tokens.RefreshTokenExpire.ToUniversalTime()
+                    };
+                    Response.Cookies.Append("session_id", loginResult.SessionId.Value.ToString(), sessionCookieOptions);
+                }
                 var userInfo = AuthMapper.ToUserInfoResponse(loginResult);
                 return Ok(new GenericResponse { Success = true, Message = "Đăng nhập với Google thành công!", Data = userInfo });
             }

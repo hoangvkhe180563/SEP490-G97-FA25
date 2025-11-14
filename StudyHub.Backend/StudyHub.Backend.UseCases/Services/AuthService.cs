@@ -23,6 +23,7 @@ namespace StudyHub.Backend.UseCases.Services
 
         public IAppUserRepository _userRepository;
         public IAppRoleRepository _roleRepository;
+        public IAppUserLoginHistoryRepository _loginHistoryRepository;
         public SmtpEmailService _emailService;
         public IHttpContextAccessor _httpContextAccessor;
         private readonly IConfiguration _configuration;
@@ -30,10 +31,11 @@ namespace StudyHub.Backend.UseCases.Services
         private const int DEFAULT_EXPIRES_MINUTES = 60; // default 60 minutes
         private const int DEFAULT_REFRESH_EXPIRES_MINUTES = 60 * 24 * 7; // default 7 days
 
-        public AuthService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, SmtpEmailService emailService, IHttpContextAccessor httpContextAccessor, IConfiguration configuration)
+        public AuthService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, IAppUserLoginHistoryRepository loginHistoryRepository, SmtpEmailService emailService, IHttpContextAccessor httpContextAccessor, IConfiguration configuration)
         {
             _userRepository = userRepository;
             _roleRepository = roleRepository;
+            _loginHistoryRepository = loginHistoryRepository;
             _emailService = emailService;
             _httpContextAccessor = httpContextAccessor;
             _configuration = configuration;
@@ -140,6 +142,26 @@ namespace StudyHub.Backend.UseCases.Services
                 SubjectIds = subjectIds,
                 ClassIds = classIds
             };
+
+            // create login session record
+            try
+            {
+                var sessionId = Guid.NewGuid();
+                var entry = new Domain.Entities.AppUserLoginHistory
+                {
+                    UserId = user.Id,
+                    LoginAt = DateTime.Now,
+                    IsSuccess = true,
+                    SessionId = sessionId,
+                    IsActiveSession = true
+                };
+                _loginHistoryRepository?.Create(entry);
+                loginResult.SessionId = sessionId;
+            }
+            catch
+            {
+                // non-fatal: login should still succeed if logging history fails
+            }
 
             return (loginResult, null);
         }
@@ -255,6 +277,23 @@ namespace StudyHub.Backend.UseCases.Services
 
             // Update the user in the database.
             _userRepository.UpdateUser(user);
+            // also try to mark any active session for this user as logged out if session cookie passed
+            try
+            {
+                var http = _httpContextAccessor.HttpContext;
+                if (http != null)
+                {
+                    var sid = http.Request.Cookies["session_id"];
+                    if (!string.IsNullOrEmpty(sid) && Guid.TryParse(sid, out var sessionId))
+                    {
+                        _loginHistoryRepository?.SetLogoutBySessionId(sessionId, DateTime.UtcNow);
+                    }
+                }
+            }
+            catch
+            {
+                // ignore
+            }
         }
 
         /// <summary>
@@ -408,7 +447,7 @@ namespace StudyHub.Backend.UseCases.Services
                     classIds = userClaims.Where(c => c.ClassId > 0).Select(c => c.ClassId).Distinct().ToList();
                 }
 
-                return new LoginResult
+                var lr = new LoginResult
                 {
                     Tokens = new TokenPair
                     {
@@ -423,6 +462,28 @@ namespace StudyHub.Backend.UseCases.Services
                     SubjectIds = subjectIds,
                     ClassIds = classIds
                 };
+
+                // create session record (google login)
+                try
+                {
+                    var sessionId = Guid.NewGuid();
+                    var entry = new Domain.Entities.AppUserLoginHistory
+                    {
+                        UserId = user.Id,
+                        LoginAt = DateTime.Now,
+                        IsSuccess = true,
+                        SessionId = sessionId,
+                        IsActiveSession = true
+                    };
+                    _loginHistoryRepository?.Create(entry);
+                    lr.SessionId = sessionId;
+                }
+                catch
+                {
+                    // ignore history errors
+                }
+
+                return lr;
             }
             catch (AccountInactiveException)
             {

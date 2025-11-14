@@ -37,6 +37,7 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<AccountRecoveryService>();
             services.AddScoped<StatisticsService>();
             services.AddScoped<ExamService>();
+            services.AddScoped<AppUserLoginHistoryService>();
 
             
             return services;

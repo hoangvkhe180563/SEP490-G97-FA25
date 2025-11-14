@@ -18,6 +18,7 @@ namespace StudyHub.Backend.Infrastructure
             services.AddDbContext<AppDbContext>(options => options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
             services.AddScoped<IAppUserRepository, AppUserRepository>();
+            services.AddScoped<IAppUserLoginHistoryRepository, AppUserLoginHistoryRepository>();
             services.AddScoped<ICourseRepository, CourseRepository>();
             services.AddScoped<IChapterRepository, ChapterRepository>();
             services.AddScoped<ILessonRepository, LessonRepository>();
