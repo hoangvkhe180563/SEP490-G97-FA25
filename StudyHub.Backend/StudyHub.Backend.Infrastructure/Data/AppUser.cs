@@ -67,6 +67,8 @@ public partial class AppUser
 
     public virtual ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
 
+    public virtual ICollection<ExamResult> ExamResults { get; set; } = new List<ExamResult>();
+
     public virtual ICollection<ForumAppeal> ForumAppealUpdatedByNavigations { get; set; } = new List<ForumAppeal>();
 
     public virtual ICollection<ForumAppeal> ForumAppealUsers { get; set; } = new List<ForumAppeal>();
@@ -82,7 +84,6 @@ public partial class AppUser
     public virtual ICollection<ForumRule> ForumRules { get; set; } = new List<ForumRule>();
 
     public virtual ICollection<InteractiveResponse> InteractiveResponses { get; set; } = new List<InteractiveResponse>();
-    public virtual ICollection<ExamResult> ExamResults { get; set; } = new List<ExamResult>();
 
     public virtual ICollection<LessonComment> LessonComments { get; set; } = new List<LessonComment>();
 
@@ -93,6 +94,8 @@ public partial class AppUser
     public virtual ICollection<QAMessage> QAMessages { get; set; } = new List<QAMessage>();
 
     public virtual ICollection<RulePattern> RulePatterns { get; set; } = new List<RulePattern>();
+
+    public virtual ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
 
     public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
 

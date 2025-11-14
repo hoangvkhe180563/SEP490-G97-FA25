@@ -54,8 +54,14 @@ import {
 
 const TransactionHistory: React.FC = () => {
   const authUser = useAuthStore((s) => s.user);
-  const { transactions, fetchUserTransactions, requestWithdraw, loading } =
-    useTransactionStore();
+  const {
+    transactions,
+    fetchUserTransactions,
+    requestWithdraw,
+    loading,
+    startTransactionConnection,
+    stopTransactionConnection,
+  } = useTransactionStore();
 
   const [q, setQ] = useState<string>("");
   const [filterType, setFilterType] = useState<string | "All">("All");
@@ -82,6 +88,25 @@ const TransactionHistory: React.FC = () => {
     if (!authUser?.id) return;
     fetchUserTransactions(String(authUser.id));
   }, [authUser?.id, fetchUserTransactions]);
+
+  // start real-time transaction connection so student sees approve/reject immediately
+  useEffect(() => {
+    if (!authUser?.id) return;
+    let mounted = true;
+    (async () => {
+      try {
+        await startTransactionConnection();
+      } catch (err) {
+        /* ignore */
+      }
+    })();
+    return () => {
+      if (!mounted) return;
+      stopTransactionConnection();
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser?.id]);
 
   const filtered = useMemo(() => {
     const t = transactions ?? [];
@@ -461,7 +486,7 @@ const TransactionHistory: React.FC = () => {
                         <TableCell>
                           <div className="flex justify-center">
                             {t.status === "Success" &&
-                            t.type !== "Withdraw" &&
+                            String(t.type).toLowerCase() === "deposit" &&
                             !hasRefundRequested.has(
                               String(t.transactionCode ?? t.id)
                             ) ? (
@@ -473,7 +498,7 @@ const TransactionHistory: React.FC = () => {
                                   onRequestRefund(t);
                                 }}
                               >
-                                Yêu cầu hoàn tiền
+                                Yêu cầu rút tiền
                               </Button>
                             ) : (
                               <div className="text-gray-400">—</div>

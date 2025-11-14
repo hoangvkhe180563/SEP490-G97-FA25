@@ -1,4 +1,4 @@
-namespace StudyHub.Backend.Api.Dtos
+namespace StudyHub.Backend.Api.Dtos.PaymentDTOS
 {
     public class PaymentInfoDto
     {
@@ -12,7 +12,6 @@ namespace StudyHub.Backend.Api.Dtos
 
     public class PaymentNotifyDto
     {
-        // Các field g?c t? webhook VPBank
         public string? gateway { get; set; }               // "VPBank"
         public string? transactionDate { get; set; }       // "2025-11-01 16:17:00"
         public string? accountNumber { get; set; }         // "0977423805"

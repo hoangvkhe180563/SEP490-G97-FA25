@@ -1,4 +1,4 @@
-using StudyHub.Backend.Api.Dtos;
+using StudyHub.Backend.Api.Dtos.PaymentDTOS;
 using DomainPayment = StudyHub.Backend.Domain.Entities.PaymentInfo;
 
 namespace StudyHub.Backend.Api.Mappers
