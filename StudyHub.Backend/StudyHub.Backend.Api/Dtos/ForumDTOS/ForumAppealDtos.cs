@@ -17,7 +17,6 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public Guid? UpdatedBy { get; set; }
-        public string? ModeratorName { get; set; }
     }
 
     public class ForumAppealDetailDto
@@ -36,7 +35,6 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public Guid? UpdatedBy { get; set; }
-        public string? ModeratorName { get; set; }
         public UserForumStatusDetailDto? UserStatus { get; set; }
         public List<ViolationRecordDto> UserViolations { get; set; } = new();
     }
@@ -56,6 +54,7 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public int SchoolId { get; set; }
         public Guid? UserId { get; set; }
         public bool? Status { get; set; } 
+        public string? Query { get; set; }
         public DateTime? CreatedFrom { get; set; }
         public DateTime? CreatedTo { get; set; }
         public string? SearchTerm { get; set; }

@@ -249,9 +249,9 @@ namespace StudyHub.Backend.UseCases.Services
             var comment = await _commentRepo.GetCommentByIdAsync(commentId);
             if (comment == null) return false;
 
-            comment.IsHidden = true;
-            comment.Content = "[Nội dung vi phạm]";
-            comment.Status = false;
+            comment.Content = "[Bình luận vi phạm]";
+            comment.TotalViolationScore += violationScore;
+            comment.Status = true;
 
             await _commentRepo.UpdateCommentAsync(comment);
 

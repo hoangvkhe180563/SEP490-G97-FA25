@@ -505,7 +505,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     {
                         UserId = userId,
                         SchoolId = schoolId,
-                        TotalViolationScore = 50 - score,
+                        TotalViolationScore = 100 - score,
                         IsMute = false,
                         CreatedAt = DateTime.Now
                     };
@@ -703,7 +703,81 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 return (new List<ViolationRecord>(), 0);
             }
         }
+        public async Task<bool> ApproveViolationReportAsync(int recordId, Guid moderatorId)
+        {
+            try
+            {
+                var entity = await _context.ViolationRecords
+                    .Include(r => r.MatchedRule)
+                    .FirstOrDefaultAsync(r => r.Id == recordId);
 
+                if (entity == null || entity.SourceType != "report" || entity.ViolationScore > 0)
+                    return false;
+
+                if (entity.MatchedRule == null)
+                    return false;
+
+                entity.ViolationScore = entity.MatchedRule.ViolationScore;
+
+                await AddViolationScoreAsync(entity.UserId, entity.SchoolId, entity.ViolationScore);
+
+                if (entity.PostId.HasValue)
+                {
+                    var post = await _context.ForumPosts.FindAsync(entity.PostId.Value);
+                    if (post != null)
+                    {
+                        post.TotalViolationScore += entity.ViolationScore;
+                        if (post.TotalViolationScore >= 10)
+                        {
+                            post.Title = "[Bài viết vi phạm]";
+                            post.Content = "Nội dung này đã bị ẩn do vi phạm quy định cộng đồng.";
+                        }
+                    }
+                }
+
+                if (entity.CommentId.HasValue)
+                {
+                    var comment = await _context.ForumComments.FindAsync(entity.CommentId.Value);
+                    if (comment != null)
+                    {
+                        comment.TotalViolationScore += entity.ViolationScore;
+                        if (comment.TotalViolationScore >= 10)
+                        {
+                            comment.Content = "[Bình luận vi phạm]";
+                        }
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ForumModerationRepository", "ApproveViolationReportAsync failed: " + ex.Message).LogError();
+                return false;
+            }
+        }
+
+        public async Task<bool> RejectViolationReportAsync(int recordId, Guid moderatorId)
+        {
+            try
+            {
+                var entity = await _context.ViolationRecords.FindAsync(recordId);
+
+                if (entity == null || entity.SourceType != "report" || entity.ViolationScore > 0)
+                    return false;
+
+                entity.DeletedAt = DateTime.Now;
+
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ForumModerationRepository", "RejectViolationReportAsync failed: " + ex.Message).LogError();
+                return false;
+            }
+        }
         public async Task<(List<ViolationRecord> records, int totalCount)> GetViolationRecordsBySchoolAsync(
             int schoolId,
             string? sourceType = null,
@@ -914,6 +988,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public async Task<(List<ForumAppeal> appeals, int totalCount)> GetAppealsBySchoolAsync(
             int schoolId,
             bool? status = null,
+                     string? query = null,
             DateTime? createdFrom = null,
             DateTime? createdTo = null,
             int? pageNumber = null,
@@ -933,6 +1008,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 if (createdTo.HasValue)
                     dbQuery = dbQuery.Where(a => a.CreatedAt <= createdTo.Value);
+                if (!string.IsNullOrWhiteSpace(query))
+                    dbQuery = dbQuery.Where(p =>
+                        p.User.Fullname.Contains(query));
 
                 var totalCount = await dbQuery.CountAsync();
 
@@ -959,7 +1037,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 var appeals = await _context.ForumAppeals
                     .Include(a => a.User)
-                    .Where(a => a.SchoolId == schoolId && a.Status == false && a.UpdatedAt == null)
+                    .Where(a => a.SchoolId == schoolId && a.Status == null && a.UpdatedAt == null)
                     .OrderBy(a => a.CreatedAt)
                     .ToListAsync();
 

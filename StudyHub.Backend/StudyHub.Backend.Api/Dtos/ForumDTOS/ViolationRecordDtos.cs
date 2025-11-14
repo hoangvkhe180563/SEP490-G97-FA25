@@ -104,7 +104,24 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         [StringLength(500)]
         public string? Reason { get; set; }
     }
+    public class ApproveViolationReportDto
+    {
+        [Required]
+        public int RecordId { get; set; }
 
+        [StringLength(500)]
+        public string? Note { get; set; }
+    }
+
+    public class RejectViolationReportDto
+    {
+        [Required]
+        public int RecordId { get; set; }
+
+        [Required]
+        [StringLength(500, MinimumLength = 10)]
+        public string Reason { get; set; } = string.Empty;
+    }
     public class BulkDeleteViolationRecordsDto
     {
         [Required]

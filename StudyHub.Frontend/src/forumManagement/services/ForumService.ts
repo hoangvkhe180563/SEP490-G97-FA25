@@ -1,4 +1,3 @@
-// src/forumManagement/services/ForumService.ts
 import { axiosInstance } from "@/lib/axios";
 import type { Flair } from "../interfaces/forum";
 
@@ -42,6 +41,7 @@ export const forumService = {
           id: rule.id || rule.ruleId,
           content: rule.description || rule.ruleName || rule.content || "",
           ruleType: rule.ruleType,
+          severity: rule.severity || "low",
         }));
       }
 

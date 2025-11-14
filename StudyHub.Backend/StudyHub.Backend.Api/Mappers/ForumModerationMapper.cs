@@ -115,19 +115,24 @@ namespace StudyHub.Backend.Api.Mappers
                 RecordId = record.Id,
                 UserId = record.UserId,
                 Username = record.User?.Username,
+                Fullname = record.User?.Fullname,
                 SchoolId = record.SchoolId,
                 PostId = record.PostId,
                 PostTitle = record.Post?.Title,
+                PostContent = record.Post?.Content,
                 CommentId = record.CommentId,
+                CommentContent = record.Comment?.Content,
                 MatchedRuleId = record.MatchedRuleId,
                 RuleName = record.Rule?.Name,
+                RuleDescription = record.Rule?.Description,
                 MatchedPatternId = record.MatchedPatternId,
                 PatternText = record.Pattern?.Pattern,
                 ViolationScore = record.ViolationScore,
                 SourceType = record.SourceType,
                 ReportedBy = record.ReportedBy,
                 ReporterName = record.Reporter?.Username,
-                CreatedAt = record.CreatedAt
+                CreatedAt = record.CreatedAt,
+                DeletedAt = record.DeletedAt
             };
         }
 
@@ -189,7 +194,6 @@ namespace StudyHub.Backend.Api.Mappers
                 CreatedAt = appeal.CreatedAt,
                 UpdatedAt = appeal.UpdatedAt,
                 UpdatedBy = appeal.UpdatedBy,
-                ModeratorName = null
             };
         }
 
@@ -211,7 +215,6 @@ namespace StudyHub.Backend.Api.Mappers
                 CreatedAt = appeal.CreatedAt,
                 UpdatedAt = appeal.UpdatedAt,
                 UpdatedBy = appeal.UpdatedBy,
-                ModeratorName = null
             };
         }
 
@@ -222,7 +225,7 @@ namespace StudyHub.Backend.Api.Mappers
                 UserId = userId,
                 SchoolId = schoolId,
                 Reason = dto.Reason,
-                Status = false,
+                Status = null,
                 CreatedAt = DateTime.Now
             };
         }

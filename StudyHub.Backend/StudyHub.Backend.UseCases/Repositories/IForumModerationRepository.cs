@@ -98,13 +98,15 @@ namespace StudyHub.Backend.UseCases.Repositories
         Task<(List<ForumAppeal> appeals, int totalCount)> GetAppealsBySchoolAsync(
             int schoolId,
             bool? status = null,
+            string? query = null,
             DateTime? createdFrom = null,
             DateTime? createdTo = null,
             int? pageNumber = null,
             int? pageSize = null);
 
         Task<List<ForumAppeal>> GetPendingAppealsBySchoolAsync(int schoolId);
-
+        Task<bool> ApproveViolationReportAsync(int recordId, Guid moderatorId);
+        Task<bool> RejectViolationReportAsync(int recordId, Guid moderatorId);
         Task<ForumAppeal> CreateAppealAsync(ForumAppeal appeal);
         Task<bool> ApproveAppealAsync(int appealId, Guid moderatorId);
         Task<bool> RejectAppealAsync(int appealId, Guid moderatorId);

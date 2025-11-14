@@ -353,10 +353,10 @@ namespace StudyHub.Backend.UseCases.Services
             var post = await _postRepo.GetPostByIdAsync(postId);
             if (post == null) return false;
 
-            post.IsHidden = true;
             post.Title = "[Bài viết vi phạm]";
             post.Content = "Nội dung này đã bị ẩn do vi phạm quy định cộng đồng.";
-            post.Status = false;
+            post.TotalViolationScore += violationScore;
+            post.Status = true;
 
             await _postRepo.UpdatePostAsync(post);
 

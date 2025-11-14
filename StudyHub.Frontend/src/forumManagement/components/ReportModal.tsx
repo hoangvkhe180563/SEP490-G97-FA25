@@ -1,4 +1,4 @@
-// src/forumManagement/components/ReportModal.tsx
+// ReportModal.tsx
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -9,9 +9,10 @@ import {
 import { Button } from "@/common/components/ui/button";
 import { Textarea } from "@/common/components/ui/textarea";
 import { Alert, AlertDescription } from "@/common/components/ui/alert";
-import { useForumStore } from "../stores/useForumStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { forumService } from "../services/ForumService";
+import { useForumStore } from "../stores/useForumStore";
 
 interface ReportModalProps {
   open: boolean;
@@ -30,7 +31,8 @@ export const ReportModal = ({
   const [selectedRuleId, setSelectedRuleId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const { rules, loadRules, createReport, isLoading } = useForumStore();
+  const [isLoading, setIsLoading] = useState(false);
+  const { rules, loadRules } = useForumStore();
   const { user } = useAuthStore();
   const schoolId = user?.schoolId || 1;
 
@@ -44,6 +46,8 @@ export const ReportModal = ({
     if (open) {
       setError("");
       setSuccess("");
+      setContent("");
+      setSelectedRuleId(null);
     }
   }, [open]);
 
@@ -62,23 +66,27 @@ export const ReportModal = ({
       return;
     }
 
-    const result = await createReport(
-      targetId,
-      targetType,
-      selectedRuleId,
-      content.trim()
-    );
+    setIsLoading(true);
+    try {
+      const result = await forumService.createReport(
+        targetId,
+        targetType,
+        selectedRuleId,
+        content.trim()
+      );
 
-    if (result?.success) {
-      setSuccess("Báo cáo của bạn đã được gửi");
-      setTimeout(() => {
-        onOpenChange(false);
-        setContent("");
-        setSelectedRuleId(null);
-        setSuccess("");
-      }, 1500);
-    } else {
-      setError(result?.message || "Báo cáo thất bại");
+      if (result?.success) {
+        setSuccess(result.message || "Báo cáo của bạn đã được gửi thành công");
+        setTimeout(() => {
+          onOpenChange(false);
+        }, 2000);
+      } else {
+        setError(result?.message || "Gửi báo cáo thất bại. Vui lòng thử lại");
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Có lỗi xảy ra khi gửi báo cáo");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -97,8 +105,8 @@ export const ReportModal = ({
           )}
 
           {success && (
-            <Alert className="border-green-500 text-green-700">
-              <CheckCircle2 className="h-4 w-4" />
+            <Alert className="border-green-500 bg-green-50 text-green-700">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
               <AlertDescription>{success}</AlertDescription>
             </Alert>
           )}
@@ -111,6 +119,7 @@ export const ReportModal = ({
               className="w-full p-2 border rounded-md"
               value={selectedRuleId || ""}
               onChange={(e) => setSelectedRuleId(Number(e.target.value))}
+              disabled={isLoading || !!success}
             >
               <option value="">-- Chọn quy tắc --</option>
               {rules.map((rule) => (
@@ -130,6 +139,7 @@ export const ReportModal = ({
               onChange={(e) => setContent(e.target.value)}
               rows={4}
               minLength={10}
+              disabled={isLoading || !!success}
             />
           </div>
           <div className="flex gap-2 justify-end">
@@ -137,13 +147,16 @@ export const ReportModal = ({
               type="button"
               variant="ghost"
               onClick={() => onOpenChange(false)}
+              disabled={isLoading}
             >
-              Hủy
+              {success ? "Đóng" : "Hủy"}
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Gửi báo cáo
-            </Button>
+            {!success && (
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Gửi báo cáo
+              </Button>
+            )}
           </div>
         </form>
       </DialogContent>

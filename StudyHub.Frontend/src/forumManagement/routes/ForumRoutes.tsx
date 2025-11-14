@@ -6,9 +6,9 @@ import { Outlet, type RouteObject } from "react-router-dom";
 import AppealManagement from "../pages/AppealManagement";
 import PostManagement from "../pages/PostManagement";
 import ViolationAccounts from "../pages/ViolationAccounts";
-import CommentManagement from "../pages/CommentManagement";
+// import CommentManagement from "../pages/CommentManagement";
 import FlairManagement from "../pages/FlairManagement";
-import ReportManagement from "../pages/ReportManagement";
+// import ReportManagement from "../pages/ReportManagement";
 import ViolationRecords from "../pages/ViolationRecords";
 
 const managerRoutes = [
@@ -32,18 +32,18 @@ const managerRoutes = [
     path: ForumRouteConfig.MANAGER.POST_MANAGEMENT,
     element: <PostManagement />,
   },
-  {
-    path: ForumRouteConfig.MANAGER.COMMENT_MANAGEMENT,
-    element: <CommentManagement />,
-  },
+  // {
+  //   path: ForumRouteConfig.MANAGER.COMMENT_MANAGEMENT,
+  //   element: <CommentManagement />,
+  // },
   {
     path: ForumRouteConfig.MANAGER.FLAIR_MANAGEMENT,
     element: <FlairManagement />,
   },
-  {
-    path: ForumRouteConfig.MANAGER.REPORT_MANAGEMENT,
-    element: <ReportManagement />,
-  },
+  // {
+  //   path: ForumRouteConfig.MANAGER.REPORT_MANAGEMENT,
+  //   element: <ReportManagement />,
+  // },
   {
     path: ForumRouteConfig.MANAGER.VIOLATION_RECORDS,
     element: <ViolationRecords />,

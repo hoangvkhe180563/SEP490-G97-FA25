@@ -248,13 +248,14 @@ namespace StudyHub.Backend.UseCases.Services
         public async Task<(List<ForumAppeal> appeals, int totalCount)> GetAppealsBySchoolAsync(
             int schoolId,
             bool? status = null,
+            string? query = null,
             DateTime? createdFrom = null,
             DateTime? createdTo = null,
             int? pageNumber = null,
             int? pageSize = null)
         {
             return await _moderationRepo.GetAppealsBySchoolAsync(
-                schoolId, status, createdFrom, createdTo, pageNumber, pageSize);
+                schoolId, status,query ,createdFrom, createdTo, pageNumber, pageSize);
         }
 
         public async Task<List<ForumAppeal>> GetPendingAppealsBySchoolAsync(int schoolId)
@@ -275,6 +276,15 @@ namespace StudyHub.Backend.UseCases.Services
         public async Task<bool> RejectAppealAsync(int appealId, Guid moderatorId)
         {
             return await _moderationRepo.RejectAppealAsync(appealId, moderatorId);
+        }
+        public async Task<bool> ApproveReportAsync(int recordId, Guid moderatorId)
+        {
+            return await _moderationRepo.ApproveViolationReportAsync(recordId, moderatorId);
+        }
+
+        public async Task<bool> RejectReportAsync(int recordId, Guid moderatorId)
+        {
+            return await _moderationRepo.RejectViolationReportAsync(recordId,  moderatorId);
         }
     }
 }

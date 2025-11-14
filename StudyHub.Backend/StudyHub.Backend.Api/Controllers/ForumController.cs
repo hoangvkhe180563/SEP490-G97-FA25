@@ -1462,7 +1462,13 @@ namespace StudyHub.Backend.Api.Controllers
 
                 var appeal = dto.ToEntity(currentUser.Id, dto.SchoolId);
                 var createdAppeal = await _moderationService.CreateAppealAsync(appeal);
-
+                createdAppeal.User = new Domain.Entities.AppUser
+                {
+                    Id = currentUser.Id,
+                    Username = currentUser.Username,
+                    Fullname = currentUser.Fullname,
+                    Avatar = currentUser.Avatar
+                };
                 _logger.LogInformation("User {UserId} created appeal {AppealId}", currentUser.Id, createdAppeal.Id);
 
                 return Ok(new { success = true, data = createdAppeal.ToListDto() });
@@ -1488,6 +1494,7 @@ namespace StudyHub.Backend.Api.Controllers
                 var (appeals, totalCount) = await _moderationService.GetAppealsBySchoolAsync(
                     filter.SchoolId,
                     filter.Status,
+                    filter.Query,
                     filter.CreatedFrom,
                     filter.CreatedTo,
                     filter.PageNumber,
@@ -1588,7 +1595,61 @@ namespace StudyHub.Backend.Api.Controllers
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi tải vi phạm" });
             }
         }
+        [HttpPost("report/{violationReportId:int}/approve")]
+        public async Task<IActionResult> ApproveReport(int violationReportId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
 
+                var result = await _moderationService.ApproveReportAsync(violationReportId, currentUser.Id);
+                if (!result)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy tố cáo" });
+                }
+
+                _logger.LogInformation("Moderator {UserId} approved appeal {violationReportId}", currentUser.Id, violationReportId);
+
+                return Ok(new { success = true, message = "Đã chấp nhận tố cáo" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error approving report {violationReportId}", violationReportId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi duyệt tố cáo" });
+            }
+        }
+
+        [HttpPost("report/{violationReportId:int}/reject")]
+        public async Task<IActionResult> RejectReport(int violationReportId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                var result = await _moderationService.RejectReportAsync(violationReportId, currentUser.Id);
+                if (!result)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy tố cáo" });
+                }
+
+                _logger.LogInformation("Moderator {UserId} rejected report {violationReportId}", currentUser.Id, violationReportId);
+
+                return Ok(new { success = true, message = "Đã từ chối tố cáoi" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error rejecting report {violationReportId}", violationReportId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi từ chối tố cáo" });
+            }
+        }
         [HttpGet("moderator/user-status")]
         public async Task<IActionResult> GetMutedUsers([FromQuery] UserForumStatusFilterDto filter)
         {

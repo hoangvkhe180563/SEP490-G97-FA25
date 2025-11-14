@@ -34,7 +34,6 @@ const ForumMain = () => {
     flairs,
     loadFlairs,
     startForum,
-    // stopForum,
     joinSchoolForum,
     leaveSchoolForum,
     createComment,
@@ -49,7 +48,6 @@ const ForumMain = () => {
 
   const [activeTab, setActiveTab] = useState<"all" | "my-posts">("all");
   const [modalVisibleComments, setModalVisibleComments] = useState(8);
-  // const [showImageModal, setShowImageModal] = useState(false);
   const [imageModalState, setImageModalState] = useState<ImageModalState>({
     isOpen: false,
     images: [],
@@ -320,7 +318,7 @@ const ForumMain = () => {
   };
 
   const handleViewDetails = (postId: number) => {
-    navigate(`/forum/student/forums/details/${postId}`);
+    navigate(`/forum/forums/details/${postId}`);
   };
 
   const handleScrollToTop = () => {

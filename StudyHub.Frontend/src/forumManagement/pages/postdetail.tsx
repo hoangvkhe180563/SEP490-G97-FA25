@@ -64,7 +64,6 @@ const PostDetail = () => {
     joinPost,
     leavePost,
     flairs,
-    // loadFlairs,
   } = useForumStore();
 
   const [isEditMode, setIsEditMode] = useState(false);
@@ -139,9 +138,9 @@ const PostDetail = () => {
   }, [currentPost?.subject_id, currentPost?.school_id, getPosts]);
   const handleBack = () => {
     if (location.state?.fromModal) {
-      navigate("/forum/student/forums", { state: { fromModal: true } });
+      navigate("/forum/forums", { state: { fromModal: true } });
     } else {
-      navigate("/forum/student/forums");
+      navigate("/forum/forums");
     }
   };
 
