@@ -13,6 +13,7 @@ import { Input } from "@/common/components/ui/input";
 import { Textarea } from "@/common/components/ui/textarea";
 import { Label } from "@/common/components/ui/label";
 import { Switch } from "@/common/components/ui/switch";
+import { formatISO } from "date-fns";
 
 type LinkItem = { title: string; url: string };
 
@@ -81,7 +82,7 @@ const AddEditClassworkForm: React.FC = () => {
         if (cw.deadline) {
           const d = new Date(cw.deadline);
           const tzOffset = d.getTimezoneOffset() * 60000;
-          const localISO = new Date(d.getTime() - tzOffset).toISOString().slice(0, -1);
+          const localISO = formatISO(new Date(d.getTime() - tzOffset)) .slice(0, -1);
           setDeadline(localISO.slice(0, 16));
         } else {
           setDeadline("");
@@ -156,7 +157,7 @@ const AddEditClassworkForm: React.FC = () => {
           classId: Number(id),
           title: title.trim(),
           description: description?.trim() ?? "",
-          deadline: deadline ? new Date(deadline).toISOString() : null,
+          deadline: deadline ? formatISO(new Date(deadline))  : null,
           maxScore: maxScore === "" ? null : Number(maxScore),
           gradeType: gradeType ?? null,
           allowSubmission: !!allowSubmission,
@@ -208,7 +209,7 @@ const AddEditClassworkForm: React.FC = () => {
       fd.append("Title", title.trim());
       fd.append("Description", description?.trim() ?? "");
       fd.append("CreatedBy", createdBy);
-      if (deadline) fd.append("Deadline", new Date(deadline).toISOString());
+      if (deadline) fd.append("Deadline", formatISO(new Date(deadline)));
       if (maxScore !== "") fd.append("MaxScore", String(maxScore));
       if (gradeType) fd.append("GradeType", gradeType);
       fd.append("AllowSubmission", String(allowSubmission));

@@ -43,7 +43,6 @@ export const schoolStudentSidebarItems: ISidebarItem[] = [
     icon: <MessageSquare size={20} />,
     text: "Forum",
     link: "/forum/student/forums",
-    childrenLinks: ["/forumstudent/forums", "/forum/student/forums/details"],
   },
 ];
 
@@ -72,7 +71,6 @@ export const teacherSidebarItems: ISidebarItem[] = [
     icon: <MessageSquare size={20} />,
     text: "Forum",
     link: "/forum/student/forums",
-    childrenLinks: ["/forum/student/forums", "/forum/student/forums/details"],
   },
   {
     icon: <MessageCircleQuestionMark size={20} />,

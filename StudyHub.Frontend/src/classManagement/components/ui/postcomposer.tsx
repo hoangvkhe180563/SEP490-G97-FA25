@@ -14,7 +14,6 @@ import {
   DialogFooter,
 } from "@/common/components/ui/dialog";
 import { Input } from "@/common/components/ui/input";
-
 /* types */
 export type LinkPayload = { url: string; title?: string; thumbnail?: string };
 

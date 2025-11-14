@@ -16,7 +16,7 @@ import {
 } from "@/common/components/ui/dropdown-menu";
 import { Separator } from "@/common/components/ui/separator";
 import { Tooltip } from "@/common/components/ui/tooltip";
-import { format } from "date-fns";
+import { format, formatISO } from "date-fns";
 
 /* icons */
 import { MoreHorizontal, Share2, Trash2 } from "lucide-react";
@@ -335,7 +335,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       userFullname: currentUserFullname,
       content: htmlContent,
       avatarUrl: user?.avatar ?? "/vite.svg",
-      createdAt: new Date().toISOString(),
+      createdAt: formatISO(new Date()) ,
     };
 
     setLocalComments((c) => [...c, optimistic]);

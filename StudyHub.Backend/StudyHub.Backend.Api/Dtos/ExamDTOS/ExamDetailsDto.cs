@@ -25,6 +25,8 @@
         public string QuestionText { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
         public List<string> Options { get; set; } = new List<string>();
+        public List<string> Terms { get; set; } = new List<string>();
+        public List<string> Definitions { get; set; } = new List<string>();
         public object CorrectAnswer { get; set; } = new object();
     }
 }

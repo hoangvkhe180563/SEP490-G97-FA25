@@ -1,3 +1,4 @@
+import { formatISO } from 'date-fns';
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type {
@@ -19,7 +20,7 @@ const defaultClassInfo: ClassInfo = {
   id: 0,
   name: "",
   description: "",
-  createdAt: new Date().toISOString(),
+  createdAt: formatISO(new Date()),
 };
 const defaultCurrentClass: ClassDetailResponse = {
   success: false,
@@ -991,7 +992,7 @@ export const useClassStore = create<ClassState>()(
             userFullname: created.userFullname ?? "Bạn",
             content: created.content ?? payload.content,
             avatarUrl: created.avatarUrl ?? null,
-            createdAt: created.createdAt ?? new Date().toISOString(),
+            createdAt: created.createdAt ?? formatISO(new Date()),
           };
 
           // update currentClass.notifications: append comment to matching notification
@@ -1867,7 +1868,7 @@ export const useClassStore = create<ClassState>()(
             title: created.title ?? payload.title,
             description: created.description ?? payload.description ?? "",
             createdBy: String(created.createdBy ?? createdByValue),
-            createdAt: created.createdAt ?? new Date().toISOString(),
+            createdAt: created.createdAt ?? formatISO(new Date()),
             files: (created.files ?? []).map((f: any, idx: number) => ({
               id: f.id ?? `${Date.now()}-${idx}`,
               fileName: f.fileName ?? f.file_name ?? f.name ?? "file",

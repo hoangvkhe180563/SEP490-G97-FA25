@@ -17,6 +17,7 @@ import { Card } from "@/common/components/ui/card";
 import { Textarea } from "@/common/components/ui/textarea";
 import { Input } from "@/common/components/ui/input";
 import { Badge } from "@/common/components/ui/badge";
+import { formatISO } from "date-fns";
 
 const AvatarIcon: React.FC = () => (
   <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl shadow">📝</div>
@@ -395,7 +396,7 @@ const ClassworkDetail: React.FC = () => {
           notificationId: classwork.id,
           userId: createdUserId,
           content: createdAny.content ?? createdAny.text ?? commentText,
-          createdAt: createdAny.createdAt ?? createdAny.created_at ?? new Date().toISOString(),
+          createdAt: createdAny.createdAt ?? createdAny.created_at ?? formatISO(new Date()) ,
           userFullname: createdAny.userFullname ?? createdAny.userName ?? "",
           imageUrl: null,
           raw: createdAny,

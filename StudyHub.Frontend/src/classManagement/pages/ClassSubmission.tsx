@@ -9,22 +9,15 @@ import type {
 } from "@/classManagement/interfaces/class";
 import { mapToCoarseRole } from "@/classManagement/utils/roleutil";
 
-/**
- * Simplified and reliable ClassworkSubmissionsPage
- *
- * What changed (per your request):
- * - Simplify classification rules:
- *   - "Submitted" if submission has files OR has first/latest submission timestamp.
- *   - "Graded" if submission has a non-empty score.
- * - Ensure members who have a submission but weren't present in the initial submissions list
- *   are discovered by calling getSubmissionByUserAndClasswork for the missing members.
- *   This fixes the case where the right-hand detail shows Student 3's submission but left-hand
- *   list didn't include them.
- * - Keep grading flow and refresh after grade.
- *
- * This avoids fragile heuristics (matching by name/email) and focuses on two checks you asked for:
- * "has file/timestamp" and "has score".
- */
+import { Button } from "@/common/components/ui/button";
+import { Checkbox } from "@/common/components/ui/checkbox";
+import { Input } from "@/common/components/ui/input";
+import { Textarea } from "@/common/components/ui/textarea";
+import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
+import { ScrollArea } from "@/common/components/ui/scroll-area";
+import { Separator } from "@/common/components/ui/separator";
+import { Card } from "@/common/components/ui/card";
+import { Label } from "@/common/components/ui/label";
 
 const ClassworkSubmissionsPage: React.FC = () => {
   const params = useParams<{
@@ -93,10 +86,6 @@ const ClassworkSubmissionsPage: React.FC = () => {
         });
         setSubmissions(normSubs);
 
-        // 3) find members that don't have a corresponding submission in server list,
-        //    and fetch per-user submission for them (fast in practice for small classes).
-        //    This is the simple, reliable fix: for each member without mapped submission,
-        //    call getSubmissionByUserAndClasswork to see if they submitted.
         const existKeys = new Set(
           (normSubs ?? []).map((s) =>
             String(s.appUserId ?? (s as any).userId ?? "").trim()
@@ -162,7 +151,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
   if (loading) return <div className="p-8 text-slate-500">Đang tải...</div>;
   if (error) return <div className="p-8 text-red-500">{error}</div>;
 
-  // simple checks per your request --------------------------------
+  // helpers
   const normalizeUserId = (id: any) => String(id ?? "").trim();
 
   const isGraded = (s?: ClassworkSubmission | null): boolean => {
@@ -174,10 +163,8 @@ const ClassworkSubmissionsPage: React.FC = () => {
   };
   const hasSubmissionContent = (s?: ClassworkSubmission | null): boolean => {
     if (!s) return false;
-    // simple rule: files OR timestamps
     const filesOk = Array.isArray(s.files) && s.files.length > 0;
     const timeOk = !!(s.latestSubmissionTime || s.firstSubmissionTime);
-    // also consider raw.submissionFiles if present
     const rawFiles = Array.isArray(
       (s as any).submissionFiles ?? (s as any).raw?.submissionFiles
     )
@@ -193,6 +180,47 @@ const ClassworkSubmissionsPage: React.FC = () => {
     return null;
   };
 
+  // try to infer a maxScore from submissions; fallback to 100
+  const inferMaxScore = (): number => {
+    if (!submissions || submissions.length === 0) return 100;
+    for (const s of submissions) {
+      const candidates = [
+        (s as any).maxScore,
+        (s as any).total,
+        (s as any).max,
+        (s as any).max_points,
+      ];
+      for (const c of candidates) {
+        const n = Number(c);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+    }
+    if (selectedSubmission) {
+      const candidates = [
+        (selectedSubmission as any).maxScore,
+        (selectedSubmission as any).total,
+        (selectedSubmission as any).max,
+        (selectedSubmission as any).max_points,
+      ];
+      for (const c of candidates) {
+        const n = Number(c);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+    }
+    return 100;
+  };
+  const globalMaxScore = inferMaxScore();
+
+  const scoreColorClass = (score: number | null | undefined, max = globalMaxScore) => {
+    if (score === null || score === undefined || !Number.isFinite(Number(score))) return "text-slate-500";
+    const p = Math.max(0, Math.min(100, (Number(score) / max) * 100));
+    if (p >= 90) return "text-emerald-600";
+    if (p >= 75) return "text-lime-600";
+    if (p >= 50) return "text-amber-600";
+    if (p >= 25) return "text-orange-600";
+    return "text-red-600";
+  };
+
   // build quick lookup map by appUserId (string)
   const submissionMap = new Map<string, ClassworkSubmission>();
   (submissions ?? []).forEach((s) => {
@@ -200,7 +228,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
     if (key) submissionMap.set(key, s);
   });
 
-  // group members using only simple checks (submitted if has file/time; graded if score)
+  // group members
   type GroupKey = "notSubmitted" | "submittedNotGraded" | "graded";
   const groups: Record<GroupKey, ClassMemberDto[]> = {
     notSubmitted: [],
@@ -241,7 +269,6 @@ const ClassworkSubmissionsPage: React.FC = () => {
           setGradeValue(Number.isFinite(n) ? n : (String(scoreVal) as any));
         }
       } else {
-        // fallback to map
         const fallback = submissionMap.get(userId) ?? null;
         setSelectedSubmission(fallback);
         if (fallback) {
@@ -265,15 +292,12 @@ const ClassworkSubmissionsPage: React.FC = () => {
     }
   };
 
-  // classwork-submissions5.tsx -> thay thế handleGradeSubmit bằng đoạn này
-  // Thay thế toàn bộ handleGradeSubmit hiện tại bằng đoạn này
-  // Thay handleGradeSubmit bằng đoạn sau
   const handleGradeSubmit = async () => {
     if (!isTeacher) {
       alert("Bạn không có quyền chấm điểm.");
       return;
     }
-    if (!selectedSubmission) {
+    if (!selectedSubmission && !selectedMember) {
       alert("Chưa chọn nộp bài để chấm.");
       return;
     }
@@ -287,29 +311,17 @@ const ClassworkSubmissionsPage: React.FC = () => {
       return;
     }
 
-    // Lấy notificationId một cách an toàn từ selectedSubmission (thử nhiều trường)
     const candidateNotif =
       Number(
-        selectedSubmission.classworkId ??
-          (selectedSubmission as any).notificationId ??
-          (selectedSubmission as any).raw?.notificationId ??
+        selectedSubmission?.classworkId ??
+          (selectedSubmission as any)?.notificationId ??
+          (selectedSubmission as any)?.raw?.notificationId ??
           0
       ) || 0;
     const notificationId =
       candidateNotif > 0 ? candidateNotif : Number(workId ?? 0);
-    const submissionId = Number(selectedSubmission.id ?? 0);
+    const submissionId = Number(selectedSubmission?.id ?? 0);
     const grader = user?.id ?? localStorage.getItem("currentUserId") ?? "";
-
-    console.debug(
-      "[handleGradeSubmit] notificationId:",
-      notificationId,
-      "submissionId:",
-      submissionId,
-      "score:",
-      numeric,
-      "grader:",
-      grader
-    );
 
     if (!notificationId || notificationId <= 0) {
       alert(
@@ -317,27 +329,51 @@ const ClassworkSubmissionsPage: React.FC = () => {
       );
       return;
     }
-    if (!submissionId || submissionId <= 0) {
+    if (!submissionId && !selectedMember) {
       alert(`Không thể chấm: submissionId không hợp lệ (${submissionId}).`);
       return;
     }
 
-    // giữ bản sao để rollback khi cần
     const prevSubmissions = submissions ?? [];
 
+    const optimisticSubmission: ClassworkSubmission = {
+      ...(selectedSubmission ?? ({} as ClassworkSubmission)),
+      id: submissionId || (selectedSubmission?.id ?? 0),
+      appUserId:
+        selectedSubmission?.appUserId ?? selectedMember?.userId ?? "",
+      score: numeric,
+      files:
+        (selectedSubmission?.files ?? (selectedSubmission as any)?.submissionFiles) ??
+        [],
+      classworkId: notificationId,
+    };
+
     try {
-      // optimistic update (local)
       setSubmissions((prev) => {
-        if (!prev) return prev;
-        return prev.map((s) =>
-          s.id === submissionId ? { ...s, score: numeric } : s
-        );
+        const copy = prev ? [...prev] : [];
+        const idxById = copy.findIndex((s) => s.id === optimisticSubmission.id && optimisticSubmission.id);
+        let idx = idxById;
+        if (idxById === -1) {
+          idx = copy.findIndex(
+            (s) =>
+              normalizeUserId(s.appUserId ?? (s as any).userId) ===
+              normalizeUserId(optimisticSubmission.appUserId)
+          );
+        }
+        if (idx !== -1) {
+          copy[idx] = { ...copy[idx], ...optimisticSubmission };
+        } else {
+          copy.push(optimisticSubmission);
+        }
+        return copy;
       });
+
       setSelectedSubmission((prev) =>
-        prev && prev.id === submissionId ? { ...prev, score: numeric } : prev
+        prev && (prev.id === optimisticSubmission.id || normalizeUserId(prev.appUserId) === normalizeUserId(optimisticSubmission.appUserId))
+          ? { ...prev, score: numeric }
+          : optimisticSubmission
       );
 
-      // gọi API chấm
       const res = await gradeSubmission(
         notificationId,
         submissionId,
@@ -347,7 +383,6 @@ const ClassworkSubmissionsPage: React.FC = () => {
       );
 
       if (!res) {
-        // rollback bằng cách reload server-safe
         const reloaded = await getClassworkSubmissions(notificationId);
         setSubmissions(reloaded ?? prevSubmissions);
         alert(
@@ -356,7 +391,6 @@ const ClassworkSubmissionsPage: React.FC = () => {
         return;
       }
       if (!res.success) {
-        // rollback
         const reloaded = await getClassworkSubmissions(notificationId);
         setSubmissions(reloaded ?? prevSubmissions);
         const msg = res.message ?? JSON.stringify(res.raw ?? res);
@@ -364,39 +398,76 @@ const ClassworkSubmissionsPage: React.FC = () => {
         return;
       }
 
-      // Thành công: reload danh sách submissions cho đúng notificationId
-      const updated = await getClassworkSubmissions(notificationId);
-      if (!updated) {
-        // nếu server không trả dữ liệu, ít nhất rollback sang prev
-        setSubmissions(prevSubmissions);
-        alert(
-          res.message ??
-            "Đã lưu điểm nhưng không thể cập nhật danh sách (server trả null)."
-        );
-        return;
-      }
-      setSubmissions(updated);
-      alert(res.message ?? "Đã lưu điểm");
-      // load lại submission chi tiết của học sinh vừa chấm (đảm bảo side panel cập nhật)
-      const refreshed = await getSubmissionByUserAndClasswork(
-        notificationId,
-        normalizeUserId(selectedMember?.userId)
-      );
-      if (refreshed) {
-        refreshed.files =
-          refreshed.files ?? (refreshed as any).submissionFiles ?? [];
-        setSelectedSubmission(refreshed);
-      } else {
-        // fallback: tìm trong updated list và set nếu có
-        const found =
-          (updated ?? []).find((s) => s.id === submissionId) ?? null;
-        if (found) setSelectedSubmission(found);
+      const serverSubmission =
+        (res as any).submission ||
+        (res as any).data ||
+        (res as any).updatedSubmission ||
+        null;
+
+      let finalSubmission: ClassworkSubmission = optimisticSubmission;
+      if (serverSubmission) {
+        serverSubmission.files =
+          serverSubmission.files ?? serverSubmission.submissionFiles ?? [];
+        finalSubmission = { ...optimisticSubmission, ...serverSubmission };
       }
 
-     
+      setSubmissions((prev) => {
+        const copy = prev ? [...prev] : [];
+        const idxById = copy.findIndex((s) => s.id === finalSubmission.id && finalSubmission.id);
+        let idx = idxById;
+        if (idxById === -1) {
+          idx = copy.findIndex(
+            (s) =>
+              normalizeUserId(s.appUserId ?? (s as any).userId) ===
+              normalizeUserId(finalSubmission.appUserId)
+          );
+        }
+        if (idx !== -1) {
+          copy[idx] = { ...copy[idx], ...finalSubmission };
+        } else {
+          copy.push(finalSubmission);
+        }
+        return copy;
+      });
+
+      setSelectedSubmission(finalSubmission);
+
+      alert((res as any).message ?? "Đã lưu điểm");
+
+      try {
+        const refreshed =
+          (await getSubmissionByUserAndClasswork(
+            notificationId,
+            normalizeUserId(selectedMember?.userId ?? finalSubmission.appUserId)
+          )) ?? null;
+        if (refreshed) {
+          refreshed.files =
+            refreshed.files ?? (refreshed as any).submissionFiles ?? [];
+          setSelectedSubmission(refreshed);
+          setSubmissions((prev) => {
+            const copy = prev ? [...prev] : [];
+            const idxById = copy.findIndex((s) => s.id === refreshed.id && refreshed.id);
+            let idx = idxById;
+            if (idxById === -1) {
+              idx = copy.findIndex(
+                (s) =>
+                  normalizeUserId(s.appUserId ?? (s as any).userId) ===
+                  normalizeUserId(refreshed.appUserId)
+              );
+            }
+            if (idx !== -1) {
+              copy[idx] = { ...copy[idx], ...refreshed };
+            } else {
+              copy.push(refreshed);
+            }
+            return copy;
+          });
+        }
+      } catch (e) {
+        console.warn("Không thể cập nhật chi tiết sau khi chấm:", e);
+      }
     } catch (err) {
       console.error("grade submit error", err);
-      // rollback attempt: try reload using notificationId, otherwise restore prev
       try {
         const updated = await getClassworkSubmissions(notificationId);
         setSubmissions(updated ?? prevSubmissions);
@@ -417,44 +488,46 @@ const ClassworkSubmissionsPage: React.FC = () => {
       selectedMember &&
       normalizeUserId(selectedMember.userId) === normalizeUserId(member.userId);
     const scoreText = getScoreText(submission) ?? (submitted ? "__" : "—");
+
+    const initial = member.fullname
+      ? member.fullname.charAt(0).toUpperCase()
+      : String(member.userId).charAt(0).toUpperCase();
+
+    const scoreVal = submission ? Number(submission.score ?? (submission as any).raw?.score ?? null) : null;
+    const colorClass = scoreColorClass(Number.isFinite(Number(scoreVal)) ? scoreVal : null, globalMaxScore);
+
     return (
-      <div
-        key={member.userId}
+      <Card
         onClick={() => pickMember(member)}
-        className={`flex items-center justify-between cursor-pointer p-4 hover:bg-slate-50 ${
-          isSelected ? "bg-slate-100" : ""
+        className={`relative flex  justify-between cursor-pointer px-4 py-3 transition-colors ${
+          isSelected ? "bg-slate-100 shadow-sm" : "hover:bg-slate-50"
         }`}
       >
-        <div className="flex items-center gap-4">
-          <div
-            className={`w-12 h-12 rounded-full flex items-center justify-center text-white ${
-              submitted ? "bg-blue-600" : "bg-slate-400"
-            } text-lg`}
-          >
-            {member.fullname
-              ? member.fullname.charAt(0).toUpperCase()
-              : String(member.userId).charAt(0).toUpperCase()}
+        {/* LEFT: avatar + name (force left alignment) */}
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="flex-shrink-0">
+            <Avatar className="w-14 h-14">
+              <AvatarFallback className="text-lg">{initial}</AvatarFallback>
+            </Avatar>
           </div>
-          <div className="text-base">
-            <div className="font-medium">
-              {member.fullname ?? member.userId}
+
+          <div className="flex-1 min-w-0">
+            <div className="text-left">
+              <div className="font-medium text-base leading-[1.1] truncate">{member.fullname ?? member.userId}</div>
+              {member.email && (
+                <div className="text-sm text-slate-500 mt-1 truncate">{member.email}</div>
+              )}
             </div>
-            {member.email && (
-              <div className="text-sm text-slate-400">{member.email}</div>
-            )}
           </div>
         </div>
 
-        <div className="text-base text-right min-w-[84px]">
-          {graded ? (
-            <div className="text-green-600 font-semibold">{scoreText}</div>
-          ) : submitted ? (
-            <div className="text-slate-600">{scoreText}</div>
-          ) : (
-            <div className="text-slate-400">—</div>
-          )}
+        {/* RIGHT: score inline */}
+        <div className="flex items-center gap-3 ml-4 whitespace-nowrap">
+          <div className="text-xs text-slate-400">Điểm</div>
+          <div className={`font-semibold text-lg ${colorClass}`}>{scoreText}</div>
+          <div className="text-sm text-slate-400">/ {globalMaxScore}</div>
         </div>
-      </div>
+      </Card>
     );
   };
 
@@ -465,128 +538,120 @@ const ClassworkSubmissionsPage: React.FC = () => {
   const visibleGraded = showGraded ? groups.graded : [];
 
   return (
-    <div className="flex h-full p-8 gap-6">
+    <div className="flex h-full p-8 gap-8 bg-slate-50">
       <aside
-        className="w-96 border rounded-xl bg-white overflow-auto"
-        style={{ minHeight: 650 }}
+        className="w-[380px] rounded-xl bg-white shadow-sm flex flex-col overflow-hidden min-h-0"
+        style={{ minHeight: 720 }}
       >
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-3">
-            <input type="checkbox" className="w-5 h-5" />
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div className="flex items-center gap-4">
+            <Checkbox
+              checked={false}
+              onCheckedChange={() => {
+                /* select all placeholder */
+              }}
+            />
             <div className="font-semibold text-lg">Tất cả học viên</div>
           </div>
-          <div>
-            <button className="px-3 py-2 border rounded text-sm">
-              Sắp xếp
-            </button>
-          </div>
+          {/* Sắp xếp đã bỏ */}
         </div>
 
-        <div className="p-4 border-b flex items-center gap-4 text-sm">
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
+        <div className="px-6 py-4 border-b flex items-center gap-4 text-base">
+          <Label className="inline-flex items-center gap-3">
+            <Checkbox
               checked={showNotSubmitted}
-              onChange={(e) => setShowNotSubmitted(e.target.checked)}
+              onCheckedChange={(v) => setShowNotSubmitted(Boolean(v))}
             />
-            Chưa nộp
-          </label>
-          <label className="inline-flex items-center gap-2 ml-3">
-            <input
-              type="checkbox"
+            <span>Chưa nộp</span>
+          </Label>
+
+          <Label className="inline-flex items-center gap-3">
+            <Checkbox
               checked={showSubmittedNotGraded}
-              onChange={(e) => setShowSubmittedNotGraded(e.target.checked)}
+              onCheckedChange={(v) => setShowSubmittedNotGraded(Boolean(v))}
             />
-            Đã nộp (chưa chấm)
-          </label>
-          <label className="inline-flex items-center gap-2 ml-3">
-            <input
-              type="checkbox"
+            <span>Đã nộp (chưa chấm)</span>
+          </Label>
+
+          <Label className="inline-flex items-center gap-3">
+            <Checkbox
               checked={showGraded}
-              onChange={(e) => setShowGraded(e.target.checked)}
+              onCheckedChange={(v) => setShowGraded(Boolean(v))}
             />
-            Đã chấm
-          </label>
+            <span>Đã chấm</span>
+          </Label>
         </div>
 
-        <div className="p-3 border-b bg-slate-50">
-          <div className="flex items-center justify-between">
-            <div className="font-semibold">Chưa nộp</div>
-            <div className="text-sm text-slate-500">
-              {groups.notSubmitted.length}
+        {/* ScrollArea được đặt để chiếm đầy chiều cao còn lại và cuộn */}
+        <ScrollArea className="flex-1 min-h-0 h-full px-4 py-3">
+          <div className="mb-4">
+            <div className="flex items-center justify-start gap-3 px-3 py-2 bg-slate-50 rounded-md">
+              <div className="font-semibold">Chưa nộp</div>
+              <div className="text-sm text-slate-500">({groups.notSubmitted.length})</div>
             </div>
           </div>
-        </div>
-        <div className="divide-y">
-          {visibleNotSubmitted.length === 0 ? (
-            <div className="p-4 text-sm text-slate-500">
-              {showNotSubmitted ? "Không có ai." : "Đã ẩn"}
-            </div>
-          ) : (
-            visibleNotSubmitted.map((m) => {
-              const s =
-                submissionMap.get(normalizeUserId(m.userId ?? m.id ?? "")) ??
-                null;
-              return <MemberRow key={m.userId} member={m} submission={s} />;
-            })
-          )}
-        </div>
 
-        <div className="p-3 border-t border-b bg-slate-50 mt-4">
-          <div className="flex items-center justify-between">
-            <div className="font-semibold">Đã nộp (chưa chấm)</div>
-            <div className="text-sm text-slate-500">
-              {groups.submittedNotGraded.length}
-            </div>
+          <div className="space-y-2">
+            {visibleNotSubmitted.length === 0 ? (
+              <div className="px-4 py-6 text-sm text-slate-500 rounded-md bg-white"> {showNotSubmitted ? "Không có ai." : "Đã ẩn"}</div>
+            ) : (
+              visibleNotSubmitted.map((m) => {
+                const s = submissionMap.get(normalizeUserId(m.userId ?? m.id ?? "")) ?? null;
+                return <MemberRow key={m.userId} member={m} submission={s} />;
+              })
+            )}
           </div>
-        </div>
-        <div className="divide-y">
-          {visibleSubmittedNotGraded.length === 0 ? (
-            <div className="p-4 text-sm text-slate-500">
-              {showSubmittedNotGraded ? "Không có ai." : "Đã ẩn"}
-            </div>
-          ) : (
-            visibleSubmittedNotGraded.map((m) => {
-              const s =
-                submissionMap.get(normalizeUserId(m.userId ?? m.id ?? "")) ??
-                null;
-              return <MemberRow key={m.userId} member={m} submission={s} />;
-            })
-          )}
-        </div>
 
-        <div className="p-3 border-t border-b bg-slate-50 mt-4">
-          <div className="flex items-center justify-between">
-            <div className="font-semibold">Đã chấm</div>
-            <div className="text-sm text-slate-500">{groups.graded.length}</div>
-          </div>
-        </div>
-        <div className="divide-y">
-          {visibleGraded.length === 0 ? (
-            <div className="p-4 text-sm text-slate-500">
-              {showGraded ? "Chưa có ai được chấm." : "Đã ẩn"}
+          <Separator className="my-6" />
+
+          <div className="mb-4">
+            <div className="flex items-center justify-start gap-3 px-3 py-2 bg-slate-50 rounded-md">
+              <div className="font-semibold">Đã nộp (chưa chấm)</div>
+              <div className="text-sm text-slate-500">({groups.submittedNotGraded.length})</div>
             </div>
-          ) : (
-            visibleGraded.map((m) => {
-              const s =
-                submissionMap.get(normalizeUserId(m.userId ?? m.id ?? "")) ??
-                null;
-              return <MemberRow key={m.userId} member={m} submission={s} />;
-            })
-          )}
-        </div>
+          </div>
+
+          <div className="space-y-2">
+            {visibleSubmittedNotGraded.length === 0 ? (
+              <div className="px-4 py-6 text-sm text-slate-500 rounded-md bg-white">{showSubmittedNotGraded ? "Không có ai." : "Đã ẩn"}</div>
+            ) : (
+              visibleSubmittedNotGraded.map((m) => {
+                const s = submissionMap.get(normalizeUserId(m.userId ?? m.id ?? "")) ?? null;
+                return <MemberRow key={m.userId} member={m} submission={s} />;
+              })
+            )}
+          </div>
+
+          <Separator className="my-6" />
+
+          <div className="mb-4">
+            <div className="flex items-center justify-start gap-3 px-3 py-2 bg-slate-50 rounded-md">
+              <div className="font-semibold">Đã chấm</div>
+              <div className="text-sm text-slate-500">({groups.graded.length})</div>
+            </div>
+          </div>
+
+          <div className="space-y-2 pb-6">
+            {visibleGraded.length === 0 ? (
+              <div className="px-4 py-6 text-sm text-slate-500 rounded-md bg-white">{showGraded ? "Chưa có ai được chấm." : "Đã ẩn"}</div>
+            ) : (
+              visibleGraded.map((m) => {
+                const s = submissionMap.get(normalizeUserId(m.userId ?? m.id ?? "")) ?? null;
+                return <MemberRow key={m.userId} member={m} submission={s} />;
+              })
+            )}
+          </div>
+        </ScrollArea>
       </aside>
 
       <main
-        className="flex-1 border rounded-xl bg-white flex flex-col overflow-hidden"
-        style={{ minHeight: 650 }}
+        className="flex-1 rounded-xl bg-white shadow-sm flex flex-col overflow-hidden"
+        style={{ minHeight: 720 }}
       >
-        <div className="flex items-start justify-between p-6 border-b">
+        <div className="flex items-center justify-between px-8 py-6 border-b">
           <div>
-            <div className="text-2xl font-semibold">
-              {selectedMember ? selectedMember.fullname : "Chọn học viên"}
-            </div>
-            <div className="text-base text-slate-500">
+            <div className="text-2xl md:text-3xl font-semibold">{selectedMember ? selectedMember.fullname : "Chọn học viên"}</div>
+            <div className="text-sm text-slate-500 mt-1">
               {selectedSubmission ? (
                 <span>
                   Đã nộp •{" "}
@@ -604,117 +669,72 @@ const ClassworkSubmissionsPage: React.FC = () => {
 
           <div className="text-right">
             <div className="text-sm text-slate-500">Điểm</div>
-            <div className="text-2xl font-semibold text-slate-800">
-              {selectedSubmission
-                ? getScoreText(selectedSubmission) ?? "—"
-                : "—"}
+            <div className="mt-2 inline-flex items-center justify-center w-32 h-14 rounded-lg bg-slate-100 text-2xl font-semibold text-slate-800">
+              {selectedSubmission ? getScoreText(selectedSubmission) ?? "—" : "—"}
             </div>
           </div>
         </div>
 
-        <div className="flex-1 p-6 overflow-auto">
+        <div className="flex-1 p-8 overflow-auto">
           {detailLoading ? (
             <div className="text-slate-500">Đang tải...</div>
           ) : selectedSubmission ? (
-            <div className="max-w-3xl">
+            <div className="max-w-4xl mx-auto space-y-6">
               {(selectedSubmission.files ?? []).length === 0 ? (
-                <div className="text-sm text-slate-500">
-                  Không có tệp đính kèm.
-                </div>
+                <div className="text-sm text-slate-500">Không có tệp đính kèm.</div>
               ) : (
-                <div className="space-y-4">
-                  {(selectedSubmission.files ?? []).map(
-                    (f: ClassworkSubmissionFile) => {
-                      const ext =
-                        (f.fileName ?? "").split(".").pop()?.toLowerCase() ??
-                        "";
-                      const isImage = [
-                        "png",
-                        "jpg",
-                        "jpeg",
-                        "gif",
-                        "webp",
-                        "svg",
-                      ].includes(ext);
-                      return (
-                        <div
-                          key={f.id}
-                          className="flex items-center border rounded-lg p-4"
-                        >
-                          <div className="flex-1">
-                            <a
-                              href={f.fileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-blue-600 underline text-lg font-medium"
-                            >
-                              {f.fileName}
-                            </a>
-                            <div className="text-sm text-slate-500 mt-1">
-                              {isImage ? "Hình ảnh" : "Tệp đính kèm"}
-                            </div>
-                          </div>
-
-                          <div className="w-32 h-20 flex items-center justify-center">
-                            {isImage ? (
-                              <img
-                                src={f.fileUrl}
-                                alt={f.fileName}
-                                className="max-h-20 max-w-full object-contain rounded"
-                              />
-                            ) : (
-                              <div className="text-3xl text-slate-400">📎</div>
-                            )}
-                          </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {(selectedSubmission.files ?? []).map((f: ClassworkSubmissionFile) => {
+                    const ext = (f.fileName ?? "").split(".").pop()?.toLowerCase() ?? "";
+                    const isImage = ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext);
+                    return (
+                      <Card key={f.id} className="flex flex-col md:flex-row items-center gap-4 p-5">
+                        <div className="flex-1">
+                          <a href={f.fileUrl} target="_blank" rel="noreferrer" className="text-lg font-medium text-sky-600 hover:underline">
+                            {f.fileName}
+                          </a>
+                          <div className="text-sm text-slate-500 mt-2">{isImage ? "Hình ảnh" : "Tệp đính kèm"}</div>
                         </div>
-                      );
-                    }
-                  )}
+                        <div className="w-40 h-28 flex items-center justify-center rounded overflow-hidden bg-slate-50">
+                          {isImage ? (
+                            <img src={f.fileUrl} alt={f.fileName} className="max-h-full max-w-full object-contain" />
+                          ) : (
+                            <div className="text-4xl text-slate-400">📎</div>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
 
               {isTeacher && (
-                <div className="mt-6 p-4 border rounded-lg bg-slate-50">
-                  <div className="mb-2 text-sm text-slate-600">Chấm điểm</div>
-                  <div className="flex items-center gap-3 mb-3">
-                    <input
+                <Card className="p-6 bg-slate-50">
+                  <div className="mb-3 text-base font-medium text-slate-700">Chấm điểm</div>
+                  <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-4">
+                    <Input
                       type="number"
                       value={gradeValue}
-                      onChange={(e) =>
-                        setGradeValue(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
-                      }
-                      className="border p-2 rounded w-28"
+                      onChange={(e) => setGradeValue(e.target.value === "" ? "" : Number(e.target.value))}
                       placeholder="Điểm"
+                      className="w-36 py-3 text-lg"
                       min={0}
-                      max={100}
+                      max={globalMaxScore}
                     />
-                    <textarea
+                    <Textarea
                       value={gradeFeedback}
                       onChange={(e) => setGradeFeedback(e.target.value)}
                       placeholder="Phản hồi (không bắt buộc)"
-                      className="flex-1 border rounded p-2"
+                      className="flex-1 min-h-[96px]"
                     />
                   </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={handleGradeSubmit}
-                      className="bg-blue-600 text-white px-4 py-2 rounded"
-                    >
-                      Lưu điểm
-                    </button>
-                    <button
-                      onClick={() => {
-                        setGradeValue("");
-                        setGradeFeedback("");
-                      }}
-                      className="px-4 py-2 border rounded"
-                    >
+                  <div className="flex items-center gap-4">
+                    <Button onClick={handleGradeSubmit} className="px-6 py-3 text-base">Lưu điểm</Button>
+                    <Button variant="outline" onClick={() => { setGradeValue(""); setGradeFeedback(""); }} className="px-5 py-3">
                       Hủy
-                    </button>
+                    </Button>
                   </div>
-                </div>
+                </Card>
               )}
             </div>
           ) : (
@@ -722,21 +742,17 @@ const ClassworkSubmissionsPage: React.FC = () => {
           )}
         </div>
 
-        <div className="border-t p-4 flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-orange-500 text-white flex items-center justify-center text-lg">
-            {user?.fullname ? user.fullname.charAt(0).toUpperCase() : "C"}
+        <div className="border-t px-6 py-4 flex items-center gap-4">
+          <div className="w-12 h-12">
+            <Avatar className="w-12 h-12">
+              <AvatarFallback className="text-lg">{user?.fullname ? user.fullname.charAt(0).toUpperCase() : "C"}</AvatarFallback>
+            </Avatar>
           </div>
-          <input
-            type="text"
-            placeholder="Thêm nhận xét riêng tư..."
-            className="flex-1 border rounded-full px-4 py-3 text-base focus:outline-none"
-          />
-          <button className="ml-2 px-4 py-3 bg-blue-600 text-white rounded-lg">
-            Gửi
-          </button>
+          <Input type="text" placeholder="Thêm nhận xét riêng tư..." className="flex-1 rounded-full py-3" />
+          <Button className="ml-2 px-6 py-3">Gửi</Button>
         </div>
       </main>
-    </div>  
+    </div>
   );
 };
 
