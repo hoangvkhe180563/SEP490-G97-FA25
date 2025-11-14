@@ -1,4 +1,4 @@
-import { formatISO } from 'date-fns';
+import { formatISO, parseISO } from "date-fns";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type {
@@ -35,6 +35,11 @@ const defaultCurrentClass: ClassDetailResponse = {
 };
 
 export type LinkPayload = { url: string; title?: string; thumbnail?: string };
+
+// --- helper: normalize server datetime into ISO UTC string ---
+// Accepts numbers, ISO strings (with/without Z), "/Date(...)/" MS format, and common date strings.
+// Returns ISO string in UTC (new Date(...).toISOString()) or fallback to current time ISO.
+
 
 export const useClassStore = create<ClassState>()(
   devtools(
@@ -486,7 +491,7 @@ export const useClassStore = create<ClassState>()(
               break; // success
             } catch (err: any) {
               lastError = err;
-              // If server says 404, try next endpoint variant
+              // If server says 404, try next endpoint
               if (err?.response?.status === 404) continue;
               // For other server responses (400/500) break and surface that error
               if (err?.response) break;
@@ -560,14 +565,6 @@ export const useClassStore = create<ClassState>()(
         }
       },
 
-      // NEW: confirm a pending member (calls [HttpPost("{userId}/confirm")] endpoint)
-      /**
-       * Confirm a member for a class by calling POST /ClassMember/{userId}/confirm?classId={classId}
-       * Returns:
-       *  - true  => confirmed successfully
-       *  - false => API responded with success=false or non-OK status
-       *  - null  => input invalid or unexpected error
-       */
       confirmMember: async (
         classId: number,
         userId: string
@@ -735,6 +732,7 @@ export const useClassStore = create<ClassState>()(
           set({ isLoading: false });
         }
       },
+
       getClassInfo: async (id: number): Promise<ClassDetailResponse | null> => {
         set({ isLoading: true });
         try {
@@ -774,7 +772,7 @@ export const useClassStore = create<ClassState>()(
               title: n.title,
               description: n.description,
               createdBy: n.createdBy,
-              createdAt: n.createdAt,
+              createdAt: formatISO(n.createdAt),
               files: n.files ?? [],
               comments:
                 (n.comments ?? []).map((c: any) => ({
@@ -782,7 +780,7 @@ export const useClassStore = create<ClassState>()(
                   notificationId: c.notificationId,
                   userId: c.userId,
                   content: c.content,
-                  createdAt: c.createdAt,
+                  createdAt: formatISO(c.createdAt),
                   userFullname: c.userFullname,
                   imageUrl: c.imageUrl ?? null,
                 })) ?? [],
@@ -802,7 +800,7 @@ export const useClassStore = create<ClassState>()(
                     name: data.name,
                     subjectId: data.subjectId,
                     description: data.description,
-                    createdAt: data.createdAt,
+                    createdAt: formatISO(data.createdAt),
                   },
                   notifications: notifications,
                 },
@@ -818,7 +816,7 @@ export const useClassStore = create<ClassState>()(
                 id: data.id,
                 name: data.name,
                 description: data.description,
-                createdAt: data.createdAt,
+                createdAt: formatISO(data.createdAt),
               },
               teacher: get().currentClass.data.teacher ?? null,
               students: get().currentClass.data.students ?? [],
@@ -836,9 +834,7 @@ export const useClassStore = create<ClassState>()(
         }
       },
 
-      // NEW: lấy số thành viên của lớp (trả về number | null)
       getMemberCount: async (classId: number): Promise<number | null> => {
-        // do not spam global isLoading for quick count calls; set local flag if needed
         try {
           if (!classId) return null;
           const res = await axiosInstance.get(
@@ -855,10 +851,11 @@ export const useClassStore = create<ClassState>()(
         } catch (err) {
           console.error("getMemberCount error:", err);
           return null;
+        } finally {
+          set({ isLoading: false });
         }
       },
 
-      // NEW: Lấy documents theo classId và lưu vào store.documentsByClass[classId]
       getDocumentsByClassId: async (
         classId: number
       ): Promise<DocumentDto[] | null> => {
@@ -924,7 +921,7 @@ export const useClassStore = create<ClassState>()(
                 description: d.description ?? null,
                 fileType: fileType,
                 uploaderName: d.uploaderName ?? d.uploaderFullname ?? null,
-                createdAt: d.createdAt ?? null,
+                createdAt: formatISO(d.createdAt) ? formatISO(d.createdAt) : null,
                 classes: Array.isArray(d.classes)
                   ? d.classes.map((c: any) => ({
                       id: c.id,
@@ -959,9 +956,11 @@ export const useClassStore = create<ClassState>()(
         } catch (err) {
           console.error("getDocumentsByClassId error:", err);
           return null;
+        } finally {
+          set({ isLoading: false });
         }
       },
-      // --- addComment: send comment HTML to backend and update state ---
+
       addComment: async (payload) => {
         // payload: { notificationId, content (HTML), createdBy? }
         set({ isLoading: true, success: false, message: "" });
@@ -992,7 +991,10 @@ export const useClassStore = create<ClassState>()(
             userFullname: created.userFullname ?? "Bạn",
             content: created.content ?? payload.content,
             avatarUrl: created.avatarUrl ?? null,
-            createdAt: created.createdAt ?? formatISO(new Date()),
+            // Normalize server returned createdAt or fallback to now
+            createdAt: formatISO(
+              created.createdAt ?? created.createdAt ?? formatISO(new Date())
+            ),
           };
 
           // update currentClass.notifications: append comment to matching notification
@@ -1036,6 +1038,7 @@ export const useClassStore = create<ClassState>()(
           set({ isLoading: false });
         }
       },
+
       createClasswork: async (payload: {
         classId: number;
         title: string;
@@ -1073,10 +1076,11 @@ export const useClassStore = create<ClassState>()(
             message: "Tạo bài tập thất bại",
           });
           return null;
+        } finally {
+          set({ isLoading: false });
         }
       },
 
-      // Sửa bài tập
       editClasswork: async (payload: {
         id: number;
         classId: number;
@@ -1115,10 +1119,11 @@ export const useClassStore = create<ClassState>()(
             message: "Sửa bài tập thất bại",
           });
           return null;
+        } finally {
+          set({ isLoading: false });
         }
       },
-     
-      // Nộp bài tập: submitClasswork
+
       submitClasswork: async (
         classworkId: number,
         appUserId: string,
@@ -1260,8 +1265,6 @@ export const useClassStore = create<ClassState>()(
         }
       },
 
-      // NEW: Lấy chi tiết 1 classwork (detail endpoint) và trả về object chứa data, submissions, files (nếu có)
-      // Endpoint tried: /api/Classwork/{id}/detail, /Classwork/{id}/detail, /api/ClassNotification/{id}/detail, /ClassNotification/{id}/detail
       getClassworkDetail: async (
         id: number
       ): Promise<
@@ -1327,7 +1330,6 @@ export const useClassStore = create<ClassState>()(
         }
       },
 
-      // get a user's submission using various compatibility endpoints
       getSubmissionByUserAndClasswork: async (
         classworkId: number,
         appUserId: string
@@ -1413,7 +1415,7 @@ export const useClassStore = create<ClassState>()(
           return null;
         }
       },
-      // paste/replace vào useClassStore / class-store2.ts: gradeSubmission implementation
+
       gradeSubmission: async (
         notificationId: number,
         submissionId: number,
@@ -1440,9 +1442,6 @@ export const useClassStore = create<ClassState>()(
             gradedBy: gradedBy ?? "00000000-0000-0000-0000-000000000000",
           };
 
-          // 1) try relative endpoints without /api first (safe if axiosInstance.baseURL already contains /api)
-          // 2) then try with /api prefix (in case baseURL is root)
-          // 3) finally try absolute URL built from window.location.origin to bypass baseURL entirely
           const relativeEndpoints = [
             `/ClassNotification/${encodeURIComponent(
               notificationId
@@ -1460,7 +1459,6 @@ export const useClassStore = create<ClassState>()(
           let used: string | null = null;
           let lastErr: any = null;
 
-          // try relative / prefixed (axiosInstance will combine with baseURL)
           for (const ep of allCandidates) {
             try {
               console.debug("[gradeSubmission] try:", ep, "body:", body);
@@ -1482,7 +1480,6 @@ export const useClassStore = create<ClassState>()(
             }
           }
 
-          // if still no response, try absolute URL (bypasses axios baseURL)
           if (!res) {
             try {
               const abs = `${
@@ -1496,13 +1493,11 @@ export const useClassStore = create<ClassState>()(
                 "body:",
                 body
               );
-              // use fetch to avoid axios baseURL confusion (or axios with full URL works too)
               res = await fetch(abs, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body),
               });
-              // fetch returns a Response object; convert to JSON if ok
               const status = (res as any).status ?? 0;
               const text = await (res as any).text();
               let parsed = null;
@@ -1532,11 +1527,8 @@ export const useClassStore = create<ClassState>()(
                   raw: parsed,
                 };
               }
-              // success
               used = abs;
-              // normalize fetch response to same shape as axios
               const raw = parsed;
-              // refresh
               try {
                 await get().getClassworkSubmissions(notificationId);
               } catch {
@@ -1563,7 +1555,6 @@ export const useClassStore = create<ClassState>()(
             }
           }
 
-          // if we have an axios response
           const raw = res?.data ?? res;
           console.debug("[gradeSubmission] used:", used, "response:", raw);
           if (!raw || raw.success === false) {
@@ -1580,7 +1571,6 @@ export const useClassStore = create<ClassState>()(
             };
           }
 
-          // refresh submissions
           try {
             await get().getClassworkSubmissions(notificationId);
           } catch (e) {
@@ -1609,23 +1599,18 @@ export const useClassStore = create<ClassState>()(
           set({ isLoading: false });
         }
       },
+
       getSubmissionCount: async (
         classworkId: number
       ): Promise<number | null> => {
         try {
           if (!classworkId) return null;
 
-          // Try a broad set of endpoint patterns, including the one you mentioned:
           const endpoints = [
-            // exact pattern your server shows
             `/api/Classwork/submissioncount/${encodeURIComponent(classworkId)}`,
             `/Classwork/submissioncount/${encodeURIComponent(classworkId)}`,
-
-            // alternate placements
             `/api/Classwork/${encodeURIComponent(classworkId)}/submissioncount`,
             `/Classwork/${encodeURIComponent(classworkId)}/submissioncount`,
-
-            // ClassNotification variants (if server exposes under notification)
             `/api/ClassNotification/submissioncount/${encodeURIComponent(
               classworkId
             )}`,
@@ -1638,8 +1623,6 @@ export const useClassStore = create<ClassState>()(
             `/ClassNotification/${encodeURIComponent(
               classworkId
             )}/submissioncount`,
-
-            // query-style fallbacks
             `/api/Classwork/submissioncount?classworkId=${encodeURIComponent(
               classworkId
             )}`,
@@ -1660,11 +1643,6 @@ export const useClassStore = create<ClassState>()(
               const raw = res?.data ?? null;
               if (raw === null) continue;
 
-              // raw might be:
-              // - a plain number (e.g. 1)
-              // - { data: number } or { count: number }
-              // - { success: true, data: number }
-              // - { success: true, submissionCount: number }
               if (typeof raw === "number") return raw;
               if (typeof raw?.data === "number") return raw.data;
               if (typeof raw?.count === "number") return raw.count;
@@ -1672,16 +1650,13 @@ export const useClassStore = create<ClassState>()(
                 return raw.submissionCount;
               if (typeof raw?.submission_count === "number")
                 return raw.submission_count;
-              // sometimes wrapped deeper:
               if (raw?.result != null && typeof raw.result === "number")
                 return raw.result;
-              // if success + data with array, maybe server returns submissions array, skip here
             } catch (err) {
               // quietly try next endpoint
             }
           }
 
-          // Fallback: fetch full submissions list and count unique submitters
           const subs = await get().getClassworkSubmissions(classworkId);
           if (!subs) return 0;
           const unique = new Set<string>();
@@ -1703,7 +1678,6 @@ export const useClassStore = create<ClassState>()(
           const res = await axiosInstance.delete(url);
           const raw = res?.data ?? null;
 
-          // If API returns { success: false } or no data, treat as failure
           if (!raw || raw.success === false) {
             set({
               isLoading: false,
@@ -1713,7 +1687,6 @@ export const useClassStore = create<ClassState>()(
             return false;
           }
 
-          // On success, update store.notifications by filtering out deleted one
           set((state) => {
             const cur = state.currentClass ?? defaultCurrentClass;
             const updatedNotifications = (cur.data?.notifications ?? []).filter(
@@ -1868,7 +1841,7 @@ export const useClassStore = create<ClassState>()(
             title: created.title ?? payload.title,
             description: created.description ?? payload.description ?? "",
             createdBy: String(created.createdBy ?? createdByValue),
-            createdAt: created.createdAt ?? formatISO(new Date()),
+            createdAt: formatISO(created.createdAt) ?? formatISO(new Date()),
             files: (created.files ?? []).map((f: any, idx: number) => ({
               id: f.id ?? `${Date.now()}-${idx}`,
               fileName: f.fileName ?? f.file_name ?? f.name ?? "file",
@@ -1876,7 +1849,16 @@ export const useClassStore = create<ClassState>()(
               thumbnail: f.thumbnail ?? undefined,
               isExternal: !!(f.isExternal ?? (f.url && !f.fileName)),
             })) as ClassNotificationFile[],
-            comments: created.comments ?? [],
+            comments:
+              (created.comments ?? []).map((c: any) => ({
+                id: c.id,
+                notificationId: c.notificationId ?? mapped.id,
+                userId: c.userId ?? c.createdBy ?? null,
+                userFullname: c.userFullname ?? "Bạn",
+                content: c.content ?? "",
+                avatarUrl: c.avatarUrl ?? null,
+                createdAt: formatISO(c.createdAt) ?? formatISO(new Date()),
+              })) ?? [],
           };
 
           set((state) => {
@@ -1913,6 +1895,7 @@ export const useClassStore = create<ClassState>()(
           set({ isLoading: false });
         }
       },
+
       declineMember: async (
         classId: number,
         userId: string

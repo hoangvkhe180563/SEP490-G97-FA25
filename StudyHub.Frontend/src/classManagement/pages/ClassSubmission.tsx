@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import type {
@@ -28,6 +28,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
   const classId = Number(params.id ?? 0);
   const workId = Number(params.classworkId ?? 0);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const {
     getClassworkSubmissions,
@@ -62,12 +63,19 @@ const ClassworkSubmissionsPage: React.FC = () => {
   const [showSubmittedNotGraded, setShowSubmittedNotGraded] = useState(true);
   const [showGraded, setShowGraded] = useState(true);
 
+  // read possible maxScore passed via navigation state (detailed-class-teacher sends it)
+  const incomingState = (location.state as any) ?? {};
+  const incomingMaxRaw = incomingState?.maxScore;
+  const incomingMax =
+    incomingMaxRaw !== undefined && incomingMaxRaw !== null
+      ? Number(incomingMaxRaw)
+      : NaN;
+
   useEffect(() => {
     let mounted = true;
     const load = async () => {
       setLoading(true);
       try {
-        // 1) load members (prefer currentClass cache)
         let students = currentClass?.data?.students ?? [];
         if (!students || students.length === 0) {
           const mem = await getClassMembers(classId);
@@ -76,11 +84,9 @@ const ClassworkSubmissionsPage: React.FC = () => {
         if (!mounted) return;
         setMembers(students);
 
-        // 2) load submissions (server list)
         const subs = await getClassworkSubmissions(workId);
         if (!mounted) return;
         const normSubs = (subs ?? []).map((s) => {
-          // normalize files field for convenience
           s.files = s.files ?? (s as any).submissionFiles ?? [];
           return s;
         });
@@ -97,7 +103,6 @@ const ClassworkSubmissionsPage: React.FC = () => {
         });
 
         if (missingMembers.length > 0) {
-          // parallel fetch but tolerate errors
           const promises = missingMembers.map((m) =>
             getSubmissionByUserAndClasswork(
               workId,
@@ -113,7 +118,6 @@ const ClassworkSubmissionsPage: React.FC = () => {
             });
 
           if (found.length > 0) {
-            // merge into submissions state and dedupe by submission.id
             const merged = [...(normSubs ?? [])];
             const existingIds = new Set(merged.map((x) => x.id));
             for (const f of found) {
@@ -151,7 +155,6 @@ const ClassworkSubmissionsPage: React.FC = () => {
   if (loading) return <div className="p-8 text-slate-500">Đang tải...</div>;
   if (error) return <div className="p-8 text-red-500">{error}</div>;
 
-  // helpers
   const normalizeUserId = (id: any) => String(id ?? "").trim();
 
   const isGraded = (s?: ClassworkSubmission | null): boolean => {
@@ -180,8 +183,9 @@ const ClassworkSubmissionsPage: React.FC = () => {
     return null;
   };
 
-  // try to infer a maxScore from submissions; fallback to 100
   const inferMaxScore = (): number => {
+    if (Number.isFinite(incomingMax) && incomingMax > 0) return incomingMax;
+
     if (!submissions || submissions.length === 0) return 100;
     for (const s of submissions) {
       const candidates = [
@@ -221,14 +225,12 @@ const ClassworkSubmissionsPage: React.FC = () => {
     return "text-red-600";
   };
 
-  // build quick lookup map by appUserId (string)
   const submissionMap = new Map<string, ClassworkSubmission>();
   (submissions ?? []).forEach((s) => {
     const key = normalizeUserId(s.appUserId ?? (s as any).userId ?? "");
     if (key) submissionMap.set(key, s);
   });
 
-  // group members
   type GroupKey = "notSubmitted" | "submittedNotGraded" | "graded";
   const groups: Record<GroupKey, ClassMemberDto[]> = {
     notSubmitted: [],
@@ -246,7 +248,6 @@ const ClassworkSubmissionsPage: React.FC = () => {
     else groups.graded.push(m);
   }
 
-  // pick member -> fetch freshest submission for that user
   const pickMember = async (m: ClassMemberDto) => {
     setSelectedMember(m);
     setSelectedSubmission(null);
@@ -308,6 +309,11 @@ const ClassworkSubmissionsPage: React.FC = () => {
     const numeric = Number(gradeValue);
     if (!Number.isFinite(numeric)) {
       alert("Điểm không hợp lệ (phải là số).");
+      return;
+    }
+
+    if (Number.isFinite(globalMaxScore) && numeric > globalMaxScore) {
+      alert(`Điểm không hợp lệ: không được vượt quá ${globalMaxScore}.`);
       return;
     }
 

@@ -22,7 +22,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             return _context.ClassNotifications
                 .Where(n => n.ClassId == classId && n.DeletedAt == null)
-                .OrderByDescending(n => n.CreatedAt)
+                .OrderBy(n => n.CreatedAt)
                 .Select(n => new ClassNotification
                 {
                     Id = n.Id,
@@ -50,7 +50,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Type = notification.Type ?? "notification",
                 Title = notification.Title,
                 Description = notification.Description,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
                 AppUserId = notification.AppUserId,
                 Deadline = notification.Deadline,
                 MaxScore = notification.MaxScore,
@@ -75,7 +75,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             entity.AllowSubmission = notification.AllowSubmission;
             entity.GradeType = notification.GradeType;
             entity.InstructionsHtml = notification.InstructionsHtml;
-            entity.UpdatedAt = DateTime.UtcNow;
+            entity.UpdatedAt = DateTime.Now;
             _context.ClassNotifications.Update(entity);
             _context.SaveChanges();
             return notification;
@@ -109,7 +109,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             var noti = _context.ClassNotifications.FirstOrDefault(c => c.Id == id);
             if (noti != null)
             {
-                noti.DeletedAt = DateTime.UtcNow;
+                noti.DeletedAt = DateTime.Now;
                 _context.ClassNotifications.Update(noti);
                 _context.SaveChanges();
                 return true;

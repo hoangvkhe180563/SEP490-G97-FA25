@@ -1,4 +1,3 @@
-// (updated) Type definitions for class management state and DTOs
 import type { Subject } from "@/classManagement/interfaces/subject";
 import type { PostComment } from "../components/ui/postcard";
 
@@ -208,10 +207,8 @@ export interface ClassState {
   submitClasswork: (classworkId: number, appUserId: string, files: File[],links?: LinkPayload[]) => Promise<any | null>;
   getClassworkSubmissions: (classworkId: number) => Promise<ClassworkSubmission[] | null>;
 
-  // NEW: fetch a single submission for a given user + classwork
   getSubmissionByUserAndClasswork: (classworkId: number, appUserId: string) => Promise<ClassworkSubmission | null>;
-  // Updated signature for grading to match the store implementation:
-  // notificationId (i.e. the ClassNotification id / classwork id), submissionId, score, optional feedback, optional grader id
+  
   gradeSubmission: (
     notificationId: number,
     submissionId: number,
@@ -222,7 +219,6 @@ export interface ClassState {
     raw: any; success: boolean; message?: string 
 } | null>;
 
-  // NEW: efficient count of how many unique students submitted for a given classwork/notification
   getSubmissionCount: (classworkId: number) => Promise<number | null>;
 
   getMemberCount:  (classId: number)=> Promise<number | null>;

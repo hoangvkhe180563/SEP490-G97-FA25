@@ -670,6 +670,20 @@ const DetailedClassTeacher: React.FC = () => {
                   <div className="space-y-4">
                     {worksFromStore.map((w) => {
                       const past = !!w.deadline && isPastDeadline(w.deadline);
+
+                      // Try to extract a numeric max score from the work object
+                      const candidateMax =
+                        (w as any).maxScore ??
+                        (w as any).max_points ??
+                        (w as any).total ??
+                        (w as any).max ??
+                        null;
+                      const numericMax = Number(candidateMax);
+                      const maxToSend =
+                        Number.isFinite(numericMax) && numericMax > 0
+                          ? numericMax
+                          : null;
+
                       return (
                         <div key={w.id}>
                           <div
@@ -751,7 +765,20 @@ const DetailedClassTeacher: React.FC = () => {
                                   </div>
                                 </div>
                                 <div className="mt-4 text-right">
-                                  <Button onClick={() => navigate(`/class/${role}/${id}/classwork/${w.id}/submissions`)} size="sm">
+                                  <Button
+                                    onClick={() =>
+                                      navigate(
+                                        `/class/${role}/${id}/classwork/${w.id}/submissions`,
+                                        {
+                                          state: {
+                                            // pass max score to submissions page
+                                            maxScore: maxToSend,
+                                          },
+                                        }
+                                      )
+                                    }
+                                    size="sm"
+                                  >
                                     Xem chi tiết
                                   </Button>
                                 </div>

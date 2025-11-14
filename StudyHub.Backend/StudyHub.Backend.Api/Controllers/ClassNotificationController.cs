@@ -46,10 +46,7 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(new { success = true, message = "Lấy danh sách thông báo thành công.", data = notifications });
         }
 
-        // Create notification (supports multipart/form-data with files & links)
-        // NOTE: service currently exposes CreateNotification (no file upload helper),
-        // so controller will create notification first then upload files via injected ICloudinaryRepository
-        // and persist file records via service.CreateNotificationFile(...) (service method wraps repository).
+     
         [HttpPost]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> Create([FromForm] CreateNotificationDto dto)
@@ -67,7 +64,7 @@ namespace StudyHub.Backend.Api.Controllers
                     Type = dto.Type ?? "notification",
                     Title = dto.Title.Trim(),
                     Description = dto.Description?.Trim() ?? "",
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.Now,
                     AppUserId = dto.CreatedBy,
                     Deadline = dto.Deadline,
                     MaxScore = dto.MaxScore,

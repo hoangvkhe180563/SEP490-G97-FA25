@@ -335,7 +335,8 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       userFullname: currentUserFullname,
       content: htmlContent,
       avatarUrl: user?.avatar ?? "/vite.svg",
-      createdAt: formatISO(new Date()) ,
+      // keep optimistic timestamp in ISO, display logic will convert to localized full time
+      createdAt: formatISO(new Date()),
     };
 
     setLocalComments((c) => [...c, optimistic]);
@@ -384,15 +385,19 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
 
   if (isDeleted) return null;
 
-  const formatDate = (iso?: string | number) => {
-    if (!iso) return "";
+  // Format timestamps to always show full local datetime (no "vừa xong")
+  const formatTimestamp = (val?: string | number | null): string => {
+    if (!val && val !== 0) return "";
+    let d: Date;
+    if (typeof val === "number") d = new Date(val);
+    else d = new Date(String(val));
+
+    if (isNaN(d.getTime())) return String(val);
+
     try {
-      const d = new Date(iso);
-      if (isNaN(d.getTime())) return String(iso);
-      // format with date-fns for consistent output
-      return d.toLocaleString("vi-VN");
+      return format(d, "dd/MM/yyyy HH:mm");
     } catch {
-      return String(iso);
+      return d.toLocaleString("vi-VN");
     }
   };
 
@@ -408,7 +413,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
           <div className="flex items-center justify-between">
             <div>
               <div className="font-medium text-gray-800" />
-              <div className="text-xs text-gray-400">{formatDate(post.createdAt)}</div>
+              <div className="text-xs text-gray-400">{formatTimestamp(post.createdAt)}</div>
             </div>
 
             <div>
@@ -461,8 +466,6 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
               </svg>
               {localComments.length} comments
             </Button>
-
-            
           </div>
 
           <div className="mt-4">
@@ -480,7 +483,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
                   <div className="text-sm">
                     <div className="font-medium">
                       {c.userFullname}{" "}
-                      <span className="text-gray-400 text-xs ml-2">{formatDate(c.createdAt)}</span>
+                      <span className="text-gray-400 text-xs ml-2">{formatTimestamp(c.createdAt)}</span>
                     </div>
                     <div
                       className="text-gray-700 mt-1"

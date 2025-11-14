@@ -570,11 +570,17 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.LessonId, "LessonId").IsUnique();
 
-            entity.Property(e => e.Attempts).HasDefaultValueSql("'1'");
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.Attempts)
+                .HasDefaultValueSql("'1'")
+                .HasColumnType("tinyint(3) unsigned");
+            entity.Property(e => e.ClassId).HasColumnType("int(11)");
             entity.Property(e => e.CloseTime).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.Duration).HasColumnType("int(10) unsigned");
+            entity.Property(e => e.LessonId).HasColumnType("int(11)");
             entity.Property(e => e.OpenTime)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.ShowAnswers)
                 .IsRequired()
@@ -597,6 +603,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.QuestionObjectId)
                 .HasMaxLength(24)
                 .IsFixedLength();
+            entity.Property(e => e.ExamId).HasColumnType("int(11)");
 
             entity.HasOne(d => d.Exam).WithMany(p => p.ExamQuestions)
                 .HasForeignKey(d => d.ExamId)
@@ -619,7 +626,8 @@ public partial class AppDbContext : DbContext
                 .IsFixedLength();
             entity.Property(e => e.CheatTimes)
                 .HasDefaultValueSql("'0'")
-                .HasColumnType("mediumint");
+                .HasColumnType("mediumint(9)");
+            entity.Property(e => e.ExamId).HasColumnType("int(11)");
             entity.Property(e => e.FinishTime).HasColumnType("datetime");
             entity.Property(e => e.Score).HasPrecision(4, 2);
             entity.Property(e => e.SubmissionTime).HasColumnType("datetime");
@@ -861,10 +869,13 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.LessonId, "LessonId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CorrectAnswer)
                 .HasComment("Đáp án đúng nếu là câu hỏi dạng text")
                 .HasColumnType("text");
-            entity.Property(e => e.CorrectIndex).HasComment("Chỉ số đáp án đúng (0-based) nếu là MC");
+            entity.Property(e => e.CorrectIndex)
+                .HasComment("Chỉ số đáp án đúng (0-based) nếu là MC")
+                .HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
@@ -1347,8 +1358,9 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.AppUserId, "AppUserId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.EndAt).HasColumnType("datetime");
             entity.Property(e => e.IsActive)
