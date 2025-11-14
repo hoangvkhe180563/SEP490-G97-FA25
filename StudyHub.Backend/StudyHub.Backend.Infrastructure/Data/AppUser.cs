@@ -95,6 +95,8 @@ public partial class AppUser
 
     public virtual ICollection<RulePattern> RulePatterns { get; set; } = new List<RulePattern>();
 
+    public virtual ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
+
     public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
 
     public virtual ICollection<UserForumStatus> UserForumStatuses { get; set; } = new List<UserForumStatus>();

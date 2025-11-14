@@ -40,6 +40,7 @@ import type {
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { formatISO } from "date-fns";
 
 const EditCourse: React.FC = () => {
   const navigate = useNavigate();
@@ -162,20 +163,14 @@ const EditCourse: React.FC = () => {
       );
       setStatus(selectedCourse.status ?? undefined);
       setIsFeatured((selectedCourse as any).isFeatured ?? false);
-      setStartAt(formatDate(selectedCourse.startAt));
-      setEndAt(formatDate(selectedCourse.endAt));
+      setStartAt(formatISO(selectedCourse.startAt));
+      setEndAt(formatISO(selectedCourse.endAt));
     }
 
     return () => {
       mounted = false;
     };
   }, [courseId, selectedCourse]);
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "";
-    const d = new Date(dateString);
-    return d.toISOString().split("T")[0];
-  };
 
   // Validation for fields before save
   const validateForm = () => {
@@ -665,7 +660,11 @@ const EditCourse: React.FC = () => {
                   setDialog({
                     open: true,
                     title: "Thiếu hoặc sai thông tin",
-                    message: errors.map((err, index) => (<React.Fragment key={`err-${index}`}>{err} {index < errors.length - 1 && <br />}</React.Fragment>)),
+                    message: errors.map((err, index) => (
+                      <React.Fragment key={`err-${index}`}>
+                        {err} {index < errors.length - 1 && <br />}
+                      </React.Fragment>
+                    )),
                   });
                   return;
                 }
@@ -714,10 +713,10 @@ const EditCourse: React.FC = () => {
                     chapters: chaptersPayload,
                     isFeatured: isFeatured,
                     status: status ?? null,
-                    startAt: startAt ? new Date(startAt).toISOString() : null,
-                    endAt: endAt ? new Date(endAt).toISOString() : null,
-                    updatedAt: new Date().toISOString(),
-                    UpdatedBy: authUser?.id,
+                    startAt: startAt ? formatISO(startAt) : null,
+                    endAt: endAt ? formatISO(endAt) : null,
+                    updatedAt: formatISO(new Date()),
+                    updatedBy: authUser?.id,
                     isApproved: willOpenFromDraft
                       ? false
                       : selectedCourse?.isApproved,
@@ -948,7 +947,11 @@ const EditCourse: React.FC = () => {
                               {/* === Right: Action buttons === */}
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-[#8A8A8A] mr-3">
-                                  {l.type === "Video" ? "Video" : l.type === "Reading" ? "Đọc" : "Kiểm tra"}
+                                  {l.type === "Video"
+                                    ? "Video"
+                                    : l.type === "Reading"
+                                    ? "Đọc"
+                                    : "Kiểm tra"}
                                 </span>
 
                                 <Button
@@ -1177,16 +1180,16 @@ const EditCourse: React.FC = () => {
                         <div>
                           Cập nhật gần nhất{" "}
                           <span className="float-right">
-                            {formatDate(
+                            {formatISO(
                               selectedCourse?.updatedAt ??
-                              selectedCourse?.createdAt
+                                selectedCourse?.createdAt
                             )}
                           </span>
                         </div>
                         <div>
                           Được tạo vào{" "}
                           <span className="float-right">
-                            {formatDate(selectedCourse?.createdAt)}
+                            {formatISO(selectedCourse?.createdAt)}
                           </span>
                         </div>
                       </div>
@@ -1263,9 +1266,9 @@ const EditCourse: React.FC = () => {
                       type="date"
                       value={
                         (modalChapter as any).postDate
-                          ? new Date((modalChapter as any).postDate)
-                            .toISOString()
-                            .slice(0, 10)
+                          ? formatISO(
+                              new Date((modalChapter as any).postDate)
+                            ).slice(0, 10)
                           : ""
                       }
                       onChange={(e) =>

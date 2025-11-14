@@ -15,7 +15,7 @@ import {
   SelectItem,
 } from "@/common/components/ui/select";
 import { Separator } from "@/common/components/ui/separator";
-import { format, parseISO } from "date-fns";
+import { format, formatISO } from "date-fns";
 import { transactionService } from "@/paymentManagement/services/transactionService";
 import { useTransactionStore } from "@/paymentManagement/stores/useTransactionStore";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
@@ -47,7 +47,7 @@ const RevenueReport: React.FC = () => {
     monday.setDate(today.getDate() - diffToMonday);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    const fmt = (d: Date) => formatISO(d).slice(0, 10);
     setFrom(fmt(monday));
     setTo(fmt(sunday));
 
@@ -183,9 +183,7 @@ const RevenueReport: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `revenue_report_${new Date()
-        .toISOString()
-        .slice(0, 10)}.csv`;
+      a.download = `revenue_report_${formatISO(new Date()).slice(0, 10)}.csv`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -222,9 +220,7 @@ const RevenueReport: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `revenue_report_${new Date()
-        .toISOString()
-        .slice(0, 10)}.doc`;
+      a.download = `revenue_report_${formatISO(new Date()).slice(0, 10)}.doc`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -360,8 +356,8 @@ const RevenueReport: React.FC = () => {
                       monday.setDate(today.getDate() - diffToMonday);
                       const sunday = new Date(monday);
                       sunday.setDate(monday.getDate() + 6);
-                      setFrom(monday.toISOString().slice(0, 10));
-                      setTo(sunday.toISOString().slice(0, 10));
+                      setFrom(formatISO(monday).slice(0, 10));
+                      setTo(formatISO(sunday).slice(0, 10));
                     }}
                   >
                     Tuần này
@@ -381,8 +377,8 @@ const RevenueReport: React.FC = () => {
                         now.getMonth() + 1,
                         0
                       );
-                      setFrom(startOfMonth.toISOString().slice(0, 10));
-                      setTo(endOfMonth.toISOString().slice(0, 10));
+                      setFrom(formatISO(startOfMonth).slice(0, 10));
+                      setTo(formatISO(endOfMonth).slice(0, 10));
                     }}
                   >
                     30 ngày
@@ -394,8 +390,8 @@ const RevenueReport: React.FC = () => {
                       const now = new Date();
                       const startOfYear = new Date(now.getFullYear(), 0, 1);
                       const endOfYear = new Date(now.getFullYear(), 11, 31);
-                      setFrom(startOfYear.toISOString().slice(0, 10));
-                      setTo(endOfYear.toISOString().slice(0, 10));
+                      setFrom(formatISO(startOfYear).slice(0, 10));
+                      setTo(formatISO(endOfYear).slice(0, 10));
                     }}
                   >
                     1 năm

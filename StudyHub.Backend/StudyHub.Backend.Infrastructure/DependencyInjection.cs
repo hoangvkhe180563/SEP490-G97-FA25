@@ -42,6 +42,7 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<IQAMessageRepository, QAMessageRepository>();
             services.AddScoped<IExamRepository, ExamRepository>();
             services.AddScoped<IExamResultRepository, ExamResultRepository>();
+            services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 
             services.AddScoped<ICloudinaryRepository>(provider =>
             {

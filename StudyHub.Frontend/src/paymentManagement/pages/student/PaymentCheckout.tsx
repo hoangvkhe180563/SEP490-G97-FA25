@@ -8,6 +8,7 @@ import { AppDialog } from "@/courseManagement/components/AppDialog";
 
 const PaymentCheckout: React.FC = () => {
   const [search] = useSearchParams();
+  const [number, setNumber] = useState<number | null>(null);
   const navigate = useNavigate();
 
   const [dialog, setDialog] = useState<DialogProps>({
@@ -23,6 +24,9 @@ const PaymentCheckout: React.FC = () => {
     : "Khóa học";
   const schoolId = search.get("schoolId") ?? "";
   const courseId = search.get("courseId") ?? "";
+  const isSubscription = search.get("subscription") === "1";
+  const monthsParam = search.get("months") ?? undefined;
+  const packageName = search.get("packageName");
 
   const authUser = useAuthStore((s) => s.user);
   const loading = usePaymentStore((s) => s.loading);
@@ -42,10 +46,20 @@ const PaymentCheckout: React.FC = () => {
 
   // --- STEP 1: Fetch payment info on mount ---
   useEffect(() => {
-    const transferNote = `CH${authUser?.transferId ?? ""}${courseId}`;
+    // Build a transfer note that includes context so backend can match payments
+    let transferNote = `CH${authUser?.transferId ?? ""}${courseId}`;
+    if (isSubscription) {
+      const random3 = Math.floor(Math.random() * 1000)
+        .toString()
+        .padStart(3, "0");
+      setNumber(Number(random3));
+
+      transferNote = `CH${authUser?.transferId ?? ""}${random3}`;
+    }
+
     fetchPaymentInfo(schoolId || "0", price, orderRef, transferNote);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schoolId, price, orderRef, name, authUser?.id]);
+  }, [schoolId, price, orderRef, name, authUser?.id, isSubscription]);
 
   // --- STEP 2: Redirect to fail page if error ---
   useEffect(() => {
@@ -90,21 +104,45 @@ const PaymentCheckout: React.FC = () => {
   useEffect(() => {
     try {
       const notification = result?.paymentNotification;
-      console.log("PaymentReceived notification:", notification);
       if (!notification) return;
 
-      if (Number(courseId) != notification.courseId) return;
-      console.log("Payment notification matches current courseId:", courseId);
-
       const params = new URLSearchParams();
-      if (courseId) params.set("courseId", courseId);
+      let shouldProceed = false;
+
+      if (isSubscription) {
+        // Check subscription
+        if (Number(notification.courseId) === number) {
+          shouldProceed = true;
+          params.set("subscription", "1");
+          const months = monthsParam ? String(monthsParam) : undefined;
+          if (months) params.set("months", months);
+        }
+      } else {
+        // Check course payment
+        if (Number(notification.courseId) === Number(courseId)) {
+          shouldProceed = true;
+          if (courseId) params.set("courseId", courseId);
+        }
+      }
+
+      if (!shouldProceed) return;
+
       params.set("txRef", notification.reference || "");
+      params.set("price", String(price));
+
       navigate(`/payment/student/payment-success?${params.toString()}`);
     } catch (err) {
       console.error("PaymentReceived handler error:", err);
     }
-    // only re-run when a notification arrives for current result
-  }, [result?.paymentNotification, courseId, navigate]);
+  }, [
+    result?.paymentNotification,
+    courseId,
+    number,
+    price,
+    isSubscription,
+    monthsParam,
+    navigate,
+  ]);
 
   const copyText = (t: string) => navigator.clipboard?.writeText(t);
 
@@ -151,9 +189,15 @@ const PaymentCheckout: React.FC = () => {
           {/* LEFT: Payment Info */}
           <div className="flex-1 p-8">
             <h1 className="text-3xl font-semibold mb-2 text-gray-800">
-              Thanh toán khóa học
+              {isSubscription ? "Thanh toán đăng ký" : "Thanh toán khóa học"}
             </h1>
-            <p className="text-gray-500 mb-6">{name}</p>
+            {isSubscription ? (
+              <div className="text-gray-500 mb-6">
+                <div>{packageName ?? name}</div>
+              </div>
+            ) : (
+              <p className="text-gray-500 mb-6">{name}</p>
+            )}
 
             <div className="flex items-baseline gap-4 mb-6">
               <span className="text-gray-500 text-sm">Số tiền</span>

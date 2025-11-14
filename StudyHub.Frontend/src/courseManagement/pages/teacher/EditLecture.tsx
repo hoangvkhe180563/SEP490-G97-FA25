@@ -22,6 +22,7 @@ import LessonExamQuestions from "@/courseManagement/components/LessonExamQuestio
 import { EXAM_TYPE } from "@/courseManagement/constants/ExamType";
 import courseApi from "@/courseManagement/services/courseService";
 import { Checkbox } from "@radix-ui/react-checkbox";
+import { formatISO } from "date-fns";
 
 const EditLecture: React.FC = () => {
   const navigate = useNavigate();
@@ -143,7 +144,7 @@ const EditLecture: React.FC = () => {
         setDuration(l.duration ?? "");
         setDescription(l.description ?? "");
         setPostDate(
-          l.postDate ? new Date(l.postDate).toISOString().slice(0, 10) : ""
+          l.postDate ? formatISO(new Date(l.postDate)).slice(0, 10) : ""
         );
         setIsPreview(!!l.isPreview);
 
