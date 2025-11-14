@@ -30,8 +30,9 @@ public partial class InteractiveQuestion
     /// Chỉ số đáp án đúng (0-based) nếu là MC
     /// </summary>
     public int? CorrectIndex { get; set; }
+
     /// <summary>
-    /// Đáp án mong đợi nếu là câu hỏi dạng text
+    /// Đáp án đúng nếu là câu hỏi dạng text
     /// </summary>
     public string? CorrectAnswer { get; set; }
 

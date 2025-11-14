@@ -20,7 +20,7 @@ import {
 } from "@/common/components/ui/alert-dialog";
 import { Button } from "@/common/components/ui/button";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
-import { format } from "date-fns";
+import { format, formatISO } from "date-fns";
 import { documentService } from "@/documentManagement/services/documentService";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 
@@ -70,7 +70,7 @@ const ApproveCourses: React.FC = () => {
 
       const dto: any = {
         ...selected,
-        updatedAt: new Date().toISOString(),
+        updatedAt: formatISO(new Date()),
         updatedBy: authUser?.id ?? null,
         isApproved: true,
       };
@@ -97,7 +97,7 @@ const ApproveCourses: React.FC = () => {
 
       const dto: any = {
         ...selected,
-        updatedAt: new Date().toISOString(),
+        updatedAt: formatISO(new Date()),
         updatedBy: authUser?.id ?? null,
         isApproved: false,
         status: "Đóng",

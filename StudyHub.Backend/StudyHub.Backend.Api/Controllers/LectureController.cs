@@ -12,11 +12,13 @@ namespace StudyHub.Backend.Api.Controllers
     {
         private readonly LectureService _service;
         private readonly CloudFileStorageService _fileStorage;
+        private readonly AuthService _authService;
 
-        public LectureController(LectureService service, CloudFileStorageService fileStorage)
+        public LectureController(LectureService service, CloudFileStorageService fileStorage, AuthService authService)
         {
             _service = service;
             _fileStorage = fileStorage;
+            _authService = authService;
         }
 
         // ==============================
@@ -142,13 +144,9 @@ namespace StudyHub.Backend.Api.Controllers
                 var doc = System.Text.Json.JsonSerializer.SerializeToElement(payload);
                 var questionId = doc.GetProperty("questionId").GetInt32();
 
-                Guid userId = Guid.Empty;
-                // if user is authenticated, use user id; fallback to empty guid
-                if (HttpContext.User?.Identity?.IsAuthenticated == true)
-                {
-                    var claim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "sub" || c.Type == "id" || c.Type.EndsWith("nameidentifier"));
-                    if (claim != null) Guid.TryParse(claim.Value, out userId);
-                }
+                var userId = _authService.GetCurrentUser().Id;
+
+                if (userId == Guid.Empty) return Unauthorized();
 
                 var resp = new StudyHub.Backend.Domain.Entities.InteractiveResponse
                 {

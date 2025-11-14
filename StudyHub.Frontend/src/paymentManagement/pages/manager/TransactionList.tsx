@@ -34,7 +34,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { Separator } from "@/common/components/ui/separator";
-import { format } from "date-fns";
+import { format, formatISO } from "date-fns";
 import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination";
 import { Dialog, DialogContent } from "@/common/components/ui/dialog";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
@@ -253,10 +253,8 @@ const TransactionList: React.FC = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `transactions_${new Date()
-          .toISOString()
-          .slice(0, 19)
-          .replace(/[:T]/g, "-")}.csv`;
+        a.download = `transactions_${formatISO(new Date()).slice(0, 10)}.csv`;
+
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -283,10 +281,7 @@ const TransactionList: React.FC = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `transactions_${new Date()
-          .toISOString()
-          .slice(0, 19)
-          .replace(/[:T]/g, "-")}.doc`;
+        a.download = `transactions_${formatISO(new Date()).slice(0, 10)}.doc`;
         document.body.appendChild(a);
         a.click();
         a.remove();
