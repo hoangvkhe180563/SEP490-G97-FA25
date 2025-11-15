@@ -7,6 +7,7 @@ using StudyHub.Backend.UseCases.Utils;
 using StudyHub.Backend.Api.Filters;
 using StudyHub.Backend.Api.Hubs;
 using StudyHub.Backend.Api.Middlewares;
+using OfficeOpenXml;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +30,8 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
     options.SuppressModelStateInvalidFilter = true;
 });
+
+
 
 // Tạo ra filter giống với modal state nhưng tuỳ chỉnh thêm vài cái để có thể custome response về như ý mình
 // Thứ tự diễn ra các filter là AuthorizeFilter => ResourceFilter => ModelBinding => ActionFilter
@@ -72,6 +75,7 @@ builder.Services.AddSession(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
 });
 builder.Services.AddSignalR();
+ExcelPackage.License.SetNonCommercialPersonal("StudyHub");
 var app = builder.Build();
 app.UseCors();
 

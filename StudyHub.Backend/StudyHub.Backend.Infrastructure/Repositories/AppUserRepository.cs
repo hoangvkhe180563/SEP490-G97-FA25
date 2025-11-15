@@ -258,6 +258,57 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
+        // Create multiple users in a single transaction and attach per-user roles
+        public void CreateUsersWithRoles(IEnumerable<(Domain.Entities.AppUser user, IEnumerable<Guid>? roleIds)> usersWithRoles)
+        {
+            using var transaction = _context.Database.BeginTransaction();
+            try
+            {
+                // Add all users first
+                foreach (var (user, _) in usersWithRoles)
+                {
+                    user.TransferId = GenerateUniqueTransferId();
+                    var d = ToData(user);
+                    if (d.CreatedBy == Guid.Empty) d.CreatedBy = Guid.Empty;
+                    if (d.CreatedAt == default) d.CreatedAt = DateTime.Now;
+                    _context.AppUsers.Add(d);
+                }
+
+                _context.SaveChanges();
+
+                // Attach roles for each created user
+                foreach (var (user, roleIds) in usersWithRoles)
+                {
+                    if (roleIds == null || !roleIds.Any()) continue;
+
+                    var existing = _context.AppUsers
+                                    .Include(u => u.Roles)
+                                    .FirstOrDefault(u => u.Id == user.Id);
+                    if (existing == null) continue;
+
+                    var roles = _context.AppRoles.Where(r => roleIds.Contains(r.Id)).ToList();
+                    foreach (var r in roles)
+                    {
+                        if (!existing.Roles.Any(rr => rr.Id == r.Id))
+                        {
+                            existing.Roles.Add(r);
+                        }
+                    }
+
+                    _context.AppUsers.Update(existing);
+                }
+
+                _context.SaveChanges();
+                transaction.Commit();
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                new InfrastructureException("AppUserRepository", "CreateUsersWithRoles failed. Inner error: " + ex.Message).LogError();
+                throw;
+            }
+        }
+
         public void UpdateUser(Domain.Entities.AppUser user, IEnumerable<Guid>? roleIds = null)
         {
             try
