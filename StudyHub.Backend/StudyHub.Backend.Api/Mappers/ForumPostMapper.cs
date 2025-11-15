@@ -159,15 +159,19 @@ namespace StudyHub.Backend.Api.Mappers
                     RecordId = v.Id,
                     UserId = v.UserId,
                     Username = v.User?.Username,
+                    Fullname = v.User?.Fullname,
                     SchoolId = v.SchoolId,
                     PostId = v.PostId,
                     MatchedRuleId = v.MatchedRuleId,
                     RuleName = v.Rule?.Name,
+                    RuleSeverity = v.Rule?.Severity,
+                    RuleDescription = v.Rule?.Description,
                     MatchedPatternId = v.MatchedPatternId,
                     PatternText = v.Pattern?.Pattern,
                     ViolationScore = v.ViolationScore,
                     SourceType = v.SourceType,
                     ReportedBy = v.ReportedBy,
+                    ReporterName = v.Reporter?.Fullname ?? v.Reporter?.Username,
                     CreatedAt = v.CreatedAt
                 }).ToList() ?? new List<ViolationRecordDto>()
             };

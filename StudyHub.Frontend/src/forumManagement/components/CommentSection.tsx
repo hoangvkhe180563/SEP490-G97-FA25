@@ -288,10 +288,14 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
         const replies = groupedComments[comment.comment_id] || [];
 
         return (
-          <div key={comment.comment_id}>
+          <div
+            key={comment.comment_id}
+            id={`comment-${comment.comment_id}`}
+            className="transition-all duration-300"
+          >
             <div className="flex gap-3">
               <Avatar className="w-10 h-10 flex-shrink-0">
-                <AvatarFallback className="bg-gradient-to-br from-pink-400 to-orange-400 text-white text-sm font-bold">
+                <AvatarFallback className="bg-gradient-to-br bg-sky-400 hover:bg-sky-500 text-white text-sm font-bold">
                   {comment.author_initials}
                 </AvatarFallback>
               </Avatar>
@@ -590,7 +594,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                     return (
                       <div
                         key={reply.comment_id}
-                        className="flex gap-3 mt-3 ml-10 animate-in slide-in-from-top-2 duration-200"
+                        id={`comment-${reply.comment_id}`}
+                        className="flex gap-3 mt-3 ml-10 animate-in slide-in-from-top-2 duration-200 transition-all"
                       >
                         <Avatar className="w-8 h-8 flex-shrink-0">
                           <AvatarFallback className="bg-gradient-to-br from-blue-400 to-sky-400 text-white text-xs font-bold">

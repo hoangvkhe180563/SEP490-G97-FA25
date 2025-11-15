@@ -40,6 +40,7 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public string? CommentContent { get; set; }
         public int? MatchedRuleId { get; set; }
         public string? RuleName { get; set; }
+        public string? RuleSeverity { get; set; }
         public string? RuleDescription { get; set; }
         public int? MatchedPatternId { get; set; }
         public string? PatternText { get; set; }
@@ -87,8 +88,10 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public int? CommentId { get; set; }
         public string? SourceType { get; set; } 
         public int? RuleId { get; set; }
+        public string? Qerry { get; set; }
         public int? MinViolationScore { get; set; }
         public int? MaxViolationScore { get; set; }
+        public string? RuleSeverity { get; set; }
         public DateTime? From { get; set; }
         public DateTime? To { get; set; }
         public bool IncludeDeleted { get; set; } = false;

@@ -41,7 +41,7 @@ export const forumService = {
           id: rule.id || rule.ruleId,
           content: rule.description || rule.ruleName || rule.content || "",
           ruleType: rule.ruleType,
-          severity: rule.severity || "low",
+          severity: (rule.severity || rule.ruleSeverity || "low").toLowerCase(),
         }));
       }
 

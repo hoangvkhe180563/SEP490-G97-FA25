@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
 import { Input } from "@/common/components/ui/input";
@@ -48,16 +48,18 @@ import {
   MoreVertical,
   Filter,
   ChevronDown,
+  ExternalLink,
 } from "lucide-react";
 import type { PaginationInfo } from "@/documentManagement/interfaces/document";
 import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination";
-import { useViolationStore } from "../stores/ViolationStore";
+import { useViolationStore } from "../stores/useViolationStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { toast } from "sonner";
 import { StatusBadge } from "../components/StatusBadge";
 import { useForumStore } from "../stores/useForumStore";
 import { PostDetailModal } from "@/forumManagement/components/PostDetailModal";
 import { forumService } from "../services/ForumService";
+import { getPostIdFromComment } from "../utils/commentUtils";
 
 const ViolationRecords = () => {
   const navigate = useNavigate();
@@ -101,6 +103,9 @@ const ViolationRecords = () => {
   >([]);
   const [modalVisibleComments, setModalVisibleComments] = useState(8);
   const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
+  const [selectedCommentId, setSelectedCommentId] = useState<number | null>(
+    null
+  );
 
   useEffect(() => {
     if (user?.schoolId) {
@@ -220,10 +225,12 @@ const ViolationRecords = () => {
         selectedRules.includes(violation.matchedRuleId));
 
     const violationRule = rules.find((r) => r.id === violation.matchedRuleId);
+    const violationSeverity = violationRule?.severity;
+
     const matchesSeverity =
       selectedSeverities.length === 0 ||
-      (violationRule?.severity &&
-        selectedSeverities.includes(violationRule.severity));
+      (violationSeverity && selectedSeverities.includes(violationSeverity)) ||
+      (!violationSeverity && selectedSeverities.includes("na"));
 
     return (
       matchesSearch &&
@@ -271,13 +278,18 @@ const ViolationRecords = () => {
 
   const getSeverityBadge = (ruleId?: number) => {
     const rule = rules.find((r) => r.id === ruleId);
-    const severity = rule?.severity || "low";
+    const severity = rule?.severity;
 
+    if (!severity) return <span className="text-gray-500">Quản trị</span>;
+
+    if (severity === "critical")
+      return <span className="text-red-600 font-medium">Nghiêm trọng</span>;
     if (severity === "high")
-      return <Badge className="bg-red-500 text-white">Cao</Badge>;
+      return <span className="text-red-500 font-medium">Cao</span>;
     if (severity === "medium")
-      return <Badge className="bg-orange-500 text-white">Trung bình</Badge>;
-    return <Badge className="bg-yellow-500 text-white">Thấp</Badge>;
+      return <span className="text-orange-500 font-medium">Trung bình</span>;
+
+    return <span className="text-gray-500">Quản trị</span>;
   };
 
   const formatDate = (dateString: string) => {
@@ -302,14 +314,30 @@ const ViolationRecords = () => {
   const isReport = (violation: any) => violation.sourceType === "report";
   const getStatus = (violation: any) => {
     if (violation.sourceType === "report") {
-      return violation.status || "pending";
+      if (!violation.status) {
+        return violation.violationScore > 0 ? "approved" : "pending";
+      }
+      return violation.status;
     }
-    return violation.violationScore === 0 ? "pending" : "approved";
+    return "approved";
   };
 
-  const handleViewPost = (violation: any) => {
-    if (violation.postId) {
-      setSelectedPostId(violation.postId);
+  const handleViewPost = async (violation: any) => {
+    console.log("handleViewPost called with:", violation);
+    let postId = violation.postId;
+
+    if (!postId && violation.commentId) {
+      toast.info("Đang tải thông tin bài viết...");
+      postId = await getPostIdFromComment(violation.commentId);
+      console.log("Got postId from comment:", postId);
+    }
+
+    if (postId) {
+      console.log("Setting postId:", postId, "commentId:", violation.commentId);
+      setSelectedPostId(postId);
+      setSelectedCommentId(violation.commentId || null);
+    } else {
+      toast.error("Không tìm thấy bài viết");
     }
   };
 
@@ -411,6 +439,12 @@ const ViolationRecords = () => {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56">
                     <DropdownMenuCheckboxItem
+                      checked={selectedSeverities.includes("critical")}
+                      onCheckedChange={() => toggleSeverity("critical")}
+                    >
+                      Nghiêm trọng
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
                       checked={selectedSeverities.includes("high")}
                       onCheckedChange={() => toggleSeverity("high")}
                     >
@@ -423,10 +457,10 @@ const ViolationRecords = () => {
                       Trung bình
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
-                      checked={selectedSeverities.includes("low")}
-                      onCheckedChange={() => toggleSeverity("low")}
+                      checked={selectedSeverities.includes("na")}
+                      onCheckedChange={() => toggleSeverity("na")}
                     >
-                      Thấp
+                      N/A
                     </DropdownMenuCheckboxItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -490,7 +524,7 @@ const ViolationRecords = () => {
                               {violation.userAvatar ? (
                                 <AvatarImage src={violation.userAvatar} />
                               ) : (
-                                <AvatarFallback className="bg-gradient-to-br from-red-500 to-orange-500 text-white text-xs">
+                                <AvatarFallback className="bg-gradient-to-br bg-sky-400 hover:bg-sky-500 text-white text-xs">
                                   {violation.userName
                                     ?.substring(0, 2)
                                     .toUpperCase()}
@@ -530,7 +564,7 @@ const ViolationRecords = () => {
                         </TableCell>
                         <TableCell>
                           <div className="font-medium text-sm">
-                            {violation.ruleName || "N/A"}
+                            {violation.ruleName || "Quản trị viên"}
                           </div>
                           {violation.pattern && (
                             <div className="text-xs text-gray-500 truncate max-w-[150px]">
@@ -586,11 +620,11 @@ const ViolationRecords = () => {
                                   <Eye className="w-4 h-4 mr-2" />
                                   Chi tiết
                                 </DropdownMenuItem>
-                                {violation.postId && (
+                                {(violation.postId || violation.commentId) && (
                                   <DropdownMenuItem
                                     onClick={() => handleViewPost(violation)}
                                   >
-                                    <Eye className="w-4 h-4 mr-2" />
+                                    <ExternalLink className="w-4 h-4 mr-2" />
                                     Xem bài viết
                                   </DropdownMenuItem>
                                 )}
@@ -804,7 +838,11 @@ const ViolationRecords = () => {
         post={currentPost}
         visibleComments={modalVisibleComments}
         isLoading={forumLoading}
-        onClose={() => setSelectedPostId(null)}
+        highlightCommentId={selectedCommentId}
+        onClose={() => {
+          setSelectedPostId(null);
+          setSelectedCommentId(null);
+        }}
         onViewDetails={(postId) => navigate(`/forum/posts/${postId}`)}
         onRefreshComments={async () => {
           if (selectedPostId) await getComments(selectedPostId);

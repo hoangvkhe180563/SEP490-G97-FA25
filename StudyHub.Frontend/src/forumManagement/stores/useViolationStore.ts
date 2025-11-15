@@ -97,19 +97,24 @@ export const useViolationStore = create<ViolationState>((set, get) => ({
 
         set({
           violations: items.map((item: any) => ({
-            id: item.id || item.violationRecordId,
+            id: item.recordId || item.id || item.violationRecordId,
             userId: item.userId || item.user_id,
-            userName: item.userName || item.user_name || item.userFullname,
+            userName:
+              item.fullname ||
+              item.userName ||
+              item.user_name ||
+              item.userFullname,
             userAvatar: item.userAvatar || item.user_avatar,
             schoolId: item.schoolId || item.school_id,
             postId: item.postId || item.post_id,
             postTitle: item.postTitle || item.post_title,
             commentId: item.commentId || item.comment_id,
-            commentContent: item.commentContent || item.comment_content,
+            commentContent:
+              item.commentContent || item.comment_content || item.content,
             matchedRuleId:
               item.matchedRuleId || item.matched_rule_id || item.ruleId,
             ruleName: item.ruleName || item.rule_name,
-            pattern: item.pattern,
+            pattern: item.patternText || item.pattern,
             violationScore: item.violationScore || item.violation_score || 0,
             sourceType: item.sourceType || item.source_type || "auto",
             reportedBy: item.reportedBy || item.reported_by,

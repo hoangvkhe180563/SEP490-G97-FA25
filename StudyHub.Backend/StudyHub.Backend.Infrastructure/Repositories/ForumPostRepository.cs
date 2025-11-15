@@ -577,17 +577,28 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 User = r.User != null ? new AppUser
                 {
                     Id = Guid.Parse(r.User.Id.ToString()),
-                    Username = r.User.Username
+                    Username = r.User.Username,
+                    Fullname = r.User.Fullname
                 } : null,
                 Post = r.Post != null ? new ForumPost
                 {
                     Id = r.Post.Id,
-                    Title = r.Post.Title
+                    Title = r.Post.Title,
+                    Content = r.Post.Content
+                } : null,
+                Comment = r.Comment != null ? new ForumComment
+                {
+                    CommentId = r.Comment.Id,
+                    Content = r.Comment.Content,
+                    PostId = r.Comment.PostId
                 } : null,
                 Rule = r.MatchedRule != null ? new ForumRule
                 {
                     Id = r.MatchedRule.Id,
-                    Name = r.MatchedRule.Name
+                    Name = r.MatchedRule.Name,
+                    Severity = r.MatchedRule.Severity,
+                    Description = r.MatchedRule.Description,
+                    ViolationScore = r.MatchedRule.ViolationScore
                 } : null,
                 Pattern = r.MatchedPattern != null ? new RulePattern
                 {
@@ -597,7 +608,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Reporter = r.ReportedByNavigation != null ? new AppUser
                 {
                     Id = Guid.Parse(r.ReportedByNavigation.Id.ToString()),
-                    Username = r.ReportedByNavigation.Username
+                    Username = r.ReportedByNavigation.Username,
+                    Fullname = r.ReportedByNavigation.Fullname
                 } : null
             };
         }

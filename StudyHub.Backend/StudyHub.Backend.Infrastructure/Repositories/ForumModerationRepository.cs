@@ -659,21 +659,23 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         public async Task<(List<ViolationRecord> records, int totalCount)> GetViolationRecordsByUserAsync(
-            Guid userId,
-            int schoolId,
-            DateTime? from = null,
-            DateTime? to = null,
-            string? sourceType = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+     Guid userId,
+     int schoolId,
+     DateTime? from = null,
+     DateTime? to = null,
+     string? sourceType = null,
+     int? pageNumber = null,
+     int? pageSize = null)
         {
             try
             {
                 var dbQuery = _context.ViolationRecords
                     .Include(r => r.User)
                     .Include(r => r.Post)
+                    .Include(r => r.Comment)
                     .Include(r => r.MatchedRule)
                     .Include(r => r.MatchedPattern)
+                    .Include(r => r.ReportedByNavigation)
                     .Where(r => r.UserId == userId && r.SchoolId == schoolId && r.DeletedAt == null);
 
                 if (from.HasValue)
@@ -779,20 +781,22 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
         public async Task<(List<ViolationRecord> records, int totalCount)> GetViolationRecordsBySchoolAsync(
-            int schoolId,
-            string? sourceType = null,
-            DateTime? from = null,
-            DateTime? to = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+      int schoolId,
+      string? sourceType = null,
+      DateTime? from = null,
+      DateTime? to = null,
+      int? pageNumber = null,
+      int? pageSize = null)
         {
             try
             {
                 var dbQuery = _context.ViolationRecords
                     .Include(r => r.User)
                     .Include(r => r.Post)
+                    .Include(r => r.Comment)
                     .Include(r => r.MatchedRule)
                     .Include(r => r.MatchedPattern)
+                    .Include(r => r.ReportedByNavigation)
                     .Where(r => r.SchoolId == schoolId && r.DeletedAt == null);
 
                 if (!string.IsNullOrWhiteSpace(sourceType))
@@ -829,8 +833,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 var records = await _context.ViolationRecords
                     .Include(r => r.User)
+                    .Include(r => r.Comment)
                     .Include(r => r.MatchedRule)
                     .Include(r => r.MatchedPattern)
+                    .Include(r => r.ReportedByNavigation)
                     .Where(r => r.PostId == postId && r.DeletedAt == null)
                     .OrderByDescending(r => r.CreatedAt)
                     .ToListAsync();
@@ -850,8 +856,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 var records = await _context.ViolationRecords
                     .Include(r => r.User)
+                    .Include(r => r.Post)
+                    .Include(r => r.Comment)
                     .Include(r => r.MatchedRule)
                     .Include(r => r.MatchedPattern)
+                    .Include(r => r.ReportedByNavigation)
                     .Where(r => r.CommentId == commentId && r.DeletedAt == null)
                     .OrderByDescending(r => r.CreatedAt)
                     .ToListAsync();
@@ -1213,17 +1222,28 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 User = r.User != null ? new AppUser
                 {
                     Id = Guid.Parse(r.User.Id.ToString()),
-                    Username = r.User.Username
+                    Username = r.User.Username,
+                    Fullname = r.User.Fullname
                 } : null,
                 Post = r.Post != null ? new ForumPost
                 {
                     Id = r.Post.Id,
-                    Title = r.Post.Title
+                    Title = r.Post.Title,
+                    Content = r.Post.Content
+                } : null,
+                Comment = r.Comment != null ? new ForumComment
+                {
+                    CommentId = r.Comment.Id,
+                    Content = r.Comment.Content,
+                    PostId = r.Comment.PostId
                 } : null,
                 Rule = r.MatchedRule != null ? new ForumRule
                 {
                     Id = r.MatchedRule.Id,
-                    Name = r.MatchedRule.Name
+                    Name = r.MatchedRule.Name,
+                    Severity = r.MatchedRule.Severity,
+                    Description = r.MatchedRule.Description,
+                    ViolationScore = r.MatchedRule.ViolationScore
                 } : null,
                 Pattern = r.MatchedPattern != null ? new RulePattern
                 {
@@ -1233,7 +1253,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Reporter = r.ReportedByNavigation != null ? new AppUser
                 {
                     Id = Guid.Parse(r.ReportedByNavigation.Id.ToString()),
-                    Username = r.ReportedByNavigation.Username
+                    Username = r.ReportedByNavigation.Username,
+                    Fullname = r.ReportedByNavigation.Fullname
                 } : null
             };
         }

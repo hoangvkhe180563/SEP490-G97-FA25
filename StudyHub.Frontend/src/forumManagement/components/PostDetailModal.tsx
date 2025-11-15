@@ -1,5 +1,5 @@
 // src/forumManagement/components/PostDetailModal.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,7 @@ interface PostDetailModalProps {
   onSubmitComment: (content: string, images: File[]) => Promise<void>;
   onImageClick: (images: string[], index: number) => void;
   onTyping: (postId: number, isTyping: boolean) => void;
+  highlightCommentId?: number | null;
 }
 
 export const PostDetailModal = ({
@@ -51,11 +52,35 @@ export const PostDetailModal = ({
   onLoadMoreComments,
   onSubmitComment,
   onImageClick,
+  highlightCommentId,
   onTyping,
 }: PostDetailModalProps) => {
   const { user } = useAuthStore();
   const [commentContent, setCommentContent] = useState("");
   const [commentImages, setCommentImages] = useState<File[]>([]);
+
+  useEffect(() => {
+    if (highlightCommentId && post?.comments) {
+      const timer = setTimeout(() => {
+        const element = document.getElementById(
+          `comment-${highlightCommentId}`
+        );
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+          element.classList.add("ring-2", "ring-orange-500", "ring-offset-2");
+          setTimeout(() => {
+            element.classList.remove(
+              "ring-2",
+              "ring-orange-500",
+              "ring-offset-2"
+            );
+          }, 3000);
+        }
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [highlightCommentId, post?.comments]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
