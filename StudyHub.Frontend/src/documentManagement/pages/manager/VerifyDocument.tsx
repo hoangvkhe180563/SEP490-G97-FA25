@@ -626,6 +626,12 @@ const ManagerDocumentApprovalList = () => {
                   <TableHead className="text-center font-semibold text-gray-700 w-24">
                     KHỐI
                   </TableHead>
+                  <TableHead className="text-center font-semibold text-gray-700 w-24">
+                    ĐỘ DÀI
+                  </TableHead>
+                  <TableHead className="text-center font-semibold text-gray-700 w-24">
+                    ĐỘ KHÓ
+                  </TableHead>
                   <TableHead
                     className="text-center font-semibold text-gray-700 w-32 cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort("createdAt")}
@@ -684,6 +690,20 @@ const ManagerDocumentApprovalList = () => {
                     </TableCell>
                     <TableCell className="text-center text-xs">
                       Lớp {doc.grade}
+                    </TableCell>
+                    <TableCell className="text-center text-xs">
+                      {doc.documentLengthType === "Short"
+                        ? "Ngắn"
+                        : doc.documentLengthType === "Medium"
+                        ? "TB"
+                        : "Dài"}
+                    </TableCell>
+                    <TableCell className="text-center text-xs">
+                      {doc.documentLevel === "Easy"
+                        ? "Dễ"
+                        : doc.documentLevel === "Medium"
+                        ? "TB"
+                        : "Khó"}
                     </TableCell>
                     <TableCell className="text-center text-xs">
                       {new Date(doc.createdAt).toLocaleDateString("vi-VN")}
