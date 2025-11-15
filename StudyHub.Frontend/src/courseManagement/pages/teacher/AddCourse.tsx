@@ -24,6 +24,7 @@ import { documentService } from "@/documentManagement/services/documentService";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { formatISO } from "date-fns";
 
 const AddCourse: React.FC = () => {
   const navigate = useNavigate();
@@ -121,7 +122,11 @@ const AddCourse: React.FC = () => {
       return setDialog({
         open: true,
         title: "Lỗi nhập liệu",
-        message: errors.map((err, index) => (<React.Fragment key={`err-${index}`}>{err} {index < errors.length - 1 && <br />}</React.Fragment>)),
+        message: errors.map((err, index) => (
+          <React.Fragment key={`err-${index}`}>
+            {err} {index < errors.length - 1 && <br />}
+          </React.Fragment>
+        )),
       });
 
     setSaving(true);
@@ -136,9 +141,9 @@ const AddCourse: React.FC = () => {
         schoolId: authUser?.schoolId ?? null,
         isFeatured: isFeatured,
         status: status,
-        createdAt: new Date().toISOString(),
-        startAt: startDate ? startDate.toISOString() : new Date().toISOString(),
-        endAt: endDate ? endDate.toISOString() : new Date().toISOString(),
+        createdAt: formatISO(new Date()),
+        startAt: startDate ? formatISO(startDate) : formatISO(new Date()),
+        endAt: endDate ? formatISO(endDate) : formatISO(new Date()),
         createdBy: authUser?.id ?? "",
         isApproved: status === "Mở" ? false : true,
       };

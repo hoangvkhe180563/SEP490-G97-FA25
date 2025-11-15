@@ -40,6 +40,8 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<ForumPostService>();
             services.AddScoped<IImageModerationService, ImageDectectService>();
             services.AddScoped<ExamService>();
+            services.AddScoped<SubscriptionService>();
+
 
             return services;
         }

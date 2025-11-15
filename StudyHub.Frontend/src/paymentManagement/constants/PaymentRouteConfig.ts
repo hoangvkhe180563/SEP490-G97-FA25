@@ -6,6 +6,7 @@ const CourseRouteConfig = {
   },
   STUDENT: {
     INDEX: "student",
+    SUBSCRIPTION: "subscription",
     PAYMENT_CHECKOUT: "checkout",
     WALLET_TOPUP: "wallet/topup",
     TRANSACTION_HISTORY: "transactions",
