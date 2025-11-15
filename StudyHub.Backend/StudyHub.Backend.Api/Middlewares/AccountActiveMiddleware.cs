@@ -31,7 +31,7 @@ namespace StudyHub.Backend.Api.Middlewares
                 // allow certain auth endpoints (logout, refresh-token) to bypass this middleware
                 // so that users can still logout or refresh tokens even if marked inactive.
                 var reqPath = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
-                if (reqPath.StartsWith("/api/auth/logout") || reqPath.StartsWith("/api/auth/refresh-token"))
+                if (reqPath.StartsWith("/api/auth/logout") || reqPath.StartsWith("/api/auth/refresh-token") || reqPath.StartsWith("/api/accountrecovery"))
                 {
                     await _next(context);
                     return;
