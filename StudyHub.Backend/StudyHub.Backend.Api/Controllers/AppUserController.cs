@@ -46,6 +46,21 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
+        // Export an Excel template for importing accounts
+        [HttpGet("export-template")]
+        public IActionResult ExportTemplate([FromQuery] int rows = 1000)
+        {
+            try
+            {
+                var bytes = _userService.ExportImportTemplate(rows);
+                return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "accounts_import_template.xlsx");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Export template failed", Error = ex.Message });
+            }
+        }
+
         // Import accounts from Excel via multipart/form-data (IFormFile) - preferred for browser/FormData uploads
         [HttpPost("import")]
         [Consumes("multipart/form-data")]

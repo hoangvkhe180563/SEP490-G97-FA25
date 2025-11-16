@@ -38,18 +38,20 @@ namespace StudyHub.Backend.UseCases.Services
 
             using (var pkg = new ExcelPackage())
             {
-                var ws = pkg.Workbook.Worksheets.Add("Accounts");
-                // headers
+                var ws = pkg.Workbook.Worksheets.Add("Tất cả tài khoả");
+                var lists = pkg.Workbook.Worksheets.Add("Danh sách điền");
+                // headers (Vietnamese for user-facing template)
                 ws.Cells[1, 1].Value = "Email";
-                ws.Cells[1, 2].Value = "Username";
-                ws.Cells[1, 3].Value = "Fullname";
-                ws.Cells[1, 4].Value = "Status";
-                ws.Cells[1, 5].Value = "Roles";
-                ws.Cells[1, 6].Value = "CreatedAt";
-                ws.Cells[1, 7].Value = "PhoneNumber";
-                ws.Cells[1, 8].Value = "Address";
-                ws.Cells[1, 9].Value = "Dob";
-                ws.Cells[1, 10].Value = "Gender"; // 1 = male, 0 = female (export as 1/0)
+                ws.Cells[1, 2].Value = "Tên người dùng";
+                ws.Cells[1, 3].Value = "Họ và tên";
+                ws.Cells[1, 4].Value = "Trạng thái";
+                ws.Cells[1, 5].Value = "Vai trò";
+                ws.Cells[1, 6].Value = "Ngày tạo";
+                ws.Cells[1, 7].Value = "Số điện thoại";
+                ws.Cells[1, 8].Value = "Địa chỉ";
+                ws.Cells[1, 9].Value = "Mật khẩu";
+                ws.Cells[1, 10].Value = "Ngày sinh";
+                ws.Cells[1, 11].Value = "Giới tính"; // Nam / Nữ
 
                 int row = 2;
                 foreach (var u in users)
@@ -60,7 +62,8 @@ namespace StudyHub.Backend.UseCases.Services
                     ws.Cells[row, 3].Value = u.Fullname;
                     ws.Cells[row, 4].Value = u.Status == true ? "Có hiệu lực" : "Vô hiệu hoá";
                     ws.Cells[row, 5].Value = string.Join(", ", roles);
-                    ws.Cells[row, 6].Value = u.CreatedAt.ToString("dd/MM/yyyy");
+                    // CreatedAt and Dob as date values with desired format
+                    ws.Cells[row, 6].Value = u.CreatedAt;
                     ws.Cells[row, 7].Value = u.PhoneNumber;
                     ws.Cells[row, 8].Value = u.Address;
                     // Dob may be DateOnly? or DateTime? attempt to format if available
@@ -68,22 +71,220 @@ namespace StudyHub.Backend.UseCases.Services
                     {
                         if (u.Dob.HasValue)
                         {
-                            ws.Cells[row, 9].Value = u.Dob.Value.ToString("dd/MM/yyyy");
+                            ws.Cells[row, 10].Value = DateTime.Parse(u.Dob.Value.ToString());
                         }
                     }
                     catch { }
                     // Gender: store as 1 (true) or 0 (false)
                     try
                     {
-                        ws.Cells[row, 10].Value = (u.Gender == true) ? "Nam" : "Nữ";
+                        ws.Cells[row, 11].Value = (u.Gender == true) ? "Nam" : "Nữ";
                     }
-                    catch { ws.Cells[row, 10].Value = "0"; }
+                    catch { ws.Cells[row, 11].Value = "0"; }
 
                     row++;
                 }
 
+                int lastDataRow = row - 1;
+
+                // Instructions sheet (visible) - hướng dẫn bằng tiếng Việt
+                var instr = pkg.Workbook.Worksheets.Add("Hướng dẫn");
+                instr.Cells[1, 1].Value = "Hướng dẫn import";
+                instr.Cells[2, 1].Value = "- Mục đích: Sử dụng file này để chuẩn bị dữ liệu tài khoản trước khi import.";
+                instr.Cells[3, 1].Value = "- Vai trò: sử dụng tên vai trò trong sheet 'Danh sách điền'.";
+                instr.Cells[4, 1].Value = "  1) Nhập 1 vai trò: ví dụ 'Subject Teacher'";
+                instr.Cells[5, 1].Value = "  2) Nhập nhiều vai trò: ví dụ 'Subject Teacher, Homeroom Teacher'";
+                instr.Cells[6, 1].Value = "- Ngày: định dạng dd/MM/yyyy (ví dụ: 23/10/2014)";
+                instr.Cells[7, 1].Value = "- SĐT: định dạng Việt Nam, ví dụ: 0912345678 hoặc +84912345678";
+                instr.Column(1).AutoFit();
+
+                // Populate Lists sheet for dropdowns
+                // Status
+                lists.Cells[1, 1].Value = "Trạng thái";
+                lists.Cells[2, 1].Value = "Có hiệu lực";
+                lists.Cells[3, 1].Value = "Vô hiệu hoá";
+                // Roles
+                var allRoles = _roleRepository.GetAllRoles();
+                lists.Cells[1, 2].Value = "Vai trò";
+                int roleRow = 2;
+                foreach (var r in allRoles)
+                {
+                    lists.Cells[roleRow++, 2].Value = r.Name;
+                }
+                if (roleRow == 1) { lists.Cells[1, 2].Value = "External Student"; roleRow = 2; }
+                // Gender
+                lists.Cells[1, 3].Value = "Giới tính";
+                lists.Cells[2, 3].Value = "Nam";
+                lists.Cells[3, 3].Value = "Nữ";
+
+                // Apply validations and formats on main sheet
+                if (lastDataRow >= 2)
+                {
+                    // Status validation
+                    var statusVal = ws.DataValidations.AddListValidation(ws.Cells[2, 4, lastDataRow, 4].Address);
+                    statusVal.Formula.ExcelFormula = "'Danh sách điền'!$A$1:$A$2";
+                    statusVal.ShowErrorMessage = true;
+
+                    ws.Cells[1, 5].AddComment("Ví dụ:\n1) Một vai trò: Subject Teacher\n2) Nhiều vai trò: Subject Teacher, Homeroom Teacher\nHoặc dùng ';' để phân tách các vai trò.", "System");
+
+                    // Gender validation
+                    var genderVal = ws.DataValidations.AddListValidation(ws.Cells[2, 11, lastDataRow, 11].Address);
+                    genderVal.Formula.ExcelFormula = "'Danh sách điền'!$C$1:$C$2";
+                    genderVal.ShowErrorMessage = true;
+
+                    // Date formats
+                    for (int r2 = 2; r2 <= lastDataRow; r2++)
+                    {
+                        ws.Cells[r2, 6].Style.Numberformat.Format = "dd/MM/yyyy";
+                        ws.Cells[r2, 10].Style.Numberformat.Format = "dd/MM/yyyy";
+                    }
+                }
+
+                // Comments
+                ws.Cells[1, 6].AddComment("Date format: dd/MM/yyyy. E.g., 23/10/2014", "System");
+                ws.Cells[1, 10].AddComment("Date format: dd/MM/yyyy. E.g., 23/10/2014", "System");
+                ws.Cells[1, 7].AddComment("Định dạng theo số điện thoại Việt Nam: 0XXXXXXXXX or +84XXXXXXXXX", "System");
+
+                // Hide lists sheet
+                lists.Hidden = eWorkSheetHidden.Hidden;
+
                 // auto-fit columns
                 ws.Cells[ws.Dimension.Address].AutoFitColumns();
+                return pkg.GetAsByteArray();
+            }
+        }
+
+        // Export an Excel template to help users prepare import files
+        public byte[] ExportImportTemplate(int rows = 1000)
+        {
+            if (rows <= 0) rows = 1000;
+
+            var roles = _roleRepository.GetAllRoles();
+
+            using (var pkg = new ExcelPackage())
+            {
+                // Main sheet
+                var ws = pkg.Workbook.Worksheets.Add("Mẫu Import");
+                // Hidden lists sheet
+                var lists = pkg.Workbook.Worksheets.Add("Danh sách điền");
+
+                // Headers
+                ws.Cells[1, 1].Value = "Email";
+                ws.Cells[1, 2].Value = "Tên người dùng";
+                ws.Cells[1, 3].Value = "Họ và tên";
+                ws.Cells[1, 4].Value = "Trạng thái";
+                ws.Cells[1, 5].Value = "Vai trò";
+                ws.Cells[1, 6].Value = "Ngày tạo";
+                ws.Cells[1, 7].Value = "Số điện thoại";
+                ws.Cells[1, 8].Value = "Địa chỉ";
+                ws.Cells[1, 9].Value = "Mật khẩu";
+                ws.Cells[1, 10].Value = "Ngày sinh";
+                ws.Cells[1, 11].Value = "Giới tính";
+
+                // Example row (hàng 2) — người dùng có thể copy nhanh mẫu này
+                // Try to use real role names from DB; pick first two if available
+                var exampleRolesList = roles.Take(2).Select(r => r.Name).Where(n => !string.IsNullOrEmpty(n)).ToList();
+                var exampleRoles = exampleRolesList.Any() ? string.Join(", ", exampleRolesList) : "Subject Teacher, Homeroom Teacher";
+                ws.Cells[2, 1].Value = "example@example.com";
+                ws.Cells[2, 2].Value = "example.user";
+                ws.Cells[2, 3].Value = "Nguyễn Văn A";
+                ws.Cells[2, 4].Value = "Có hiệu lực";
+                ws.Cells[2, 5].Value = exampleRoles;
+                ws.Cells[2, 6].Value = DateTime.Now.ToString("dd/MM/yyyy");
+                ws.Cells[2, 7].Value = "0912345678";
+                ws.Cells[2, 8].Value = "123 Đường Lê Lợi";
+                ws.Cells[2, 10].Value = "01/01/1990";
+                ws.Cells[2, 11].Value = "Nam";
+
+                // Fill Lists sheet
+                // Status list (A)
+                lists.Cells[1, 1].Value = "Trạng thái";
+                lists.Cells[2, 1].Value = "Có hiệu lực";
+                lists.Cells[3, 1].Value = "Vô hiệu hoá";
+
+                // Instructions sheet (visible) - tiếng Việt
+                var instr = pkg.Workbook.Worksheets.Add("Hướng dẫn");
+                instr.Cells[1, 1].Value = "Hướng dẫn import";
+                instr.Cells[2, 1].Value = "- Mục đích: Sử dụng file này để chuẩn bị dữ liệu tài khoản trước khi import.";
+                instr.Cells[3, 1].Value = "- Vai trò: sử dụng tên vai trò trong sheet 'Danh sách điền'.";
+                instr.Cells[4, 1].Value = "  1) Nhập 1 vai trò: ví dụ 'Subject Teacher'";
+                instr.Cells[5, 1].Value = "  2) Nhập nhiều vai trò: ví dụ 'Subject Teacher, Homeroom Teacher'";
+                instr.Cells[6, 1].Value = "- Ngày: định dạng dd/MM/yyyy (ví dụ: 23/10/2014)";
+                instr.Cells[7, 1].Value = "- SĐT: định dạng Việt Nam, ví dụ: 0912345678 hoặc +84912345678";
+                instr.Column(1).AutoFit();
+
+                // Roles list (B)
+                lists.Cells[1, 2].Value = "Vai trò";
+                int roleRow = 2;
+                foreach (var r in roles)
+                {
+                    lists.Cells[roleRow++, 2].Value = r.Name;
+                }
+                if (roleRow == 1) // ensure at least one entry
+                {
+                    lists.Cells[1, 2].Value = "External Student";
+                    roleRow = 2;
+                }
+
+                // Gender list (C)
+                lists.Cells[1, 3].Value = "Giới tính";
+                lists.Cells[2, 3].Value = "Nam";
+                lists.Cells[3, 3].Value = "Nữ";
+
+                // For rows, add formats and validations
+                int startRow = 2;
+                int endRow = startRow + rows - 1;
+
+                // Status validation -> lists!$A$1:$A$2
+                var statusValidation = ws.DataValidations.AddListValidation(ws.Cells[startRow, 4, endRow, 4].Address);
+                statusValidation.Formula.ExcelFormula = "'Danh sách điền'!$A$1:$A$2";
+                statusValidation.ShowErrorMessage = true;
+
+                // Note: Excel cannot natively append multiple selections; users should separate with commas or semicolons.
+                ws.Cells[1, 5].AddComment("Ví dụ:\n1) Một vai trò: Subject Teacher\n2) Nhiều vai trò: Subject Teacher, Homeroom Teacher\nHoặc dùng ';' để phân tách các vai trò.", "System");
+
+                // CreatedAt & Dob formatting (dd/MM/yyyy)
+                for (int r = startRow; r <= endRow; r++)
+                {
+                    ws.Cells[r, 6].Style.Numberformat.Format = "dd/MM/yyyy";
+                    ws.Cells[r, 10].Style.Numberformat.Format = "dd/MM/yyyy";
+                }
+
+                // Phone number validation (custom) - allow either leading 0 + 10 digits or +84 + 9 digits
+                // Formula uses SUBSTITUTE to strip spaces
+                var phoneFormula = "OR(AND(LEFT(SUBSTITUTE(G2,\" \" ,\"\"),1)=\"0\",LEN(SUBSTITUTE(G2,\" \" ,\"\"))=10),AND(LEFT(SUBSTITUTE(G2,\" \" ,\"\"),3)=\"+84\",LEN(SUBSTITUTE(G2,\" \" ,\"\"))=12))";
+                var phoneValidation = ws.DataValidations.AddCustomValidation(ws.Cells[startRow, 7, endRow, 7].Address);
+                phoneValidation.Formula.ExcelFormula = phoneFormula;
+                phoneValidation.ShowErrorMessage = true;
+                phoneValidation.Error = "Số điện thoại phải là số điện thoại Việt Nam (e.g. 0912345678 or +84912345678)";
+
+                // Email validation (basic) - require '@' and '.' characters
+                var emailFormula = "AND(ISNUMBER(FIND(\"@\",A2)),ISNUMBER(FIND(\".\",A2)))";
+                var emailValidation = ws.DataValidations.AddCustomValidation(ws.Cells[startRow, 1, endRow, 1].Address);
+                emailValidation.Formula.ExcelFormula = emailFormula;
+                emailValidation.ShowErrorMessage = true;
+                emailValidation.Error = "Nhập đúng định dạng email";
+
+                // Gender validation -> lists!$C$1:$C$2
+                var genderValidation = ws.DataValidations.AddListValidation(ws.Cells[startRow, 11, endRow, 11].Address);
+                genderValidation.Formula.ExcelFormula = "'Danh sách điền'!$C$1:$C$2";
+                genderValidation.ShowErrorMessage = true;
+
+                // Add explanatory comments for certain columns
+                ws.Cells[1, 1].AddComment("Nhập vào đúng định dạng email.", "System");
+                ws.Cells[1, 6].AddComment("Định dạng ngày: dd/MM/yyyy. E.g., 23/10/2014", "System");
+                ws.Cells[1, 10].AddComment("Định dạng ngày: dd/MM/yyyy. E.g., 23/10/2014", "System");
+                ws.Cells[1, 7].AddComment("Đinh dạng số điện thoại Việt Nam: 0XXXXXXXXX or +84XXXXXXXXX", "System");
+
+                // Freeze header row
+                ws.View.FreezePanes(2, 1);
+
+                // Auto-fit
+                ws.Cells[1, 1, endRow, 10].AutoFitColumns();
+
+                // Hide lists sheet
+                lists.Hidden = eWorkSheetHidden.Hidden;
+
                 return pkg.GetAsByteArray();
             }
         }
@@ -94,7 +295,7 @@ namespace StudyHub.Backend.UseCases.Services
             var result = new ImportResultDto();
             if (fileBytes == null || fileBytes.Length == 0)
             {
-                result.Errors.Add("File is empty or null");
+                result.Errors.Add("File không tìm thấy hoặc không có");
                 return result;
             }
 
@@ -104,7 +305,7 @@ namespace StudyHub.Backend.UseCases.Services
                 var ws = pkg.Workbook.Worksheets.FirstOrDefault();
                 if (ws == null)
                 {
-                    result.Errors.Add("No worksheet found in Excel file");
+                    result.Errors.Add("Không tìm thấy worksheet trong file Excel");
                     return result;
                 }
 
@@ -166,7 +367,7 @@ namespace StudyHub.Backend.UseCases.Services
                         if (existingByEmail != null)
                         {
                             if (!rowFieldErrors.ContainsKey("Email")) rowFieldErrors["Email"] = new List<string>();
-                            rowFieldErrors["Email"].Add($"Row {row}: Email '{email}' already exists");
+                            rowFieldErrors["Email"].Add($"Hàng {row}: Email '{email}' đã tồn tại");
                         }
 
                         // Validate username uniqueness
@@ -176,7 +377,7 @@ namespace StudyHub.Backend.UseCases.Services
                             if (existingByUsername != null)
                             {
                                 if (!rowFieldErrors.ContainsKey("Username")) rowFieldErrors["Username"] = new List<string>();
-                                rowFieldErrors["Username"].Add($"Row {row}: Username '{username}' already exists");
+                                rowFieldErrors["Username"].Add($"Hàng {row}: Tên người dùng '{username}' đã tồn tại");
                             }
                         }
 
@@ -185,8 +386,19 @@ namespace StudyHub.Backend.UseCases.Services
                         var roleNames = new List<string>();
                         if (!string.IsNullOrEmpty(rolesText))
                         {
-                            var rnList = rolesText.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(r => r.Trim());
-                            foreach (var rn in rnList)
+                            var rnList = rolesText.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(r => r.Trim()).Where(r => !string.IsNullOrEmpty(r)).ToList();
+
+                            // Check for duplicate role names in the same cell (case-insensitive)
+                            var dupes = rnList.GroupBy(x => x, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+                            if (dupes.Any())
+                            {
+                                if (!rowFieldErrors.ContainsKey("RoleIds")) rowFieldErrors["RoleIds"] = new List<string>();
+                                rowFieldErrors["RoleIds"].Add($"Hàng {row}: Danh sách vai trò không được chứa trùng lặp: {string.Join(", ", dupes)}");
+                            }
+
+                            // Resolve roles (use distinct values)
+                            var distinctRoles = rnList.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                            foreach (var rn in distinctRoles)
                             {
                                 var role = _roleRepository.GetRoleByName(rn ?? "");
                                 if (role != null)
@@ -197,7 +409,7 @@ namespace StudyHub.Backend.UseCases.Services
                                 else
                                 {
                                     if (!rowFieldErrors.ContainsKey("RoleIds")) rowFieldErrors["RoleIds"] = new List<string>();
-                                    rowFieldErrors["RoleIds"].Add($"Row {row}: Role '{rn}' not found");
+                                    rowFieldErrors["RoleIds"].Add($"Hàng {row}: Vai trò '{rn}' không tồn tại");
                                 }
                             }
                         }
@@ -209,7 +421,7 @@ namespace StudyHub.Backend.UseCases.Services
                             if (hasExternal && hasSchool)
                             {
                                 if (!rowFieldErrors.ContainsKey("RoleIds")) rowFieldErrors["RoleIds"] = new List<string>();
-                                rowFieldErrors["RoleIds"].Add($"Row {row}: Cannot assign both External Student and School Student roles");
+                                rowFieldErrors["RoleIds"].Add($"Hàng {row}: Không thể thêm cùng lúc vai trò External Student và School Studen");
                             }
 
                             var studentRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "External Student", "School Student" };
@@ -219,7 +431,7 @@ namespace StudyHub.Backend.UseCases.Services
                             if (hasStudent && hasManager)
                             {
                                 if (!rowFieldErrors.ContainsKey("RoleIds")) rowFieldErrors["RoleIds"] = new List<string>();
-                                rowFieldErrors["RoleIds"].Add($"Row {row}: Student roles cannot be combined with manager roles (Teacher/Manager/Admin/Moderator)");
+                                rowFieldErrors["RoleIds"].Add($"Hàng {row}: Học sinh không thể cùng với vai trò quản lí (Teacher/Manager/Admin/Moderator)");
                             }
                         }
 
@@ -239,7 +451,7 @@ namespace StudyHub.Backend.UseCases.Services
                             else
                             {
                                 if (!rowFieldErrors.ContainsKey("CreatedAt")) rowFieldErrors["CreatedAt"] = new List<string>();
-                                rowFieldErrors["CreatedAt"].Add($"Row {row}: CreatedAt '{createdAtText}' is not a valid date (expected dd/MM/yyyy)");
+                                rowFieldErrors["CreatedAt"].Add($"Hàng {row}: Ngày tạo '{createdAtText}' không phải là ngày hợp lệ (mong đợi dd/MM/yyyy)");
                             }
                         }
 
@@ -267,7 +479,7 @@ namespace StudyHub.Backend.UseCases.Services
                             else
                             {
                                 if (!rowFieldErrors.ContainsKey("Dob")) rowFieldErrors["Dob"] = new List<string>();
-                                rowFieldErrors["Dob"].Add($"Row {row}: Dob '{dobText}' is not a valid date (expected format dd/MM/yyyy)");
+                                rowFieldErrors["Dob"].Add($"Hàng {row}: Ngày sinh '{dobText}' không phải là ngày hợp lệ (mong đợi dd/MM/yyyy)");
                             }
                         }
 
@@ -282,7 +494,7 @@ namespace StudyHub.Backend.UseCases.Services
                             else
                             {
                                 if (!rowFieldErrors.ContainsKey("Gender")) rowFieldErrors["Gender"] = new List<string>();
-                                rowFieldErrors["Gender"].Add($"Row {row}: Gender '{genderText}' is invalid (expected Nam/Nữ or 1/0)");
+                                rowFieldErrors["Gender"].Add($"Hàng {row}: Giới tính '{genderText}' không hợp lệ (mong đợi Nam/Nữ hoặc 1/0)");
                             }
                         }
 
@@ -296,7 +508,7 @@ namespace StudyHub.Backend.UseCases.Services
                             else
                             {
                                 if (!rowFieldErrors.ContainsKey("Status")) rowFieldErrors["Status"] = new List<string>();
-                                rowFieldErrors["Status"].Add($"Row {row}: Status '{statusText}' is invalid (expected 'Có hiệu lực' or 'Vô hiệu hoá')");
+                                rowFieldErrors["Status"].Add($"Hàng {row}: Trạng thái '{statusText}' không hợp lệ (mong đợi 'Có hiệu lực' hoặc 'Vô hiệu hoá')");
                             }
                         }
 
@@ -308,7 +520,7 @@ namespace StudyHub.Backend.UseCases.Services
                             if (!phoneRegex.IsMatch(phoneNorm))
                             {
                                 if (!rowFieldErrors.ContainsKey("PhoneNumber")) rowFieldErrors["PhoneNumber"] = new List<string>();
-                                rowFieldErrors["PhoneNumber"].Add($"Row {row}: PhoneNumber '{phone}' is not a valid Vietnamese mobile number");
+                                rowFieldErrors["PhoneNumber"].Add($"Hàng {row}: Số điện thoại '{phone}' không phải là số điện thoại Việt Nam");
                             }
                         }
 
@@ -357,7 +569,7 @@ namespace StudyHub.Backend.UseCases.Services
                     {
                         result.Failed++;
                         if (!result.FieldErrors.ContainsKey("_general")) result.FieldErrors["_general"] = new List<string>();
-                        result.FieldErrors["_general"].Add($"Row {row}: {ex.Message}");
+                        result.FieldErrors["_general"].Add($"Hàng {row}: {ex.Message}");
                     }
 
                     row++;
@@ -372,7 +584,7 @@ namespace StudyHub.Backend.UseCases.Services
                     {
                         if (!result.FieldErrors.ContainsKey("Email")) result.FieldErrors["Email"] = new List<string>();
                         var otherRows = string.Join(", ", rows.Where(x => x != r));
-                        result.FieldErrors["Email"].Add($"Row {r}: Email '{emailKey}' is duplicated in uploaded file (also in rows: {otherRows})");
+                        result.FieldErrors["Email"].Add($"Hàng {r}: Email '{emailKey}' đã bị lặp trong file vừa tải lên (đồng thời trong hàng: {otherRows})");
 
                         // if this row was scheduled for create (no other validation errors), remove it and count as failed
                         var found = usersWithRoles.Where(u => u.Row == r).ToList();
@@ -392,7 +604,7 @@ namespace StudyHub.Backend.UseCases.Services
                     {
                         if (!result.FieldErrors.ContainsKey("Username")) result.FieldErrors["Username"] = new List<string>();
                         var otherRows = string.Join(", ", rows.Where(x => x != r));
-                        result.FieldErrors["Username"].Add($"Row {r}: Username '{usernameKey}' is duplicated in uploaded file (also in rows: {otherRows})");
+                        result.FieldErrors["Username"].Add($"Hàng {r}: Tên người dùng '{usernameKey}' đã bị lặp trong file vừa tải lên (đồng thời trong hàng: {otherRows})");
 
                         var found = usersWithRoles.Where(u => u.Row == r).ToList();
                         foreach (var f in found)

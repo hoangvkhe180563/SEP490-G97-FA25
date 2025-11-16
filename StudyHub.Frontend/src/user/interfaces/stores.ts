@@ -67,6 +67,35 @@ interface AppUserState {
   ) => Promise<any>;
 }
 
+// Excel import/export preview store (separated from AppUserState)
+interface ExcelImportState {
+  // last previewed workbook (headers + rows)
+  preview: { headers: string[]; rows: string[][] } | null;
+  isLoading: boolean;
+  success: boolean;
+  message: string;
+
+  // Read file and return parsed preview (sheet 0). Uses dynamic `xlsx` import.
+  previewFile: (
+    file: File
+  ) => Promise<{ headers: string[]; rows: string[][] } | null>;
+  // Clear preview data
+  clearPreview: () => void;
+  // Export endpoints (download blobs)
+  exportAccounts: () => Promise<boolean>;
+  exportTemplate: (rows?: number) => Promise<boolean>;
+  // Upload file (raw File) to backend import endpoint
+  importAccounts: (
+    file: File,
+    onValidationError?: (errors: { [key: string]: string[] }) => void
+  ) => Promise<any>;
+  // Upload a client-side edited preview (headers+rows) by regenerating an xlsx and sending
+  uploadPreview: (
+    preview: { headers: string[]; rows: string[][] },
+    onValidationError?: (errors: { [key: string]: string[] }) => void
+  ) => Promise<any>;
+}
+
 interface AppRoleState {
   appRoles: AppRole[];
   isLoading: boolean;
@@ -113,4 +142,10 @@ interface AccountRecoveryState {
   createRequest: (payload: CreateAccountRecoveryRequest) => Promise<void>;
 }
 
-export type { AppUserState, AppRoleState, LocationState, AccountRecoveryState };
+export type {
+  AppUserState,
+  AppRoleState,
+  LocationState,
+  AccountRecoveryState,
+  ExcelImportState,
+};
