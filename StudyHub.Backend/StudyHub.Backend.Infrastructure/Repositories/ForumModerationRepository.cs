@@ -415,43 +415,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
-        public async Task<(List<UserForumStatus> statuses, int totalCount)> GetMutedUsersAsync(
-            int schoolId,
-            DateTime? mutedFrom = null,
-            DateTime? mutedTo = null,
-            int? pageNumber = null,
-            int? pageSize = null)
-        {
-            try
-            {
-                var dbQuery = _context.UserForumStatuses
-                    .Include(s => s.User)
-                    .Where(s => s.SchoolId == schoolId && s.IsMute == true);
-
-                if (mutedFrom.HasValue)
-                    dbQuery = dbQuery.Where(s => s.MuteUntil >= mutedFrom.Value);
-
-                if (mutedTo.HasValue)
-                    dbQuery = dbQuery.Where(s => s.MuteUntil <= mutedTo.Value);
-
-                var totalCount = await dbQuery.CountAsync();
-
-                dbQuery = dbQuery.OrderByDescending(s => s.UpdatedAt);
-
-                if (pageNumber.HasValue && pageSize.HasValue)
-                    dbQuery = dbQuery.Skip((pageNumber.Value - 1) * pageSize.Value).Take(pageSize.Value);
-
-                var statuses = await dbQuery.ToListAsync();
-                var result = statuses.Select(s => MapUserForumStatusToEntity(s)).ToList();
-
-                return (result, totalCount);
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("ForumModerationRepository", "GetMutedUsersAsync failed: " + ex.Message).LogError();
-                return (new List<UserForumStatus>(), 0);
-            }
-        }
+   
 
         public async Task<UserForumStatus> CreateOrUpdateUserForumStatusAsync(UserForumStatus status)
         {
@@ -1258,7 +1222,94 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 } : null
             };
         }
+        public async Task<(List<UserForumStatus> statuses, int totalCount)> GetUserForumStatusesAsync(
+      int schoolId,
+      string? query = null,
+      bool? isMuted = null,
+      int? minViolationScore = null,
+      int? maxViolationScore = null,
+      string? sortBy = null,
+      int? pageNumber = null,
+      int? pageSize = null)
+        {
+            try
+            {
+                var dbQuery = _context.UserForumStatuses
+                    .Include(s => s.User)
+                    .Where(s => s.SchoolId == schoolId);
 
+                if (!string.IsNullOrWhiteSpace(query))
+                {
+                    dbQuery = dbQuery.Where(s =>
+                        s.User.Fullname.Contains(query) ||
+                        s.User.Username.Contains(query) ||
+                        s.UserId.ToString().Contains(query));
+                }
+
+                // FIX: Kiểm tra IsMute đúng cách
+                if (isMuted.HasValue)
+                {
+                    if (isMuted.Value)
+                    {
+                        // Lấy users đang bị mute VÀ chưa hết hạn mute
+                        dbQuery = dbQuery.Where(s =>
+                            s.IsMute == true &&
+                            (s.MuteUntil == null || s.MuteUntil > DateTime.UtcNow));
+                    }
+                    else
+                    {
+                        // Lấy users KHÔNG bị mute HOẶC đã hết hạn mute
+                        dbQuery = dbQuery.Where(s =>
+                            s.IsMute == false ||
+                            s.IsMute == null ||
+                            (s.IsMute == true && s.MuteUntil.HasValue && s.MuteUntil.Value <= DateTime.UtcNow));
+                    }
+                }
+
+                if (minViolationScore.HasValue)
+                {
+                    dbQuery = dbQuery.Where(s => s.TotalViolationScore >= minViolationScore.Value);
+                }
+
+                if (maxViolationScore.HasValue)
+                {
+                    dbQuery = dbQuery.Where(s => s.TotalViolationScore <= maxViolationScore.Value);
+                }
+
+                var totalCount = await dbQuery.CountAsync();
+
+                if (!string.IsNullOrWhiteSpace(sortBy))
+                {
+                    dbQuery = sortBy.ToLower() switch
+                    {
+                        "violation_score_desc" => dbQuery.OrderByDescending(s => s.TotalViolationScore),
+                        "violation_score_asc" => dbQuery.OrderBy(s => s.TotalViolationScore),
+                        "newest" => dbQuery.OrderByDescending(s => s.CreatedAt),
+                        "oldest" => dbQuery.OrderBy(s => s.CreatedAt),
+                        _ => dbQuery.OrderByDescending(s => s.TotalViolationScore)
+                    };
+                }
+                else
+                {
+                    dbQuery = dbQuery.OrderByDescending(s => s.TotalViolationScore);
+                }
+
+                if (pageNumber.HasValue && pageSize.HasValue)
+                {
+                    dbQuery = dbQuery.Skip((pageNumber.Value - 1) * pageSize.Value).Take(pageSize.Value);
+                }
+
+                var statuses = await dbQuery.ToListAsync();
+                var result = statuses.Select(s => MapUserForumStatusToEntity(s)).ToList();
+
+                return (result, totalCount);
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ForumModerationRepository", "GetUserForumStatusesAsync failed: " + ex.Message).LogError();
+                return (new List<UserForumStatus>(), 0);
+            }
+        }
         private static ForumAppeal MapAppealToEntity(Data.ForumAppeal a)
         {
             return new ForumAppeal

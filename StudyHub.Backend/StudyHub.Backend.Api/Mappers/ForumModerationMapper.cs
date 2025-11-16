@@ -173,6 +173,7 @@ namespace StudyHub.Backend.Api.Mappers
                 UserId = status.UserId,
                 Username = status.User?.Username,
                 Fullname = status.User?.Fullname,
+                Avatar = status.User?.Avatar,
                 SchoolId = status.SchoolId,
                 TotalViolationScore = status.TotalViolationScore,
                 IsMute = status.IsMute,
