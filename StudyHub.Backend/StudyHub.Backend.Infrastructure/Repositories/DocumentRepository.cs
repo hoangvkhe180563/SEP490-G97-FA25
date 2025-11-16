@@ -391,6 +391,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     IsFeatured = doc.IsFeatured,
                     IsApproved = doc.IsApproved,
                     Status = doc.Status,
+                    DocumentLenthType = doc.DocumentLengthType,
+                    DocumentLevel = doc.DocumentLevel,
                     CreatedAt = doc.CreatedAt,
                     CreatedBy = doc.CreatedBy
                 };
@@ -440,7 +442,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.IsFeatured = doc.IsFeatured;
                 entity.IsApproved = doc.IsApproved;
                 entity.IsRequested = doc.IsRequested;
-                entity.Status = doc.Status;
+                entity.Status = doc.Status ?? true;
+                entity.DocumentLenthType = doc.DocumentLengthType;
+                entity.DocumentLevel = doc.DocumentLevel;
                 entity.UpdatedAt = doc.UpdatedAt;
                 entity.UpdatedBy = doc.UpdatedBy;
                 entity.DeletedAt = doc.DeletedAt;
@@ -610,6 +614,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 IsApproved = d.IsApproved,
                 IsRequested = d.IsRequested,
                 Status = d.Status,
+                DocumentLengthType = d.DocumentLenthType,
+                DocumentLevel = d.DocumentLevel,
                 CreatedAt = d.CreatedAt,
                 CreatedBy = d.CreatedBy,
                 UpdatedAt = d.UpdatedAt,

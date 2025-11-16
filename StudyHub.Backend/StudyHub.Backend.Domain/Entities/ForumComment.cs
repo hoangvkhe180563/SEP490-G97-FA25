@@ -9,7 +9,7 @@
         public int TotalViolationScore { get; set; }
         public bool IsHidden { get; set; }
         public bool? Status { get; set; }
-
+        public int SchoolId { get; set; }
         public DateTime CreatedAt { get; set; }
         public Guid CreatedBy { get; set; }
         public DateTime? UpdatedAt { get; set; }
@@ -19,6 +19,7 @@
         public AppUser? Creator { get; set; }
         public int ReplyCount { get; set; }
         public List<ForumComment>? Replies { get; set; }
+        public List<ViolationRecord> ViolationRecords { get; set; } = new List<ViolationRecord>();
         public List<ForumAttachment>? Attachments { get; set; }
     }
 }
