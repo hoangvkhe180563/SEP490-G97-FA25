@@ -20,10 +20,12 @@ public class Course : IAuditTrail
 
     public bool IsFeatured { get; set; }
 
-    public string Status { get; set; } = null!; 
+    public string Status { get; set; } = null!;
     public DateTime StartAt { get; set; }
     public DateTime EndAt { get; set; }
     public bool IsApproved { get; set; }
+    public CourseDifficulty Difficulty { get; set; } = CourseDifficulty.Beginner;
+    public CourseLength Length { get; set; } = CourseLength.Short;
     public Subject Subject { get; set; } = null!;
 
     public List<Chapter> Chapters { get; set; } = new();

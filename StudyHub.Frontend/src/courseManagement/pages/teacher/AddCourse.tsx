@@ -49,6 +49,10 @@ const AddCourse: React.FC = () => {
   const [SubjectId, setSubjectId] = useState<number | null>(null);
   const [isFeatured, setIsFeatured] = useState(false);
   const [status, setStatus] = useState<string | "">("");
+  const [difficulty, setDifficulty] = useState<
+    "Beginner" | "Intermediate" | "Advanced"
+  >("Beginner");
+  const [length, setLength] = useState<"Short" | "Medium" | "Long">("Short");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
 
@@ -135,6 +139,8 @@ const AddCourse: React.FC = () => {
         name: title.trim(),
         information: description || null,
         imageUrl: thumbnailPreview ?? null,
+        difficulty: difficulty,
+        length: length,
         price: price === "" ? 0 : Number(price),
         grade: grade === "" ? 0 : Number(grade),
         SubjectId: Number(SubjectId),
@@ -468,7 +474,39 @@ const AddCourse: React.FC = () => {
                     placeholder="0"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>Độ khó</Label>
+                  <Select
+                    value={difficulty}
+                    onValueChange={(v) => setDifficulty(v as any)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Chọn độ khó" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Beginner">Cơ bản</SelectItem>
+                      <SelectItem value="Intermediate">Trung cấp</SelectItem>
+                      <SelectItem value="Advanced">Nâng cao</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
+                <div className="space-y-2">
+                  <Label>Độ dài</Label>
+                  <Select
+                    value={length}
+                    onValueChange={(v) => setLength(v as any)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Chọn độ dài" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Short">Ngắn</SelectItem>
+                      <SelectItem value="Medium">Trung bình</SelectItem>
+                      <SelectItem value="Long">Dài</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2">
                   <Label>Trạng thái</Label>
                   <Select value={status} onValueChange={(v) => setStatus(v)}>

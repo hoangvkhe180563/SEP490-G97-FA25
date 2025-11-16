@@ -25,6 +25,10 @@ public partial class Course
 
     public string Status { get; set; } = null!;
 
+    public short Difficulty { get; set; }
+
+    public short Length { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime StartAt { get; set; }

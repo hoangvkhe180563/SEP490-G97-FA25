@@ -111,6 +111,9 @@ public class CourseController : ControllerBase
         existing.Status = dto.Status;
         existing.StartAt = dto.StartAt;
         existing.EndAt = dto.EndAt;
+        // Difficulty & Length
+        existing.Difficulty = System.Enum.TryParse<StudyHub.Backend.Domain.Entities.CourseDifficulty>(dto.Difficulty, true, out var _d) ? _d : existing.Difficulty;
+        existing.Length = System.Enum.TryParse<StudyHub.Backend.Domain.Entities.CourseLength>(dto.Length, true, out var _l) ? _l : existing.Length;
         existing.UpdatedAt = DateTime.UtcNow;
         existing.UpdatedBy = dto.UpdatedBy;
         existing.IsApproved = dto.IsApproved;
