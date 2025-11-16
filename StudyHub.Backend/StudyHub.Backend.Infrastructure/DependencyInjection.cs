@@ -40,6 +40,10 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<IQAConversationRepository, QAConversationRepository>();
             services.AddScoped<IQAConversationReadRepository, QAConversationReadRepository>();
             services.AddScoped<IQAMessageRepository, QAMessageRepository>();
+            services.AddScoped<IForumCommentRepository, ForumCommentRepository>();
+            services.AddScoped<IForumConfigRepository, ForumConfigRepository>();
+            services.AddScoped<IForumModerationRepository, ForumModerationRepository>();
+            services.AddScoped<IForumPostRepository, ForumPostRepository>();
             services.AddScoped<IExamRepository, ExamRepository>();
             services.AddScoped<IExamResultRepository, ExamResultRepository>();
             services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();

@@ -58,6 +58,8 @@ namespace StudyHub.Backend.UseCases.Services
             if (document.DocumentCategoryId <= 0) throw new ArgumentException("Valid DocumentCategoryId is required");
             if (document.CreatedBy == Guid.Empty) throw new ArgumentException("Valid CreatedBy is required");
             if (document.IsInClass && document.SchoolId == null) throw new ArgumentException("SchoolId required for class documents");
+            if (string.IsNullOrWhiteSpace(document.DocumentLengthType)) throw new ArgumentException("DocumentLengthType is required");
+            if (string.IsNullOrWhiteSpace(document.DocumentLevel)) throw new ArgumentException("DocumentLevel is required");
 
             var extension = Path.GetExtension(documentFile.FileName).ToLowerInvariant();
             var imageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg" };
@@ -90,6 +92,12 @@ namespace StudyHub.Backend.UseCases.Services
             if (document.IsInClass && document.SchoolId == null)
                 throw new ArgumentException("SchoolId required for class documents");
 
+            if (string.IsNullOrWhiteSpace(document.DocumentLengthType))
+                throw new ArgumentException("DocumentLengthType is required");
+
+            if (string.IsNullOrWhiteSpace(document.DocumentLevel))
+                throw new ArgumentException("DocumentLevel is required");
+
             if (documentFile != null)
             {
                 ValidateDocumentFile(documentFile);
@@ -119,6 +127,7 @@ namespace StudyHub.Backend.UseCases.Services
                 document.Thumbnail = existingDocument.Thumbnail;
 
             document.IsApproved = existingDocument.IsApproved;
+            document.Status = existingDocument.Status ?? true;
             document.UpdatedAt = DateTime.Now;
 
             return _repo.UpdateDocument(document);

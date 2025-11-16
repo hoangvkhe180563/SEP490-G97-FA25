@@ -46,6 +46,26 @@ const DocumentItem: React.FC<DocumentItemProps> = ({ document }) => {
               {document.subjectName}
             </Badge>
           )}
+          <Badge
+            variant="outline"
+            className="text-xs bg-amber-50 text-amber-700 border-amber-300"
+          >
+            {document.documentLengthType === "Short"
+              ? "Ngắn"
+              : document.documentLengthType === "Medium"
+              ? "TB"
+              : "Dài"}
+          </Badge>
+          <Badge
+            variant="outline"
+            className="text-xs bg-red-50 text-red-700 border-red-300"
+          >
+            {document.documentLevel === "Easy"
+              ? "Dễ"
+              : document.documentLevel === "Medium"
+              ? "TB"
+              : "Khó"}
+          </Badge>
         </div>
         <h3 className="font-semibold text-gray-900 mb-2 line-clamp-1">
           {document.name}

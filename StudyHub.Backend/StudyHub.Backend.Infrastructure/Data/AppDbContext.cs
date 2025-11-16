@@ -450,6 +450,8 @@ public partial class AppDbContext : DbContext
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.DocumentLenthType).HasColumnType("enum('Short','Medium','Long')");
+            entity.Property(e => e.DocumentLevel).HasColumnType("enum('Hard','Easy','Medium')");
             entity.Property(e => e.Name).HasMaxLength(200);
             entity.Property(e => e.Status)
                 .IsRequired()

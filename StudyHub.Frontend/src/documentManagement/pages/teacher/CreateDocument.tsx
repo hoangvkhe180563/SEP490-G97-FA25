@@ -47,6 +47,8 @@ const schema = z.object({
   access: z.string().min(1, "Vui lòng chọn quyền truy cập"),
   description: z.string().optional(),
   classes: z.array(z.number()).optional(),
+  documentLengthType: z.string().min(1, "Vui lòng chọn độ dài tài liệu"),
+  documentLevel: z.string().min(1, "Vui lòng chọn độ khó tài liệu"),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -66,6 +68,8 @@ interface PendingDocument {
   categoryId: number;
   schoolId?: number | null;
   isInClass?: boolean;
+  documentLengthType: string;
+  documentLevel: string;
 }
 
 interface ClassDto {
@@ -144,6 +148,8 @@ export default function CreateDocument() {
       access: "",
       description: "",
       classes: [],
+      documentLengthType: "",
+      documentLevel: "",
     },
   });
 
@@ -260,6 +266,8 @@ export default function CreateDocument() {
       categoryId: parseInt(data.type),
       schoolId: schoolId ? schoolId : null,
       isInClass,
+      documentLengthType: data.documentLengthType,
+      documentLevel: data.documentLevel,
     };
 
     if (editingDocumentId) {
@@ -379,6 +387,8 @@ export default function CreateDocument() {
       formData.append("Grade", doc.grade);
       formData.append("DocumentCategoryId", doc.categoryId.toString());
       formData.append("DocumentFile", doc.documentFile);
+      formData.append("DocumentLengthType", doc.documentLengthType);
+      formData.append("DocumentLevel", doc.documentLevel);
 
       if (doc.description) formData.append("Description", doc.description);
       if (doc.thumbnailFile)
@@ -753,6 +763,67 @@ export default function CreateDocument() {
                         />
                       </div>
 
+                      <div className="grid grid-cols-2 gap-6 items-start">
+                        <FormField
+                          control={form.control}
+                          name="documentLengthType"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                Độ dài tài liệu{" "}
+                                <span className="text-red-500">*</span>
+                              </FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Chọn độ dài" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="Short">Ngắn</SelectItem>
+                                  <SelectItem value="Medium">
+                                    Trung bình
+                                  </SelectItem>
+                                  <SelectItem value="Long">Dài</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="documentLevel"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                Độ khó <span className="text-red-500">*</span>
+                              </FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Chọn độ khó" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="Easy">Dễ</SelectItem>
+                                  <SelectItem value="Medium">
+                                    Trung bình
+                                  </SelectItem>
+                                  <SelectItem value="Hard">Khó</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                       {accessValue === "class" && (
                         <FormField
                           control={form.control}
