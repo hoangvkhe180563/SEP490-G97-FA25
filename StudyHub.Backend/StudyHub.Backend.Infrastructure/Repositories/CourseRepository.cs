@@ -34,7 +34,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (query.SubjectId.HasValue)
                     q = q.Where(c => c.SubjectId == query.SubjectId.Value);
 
-                if(query.SchoolId > 0)
+                if (query.SchoolId > 0)
                     q = q.Where(c => c.SchoolId == query.SchoolId);
 
                 if (query.Grade.HasValue)
@@ -75,12 +75,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
 
                 courses = (query.Sort ?? string.Empty).ToLower() switch
-                    {
-                        "priceasc" => courses.OrderBy(c => c.Price).ToList(),
-                        "pricedesc" => courses.OrderByDescending(c => c.Price).ToList(),
-                        "newest" => courses.OrderByDescending(c => c.CreatedAt).ToList(),
-                        _ => courses.OrderByDescending(c => c.CreatedAt).ToList(),
-                    };
+                {
+                    "priceasc" => courses.OrderBy(c => c.Price).ToList(),
+                    "pricedesc" => courses.OrderByDescending(c => c.Price).ToList(),
+                    "newest" => courses.OrderByDescending(c => c.CreatedAt).ToList(),
+                    _ => courses.OrderByDescending(c => c.CreatedAt).ToList(),
+                };
 
 
                 var total = courses.Count;
@@ -103,6 +103,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         SchoolId = c.SchoolId,
                         IsFeatured = c.IsFeatured,
                         Status = c.Status,
+                        Difficulty = (CourseDifficulty)c.Difficulty,
+                        Length = (CourseLength)c.Length,
                         CreatedAt = c.CreatedAt,
                         StartAt = c.StartAt,
                         EndAt = c.EndAt,
@@ -157,6 +159,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     SchoolId = c.SchoolId,
                     IsFeatured = c.IsFeatured,
                     Status = c.Status,
+                    Difficulty = (CourseDifficulty)c.Difficulty,
+                    Length = (CourseLength)c.Length,
                     CreatedAt = c.CreatedAt,
                     StartAt = c.StartAt,
                     EndAt = c.EndAt,
@@ -217,6 +221,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     SchoolId = course.SchoolId,
                     IsFeatured = course.IsFeatured,
                     Status = course.Status,
+                    Difficulty = (short)course.Difficulty,
+                    Length = (short)course.Length,
                     CreatedAt = DateTime.UtcNow,
                     StartAt = course.StartAt,
                     EndAt = course.EndAt,
@@ -253,6 +259,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.SchoolId = course.SchoolId;
                 entity.IsFeatured = course.IsFeatured;
                 entity.Status = course.Status;
+                entity.Difficulty = (short)course.Difficulty;
+                entity.Length = (short)course.Length;
                 entity.StartAt = course.StartAt;
                 entity.EndAt = course.EndAt;
                 entity.UpdatedAt = DateTime.UtcNow;
@@ -310,6 +318,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         ImageUrl = c.ImageUrl,
                         Grade = c.Grade,
                         IsFeatured = c.IsFeatured,
+                        Difficulty = (CourseDifficulty)c.Difficulty,
+                        Length = (CourseLength)c.Length,
                         Subject = new Subject { Id = c.Subject.Id, Name = c.Subject.Name }
                     })
                     .ToList();

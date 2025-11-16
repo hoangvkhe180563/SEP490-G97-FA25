@@ -100,6 +100,8 @@ const CourseItem: React.FC<Props> = ({ course }) => {
           updatedBy: course.updatedBy,
           createdBy: course.createdBy,
           isApproved: course.isApproved,
+          difficulty: course.difficulty,
+          length: course.length,
         };
 
         await updateCourse(course.id, dto);

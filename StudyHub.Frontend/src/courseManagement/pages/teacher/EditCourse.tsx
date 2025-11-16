@@ -80,6 +80,10 @@ const EditCourse: React.FC = () => {
   const [gradeId, setGradeId] = useState<number | "">("");
   const [status, setStatus] = useState<string>("");
   const [isFeatured, setIsFeatured] = useState<boolean>(false);
+  const [difficulty, setDifficulty] = useState<
+    "Beginner" | "Intermediate" | "Advanced"
+  >("Beginner");
+  const [length, setLength] = useState<"Short" | "Medium" | "Long">("Short");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
   const [saving, setSaving] = useState(false);
@@ -149,6 +153,8 @@ const EditCourse: React.FC = () => {
         setGradeId("");
         setStatus("");
         setIsFeatured(false);
+        setDifficulty("Beginner");
+        setLength("Short");
         setChaptersLocal([]);
         setStartAt("");
         setEndAt("");
@@ -163,8 +169,18 @@ const EditCourse: React.FC = () => {
       );
       setStatus(selectedCourse.status ?? undefined);
       setIsFeatured((selectedCourse as any).isFeatured ?? false);
-      setStartAt(formatISO(selectedCourse.startAt));
-      setEndAt(formatISO(selectedCourse.endAt));
+      setStartAt(
+        selectedCourse.startAt
+          ? formatISO(new Date(selectedCourse.startAt)).slice(0, 10)
+          : ""
+      );
+      setEndAt(
+        selectedCourse.endAt
+          ? formatISO(new Date(selectedCourse.endAt)).slice(0, 10)
+          : ""
+      );
+      setDifficulty((selectedCourse as any).difficulty ?? "Beginner");
+      setLength((selectedCourse as any).length ?? "Short");
     }
 
     return () => {
@@ -700,6 +716,8 @@ const EditCourse: React.FC = () => {
                     information,
                     imageUrl:
                       thumbnailPreview ?? selectedCourse?.imageUrl ?? null,
+                    difficulty,
+                    length,
                     price: price ?? 0,
                     schoolId: authUser?.schoolId ?? null,
                     subjectId:
@@ -713,8 +731,8 @@ const EditCourse: React.FC = () => {
                     chapters: chaptersPayload,
                     isFeatured: isFeatured,
                     status: status ?? null,
-                    startAt: startAt ? formatISO(startAt) : null,
-                    endAt: endAt ? formatISO(endAt) : null,
+                    startAt: startAt ? formatISO(new Date(startAt)) : null,
+                    endAt: endAt ? formatISO(new Date(endAt)) : null,
                     updatedAt: formatISO(new Date()),
                     updatedBy: authUser?.id,
                     isApproved: willOpenFromDraft
@@ -1153,6 +1171,41 @@ const EditCourse: React.FC = () => {
                         placeholder="0"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label>Độ khó</Label>
+                      <Select
+                        value={difficulty}
+                        onValueChange={(v) => setDifficulty(v as any)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Chọn độ khó" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Beginner">Cơ bản</SelectItem>
+                          <SelectItem value="Intermediate">
+                            Trung cấp
+                          </SelectItem>
+                          <SelectItem value="Advanced">Nâng cao</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Độ dài</Label>
+                      <Select
+                        value={length}
+                        onValueChange={(v) => setLength(v as any)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Chọn độ dài" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Short">Ngắn</SelectItem>
+                          <SelectItem value="Medium">Trung bình</SelectItem>
+                          <SelectItem value="Long">Dài</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="space-y-4">
                       {status === "Đóng" ? (
                         <p className="text-sm text-gray-500 mt-1 italic">
@@ -1178,18 +1231,21 @@ const EditCourse: React.FC = () => {
 
                       <div className="text-xs text-[#8A8A8A]">
                         <div>
-                          Cập nhật gần nhất{" "}
+                          Cập nhật gần nhất
                           <span className="float-right">
-                            {formatISO(
-                              selectedCourse?.updatedAt ??
-                                selectedCourse?.createdAt
-                            )}
+                            {selectedCourse?.updatedAt
+                              ? formatISO(new Date(selectedCourse.updatedAt))
+                              : selectedCourse?.createdAt
+                              ? formatISO(new Date(selectedCourse.createdAt))
+                              : "-"}
                           </span>
                         </div>
                         <div>
-                          Được tạo vào{" "}
+                          Được tạo vào
                           <span className="float-right">
-                            {formatISO(selectedCourse?.createdAt)}
+                            {selectedCourse?.createdAt
+                              ? formatISO(new Date(selectedCourse.createdAt))
+                              : "-"}
                           </span>
                         </div>
                       </div>
