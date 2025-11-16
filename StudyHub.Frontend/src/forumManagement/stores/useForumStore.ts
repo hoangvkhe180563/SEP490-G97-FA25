@@ -2,19 +2,19 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { axiosInstance, axiosMessageErrorHandler } from "@/lib/axios";
-import type { HubConnection } from "@microsoft/signalr";
-import { createForumFuncConnection } from "@/lib/signalR";
 import type { Post, Flair } from "../interfaces/forum";
 import { forumService } from "../services/ForumService";
+import { useForumSignalRStore } from "./useForumSignalRStore";
+
 interface ModeratorPost extends Post {
   status: boolean | null;
   violation_score?: number;
 }
+
 interface ForumState {
   posts: Post[];
   currentPost: Post | null;
   flairs: Flair[];
-  isForumConnected: boolean;
   myPosts: Post[];
   moderatorPosts: ModeratorPost[];
   isLoading: boolean;
@@ -23,18 +23,12 @@ interface ForumState {
   rules: Array<{ id: number; content: string }>;
 
   loadFlairs: (schoolId?: number) => Promise<void>;
-  startForum: () => Promise<void>;
-  stopForum: () => Promise<void>;
-  joinSchoolForum: (schoolId: number) => Promise<void>;
-  leaveSchoolForum: (schoolId: number) => Promise<void>;
-  joinPost: (postId: number) => Promise<void>;
-  leavePost: (postId: number) => Promise<void>;
-  sendTyping: (postId: number, isTyping: boolean) => Promise<void>;
+  loadRules: (schoolId?: number) => Promise<void>;
 
   getPosts: (
     schoolId: number,
-    subjectId?: number,
-    flairId?: number,
+    subjectIds?: number[],
+    flairIds?: number[],
     query?: string,
     sortBy?: string,
     pageNumber?: number,
@@ -44,8 +38,10 @@ interface ForumState {
   createPost: (formData: FormData) => Promise<any>;
   updatePost: (postId: number, formData: FormData) => Promise<any>;
   deletePost: (postId: number) => Promise<any>;
+
   topPosts: Post[];
   getTopPosts: (schoolId: number, limit?: number) => Promise<any>;
+
   getComments: (
     postId: number,
     pageNumber?: number,
@@ -54,7 +50,7 @@ interface ForumState {
   createComment: (formData: FormData) => Promise<any>;
   updateComment: (commentId: number, formData: FormData) => Promise<any>;
   deleteComment: (commentId: number) => Promise<any>;
-  loadRules: (schoolId?: number) => Promise<void>;
+
   getMyPosts: (
     schoolId: number,
     subjectId?: number,
@@ -64,12 +60,14 @@ interface ForumState {
     pageNumber?: number,
     pageSize?: number
   ) => Promise<any>;
+
   createReport: (
     targetId: number,
     targetType: "post" | "comment",
     ruleId: number,
     content: string
   ) => Promise<any>;
+
   getModeratorPosts: (
     schoolId: number,
     subjectIds?: number[],
@@ -84,9 +82,14 @@ interface ForumState {
     pageNumber?: number,
     pageSize?: number
   ) => Promise<any>;
+
   approvePost: (postId: number) => Promise<any>;
   rejectPost: (postId: number) => Promise<any>;
-  hidePost: (postId: number, violationScore: number) => Promise<any>;
+  hidePost: (
+    postId: number,
+    violationScore: number,
+    reason?: string
+  ) => Promise<any>;
 }
 
 const mapPost = (dto: any) => ({
@@ -150,884 +153,807 @@ const addReplyToComment = (comments: any[], reply: any): any[] => {
 
 export const useForumStore = create<ForumState>()(
   devtools(
-    (set, get) => ({
-      posts: [],
-      currentPost: null,
-      flairs: [],
-      topPosts: [],
-      rules: [],
-      myPosts: [],
-      moderatorPosts: [],
-      isForumConnected: false,
-      isLoading: false,
-      success: false,
-      message: "",
+    (set, get) => {
+      // Setup SignalR event handlers
+      const signalRStore = useForumSignalRStore.getState();
 
-      loadFlairs: async (schoolId?: number) => {
-        try {
-          const result = await forumService.getFlairs(schoolId);
-          set({ flairs: result });
-        } catch {
-          set({ flairs: [] });
-        }
-      },
+      signalRStore.onReceiveNewPost = (dto: any) => {
+        const mappedPost = mapPost(dto);
+        set((state) => {
+          const exists = state.posts.some(
+            (p) => p.post_id === mappedPost.post_id
+          );
+          if (exists) return {};
+          return { posts: [mappedPost, ...state.posts] };
+        });
+      };
 
-      startForum: async () => {
-        try {
-          const existingConn = (window as any).__forumConn;
-          if (existingConn?.state === "Connected") {
-            console.log("Forum already connected");
-            set({ isForumConnected: true });
-            return;
-          }
+      signalRStore.onReceiveNewComment = (dto: any) => {
+        const mappedComment = mapComment(dto);
 
-          if (existingConn?.state === "Connecting") {
-            console.log("Forum connection in progress, waiting...");
-            await new Promise((resolve) => {
-              const checkInterval = setInterval(() => {
-                if (existingConn.state === "Connected") {
-                  clearInterval(checkInterval);
-                  set({ isForumConnected: true });
-                  resolve(true);
-                }
-              }, 100);
-              setTimeout(() => {
-                clearInterval(checkInterval);
-                resolve(false);
-              }, 5000);
-            });
-            return;
-          }
+        set((state) => {
+          const updatedPosts = state.posts.map((p) => {
+            if (p.post_id !== mappedComment.post_id) return p;
 
-          if (existingConn) {
-            try {
-              await existingConn.stop();
-              await new Promise((resolve) => setTimeout(resolve, 500));
-            } catch (e) {
-              console.log("Error stopping old connection:", e);
+            const existingComments = p.comments || [];
+
+            if (
+              isDuplicateComment(existingComments, mappedComment.comment_id)
+            ) {
+              return p;
             }
-            delete (window as any).__forumConn;
-          }
 
-          const conn: HubConnection = createForumFuncConnection();
-          (window as any).__forumConn = conn;
+            const newComments = mappedComment.parent_comment_id
+              ? addReplyToComment(existingComments, mappedComment)
+              : [...existingComments, mappedComment];
 
-          conn.onclose(async (error) => {
-            console.log("SignalR disconnected:", error);
-            set({ isForumConnected: false });
-            delete (window as any).__forumConn;
-          });
-
-          conn.on("ReceiveNewPost", (dto: any) => {
-            const mappedPost = mapPost(dto);
-            set((state) => {
-              const exists = state.posts.some(
-                (p) => p.post_id === mappedPost.post_id
-              );
-              if (exists) return {};
-              return { posts: [mappedPost, ...state.posts] };
-            });
-          });
-
-          conn.on("ReceiveNewComment", (dto: any) => {
-            const mappedComment = mapComment(dto);
-
-            set((state) => {
-              const updatedPosts = state.posts.map((p) => {
-                if (p.post_id !== mappedComment.post_id) return p;
-
-                const existingComments = p.comments || [];
-
-                if (
-                  isDuplicateComment(existingComments, mappedComment.comment_id)
-                ) {
-                  return p;
-                }
-
-                const newComments = mappedComment.parent_comment_id
-                  ? addReplyToComment(existingComments, mappedComment)
-                  : [...existingComments, mappedComment];
-
-                return {
-                  ...p,
-                  comments: newComments,
-                  comment_count: p.comment_count + 1,
-                };
-              });
-
-              if (
-                !state.currentPost ||
-                state.currentPost.post_id !== mappedComment.post_id
-              ) {
-                return { posts: updatedPosts };
-              }
-
-              const existingComments = state.currentPost.comments || [];
-
-              if (
-                isDuplicateComment(existingComments, mappedComment.comment_id)
-              ) {
-                return { posts: updatedPosts };
-              }
-
-              let newComments: any[];
-              if (mappedComment.parent_comment_id) {
-                newComments = addReplyToComment(
-                  existingComments,
-                  mappedComment
-                );
-              } else {
-                newComments = [...existingComments, mappedComment];
-              }
-
-              const topLevelCount = newComments.filter(
-                (c) => !c.parent_comment_id
-              ).length;
-
-              return {
-                posts: updatedPosts,
-                currentPost: {
-                  ...state.currentPost,
-                  comments: newComments,
-                  comment_count: topLevelCount,
-                },
-              };
-            });
-          });
-
-          conn.on("CommentDeleted", (commentId: number) => {
-            set((state) => {
-              if (!state.currentPost) return {};
-
-              const newCommentCount = Math.max(
-                0,
-                state.currentPost.comment_count - 1
-              );
-
-              return {
-                currentPost: {
-                  ...state.currentPost,
-                  comments: state.currentPost.comments.filter(
-                    (c) => c.comment_id !== commentId
-                  ),
-                  comment_count: newCommentCount,
-                },
-                posts: state.posts.map((p) =>
-                  p.post_id === state.currentPost?.post_id
-                    ? { ...p, comment_count: newCommentCount }
-                    : p
-                ),
-              };
-            });
-          });
-          conn.on("PostUpdated", (dto: any) => {
-            const mappedPost = mapPost(dto);
-
-            set((state) => {
-              const updatedPosts = state.posts.map((p) =>
-                p.post_id === mappedPost.post_id ? { ...p, ...mappedPost } : p
-              );
-
-              let updatedCurrentPost = state.currentPost;
-              if (state.currentPost?.post_id === mappedPost.post_id) {
-                updatedCurrentPost = { ...state.currentPost, ...mappedPost };
-              }
-
-              return {
-                posts: updatedPosts,
-                currentPost: updatedCurrentPost,
-              };
-            });
-          });
-
-          conn.on("PostDeleted", (postId: number) => {
-            set((state) => ({
-              posts: state.posts.filter((p) => p.post_id !== postId),
-              currentPost:
-                state.currentPost?.post_id === postId
-                  ? null
-                  : state.currentPost,
-            }));
-          });
-
-          conn.on("CommentUpdated", (dto: any) => {
-            const mappedComment = mapComment(dto);
-
-            set((state) => {
-              if (
-                !state.currentPost ||
-                state.currentPost.post_id !== mappedComment.post_id
-              ) {
-                return {};
-              }
-
-              const updateCommentInTree = (comments: any[]): any[] => {
-                return comments.map((c) => {
-                  if (c.comment_id === mappedComment.comment_id) {
-                    return { ...c, ...mappedComment, replies: c.replies };
-                  }
-                  if (c.replies && c.replies.length > 0) {
-                    return { ...c, replies: updateCommentInTree(c.replies) };
-                  }
-                  return c;
-                });
-              };
-
-              return {
-                currentPost: {
-                  ...state.currentPost,
-                  comments: updateCommentInTree(
-                    state.currentPost.comments || []
-                  ),
-                },
-              };
-            });
-          });
-
-          conn.on("UserTyping", () => {});
-
-          await conn.start();
-          set({ isForumConnected: true });
-          console.log("Forum connection started successfully");
-        } catch (error) {
-          console.error("Failed to start forum connection:", error);
-          const existingConn = (window as any).__forumConn;
-          if (existingConn) {
-            try {
-              await existingConn.stop();
-            } catch (e) {
-              console.error("Failed to start forum connection:", error);
-            }
-          }
-          delete (window as any).__forumConn;
-          set({ isForumConnected: false });
-        }
-      },
-
-      stopForum: async () => {
-        const conn: HubConnection | undefined = (window as any).__forumConn;
-        if (conn) {
-          try {
-            await conn.stop();
-          } catch (e) {
-            console.error("Error stopping connection:", e);
-          }
-          delete (window as any).__forumConn;
-        }
-        set({ isForumConnected: false });
-      },
-
-      joinSchoolForum: async (schoolId: number) => {
-        const conn: HubConnection | undefined = (window as any).__forumConn;
-        if (!conn || conn.state !== "Connected") return;
-        await conn.invoke("JoinSchoolForum", schoolId).catch(() => {});
-      },
-
-      leaveSchoolForum: async (schoolId: number) => {
-        const conn: HubConnection | undefined = (window as any).__forumConn;
-        if (!conn) return;
-        await conn.invoke("LeaveSchoolForum", schoolId).catch(() => {});
-      },
-
-      joinPost: async (postId: number) => {
-        const conn: HubConnection | undefined = (window as any).__forumConn;
-        if (!conn) return;
-        await conn.invoke("JoinPost", postId).catch(() => {});
-      },
-
-      leavePost: async (postId: number) => {
-        const conn: HubConnection | undefined = (window as any).__forumConn;
-        if (!conn) return;
-        await conn.invoke("LeavePost", postId).catch(() => {});
-      },
-
-      sendTyping: async (postId: number, isTyping: boolean) => {
-        const conn: HubConnection | undefined = (window as any).__forumConn;
-        if (!conn) return;
-        await conn.invoke("TypingInPost", postId, isTyping).catch(() => {});
-      },
-
-      getPosts: async (
-        schoolId: number,
-        subjectIds?: number[],
-        flairIds?: number[],
-        query?: string,
-        sortBy?: string,
-        pageNumber: number = 1,
-        pageSize: number = 10
-      ) => {
-        set({ isLoading: true });
-        try {
-          const params = new URLSearchParams();
-          params.append("schoolId", schoolId.toString());
-          if (subjectIds && subjectIds.length > 0)
-            params.append("subjectIds", subjectIds.join(","));
-          if (flairIds && flairIds.length > 0)
-            params.append("flairIds", flairIds.join(","));
-          if (query) params.append("query", query);
-          if (sortBy) params.append("sortBy", sortBy);
-          params.append("pageNumber", pageNumber.toString());
-          params.append("pageSize", pageSize.toString());
-
-          const resp = await axiosInstance.get(
-            `/Forum/posts?${params.toString()}`
-          );
-          const body = resp.data;
-
-          if (body?.success) {
-            const mappedPosts = (body.data?.items || []).map((item: any) => ({
-              ...mapPost(item),
-              comments: (item.comments || []).map((c: any) => ({
-                ...mapComment(c),
-                replies: (c.replies || []).map((r: any) => mapComment(r)),
-              })),
-            }));
-
-            set({
-              posts: mappedPosts,
-              success: true,
-              message: body?.message || "",
-            });
-          } else {
-            set({ success: false, message: body?.message || "" });
-          }
-          return body;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
-      getMyPosts: async (
-        schoolId: number,
-        subjectId?: number,
-        flairId?: number,
-        query?: string,
-        sortBy?: string,
-        pageNumber: number = 1,
-        pageSize: number = 10
-      ) => {
-        set({ isLoading: true });
-        try {
-          const params = new URLSearchParams();
-          params.append("schoolId", schoolId.toString());
-          if (subjectId) params.append("subjectId", subjectId.toString());
-          if (flairId) params.append("flairId", flairId.toString());
-          if (query) params.append("query", query);
-          if (sortBy) params.append("sortBy", sortBy);
-          params.append("pageNumber", pageNumber.toString());
-          params.append("pageSize", pageSize.toString());
-
-          const resp = await axiosInstance.get(
-            `/Forum/my-posts?${params.toString()}`
-          );
-          const body = resp.data;
-
-          if (body?.success) {
-            const mappedPosts = (body.data?.items || []).map((item: any) => ({
-              ...mapPost(item),
-              comments: (item.comments || []).map((c: any) => ({
-                ...mapComment(c),
-                replies: (c.replies || []).map((r: any) => mapComment(r)),
-              })),
-            }));
-
-            set({
-              myPosts: mappedPosts,
-              success: true,
-              message: body?.message || "",
-            });
-          } else {
-            set({ success: false, message: body?.message || "" });
-          }
-          return body;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
-      getTopPosts: async (schoolId: number, limit: number = 5) => {
-        try {
-          const params = new URLSearchParams();
-          params.append("schoolId", schoolId.toString());
-          params.append("sortBy", "mostCommented");
-          params.append("pageNumber", "1");
-          params.append("pageSize", limit.toString());
-
-          const resp = await axiosInstance.get(
-            `/Forum/posts?${params.toString()}`
-          );
-          const body = resp.data;
-
-          if (body?.success) {
-            const mappedPosts = (body.data?.items || []).map((item: any) =>
-              mapPost(item)
-            );
-            set({ topPosts: mappedPosts });
-          }
-          return body;
-        } catch (err: any) {
-          return null;
-        }
-      },
-      getPostById: async (postId: number) => {
-        set({ isLoading: true });
-        try {
-          const resp = await axiosInstance.get(`/Forum/posts/${postId}`);
-          const body = resp.data;
-
-          if (body?.success) {
-            const item = body.data;
-            const mappedPost = {
-              ...mapPost(item),
-              comment_count: item.comments?.length || 0,
-              comments: (item.comments || []).map((c: any) => ({
-                ...mapComment(c),
-                replies: (c.replies || []).map((r: any) => mapComment(r)),
-              })),
+            return {
+              ...p,
+              comments: newComments,
+              comment_count: p.comment_count + 1,
             };
+          });
 
-            set({
-              currentPost: mappedPost,
-              success: true,
-              message: body?.message || "",
-            });
+          if (
+            !state.currentPost ||
+            state.currentPost.post_id !== mappedComment.post_id
+          ) {
+            return { posts: updatedPosts };
           }
-          return body;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
 
-      createPost: async (formData: FormData) => {
-        set({ isLoading: true });
-        try {
-          const resp = await axiosInstance.post(
-            `/Forum/posts/create`,
-            formData,
-            {
-              headers: { "Content-Type": "multipart/form-data" },
-            }
-          );
-          const body = resp.data;
+          const existingComments = state.currentPost.comments || [];
 
-          if (body?.success) {
-            set({
-              success: true,
-              message: body?.message || "Tạo bài viết thành công",
-            });
+          if (isDuplicateComment(existingComments, mappedComment.comment_id)) {
+            return { posts: updatedPosts };
+          }
+
+          let newComments: any[];
+          if (mappedComment.parent_comment_id) {
+            newComments = addReplyToComment(existingComments, mappedComment);
           } else {
-            set({ success: false, message: body?.message || "" });
+            newComments = [...existingComments, mappedComment];
           }
-          return body;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
 
-      updatePost: async (postId: number, formData: FormData) => {
-        set({ isLoading: true });
-        try {
-          const resp = await axiosInstance.put(
-            `/Forum/posts/${postId}`,
-            formData,
-            {
-              headers: { "Content-Type": "multipart/form-data" },
-            }
+          const topLevelCount = newComments.filter(
+            (c) => !c.parent_comment_id
+          ).length;
+
+          return {
+            posts: updatedPosts,
+            currentPost: {
+              ...state.currentPost,
+              comments: newComments,
+              comment_count: topLevelCount,
+            },
+          };
+        });
+      };
+
+      signalRStore.onCommentDeleted = (commentId: number) => {
+        set((state) => {
+          if (!state.currentPost) return {};
+
+          const newCommentCount = Math.max(
+            0,
+            state.currentPost.comment_count - 1
           );
-          const body = resp.data;
 
-          if (body?.success) {
-            const mappedPost = mapPost(body.data);
-
-            set((state) => ({
-              posts: state.posts.map((p) =>
-                p.post_id === postId ? mappedPost : p
+          return {
+            currentPost: {
+              ...state.currentPost,
+              comments: state.currentPost.comments.filter(
+                (c) => c.comment_id !== commentId
               ),
-              currentPost:
-                state.currentPost?.post_id === postId
-                  ? { ...state.currentPost, ...mappedPost }
-                  : state.currentPost,
-              success: true,
-              message: body?.message || "",
-            }));
-          } else {
-            set({ success: false, message: body?.message || "" });
-          }
-          return body;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
-      deletePost: async (postId: number) => {
-        set({ isLoading: true });
-        try {
-          const resp = await axiosInstance.delete(`/Forum/posts/${postId}`);
-          const body = resp.data;
+              comment_count: newCommentCount,
+            },
+            posts: state.posts.map((p) =>
+              p.post_id === state.currentPost?.post_id
+                ? { ...p, comment_count: newCommentCount }
+                : p
+            ),
+          };
+        });
+      };
 
-          if (body?.success) {
-            set((state) => ({
-              posts: state.posts.filter((p) => p.post_id !== postId),
-              currentPost:
-                state.currentPost?.post_id === postId
-                  ? null
-                  : state.currentPost,
-              success: true,
-              message: body?.message || "",
-            }));
-          } else {
-            set({ success: false, message: body?.message || "" });
-          }
-          return body;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
+      signalRStore.onPostUpdated = (dto: any) => {
+        const mappedPost = mapPost(dto);
 
-      getComments: async (
-        postId: number,
-        pageNumber: number = 1,
-        pageSize: number = 50
-      ) => {
-        set({ isLoading: true });
-        try {
-          const params = new URLSearchParams();
-          params.append("pageNumber", pageNumber.toString());
-          params.append("pageSize", pageSize.toString());
-
-          const resp = await axiosInstance.get(
-            `/Forum/posts/${postId}/comments?${params.toString()}`
+        set((state) => {
+          const updatedPosts = state.posts.map((p) =>
+            p.post_id === mappedPost.post_id ? { ...p, ...mappedPost } : p
           );
-          const body = resp.data;
 
-          if (body?.success) {
-            const mapCommentWithReplies = (comment: any): any => ({
-              ...mapComment(comment),
-              replies: (comment.replies || []).map(mapCommentWithReplies),
+          let updatedCurrentPost = state.currentPost;
+          if (state.currentPost?.post_id === mappedPost.post_id) {
+            updatedCurrentPost = { ...state.currentPost, ...mappedPost };
+          }
+
+          return {
+            posts: updatedPosts,
+            currentPost: updatedCurrentPost,
+          };
+        });
+      };
+
+      signalRStore.onPostDeleted = (postId: number) => {
+        set((state) => ({
+          posts: state.posts.filter((p) => p.post_id !== postId),
+          currentPost:
+            state.currentPost?.post_id === postId ? null : state.currentPost,
+        }));
+      };
+
+      signalRStore.onCommentUpdated = (dto: any) => {
+        const mappedComment = mapComment(dto);
+
+        set((state) => {
+          if (
+            !state.currentPost ||
+            state.currentPost.post_id !== mappedComment.post_id
+          ) {
+            return {};
+          }
+
+          const updateCommentInTree = (comments: any[]): any[] => {
+            return comments.map((c) => {
+              if (c.comment_id === mappedComment.comment_id) {
+                return { ...c, ...mappedComment, replies: c.replies };
+              }
+              if (c.replies && c.replies.length > 0) {
+                return { ...c, replies: updateCommentInTree(c.replies) };
+              }
+              return c;
             });
+          };
 
-            const mappedComments = (body.data?.items || []).map(
-              mapCommentWithReplies
+          return {
+            currentPost: {
+              ...state.currentPost,
+              comments: updateCommentInTree(state.currentPost.comments || []),
+            },
+          };
+        });
+      };
+
+      return {
+        posts: [],
+        currentPost: null,
+        flairs: [],
+        topPosts: [],
+        rules: [],
+        myPosts: [],
+        moderatorPosts: [],
+        isLoading: false,
+        success: false,
+        message: "",
+
+        loadFlairs: async (schoolId?: number) => {
+          try {
+            const result = await forumService.getFlairs(schoolId);
+            set({ flairs: result });
+          } catch {
+            set({ flairs: [] });
+          }
+        },
+
+        loadRules: async (schoolId?: number) => {
+          try {
+            const result = await forumService.getRules(schoolId);
+            set({ rules: result });
+          } catch {
+            set({ rules: [] });
+          }
+        },
+
+        getPosts: async (
+          schoolId: number,
+          subjectIds?: number[],
+          flairIds?: number[],
+          query?: string,
+          sortBy?: string,
+          pageNumber: number = 1,
+          pageSize: number = 10
+        ) => {
+          set({ isLoading: true });
+          try {
+            const params = new URLSearchParams();
+            params.append("schoolId", schoolId.toString());
+            if (subjectIds && subjectIds.length > 0)
+              params.append("subjectIds", subjectIds.join(","));
+            if (flairIds && flairIds.length > 0)
+              params.append("flairIds", flairIds.join(","));
+            if (query) params.append("query", query);
+            if (sortBy) params.append("sortBy", sortBy);
+            params.append("pageNumber", pageNumber.toString());
+            params.append("pageSize", pageSize.toString());
+
+            const resp = await axiosInstance.get(
+              `/Forum/posts?${params.toString()}`
             );
+            const body = resp.data;
 
-            if (get().currentPost?.post_id === postId) {
+            if (body?.success) {
+              const mappedPosts = (body.data?.items || []).map((item: any) => ({
+                ...mapPost(item),
+                comments: (item.comments || []).map((c: any) => ({
+                  ...mapComment(c),
+                  replies: (c.replies || []).map((r: any) => mapComment(r)),
+                })),
+              }));
+
+              set({
+                posts: mappedPosts,
+                success: true,
+                message: body?.message || "",
+              });
+            } else {
+              set({ success: false, message: body?.message || "" });
+            }
+            return body;
+          } catch (err: any) {
+            set({ success: false, message: axiosMessageErrorHandler(err) });
+            return null;
+          } finally {
+            set({ isLoading: false });
+          }
+        },
+
+        getMyPosts: async (
+          schoolId: number,
+          subjectId?: number,
+          flairId?: number,
+          query?: string,
+          sortBy?: string,
+          pageNumber: number = 1,
+          pageSize: number = 10
+        ) => {
+          set({ isLoading: true });
+          try {
+            const params = new URLSearchParams();
+            params.append("schoolId", schoolId.toString());
+            if (subjectId) params.append("subjectId", subjectId.toString());
+            if (flairId) params.append("flairId", flairId.toString());
+            if (query) params.append("query", query);
+            if (sortBy) params.append("sortBy", sortBy);
+            params.append("pageNumber", pageNumber.toString());
+            params.append("pageSize", pageSize.toString());
+
+            const resp = await axiosInstance.get(
+              `/Forum/my-posts?${params.toString()}`
+            );
+            const body = resp.data;
+
+            if (body?.success) {
+              const mappedPosts = (body.data?.items || []).map((item: any) => ({
+                ...mapPost(item),
+                comments: (item.comments || []).map((c: any) => ({
+                  ...mapComment(c),
+                  replies: (c.replies || []).map((r: any) => mapComment(r)),
+                })),
+              }));
+
+              set({
+                myPosts: mappedPosts,
+                success: true,
+                message: body?.message || "",
+              });
+            } else {
+              set({ success: false, message: body?.message || "" });
+            }
+            return body;
+          } catch (err: any) {
+            set({ success: false, message: axiosMessageErrorHandler(err) });
+            return null;
+          } finally {
+            set({ isLoading: false });
+          }
+        },
+
+        getTopPosts: async (schoolId: number, limit: number = 5) => {
+          try {
+            const params = new URLSearchParams();
+            params.append("schoolId", schoolId.toString());
+            params.append("sortBy", "mostCommented");
+            params.append("pageNumber", "1");
+            params.append("pageSize", limit.toString());
+
+            const resp = await axiosInstance.get(
+              `/Forum/posts?${params.toString()}`
+            );
+            const body = resp.data;
+
+            if (body?.success) {
+              const mappedPosts = (body.data?.items || []).map((item: any) =>
+                mapPost(item)
+              );
+              set({ topPosts: mappedPosts });
+            }
+            return body;
+          } catch (err: any) {
+            return null;
+          }
+        },
+
+        getPostById: async (postId: number) => {
+          set({ isLoading: true });
+          try {
+            const resp = await axiosInstance.get(`/Forum/posts/${postId}`);
+            const body = resp.data;
+
+            if (body?.success) {
+              const item = body.data;
+              const mappedPost = {
+                ...mapPost(item),
+                comment_count: item.comments?.length || 0,
+                comments: (item.comments || []).map((c: any) => ({
+                  ...mapComment(c),
+                  replies: (c.replies || []).map((r: any) => mapComment(r)),
+                })),
+              };
+
+              set({
+                currentPost: mappedPost,
+                success: true,
+                message: body?.message || "",
+              });
+            }
+            return body;
+          } catch (err: any) {
+            set({ success: false, message: axiosMessageErrorHandler(err) });
+            return null;
+          } finally {
+            set({ isLoading: false });
+          }
+        },
+
+        createPost: async (formData: FormData) => {
+          set({ isLoading: true });
+          try {
+            const resp = await axiosInstance.post(
+              `/Forum/posts/create`,
+              formData,
+              {
+                headers: { "Content-Type": "multipart/form-data" },
+              }
+            );
+            const body = resp.data;
+
+            if (body?.success) {
+              set({
+                success: true,
+                message: body?.message || "Tạo bài viết thành công",
+              });
+            } else {
+              set({ success: false, message: body?.message || "" });
+            }
+            return body;
+          } catch (err: any) {
+            set({ success: false, message: axiosMessageErrorHandler(err) });
+            return null;
+          } finally {
+            set({ isLoading: false });
+          }
+        },
+
+        updatePost: async (postId: number, formData: FormData) => {
+          set({ isLoading: true });
+          try {
+            const resp = await axiosInstance.put(
+              `/Forum/posts/${postId}`,
+              formData,
+              {
+                headers: { "Content-Type": "multipart/form-data" },
+              }
+            );
+            const body = resp.data;
+
+            if (body?.success) {
+              const mappedPost = mapPost(body.data);
+
               set((state) => ({
-                currentPost: state.currentPost
-                  ? { ...state.currentPost, comments: mappedComments }
-                  : null,
+                posts: state.posts.map((p) =>
+                  p.post_id === postId ? mappedPost : p
+                ),
+                currentPost:
+                  state.currentPost?.post_id === postId
+                    ? { ...state.currentPost, ...mappedPost }
+                    : state.currentPost,
                 success: true,
                 message: body?.message || "",
               }));
+            } else {
+              set({ success: false, message: body?.message || "" });
             }
-
             return body;
-          } else {
-            set({ success: false, message: body?.message || "" });
+          } catch (err: any) {
+            set({ success: false, message: axiosMessageErrorHandler(err) });
+            return null;
+          } finally {
+            set({ isLoading: false });
           }
-          return body;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
+        },
 
-      createComment: async (formData: FormData) => {
-        set({ isLoading: true });
-        try {
-          const resp = await axiosInstance.post(
-            `/Forum/comments/create`,
-            formData,
-            {
-              headers: { "Content-Type": "multipart/form-data" },
-            }
-          );
-          const body = resp.data;
+        deletePost: async (postId: number) => {
+          set({ isLoading: true });
+          try {
+            const resp = await axiosInstance.delete(`/Forum/posts/${postId}`);
+            const body = resp.data;
 
-          if (body?.success) {
-            set({
-              success: true,
-              message: body?.message || "Tạo bình luận thành công",
-            });
-          } else {
-            set({ success: false, message: body?.message || "" });
-          }
-          return body;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
-
-      updateComment: async (commentId: number, formData: FormData) => {
-        set({ isLoading: true });
-        try {
-          const resp = await axiosInstance.put(
-            `/Forum/comments/${commentId}`,
-            formData,
-            {
-              headers: { "Content-Type": "multipart/form-data" },
-            }
-          );
-          const body = resp.data;
-
-          if (body?.success) {
-            const mappedComment = mapComment(body.data);
-
-            set((state) => {
-              if (!state.currentPost) return { success: true };
-
-              const updateCommentInTree = (comments: any[]): any[] => {
-                return comments.map((c) => {
-                  if (c.comment_id === commentId) {
-                    return { ...c, ...mappedComment, replies: c.replies };
-                  }
-                  if (c.replies && c.replies.length > 0) {
-                    return { ...c, replies: updateCommentInTree(c.replies) };
-                  }
-                  return c;
-                });
-              };
-
-              return {
-                currentPost: {
-                  ...state.currentPost,
-                  comments: updateCommentInTree(
-                    state.currentPost.comments || []
-                  ),
-                },
+            if (body?.success) {
+              set((state) => ({
+                posts: state.posts.filter((p) => p.post_id !== postId),
+                currentPost:
+                  state.currentPost?.post_id === postId
+                    ? null
+                    : state.currentPost,
                 success: true,
                 message: body?.message || "",
-              };
-            });
-          } else {
-            set({ success: false, message: body?.message || "" });
+              }));
+            } else {
+              set({ success: false, message: body?.message || "" });
+            }
+            return body;
+          } catch (err: any) {
+            set({ success: false, message: axiosMessageErrorHandler(err) });
+            return null;
+          } finally {
+            set({ isLoading: false });
           }
-          return body;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
+        },
 
-      deleteComment: async (commentId: number) => {
-        set({ isLoading: true });
-        try {
-          const resp = await axiosInstance.delete(
-            `/Forum/comments/${commentId}`
-          );
-          const body = resp.data;
+        getComments: async (
+          postId: number,
+          pageNumber: number = 1,
+          pageSize: number = 50
+        ) => {
+          set({ isLoading: true });
+          try {
+            const params = new URLSearchParams();
+            params.append("pageNumber", pageNumber.toString());
+            params.append("pageSize", pageSize.toString());
 
-          if (body?.success) {
-            set((state) => ({
-              currentPost: state.currentPost
-                ? {
+            const resp = await axiosInstance.get(
+              `/Forum/posts/${postId}/comments?${params.toString()}`
+            );
+            const body = resp.data;
+
+            if (body?.success) {
+              const mapCommentWithReplies = (comment: any): any => ({
+                ...mapComment(comment),
+                replies: (comment.replies || []).map(mapCommentWithReplies),
+              });
+
+              const mappedComments = (body.data?.items || []).map(
+                mapCommentWithReplies
+              );
+
+              if (get().currentPost?.post_id === postId) {
+                set((state) => ({
+                  currentPost: state.currentPost
+                    ? { ...state.currentPost, comments: mappedComments }
+                    : null,
+                  success: true,
+                  message: body?.message || "",
+                }));
+              }
+
+              return body;
+            } else {
+              set({ success: false, message: body?.message || "" });
+            }
+            return body;
+          } catch (err: any) {
+            set({ success: false, message: axiosMessageErrorHandler(err) });
+            return null;
+          } finally {
+            set({ isLoading: false });
+          }
+        },
+
+        createComment: async (formData: FormData) => {
+          set({ isLoading: true });
+          try {
+            const resp = await axiosInstance.post(
+              `/Forum/comments/create`,
+              formData,
+              {
+                headers: { "Content-Type": "multipart/form-data" },
+              }
+            );
+            const body = resp.data;
+
+            if (body?.success) {
+              set({
+                success: true,
+                message: body?.message || "Tạo bình luận thành công",
+              });
+            } else {
+              set({ success: false, message: body?.message || "" });
+            }
+            return body;
+          } catch (err: any) {
+            set({ success: false, message: axiosMessageErrorHandler(err) });
+            return null;
+          } finally {
+            set({ isLoading: false });
+          }
+        },
+
+        updateComment: async (commentId: number, formData: FormData) => {
+          set({ isLoading: true });
+          try {
+            const resp = await axiosInstance.put(
+              `/Forum/comments/${commentId}`,
+              formData,
+              {
+                headers: { "Content-Type": "multipart/form-data" },
+              }
+            );
+            const body = resp.data;
+
+            if (body?.success) {
+              const mappedComment = mapComment(body.data);
+
+              set((state) => {
+                if (!state.currentPost) return { success: true };
+
+                const updateCommentInTree = (comments: any[]): any[] => {
+                  return comments.map((c) => {
+                    if (c.comment_id === commentId) {
+                      return { ...c, ...mappedComment, replies: c.replies };
+                    }
+                    if (c.replies && c.replies.length > 0) {
+                      return { ...c, replies: updateCommentInTree(c.replies) };
+                    }
+                    return c;
+                  });
+                };
+
+                return {
+                  currentPost: {
                     ...state.currentPost,
-                    comments: state.currentPost.comments.filter(
-                      (c) => c.comment_id !== commentId
+                    comments: updateCommentInTree(
+                      state.currentPost.comments || []
                     ),
-                    comment_count: Math.max(
-                      0,
-                      state.currentPost.comment_count - 1
-                    ),
-                  }
-                : null,
-              posts: state.posts.map((p) =>
-                p.post_id === state.currentPost?.post_id
-                  ? { ...p, comment_count: Math.max(0, p.comment_count - 1) }
-                  : p
-              ),
-              success: true,
-              message: body?.message || "",
-            }));
-          } else {
-            set({ success: false, message: body?.message || "" });
+                  },
+                  success: true,
+                  message: body?.message || "",
+                };
+              });
+            } else {
+              set({ success: false, message: body?.message || "" });
+            }
+            return body;
+          } catch (err: any) {
+            set({ success: false, message: axiosMessageErrorHandler(err) });
+            return null;
+          } finally {
+            set({ isLoading: false });
           }
-          return body;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
-      loadRules: async (schoolId?: number) => {
-        try {
-          const result = await forumService.getRules(schoolId);
-          set({ rules: result });
-        } catch {
-          set({ rules: [] });
-        }
-      },
-      getModeratorPosts: async (
-        schoolId: number,
-        subjectIds?: number[],
-        flairIds?: number[],
-        query?: string,
-        postStatus?: string,
-        minViolationScore?: number,
-        maxViolationScore?: number,
-        createdFrom?: string,
-        createdTo?: string,
-        sortBy?: string,
-        pageNumber: number = 1,
-        pageSize: number = 10
-      ) => {
-        set({ isLoading: true });
-        try {
-          const params = new URLSearchParams();
-          params.append("schoolId", schoolId.toString());
-          if (subjectIds && subjectIds.length > 0)
-            params.append("subjectIds", subjectIds.join(","));
-          if (flairIds && flairIds.length > 0)
-            params.append("flairIds", flairIds.join(","));
-          if (query) params.append("query", query);
-          if (postStatus) params.append("postStatus", postStatus);
-          if (minViolationScore !== undefined)
-            params.append("minViolationScore", minViolationScore.toString());
-          if (maxViolationScore !== undefined)
-            params.append("maxViolationScore", maxViolationScore.toString());
-          if (createdFrom) params.append("createdFrom", createdFrom);
-          if (createdTo) params.append("createdTo", createdTo);
-          if (sortBy) params.append("sortBy", sortBy);
-          params.append("pageNumber", pageNumber.toString());
-          params.append("pageSize", pageSize.toString());
+        },
 
-          console.log(
-            "API URL:",
-            `/Forum/moderator/posts?${params.toString()}`
-          );
+        deleteComment: async (commentId: number) => {
+          set({ isLoading: true });
+          try {
+            const resp = await axiosInstance.delete(
+              `/Forum/comments/${commentId}`
+            );
+            const body = resp.data;
 
-          const resp = await axiosInstance.get(
-            `/Forum/moderator/posts?${params.toString()}`
-          );
-          const body = resp.data;
+            if (body?.success) {
+              set((state) => ({
+                currentPost: state.currentPost
+                  ? {
+                      ...state.currentPost,
+                      comments: state.currentPost.comments.filter(
+                        (c) => c.comment_id !== commentId
+                      ),
+                      comment_count: Math.max(
+                        0,
+                        state.currentPost.comment_count - 1
+                      ),
+                    }
+                  : null,
+                posts: state.posts.map((p) =>
+                  p.post_id === state.currentPost?.post_id
+                    ? { ...p, comment_count: Math.max(0, p.comment_count - 1) }
+                    : p
+                ),
+                success: true,
+                message: body?.message || "",
+              }));
+            } else {
+              set({ success: false, message: body?.message || "" });
+            }
+            return body;
+          } catch (err: any) {
+            set({ success: false, message: axiosMessageErrorHandler(err) });
+            return null;
+          } finally {
+            set({ isLoading: false });
+          }
+        },
 
-          if (body?.success) {
-            const mappedPosts = (body.data?.items || []).map((item: any) => ({
-              ...mapPost(item),
-              status: item.status ?? null,
-              violation_score: item.violationScore ?? 0,
-            }));
-
-            set({
-              moderatorPosts: mappedPosts,
-              success: true,
-              message: body?.message || "",
+        createReport: async (
+          targetId: number,
+          targetType: "post" | "comment",
+          ruleId: number,
+          content: string
+        ) => {
+          set({ isLoading: true });
+          try {
+            const resp = await axiosInstance.post(`/Forum/reports`, {
+              targetId,
+              targetType,
+              ruleId,
+              content,
             });
-          } else {
-            set({ success: false, message: body?.message || "" });
+            const body = resp.data;
+
+            if (body?.success) {
+              set({
+                success: true,
+                message: body?.message || "Gửi báo cáo thành công",
+              });
+            } else {
+              set({ success: false, message: body?.message || "" });
+            }
+            return body;
+          } catch (err: any) {
+            set({ success: false, message: axiosMessageErrorHandler(err) });
+            return null;
+          } finally {
+            set({ isLoading: false });
           }
-          return body;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
+        },
 
-      approvePost: async (postId: number) => {
-        set({ isLoading: true });
-        try {
-          const resp = await axiosInstance.post(
-            `/Forum/posts/${postId}/approve`
-          );
-          const body = resp.data;
+        getModeratorPosts: async (
+          schoolId: number,
+          subjectIds?: number[],
+          flairIds?: number[],
+          query?: string,
+          postStatus?: string,
+          minViolationScore?: number,
+          maxViolationScore?: number,
+          createdFrom?: string,
+          createdTo?: string,
+          sortBy?: string,
+          pageNumber: number = 1,
+          pageSize: number = 10
+        ) => {
+          set({ isLoading: true });
+          try {
+            const params = new URLSearchParams();
+            params.append("schoolId", schoolId.toString());
+            if (subjectIds && subjectIds.length > 0)
+              params.append("subjectIds", subjectIds.join(","));
+            if (flairIds && flairIds.length > 0)
+              params.append("flairIds", flairIds.join(","));
+            if (query) params.append("query", query);
+            if (postStatus) params.append("postStatus", postStatus);
+            if (minViolationScore !== undefined)
+              params.append("minViolationScore", minViolationScore.toString());
+            if (maxViolationScore !== undefined)
+              params.append("maxViolationScore", maxViolationScore.toString());
+            if (createdFrom) params.append("createdFrom", createdFrom);
+            if (createdTo) params.append("createdTo", createdTo);
+            if (sortBy) params.append("sortBy", sortBy);
+            params.append("pageNumber", pageNumber.toString());
+            params.append("pageSize", pageSize.toString());
 
-          if (body?.success) {
-            set({
-              success: true,
-              message: body?.message || "Đã duyệt bài viết",
-            });
-          } else {
-            set({ success: false, message: body?.message || "" });
+            const resp = await axiosInstance.get(
+              `/Forum/moderator/posts?${params.toString()}`
+            );
+            const body = resp.data;
+
+            if (body?.success) {
+              const mappedPosts = (body.data?.items || []).map((item: any) => ({
+                ...mapPost(item),
+                status: item.status ?? null,
+                violation_score: item.violationScore ?? 0,
+              }));
+
+              set({
+                moderatorPosts: mappedPosts,
+                success: true,
+                message: body?.message || "",
+              });
+            } else {
+              set({ success: false, message: body?.message || "" });
+            }
+            return body;
+          } catch (err: any) {
+            set({ success: false, message: axiosMessageErrorHandler(err) });
+            return null;
+          } finally {
+            set({ isLoading: false });
           }
-          return body;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
+        },
 
-      rejectPost: async (postId: number) => {
-        set({ isLoading: true });
-        try {
-          const resp = await axiosInstance.post(
-            `/Forum/posts/${postId}/reject`
-          );
-          const body = resp.data;
+        approvePost: async (postId: number) => {
+          set({ isLoading: true });
+          try {
+            const resp = await axiosInstance.post(
+              `/Forum/posts/${postId}/approve`
+            );
+            const body = resp.data;
 
-          if (body?.success) {
-            set({
-              success: true,
-              message: body?.message || "Đã từ chối bài viết",
-            });
-          } else {
-            set({ success: false, message: body?.message || "" });
+            if (body?.success) {
+              set({
+                success: true,
+                message: body?.message || "Đã duyệt bài viết",
+              });
+            } else {
+              set({ success: false, message: body?.message || "" });
+            }
+            return body;
+          } catch (err: any) {
+            set({ success: false, message: axiosMessageErrorHandler(err) });
+            return null;
+          } finally {
+            set({ isLoading: false });
           }
-          return body;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
+        },
 
-      // Dòng ~880 trong useForumStore.ts
-      hidePost: async (
-        postId: number,
-        violationScore: number,
-        reason?: string
-      ) => {
-        set({ isLoading: true });
-        try {
-          const payload: any = { violationScore };
-          if (reason) payload.reason = reason; // Thêm reason nếu có
+        rejectPost: async (postId: number) => {
+          set({ isLoading: true });
+          try {
+            const resp = await axiosInstance.post(
+              `/Forum/posts/${postId}/reject`
+            );
+            const body = resp.data;
 
-          const resp = await axiosInstance.post(
-            `/Forum/posts/${postId}/hide`,
-            payload
-          );
-          const body = resp.data;
-
-          if (body?.success) {
-            set({ success: true, message: body?.message || "Đã ẩn bài viết" });
-          } else {
-            set({ success: false, message: body?.message || "" });
+            if (body?.success) {
+              set({
+                success: true,
+                message: body?.message || "Đã từ chối bài viết",
+              });
+            } else {
+              set({ success: false, message: body?.message || "" });
+            }
+            return body;
+          } catch (err: any) {
+            set({ success: false, message: axiosMessageErrorHandler(err) });
+            return null;
+          } finally {
+            set({ isLoading: false });
           }
-          return body;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
-    }),
+        },
+
+        hidePost: async (
+          postId: number,
+          violationScore: number,
+          reason?: string
+        ) => {
+          set({ isLoading: true });
+          try {
+            const payload: any = { violationScore };
+            if (reason) payload.reason = reason;
+
+            const resp = await axiosInstance.post(
+              `/Forum/posts/${postId}/hide`,
+              payload
+            );
+            const body = resp.data;
+
+            if (body?.success) {
+              set({
+                success: true,
+                message: body?.message || "Đã ẩn bài viết",
+              });
+            } else {
+              set({ success: false, message: body?.message || "" });
+            }
+            return body;
+          } catch (err: any) {
+            set({ success: false, message: axiosMessageErrorHandler(err) });
+            return null;
+          } finally {
+            set({ isLoading: false });
+          }
+        },
+      };
+    },
     { name: "forum-store" }
   )
 );

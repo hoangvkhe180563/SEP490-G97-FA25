@@ -101,7 +101,7 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public string Content { get; set; } = string.Empty;
 
         public List<IFormFile>? NewAttachments { get; set; }
-        public List<int>? DeletedAttachmentIds { get; set; }
+        public List<string>? DeletedAttachmentUrls { get; set; }
     }
 
     public class ForumPostFilterDto

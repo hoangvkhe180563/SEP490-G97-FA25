@@ -6,7 +6,7 @@ import { TrendingUp, Users, BookOpen } from "lucide-react";
 import type { Post } from "../interfaces/forum";
 import { getSubjectBadgeColor } from "../utils/colorUtils";
 import { useNavigate } from "react-router-dom";
-import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
+// import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
 import { useForumStore } from "../stores/useForumStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 interface ForumSidebarProps {
@@ -28,16 +28,16 @@ export const ForumSidebar = ({
   showRelatedPosts = false,
 }: ForumSidebarProps) => {
   const navigate = useNavigate();
-  const { onlineCount, startPresence, stopPresence } = useUserOnlineStore();
+  // const { onlineCount, startPresence, stopPresence } = useUserOnlineStore();
   const { rules, loadRules, posts } = useForumStore();
   const { user } = useAuthStore();
   const schoolId = user?.schoolId || 1;
-  useEffect(() => {
-    startPresence();
-    return () => {
-      stopPresence();
-    };
-  }, [startPresence, stopPresence]);
+  // useEffect(() => {
+  //   startPresence();
+  //   return () => {
+  //     stopPresence();
+  //   };
+  // }, [startPresence, stopPresence]);
 
   useEffect(() => {
     if (showRules) {
@@ -72,9 +72,9 @@ export const ForumSidebar = ({
           <CardContent>
             <div className="grid grid-cols-1 gap-4">
               <div className="text-center">
-                <div className="text-3xl font-bold text-sky-600">
+                {/* <div className="text-3xl font-bold text-sky-600">
                   {onlineCount}
-                </div>
+                </div> */}
                 <div className="text-sm text-gray-600">Người online</div>
               </div>
             </div>

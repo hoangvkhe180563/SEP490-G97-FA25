@@ -204,62 +204,42 @@
                 }
             }
 
-            [HttpPut("posts/{postId:int}")]
-            [Consumes("multipart/form-data")]
-            public async Task<IActionResult> UpdatePost(int postId, [FromForm] UpdateForumPostDto dto)
-            {
-                try
-                {
-                    if (!ModelState.IsValid)
-                    {
-                        return BadRequest(new { success = false, errors = ModelState });
-                    }
+        [HttpPut("posts/{postId:int}")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UpdatePost(int postId, [FromForm] UpdateForumPostDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new { success = false, errors = ModelState });
 
-                    if (postId != dto.PostId)
-                    {
-                        return BadRequest(new { success = false, message = "PostId không khớp" });
-                    }
+            if (postId != dto.PostId)
+                return BadRequest(new { success = false, message = "PostId không khớp" });
 
-                    var currentUser = GetCurrentUser();
-                    if (currentUser == null)
-                    {
-                        return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                    }
+            var currentUser = GetCurrentUser();
+            if (currentUser == null)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-                    var existingPost = await _postService.GetPostByIdAsync(postId);
-                    if (existingPost == null)
-                    {
-                        return NotFound(new { success = false, message = "Không tìm thấy bài viết" });
-                    }
+            var existingPost = await _postService.GetPostByIdAsync(postId);
+            if (existingPost == null)
+                return NotFound(new { success = false, message = "Không tìm thấy bài viết" });
 
-                    if (existingPost.CreatedBy != currentUser.Id)
-                    {
-                        return Forbid();
-                    }
+            if (existingPost.CreatedBy != currentUser.Id)
+                return Forbid();
 
-                    existingPost.FlairId = dto.FlairId;
-                    existingPost.Title = dto.Title;
-                    existingPost.Content = dto.Content;
-                    existingPost.UpdatedBy = currentUser.Id;
+            existingPost.FlairId = dto.FlairId;
+            existingPost.Title = dto.Title;
+            existingPost.Content = dto.Content;
+            existingPost.UpdatedBy = currentUser.Id;
 
-                    var updatedPost = await _postService.UpdatePostAsync(existingPost);
+            var updatedPost = await _postService.UpdatePostWithAttachmentsAsync(existingPost, dto.NewAttachments, dto.DeletedAttachmentUrls);
 
-                    _logger.LogInformation("User {UserId} updated post {PostId}", currentUser.Id, postId);
+            var postDto = updatedPost.ToDetailDto();
+            await _forumHubContext.Clients.Group($"school-{existingPost.SchoolId}").SendAsync("PostUpdated", postDto);
+            await _forumHubContext.Clients.Group($"post-{postId}").SendAsync("PostUpdated", postDto);
 
-                    var postDto = updatedPost.ToDetailDto();
-                    await _forumHubContext.Clients.Group($"school-{existingPost.SchoolId}").SendAsync("PostUpdated", postDto);
-                    await _forumHubContext.Clients.Group($"post-{postId}").SendAsync("PostUpdated", postDto);
+            return Ok(new { success = true, data = postDto });
+        }
 
-                    return Ok(new { success = true, data = postDto });
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error updating post {PostId}", postId);
-                    return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi cập nhật bài viết" });
-                }
-            }
-
-            [HttpDelete("posts/{postId:int}")]
+        [HttpDelete("posts/{postId:int}")]
             public async Task<IActionResult> DeletePost(int postId)
             {
                 try
@@ -440,59 +420,39 @@
                 }
             }
 
-            [HttpPut("comments/{commentId:int}")]
-            [Consumes("multipart/form-data")]
-            public async Task<IActionResult> UpdateComment(int commentId, [FromForm] UpdateForumCommentDto dto)
-            {
-                try
-                {
-                    if (!ModelState.IsValid)
-                    {
-                        return BadRequest(new { success = false, errors = ModelState });
-                    }
+        [HttpPut("comments/{commentId:int}")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UpdateComment(int commentId, [FromForm] UpdateForumCommentDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new { success = false, errors = ModelState });
 
-                    if (commentId != dto.CommentId)
-                    {
-                        return BadRequest(new { success = false, message = "CommentId không khớp" });
-                    }
+            if (commentId != dto.CommentId)
+                return BadRequest(new { success = false, message = "CommentId không khớp" });
 
-                    var currentUser = GetCurrentUser();
-                    if (currentUser == null)
-                    {
-                        return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                    }
+            var currentUser = GetCurrentUser();
+            if (currentUser == null)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-                    var existingComment = await _commentService.GetCommentByIdAsync(commentId);
-                    if (existingComment == null)
-                    {
-                        return NotFound(new { success = false, message = "Không tìm thấy bình luận" });
-                    }
+            var existingComment = await _commentService.GetCommentByIdAsync(commentId);
+            if (existingComment == null)
+                return NotFound(new { success = false, message = "Không tìm thấy bình luận" });
 
-                    if (existingComment.CreatedBy != currentUser.Id)
-                    {
-                        return Forbid();
-                    }
+            if (existingComment.CreatedBy != currentUser.Id)
+                return Forbid();
 
-                    existingComment.Content = dto.Content;
-                    existingComment.UpdatedBy = currentUser.Id;
+            existingComment.Content = dto.Content;
+            existingComment.UpdatedBy = currentUser.Id;
 
-                    var updatedComment = await _commentService.UpdateCommentAsync(existingComment);
+            var updatedComment = await _commentService.UpdateCommentWithAttachmentsAsync(existingComment, dto.NewAttachments, dto.DeletedAttachmentUrls);
 
-                    _logger.LogInformation("User {UserId} updated comment {CommentId}", currentUser.Id, commentId);
+            var commentDto = updatedComment.ToListDto();
+            await _forumHubContext.Clients.Group($"post-{existingComment.PostId}").SendAsync("CommentUpdated", commentDto);
 
-                    var commentDto = updatedComment.ToListDto();
-                    await _forumHubContext.Clients.Group($"post-{existingComment.PostId}").SendAsync("CommentUpdated", commentDto);
+            return Ok(new { success = true, data = commentDto });
+        }
 
-                    return Ok(new { success = true, data = commentDto });
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error updating comment {CommentId}", commentId);
-                    return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi cập nhật bình luận" });
-                }
-            }
-
-            [HttpDelete("comments/{commentId:int}")]
+        [HttpDelete("comments/{commentId:int}")]
             public async Task<IActionResult> DeleteComment(int commentId)
             {
                 try

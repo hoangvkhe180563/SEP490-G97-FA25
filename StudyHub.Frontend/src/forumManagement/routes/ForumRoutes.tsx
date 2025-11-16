@@ -6,10 +6,9 @@ import { Outlet, type RouteObject } from "react-router-dom";
 import AppealManagement from "../pages/AppealManagement";
 import PostManagement from "../pages/PostManagement";
 import ViolationAccounts from "../pages/ViolationAccounts";
-// import CommentManagement from "../pages/CommentManagement";
 import FlairManagement from "../pages/FlairManagement";
-// import ReportManagement from "../pages/ReportManagement";
 import ViolationRecords from "../pages/ViolationRecords";
+import { ForumLayout } from "../components/ForumLayout";
 
 const managerRoutes = [
   {
@@ -32,18 +31,10 @@ const managerRoutes = [
     path: ForumRouteConfig.MANAGER.POST_MANAGEMENT,
     element: <PostManagement />,
   },
-  // {
-  //   path: ForumRouteConfig.MANAGER.COMMENT_MANAGEMENT,
-  //   element: <CommentManagement />,
-  // },
   {
     path: ForumRouteConfig.MANAGER.FLAIR_MANAGEMENT,
     element: <FlairManagement />,
   },
-  // {
-  //   path: ForumRouteConfig.MANAGER.REPORT_MANAGEMENT,
-  //   element: <ReportManagement />,
-  // },
   {
     path: ForumRouteConfig.MANAGER.VIOLATION_RECORDS,
     element: <ViolationRecords />,
@@ -58,6 +49,14 @@ const teacherRoutes = [
   {
     index: true,
     element: <div>Teacher Dashboard</div>,
+  },
+  {
+    path: ForumRouteConfig.TEACHER.FORUMS,
+    element: <ForumMain />,
+  },
+  {
+    path: ForumRouteConfig.TEACHER.POST_DETAIL,
+    element: <PostDetail />,
   },
 ];
 
@@ -79,16 +78,29 @@ const studentRoutes = [
 const forumRoutes: RouteObject[] = [
   {
     path: ForumRouteConfig.MANAGER.INDEX,
-    element: <Outlet />,
+    element: (
+      <ForumLayout>
+        <Outlet />
+      </ForumLayout>
+    ),
     children: managerRoutes,
   },
   {
     path: ForumRouteConfig.TEACHER.INDEX,
+    element: (
+      <ForumLayout>
+        <Outlet />
+      </ForumLayout>
+    ),
     children: teacherRoutes,
   },
   {
     path: ForumRouteConfig.STUDENT.INDEX,
-    element: <Outlet />,
+    element: (
+      <ForumLayout>
+        <Outlet />
+      </ForumLayout>
+    ),
     children: studentRoutes,
   },
 ];

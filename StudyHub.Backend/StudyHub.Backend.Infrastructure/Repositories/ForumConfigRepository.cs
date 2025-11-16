@@ -222,52 +222,36 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public async Task<List<ForumAttachment>> GetAttachmentsByPostIdAsync(int postId)
         {
-            try
-            {
-                var attachments = await _context.ForumAttachments
-                    .Where(a => a.PostId == postId && a.DeletedAt == null)
-                    .ToListAsync();
+            var attachments = await _context.ForumAttachments
+                .Where(a => a.PostId == postId && a.DeletedAt == null)
+                .ToListAsync();
 
-                return attachments.Select(a => new ForumAttachment
-                {
-                    Id = a.Id,
-                    PostId = a.PostId,
-                    FileUrl = a.FileUrl,
-                    IsApproved = a.IsApproved,
-                    CreatedAt = a.CreatedAt,
-                    CreatedBy = a.CreatedBy
-                }).ToList();
-            }
-            catch (Exception ex)
+            return attachments.Select(a => new ForumAttachment
             {
-                new InfrastructureException("ForumConfigRepository", "GetAttachmentsByPostIdAsync failed: " + ex.Message).LogError();
-                return new List<ForumAttachment>();
-            }
+                Id = a.Id,
+                PostId = a.PostId,
+                FileUrl = a.FileUrl,
+                IsApproved = a.IsApproved,
+                CreatedAt = a.CreatedAt,
+                CreatedBy = a.CreatedBy
+            }).ToList();
         }
 
         public async Task<List<ForumAttachment>> GetAttachmentsByCommentIdAsync(int commentId)
         {
-            try
-            {
-                var attachments = await _context.ForumAttachments
-                    .Where(a => a.CommentId == commentId && a.DeletedAt == null)
-                    .ToListAsync();
+            var attachments = await _context.ForumAttachments
+                .Where(a => a.CommentId == commentId && a.DeletedAt == null)
+                .ToListAsync();
 
-                return attachments.Select(a => new ForumAttachment
-                {
-                    Id = a.Id,
-                    CommentId = a.CommentId,
-                    FileUrl = a.FileUrl,
-                    IsApproved = a.IsApproved,
-                    CreatedAt = a.CreatedAt,
-                    CreatedBy = a.CreatedBy
-                }).ToList();
-            }
-            catch (Exception ex)
+            return attachments.Select(a => new ForumAttachment
             {
-                new InfrastructureException("ForumConfigRepository", "GetAttachmentsByCommentIdAsync failed: " + ex.Message).LogError();
-                return new List<ForumAttachment>();
-            }
+                Id = a.Id,
+                CommentId = a.CommentId,
+                FileUrl = a.FileUrl,
+                IsApproved = a.IsApproved,
+                CreatedAt = a.CreatedAt,
+                CreatedBy = a.CreatedBy
+            }).ToList();
         }
 
         public async Task<(List<ForumAttachment> attachments, int totalCount)> GetPendingAttachmentsAsync(

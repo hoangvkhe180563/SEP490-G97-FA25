@@ -32,12 +32,14 @@ import {
   Flag,
   Edit,
   Loader2,
+  Trash2,
   Save,
   X,
   ImagePlus,
 } from "lucide-react";
 import { useForumStore } from "../stores/useForumStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { useForumSignalRStore } from "../stores/useForumSignalRStore";
 import { getSubjectBadgeColor, getFlairColor } from "../utils/colorUtils";
 import { formatTimestamp } from "../utils/dateUtils";
 import { ImageGrid } from "../components/ImageGrid";
@@ -61,10 +63,11 @@ const PostDetail = () => {
     deleteComment,
     createComment,
     isLoading,
-    joinPost,
-    leavePost,
     flairs,
   } = useForumStore();
+
+  const { joinPost, leavePost, sendTyping, isForumConnected } =
+    useForumSignalRStore();
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -90,20 +93,57 @@ const PostDetail = () => {
   const [replyContent, setReplyContent] = useState("");
   const [newCommentContent, setNewCommentContent] = useState("");
   const [newCommentImages, setNewCommentImages] = useState<File[]>([]);
+  const [editImages, setEditImages] = useState<string[]>([]);
+  const [newEditImages, setNewEditImages] = useState<File[]>([]);
+  const [deletedImageUrls, setDeletedImageUrls] = useState<string[]>([]);
+  const [editCommentImages, setEditCommentImages] = useState<string[]>([]);
+  const [newEditCommentImages, setNewEditCommentImages] = useState<File[]>([]);
+  const [deletedCommentImageUrls, setDeletedCommentImageUrls] = useState<
+    string[]
+  >([]);
   const post = currentPost;
 
+  const handleCancelEditComment = () => {
+    setEditingCommentId(null);
+    setEditCommentContent("");
+    setEditCommentImages([]);
+    setNewEditCommentImages([]);
+    setDeletedCommentImageUrls([]);
+  };
+  useEffect(() => {
+    useForumSignalRStore.setState({
+      onPostUpdated: (dto: any) => {
+        console.log("Post updated via SignalR in PostDetail:", dto);
+
+        if (post?.post_id === dto.postId) {
+          getPostById(dto.postId);
+        }
+      },
+    });
+
+    return () => {
+      useForumSignalRStore.setState({ onPostUpdated: undefined });
+    };
+  }, [post?.post_id]);
   useEffect(() => {
     if (!postId) return;
 
+    let mounted = true;
     const id = parseInt(postId);
 
     const initPostDetail = async () => {
       await getPostById(id);
+      if (!mounted) return;
 
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      if (!isForumConnected) {
+        const maxWait = 3000;
+        const startTime = Date.now();
+        while (!isForumConnected && Date.now() - startTime < maxWait) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      }
 
-      const conn = (window as any).__forumConn;
-      if (conn?.state === "Connected") {
+      if (mounted && isForumConnected) {
         await joinPost(id);
         await getComments(id);
       }
@@ -112,22 +152,32 @@ const PostDetail = () => {
     initPostDetail();
 
     return () => {
-      leavePost(id);
+      mounted = false;
+      if (isForumConnected) {
+        leavePost(id);
+      }
     };
-  }, [postId, getPostById, getComments, joinPost, leavePost]);
+  }, [postId, isForumConnected]);
 
   useEffect(() => {
     if (currentPost) {
       setEditTitle(currentPost.title);
       setEditContent(currentPost.content);
       setEditFlairId(currentPost.flair_id);
+
+      const imgs = currentPost.image_urls
+        ? currentPost.image_urls.split(",").filter((url) => url.trim())
+        : [];
+      setEditImages(imgs);
+      setNewEditImages([]);
+      setDeletedImageUrls([]);
     }
   }, [currentPost]);
   useEffect(() => {
     if (currentPost?.subject_id) {
       getPosts(
         currentPost.school_id,
-        currentPost.subject_id,
+        [currentPost.subject_id],
         undefined,
         "",
         "newest",
@@ -143,7 +193,24 @@ const PostDetail = () => {
       navigate("/forum/forums");
     }
   };
+  const handleTyping = (isTyping: boolean) => {
+    if (post) {
+      sendTyping(post.post_id, isTyping);
+    }
+  };
+  const handleRemoveEditImage = (imageUrl: string) => {
+    setEditImages((prev) => prev.filter((url) => url !== imageUrl));
+    setDeletedImageUrls((prev) => [...prev, imageUrl]);
+  };
 
+  const handleAddNewEditImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + editImages.length + newEditImages.length > 4) {
+      alert("Tối đa 4 ảnh");
+      return;
+    }
+    setNewEditImages((prev) => [...prev, ...files]);
+  };
   const handleImageClick = (images: string[], idx: number) => {
     setDetailImages(images);
     setSelectedImageIndex(idx);
@@ -197,9 +264,39 @@ const PostDetail = () => {
     }
   };
 
-  const handleEditComment = (commentId: number, currentContent: string) => {
+  const handleEditComment = (
+    commentId: number,
+    currentContent: string,
+    imageUrls?: string
+  ) => {
     setEditingCommentId(commentId);
     setEditCommentContent(currentContent);
+
+    const imgs = imageUrls
+      ? imageUrls.split(",").filter((url) => url.trim())
+      : [];
+    setEditCommentImages(imgs);
+    setNewEditCommentImages([]);
+    setDeletedCommentImageUrls([]);
+  };
+
+  const handleRemoveEditCommentImage = (imageUrl: string) => {
+    setEditCommentImages((prev) => prev.filter((url) => url !== imageUrl));
+    setDeletedCommentImageUrls((prev) => [...prev, imageUrl]);
+  };
+
+  const handleAddNewEditCommentImage = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = Array.from(e.target.files || []);
+    if (
+      files.length + editCommentImages.length + newEditCommentImages.length >
+      4
+    ) {
+      alert("Tối đa 4 ảnh");
+      return;
+    }
+    setNewEditCommentImages((prev) => [...prev, ...files]);
   };
 
   const handleSaveEdit = async (commentId: number) => {
@@ -209,10 +306,21 @@ const PostDetail = () => {
     formData.append("commentId", commentId.toString());
     formData.append("content", editCommentContent);
 
+    deletedCommentImageUrls.forEach((url) => {
+      formData.append("deletedAttachmentUrls", url);
+    });
+
+    newEditCommentImages.forEach((file) => {
+      formData.append("newAttachments", file);
+    });
+
     const result = await updateComment(commentId, formData);
     if (result?.success) {
       setEditingCommentId(null);
       setEditCommentContent("");
+      setEditCommentImages([]);
+      setNewEditCommentImages([]);
+      setDeletedCommentImageUrls([]);
       if (postId) {
         await getComments(parseInt(postId));
       }
@@ -280,9 +388,19 @@ const PostDetail = () => {
     formData.append("content", editContent);
     formData.append("flairId", editFlairId.toString());
 
+    deletedImageUrls.forEach((url) => {
+      formData.append("deletedAttachmentUrls", url);
+    });
+
+    newEditImages.forEach((file) => {
+      formData.append("newAttachments", file);
+    });
+
     const result = await updatePost(post.post_id, formData);
     if (result?.success) {
       setIsEditMode(false);
+      setDeletedImageUrls([]);
+      setNewEditImages([]);
       await getPostById(post.post_id);
     }
   };
@@ -292,6 +410,13 @@ const PostDetail = () => {
       setEditTitle(post.title);
       setEditContent(post.content);
       setEditFlairId(post.flair_id);
+
+      const imgs = post.image_urls
+        ? post.image_urls.split(",").filter((url) => url.trim())
+        : [];
+      setEditImages(imgs);
+      setNewEditImages([]);
+      setDeletedImageUrls([]);
     }
     setIsEditMode(false);
   };
@@ -319,150 +444,6 @@ const PostDetail = () => {
                 {formatTimestamp(comment.created_at)}
               </span>
             </div>
-
-            {editingCommentId === comment.comment_id ? (
-              <div className="space-y-2">
-                <Textarea
-                  value={editCommentContent}
-                  onChange={(e) => setEditCommentContent(e.target.value)}
-                  className="w-full"
-                  autoFocus
-                />
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => handleSaveEdit(comment.comment_id)}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                    ) : null}
-                    Lưu
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={handleCancelEdit}>
-                    Hủy
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <p className="text-gray-700 mb-2">{comment.content}</p>
-                <div className="flex gap-3 items-center">
-                  <button
-                    className="text-sm text-gray-600 hover:text-sky-600 font-bold"
-                    onClick={() =>
-                      setReplyingTo(
-                        replyingTo === comment.comment_id
-                          ? null
-                          : comment.comment_id
-                      )
-                    }
-                  >
-                    Phản hồi
-                  </button>
-                  {replies.length > 0 && (
-                    <button
-                      onClick={() => toggleReplies(comment.comment_id)}
-                      className="text-sm text-gray-600 hover:text-sky-600 font-bold flex items-center gap-1"
-                    >
-                      {isRepliesExpanded ? (
-                        <ChevronUp className="w-3 h-3" />
-                      ) : (
-                        <ChevronDown className="w-3 h-3" />
-                      )}
-                      {replies.length} phản hồi
-                    </button>
-                  )}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 ml-auto"
-                      >
-                        <MoreVertical className="w-3 h-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {canEdit && (
-                        <>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleEditComment(
-                                comment.comment_id,
-                                comment.content
-                              )
-                            }
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            <span className="italic">Chỉnh sửa</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleDeleteComment(comment.comment_id)
-                            }
-                            className="text-red-600"
-                          >
-                            <span className="font-bold">Xóa</span>
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setReportTarget({
-                            id: comment.comment_id,
-                            type: "comment",
-                          });
-                          setShowReportModal(true);
-                        }}
-                      >
-                        <Flag className="w-4 h-4 mr-2" />
-                        <span className="font-bold">Báo cáo</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </>
-            )}
-
-            {replyingTo === comment.comment_id && (
-              <div className="flex gap-2 mt-3">
-                <Avatar className="w-8 h-8">
-                  <AvatarFallback className="bg-gradient-to-br from-sky-500 to-sky-600 text-white text-xs font-bold">
-                    {user?.username?.substring(0, 2).toUpperCase() || "U"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 flex gap-2">
-                  <Input
-                    placeholder="Viết phản hồi..."
-                    className="rounded-lg text-sm"
-                    value={replyContent}
-                    onChange={(e) => setReplyContent(e.target.value)}
-                    autoFocus
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSubmitReply(comment.comment_id);
-                      }
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    className="rounded-lg"
-                    onClick={() => handleSubmitReply(comment.comment_id)}
-                    disabled={isLoading || !replyContent.trim()}
-                  >
-                    <Send className="w-3 h-3" />
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {isRepliesExpanded && replies.length > 0 && (
-              <div className="mt-4 space-y-4">
-                {replies.map((reply: any) => renderComment(reply, depth + 1))}
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -508,29 +489,101 @@ const PostDetail = () => {
             {canEditPost && (
               <div className="flex gap-2">
                 {isEditMode ? (
-                  <>
-                    <Button
-                      onClick={handleSavePost}
-                      disabled={isLoading}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      {isLoading ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Save className="w-4 h-4 mr-2" />
-                      )}
-                      Lưu
-                    </Button>
-                    <Button variant="ghost" onClick={handleCancelEdit}>
-                      <X className="w-4 h-4 mr-2" />
-                      Hủy
-                    </Button>
-                  </>
+                  <div className="space-y-4">
+                    <Input
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="text-3xl font-bold"
+                      placeholder="Tiêu đề bài viết"
+                    />
+                    <Textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      className="text-lg min-h-[200px]"
+                      placeholder="Nội dung bài viết"
+                    />
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium">
+                          Ảnh đính kèm
+                        </label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            document.getElementById("edit-post-images")?.click()
+                          }
+                          disabled={
+                            editImages.length + newEditImages.length >= 4
+                          }
+                        >
+                          <ImagePlus className="w-4 h-4 mr-1" />
+                          Thêm ảnh ({editImages.length + newEditImages.length}
+                          /4)
+                        </Button>
+                        <input
+                          id="edit-post-images"
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={handleAddNewEditImage}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-2">
+                        {editImages.map((url, idx) => (
+                          <div key={`existing-${idx}`} className="relative">
+                            <img
+                              src={url}
+                              alt={`Existing ${idx + 1}`}
+                              className="w-full h-32 object-cover rounded"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveEditImage(url)}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+
+                        {newEditImages.map((file, idx) => (
+                          <div key={`new-${idx}`} className="relative">
+                            <img
+                              src={URL.createObjectURL(file)}
+                              alt={`New ${idx + 1}`}
+                              className="w-full h-32 object-cover rounded border-2 border-green-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewEditImages((prev) =>
+                                  prev.filter((_, i) => i !== idx)
+                                );
+                              }}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                            <div className="absolute bottom-0 left-0 right-0 bg-green-500 text-white text-xs py-1 text-center">
+                              Mới
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 ) : (
-                  <Button onClick={() => setIsEditMode(true)}>
-                    <Edit className="w-4 h-4 mr-2" />
-                    Chỉnh sửa
-                  </Button>
+                  <>
+                    <h1 className="text-3xl font-bold mb-4">{post.title}</h1>
+                    <p className="text-gray-700 text-lg leading-relaxed mb-6">
+                      {post.content}
+                    </p>
+                  </>
                 )}
               </div>
             )}
@@ -722,6 +775,8 @@ const PostDetail = () => {
                             onChange={(e) =>
                               setNewCommentContent(e.target.value)
                             }
+                            onFocus={() => handleTyping(true)}
+                            onBlur={() => handleTyping(false)}
                             onKeyPress={(e) => {
                               if (e.key === "Enter" && !e.shiftKey) {
                                 e.preventDefault();

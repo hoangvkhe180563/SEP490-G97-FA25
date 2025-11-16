@@ -12,9 +12,10 @@ import { ForumSidebar } from "../components/ForumSidebar";
 import { PostDetailModal } from "../components/PostDetailModal";
 import { ImageModal } from "../components/ImageModal";
 import { ForumTabs } from "../components/ForumTabs";
-import type { Subject } from "../interfaces/forum";
+import type { Subject, Post } from "../interfaces/forum";
 import type { ForumFilters, ImageModalState } from "../interfaces/filter";
 import { useForumStore } from "../stores/useForumStore";
+import { useForumSignalRStore } from "../stores/useForumSignalRStore";
 import { documentService } from "@/documentManagement/services/documentService";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 
@@ -22,9 +23,17 @@ const ForumMain = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { topPosts, getTopPosts } = useForumStore();
   const { user } = useAuthStore();
   const schoolId = user?.schoolId || 1;
+  const {
+    startForum,
+    joinSchoolForum,
+    leaveSchoolForum,
+    joinPost,
+    leavePost,
+    sendTyping,
+    isForumConnected,
+  } = useForumSignalRStore();
 
   const {
     posts,
@@ -32,18 +41,14 @@ const ForumMain = () => {
     currentPost,
     isLoading,
     flairs,
+    topPosts,
     loadFlairs,
-    startForum,
-    joinSchoolForum,
-    leaveSchoolForum,
-    createComment,
-    joinPost,
-    leavePost,
+    getTopPosts,
     getPosts,
     getMyPosts,
     getPostById,
     getComments,
-    sendTyping,
+    createComment,
   } = useForumStore();
 
   const [activeTab, setActiveTab] = useState<"all" | "my-posts">("all");
@@ -85,10 +90,20 @@ const ForumMain = () => {
   const isModalOpen = !!modalPostId;
 
   useEffect(() => {
+    let mounted = true;
+
     const initForum = async () => {
-      await startForum();
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      await joinSchoolForum(schoolId);
+      if (!mounted) return;
+
+      if (!isForumConnected) {
+        await startForum();
+        if (!mounted) return;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+
+      if (mounted && isForumConnected) {
+        await joinSchoolForum(schoolId);
+      }
     };
 
     initForum();
@@ -96,14 +111,39 @@ const ForumMain = () => {
     loadFlairs(schoolId);
 
     return () => {
-      leaveSchoolForum(schoolId);
+      mounted = false;
+      if (isForumConnected) {
+        leaveSchoolForum(schoolId);
+      }
     };
-  }, [startForum, joinSchoolForum, leaveSchoolForum, schoolId, loadFlairs]);
+  }, [schoolId, isForumConnected]);
 
   useEffect(() => {
     getTopPosts(schoolId, 5);
   }, [schoolId, getTopPosts]);
 
+  useEffect(() => {
+    useForumSignalRStore.setState({
+      onPostUpdated: (dto: any) => {
+        console.log("Post updated via SignalR in ForumMain:", dto);
+
+        const { posts, myPosts } = useForumStore.getState();
+
+        useForumStore.setState({
+          posts: posts.map((p: Post) =>
+            p.post_id === dto.postId ? { ...p, ...dto } : p
+          ),
+          myPosts: myPosts.map((p: Post) =>
+            p.post_id === dto.postId ? { ...p, ...dto } : p
+          ),
+        });
+      },
+    });
+
+    return () => {
+      useForumSignalRStore.setState({ onPostUpdated: undefined });
+    };
+  }, []);
   const fetchPosts = useCallback(() => {
     const subjectId =
       filters.selectedSubjects.length === 1
@@ -117,8 +157,8 @@ const ForumMain = () => {
     if (activeTab === "all") {
       getPosts(
         schoolId,
-        subjectId,
-        flairId,
+        filters.selectedSubjects,
+        filters.selectedFlairs,
         filters.searchQuery,
         filters.sortBy,
         1,
@@ -151,39 +191,38 @@ const ForumMain = () => {
   }, [fetchPosts]);
 
   useEffect(() => {
+    if (!modalPostId) return;
+
+    let mounted = true;
+
     const handleModalPost = async () => {
-      if (modalPostId) {
-        setModalVisibleComments(8);
-        const postId = parseInt(modalPostId);
+      setModalVisibleComments(8);
+      const postId = parseInt(modalPostId);
 
-        const conn = (window as any).__forumConn;
-        if (conn?.state === "Connected") {
-          await joinPost(postId);
-        } else {
-          const retryJoin = setInterval(() => {
-            const c = (window as any).__forumConn;
-            if (c?.state === "Connected") {
-              clearInterval(retryJoin);
-              joinPost(postId);
-            }
-          }, 100);
-
-          setTimeout(() => clearInterval(retryJoin), 3000);
+      if (!isForumConnected) {
+        const maxWait = 3000;
+        const startTime = Date.now();
+        while (!isForumConnected && Date.now() - startTime < maxWait) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
-
-        getPostById(postId);
-        getComments(postId);
       }
 
-      return () => {
-        if (modalPostId) {
-          leavePost(parseInt(modalPostId));
-        }
-      };
+      if (mounted && isForumConnected) {
+        await joinPost(postId);
+        await getPostById(postId);
+        await getComments(postId);
+      }
     };
 
     handleModalPost();
-  }, [modalPostId, getPostById, joinPost, getComments, leavePost]);
+
+    return () => {
+      mounted = false;
+      if (isForumConnected) {
+        leavePost(parseInt(modalPostId));
+      }
+    };
+  }, [modalPostId, isForumConnected]);
 
   useEffect(() => {
     const state = {

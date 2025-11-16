@@ -208,29 +208,43 @@ namespace StudyHub.Backend.Api.Hubs
             });
         }
 
-        public async Task UpdatePost(int postId, int? flairId, string title, string content)
+        public async Task UpdatePost(int postId, int? flairId, string title, string content, List<string>? deletedAttachmentUrls)
         {
-            try
-            {
-                var currentUser = GetCurrentUser();
-                if (currentUser == null) return;
+            var currentUser = GetCurrentUser();
+            if (currentUser == null) return;
 
-                var post = await _postService.GetPostByIdAsync(postId);
-                if (post == null || post.CreatedBy != currentUser.Id)
-                    return;
+            var post = await _postService.GetPostByIdAsync(postId);
+            if (post == null || post.CreatedBy != currentUser.Id)
+                return;
 
-                post.FlairId = flairId;
-                post.Title = title;
-                post.Content = content;
-                post.UpdatedBy = currentUser.Id;
+            post.FlairId = flairId;
+            post.Title = title;
+            post.Content = content;
+            post.UpdatedBy = currentUser.Id;
 
-                var updatedPost = await _postService.UpdatePostAsync(post);
-                var dto = updatedPost.ToListDto();
+            var updatedPost = await _postService.UpdatePostWithAttachmentsAsync(post, null, deletedAttachmentUrls);
+            var dto = updatedPost.ToDetailDto();
 
-                await Clients.Group($"school-{post.SchoolId}").SendAsync("PostUpdated", dto);
-                await Clients.Group($"post-{postId}").SendAsync("PostUpdated", dto);
-            }
-            catch (Exception) { }
+            await Clients.Group($"school-{post.SchoolId}").SendAsync("PostUpdated", dto);
+            await Clients.Group($"post-{postId}").SendAsync("PostUpdated", dto);
+        }
+
+        public async Task UpdateComment(int commentId, string content, List<string>? deletedAttachmentUrls)
+        {
+            var currentUser = GetCurrentUser();
+            if (currentUser == null) return;
+
+            var comment = await _commentService.GetCommentByIdAsync(commentId);
+            if (comment == null || comment.CreatedBy != currentUser.Id)
+                return;
+
+            comment.Content = content;
+            comment.UpdatedBy = currentUser.Id;
+
+            var updatedComment = await _commentService.UpdateCommentWithAttachmentsAsync(comment, null, deletedAttachmentUrls);
+            var dto = updatedComment.ToListDto();
+
+            await Clients.Group($"post-{comment.PostId}").SendAsync("CommentUpdated", dto);
         }
 
         public async Task DeletePost(int postId)

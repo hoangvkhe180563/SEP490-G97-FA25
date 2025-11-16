@@ -729,13 +729,6 @@ const ManagerDocumentApprovalList = () => {
                         )}
                       </div>
                     </TableCell>
-                    {/* {filters.statusFilter === "approved" && (
-                      <TableCell className="text-center text-xs">
-                        {doc.updatedAt
-                          ? new Date(doc.updatedAt).toLocaleDateString("vi-VN")
-                          : "-"}
-                      </TableCell>
-                    )} */}
                     <TableCell>
                       <div className="flex items-center justify-center">
                         {renderDropdownMenu(filters.statusFilter, doc)}

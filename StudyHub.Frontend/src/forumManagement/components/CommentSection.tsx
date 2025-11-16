@@ -12,6 +12,7 @@ import {
 } from "@/common/components/ui/select";
 import { Send, Loader2, ImagePlus, X } from "lucide-react";
 import { useForumStore } from "../stores/useForumStore";
+import { useForumSignalRStore } from "../stores/useForumSignalRStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import type { Post } from "../interfaces/forum";
 import type { Comment } from "../interfaces/comment";
@@ -60,8 +61,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   onRefreshComments,
 }) => {
   const { user } = useAuthStore();
-  const { createComment, updateComment, isLoading, sendTyping } =
-    useForumStore();
+  const { createComment, updateComment, isLoading } = useForumStore();
+  const { sendTyping } = useForumSignalRStore();
 
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState("");
@@ -300,7 +301,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                {isEditing ? (
+                {editingCommentId === comment.comment_id ? (
                   <div className="space-y-2">
                     <Input
                       value={editContent}
@@ -382,13 +383,15 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-gray-100 rounded-2xl px-4 py-3 hover:bg-gray-200 transition-colors">
-                    <div className="font-semibold text-sm">
-                      {comment.author_name}
+                  <>
+                    <div className="bg-gray-100 rounded-2xl px-4 py-3 hover:bg-gray-200 transition-colors">
+                      <div className="font-semibold text-sm">
+                        {comment.author_name}
+                      </div>
+                      <p className="text-sm mt-1 break-words whitespace-pre-wrap">
+                        {comment.content}
+                      </p>
                     </div>
-                    <p className="text-sm mt-1 break-words whitespace-pre-wrap">
-                      {comment.content}
-                    </p>
                     {comment.image_urls && (
                       <div className="mt-2 flex gap-2 flex-wrap">
                         {comment.image_urls
@@ -407,7 +410,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                           ))}
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
 
                 <div className="flex gap-4 px-4 mt-2">
@@ -423,7 +426,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                       if (!isCurrentlyReplying && !comment.parent_comment_id) {
                         setReplyContents({
                           ...replyContents,
-                          [comment.comment_id]: `@${comment.author_name} `,
+                          [comment.comment_id]: "",
                         });
                       }
                     }}
@@ -442,12 +445,30 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       {user?.id === comment.created_by && (
-                        <DropdownMenuItem
-                          onClick={() => handleStartEdit(comment)}
-                        >
-                          <Edit className="w-4 h-4 mr-2" />
-                          <span className="font-medium">Chỉnh sửa</span>
-                        </DropdownMenuItem>
+                        <>
+                          <DropdownMenuItem
+                            onClick={() => handleStartEdit(comment)}
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            <span className="font-medium">Chỉnh sửa</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (
+                                confirm("Bạn có chắc muốn xóa bình luận này?")
+                              ) {
+                                console.log(
+                                  "Delete comment",
+                                  comment.comment_id
+                                );
+                              }
+                            }}
+                            className="text-red-600"
+                          >
+                            <span className="font-bold">Xóa</span>
+                          </DropdownMenuItem>
+                        </>
                       )}
                       <DropdownMenuItem
                         onClick={(e) => {
@@ -471,28 +492,35 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <Input
-                        placeholder={`Phản hồi @${comment.author_name}...`}
-                        className="rounded-full text-sm hover:border-sky-300 focus:border-sky-500 transition-colors mb-2"
-                        value={replyContents[comment.comment_id] || ""}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          setReplyContents({
-                            ...replyContents,
-                            [comment.comment_id]: e.target.value,
-                          });
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        onDoubleClick={(e) => e.stopPropagation()}
-                        onFocus={() => handleTyping(true)}
-                        onBlur={() => handleTyping(false)}
-                        onKeyPress={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSubmitReply(comment.comment_id);
-                          }
-                        }}
-                      />
+                      <div className="mb-2">
+                        <div className="text-xs text-gray-600 mb-1">
+                          <span className="font-bold italic">
+                            @{comment.author_name}
+                          </span>
+                        </div>
+                        <Input
+                          placeholder="Viết phản hồi của bạn..."
+                          className="rounded-full text-sm hover:border-sky-300 focus:border-sky-500 transition-colors"
+                          value={replyContents[comment.comment_id] || ""}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setReplyContents({
+                              ...replyContents,
+                              [comment.comment_id]: e.target.value,
+                            });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onDoubleClick={(e) => e.stopPropagation()}
+                          onFocus={() => handleTyping(true)}
+                          onBlur={() => handleTyping(false)}
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSubmitReply(comment.comment_id);
+                            }
+                          }}
+                        />
+                      </div>
 
                       {(replyImagesList[comment.comment_id]?.length || 0) >
                         0 && (
@@ -689,26 +717,28 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                               </div>
                             </div>
                           ) : (
-                            <div className="bg-gray-100 rounded-2xl px-4 py-2 hover:bg-gray-200 transition-colors">
-                              <div className="font-semibold text-xs">
-                                {reply.author_name}
+                            <>
+                              <div className="bg-gray-100 rounded-2xl px-4 py-2 hover:bg-gray-200 transition-colors">
+                                <div className="font-semibold text-xs">
+                                  {reply.author_name}
+                                </div>
+                                <p className="text-xs mt-1 break-words whitespace-pre-wrap">
+                                  {reply.parent_comment_id !==
+                                    comment.comment_id && (
+                                    <span className="font-bold italic">
+                                      @
+                                      {
+                                        flatComments.find(
+                                          (c) =>
+                                            c.comment_id ===
+                                            reply.parent_comment_id
+                                        )?.author_name
+                                      }{" "}
+                                    </span>
+                                  )}
+                                  {reply.content}
+                                </p>
                               </div>
-                              <p className="text-xs mt-1 break-words whitespace-pre-wrap">
-                                {reply.parent_comment_id !==
-                                  comment.comment_id && (
-                                  <span className="font-bold italic">
-                                    @
-                                    {
-                                      flatComments.find(
-                                        (c) =>
-                                          c.comment_id ===
-                                          reply.parent_comment_id
-                                      )?.author_name
-                                    }{" "}
-                                  </span>
-                                )}
-                                {reply.content}
-                              </p>
                               {reply.image_urls && (
                                 <div className="mt-2 flex gap-2 flex-wrap">
                                   {reply.image_urls
@@ -727,7 +757,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                                     ))}
                                 </div>
                               )}
-                            </div>
+                            </>
                           )}
                           <div className="flex gap-4 px-4 mt-1">
                             <button
@@ -759,14 +789,34 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 {user?.id === reply.created_by && (
-                                  <DropdownMenuItem
-                                    onClick={() => handleStartEdit(reply)}
-                                  >
-                                    <Edit className="w-4 h-4 mr-2" />
-                                    <span className="font-medium">
-                                      Chỉnh sửa
-                                    </span>
-                                  </DropdownMenuItem>
+                                  <>
+                                    <DropdownMenuItem
+                                      onClick={() => handleStartEdit(reply)}
+                                    >
+                                      <Edit className="w-4 h-4 mr-2" />
+                                      <span className="font-medium">
+                                        Chỉnh sửa
+                                      </span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (
+                                          confirm(
+                                            "Bạn có chắc muốn xóa bình luận này?"
+                                          )
+                                        ) {
+                                          console.log(
+                                            "Delete reply",
+                                            reply.comment_id
+                                          );
+                                        }
+                                      }}
+                                      className="text-red-600"
+                                    >
+                                      <span className="font-bold">Xóa</span>
+                                    </DropdownMenuItem>
+                                  </>
                                 )}
                                 <DropdownMenuItem
                                   onClick={(e) => {
@@ -792,28 +842,37 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex-1 min-w-0">
-                                <Input
-                                  placeholder={`Phản hồi @${reply.author_name}...`}
-                                  className="rounded-full text-sm hover:border-sky-300 focus:border-sky-500 transition-colors mb-2"
-                                  value={replyContents[reply.comment_id] || ""}
-                                  onChange={(e) => {
-                                    e.stopPropagation();
-                                    setReplyContents({
-                                      ...replyContents,
-                                      [reply.comment_id]: e.target.value,
-                                    });
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onDoubleClick={(e) => e.stopPropagation()}
-                                  onFocus={() => handleTyping(true)}
-                                  onBlur={() => handleTyping(false)}
-                                  onKeyPress={(e) => {
-                                    if (e.key === "Enter" && !e.shiftKey) {
-                                      e.preventDefault();
-                                      handleSubmitReply(reply.comment_id);
+                                <div className="mb-2">
+                                  <div className="text-xs text-gray-600 mb-1">
+                                    <span className="font-bold italic">
+                                      @{reply.author_name}
+                                    </span>
+                                  </div>
+                                  <Input
+                                    placeholder="Viết phản hồi của bạn..."
+                                    className="rounded-full text-sm hover:border-sky-300 focus:border-sky-500 transition-colors"
+                                    value={
+                                      replyContents[reply.comment_id] || ""
                                     }
-                                  }}
-                                />
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      setReplyContents({
+                                        ...replyContents,
+                                        [reply.comment_id]: e.target.value,
+                                      });
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onDoubleClick={(e) => e.stopPropagation()}
+                                    onFocus={() => handleTyping(true)}
+                                    onBlur={() => handleTyping(false)}
+                                    onKeyPress={(e) => {
+                                      if (e.key === "Enter" && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSubmitReply(reply.comment_id);
+                                      }
+                                    }}
+                                  />
+                                </div>
                                 {(replyImagesList[reply.comment_id]?.length ||
                                   0) > 0 && (
                                   <div className="flex gap-2 mb-2 flex-wrap">

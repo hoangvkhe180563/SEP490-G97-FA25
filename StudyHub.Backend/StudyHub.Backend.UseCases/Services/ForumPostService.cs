@@ -374,7 +374,58 @@ namespace StudyHub.Backend.UseCases.Services
 
             return true;
         }
+        public async Task<ForumPost> UpdatePostWithAttachmentsAsync(ForumPost post, List<IFormFile>? newAttachments, List<string>? deletedAttachmentUrls)
+        {
+            if (deletedAttachmentUrls != null && deletedAttachmentUrls.Any())
+            {
+                var existingAttachments = await _configRepo.GetAttachmentsByPostIdAsync(post.Id);
 
+                foreach (var url in deletedAttachmentUrls)
+                {
+                    var attachment = existingAttachments.FirstOrDefault(a => a.FileUrl == url);
+                    if (attachment != null)
+                    {
+                        await _configRepo.SoftDeleteAttachmentAsync(attachment.Id);
+                        await _fileStorage.DeleteFileAsync(attachment.FileUrl);
+                    }
+                }
+            }
+
+            if (newAttachments != null && newAttachments.Any())
+            {
+                var imageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp" };
+
+                foreach (var file in newAttachments)
+                {
+                    ValidateAttachmentFile(file);
+
+                    var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+                    bool isImage = imageExtensions.Contains(extension);
+
+                    if (isImage)
+                    {
+                        var moderationResult = await _imageModerationService.ModerateImageFromStreamAsync(file.OpenReadStream());
+                        if (moderationResult.IsViolation)
+                        {
+                            continue;
+                        }
+                    }
+
+                    var fileUrl = await _fileStorage.UploadFileAsync(file, FileConstants.ForumPostAttachmentUploadPath);
+
+                    await _configRepo.CreateAttachmentAsync(new ForumAttachment
+                    {
+                        PostId = post.Id,
+                        FileUrl = fileUrl,
+                        CreatedBy = post.UpdatedBy ?? post.CreatedBy,
+                        CreatedAt = DateTime.Now,
+                        IsApproved = true
+                    });
+                }
+            }
+
+            return await UpdatePostAsync(post);
+        }
         private void ValidateAttachmentFile(IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -387,7 +438,7 @@ namespace StudyHub.Backend.UseCases.Services
                 throw new ArgumentException($"File type {extension} không được phép");
 
             if (file.Length > FileConstants.MaxImageSize)
-                throw new ArgumentException($"File size vượt quá {FileConstants.MaxImageSize / (5 * 1024 * 1024)}MB");
+                throw new ArgumentException($"File size vượt quá {FileConstants.MaxImageSize / (1024 * 1024)}MB");
         }
     }
 }

@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
 import { MessageSquare, ImageIcon, ExternalLink } from "lucide-react";
 import type { Post } from "../interfaces/forum";
 import { useForumStore } from "../stores/useForumStore";
+import { useForumSignalRStore } from "../stores/useForumSignalRStore";
 import { getSubjectBadgeColor, getFlairColor } from "../utils/colorUtils";
 import { CommentSection } from "./CommentSection";
 import { ImageModal } from "./ImageModal";
@@ -18,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/common/components/ui/dropdown-menu";
-import { MoreVertical, Flag, Edit } from "lucide-react";
+import { Trash2, MoreVertical, Flag, Edit } from "lucide-react";
 import { ReportModal } from "./ReportModal";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { Button } from "@/common/components/ui/button";
@@ -30,7 +31,8 @@ interface PostCardProps {
 }
 
 const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
-  const { joinPost, leavePost, getComments } = useForumStore();
+  const { getComments } = useForumStore();
+  const { joinPost, leavePost } = useForumSignalRStore();
   const [showReportModal, setShowReportModal] = useState(false);
   const { user } = useAuthStore();
   const canEdit = user?.id === post.created_by;
@@ -180,6 +182,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
                       e.stopPropagation();
                       onViewDetails();
                     }}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                    }}
                   >
                     <Edit className="w-4 h-4 mr-2" />
                     <span className="font-medium">Chỉnh sửa</span>
@@ -189,6 +194,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowReportModal(true);
+                  }}
+                  onSelect={(e) => {
+                    e.preventDefault();
                   }}
                 >
                   <Flag className="w-4 h-4 mr-2" />
