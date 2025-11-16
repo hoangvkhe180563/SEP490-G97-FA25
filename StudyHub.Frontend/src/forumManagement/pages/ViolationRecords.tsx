@@ -80,8 +80,6 @@ const ViolationRecords = () => {
     currentPost,
     getPostById,
     getComments,
-    joinPost,
-    leavePost,
     isLoading: forumLoading,
   } = useForumStore();
 
@@ -130,12 +128,8 @@ const ViolationRecords = () => {
     if (selectedPostId) {
       getPostById(selectedPostId);
       getComments(selectedPostId);
-      joinPost(selectedPostId);
     }
-    return () => {
-      if (selectedPostId) leavePost(selectedPostId);
-    };
-  }, [selectedPostId, getPostById, getComments, joinPost, leavePost]);
+  }, [selectedPostId, getPostById, getComments]);
 
   const handleViewChange = (view: "all" | "reports") => {
     setSelectedView(view);

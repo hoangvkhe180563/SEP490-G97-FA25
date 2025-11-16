@@ -46,12 +46,15 @@ namespace StudyHub.Backend.UseCases.Repositories
 
         Task<UserForumStatus?> GetUserForumStatusAsync(Guid userId, int schoolId);
 
-        Task<(List<UserForumStatus> statuses, int totalCount)> GetMutedUsersAsync(
-            int schoolId,
-            DateTime? mutedFrom = null,
-            DateTime? mutedTo = null,
-            int? pageNumber = null,
-            int? pageSize = null);
+        Task<(List<UserForumStatus> statuses, int totalCount)> GetUserForumStatusesAsync(
+        int schoolId,
+        string? query = null,
+        bool? isMuted = null,
+        int? minViolationScore = null,
+        int? maxViolationScore = null,
+        string? sortBy = null,
+        int? pageNumber = null,
+        int? pageSize = null);
 
         Task<UserForumStatus> CreateOrUpdateUserForumStatusAsync(UserForumStatus status);
         Task<bool> AddViolationScoreAsync(Guid userId, int schoolId, int score);

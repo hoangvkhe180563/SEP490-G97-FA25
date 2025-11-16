@@ -1634,103 +1634,139 @@
                     return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi từ chối tố cáo" });
                 }
             }
-            [HttpGet("moderator/user-status")]
-            public async Task<IActionResult> GetMutedUsers([FromQuery] UserForumStatusFilterDto filter)
+
+
+        [HttpGet("moderator/user-status")]
+        public async Task<IActionResult> GetUserForumStatuses([FromQuery] UserForumStatusFilterDto filter)
+        {
+            try
             {
-                try
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
                 {
-                    var currentUser = GetCurrentUser();
-                    if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
-                    {
-                        return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
-                    }
-
-                    var (statuses, totalCount) = await _moderationService.GetMutedUsersAsync(
-                        filter.SchoolId,
-                        filter.MutedFrom,
-                        filter.MutedTo,
-                        filter.PageNumber,
-                        filter.PageSize);
-
-                    var dtos = statuses.Select(s => s.ToDto()).ToList();
-                    return PagedResult(dtos, totalCount, filter.PageNumber, filter.PageSize);
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error getting muted users");
-                    return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-                }
+
+                var (statuses, totalCount) = await _moderationService.GetUserForumStatusesAsync(
+                    filter.SchoolId,
+                    filter.SearchTerm,
+                    filter.IsMute,
+                    filter.MinViolationScore,
+                    filter.MaxViolationScore,
+                    null,
+                    filter.PageNumber,
+                    filter.PageSize);
+
+                var dtos = statuses.Select(s => s.ToDto()).ToList();
+
+                return PagedResult(dtos, totalCount, filter.PageNumber, filter.PageSize);
             }
-
-            [HttpPost("moderator/mute-user")]
-            public async Task<IActionResult> MuteUser([FromBody] MuteUserDto dto)
+            catch (Exception ex)
             {
-                try
-                {
-                    if (!ModelState.IsValid)
-                    {
-                        return BadRequest(new { success = false, errors = ModelState });
-                    }
-
-                    var currentUser = GetCurrentUser();
-                    if (currentUser == null || currentUser.SchoolId != dto.SchoolId)
-                    {
-                        return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
-                    }
-
-                    var result = await _moderationService.MuteUserAsync(dto.UserId, dto.SchoolId, dto.MuteUntil);
-                    if (!result)
-                    {
-                        return BadRequest(new { success = false, message = "Không thể mute user" });
-                    }
-
-                    _logger.LogInformation("Moderator {ModeratorId} muted user {UserId} until {MuteUntil}",
-                        currentUser.Id, dto.UserId, dto.MuteUntil);
-
-                    return Ok(new { success = true, message = "Đã mute user" });
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error muting user");
-                    return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-                }
+                _logger.LogError(ex, "Error getting user forum statuses");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
             }
+        }
 
-            [HttpPost("moderator/unmute-user")]
-            public async Task<IActionResult> UnmuteUser([FromBody] UnmuteUserDto dto)
+        [HttpGet("user/status")]
+        public async Task<IActionResult> GetCurrentUserStatus([FromQuery] int schoolId)
+        {
+            try
             {
-                try
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != schoolId)
                 {
-                    if (!ModelState.IsValid)
-                    {
-                        return BadRequest(new { success = false, errors = ModelState });
-                    }
-
-                    var currentUser = GetCurrentUser();
-                    if (currentUser == null || currentUser.SchoolId != dto.SchoolId)
-                    {
-                        return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
-                    }
-
-                    var result = await _moderationService.UnmuteUserAsync(dto.UserId, dto.SchoolId);
-                    if (!result)
-                    {
-                        return BadRequest(new { success = false, message = "Không thể unmute user" });
-                    }
-
-                    _logger.LogInformation("Moderator {ModeratorId} unmuted user {UserId}",
-                        currentUser.Id, dto.UserId);
-
-                    return Ok(new { success = true, message = "Đã unmute user" });
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
                 }
-                catch (Exception ex)
+
+                var status = await _moderationService.GetUserForumStatusAsync(currentUser.Id, schoolId);
+
+                if (status == null)
                 {
-                    _logger.LogError(ex, "Error unmuting user");
-                    return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+                    return Ok(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            UserId = currentUser.Id,
+                            TotalViolationScore = 50,
+                            IsMute = false,
+                            MuteUntil = (DateTime?)null
+                        }
+                    });
                 }
+
+                return Ok(new { success = true, data = status.ToDto() });
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user status");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
 
-            [HttpPost("moderator/reset-violation-score")]
+        [HttpPost("moderator/mute-user/{userId}")]
+        public async Task<IActionResult> MuteUser(Guid userId, [FromBody] MuteUserRequestDto dto)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != dto.SchoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
+
+                var muteUntil = DateTime.UtcNow.AddDays(7);
+                var result = await _moderationService.MuteUserAsync(userId, dto.SchoolId, muteUntil);
+
+                if (!result)
+                {
+                    return BadRequest(new { success = false, message = "Không thể cấm người dùng" });
+                }
+
+                _logger.LogInformation("Moderator {ModeratorId} muted user {UserId} until {MuteUntil}",
+                    currentUser.Id, userId, muteUntil);
+
+                return Ok(new { success = true, message = "Đã cấm người dùng trong 7 ngày" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error muting user {UserId}", userId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPost("moderator/unmute-user/{userId}")]
+        public async Task<IActionResult> UnmuteUser(Guid userId, [FromQuery] int schoolId)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != schoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
+
+                var result = await _moderationService.UnmuteUserAsync(userId, schoolId);
+
+                if (!result)
+                {
+                    return BadRequest(new { success = false, message = "Không thể bỏ cấm người dùng" });
+                }
+
+                _logger.LogInformation("Moderator {ModeratorId} unmuted user {UserId}",
+                    currentUser.Id, userId);
+
+                return Ok(new { success = true, message = "Đã bỏ cấm người dùng" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error unmuting user {UserId}", userId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPost("moderator/reset-violation-score")]
             public async Task<IActionResult> ResetViolationScore([FromBody] ResetUserViolationScoreDto dto)
             {
                 try
@@ -1760,41 +1796,6 @@
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error resetting violation score");
-                    return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-                }
-            }
-
-            [HttpGet("user/status")]
-            public async Task<IActionResult> GetUserStatus([FromQuery] int schoolId)
-            {
-                try
-                {
-                    var currentUser = GetCurrentUser();
-                    if (currentUser == null || currentUser.SchoolId != schoolId)
-                    {
-                        return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
-                    }
-
-                    var status = await _moderationService.GetUserForumStatusAsync(currentUser.Id, schoolId);
-                    if (status == null)
-                    {
-                        return Ok(new
-                        {
-                            success = true,
-                            data = new
-                            {
-                                TotalViolationScore = 50,
-                                IsMute = false,
-                                MuteUntil = (DateTime?)null
-                            }
-                        });
-                    }
-
-                    return Ok(new { success = true, data = status.ToDto() });
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error getting user status");
                     return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
                 }
             }
