@@ -38,22 +38,19 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
   const { user } = useAuthStore();
   const currentUserId = user?.id ?? "";
 
-  // fetch subjects only when modal opens
   useEffect(() => {
     if (open) {
       getAllSubjects?.();
     }
   }, [open, getAllSubjects]);
 
-  // set initial values when modal opens or classItem changes,
-  // but do NOT depend on subjects (avoids overwriting while editing)
+
   useEffect(() => {
     if (open && classItem) {
       setTitle(classItem.title ?? "");
       setDescription(classItem.description ?? "");
     }
     if (!open) {
-      // optional: clear when closed
       setTitle("");
       setDescription("");
     }

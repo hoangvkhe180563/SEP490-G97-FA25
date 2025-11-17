@@ -962,7 +962,6 @@ export const useClassStore = create<ClassState>()(
       },
 
       addComment: async (payload) => {
-        // payload: { notificationId, content (HTML), createdBy? }
         set({ isLoading: true, success: false, message: "" });
         try {
           const body = {
@@ -991,13 +990,11 @@ export const useClassStore = create<ClassState>()(
             userFullname: created.userFullname ?? "Bạn",
             content: created.content ?? payload.content,
             avatarUrl: created.avatarUrl ?? null,
-            // Normalize server returned createdAt or fallback to now
             createdAt: formatISO(
               created.createdAt ?? created.createdAt ?? formatISO(new Date())
             ),
           };
 
-          // update currentClass.notifications: append comment to matching notification
           set((state) => {
             const cur = state.currentClass ?? defaultCurrentClass;
             const updatedNotifications = (cur.data?.notifications ?? []).map(
@@ -1010,7 +1007,6 @@ export const useClassStore = create<ClassState>()(
               }
             );
 
-            // If the notification wasn't found (edge case), just leave state unchanged
             return {
               currentClass: {
                 ...cur,
