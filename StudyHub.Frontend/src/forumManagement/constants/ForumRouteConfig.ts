@@ -15,7 +15,7 @@ const ForumRouteConfig = {
     VIOLATION_ACCOUNTS: "accounts",
     VIOLATION_RECORDS: "violations",
     FLAIR_MANAGEMENT: "flairs",
-    // REPORT_MANAGEMENT: "reports",
+    RULE_MANAGEMENT: "rules",
   },
   STUDENT: {
     INDEX: "",

@@ -82,9 +82,11 @@ namespace StudyHub.Backend.Api.Mappers
                 PatternId = pattern.Id,
                 RuleId = pattern.RuleId,
                 Pattern = pattern.Pattern,
-                //IsActive = pattern.IsActive,
+                IsActive = pattern.IsActive ?? true, 
                 CreatedAt = pattern.CreatedAt,
-                UpdatedAt = pattern.UpdatedAt
+                CreatedBy = pattern.CreatedBy ?? Guid.Empty,
+                UpdatedAt = pattern.UpdatedAt,
+                UpdatedBy = pattern.UpdatedBy
             };
         }
 
