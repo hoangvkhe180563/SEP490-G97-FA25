@@ -9,6 +9,7 @@ import ViolationAccounts from "../pages/ViolationAccounts";
 import FlairManagement from "../pages/FlairManagement";
 import ViolationRecords from "../pages/ViolationRecords";
 import { ForumLayout } from "../components/ForumLayout";
+import ForumRuleManagement from "../pages/ForumRuleManagement";
 
 const managerRoutes = [
   {
@@ -42,6 +43,10 @@ const managerRoutes = [
   {
     path: ForumRouteConfig.MANAGER.VIOLATION_ACCOUNTS,
     element: <ViolationAccounts />,
+  },
+  {
+    path: ForumRouteConfig.MANAGER.RULE_MANAGEMENT,
+    element: <ForumRuleManagement />,
   },
 ];
 

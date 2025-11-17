@@ -52,7 +52,6 @@ const ViolationAccounts = () => {
 
   const {
     userStatuses,
-    // totalUserCount,
     isLoading,
     fetchUserStatuses,
     setUserFilters,
@@ -74,44 +73,38 @@ const ViolationAccounts = () => {
     userName: string;
   }>({ open: false, action: "mute", userId: "", userName: "" });
 
-  // Fetch tất cả data 1 lần
   useEffect(() => {
     if (schoolId) {
       setUserFilters({
         schoolId,
         pageNumber: 1,
-        pageSize: 1000, // Lấy hết để filter ở FE
+        pageSize: 1000,
       });
       fetchUserStatuses();
     }
   }, [schoolId, setUserFilters, fetchUserStatuses]);
 
-  // Filter ở Frontend
   const filteredUsers = userStatuses.filter((user) => {
-    // Search filter
     const matchesSearch =
       user.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.userId.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Mute filter
     const matchesMute =
       muteFilter === "all" ||
       (muteFilter === "muted" && user.isMute) ||
       (muteFilter === "active" && !user.isMute);
 
-    // Score filter
     const matchesScore =
       scoreFilter === "all" ||
-      (scoreFilter === "critical" && user.totalViolationScore >= 70) ||
+      (scoreFilter === "critical" && user.totalViolationScore < 40) ||
       (scoreFilter === "warning" &&
         user.totalViolationScore >= 40 &&
-        user.totalViolationScore < 70) ||
-      (scoreFilter === "minor" && user.totalViolationScore < 40);
+        user.totalViolationScore < 80) ||
+      (scoreFilter === "minor" && user.totalViolationScore >= 80);
 
     return matchesSearch && matchesMute && matchesScore;
   });
 
-  // Sort ở Frontend
   const sortedUsers = [...filteredUsers].sort((a, b) => {
     switch (sortBy) {
       case "score-desc":
@@ -131,7 +124,6 @@ const ViolationAccounts = () => {
     }
   });
 
-  // Pagination ở Frontend
   const startIndex = (currentPage - 1) * pageSize;
   const paginatedUsers = sortedUsers.slice(startIndex, startIndex + pageSize);
 
@@ -143,11 +135,11 @@ const ViolationAccounts = () => {
   };
 
   const getScoreBadge = (score: number) => {
-    if (score >= 70)
+    if (score < 40)
       return <Badge className="bg-red-500 text-white">Nghiêm trọng</Badge>;
-    if (score >= 40)
+    if (score < 80)
       return <Badge className="bg-orange-500 text-white">Cảnh báo</Badge>;
-    return <Badge className="bg-yellow-500 text-white">Nhẹ</Badge>;
+    return <Badge className="bg-green-400 text-white">Nhẹ</Badge>;
   };
 
   const formatDate = (dateString: string) => {
@@ -201,7 +193,6 @@ const ViolationAccounts = () => {
     setConfirmDialog({ open: false, action: "mute", userId: "", userName: "" });
   };
 
-  // Reset page khi filter thay đổi
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, muteFilter, scoreFilter, sortBy]);
@@ -222,7 +213,7 @@ const ViolationAccounts = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
                 <Input
-                  placeholder="Tìm kiếm theo tên hoặc ID người dùng..."
+                  placeholder="Tìm kiếm theo tên người dùng..."
                   className="pl-10"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -249,9 +240,11 @@ const ViolationAccounts = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tất cả</SelectItem>
-                    <SelectItem value="critical">Nghiêm trọng (≥70)</SelectItem>
-                    <SelectItem value="warning">Cảnh báo (40-69)</SelectItem>
-                    <SelectItem value="minor">Nhẹ (&lt;40)</SelectItem>
+                    <SelectItem value="critical">
+                      Nghiêm trọng (&lt;40)
+                    </SelectItem>
+                    <SelectItem value="warning">Cảnh báo (40-79)</SelectItem>
+                    <SelectItem value="minor">Nhẹ (≥80)</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -313,12 +306,7 @@ const ViolationAccounts = () => {
                                 {user.userName.substring(0, 2).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
-                            <div>
-                              <div className="font-medium">{user.userName}</div>
-                              <div className="text-xs text-gray-500">
-                                ID: {user.userId}
-                              </div>
-                            </div>
+                            <div className="font-medium">{user.userName}</div>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -336,7 +324,7 @@ const ViolationAccounts = () => {
                               Đang bị cấm
                             </Badge>
                           ) : (
-                            <Badge className="bg-green-500 text-white">
+                            <Badge className="bg-green-400 text-white">
                               Bình thường
                             </Badge>
                           )}
@@ -378,7 +366,7 @@ const ViolationAccounts = () => {
                                         user.userName
                                       )
                                     }
-                                    className="text-green-600"
+                                    className="text-green-400"
                                   >
                                     <Unlock className="w-4 h-4 mr-2" />
                                     Bỏ cấm

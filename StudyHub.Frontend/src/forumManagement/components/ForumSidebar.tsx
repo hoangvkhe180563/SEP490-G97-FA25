@@ -20,11 +20,13 @@ interface ForumSidebarProps {
   showRules?: boolean;
   showRelatedPosts?: boolean;
 }
+
 interface UserStatus {
   totalViolationScore: number;
   isMute: boolean;
   muteUntil?: string;
 }
+
 export const ForumSidebar = ({
   topPosts,
   currentSubjectId,
@@ -37,9 +39,7 @@ export const ForumSidebar = ({
   const { onlineCount } = useUserOnlineStore();
   const { rules, loadRules, posts } = useForumStore();
   const { user } = useAuthStore();
-
   const schoolId = user?.schoolId || 1;
-
   const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
 
   useEffect(() => {
@@ -48,27 +48,34 @@ export const ForumSidebar = ({
     }
   }, [loadRules, showRules, schoolId]);
 
-  useEffect(() => {
-    const fetchUserStatus = async () => {
-      try {
-        const response = await axiosInstance.get(
-          `/Forum/user/status?schoolId=${schoolId}`
-        );
-        if (response.data?.success && response.data?.data) {
-          setUserStatus({
-            totalViolationScore: response.data.data.totalViolationScore || 0,
-            isMute: response.data.data.isMute || false,
-            muteUntil: response.data.data.muteUntil,
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching user status:", error);
+  const fetchUserStatus = async () => {
+    try {
+      const response = await axiosInstance.get(
+        `/Forum/user/status?schoolId=${schoolId}`
+      );
+      if (response.data?.success && response.data?.data) {
+        setUserStatus({
+          totalViolationScore: response.data.data.totalViolationScore || 0,
+          isMute: response.data.data.isMute || false,
+          muteUntil: response.data.data.muteUntil,
+        });
       }
-    };
+    } catch (error) {
+      console.error("Error fetching user status:", error);
+    }
+  };
 
+  useEffect(() => {
     if (showStats && schoolId) {
       fetchUserStatus();
+
+      const interval = setInterval(() => {
+        fetchUserStatus();
+      }, 3000);
+
+      return () => clearInterval(interval);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolId, showStats]);
 
   const relatedPosts =

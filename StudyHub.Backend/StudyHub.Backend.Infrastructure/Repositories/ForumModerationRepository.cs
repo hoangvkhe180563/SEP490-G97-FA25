@@ -500,7 +500,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 if (status == null) return false;
 
-                status.TotalViolationScore = 50;
+                status.TotalViolationScore = 100;
                 status.UpdatedAt = DateTime.Now;
 
                 await _context.SaveChangesAsync();
