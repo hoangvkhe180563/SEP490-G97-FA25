@@ -84,7 +84,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
         {
             try
             {
-                List<int> classes = _context.AppUserSubjectClasses.Where(item => item.UserId == studentId && item.Status == "joined").Select(item => item.ClassId).Distinct().ToList();
+                List<int> classes = _context.AppUserClasses.Where(item => item.UserId == studentId && item.Status == "joined").Select(item => item.ClassId).Distinct().ToList();
                 var exams = _context.Exams.Include(e => e.ExamQuestions).Where(e => e.ClassId != null && classes.Contains(e.ClassId.Value) && DateTime.Now >= e.OpenTime && (e.CloseTime == null || DateTime.Now <= e.CloseTime.Value)).ToList();
                 return exams.Select(e => new Domain.Entities.Exam.Exam
                 {

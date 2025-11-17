@@ -63,9 +63,9 @@ public partial class AppUser
 
     public virtual ICollection<AccountRecoveryRequest> AccountRecoveryRequests { get; set; } = new List<AccountRecoveryRequest>();
 
-    public virtual ICollection<AppUserLoginHistory> AppUserLoginHistories { get; set; } = new List<AppUserLoginHistory>();
+    public virtual ICollection<AppUserClass> AppUserClasses { get; set; } = new List<AppUserClass>();
 
-    public virtual ICollection<AppUserSubjectClass> AppUserSubjectClasses { get; set; } = new List<AppUserSubjectClass>();
+    public virtual ICollection<AppUserLoginHistory> AppUserLoginHistories { get; set; } = new List<AppUserLoginHistory>();
 
     public virtual Commune? Commune { get; set; }
 
@@ -110,4 +110,6 @@ public partial class AppUser
     public virtual ICollection<ViolationRecord> ViolationRecordUsers { get; set; } = new List<ViolationRecord>();
 
     public virtual ICollection<AppRole> Roles { get; set; } = new List<AppRole>();
+
+    public virtual ICollection<Subject> Subjects { get; set; } = new List<Subject>();
 }

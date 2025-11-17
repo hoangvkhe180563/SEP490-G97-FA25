@@ -36,10 +36,9 @@ export const useQAUserStore = create<AppUserState>()((set) => ({
   getTeachersBySubject: async (subjectId: number) => {
     set({ subjectTeachersLoading: true, subjectTeachersError: null });
     try {
-      // const resp = await axiosInstance.get(
-      //   `/QAConversation/teachers/by-subject/${subjectId}`
-      // );
-      const resp = await axiosInstance.get(`/QAConversation/teachers`);
+      const resp = await axiosInstance.get(
+        `/QAConversation/teachers/by-subject/${subjectId}`
+      );
       const body = resp.data;
       set({
         subjectTeachers: body?.data ?? [],

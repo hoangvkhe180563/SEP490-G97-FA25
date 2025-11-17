@@ -21,9 +21,9 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<AppUser> AppUsers { get; set; }
 
-    public virtual DbSet<AppUserLoginHistory> AppUserLoginHistories { get; set; }
+    public virtual DbSet<AppUserClass> AppUserClasses { get; set; }
 
-    public virtual DbSet<AppUserSubjectClass> AppUserSubjectClasses { get; set; }
+    public virtual DbSet<AppUserLoginHistory> AppUserLoginHistories { get; set; }
 
     public virtual DbSet<Chapter> Chapters { get; set; }
 
@@ -251,6 +251,50 @@ public partial class AppDbContext : DbContext
                         j.ToTable("app_user_role");
                         j.HasIndex(new[] { "RoleId" }, "RoleId");
                     });
+
+            entity.HasMany(d => d.Subjects).WithMany(p => p.Users)
+                .UsingEntity<Dictionary<string, object>>(
+                    "AppUserSubject",
+                    r => r.HasOne<Subject>().WithMany()
+                        .HasForeignKey("SubjectId")
+                        .HasConstraintName("app_user_subject_ibfk_2"),
+                    l => l.HasOne<AppUser>().WithMany()
+                        .HasForeignKey("UserId")
+                        .HasConstraintName("app_user_subject_ibfk_1"),
+                    j =>
+                    {
+                        j.HasKey("UserId", "SubjectId")
+                            .HasName("PRIMARY")
+                            .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+                        j.ToTable("app_user_subject");
+                        j.HasIndex(new[] { "SubjectId" }, "SubjectId");
+                    });
+        });
+
+        modelBuilder.Entity<AppUserClass>(entity =>
+        {
+            entity.HasKey(e => new { e.UserId, e.ClassId })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+
+            entity.ToTable("app_user_class");
+
+            entity.HasIndex(e => e.ClassId, "ClassId");
+
+            entity.Property(e => e.JoinDate)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'joined'")
+                .HasColumnType("enum('invited','joined','kicked')");
+
+            entity.HasOne(d => d.Class).WithMany(p => p.AppUserClasses)
+                .HasForeignKey(d => d.ClassId)
+                .HasConstraintName("app_user_class_ibfk_2");
+
+            entity.HasOne(d => d.User).WithMany(p => p.AppUserClasses)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("app_user_class_ibfk_1");
         });
 
         modelBuilder.Entity<AppUserLoginHistory>(entity =>
@@ -274,38 +318,6 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.AppUserLoginHistories)
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("app_user_login_history_ibfk_1");
-        });
-
-        modelBuilder.Entity<AppUserSubjectClass>(entity =>
-        {
-            entity.HasKey(e => new { e.UserId, e.SubjectId, e.ClassId })
-                .HasName("PRIMARY")
-                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0, 0 });
-
-            entity.ToTable("app_user_subject_class");
-
-            entity.HasIndex(e => e.ClassId, "ClassId");
-
-            entity.HasIndex(e => e.SubjectId, "SubjectId");
-
-            entity.Property(e => e.JoinDate)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("datetime");
-            entity.Property(e => e.Status)
-                .HasDefaultValueSql("'joined'")
-                .HasColumnType("enum('invited','joined','kicked')");
-
-            entity.HasOne(d => d.Class).WithMany(p => p.AppUserSubjectClasses)
-                .HasForeignKey(d => d.ClassId)
-                .HasConstraintName("app_user_subject_class_ibfk_3");
-
-            entity.HasOne(d => d.Subject).WithMany(p => p.AppUserSubjectClasses)
-                .HasForeignKey(d => d.SubjectId)
-                .HasConstraintName("app_user_subject_class_ibfk_2");
-
-            entity.HasOne(d => d.User).WithMany(p => p.AppUserSubjectClasses)
-                .HasForeignKey(d => d.UserId)
-                .HasConstraintName("app_user_subject_class_ibfk_1");
         });
 
         modelBuilder.Entity<Chapter>(entity =>

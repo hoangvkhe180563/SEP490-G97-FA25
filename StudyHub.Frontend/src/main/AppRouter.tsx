@@ -93,7 +93,7 @@ const AppRouter = () => {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkAuth]);
+  }, [authChecked]);
 
   useEffect(() => {
     if (authChecked && !user && !location.pathname.includes("/auth")) {
@@ -164,8 +164,8 @@ const AppRouter = () => {
     },
     {
       path: "*",
-      element: <NotFound />
-    }
+      element: <NotFound />,
+    },
   ];
 
   const routesElement = useRoutes(appRoutes);

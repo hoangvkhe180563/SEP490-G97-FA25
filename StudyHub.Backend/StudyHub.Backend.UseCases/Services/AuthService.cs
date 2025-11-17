@@ -100,19 +100,11 @@ namespace StudyHub.Backend.UseCases.Services
                 roleNames = roles.Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
             }
 
-            // Build subject ids list from user claims
-            List<short> subjectIds = new List<short>();
-            if (userClaims != null)
-            {
-                subjectIds = userClaims.Where(c => c.SubjectId > 0).Select(c => c.SubjectId).Distinct().ToList();
-            }
+            // Build subject ids list from user profile (subjects are stored on user)
+            List<short> subjectIds = _userRepository.GetUserSubjectIds(user.Id) ?? new List<short>();
 
-            //Build class ids list from user claims
-            List<int> classIds = new List<int>();
-            if (userClaims != null)
-            {
-                classIds = userClaims.Where(c => c.ClassId > 0).Select(c => c.ClassId).Distinct().ToList();
-            }
+            //Build class ids list from user class assignments
+            List<int> classIds = userClaims != null ? userClaims.Where(c => c.ClassId > 0).Select(c => c.ClassId).Distinct().ToList() : new List<int>();
             // Create minimal access token (we will store only id, email, name, roleId in token)
             var accessResult = JwtUtils.CreateAccessToken(user, roleNames, _configuration);
             var accessToken = accessResult.Token;
@@ -334,7 +326,7 @@ namespace StudyHub.Backend.UseCases.Services
                 User = user,
                 Roles = roles?.Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList() ?? new List<string>(),
                 Permissions = roles != null ? roles.SelectMany(r => r.AppPolicies ?? new List<AppPolicy>()).Select(p => (p.Resource?.Name ?? p.ResourceId.ToString()) + ":" + (p.ActionType)).Distinct().ToList() : new List<string>(),
-                SubjectIds = userClaims != null ? userClaims.Where(c => c.SubjectId > 0).Select(c => c.SubjectId).Distinct().ToList() : new List<short>(),
+                SubjectIds = _userRepository.GetUserSubjectIds(user.Id) ?? new List<short>(),
                 ClassIds = userClaims != null ? userClaims.Where(c => c.ClassId > 0).Select(c => c.ClassId).Distinct().ToList() : new List<int>()
             };
         }
@@ -436,11 +428,7 @@ namespace StudyHub.Backend.UseCases.Services
                                         .ToList();
                 }
 
-                List<short> subjectIds = new List<short>();
-                if (userClaims != null)
-                {
-                    subjectIds = userClaims.Where(c => c.SubjectId > 0).Select(c => c.SubjectId).Distinct().ToList();
-                }
+                List<short> subjectIds = _userRepository.GetUserSubjectIds(user.Id) ?? new List<short>();
                 List<int> classIds = new List<int>();
                 if (userClaims != null)
                 {
@@ -662,11 +650,7 @@ namespace StudyHub.Backend.UseCases.Services
                 roleNames = roles.Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
             }
 
-            List<short> subjectIds = new List<short>();
-            if (userClaims != null)
-            {
-                subjectIds = userClaims.Where(c => c.SubjectId > 0).Select(c => c.SubjectId).Distinct().ToList();
-            }
+                List<short> subjectIds = _userRepository.GetUserSubjectIds(user.Id) ?? new List<short>();
 
             List<int> classIds = new List<int>();
             if (userClaims != null)

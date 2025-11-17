@@ -57,16 +57,16 @@ const RealtimeCard: React.FC = () => {
                           key={role}
                           className="flex items-center justify-between text-sm"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-36 truncate">{role}</div>
-                            <div className="w-48 bg-slate-100 h-5 rounded overflow-hidden">
+                          <div className="flex items-center gap-3 w-full">
+                            <div className="w-1/6 truncate">{role}</div>
+                            <div className="w-5/6 bg-slate-100 h-5 rounded overflow-hidden">
                               <div
                                 style={{ width: `${pct}%` }}
                                 className="h-5 bg-indigo-500 rounded"
                               />
                             </div>
                           </div>
-                          <div className="font-medium">{pct}%</div>
+                          <div className="ml-3 font-medium">{pct}%</div>
                         </div>
                       );
                     });
