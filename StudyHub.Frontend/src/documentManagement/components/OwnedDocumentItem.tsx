@@ -105,7 +105,7 @@ export default function OwnedDocumentItem({
           {document.name}
         </h3>
 
-        <div className="flex items-center gap-1.5 text-xs text-slate-500">
+        <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-1">
           <span>Lớp {document.grade}</span>
           {document.subjectName && (
             <>
@@ -113,6 +113,29 @@ export default function OwnedDocumentItem({
               <span className="truncate">{document.subjectName}</span>
             </>
           )}
+        </div>
+
+        <div className="flex items-center gap-1 mb-2">
+          <Badge
+            variant="outline"
+            className="text-[10px] px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-300"
+          >
+            {document.documentLengthType === "Short"
+              ? "Ngắn"
+              : document.documentLengthType === "Medium"
+              ? "TB"
+              : "Dài"}
+          </Badge>
+          <Badge
+            variant="outline"
+            className="text-[10px] px-1.5 py-0 bg-red-50 text-red-700 border-red-300"
+          >
+            {document.documentLevel === "Easy"
+              ? "Dễ"
+              : document.documentLevel === "Medium"
+              ? "TB"
+              : "Khó"}
+          </Badge>
         </div>
 
         <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">

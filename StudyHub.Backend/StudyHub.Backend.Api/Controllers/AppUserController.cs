@@ -3,6 +3,7 @@ using System;
 using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Api.Dtos.AppUserDTOS;
 using StudyHub.Backend.Api.Dtos.AuthDTOS;
+using Microsoft.AspNetCore.Http;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.UseCases.Services;
@@ -28,6 +29,70 @@ namespace StudyHub.Backend.Api.Controllers
             _authService = authService;
             _roleService = roleService;
             _locationService = locationService;
+        }
+
+        // Export accounts to Excel
+        [HttpGet("export")]
+        public IActionResult Export()
+        {
+            try
+            {
+                var bytes = _userService.ExportAccountsToExcel();
+                return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "accounts.xlsx");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Export failed", Error = ex.Message });
+            }
+        }
+
+        // Export an Excel template for importing accounts
+        [HttpGet("export-template")]
+        public IActionResult ExportTemplate([FromQuery] int rows = 1000)
+        {
+            try
+            {
+                var bytes = _userService.ExportImportTemplate(rows);
+                return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "accounts_import_template.xlsx");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Export template failed", Error = ex.Message });
+            }
+        }
+
+        // Import accounts from Excel via multipart/form-data (IFormFile) - preferred for browser/FormData uploads
+        [HttpPost("import")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> Import([FromForm] ImportAccountsRequest req)
+        {
+            var file = req.FileName;
+            try
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return BadRequest(new { Success = false, Message = "File is required" });
+                }
+
+                byte[] bytes;
+                using (var ms = new System.IO.MemoryStream())
+                {
+                    await file.CopyToAsync(ms);
+                    bytes = ms.ToArray();
+                }
+
+                var res = _userService.ImportAccountsFromExcel(bytes, file.FileName);
+                return Ok(new { Success = true, Data = res });
+            }
+            catch (InvalidImportFieldException ex)
+            {
+                // validation errors collected during import; return 400 with error dictionary
+                return BadRequest(new { Success = false, Data = ex.Errors });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Import failed", Error = ex.Message });
+            }
         }
 
 

@@ -179,6 +179,30 @@ function DocumentDetailsInfo({
         </div>
         <div className="flex justify-between items-center text-sm">
           <span className="text-gray-600 flex items-center gap-2">
+            📏 Độ dài:
+          </span>
+          <span className="font-semibold">
+            {document?.documentLengthType === "Short"
+              ? "Ngắn"
+              : document?.documentLengthType === "Medium"
+              ? "Trung bình"
+              : "Dài"}
+          </span>
+        </div>
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-gray-600 flex items-center gap-2">
+            🎯 Độ khó:
+          </span>
+          <span className="font-semibold">
+            {document?.documentLevel === "Easy"
+              ? "Dễ"
+              : document?.documentLevel === "Medium"
+              ? "Trung bình"
+              : "Khó"}
+          </span>
+        </div>
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-gray-600 flex items-center gap-2">
             <FolderOpen className="w-4 h-4" />
             Danh mục:
           </span>

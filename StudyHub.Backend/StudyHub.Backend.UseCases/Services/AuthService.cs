@@ -14,6 +14,7 @@ using StudyHub.Backend.Api.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using StudyHub.Backend.UseCases.Exceptions;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -22,6 +23,7 @@ namespace StudyHub.Backend.UseCases.Services
 
         public IAppUserRepository _userRepository;
         public IAppRoleRepository _roleRepository;
+        public IAppUserLoginHistoryRepository _loginHistoryRepository;
         public SmtpEmailService _emailService;
         public IHttpContextAccessor _httpContextAccessor;
         private readonly IConfiguration _configuration;
@@ -29,10 +31,11 @@ namespace StudyHub.Backend.UseCases.Services
         private const int DEFAULT_EXPIRES_MINUTES = 60; // default 60 minutes
         private const int DEFAULT_REFRESH_EXPIRES_MINUTES = 60 * 24 * 7; // default 7 days
 
-        public AuthService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, SmtpEmailService emailService, IHttpContextAccessor httpContextAccessor, IConfiguration configuration)
+        public AuthService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, IAppUserLoginHistoryRepository loginHistoryRepository, SmtpEmailService emailService, IHttpContextAccessor httpContextAccessor, IConfiguration configuration)
         {
             _userRepository = userRepository;
             _roleRepository = roleRepository;
+            _loginHistoryRepository = loginHistoryRepository;
             _emailService = emailService;
             _httpContextAccessor = httpContextAccessor;
             _configuration = configuration;
@@ -74,6 +77,9 @@ namespace StudyHub.Backend.UseCases.Services
 
             if (!user.IsVerified) return (null, "unverified");
 
+            // If account is explicitly marked inactive (Status == false) reject login
+            if (user.Status == false) return (null, "inactive");
+
             // Load roles and user claims and create a jwt access token including permissions
             var roles = _roleRepository.GetRolesForUser(user.Id);
             var userClaims = _userRepository.GetClaimsForUser(user.Id);
@@ -94,19 +100,11 @@ namespace StudyHub.Backend.UseCases.Services
                 roleNames = roles.Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
             }
 
-            // Build subject ids list from user claims
-            List<short> subjectIds = new List<short>();
-            if (userClaims != null)
-            {
-                subjectIds = userClaims.Where(c => c.SubjectId > 0).Select(c => c.SubjectId).Distinct().ToList();
-            }
+            // Build subject ids list from user profile (subjects are stored on user)
+            List<short> subjectIds = _userRepository.GetUserSubjectIds(user.Id) ?? new List<short>();
 
-            //Build class ids list from user claims
-            List<int> classIds = new List<int>();
-            if (userClaims != null)
-            {
-                classIds = userClaims.Where(c => c.ClassId > 0).Select(c => c.ClassId).Distinct().ToList();
-            }
+            //Build class ids list from user class assignments
+            List<int> classIds = userClaims != null ? userClaims.Where(c => c.ClassId > 0).Select(c => c.ClassId).Distinct().ToList() : new List<int>();
             // Create minimal access token (we will store only id, email, name, roleId in token)
             var accessResult = JwtUtils.CreateAccessToken(user, roleNames, _configuration);
             var accessToken = accessResult.Token;
@@ -136,6 +134,26 @@ namespace StudyHub.Backend.UseCases.Services
                 SubjectIds = subjectIds,
                 ClassIds = classIds
             };
+
+            // create login session record
+            try
+            {
+                var sessionId = Guid.NewGuid();
+                var entry = new Domain.Entities.AppUserLoginHistory
+                {
+                    UserId = user.Id,
+                    LoginAt = DateTime.Now,
+                    IsSuccess = true,
+                    SessionId = sessionId,
+                    IsActiveSession = true
+                };
+                _loginHistoryRepository?.Create(entry);
+                loginResult.SessionId = sessionId;
+            }
+            catch
+            {
+                // non-fatal: login should still succeed if logging history fails
+            }
 
             return (loginResult, null);
         }
@@ -185,7 +203,7 @@ namespace StudyHub.Backend.UseCases.Services
         /// <param name="fullname">The full name of the new user.</param>
         /// <param name="communeId">The commune id of the new user.</param>
         /// <returns>The newly created <see cref="AppUser"/> if the sign up is successful, otherwise null.</returns>
-        public AppUser? Signup(string email, string password, string username, string phoneNumber, int communeId, int? schoolId = null, string? fullname = null, string? avatar = null, int? gender = null)
+        public async Task<AppUser?> Signup(string email, string password, string username, string phoneNumber, int communeId, int? schoolId = null, string? fullname = null, string? avatar = null, int? gender = null)
         {
             // Check if the email already exists, if it does, return null
             var existing = _userRepository.GetByEmail(email);
@@ -220,7 +238,7 @@ namespace StudyHub.Backend.UseCases.Services
                 string? token = CreateVerificationTokenForEmail(email);
                 if (token != null)
                 {
-                    _emailService.SendVerificationEmailAsync(email, token);
+                   await _emailService.SendVerificationEmailAsync(email, token);
                 }
                 return user;
             }
@@ -251,6 +269,23 @@ namespace StudyHub.Backend.UseCases.Services
 
             // Update the user in the database.
             _userRepository.UpdateUser(user);
+            // also try to mark any active session for this user as logged out if session cookie passed
+            try
+            {
+                var http = _httpContextAccessor.HttpContext;
+                if (http != null)
+                {
+                    var sid = http.Request.Cookies["session_id"];
+                    if (!string.IsNullOrEmpty(sid) && Guid.TryParse(sid, out var sessionId))
+                    {
+                        _loginHistoryRepository?.SetLogoutBySessionId(sessionId, DateTime.UtcNow);
+                    }
+                }
+            }
+            catch
+            {
+                // ignore
+            }
         }
 
         /// <summary>
@@ -291,7 +326,7 @@ namespace StudyHub.Backend.UseCases.Services
                 User = user,
                 Roles = roles?.Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList() ?? new List<string>(),
                 Permissions = roles != null ? roles.SelectMany(r => r.AppPolicies ?? new List<AppPolicy>()).Select(p => (p.Resource?.Name ?? p.ResourceId.ToString()) + ":" + (p.ActionType)).Distinct().ToList() : new List<string>(),
-                SubjectIds = userClaims != null ? userClaims.Where(c => c.SubjectId > 0).Select(c => c.SubjectId).Distinct().ToList() : new List<short>(),
+                SubjectIds = _userRepository.GetUserSubjectIds(user.Id) ?? new List<short>(),
                 ClassIds = userClaims != null ? userClaims.Where(c => c.ClassId > 0).Select(c => c.ClassId).Distinct().ToList() : new List<int>()
             };
         }
@@ -359,6 +394,12 @@ namespace StudyHub.Backend.UseCases.Services
                     if (!string.IsNullOrEmpty(name)) user.Fullname = name;
                     if (!string.IsNullOrEmpty(picture)) user.Avatar = picture;
                     _userRepository.UpdateUser(user);
+                    // If the existing user is inactive, disallow Google login
+                    if (user.Status == false)
+                    {
+                        // throw a specific exception so controller can return the proper payload
+                        throw new AccountInactiveException();
+                    }
                 }
 
                 // Build roles/claims and issue tokens
@@ -387,18 +428,14 @@ namespace StudyHub.Backend.UseCases.Services
                                         .ToList();
                 }
 
-                List<short> subjectIds = new List<short>();
-                if (userClaims != null)
-                {
-                    subjectIds = userClaims.Where(c => c.SubjectId > 0).Select(c => c.SubjectId).Distinct().ToList();
-                }
+                List<short> subjectIds = _userRepository.GetUserSubjectIds(user.Id) ?? new List<short>();
                 List<int> classIds = new List<int>();
                 if (userClaims != null)
                 {
                     classIds = userClaims.Where(c => c.ClassId > 0).Select(c => c.ClassId).Distinct().ToList();
                 }
 
-                return new LoginResult
+                var lr = new LoginResult
                 {
                     Tokens = new TokenPair
                     {
@@ -413,6 +450,33 @@ namespace StudyHub.Backend.UseCases.Services
                     SubjectIds = subjectIds,
                     ClassIds = classIds
                 };
+
+                // create session record (google login)
+                try
+                {
+                    var sessionId = Guid.NewGuid();
+                    var entry = new Domain.Entities.AppUserLoginHistory
+                    {
+                        UserId = user.Id,
+                        LoginAt = DateTime.Now,
+                        IsSuccess = true,
+                        SessionId = sessionId,
+                        IsActiveSession = true
+                    };
+                    _loginHistoryRepository?.Create(entry);
+                    lr.SessionId = sessionId;
+                }
+                catch
+                {
+                    // ignore history errors
+                }
+
+                return lr;
+            }
+            catch (AccountInactiveException)
+            {
+                // propagate account-inactive so controller can return structured payload
+                throw;
             }
             catch
             {
@@ -514,6 +578,11 @@ namespace StudyHub.Backend.UseCases.Services
                 if (string.IsNullOrEmpty(idToken)) return null;
                 return LoginWithGoogle(idToken);
             }
+            catch (AccountInactiveException)
+            {
+                // let controller handle inactive-account specially
+                throw;
+            }
             catch
             {
                 return null;
@@ -581,11 +650,7 @@ namespace StudyHub.Backend.UseCases.Services
                 roleNames = roles.Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
             }
 
-            List<short> subjectIds = new List<short>();
-            if (userClaims != null)
-            {
-                subjectIds = userClaims.Where(c => c.SubjectId > 0).Select(c => c.SubjectId).Distinct().ToList();
-            }
+                List<short> subjectIds = _userRepository.GetUserSubjectIds(user.Id) ?? new List<short>();
 
             List<int> classIds = new List<int>();
             if (userClaims != null)

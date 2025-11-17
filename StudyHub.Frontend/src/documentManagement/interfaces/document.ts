@@ -34,6 +34,8 @@ export interface Document {
   classes?: Array<{ id: number; name?: string }>;
   isRequested?: boolean;
   editRequestedAt?: string;
+  documentLengthType: string;
+  documentLevel: string;
 }
 export interface DocumentFilterParams {
   query?: string;
@@ -129,6 +131,8 @@ export interface DocumentDetailDto {
   classes?: Array<{ id: number; name?: string }>;
   isRequested?: boolean;
   editRequestedAt?: string;
+  documentLengthType: string;
+  documentLevel: string;
 }
 
 export interface DocumentListDto {
@@ -182,6 +186,8 @@ export interface FilterState {
   selectedCategories: string[];
   selectedAccessTypes: string[];
   approvalStatus: string;
+  selectedDocumentLengths: string[];
+  selectedDocumentLevels: string[];
 }
 
 export interface AvailableFilters {

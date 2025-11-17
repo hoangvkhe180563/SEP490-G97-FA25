@@ -8,6 +8,8 @@ interface FilterState {
   selectedGrades: number[];
   selectedSubjects: string[];
   selectedCategories: number[];
+  selectedDocumentLengths: string[];
+  selectedDocumentLevels: string[];
 }
 
 const STORAGE_KEY = "document-list-state";
@@ -60,6 +62,8 @@ export const useDocumentFilters = () => {
       selectedGrades: [],
       selectedSubjects: [],
       selectedCategories: [],
+      selectedDocumentLengths: [],
+      selectedDocumentLevels: [],
     }
   );
 
@@ -138,6 +142,8 @@ export const useDocumentFilters = () => {
     filters.selectedGrades,
     filters.selectedSubjects,
     filters.selectedCategories,
+    filters.selectedDocumentLengths,
+    filters.selectedDocumentLevels,
   ]);
 
   useEffect(() => {
@@ -149,6 +155,42 @@ export const useDocumentFilters = () => {
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     } else if (sortBy === "name") {
       return a.name.localeCompare(b.name);
+    } else if (sortBy === "length-short") {
+      const order = { Short: 1, Medium: 2, Long: 3 };
+      return (
+        (order[a.documentLengthType as keyof typeof order] || 4) -
+        (order[b.documentLengthType as keyof typeof order] || 4)
+      );
+    } else if (sortBy === "length-medium") {
+      const order = { Medium: 1, Short: 2, Long: 3 };
+      return (
+        (order[a.documentLengthType as keyof typeof order] || 4) -
+        (order[b.documentLengthType as keyof typeof order] || 4)
+      );
+    } else if (sortBy === "length-long") {
+      const order = { Long: 1, Medium: 2, Short: 3 };
+      return (
+        (order[a.documentLengthType as keyof typeof order] || 4) -
+        (order[b.documentLengthType as keyof typeof order] || 4)
+      );
+    } else if (sortBy === "level-easy") {
+      const order = { Easy: 1, Medium: 2, Hard: 3 };
+      return (
+        (order[a.documentLevel as keyof typeof order] || 4) -
+        (order[b.documentLevel as keyof typeof order] || 4)
+      );
+    } else if (sortBy === "level-medium") {
+      const order = { Medium: 1, Easy: 2, Hard: 3 };
+      return (
+        (order[a.documentLevel as keyof typeof order] || 4) -
+        (order[b.documentLevel as keyof typeof order] || 4)
+      );
+    } else if (sortBy === "level-hard") {
+      const order = { Hard: 1, Medium: 2, Easy: 3 };
+      return (
+        (order[a.documentLevel as keyof typeof order] || 4) -
+        (order[b.documentLevel as keyof typeof order] || 4)
+      );
     } else {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     }
@@ -171,6 +213,18 @@ export const useDocumentFilters = () => {
       if (
         !filters.selectedCategories.includes(Number(doc.documentCategoryId))
       ) {
+        return false;
+      }
+    }
+
+    if (filters.selectedDocumentLengths.length > 0) {
+      if (!filters.selectedDocumentLengths.includes(doc.documentLengthType)) {
+        return false;
+      }
+    }
+
+    if (filters.selectedDocumentLevels.length > 0) {
+      if (!filters.selectedDocumentLevels.includes(doc.documentLevel)) {
         return false;
       }
     }

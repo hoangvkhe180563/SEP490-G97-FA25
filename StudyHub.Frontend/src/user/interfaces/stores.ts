@@ -1,3 +1,7 @@
+import type {
+  AccountRecoveryItem,
+  CreateAccountRecoveryRequest,
+} from "./account-recovery";
 import type { AppRole } from "./app-role";
 import type { AppUser, CurrentUser } from "./app-user";
 import type { City } from "./city";
@@ -63,6 +67,35 @@ interface AppUserState {
   ) => Promise<any>;
 }
 
+// Excel import/export preview store (separated from AppUserState)
+interface ExcelImportState {
+  // last previewed workbook (headers + rows)
+  preview: { headers: string[]; rows: string[][] } | null;
+  isLoading: boolean;
+  success: boolean;
+  message: string;
+
+  // Read file and return parsed preview (sheet 0). Uses dynamic `xlsx` import.
+  previewFile: (
+    file: File
+  ) => Promise<{ headers: string[]; rows: string[][] } | null>;
+  // Clear preview data
+  clearPreview: () => void;
+  // Export endpoints (download blobs)
+  exportAccounts: () => Promise<boolean>;
+  exportTemplate: (rows?: number) => Promise<boolean>;
+  // Upload file (raw File) to backend import endpoint
+  importAccounts: (
+    file: File,
+    onValidationError?: (errors: { [key: string]: string[] }) => void
+  ) => Promise<any>;
+  // Upload a client-side edited preview (headers+rows) by regenerating an xlsx and sending
+  uploadPreview: (
+    preview: { headers: string[]; rows: string[][] },
+    onValidationError?: (errors: { [key: string]: string[] }) => void
+  ) => Promise<any>;
+}
+
 interface AppRoleState {
   appRoles: AppRole[];
   isLoading: boolean;
@@ -91,4 +124,28 @@ interface LocationState {
   setSelectedSchool: (school: School) => void;
 }
 
-export type { AppUserState, AppRoleState, LocationState };
+interface AccountRecoveryState {
+  items: AccountRecoveryItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  isLoading: boolean;
+  error: string | null;
+  fetch: (
+    search?: string | null,
+    status?: string | null,
+    page?: number,
+    limit?: number
+  ) => Promise<void>;
+  updateStatus: (id: string, status: string) => Promise<void>;
+  createRequest: (payload: CreateAccountRecoveryRequest) => Promise<void>;
+}
+
+export type {
+  AppUserState,
+  AppRoleState,
+  LocationState,
+  AccountRecoveryState,
+  ExcelImportState,
+};

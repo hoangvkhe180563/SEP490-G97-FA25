@@ -3,6 +3,7 @@ import type { Comment } from "./comment";
 
 export interface Post {
   post_id: number;
+  school_id: number;
   subject_id: number;
   subject_name: string;
   flair_id: number;
@@ -27,4 +28,5 @@ export interface Subject {
 export interface Flair {
   id: number;
   name: string;
+  schoolId?: number;
 }

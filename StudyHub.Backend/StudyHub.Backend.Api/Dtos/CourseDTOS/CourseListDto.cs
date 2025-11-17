@@ -6,6 +6,8 @@ public class CourseListDto
     public string Name { get; set; } = null!;
     public string? Information { get; set; }
     public string? ImageUrl { get; set; }
+    public string Difficulty { get; set; } = "Beginner";
+    public string Length { get; set; } = "Short";
     public uint Price { get; set; }
     public sbyte Grade { get; set; }
     public short SubjectId { get; set; }

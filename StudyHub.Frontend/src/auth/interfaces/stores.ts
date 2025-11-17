@@ -24,6 +24,12 @@ interface AuthState {
   forgotPasswordError: string | null;
   resetPasswordError: string | null;
   handlerGoogleCallbackError: string;
+  // UI state for Account Inactive modal
+  accountInactiveOpen: boolean;
+  setAccountInactiveOpen: (open: boolean) => void;
+  // UI state for the activation request form/modal
+  activateFormOpen: boolean;
+  setActivateFormOpen: (open: boolean) => void;
   login: (
     username: string,
     email: string,

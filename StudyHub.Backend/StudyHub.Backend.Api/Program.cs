@@ -1,11 +1,13 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using StudyHub.Backend.Api.Filters;
-using StudyHub.Backend.Api.Hubs;
-using StudyHub.Backend.Api.Middleware;
+using StudyHub.Backend.Domain;
 using StudyHub.Backend.Infrastructure;
 using StudyHub.Backend.Infrastructure.MongoDb;
 using StudyHub.Backend.UseCases;
 using StudyHub.Backend.UseCases.Utils;
+using StudyHub.Backend.Api.Filters;
+using StudyHub.Backend.Api.Hubs;
+using StudyHub.Backend.Api.Middlewares;
+using OfficeOpenXml;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +30,8 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
     options.SuppressModelStateInvalidFilter = true;
 });
+
+
 
 // Tạo ra filter giống với modal state nhưng tuỳ chỉnh thêm vài cái để có thể custome response về như ý mình
 // Thứ tự diễn ra các filter là AuthorizeFilter => ResourceFilter => ModelBinding => ActionFilter
@@ -71,6 +75,7 @@ builder.Services.AddSession(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
 });
 builder.Services.AddSignalR();
+ExcelPackage.License.SetNonCommercialPersonal("StudyHub");
 var app = builder.Build();
 app.UseCors();
 
@@ -98,6 +103,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
+// Check that authenticated users are still active. If not, return a consistent AccountInactive payload.
+app.UseMiddleware<AccountActiveMiddleware>();
 app.UseAuthorization();
 app.UseSession();
 app.MapControllers();
@@ -105,6 +112,7 @@ app.MapControllers();
 app.MapHub<ClassNotificationHub>("/hubs/class-notification");
 app.MapHub<QAChatHub>("/hubs/qa-chat");
 app.MapHub<UserPresenseHub>("/hubs/user-presense");
+app.MapHub<ForumHub>("/hubs/forum");
 app.MapHub<PaymentHub>("/hubs/payment");
 app.MapHub<QAReadHub>("/hubs/qa-read");
 

@@ -9,8 +9,6 @@ public partial class Subject
 
     public string Name { get; set; } = null!;
 
-    public virtual ICollection<AppUserSubjectClass> AppUserSubjectClasses { get; set; } = new List<AppUserSubjectClass>();
-
     public virtual ICollection<Course> Courses { get; set; } = new List<Course>();
 
     public virtual ICollection<Document> Documents { get; set; } = new List<Document>();
@@ -18,4 +16,6 @@ public partial class Subject
     public virtual ICollection<ForumPost> ForumPosts { get; set; } = new List<ForumPost>();
 
     public virtual ICollection<QATopic> QATopics { get; set; } = new List<QATopic>();
+
+    public virtual ICollection<AppUser> Users { get; set; } = new List<AppUser>();
 }
