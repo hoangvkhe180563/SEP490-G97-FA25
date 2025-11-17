@@ -8,6 +8,8 @@ public class CourseDto
     public string Name { get; set; } = null!;
     public string? Information { get; set; }
     public string? ImageUrl { get; set; }
+    public string Difficulty { get; set; } = "Beginner";
+    public string Length { get; set; } = "Short";
     public uint Price { get; set; }
     public sbyte Grade { get; set; }
     public short SubjectId { get; set; }
@@ -51,6 +53,19 @@ public class LessonDto
     public DateTime? PostDate { get; set; }
     public bool? IsPreview { get; set; }
     public int? ResourceId { get; set; }
+    // interactive questions (optional) sent when creating/updating lessons
+    public List<InteractiveQuestionDto>? InteractiveQuestions { get; set; }
+}
+
+public class InteractiveQuestionDto
+{
+    public int? Id { get; set; }
+    public int TimeSec { get; set; }
+    public string Question { get; set; } = null!;
+    public string Type { get; set; } = "mc"; // 'mc' or 'text'
+    public List<string>? Options { get; set; }
+    public int? CorrectIndex { get; set; }
+    public string? CorrectAnswer { get; set; }
 }
 
 public class EnrollmentDto

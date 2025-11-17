@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using StudyHub.Backend.Api.Dtos;
 using System.Linq;
 using StudyHub.Backend.UseCases.Services;
 using Microsoft.AspNetCore.SignalR;
@@ -9,6 +8,7 @@ using StudyHub.Backend.UseCases.Utils;
 using System.Threading.Tasks;
 using System.Text;
 using System.Net.Mime;
+using StudyHub.Backend.Api.Dtos.PaymentDTOS;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -138,6 +138,53 @@ namespace StudyHub.Backend.Api.Controllers
             }).ToList();
 
             return PagedResult(dtoItems, paged.Total, paged.Page, paged.Limit);
+        }
+
+         // export Word (.doc) using an HTML table
+        [HttpGet("export/doc")]
+        public IActionResult ExportDoc([
+            FromQuery] string? type = null,
+            [FromQuery] string? status = null,
+            [FromQuery] string? userId = null)
+        {
+            List<Transaction> list;
+            if (!string.IsNullOrWhiteSpace(userId) && System.Guid.TryParse(userId, out var uid))
+            {
+                list = _txService.GetByUser(uid);
+            }
+            else
+            {
+                list = _txService.GetForExport(type, status);
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("<html><head><meta charset=\"utf-8\"/></head><body>");
+            sb.AppendLine("<table border=\"1\" cellpadding=\"4\" cellspacing=\"0\">\n<thead><tr>");
+            sb.AppendLine("<th>TransactionCode</th><th>UserId</th><th>Type</th><th>Status</th><th>Amount</th><th>CourseId</th><th>AccountNumber</th><th>CreatedAt</th><th>ProcessedAt</th><th>Description</th>");
+            sb.AppendLine("</tr></thead>\n<tbody>");
+            foreach (var t in list)
+            {
+                var created = t.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss");
+                var processed = t.ProcessedAt.HasValue ? t.ProcessedAt.Value.ToString("yyyy-MM-dd HH:mm:ss") : "";
+                sb.AppendLine("<tr>");
+                string Cell(object? o) => $"<td>{System.Net.WebUtility.HtmlEncode(o?.ToString() ?? "")}</td>";
+                sb.AppendLine(Cell(t.TransactionCode));
+                sb.AppendLine(Cell(t.UserId));
+                sb.AppendLine(Cell(t.Type));
+                sb.AppendLine(Cell(t.Status));
+                sb.AppendLine(Cell(t.Amount));
+                sb.AppendLine(Cell(t.CourseId));
+                sb.AppendLine(Cell(t.AccountNumber));
+                sb.AppendLine(Cell(created));
+                sb.AppendLine(Cell(processed));
+                sb.AppendLine(Cell(t.Description));
+                sb.AppendLine("</tr>");
+            }
+            sb.AppendLine("</tbody></table></body></html>");
+
+            var bytes = Encoding.UTF8.GetBytes(sb.ToString());
+            var fileName = $"transactions_{System.DateTime.UtcNow:yyyyMMddHHmmss}.doc";
+            return File(bytes, "application/msword", fileName);
         }
 
         // export CSV of transactions matching optional type/status filters
@@ -338,53 +385,6 @@ namespace StudyHub.Backend.Api.Controllers
             var fileName = $"revenue_{System.DateTime.UtcNow:yyyyMMddHHmmss}.pdf";
             // returning HTML bytes; content-type set to application/pdf for download convenience. Replace with real PDF generator later.
             return File(bytes, "application/pdf", fileName);
-        }
-
-        // export Word (.doc) using an HTML table
-        [HttpGet("export/doc")]
-        public IActionResult ExportDoc([
-            FromQuery] string? type = null,
-            [FromQuery] string? status = null,
-            [FromQuery] string? userId = null)
-        {
-            List<Transaction> list;
-            if (!string.IsNullOrWhiteSpace(userId) && System.Guid.TryParse(userId, out var uid))
-            {
-                list = _txService.GetByUser(uid);
-            }
-            else
-            {
-                list = _txService.GetForExport(type, status);
-            }
-
-            var sb = new StringBuilder();
-            sb.AppendLine("<html><head><meta charset=\"utf-8\"/></head><body>");
-            sb.AppendLine("<table border=\"1\" cellpadding=\"4\" cellspacing=\"0\">\n<thead><tr>");
-            sb.AppendLine("<th>TransactionCode</th><th>UserId</th><th>Type</th><th>Status</th><th>Amount</th><th>CourseId</th><th>AccountNumber</th><th>CreatedAt</th><th>ProcessedAt</th><th>Description</th>");
-            sb.AppendLine("</tr></thead>\n<tbody>");
-            foreach (var t in list)
-            {
-                var created = t.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss");
-                var processed = t.ProcessedAt.HasValue ? t.ProcessedAt.Value.ToString("yyyy-MM-dd HH:mm:ss") : "";
-                sb.AppendLine("<tr>");
-                string Cell(object? o) => $"<td>{System.Net.WebUtility.HtmlEncode(o?.ToString() ?? "")}</td>";
-                sb.AppendLine(Cell(t.TransactionCode));
-                sb.AppendLine(Cell(t.UserId));
-                sb.AppendLine(Cell(t.Type));
-                sb.AppendLine(Cell(t.Status));
-                sb.AppendLine(Cell(t.Amount));
-                sb.AppendLine(Cell(t.CourseId));
-                sb.AppendLine(Cell(t.AccountNumber));
-                sb.AppendLine(Cell(created));
-                sb.AppendLine(Cell(processed));
-                sb.AppendLine(Cell(t.Description));
-                sb.AppendLine("</tr>");
-            }
-            sb.AppendLine("</tbody></table></body></html>");
-
-            var bytes = Encoding.UTF8.GetBytes(sb.ToString());
-            var fileName = $"transactions_{System.DateTime.UtcNow:yyyyMMddHHmmss}.doc";
-            return File(bytes, "application/msword", fileName);
         }
 
         [HttpPost("upload-proof")]

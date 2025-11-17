@@ -10,5 +10,4 @@ export interface ISidebarItem {
   icon: JSX.Element;
   text: string;
   children?: ISidebarItem[];
-  childrenLinks?: string[];
 }

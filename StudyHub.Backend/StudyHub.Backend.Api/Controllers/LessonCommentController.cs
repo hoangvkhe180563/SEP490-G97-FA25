@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.UseCases.Services;
 using StudyHub.Backend.Api.Mappers;
-using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Domain.Entities;
 using System;
 using System.Linq;
+using StudyHub.Backend.Api.Dtos.CourseDTOS;
 
 namespace StudyHub.Backend.Api.Controllers
 {

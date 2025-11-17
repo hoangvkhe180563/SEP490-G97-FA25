@@ -15,6 +15,8 @@
         public int? SchoolId { get; set; }
         public bool IsInClass { get; set; }
         public bool IsFeatured { get; set; }
+        public string DocumentLengthType { get; set; } = null!;
+        public string DocumentLevel { get; set; } = null!;
         public List<Class> Classes { get; set; } = new List<Class>();
         public Subject? Subject { get; set; }
         public DocumentCategory? DocumentCategory { get; set; }

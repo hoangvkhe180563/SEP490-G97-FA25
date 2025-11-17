@@ -4,6 +4,7 @@ import TransactionList from "../pages/manager/TransactionList";
 import RevenueReport from "../pages/manager/RevenueReport";
 import PaymentCheckout from "../pages/student/PaymentCheckout";
 import WalletTopUp from "../pages/student/WalletTopUp";
+import SubscriptionPage from "../pages/student/SubscriptionPage";
 import WithdrawRequest from "../pages/student/WithdrawRequest";
 import PaymentSuccess from "../pages/student/PaymentSuccess";
 import PaymentFailed from "../pages/student/PaymentFailed";
@@ -30,7 +31,12 @@ const studentCourseRoutes: RouteObject[] = [
   // Trong mẫu của bạn, routes học sinh bắt đầu bằng /courses
 
   {
-    // path="payments/checkout" element={<PaymentCheckout />}
+    // subscription page for QA packages
+    path: CourseRouteConfig.STUDENT.SUBSCRIPTION,
+    element: <SubscriptionPage />,
+  },
+  {
+    // payments checkout
     path: CourseRouteConfig.STUDENT.PAYMENT_CHECKOUT,
     element: <PaymentCheckout />,
   },

@@ -38,8 +38,15 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<StatisticsService>();
             services.AddScoped<ExamService>();
             services.AddScoped<AppUserLoginHistoryService>();
+            services.AddScoped<ForumCommentService>();
+            services.AddScoped<ForumConfigService>();
+            services.AddScoped<ForumModerationService>();
+            services.AddScoped<ForumPostService>();
+            services.AddScoped<IImageModerationService, ImageDectectService>();
+            services.AddScoped<ExamService>();
+            services.AddScoped<SubscriptionService>();
 
-            
+
             return services;
         }
     }

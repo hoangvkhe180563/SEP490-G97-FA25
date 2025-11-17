@@ -10,19 +10,19 @@ namespace StudyHub.Backend.UseCases.Repositories
         Task<ForumPost?> GetPostByIdAsync(int postId);
 
         Task<(List<ForumPost> posts, int totalCount)> GetPublicPostsAsync(
-            int schoolId,
-            int? subjectId = null,
-            int? flairId = null,
-            string? query = null,
-            string? sortBy = null,
-            int? pageNumber = null,
-            int? pageSize = null);
+         int schoolId,
+         List<short>? subjectIds = null,
+         List<int>? flairIds = null,
+         string? query = null,
+         string? sortBy = null,
+         int? pageNumber = null,
+         int? pageSize = null);
 
         Task<(List<ForumPost> posts, int totalCount)> GetOwnedPostsAsync(
             Guid userId,
             int schoolId,
-            int? subjectId = null,
-            int? flairId = null,
+            List<short>? subjectIds = null,
+            List<int>? flairIds = null,
             string? query = null,
             bool? status = null,
             DateTime? createdFrom = null,
@@ -32,8 +32,8 @@ namespace StudyHub.Backend.UseCases.Repositories
 
         Task<(List<ForumPost> posts, int totalCount)> GetModeratorPostsAsync(
             int schoolId,
-            int? subjectId = null,
-            int? flairId = null,
+            List<short>? subjectIds = null,
+            List<int>? flairIds = null,
             string? query = null,
             string? postStatus = null,
             int? minViolationScore = null,

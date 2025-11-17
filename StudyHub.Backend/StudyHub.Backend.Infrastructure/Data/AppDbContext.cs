@@ -67,6 +67,10 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<ForumRule> ForumRules { get; set; }
 
+    public virtual DbSet<InteractiveQuestion> InteractiveQuestions { get; set; }
+
+    public virtual DbSet<InteractiveResponse> InteractiveResponses { get; set; }
+
     public virtual DbSet<LandingPage> LandingPages { get; set; }
 
     public virtual DbSet<LandingPageImage> LandingPageImages { get; set; }
@@ -104,6 +108,8 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<Subject> Subjects { get; set; }
 
     public virtual DbSet<SubmissionFile> SubmissionFiles { get; set; }
+
+    public virtual DbSet<Subscription> Subscriptions { get; set; }
 
     public virtual DbSet<Transaction> Transactions { get; set; }
 
@@ -494,6 +500,8 @@ public partial class AppDbContext : DbContext
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.DocumentLenthType).HasColumnType("enum('Short','Medium','Long')");
+            entity.Property(e => e.DocumentLevel).HasColumnType("enum('Hard','Easy','Medium')");
             entity.Property(e => e.Name).HasMaxLength(200);
             entity.Property(e => e.Status)
                 .IsRequired()
@@ -840,6 +848,76 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.School).WithMany(p => p.ForumRules)
                 .HasForeignKey(d => d.SchoolId)
                 .HasConstraintName("forum_rules_ibfk_1");
+        });
+
+        modelBuilder.Entity<InteractiveQuestion>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("interactive_questions");
+
+            entity.HasIndex(e => e.LessonId, "LessonId");
+
+            entity.Property(e => e.CorrectAnswer)
+                .HasComment("Đáp án đúng nếu là câu hỏi dạng text")
+                .HasColumnType("text");
+            entity.Property(e => e.CorrectIndex).HasComment("Chỉ số đáp án đúng (0-based) nếu là MC");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Options)
+                .HasComment("Danh sách lựa chọn (JSON array) nếu là MC")
+                .HasColumnType("json");
+            entity.Property(e => e.QuestionText).HasColumnType("text");
+            entity.Property(e => e.TimeSec).HasComment("Thời điểm tính bằng giây trong video");
+            entity.Property(e => e.Type)
+                .HasDefaultValueSql("'mc'")
+                .HasComment("mc = multiple choice, text = trả lời tự do")
+                .HasColumnType("enum('mc','text')");
+            entity.Property(e => e.UpdatedAt)
+                .ValueGeneratedOnAddOrUpdate()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Lesson).WithMany(p => p.InteractiveQuestions)
+                .HasForeignKey(d => d.LessonId)
+                .HasConstraintName("interactive_questions_ibfk_1");
+        });
+
+        modelBuilder.Entity<InteractiveResponse>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("interactive_responses");
+
+            entity.HasIndex(e => e.AppUserId, "AppUserId");
+
+            entity.HasIndex(e => e.LessonId, "LessonId");
+
+            entity.HasIndex(e => e.QuestionId, "QuestionId");
+
+            entity.Property(e => e.AnswerText)
+                .HasComment("Câu trả lời nếu dạng text")
+                .HasColumnType("text");
+            entity.Property(e => e.AppUserId).HasComment("Người học trả lời (nullable cho khách)");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.IsCorrect).HasComment("TRUE = đúng, FALSE = sai, NULL = không xác định");
+            entity.Property(e => e.SelectedIndex).HasComment("Chỉ số lựa chọn nếu dạng MC");
+
+            entity.HasOne(d => d.AppUser).WithMany(p => p.InteractiveResponses)
+                .HasForeignKey(d => d.AppUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("interactive_responses_ibfk_3");
+
+            entity.HasOne(d => d.Lesson).WithMany(p => p.InteractiveResponses)
+                .HasForeignKey(d => d.LessonId)
+                .HasConstraintName("interactive_responses_ibfk_2");
+
+            entity.HasOne(d => d.Question).WithMany(p => p.InteractiveResponses)
+                .HasForeignKey(d => d.QuestionId)
+                .HasConstraintName("interactive_responses_ibfk_1");
         });
 
         modelBuilder.Entity<LandingPage>(entity =>
@@ -1213,6 +1291,31 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.SubmissionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_SubmissionFiles_Submissions");
+        });
+
+        modelBuilder.Entity<Subscription>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("subscriptions");
+
+            entity.HasIndex(e => e.AppUserId, "AppUserId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.EndAt).HasColumnType("datetime");
+            entity.Property(e => e.IsActive)
+                .IsRequired()
+                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.PackageName).HasMaxLength(200);
+            entity.Property(e => e.Price).HasPrecision(12, 2);
+            entity.Property(e => e.StartAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.AppUser).WithMany(p => p.Subscriptions)
+                .HasForeignKey(d => d.AppUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("subscriptions_ibfk_1");
         });
 
         modelBuilder.Entity<Transaction>(entity =>

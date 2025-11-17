@@ -1,6 +1,6 @@
 using System;
 
-namespace StudyHub.Backend.Api.Dtos
+namespace StudyHub.Backend.Api.Dtos.PaymentDTOS
 {
     public class TransactionDto
     {

@@ -42,6 +42,12 @@ const DocumentSearchHeader = ({
           <SelectItem value="newest">Mới nhất</SelectItem>
           <SelectItem value="oldest">Cũ nhất</SelectItem>
           <SelectItem value="name">Tên A-Z</SelectItem>
+          <SelectItem value="length-short">Độ dài: Ngắn</SelectItem>
+          <SelectItem value="length-medium">Độ dài: Trung bình</SelectItem>
+          <SelectItem value="length-long">Độ dài: Dài</SelectItem>
+          <SelectItem value="level-easy">Độ khó: Dễ</SelectItem>
+          <SelectItem value="level-medium">Độ khó: Trung bình</SelectItem>
+          <SelectItem value="level-hard">Độ khó: Khó</SelectItem>
         </SelectContent>
       </Select>
     </div>

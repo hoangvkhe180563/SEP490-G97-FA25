@@ -62,7 +62,25 @@ const DocumentList = () => {
     }));
     setCurrentPage(1);
   };
+  const handleDocumentLengthChange = (length: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      selectedDocumentLengths: prev.selectedDocumentLengths.includes(length)
+        ? prev.selectedDocumentLengths.filter((l) => l !== length)
+        : [...prev.selectedDocumentLengths, length],
+    }));
+    setCurrentPage(1);
+  };
 
+  const handleDocumentLevelChange = (level: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      selectedDocumentLevels: prev.selectedDocumentLevels.includes(level)
+        ? prev.selectedDocumentLevels.filter((l) => l !== level)
+        : [...prev.selectedDocumentLevels, level],
+    }));
+    setCurrentPage(1);
+  };
   const handleSubjectChange = (subject: string) => {
     setFilters((prev) => ({
       ...prev,
@@ -115,6 +133,10 @@ const DocumentList = () => {
           onSubjectChange={handleSubjectChange}
           selectedCategories={filters.selectedCategories}
           onCategoryChange={handleCategoryChange}
+          selectedDocumentLengths={filters.selectedDocumentLengths}
+          onDocumentLengthChange={handleDocumentLengthChange}
+          selectedDocumentLevels={filters.selectedDocumentLevels}
+          onDocumentLevelChange={handleDocumentLevelChange}
           hasSchoolAccess={hasSchoolAccess}
         />
       }

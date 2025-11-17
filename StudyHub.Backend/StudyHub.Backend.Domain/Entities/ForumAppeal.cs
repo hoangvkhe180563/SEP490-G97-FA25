@@ -8,6 +8,7 @@ namespace StudyHub.Backend.Domain.Entities
         public int SchoolId { get; set; }
         public string Reason { get; set; } = string.Empty;
         public bool? Status { get; set; }
+        public string? query { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public Guid? UpdatedBy { get; set; }

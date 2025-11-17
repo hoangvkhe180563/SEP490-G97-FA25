@@ -18,7 +18,7 @@ const DocumentListLayout = ({
       <div className="shrink-0 px-6 py-4 bg-white border-b">
         <div className="mb-3">
           <h1 className="text-2xl font-bold text-gray-800 mb-1">
-            📚 Thư viện tài liệu
+            Thư viện tài liệu
           </h1>
           <p className="text-sm text-gray-600">
             Khám phá và tải xuống tài liệu học tập chất lượng cao

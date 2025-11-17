@@ -18,6 +18,8 @@ interface LectureState {
   fetchChapter: (id: number) => Promise<ChapterListDto | undefined>;
   fetchLessons: (chapterId: number) => Promise<LessonListDto[]>;
   fetchLesson: (id: number) => Promise<LessonListDto | undefined>;
+  fetchInteractiveQuestions: (lessonId: number) => Promise<any[]>;
+  submitInteractiveResponse: (lessonId: number, payload: any) => Promise<any>;
   createLesson: (dto: LessonDto) => Promise<LessonListDto | undefined>;
   updateLesson: (
     id: number,
@@ -90,6 +92,27 @@ export const useLectureStore = create<LectureState>((set: any) => ({
     } catch (e) {
       set({ loading: false });
       return undefined;
+    }
+  },
+  fetchInteractiveQuestions: async (lessonId: number) => {
+    set({ loading: true });
+    try {
+      const items = await courseApi.getInteractiveQuestions(lessonId);
+      set({ loading: false });
+      return items;
+    } catch (e) {
+      console.error("fetchInteractiveQuestions failed", e);
+      set({ loading: false });
+      return [];
+    }
+  },
+  submitInteractiveResponse: async (lessonId: number, payload: any) => {
+    try {
+      const res = await courseApi.submitInteractiveResponse(lessonId, payload);
+      return res;
+    } catch (e) {
+      console.error("submitInteractiveResponse failed", e);
+      throw e;
     }
   },
   createLesson: async (dto: any) => {

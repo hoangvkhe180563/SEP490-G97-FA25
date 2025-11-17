@@ -40,6 +40,7 @@ import type {
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { formatISO } from "date-fns";
 
 const EditCourse: React.FC = () => {
   const navigate = useNavigate();
@@ -79,6 +80,10 @@ const EditCourse: React.FC = () => {
   const [gradeId, setGradeId] = useState<number | "">("");
   const [status, setStatus] = useState<string>("");
   const [isFeatured, setIsFeatured] = useState<boolean>(false);
+  const [difficulty, setDifficulty] = useState<
+    "Beginner" | "Intermediate" | "Advanced"
+  >("Beginner");
+  const [length, setLength] = useState<"Short" | "Medium" | "Long">("Short");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
   const [saving, setSaving] = useState(false);
@@ -148,6 +153,8 @@ const EditCourse: React.FC = () => {
         setGradeId("");
         setStatus("");
         setIsFeatured(false);
+        setDifficulty("Beginner");
+        setLength("Short");
         setChaptersLocal([]);
         setStartAt("");
         setEndAt("");
@@ -162,20 +169,24 @@ const EditCourse: React.FC = () => {
       );
       setStatus(selectedCourse.status ?? undefined);
       setIsFeatured((selectedCourse as any).isFeatured ?? false);
-      setStartAt(formatDate(selectedCourse.startAt));
-      setEndAt(formatDate(selectedCourse.endAt));
+      setStartAt(
+        selectedCourse.startAt
+          ? formatISO(new Date(selectedCourse.startAt)).slice(0, 10)
+          : ""
+      );
+      setEndAt(
+        selectedCourse.endAt
+          ? formatISO(new Date(selectedCourse.endAt)).slice(0, 10)
+          : ""
+      );
+      setDifficulty((selectedCourse as any).difficulty ?? "Beginner");
+      setLength((selectedCourse as any).length ?? "Short");
     }
 
     return () => {
       mounted = false;
     };
   }, [courseId, selectedCourse]);
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "";
-    const d = new Date(dateString);
-    return d.toISOString().split("T")[0];
-  };
 
   // Validation for fields before save
   const validateForm = () => {
@@ -496,6 +507,50 @@ const EditCourse: React.FC = () => {
         title: "Thất bại",
         message: "Cập nhật không khả dụng",
       });
+    // Validate modal chapter postDate against course start/end (if provided)
+    try {
+      const pdRaw: any = (modalChapter as any).postDate ?? null;
+      if (pdRaw) {
+        const pd = pdRaw instanceof Date ? pdRaw : new Date(pdRaw);
+        if (isNaN(pd.getTime())) {
+          setDialog({
+            open: true,
+            title: "Lỗi",
+            message: "Ngày đăng phần không hợp lệ.",
+          });
+          return;
+        }
+
+        if (startAt) {
+          const s = new Date(startAt);
+          if (!isNaN(s.getTime()) && pd < s) {
+            setDialog({
+              open: true,
+              title: "Lỗi ngày",
+              message:
+                "Ngày đăng phần phải lớn hơn hoặc bằng ngày bắt đầu khóa học.",
+            });
+            return;
+          }
+        }
+
+        if (endAt) {
+          const e = new Date(endAt);
+          if (!isNaN(e.getTime()) && pd > e) {
+            setDialog({
+              open: true,
+              title: "Lỗi ngày",
+              message:
+                "Ngày đăng phần phải nhỏ hơn hoặc bằng ngày kết thúc khóa học.",
+            });
+            return;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Chapter date validation failed", err);
+    }
+
     setChapterModalSaving(true);
     try {
       const dto: any = {
@@ -621,7 +676,11 @@ const EditCourse: React.FC = () => {
                   setDialog({
                     open: true,
                     title: "Thiếu hoặc sai thông tin",
-                    message: errors.map((err, index) => (<React.Fragment key={`err-${index}`}>{err} {index < errors.length - 1 && <br />}</React.Fragment>)),
+                    message: errors.map((err, index) => (
+                      <React.Fragment key={`err-${index}`}>
+                        {err} {index < errors.length - 1 && <br />}
+                      </React.Fragment>
+                    )),
                   });
                   return;
                 }
@@ -657,6 +716,8 @@ const EditCourse: React.FC = () => {
                     information,
                     imageUrl:
                       thumbnailPreview ?? selectedCourse?.imageUrl ?? null,
+                    difficulty,
+                    length,
                     price: price ?? 0,
                     schoolId: authUser?.schoolId ?? null,
                     subjectId:
@@ -670,10 +731,10 @@ const EditCourse: React.FC = () => {
                     chapters: chaptersPayload,
                     isFeatured: isFeatured,
                     status: status ?? null,
-                    startAt: startAt ? new Date(startAt).toISOString() : null,
-                    endAt: endAt ? new Date(endAt).toISOString() : null,
-                    updatedAt: new Date().toISOString(),
-                    UpdatedBy: authUser?.id,
+                    startAt: startAt ? formatISO(new Date(startAt)) : null,
+                    endAt: endAt ? formatISO(new Date(endAt)) : null,
+                    updatedAt: formatISO(new Date()),
+                    updatedBy: authUser?.id,
                     isApproved: willOpenFromDraft
                       ? false
                       : selectedCourse?.isApproved,
@@ -904,7 +965,11 @@ const EditCourse: React.FC = () => {
                               {/* === Right: Action buttons === */}
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-[#8A8A8A] mr-3">
-                                  {l.type === "Video" ? "Video" : l.type === "Reading" ? "Đọc" : "Kiểm tra"}
+                                  {l.type === "Video"
+                                    ? "Video"
+                                    : l.type === "Reading"
+                                    ? "Đọc"
+                                    : "Kiểm tra"}
                                 </span>
 
                                 <Button
@@ -1106,6 +1171,41 @@ const EditCourse: React.FC = () => {
                         placeholder="0"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label>Độ khó</Label>
+                      <Select
+                        value={difficulty}
+                        onValueChange={(v) => setDifficulty(v as any)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Chọn độ khó" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Beginner">Cơ bản</SelectItem>
+                          <SelectItem value="Intermediate">
+                            Trung cấp
+                          </SelectItem>
+                          <SelectItem value="Advanced">Nâng cao</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Độ dài</Label>
+                      <Select
+                        value={length}
+                        onValueChange={(v) => setLength(v as any)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Chọn độ dài" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Short">Ngắn</SelectItem>
+                          <SelectItem value="Medium">Trung bình</SelectItem>
+                          <SelectItem value="Long">Dài</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="space-y-4">
                       {status === "Đóng" ? (
                         <p className="text-sm text-gray-500 mt-1 italic">
@@ -1131,18 +1231,21 @@ const EditCourse: React.FC = () => {
 
                       <div className="text-xs text-[#8A8A8A]">
                         <div>
-                          Cập nhật gần nhất{" "}
+                          Cập nhật gần nhất
                           <span className="float-right">
-                            {formatDate(
-                              selectedCourse?.updatedAt ??
-                              selectedCourse?.createdAt
-                            )}
+                            {selectedCourse?.updatedAt
+                              ? formatISO(new Date(selectedCourse.updatedAt))
+                              : selectedCourse?.createdAt
+                              ? formatISO(new Date(selectedCourse.createdAt))
+                              : "-"}
                           </span>
                         </div>
                         <div>
-                          Được tạo vào{" "}
+                          Được tạo vào
                           <span className="float-right">
-                            {formatDate(selectedCourse?.createdAt)}
+                            {selectedCourse?.createdAt
+                              ? formatISO(new Date(selectedCourse.createdAt))
+                              : "-"}
                           </span>
                         </div>
                       </div>
@@ -1219,9 +1322,9 @@ const EditCourse: React.FC = () => {
                       type="date"
                       value={
                         (modalChapter as any).postDate
-                          ? new Date((modalChapter as any).postDate)
-                            .toISOString()
-                            .slice(0, 10)
+                          ? formatISO(
+                              new Date((modalChapter as any).postDate)
+                            ).slice(0, 10)
                           : ""
                       }
                       onChange={(e) =>

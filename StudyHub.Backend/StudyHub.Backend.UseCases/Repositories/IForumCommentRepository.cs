@@ -18,7 +18,6 @@ namespace StudyHub.Backend.UseCases.Repositories
         Task<List<ForumComment>> GetRepliesByParentIdAsync(int parentCommentId);
 
         Task<(List<ForumComment> comments, int totalCount)> GetModeratorCommentsAsync(
-            int schoolId,
             int? postId = null,
             string? commentStatus = null,
             int? minViolationScore = null,

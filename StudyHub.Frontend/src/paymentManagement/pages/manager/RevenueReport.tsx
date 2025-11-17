@@ -15,7 +15,7 @@ import {
   SelectItem,
 } from "@/common/components/ui/select";
 import { Separator } from "@/common/components/ui/separator";
-import { format, parseISO } from "date-fns";
+import { format, formatISO } from "date-fns";
 import { transactionService } from "@/paymentManagement/services/transactionService";
 import { useTransactionStore } from "@/paymentManagement/stores/useTransactionStore";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
@@ -47,7 +47,7 @@ const RevenueReport: React.FC = () => {
     monday.setDate(today.getDate() - diffToMonday);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    const fmt = (d: Date) => formatISO(d).slice(0, 10);
     setFrom(fmt(monday));
     setTo(fmt(sunday));
 
@@ -168,6 +168,49 @@ const RevenueReport: React.FC = () => {
     return { labels, values };
   }, [mode, filtered, courses]);
 
+  // summary metrics
+  const summary = useMemo(() => {
+    const totalRevenue = (filtered || []).reduce(
+      (s, t) => s + Number(t.amount ?? 0),
+      0
+    );
+    const txCount = (filtered || []).length;
+    const avg = txCount > 0 ? totalRevenue / txCount : 0;
+
+    // top courses by revenue
+    const courseMap = new Map<string, number>();
+    for (const t of filtered) {
+      const cid = t.courseId ? String(t.courseId) : "(none)";
+      courseMap.set(cid, (courseMap.get(cid) ?? 0) + Number(t.amount ?? 0));
+    }
+    const courseEntries = Array.from(courseMap.entries()).sort(
+      (a, b) => b[1] - a[1]
+    );
+    const topCourses = courseEntries.slice(0, 5).map(([cid, amt]) => {
+      const c = (courses || []).find((x: any) => String(x.id) === cid);
+      return { id: cid, name: c ? c.name : cid, amount: amt };
+    });
+
+    // top teachers by revenue (best-effort using course.createdBy)
+    const teacherMap = new Map<string, number>();
+    for (const t of filtered) {
+      const c = (courses || []).find(
+        (x: any) => String(x.id) === String(t.courseId)
+      );
+      const tid = c ? String(c.createdBy) : "(unknown)";
+      teacherMap.set(tid, (teacherMap.get(tid) ?? 0) + Number(t.amount ?? 0));
+    }
+    const teacherEntries = Array.from(teacherMap.entries()).sort(
+      (a, b) => b[1] - a[1]
+    );
+    const topTeachers = teacherEntries.slice(0, 5).map(([tid, amt]) => {
+      const t = teachers.find((x: any) => String(x.id) === tid);
+      return { id: tid, name: t ? t.fullname || t.username : tid, amount: amt };
+    });
+
+    return { totalRevenue, txCount, avg, topCourses, topTeachers };
+  }, [filtered, courses, teachers]);
+
   const exportRevenueCsv = async () => {
     const txStore = useTransactionStore.getState();
     const opts = {
@@ -183,9 +226,7 @@ const RevenueReport: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `revenue_report_${new Date()
-        .toISOString()
-        .slice(0, 10)}.csv`;
+      a.download = `revenue_report_${formatISO(new Date()).slice(0, 10)}.csv`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -222,9 +263,7 @@ const RevenueReport: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `revenue_report_${new Date()
-        .toISOString()
-        .slice(0, 10)}.doc`;
+      a.download = `revenue_report_${formatISO(new Date()).slice(0, 10)}.doc`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -235,7 +274,7 @@ const RevenueReport: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto h-full overflow-y-auto scrollbar-hide">
       <Card className="shadow-lg border border-gray-200">
         <CardHeader>
           <CardTitle className="text-2xl flex items-center justify-between">
@@ -262,6 +301,49 @@ const RevenueReport: React.FC = () => {
         </CardHeader>
         <Separator />
         <CardContent>
+          {/* Top summary cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div className="p-4 rounded shadow-sm border-l-4 border-emerald-500 bg-gradient-to-r from-emerald-50 to-white flex flex-col">
+              <div className="text-xs text-emerald-600">Tổng doanh thu</div>
+              <div className="text-2xl font-extrabold mt-2 text-emerald-800">
+                {summary.totalRevenue.toLocaleString()}₫
+              </div>
+              <div className="text-xs text-emerald-500 mt-1">
+                Từ bộ lọc hiện tại
+              </div>
+            </div>
+            <div className="p-4 rounded shadow-sm border-l-4 border-sky-500 bg-gradient-to-r from-sky-50 to-white flex flex-col">
+              <div className="text-xs text-sky-600">Số giao dịch</div>
+              <div className="text-2xl font-extrabold mt-2 text-sky-800">
+                {summary.txCount}
+              </div>
+              <div className="text-xs text-sky-500 mt-1">Giao dịch phù hợp</div>
+            </div>
+            <div className="p-4 rounded shadow-sm border-l-4 border-amber-500 bg-gradient-to-r from-amber-50 to-white flex flex-col">
+              <div className="text-xs text-amber-600">
+                Trung bình / giao dịch
+              </div>
+              <div className="text-2xl font-extrabold mt-2 text-amber-800">
+                {summary.avg.toLocaleString(undefined, {
+                  maximumFractionDigits: 0,
+                })}
+                ₫
+              </div>
+              <div className="text-xs text-amber-500 mt-1">
+                Giá trị trung bình
+              </div>
+            </div>
+            <div className="p-4 rounded shadow-sm border-l-4 border-violet-500 bg-gradient-to-r from-violet-50 to-white flex flex-col">
+              <div className="text-xs text-violet-600">Khóa học hàng đầu</div>
+              <div className="text-lg font-semibold mt-2 text-violet-800">
+                {summary.topCourses[0]?.name ?? "-"}
+              </div>
+              <div className="text-xs text-violet-500 mt-1">
+                {summary.topCourses[0]?.amount?.toLocaleString() ?? "0"}₫
+              </div>
+            </div>
+          </div>
+
           <div className="flex flex-col md:flex-row gap-3 mb-4 items-end">
             <div className="flex items-center gap-2">
               <div className="text-sm text-slate-600">Từ</div>
@@ -352,24 +434,23 @@ const RevenueReport: React.FC = () => {
                   <Button
                     size="sm"
                     onClick={() => {
-                      // tuần này: từ thứ 2 -> chủ nhật của tuần hiện tại
                       const today = new Date();
-                      const day = today.getDay(); // 0 (Sun) - 6 (Sat)
+                      const day = today.getDay();
                       const diffToMonday = (day + 6) % 7;
                       const monday = new Date(today);
                       monday.setDate(today.getDate() - diffToMonday);
                       const sunday = new Date(monday);
                       sunday.setDate(monday.getDate() + 6);
-                      setFrom(monday.toISOString().slice(0, 10));
-                      setTo(sunday.toISOString().slice(0, 10));
+                      setFrom(formatISO(monday).slice(0, 10));
+                      setTo(formatISO(sunday).slice(0, 10));
                     }}
+                    className="bg-slate-100 text-slate-700 hover:bg-slate-200"
                   >
                     Tuần này
                   </Button>
                   <Button
                     size="sm"
                     onClick={() => {
-                      // 30 ngày: hiện từ đầu tháng đến cuối tháng (tháng hiện tại)
                       const now = new Date();
                       const startOfMonth = new Date(
                         now.getFullYear(),
@@ -381,22 +462,23 @@ const RevenueReport: React.FC = () => {
                         now.getMonth() + 1,
                         0
                       );
-                      setFrom(startOfMonth.toISOString().slice(0, 10));
-                      setTo(endOfMonth.toISOString().slice(0, 10));
+                      setFrom(formatISO(startOfMonth).slice(0, 10));
+                      setTo(formatISO(endOfMonth).slice(0, 10));
                     }}
+                    className="bg-slate-100 text-slate-700 hover:bg-slate-200"
                   >
                     30 ngày
                   </Button>
                   <Button
                     size="sm"
                     onClick={() => {
-                      // 1 năm: từ đầu năm đến cuối năm
                       const now = new Date();
                       const startOfYear = new Date(now.getFullYear(), 0, 1);
                       const endOfYear = new Date(now.getFullYear(), 11, 31);
-                      setFrom(startOfYear.toISOString().slice(0, 10));
-                      setTo(endOfYear.toISOString().slice(0, 10));
+                      setFrom(formatISO(startOfYear).slice(0, 10));
+                      setTo(formatISO(endOfYear).slice(0, 10));
                     }}
+                    className="bg-slate-100 text-slate-700 hover:bg-slate-200"
                   >
                     1 năm
                   </Button>
@@ -415,8 +497,9 @@ const RevenueReport: React.FC = () => {
                 >
                   <defs>
                     <linearGradient id="revGrad" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor="#60a5fa" />
-                      <stop offset="100%" stopColor="#1e3a8a" />
+                      <stop offset="0%" stopColor="#7c3aed" />
+                      <stop offset="60%" stopColor="#60a5fa" />
+                      <stop offset="100%" stopColor="#06b6d4" />
                     </linearGradient>
                   </defs>
                   {(() => {
@@ -477,6 +560,84 @@ const RevenueReport: React.FC = () => {
                   </ul>
                 </div>
               ) : null}
+            </div>
+          </div>
+
+          {/* Top lists: courses and teachers */}
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <div className="p-4 rounded bg-gradient-to-br from-white via-slate-50 to-white border shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm text-slate-600">
+                  Top khóa học (theo doanh thu)
+                </div>
+                <div className="text-xs text-slate-400">Top 5</div>
+              </div>
+              <div className="space-y-2">
+                {summary.topCourses.length === 0 ? (
+                  <div className="text-sm text-slate-500">Không có dữ liệu</div>
+                ) : (
+                  summary.topCourses.map((c: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            i === 0
+                              ? "bg-emerald-500"
+                              : i === 1
+                              ? "bg-sky-500"
+                              : i === 2
+                              ? "bg-amber-500"
+                              : i === 3
+                              ? "bg-violet-500"
+                              : "bg-slate-300"
+                          }`}
+                        ></span>
+                        <span className="truncate text-sm">{c.name}</span>
+                      </div>
+                      <div className="text-sm font-medium text-slate-800">
+                        {c.amount.toLocaleString()}₫
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="p-4 rounded bg-gradient-to-br from-white via-slate-50 to-white border shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm text-slate-600">
+                  Top giảng viên (theo doanh thu)
+                </div>
+                <div className="text-xs text-slate-400">Top 5</div>
+              </div>
+              <div className="space-y-2">
+                {summary.topTeachers.length === 0 ? (
+                  <div className="text-sm text-slate-500">Không có dữ liệu</div>
+                ) : (
+                  summary.topTeachers.map((t: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            i === 0
+                              ? "bg-emerald-500"
+                              : i === 1
+                              ? "bg-sky-500"
+                              : i === 2
+                              ? "bg-amber-500"
+                              : i === 3
+                              ? "bg-violet-500"
+                              : "bg-slate-300"
+                          }`}
+                        ></span>
+                        <span className="truncate text-sm">{t.name}</span>
+                      </div>
+                      <div className="text-sm font-medium text-slate-800">
+                        {t.amount.toLocaleString()}₫
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
 

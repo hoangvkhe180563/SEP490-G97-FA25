@@ -58,7 +58,13 @@ function FilterBar({
   const [openPopover, setOpenPopover] = useState<string | null>(null);
 
   const toggleFilter = (
-    type: "grade" | "subject" | "category" | "accessType",
+    type:
+      | "grade"
+      | "subject"
+      | "category"
+      | "accessType"
+      | "documentLength"
+      | "documentLevel",
     value: number | string
   ) => {
     setFilters({
@@ -85,6 +91,20 @@ function FilterBar({
           ? filters.selectedAccessTypes.filter((v) => v !== value)
           : [...filters.selectedAccessTypes, value as string],
       }),
+      ...(type === "documentLength" && {
+        selectedDocumentLengths: (
+          filters.selectedDocumentLengths || []
+        ).includes(value as string)
+          ? (filters.selectedDocumentLengths || []).filter((v) => v !== value)
+          : [...(filters.selectedDocumentLengths || []), value as string],
+      }),
+      ...(type === "documentLevel" && {
+        selectedDocumentLevels: (filters.selectedDocumentLevels || []).includes(
+          value as string
+        )
+          ? (filters.selectedDocumentLevels || []).filter((v) => v !== value)
+          : [...(filters.selectedDocumentLevels || []), value as string],
+      }),
     });
   };
 
@@ -106,6 +126,8 @@ function FilterBar({
     filters.selectedSubjects.length > 0 ||
     filters.selectedCategories.length > 0 ||
     filters.selectedAccessTypes.length > 0 ||
+    (filters.selectedDocumentLengths?.length || 0) > 0 ||
+    (filters.selectedDocumentLevels?.length || 0) > 0 ||
     filters.approvalStatus !== "all";
 
   const getFilterLabel = (type: string, count: number) => {
@@ -301,6 +323,108 @@ function FilterBar({
           </Popover>
         )}
 
+        <Popover
+          open={openPopover === "documentLength"}
+          onOpenChange={(open) =>
+            setOpenPopover(open ? "documentLength" : null)
+          }
+        >
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={`h-9 text-sm ${
+                (filters.selectedDocumentLengths?.length || 0) > 0
+                  ? "bg-amber-50 text-amber-700 border-amber-300"
+                  : ""
+              }`}
+            >
+              Độ dài
+              {(filters.selectedDocumentLengths?.length || 0) > 0
+                ? ` (${filters.selectedDocumentLengths.length})`
+                : ""}
+              <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3" align="start">
+            <div className="space-y-2">
+              {["Short", "Medium", "Long"].map((length) => (
+                <div key={length} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`length-${length}`}
+                    checked={
+                      filters.selectedDocumentLengths?.includes(length) || false
+                    }
+                    onCheckedChange={() =>
+                      toggleFilter("documentLength", length)
+                    }
+                  />
+                  <label
+                    htmlFor={`length-${length}`}
+                    className="text-sm font-normal cursor-pointer flex-1"
+                  >
+                    {length === "Short"
+                      ? "Ngắn"
+                      : length === "Medium"
+                      ? "Trung bình"
+                      : "Dài"}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <Popover
+          open={openPopover === "documentLevel"}
+          onOpenChange={(open) => setOpenPopover(open ? "documentLevel" : null)}
+        >
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={`h-9 text-sm ${
+                (filters.selectedDocumentLevels?.length || 0) > 0
+                  ? "bg-red-50 text-red-700 border-red-300"
+                  : ""
+              }`}
+            >
+              Độ khó
+              {(filters.selectedDocumentLevels?.length || 0) > 0
+                ? ` (${filters.selectedDocumentLevels.length})`
+                : ""}
+              <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3" align="start">
+            <div className="space-y-2">
+              {["Easy", "Medium", "Hard"].map((level) => (
+                <div key={level} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`level-${level}`}
+                    checked={
+                      filters.selectedDocumentLevels?.includes(level) || false
+                    }
+                    onCheckedChange={() => toggleFilter("documentLevel", level)}
+                  />
+                  <label
+                    htmlFor={`level-${level}`}
+                    className="text-sm font-normal cursor-pointer flex-1"
+                  >
+                    {level === "Easy"
+                      ? "Dễ"
+                      : level === "Medium"
+                      ? "Trung bình"
+                      : "Khó"}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+
         {hasActiveFilters && (
           <Button
             type="button"
@@ -470,7 +594,7 @@ function DocumentGrid({
 
   return (
     <ScrollArea className="flex-1">
-      <div className={`p-6 grid ${gridColsClass} gap-4`}>
+      <div className={`p-6 pr-4 grid ${gridColsClass} gap-4`}>
         {documents.map((doc) => (
           <OwnedDocumentItem
             key={doc.id}

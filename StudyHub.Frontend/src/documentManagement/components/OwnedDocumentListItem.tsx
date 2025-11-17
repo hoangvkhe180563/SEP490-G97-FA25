@@ -56,7 +56,7 @@ export default function OwnedDocumentListItem({
 
   return (
     <div
-      className="group grid grid-cols-[32px_1fr_90px_90px_120px_90px_90px_32px] items-center gap-3 px-4 py-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors"
+      className="group grid grid-cols-[32px_1fr_90px_90px_120px_80px_80px_90px_90px_32px] items-center gap-3 px-4 py-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors"
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
@@ -86,6 +86,22 @@ export default function OwnedDocumentListItem({
 
       <span className="text-xs text-slate-500 truncate">
         {document.subjectName || "-"}
+      </span>
+
+      <span className="text-xs text-slate-500">
+        {document.documentLengthType === "Short"
+          ? "Ngắn"
+          : document.documentLengthType === "Medium"
+          ? "TB"
+          : "Dài"}
+      </span>
+
+      <span className="text-xs text-slate-500">
+        {document.documentLevel === "Easy"
+          ? "Dễ"
+          : document.documentLevel === "Medium"
+          ? "TB"
+          : "Khó"}
       </span>
 
       <Badge

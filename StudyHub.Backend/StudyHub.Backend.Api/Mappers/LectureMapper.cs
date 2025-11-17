@@ -65,6 +65,18 @@ namespace StudyHub.Backend.Api.Mappers
             ResourceId = l.ResourceId
         };
 
+        // map interactive question dto when present
+        public static InteractiveQuestionDto ToDto(this Domain.Entities.InteractiveQuestion q) => new InteractiveQuestionDto
+        {
+            Id = q.Id,
+            TimeSec = q.TimeSec,
+            Question = q.QuestionText,
+            Type = q.Type,
+            Options = string.IsNullOrEmpty(q.OptionsJson) ? null : System.Text.Json.JsonSerializer.Deserialize<List<string>>(q.OptionsJson),
+            CorrectIndex = q.CorrectIndex,
+            CorrectAnswer = q.CorrectAnswer
+        };
+
         // ======================
         // 🔹 ChapterDto → Chapter
         // ======================
@@ -108,6 +120,20 @@ namespace StudyHub.Backend.Api.Mappers
                 IsPreview = dto.IsPreview,
                 ResourceId = dto.ResourceId
             };
+
+            // map interactive questions into domain entities (no IDs yet)
+            if (dto.InteractiveQuestions != null && dto.InteractiveQuestions.Any())
+            {
+                lesson.GetType().GetProperty("InteractiveQuestions")?.SetValue(lesson, dto.InteractiveQuestions.Select(i => new Domain.Entities.InteractiveQuestion
+                {
+                    TimeSec = i.TimeSec,
+                    QuestionText = i.Question,
+                    Type = i.Type,
+                    OptionsJson = i.Options != null ? System.Text.Json.JsonSerializer.Serialize(i.Options) : null,
+                    CorrectIndex = i.CorrectIndex,
+                    CorrectAnswer = i.CorrectAnswer
+                }).ToList());
+            }
 
             if (!string.IsNullOrEmpty(dto.VideoUrl))
                 lesson.LessonVideo = new LessonVideo { Url = dto.VideoUrl };
