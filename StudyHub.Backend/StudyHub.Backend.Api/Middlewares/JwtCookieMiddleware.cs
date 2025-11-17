@@ -1,7 +1,4 @@
-﻿using Microsoft.IdentityModel.Tokens;
-using System.Text.Json;
-
-namespace StudyHub.Backend.Api.Middleware
+﻿namespace StudyHub.Backend.Api.Middlewares
 {
     public class JwtCookieMiddleware
     {

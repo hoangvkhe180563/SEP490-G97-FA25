@@ -23,11 +23,11 @@ public partial class Course
 
     public bool IsFeatured { get; set; }
 
+    public sbyte Difficulty { get; set; }
+
+    public sbyte Length { get; set; }
+
     public string Status { get; set; } = null!;
-
-    public short Difficulty { get; set; }
-
-    public short Length { get; set; }
 
     public DateTime CreatedAt { get; set; }
 

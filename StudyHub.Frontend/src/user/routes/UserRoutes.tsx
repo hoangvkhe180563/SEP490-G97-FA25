@@ -5,11 +5,13 @@ import AccountList from "../pages/manager/AccountList";
 import UpdateAccount from "../pages/manager/UpdateAccount";
 import ManagerLayout from "../components/layouts/ManagerLayout";
 import UpdateProfile from "../pages/UpdateProfile";
+import AccountRecoveryList from "../pages/manager/AccountRecoveryList";
+import AccountDashboard from "../pages/manager/AccountDashboard";
 
 const managerRoutes = [
   {
     index: true,
-    element: <div>Dashboard</div>,
+    element: <AccountDashboard />,
   },
   {
     path: UserRouteConfig.MANAGER.ACCOUNT_LIST,
@@ -22,6 +24,10 @@ const managerRoutes = [
   {
     path: UserRouteConfig.MANAGER.UPDATE_ACCOUNT,
     element: <UpdateAccount />,
+  },
+  {
+    path: UserRouteConfig.MANAGER.ACCOUNT_RECOVERY_LIST,
+    element: <AccountRecoveryList />,
   },
 ];
 

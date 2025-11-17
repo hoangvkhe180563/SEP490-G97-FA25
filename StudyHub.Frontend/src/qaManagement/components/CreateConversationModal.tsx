@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { Input } from "@/common/components/ui/input";
 import {
   Tooltip,
@@ -43,8 +43,7 @@ const CreateConversationModal: React.FC<CreateConversationModalProps> = ({
   createOpen,
 }) => {
   const navigate = useNavigate();
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const contentRef = useRef<HTMLDivElement | null>(null);
+
   const [cTitle, setCTitle] = useState("");
   const [cTopicId, setCTopicId] = useState<string>("0");
   const [cSubjectId, setCSubjectId] = useState<string>("0");
@@ -106,28 +105,7 @@ const CreateConversationModal: React.FC<CreateConversationModalProps> = ({
     checkSub();
   }, [createOpen, fetchActive]);
 
-  // ensure clicking outside the modal closes it and that the trigger is blurred
-  useEffect(() => {
-    if (!createOpen) return;
-    const onDocMouseDown = (e: MouseEvent) => {
-      const target = e.target as Node | null;
-      if (
-        contentRef.current &&
-        !contentRef.current.contains(target) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(target)
-      ) {
-        setCreateOpen(false);
-        try {
-          triggerRef.current.blur();
-        } catch (err) {
-          // ignore
-        }
-      }
-    };
-    document.addEventListener("mousedown", onDocMouseDown);
-    return () => document.removeEventListener("mousedown", onDocMouseDown);
-  }, [createOpen, setCreateOpen]);
+  // Removed outside-click handler: modal now closes only via the Cancel button or programmatic calls.
 
   // handle subject change: set subject, pick default topic for subject,
   // fetch teachers for that subject and auto-select the first teacher if available
@@ -195,13 +173,6 @@ const CreateConversationModal: React.FC<CreateConversationModalProps> = ({
 
   const handleOpenChange = (open: boolean) => {
     setCreateOpen(open);
-    if (!open) {
-      try {
-        triggerRef.current?.blur();
-      } catch (err) {
-        /* ignore */
-      }
-    }
   };
 
   return (
@@ -211,12 +182,7 @@ const CreateConversationModal: React.FC<CreateConversationModalProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <AlertDialogTrigger asChild>
-                <Button
-                  variant="default"
-                  size="icon"
-                  className="rounded-full"
-                  ref={triggerRef}
-                >
+                <Button variant="default" size="icon" className="rounded-full">
                   <Plus className="w-20 h-20" />
                 </Button>
               </AlertDialogTrigger>
@@ -227,7 +193,7 @@ const CreateConversationModal: React.FC<CreateConversationModalProps> = ({
           </Tooltip>
         </TooltipProvider>
 
-        <AlertDialogContent ref={contentRef as any}>
+        <AlertDialogContent>
           {hasActiveSub === null ? (
             <>
               <AlertDialogHeader>

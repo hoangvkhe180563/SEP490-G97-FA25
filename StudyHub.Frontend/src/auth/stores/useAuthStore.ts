@@ -28,6 +28,13 @@ export const useAuthStore = create<AuthState>()(
       forgotPasswordError: null,
       resetPasswordError: null,
       handlerGoogleCallbackError: "",
+      // Account inactive modal state
+      accountInactiveOpen: false,
+      setAccountInactiveOpen: (open: boolean) =>
+        set({ accountInactiveOpen: open }),
+      // Activate-request modal state (open a form to request account re-activation)
+      activateFormOpen: false,
+      setActivateFormOpen: (open: boolean) => set({ activateFormOpen: open }),
       login: async (
         username: string,
         email: string,
@@ -275,11 +282,30 @@ export const useAuthStore = create<AuthState>()(
             handlerSuccess();
           }
         } catch (error: unknown) {
-          set({
-            handlerGoogleCallbackError: axiosMessageErrorHandler(error),
-            isAuthenticated: false,
-            user: null,
-          });
+          // If the Google callback failed because the account is inactive,
+          // surface that as `loginError` so the LoginPage can show the inline
+          // activation prompt. Otherwise, keep the handlerGoogleCallbackError.
+          const resp = (error as any)?.response;
+          const msg = axiosMessageErrorHandler(error);
+          if (
+            resp &&
+            resp.status === 403 &&
+            resp.data &&
+            resp.data.error === "AccountInactive"
+          ) {
+            set({
+              loginError: resp.data.message || msg,
+              handlerGoogleCallbackError: msg,
+              isAuthenticated: false,
+              user: null,
+            });
+          } else {
+            set({
+              handlerGoogleCallbackError: msg,
+              isAuthenticated: false,
+              user: null,
+            });
+          }
           handlerError();
           console.log(error);
         } finally {
@@ -340,6 +366,28 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config as any;
+
+    // If server indicates account inactive, open modal (unless on login page)
+    try {
+      const resp = error.response;
+      if (resp && resp.status === 403) {
+        const data = resp.data as any;
+        if (data && data.error === "AccountInactive") {
+          const path = (window.location?.pathname ?? "").toLowerCase();
+          const isLogin =
+            path.startsWith("/auth/login") ||
+            path.startsWith("/auth/register") ||
+            path.startsWith("/auth");
+          if (!isLogin) {
+            // show modal to inform user and allow logout
+            useAuthStore.getState().setAccountInactiveOpen(true);
+          }
+          return Promise.reject(error);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
 
     // Early returns
     if (!error.response) return Promise.reject(error);

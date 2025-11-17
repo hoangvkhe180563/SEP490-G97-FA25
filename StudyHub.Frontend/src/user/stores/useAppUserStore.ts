@@ -99,6 +99,7 @@ export const useAppUserStore = create<AppUserState>()(
         successCallback?: (message?: string) => void,
         errorCallback?: (message?: string) => void
       ) => {
+        console.log(dto);
         set({ isLoading: true });
         try {
           const formData = new FormData();
@@ -107,7 +108,9 @@ export const useAppUserStore = create<AppUserState>()(
           formData.append("Username", dto.username);
 
           if (dto.fullname) formData.append("Fullname", dto.fullname);
-          if (dto.dob) formData.append("Dob", String(dto.dob));
+          // include address and phoneNumber when provided
+          if (dto.address) formData.append("Address", dto.address);
+          if (dto.phoneNumber) formData.append("PhoneNumber", dto.phoneNumber);
           if (dto.communeId)
             formData.append("CommuneId", String(dto.communeId));
           if (dto.phoneNumber) formData.append("PhoneNumber", dto.phoneNumber);
@@ -200,6 +203,9 @@ export const useAppUserStore = create<AppUserState>()(
               formData.append(`RoleIds[${i}]`, String(r))
             );
           }
+          // include date of birth when provided (ISO yyyy-MM-dd expected)
+          if (typeof dto.dob !== "undefined" && dto.dob !== null)
+            formData.append("Dob", String(dto.dob));
           if ((dto as any).avatarFile)
             formData.append("AvatarFile", (dto as any).avatarFile as File);
 
@@ -255,6 +261,8 @@ export const useAppUserStore = create<AppUserState>()(
           if (dto.email) formData.append("Email", dto.email);
           if (dto.username) formData.append("Username", dto.username);
           if (dto.fullname) formData.append("Fullname", dto.fullname);
+          if (dto.address) formData.append("Address", dto.address);
+          if (dto.phoneNumber) formData.append("PhoneNumber", dto.phoneNumber);
           if (typeof dto.communeId !== "undefined")
             formData.append("CommuneId", String(dto.communeId));
           if (typeof dto.schoolId !== "undefined")
@@ -262,6 +270,9 @@ export const useAppUserStore = create<AppUserState>()(
           if (dto.gender) formData.append("Gender", String(dto.gender));
           if (dto.oldPassword) formData.append("OldPassword", dto.oldPassword);
           if (dto.newPassword) formData.append("NewPassword", dto.newPassword);
+          // include date of birth when provided (ISO yyyy-MM-dd expected)
+          if (typeof dto.dob !== "undefined" && dto.dob !== null)
+            formData.append("Dob", String(dto.dob));
           if ((dto as any).avatarFile)
             formData.append("AvatarFile", (dto as any).avatarFile as File);
           const res = await axiosInstance.put(`/AppUser/me`, formData, {

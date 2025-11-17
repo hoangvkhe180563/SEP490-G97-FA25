@@ -33,18 +33,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 var addedclass=_context.Classes.Add(classentity);
                 _context.SaveChanges();
                 classEntity.Id = addedclass.Entity.Id;
-                var classSubjectUserEntity = new Data.AppUserSubjectClass
+                var classSubjectUserEntity = new Data.AppUserClass
                 {
                     UserId = classEntity.CreatedBy,
-                    SubjectId = 1,
                     ClassId = classEntity.Id,
                     JoinDate = DateTime.Now,
                     Status = "joined"
                 };
-
-                
-               
-                _context.AppUserSubjectClasses.Add(classSubjectUserEntity);
+                _context.AppUserClasses.Add(classSubjectUserEntity);
                 _context.SaveChanges();
                 return classEntity;
             }
@@ -63,7 +59,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             if (userid == null)
             {
-                return _context.Classes.Include(c => c.AppUserSubjectClasses).Where(c => c.DeletedAt == null).Select(c => new Class
+                return _context.Classes.Include(c => c.AppUserClasses).Where(c => c.DeletedAt == null).Select(c => new Class
                 {
                     Id = c.Id,
                     Name = c.Name,
@@ -76,7 +72,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 }).OrderByDescending(c => c.CreatedAt).ToList();
             }
             // Chỉ trả về các Class entity
-            return _context.Classes.Include(c => c.AppUserSubjectClasses).Where(c => c.DeletedAt == null && c.AppUserSubjectClasses.FirstOrDefault(b => b.UserId == userid) != null).Select(c => new Class
+            return _context.Classes.Include(c => c.AppUserClasses).Where(c => c.DeletedAt == null && c.AppUserClasses.FirstOrDefault(b => b.UserId == userid) != null).Select(c => new Class
             {
                 Id = c.Id,
                 Name = c.Name,
@@ -189,7 +185,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public List<Class> GetClassByUserId(Guid userid)
         {
-            var classes = _context.AppUserSubjectClasses.Include(a => a.Class).Where(a => a.UserId.Equals(userid)).Select(
+            var classes = _context.AppUserClasses.Include(a => a.Class).Where(a => a.UserId.Equals(userid)).Select(
                 c => new Class
                 {
                     Id = c.Class.Id,
@@ -207,7 +203,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var joinedClassIds = _context.Set<Data.AppUserSubjectClass>()
+                var joinedClassIds = _context.Set<Data.AppUserClass>()
                     .Where(usc => usc.UserId == userId && usc.Status == "joined")
                     .Select(usc => usc.ClassId)
                     .Distinct()

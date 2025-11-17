@@ -221,8 +221,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     SchoolId = course.SchoolId,
                     IsFeatured = course.IsFeatured,
                     Status = course.Status,
-                    Difficulty = (short)course.Difficulty,
-                    Length = (short)course.Length,
+                    Difficulty = (sbyte)course.Difficulty,
+                    Length = (sbyte)course.Length,
                     CreatedAt = DateTime.UtcNow,
                     StartAt = course.StartAt,
                     EndAt = course.EndAt,
@@ -259,8 +259,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.SchoolId = course.SchoolId;
                 entity.IsFeatured = course.IsFeatured;
                 entity.Status = course.Status;
-                entity.Difficulty = (short)course.Difficulty;
-                entity.Length = (short)course.Length;
+                entity.Difficulty = (sbyte)course.Difficulty;
+                entity.Length = (sbyte)course.Length;
                 entity.StartAt = course.StartAt;
                 entity.EndAt = course.EndAt;
                 entity.UpdatedAt = DateTime.UtcNow;

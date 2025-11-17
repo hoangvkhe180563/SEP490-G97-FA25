@@ -68,7 +68,7 @@ const schema = z.object({
   cityId: z.string().optional(),
   provinceId: z.string().optional(),
   schoolId: z.string().optional(),
-  roleIds: z.array(z.string()).optional(),
+  roleIds: z.array(z.string()).min(1, "Phải chọn ít nhất một vai trò"),
   gender: z.union([z.literal("0"), z.literal("1"), z.literal("2")]).optional(),
   address: z.string().optional(),
   phoneNumber: z
@@ -409,8 +409,8 @@ const UpdateAccount: React.FC = () => {
         () => {
           toast.success("Cập nhật tài khoản thành công");
         },
-        () => {
-          handleMessage("Cập nhật tài khoản thất bại");
+        (msg: any) => {
+          handleMessage(msg);
         }
       );
     } catch (err: any) {
@@ -876,6 +876,12 @@ const UpdateAccount: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {formState.errors?.roleIds?.message && (
+                <p className="text-sm text-red-600 mt-2">
+                  {String(formState.errors.roleIds.message)}
+                </p>
+              )}
             </div>
           </FormItem>
         </div>

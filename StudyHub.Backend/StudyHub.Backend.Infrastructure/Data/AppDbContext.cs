@@ -11,6 +11,8 @@ public partial class AppDbContext : DbContext
     {
     }
 
+    public virtual DbSet<AccountRecoveryRequest> AccountRecoveryRequests { get; set; }
+
     public virtual DbSet<AppPolicy> AppPolicies { get; set; }
 
     public virtual DbSet<AppResource> AppResources { get; set; }
@@ -19,7 +21,9 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<AppUser> AppUsers { get; set; }
 
-    public virtual DbSet<AppUserSubjectClass> AppUserSubjectClasses { get; set; }
+    public virtual DbSet<AppUserClass> AppUserClasses { get; set; }
+
+    public virtual DbSet<AppUserLoginHistory> AppUserLoginHistories { get; set; }
 
     public virtual DbSet<Chapter> Chapters { get; set; }
 
@@ -118,6 +122,29 @@ public partial class AppDbContext : DbContext
         modelBuilder
             .UseCollation("utf8mb4_0900_ai_ci")
             .HasCharSet("utf8mb4");
+
+        modelBuilder.Entity<AccountRecoveryRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("account_recovery_requests");
+
+            entity.HasIndex(e => e.UserId, "UserId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.ProcessedAt).HasColumnType("datetime");
+            entity.Property(e => e.RequestReason).HasMaxLength(1000);
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'Đang chờ'")
+                .HasColumnType("enum('Đang chờ','Đã phê duyệt','Đã từ chối')");
+
+            entity.HasOne(d => d.User).WithMany(p => p.AccountRecoveryRequests)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("account_recovery_requests_ibfk_1");
+        });
 
         modelBuilder.Entity<AppPolicy>(entity =>
         {
@@ -224,19 +251,35 @@ public partial class AppDbContext : DbContext
                         j.ToTable("app_user_role");
                         j.HasIndex(new[] { "RoleId" }, "RoleId");
                     });
+
+            entity.HasMany(d => d.Subjects).WithMany(p => p.Users)
+                .UsingEntity<Dictionary<string, object>>(
+                    "AppUserSubject",
+                    r => r.HasOne<Subject>().WithMany()
+                        .HasForeignKey("SubjectId")
+                        .HasConstraintName("app_user_subject_ibfk_2"),
+                    l => l.HasOne<AppUser>().WithMany()
+                        .HasForeignKey("UserId")
+                        .HasConstraintName("app_user_subject_ibfk_1"),
+                    j =>
+                    {
+                        j.HasKey("UserId", "SubjectId")
+                            .HasName("PRIMARY")
+                            .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+                        j.ToTable("app_user_subject");
+                        j.HasIndex(new[] { "SubjectId" }, "SubjectId");
+                    });
         });
 
-        modelBuilder.Entity<AppUserSubjectClass>(entity =>
+        modelBuilder.Entity<AppUserClass>(entity =>
         {
-            entity.HasKey(e => new { e.UserId, e.SubjectId, e.ClassId })
+            entity.HasKey(e => new { e.UserId, e.ClassId })
                 .HasName("PRIMARY")
-                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0, 0 });
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
 
-            entity.ToTable("app_user_subject_class");
+            entity.ToTable("app_user_class");
 
             entity.HasIndex(e => e.ClassId, "ClassId");
-
-            entity.HasIndex(e => e.SubjectId, "SubjectId");
 
             entity.Property(e => e.JoinDate)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
@@ -245,17 +288,36 @@ public partial class AppDbContext : DbContext
                 .HasDefaultValueSql("'joined'")
                 .HasColumnType("enum('invited','joined','kicked')");
 
-            entity.HasOne(d => d.Class).WithMany(p => p.AppUserSubjectClasses)
+            entity.HasOne(d => d.Class).WithMany(p => p.AppUserClasses)
                 .HasForeignKey(d => d.ClassId)
-                .HasConstraintName("app_user_subject_class_ibfk_3");
+                .HasConstraintName("app_user_class_ibfk_2");
 
-            entity.HasOne(d => d.Subject).WithMany(p => p.AppUserSubjectClasses)
-                .HasForeignKey(d => d.SubjectId)
-                .HasConstraintName("app_user_subject_class_ibfk_2");
-
-            entity.HasOne(d => d.User).WithMany(p => p.AppUserSubjectClasses)
+            entity.HasOne(d => d.User).WithMany(p => p.AppUserClasses)
                 .HasForeignKey(d => d.UserId)
-                .HasConstraintName("app_user_subject_class_ibfk_1");
+                .HasConstraintName("app_user_class_ibfk_1");
+        });
+
+        modelBuilder.Entity<AppUserLoginHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("app_user_login_history");
+
+            entity.HasIndex(e => e.UserId, "UserId");
+
+            entity.Property(e => e.IsActiveSession).HasDefaultValueSql("'1'");
+            entity.Property(e => e.IsSuccess)
+                .IsRequired()
+                .HasDefaultValueSql("'1'");
+            entity.Property(e => e.LastSeen).HasColumnType("datetime");
+            entity.Property(e => e.LoginAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.LogoutAt).HasColumnType("datetime");
+
+            entity.HasOne(d => d.User).WithMany(p => p.AppUserLoginHistories)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("app_user_login_history_ibfk_1");
         });
 
         modelBuilder.Entity<Chapter>(entity =>

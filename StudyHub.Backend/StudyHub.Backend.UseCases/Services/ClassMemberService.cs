@@ -25,7 +25,7 @@ namespace StudyHub.Backend.UseCases.Services
             _emailService = emailService;
             _classRepository = classes;
         }
-        public List<AppUserSubjectClass> GetClassMembers(int id) => _classMemberRepository.GetClassMembers(id);
+        public List<AppUserClass> GetClassMembers(int id) => _classMemberRepository.GetClassMembers(id);
 
 
         // Invite flow moved to service. Accept simple primitives (no Api DTOs) so use-cases project doesn't reference Api project.

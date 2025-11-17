@@ -9,7 +9,7 @@ namespace StudyHub.Backend.UseCases.Repositories
 {
     public interface IClassMemberRepository
     {
-        List<AppUserSubjectClass> GetClassMembers(int classId);
+        List<AppUserClass> GetClassMembers(int classId);
         bool InviteMember(Guid userId, int classId);
         bool ConfirmMember(Guid userId, int classId);
         bool KickMember(Guid userId, int classId);  
