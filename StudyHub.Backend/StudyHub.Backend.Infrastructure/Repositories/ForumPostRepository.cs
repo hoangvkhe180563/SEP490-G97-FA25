@@ -83,10 +83,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             try
             {
                 var dbQuery = _context.ForumPosts
-                    .Include(p => p.Subject)
-                    .Include(p => p.Flair)
-                    .Include(p => p.CreatedByNavigation)
-                    .Where(p => p.SchoolId == schoolId && p.DeletedAt == null && p.Status == true && p.IsHidden == false);
+     .Include(p => p.Subject)
+     .Include(p => p.Flair)
+     .Include(p => p.CreatedByNavigation)
+     .Where(p => p.SchoolId == schoolId && p.DeletedAt == null && p.Status == true && !(p.IsHidden == true && p.Status == false));
 
                 if (subjectIds != null && subjectIds.Any())
                     dbQuery = dbQuery.Where(p => subjectIds.Contains(p.SubjectId));
