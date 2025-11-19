@@ -695,8 +695,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         post.TotalViolationScore += entity.ViolationScore;
                         if (post.TotalViolationScore >= 10)
                         {
-                            post.Title = "[Bài viết vi phạm]";
-                            post.Content = "Nội dung này đã bị ẩn do vi phạm quy định cộng đồng.";
+                            post.IsHidden = false;
                         }
                     }
                 }
@@ -709,7 +708,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         comment.TotalViolationScore += entity.ViolationScore;
                         if (comment.TotalViolationScore >= 10)
                         {
-                            comment.Content = "[Bình luận vi phạm]";
+                            comment.IsHidden = false;
                         }
                     }
                 }

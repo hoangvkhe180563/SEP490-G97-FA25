@@ -5,13 +5,23 @@ namespace StudyHub.Backend.Api.Mappers
 {
     public static class ForumPostMapper
     {
-        public static ForumPostListDto ToListDto(this ForumPost post)
+        public static ForumPostListDto ToListDto(this ForumPost post, Guid? currentUserId = null, bool isModerator = false)
         {
             var authorName = post.Creator?.Username ?? "Unknown";
             var authorInitials = post.Creator?.Username?.Length >= 2
                 ? post.Creator.Username.Substring(0, 2).ToUpper()
                 : "U";
 
+            bool isOwner = currentUserId.HasValue && post.CreatedBy == currentUserId.Value;
+            bool isAutoDetected = post.IsHidden && post.Status == false;
+            bool isManuallyHidden = post.TotalViolationScore >= 10 && !post.IsHidden && post.Status == true;
+            bool shouldMaskContent = isManuallyHidden && !isOwner && !isModerator;
+            bool shouldHideFromPublic = isAutoDetected && !isOwner && !isModerator;
+
+            if (shouldHideFromPublic)
+            {
+                return null;
+            }
             return new ForumPostListDto
             {
                 PostId = post.Id,
@@ -21,16 +31,18 @@ namespace StudyHub.Backend.Api.Mappers
                 SubjectName = post.Subject?.Name,
                 FlairId = post.FlairId,
                 FlairName = post.Flair?.Name,
-                Title = post.Title,
-                Content = post.Content ?? string.Empty,
-                ContentPreview = (post.Content?.Length ?? 0) > 200
+                Title = shouldMaskContent ? "[Bài viết vi phạm]" : post.Title,
+                Content = shouldMaskContent ? "" : (post.Content ?? string.Empty),
+                ContentPreview = shouldMaskContent
+                ? "[Bài viết vi phạm]"
+                : ((post.Content?.Length ?? 0) > 200
                     ? post.Content!.Substring(0, 200) + "..."
-                    : post.Content ?? string.Empty,
+                    : post.Content ?? string.Empty),
                 TotalViolationScore = post.TotalViolationScore,
                 Status = post.Status,
                 StatusText = post.Status == null
-                    ? "Pending"
-                    : (post.Status.Value ? "Approved" : "Rejected"),
+                ? "Pending"
+                : (post.Status.Value ? "Approved" : "Rejected"),
                 IsHidden = post.IsHidden,
                 CreatedAt = post.CreatedAt,
                 CreatedBy = post.CreatedBy,
@@ -38,7 +50,9 @@ namespace StudyHub.Backend.Api.Mappers
                 CreatorAvatar = post.Creator?.Avatar,
                 AuthorInitials = authorInitials,
                 AuthorName = authorName,
-                Attachments = post.Attachments?.Select(a => new ForumAttachmentDto
+                Attachments = shouldMaskContent
+                ? new List<ForumAttachmentDto>()
+                : (post.Attachments?.Select(a => new ForumAttachmentDto
                 {
                     AttachmentId = a.Id,
                     CommentId = a.CommentId,
@@ -46,47 +60,22 @@ namespace StudyHub.Backend.Api.Mappers
                     IsApproved = a.IsApproved,
                     CreatedAt = a.CreatedAt,
                     CreatedBy = a.CreatedBy ?? Guid.Empty
-                }).ToList() ?? new List<ForumAttachmentDto>(),
-
-                Comments = post.Comments?.Select(c => new ForumCommentListDto
-                {
-                    CommentId = c.CommentId,
-                    PostId = c.PostId,
-                    ParentCommentId = c.ParentCommentId,
-                    Content = c.Content ?? string.Empty,
-                    TotalViolationScore = c.TotalViolationScore,
-                    Status = c.Status,
-                    StatusText = c.Status == null
-                        ? "Pending"
-                        : (c.Status.Value ? "Approved" : "Rejected"),
-                    IsHidden = c.IsHidden,
-                    CreatedAt = c.CreatedAt,
-                    CreatedBy = c.CreatedBy,
-                    CreatorName = c.Creator?.Username ?? "Unknown",
-                    CreatorAvatar = c.Creator?.Avatar,
-                    AuthorName = c.Creator?.Username ?? "Unknown",
-                    UpdatedAt = c.UpdatedAt,
-                    ReplyCount = c.ReplyCount,
-                    Replies = c.Replies?.Select(r => r.ToListDto()).ToList()
-        ?? new List<ForumCommentListDto>(),
-                    Attachments = c.Attachments?.Where(a => a.IsApproved == true)
-        .Select(a => new ForumAttachmentDto
-        {
-            AttachmentId = a.Id,
-            CommentId = a.CommentId,
-            FileUrl = a.FileUrl ?? string.Empty,
-            IsApproved = a.IsApproved,
-            CreatedAt = a.CreatedAt
-        }).ToList()
-        ?? new List<ForumAttachmentDto>()
-                }).ToList() ?? new List<ForumCommentListDto>(),
+                }).ToList() ?? new List<ForumAttachmentDto>()),
+                Comments = post.Comments?.Select(c => c.ToListDto(currentUserId, isModerator)).ToList()
+                ?? new List<ForumCommentListDto>(),
                 CommentCount = post.CommentCount,
                 AttachmentCount = post.AttachmentCount,
                 UpdatedAt = post.UpdatedAt
             };
         }
-        public static ForumPostDetailDto ToDetailDto(this ForumPost post)
+        public static ForumPostDetailDto ToDetailDto(this ForumPost post, Guid? currentUserId = null, bool isModerator = false)
         {
+            bool isOwner = currentUserId.HasValue && post.CreatedBy == currentUserId.Value;
+            bool isAutoDetected = post.IsHidden && post.Status == false;
+            bool isManuallyHidden = post.TotalViolationScore >= 10 && !post.IsHidden && post.Status == true;
+            bool shouldMaskContent = isManuallyHidden && !isOwner && !isModerator;
+            bool shouldHideFromPublic = isAutoDetected && !isOwner && !isModerator;
+
             return new ForumPostDetailDto
             {
                 PostId = post.Id,
@@ -97,8 +86,8 @@ namespace StudyHub.Backend.Api.Mappers
                 FlairId = post.FlairId,
                 FlairName = post.Flair?.Name,
                 FlairIsProtected = post.Flair?.IsProtected,
-                Title = post.Title,
-                Content = post.Content,
+                Title = shouldMaskContent ? "[Bài viết vi phạm]" : post.Title,
+                Content = shouldMaskContent ? "Nội dung này đã bị ẩn do vi phạm quy định cộng đồng." : post.Content,
                 TotalViolationScore = post.TotalViolationScore,
                 Status = post.Status,
                 StatusText = post.Status == null
@@ -111,69 +100,21 @@ namespace StudyHub.Backend.Api.Mappers
                 CreatorAvatar = post.Creator?.Avatar,
                 CreatorFullname = post.Creator?.Fullname,
                 UpdatedAt = post.UpdatedAt,
-                Attachments = post.Attachments?.Select(a => new ForumAttachmentDto
-                {
-                    AttachmentId = a.Id,
-                    PostId = a.PostId,
-                    FileUrl = a.FileUrl,
-                    IsApproved = a.IsApproved,
-                    CreatedAt = a.CreatedAt
-                }).ToList() ?? new List<ForumAttachmentDto>(),
-                Comments = post.Comments?.Select(c => new ForumCommentListDto
-                {
-                    CommentId = c.CommentId,
-                    PostId = c.PostId,
-                    ParentCommentId = c.ParentCommentId,
-                    Content = c.Content ?? string.Empty,
-                    TotalViolationScore = c.TotalViolationScore,
-                    Status = c.Status,
-                    StatusText = c.Status == null
-         ? "Pending"
-         : (c.Status.Value ? "Approved" : "Rejected"),
-                    IsHidden = c.IsHidden,
-                    CreatedAt = c.CreatedAt,
-                    CreatedBy = c.CreatedBy,
-                    CreatorName = c.Creator?.Username ?? "Unknown",
-                    CreatorAvatar = c.Creator?.Avatar,
-                    AuthorName = c.Creator?.Username ?? "Unknown",
-                    AuthorInitials = c.Creator?.Username?.Length >= 2
-         ? c.Creator.Username.Substring(0, 2).ToUpper()
-         : "U",
-                    UpdatedAt = c.UpdatedAt,
-                    ReplyCount = c.ReplyCount,
-                    Replies = c.Replies?.Select(r => r.ToListDto()).ToList()
-         ?? new List<ForumCommentListDto>(),
-                    Attachments = c.Attachments?.Where(a => a.IsApproved == true)
-         .Select(a => new ForumAttachmentDto
-         {
-             AttachmentId = a.Id,
-             CommentId = a.CommentId,
-             FileUrl = a.FileUrl ?? string.Empty,
-             IsApproved = a.IsApproved,
-             CreatedAt = a.CreatedAt
-         }).ToList()
-         ?? new List<ForumAttachmentDto>()
-                }).ToList() ?? new List<ForumCommentListDto>(),
-                ViolationRecords = post.ViolationRecords?.Select(v => new ViolationRecordDto
-                {
-                    RecordId = v.Id,
-                    UserId = v.UserId,
-                    Username = v.User?.Username,
-                    Fullname = v.User?.Fullname,
-                    SchoolId = v.SchoolId,
-                    PostId = v.PostId,
-                    MatchedRuleId = v.MatchedRuleId,
-                    RuleName = v.Rule?.Name,
-                    RuleSeverity = v.Rule?.Severity,
-                    RuleDescription = v.Rule?.Description,
-                    MatchedPatternId = v.MatchedPatternId,
-                    PatternText = v.Pattern?.Pattern,
-                    ViolationScore = v.ViolationScore,
-                    SourceType = v.SourceType,
-                    ReportedBy = v.ReportedBy,
-                    ReporterName = v.Reporter?.Fullname ?? v.Reporter?.Username,
-                    CreatedAt = v.CreatedAt
-                }).ToList() ?? new List<ViolationRecordDto>()
+                Attachments = shouldMaskContent
+                    ? new List<ForumAttachmentDto>()
+                    : (post.Attachments?.Select(a => new ForumAttachmentDto
+                    {
+                        AttachmentId = a.Id,
+                        PostId = a.PostId,
+                        FileUrl = a.FileUrl,
+                        IsApproved = a.IsApproved,
+                        CreatedAt = a.CreatedAt
+                    }).ToList() ?? new List<ForumAttachmentDto>()),
+                Comments = post.Comments?.Select(c => c.ToListDto(currentUserId, isModerator)).ToList()
+                    ?? new List<ForumCommentListDto>(),
+                ViolationRecords = isModerator || isOwner
+                    ? (post.ViolationRecords?.Select(v => v.ToDto()).ToList() ?? new List<ViolationRecordDto>())
+                    : new List<ViolationRecordDto>()
             };
         }
 

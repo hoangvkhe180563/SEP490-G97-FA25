@@ -126,7 +126,6 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 comment.Status = false;
                 comment.IsHidden = true;
-                comment.Content = "[Bình luận vi phạm]";
             }
             else
             {
@@ -249,8 +248,8 @@ namespace StudyHub.Backend.UseCases.Services
             var comment = await _commentRepo.GetCommentByIdAsync(commentId);
             if (comment == null) return false;
 
-            comment.Content = "[Bình luận vi phạm]";
             comment.TotalViolationScore += violationScore;
+            comment.IsHidden = false;
             comment.Status = true;
 
             await _commentRepo.UpdateCommentAsync(comment);
@@ -269,6 +268,7 @@ namespace StudyHub.Backend.UseCases.Services
 
             return true;
         }
+
         public async Task<ForumComment> UpdateCommentWithAttachmentsAsync(ForumComment comment, List<IFormFile>? newAttachments, List<string>? deletedAttachmentUrls)
         {
             if (deletedAttachmentUrls != null && deletedAttachmentUrls.Any())

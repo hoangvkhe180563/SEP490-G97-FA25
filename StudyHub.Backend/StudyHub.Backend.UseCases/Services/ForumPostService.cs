@@ -167,7 +167,6 @@ namespace StudyHub.Backend.UseCases.Services
                     });
                 }
             }
-
             if (hasTextViolations)
             {
                 foreach (var violation in violations)
@@ -191,8 +190,6 @@ namespace StudyHub.Backend.UseCases.Services
                 {
                     post.Status = false;
                     post.IsHidden = true;
-                    post.Title = "[Bài viết vi phạm]";
-                    post.Content = "Nội dung này đã bị ẩn do vi phạm quy định cộng đồng.";
 
                     foreach (var violation in violations)
                     {
@@ -304,8 +301,6 @@ namespace StudyHub.Backend.UseCases.Services
             }
 
             post.IsHidden = true;
-            post.Title = "[Bài viết vi phạm]";
-            post.Content = "Nội dung này đã bị ẩn do vi phạm quy định cộng đồng.";
             await _postRepo.UpdatePostAsync(post);
 
             if (post.TotalViolationScore > 0)
@@ -353,9 +348,8 @@ namespace StudyHub.Backend.UseCases.Services
             var post = await _postRepo.GetPostByIdAsync(postId);
             if (post == null) return false;
 
-            post.Title = "[Bài viết vi phạm]";
-            post.Content = "Nội dung này đã bị ẩn do vi phạm quy định cộng đồng.";
             post.TotalViolationScore += violationScore;
+            post.IsHidden = false;
             post.Status = true;
 
             await _postRepo.UpdatePostAsync(post);
@@ -374,6 +368,7 @@ namespace StudyHub.Backend.UseCases.Services
 
             return true;
         }
+
         public async Task<ForumPost> UpdatePostWithAttachmentsAsync(ForumPost post, List<IFormFile>? newAttachments, List<string>? deletedAttachmentUrls)
         {
             if (deletedAttachmentUrls != null && deletedAttachmentUrls.Any())
