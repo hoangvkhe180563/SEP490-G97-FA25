@@ -41,6 +41,8 @@ export type CourseListDto = {
   name: string;
   information: string | null;
   imageUrl: string | null;
+  difficulty: "Beginner" | "Intermediate" | "Advanced";
+  length: "Short" | "Medium" | "Long";
   price: number;
   grade: number;
   subjectId: number;
@@ -111,6 +113,8 @@ export type CourseDetailDto = {
   name: string;
   information: string | null;
   imageUrl: string | null;
+  difficulty: "Beginner" | "Intermediate" | "Advanced";
+  length: "Short" | "Medium" | "Long";
   price: number;
   grade: number;
   SubjectId: number;
@@ -138,26 +142,26 @@ export type CommentDto = {
 };
 
 export interface Question {
-  id: number,
-  questionObjectId?: string,
-  questionText: string,
-  type: "single-choice" | "multiple-choice" | "text-input" | "fill-blank",
-  options: string[],
-  correctAnswer: any
+  id: number;
+  questionObjectId?: string;
+  questionText: string;
+  type: "single-choice" | "multiple-choice" | "text-input" | "fill-blank";
+  options: string[];
+  correctAnswer: any;
 }
 
 export interface Exam {
-  id: number,
-  title: string,
-  description: string,
-  duration: number,
-  createdBy?: string,
-  questions: Question[],
-  showAnswers: boolean,
-  showCorrectAnswers: boolean,
-  totalQuestions?: number,
-  classId?: number,
-  lessonId?: number,
-  openTime: Date,
-  closeTime?: Date
+  id: number;
+  title: string;
+  description: string;
+  duration: number;
+  createdBy?: string;
+  questions: Question[];
+  showAnswers: boolean;
+  showCorrectAnswers: boolean;
+  totalQuestions?: number;
+  classId?: number;
+  lessonId?: number;
+  openTime: Date;
+  closeTime?: Date;
 }

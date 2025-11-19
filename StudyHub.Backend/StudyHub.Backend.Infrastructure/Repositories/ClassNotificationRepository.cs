@@ -348,7 +348,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             if (notification == null) return 0;
             var classId = notification.ClassId;
 
-            var classEntity = _context.AppUserSubjectClasses
+            var classEntity = _context.AppUserClasses
                 .Include(c => c.User)
                 .Where(c => c.ClassId == classId && c.User.Roles.Any(r => r.Name.Contains("Student")))
                 .GroupBy(a => a.UserId)
@@ -359,7 +359,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public int GetMemberClassCount(int classID)
         {
-            return _context.AppUserSubjectClasses.Where(a => a.ClassId == classID).GroupBy(a => a.UserId).Count();
+            return _context.AppUserClasses.Where(a => a.ClassId == classID).GroupBy(a => a.UserId).Count();
         }
     }
 }
