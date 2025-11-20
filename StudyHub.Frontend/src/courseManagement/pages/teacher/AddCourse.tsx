@@ -24,6 +24,7 @@ import { documentService } from "@/documentManagement/services/documentService";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { formatISO } from "date-fns";
 
 const AddCourse: React.FC = () => {
   const navigate = useNavigate();
@@ -48,6 +49,10 @@ const AddCourse: React.FC = () => {
   const [SubjectId, setSubjectId] = useState<number | null>(null);
   const [isFeatured, setIsFeatured] = useState(false);
   const [status, setStatus] = useState<string | "">("");
+  const [difficulty, setDifficulty] = useState<
+    "Beginner" | "Intermediate" | "Advanced"
+  >("Beginner");
+  const [length, setLength] = useState<"Short" | "Medium" | "Long">("Short");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
 
@@ -89,18 +94,29 @@ const AddCourse: React.FC = () => {
       errors.push("Vui lòng chọn trạng thái.");
 
     // start/end dates: if provided, must be valid and start <= end
+    // start/end dates: bắt buộc — nếu không chọn thì báo lỗi
     let startDate: Date | null = null;
     let endDate: Date | null = null;
-    if (startAt) {
+
+    // Bắt buộc phải chọn cả 2 ngày
+    if (!startAt || !String(startAt).trim()) {
+      errors.push("Vui lòng chọn Ngày bắt đầu.");
+    } else {
       startDate = new Date(startAt);
       if (isNaN(startDate.getTime())) errors.push("Ngày bắt đầu không hợp lệ.");
     }
-    if (endAt) {
+
+    if (!endAt || !String(endAt).trim()) {
+      errors.push("Vui lòng chọn Ngày kết thúc.");
+    } else {
       endDate = new Date(endAt);
       if (isNaN(endDate.getTime())) errors.push("Ngày kết thúc không hợp lệ.");
     }
-    if (startDate && endDate && startDate.getTime() > endDate.getTime())
+
+    // Nếu cả hai đều hợp lệ thì kiểm tra thứ tự ngày
+    if (startDate && endDate && startDate.getTime() > endDate.getTime()) {
       errors.push("Ngày kết thúc phải sau hoặc cùng ngày với ngày bắt đầu.");
+    }
 
     // thumbnail file size limit (optional): 5MB
     if (thumbnailFile && thumbnailFile.size > 5 * 1024 * 1024)
@@ -110,7 +126,11 @@ const AddCourse: React.FC = () => {
       return setDialog({
         open: true,
         title: "Lỗi nhập liệu",
-        message: errors.map((err, index) => (<React.Fragment key={`err-${index}`}>{err} {index < errors.length - 1 && <br />}</React.Fragment>)),
+        message: errors.map((err, index) => (
+          <React.Fragment key={`err-${index}`}>
+            {err} {index < errors.length - 1 && <br />}
+          </React.Fragment>
+        )),
       });
 
     setSaving(true);
@@ -119,15 +139,17 @@ const AddCourse: React.FC = () => {
         name: title.trim(),
         information: description || null,
         imageUrl: thumbnailPreview ?? null,
+        difficulty: difficulty,
+        length: length,
         price: price === "" ? 0 : Number(price),
         grade: grade === "" ? 0 : Number(grade),
         SubjectId: Number(SubjectId),
         schoolId: authUser?.schoolId ?? null,
         isFeatured: isFeatured,
         status: status,
-        createdAt: new Date().toISOString(),
-        startAt: startDate ? startDate.toISOString() : new Date().toISOString(),
-        endAt: endDate ? endDate.toISOString() : new Date().toISOString(),
+        createdAt: formatISO(new Date()),
+        startAt: startDate ? formatISO(startDate) : formatISO(new Date()),
+        endAt: endDate ? formatISO(endDate) : formatISO(new Date()),
         createdBy: authUser?.id ?? "",
         isApproved: status === "Mở" ? false : true,
       };
@@ -452,7 +474,39 @@ const AddCourse: React.FC = () => {
                     placeholder="0"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>Độ khó</Label>
+                  <Select
+                    value={difficulty}
+                    onValueChange={(v) => setDifficulty(v as any)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Chọn độ khó" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Beginner">Cơ bản</SelectItem>
+                      <SelectItem value="Intermediate">Trung cấp</SelectItem>
+                      <SelectItem value="Advanced">Nâng cao</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
+                <div className="space-y-2">
+                  <Label>Độ dài</Label>
+                  <Select
+                    value={length}
+                    onValueChange={(v) => setLength(v as any)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Chọn độ dài" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Short">Ngắn</SelectItem>
+                      <SelectItem value="Medium">Trung bình</SelectItem>
+                      <SelectItem value="Long">Dài</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2">
                   <Label>Trạng thái</Label>
                   <Select value={status} onValueChange={(v) => setStatus(v)}>

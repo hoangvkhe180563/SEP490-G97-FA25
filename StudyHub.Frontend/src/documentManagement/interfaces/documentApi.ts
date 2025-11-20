@@ -31,6 +31,10 @@ export interface DocumentDetailDto {
   classId?: number;
   isInClass?: boolean;
   classes?: Array<{ id: number; name?: string }>;
+  isRequested?: boolean;
+  editRequestedAt?: string;
+  documentLengthType: string;
+  documentLevel: string;
 }
 export interface DocumentListDto {
   id: number;

@@ -42,7 +42,7 @@ export const schoolStudentSidebarItems: ISidebarItem[] = [
   {
     icon: <MessageSquare size={20} />,
     text: "Forum",
-    link: "/forum/student/forums",
+    link: "/forum/forums",
   },
 ];
 
@@ -70,7 +70,7 @@ export const teacherSidebarItems: ISidebarItem[] = [
   {
     icon: <MessageSquare size={20} />,
     text: "Forum",
-    link: "/forum/student/forums",
+    link: "/forum/forums",
   },
   {
     icon: <MessageCircleQuestionMark size={20} />,
@@ -123,7 +123,7 @@ export const moderatorSidebarItems: ISidebarItem[] = [
   {
     icon: <BookOpen size={20} />,
     text: "Duyệt bài viết forum",
-    link: "/courses",
+    link: "/manager/posts",
   },
   {
     icon: <Users size={20} />,

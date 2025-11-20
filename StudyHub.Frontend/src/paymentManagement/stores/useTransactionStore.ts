@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import type { HubConnection } from "@microsoft/signalr";
+import { createPaymentConnection } from "@/lib/signalR";
 import { transactionService } from "@/paymentManagement/services/transactionService";
 import type {
   CreateTransactionRequest,
@@ -13,6 +15,11 @@ type TransactionState = {
   total: number;
   totalPages: number;
   error: string | null;
+  // SignalR connection for realtime transaction updates
+  connection?: HubConnection | null;
+  isTransactionConnected: boolean;
+  startTransactionConnection: () => Promise<void>;
+  stopTransactionConnection: () => Promise<void>;
   fetchUserTransactions: (userId: string) => Promise<void>;
   fetchPendingTransactions: (
     page?: number,
@@ -63,6 +70,60 @@ type TransactionState = {
 };
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({
+  // SignalR connection for transaction status updates
+  connection: undefined,
+  isTransactionConnected: false,
+
+  startTransactionConnection: async () => {
+    try {
+      if ((window as any).__transactionConn) return;
+      const conn: HubConnection = createPaymentConnection();
+      (window as any).__transactionConn = conn;
+
+      conn.on("TransactionStatusChanged", (data: any) => {
+        try {
+          // data: { transactionId, status, type, amount, processedAt }
+          const txId = data?.transactionId;
+
+          if (!txId) return;
+          set((state) => {
+            const next = (state.transactions || []).map((t) => {
+              if (String(t.id) === String(txId)) {
+                return {
+                  ...t,
+                  status: data.status ?? t.status,
+                  processedAt: data.processedAt ?? t.processedAt,
+                  amount: data.amount ?? t.amount,
+                } as any;
+              }
+              return t;
+            });
+            return { transactions: next } as Partial<any>;
+          });
+        } catch (err) {
+          console.warn("TransactionStatusChanged handler failed", err);
+        }
+      });
+
+      await conn.start();
+      set({ isTransactionConnected: true, connection: conn } as any);
+    } catch (err) {
+      console.error("transaction hub start failed", err);
+    }
+  },
+
+  stopTransactionConnection: async () => {
+    try {
+      const conn: HubConnection | undefined = (window as any).__transactionConn;
+      if (conn) {
+        await conn.stop();
+        delete (window as any).__transactionConn;
+      }
+      set({ isTransactionConnected: false, connection: null } as any);
+    } catch (err) {
+      console.error("transaction hub stop failed", err);
+    }
+  },
   loading: false,
   transactions: [],
   page: 1,

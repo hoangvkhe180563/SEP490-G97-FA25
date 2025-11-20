@@ -25,6 +25,10 @@ public partial class Lesson
 
     public virtual Chapter Chapter { get; set; } = null!;
 
+    public virtual ICollection<InteractiveQuestion> InteractiveQuestions { get; set; } = new List<InteractiveQuestion>();
+
+    public virtual ICollection<InteractiveResponse> InteractiveResponses { get; set; } = new List<InteractiveResponse>();
+
     public virtual ICollection<LessonComment> LessonComments { get; set; } = new List<LessonComment>();
 
     public virtual LessonReading? LessonReading { get; set; }

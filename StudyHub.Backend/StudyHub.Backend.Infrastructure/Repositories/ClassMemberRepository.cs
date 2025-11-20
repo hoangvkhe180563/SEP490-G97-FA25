@@ -16,19 +16,21 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             _context = context;
         }
-        public List<AppUserSubjectClass> GetClassMembers(int classId)
+        public List<Domain.Entities.AppUserClass> GetClassMembers(int classId)
         {
-            var member = _context.AppUserSubjectClasses
+            var member = _context.AppUserClasses
        .Where(m => m.ClassId == classId)
        .GroupBy(m => m.UserId)
        .Select(g => g.FirstOrDefault()) 
        .ToList();
-            return member.Select(m => new AppUserSubjectClass
+            return member.Select(m => new Domain.Entities.AppUserClass
             {
                 UserId = m.UserId,
                 ClassId = m.ClassId,
                 JoinDate = m.JoinDate,
                 Status = m.Status,
+                User = m.User != null ? new Domain.Entities.AppUser { Id = m.User.Id, Email = m.User.Email, Fullname = m.User.Fullname, Username = m.User.Username } : null,
+                Class = m.Class != null ? new Domain.Entities.Class { Id = m.Class.Id, Name = m.Class.Name, Description = m.Class.Description } : null
             }).ToList();
         }
         public bool InviteMember(Guid userId, int classId)
@@ -36,29 +38,27 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             try
             {
                
-                var existing = _context.AppUserSubjectClasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
+                var existing = _context.AppUserClasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
 
                 if (existing != null)
                 {
-                  
                     existing.Status = "invited";
                     existing.JoinDate = DateTime.Now;
-                    _context.AppUserSubjectClasses.Update(existing);
+                    _context.AppUserClasses.Update(existing);
 
                     _context.SaveChanges();
                     return true;
                 }
 
                 // tạo record mới với status invited (JoinDate null)
-                var newMember = new Data.AppUserSubjectClass
+                var newMember = new Data.AppUserClass
                 {
                     UserId = userId,
                     ClassId = classId,
                     JoinDate = DateTime.Now,
                     Status = "invited",
-                    SubjectId=1
                 };
-                _context.AppUserSubjectClasses.Add(newMember);
+                _context.AppUserClasses.Add(newMember);
                 _context.SaveChanges();
                 return true;
             }
@@ -73,18 +73,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var existing = _context.AppUserSubjectClasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
+                var existing = _context.AppUserClasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
                 if (existing == null)
                 {
                     // nếu chưa có record (hiếm), tạo record mới với joined
-                    var newMember = new Data.AppUserSubjectClass
+                    var newMemberData = new Data.AppUserClass
                     {
                         UserId = userId,
                         ClassId = classId,
                         JoinDate = DateTime.UtcNow,
                         Status = "joined"
                     };
-                    _context.AppUserSubjectClasses.Add(newMember);
+                    _context.AppUserClasses.Add(newMemberData);
                     _context.SaveChanges();
                     return true;
                 }
@@ -92,7 +92,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 // Cập nhật status -> joined và set JoinDate nếu null
                 existing.Status = "joined";
                 existing.JoinDate = existing.JoinDate;
-                _context.AppUserSubjectClasses.Update(existing);
+                _context.AppUserClasses.Update(existing);
                 _context.SaveChanges();
                 return true;
             }
@@ -106,14 +106,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var existing = _context.AppUserSubjectClasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
+                var existing = _context.AppUserClasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
                 if (existing == null)
                 {
                     return false;
                 }
 
                 existing.Status = "";
-                _context.AppUserSubjectClasses.Update(existing);
+                _context.AppUserClasses.Update(existing);
                 _context.SaveChanges();
                 return true;
             }
@@ -128,7 +128,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var existing = _context.AppUserSubjectClasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
+                var existing = _context.AppUserClasses.FirstOrDefault(cm => cm.UserId == userId && cm.ClassId == classId);
                 if (existing == null)
                 {
                     // Nếu chưa tồn tại, không cần tạo record; trả về false (không có gì để kick)
@@ -137,7 +137,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 existing.Status = "kicked";
                 // Optional: bạn có thể giữ JoinDate để audit hoặc set null
-                _context.AppUserSubjectClasses.Update(existing);
+                _context.AppUserClasses.Update(existing);
                 _context.SaveChanges();
                 return true;
             }

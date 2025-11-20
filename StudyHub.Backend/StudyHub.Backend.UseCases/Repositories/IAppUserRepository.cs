@@ -1,4 +1,5 @@
 ﻿using StudyHub.Backend.Domain.Entities;
+using StudyHub.Backend.UseCases.Dtos;
 
 namespace StudyHub.Backend.UseCases.Repositories
 {
@@ -12,16 +13,20 @@ namespace StudyHub.Backend.UseCases.Repositories
         public AppUser? GetById(Guid id);
         public AppUser? GetByTransferId(int id);
         public void CreateUser(AppUser user, IEnumerable<Guid>? roleIds = null);
+        // Create multiple users in a single operation and attach roles to each user
+        public void CreateUsersWithRoles(IEnumerable<(AppUser user, IEnumerable<Guid>? roleIds)> usersWithRoles);
         public void UpdateUser(AppUser user, IEnumerable<Guid>? roleIds = null);
 
-    // Get all users who have a teacher-related role (role name contains "teacher")
-    public List<AppUser> GetQATeachers();
+        // Get all users who have a teacher-related role (role name contains "teacher")
+        public List<AppUser> GetQATeachers();
 
-    // Get QA teachers who teach a given subject (by subject id)
-    public List<AppUser> GetQATeachersBySubject(short subjectId);
+        // Get QA teachers who teach a given subject (by subject id)
+        public List<AppUser> GetQATeachersBySubject(short subjectId);
 
-    // get user-specific subject/class assignments
-        public List<AppUserSubjectClass> GetClaimsForUser(Guid userId);
+        // get user-specific class assignments
+        public List<AppUserClaim> GetClaimsForUser(Guid userId);
+        // get all subject ids associated with a user
+        public List<short> GetUserSubjectIds(Guid userId);
         // helper to get related names
 
         // find user by refresh token

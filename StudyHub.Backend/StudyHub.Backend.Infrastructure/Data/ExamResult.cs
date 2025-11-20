@@ -1,4 +1,7 @@
-﻿namespace StudyHub.Backend.Infrastructure.Data;
+﻿using System;
+using System.Collections.Generic;
+
+namespace StudyHub.Backend.Infrastructure.Data;
 
 public partial class ExamResult
 {

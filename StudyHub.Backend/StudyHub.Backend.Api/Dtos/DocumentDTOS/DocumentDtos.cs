@@ -29,9 +29,10 @@ namespace StudyHub.Backend.Api.Dtos
         public string? UploaderName { get; set; }
         public string? UploaderUrl { get; set; }
         public string? UploaderFullname { get; set; }
+        public string DocumentLengthType { get; set; } = string.Empty;
+        public string DocumentLevel { get; set; } = string.Empty;
         public List<ClassListDto> classes { get; set; } = new();
         public bool? IsRequested { get; set; }
-
     }
 
     public class DocumentDetailDto
@@ -60,9 +61,10 @@ namespace StudyHub.Backend.Api.Dtos
         public string? UploaderName { get; set; }
         public string? UploaderUrl { get; set; }
         public string? UploaderFullname { get; set; }
+        public string DocumentLengthType { get; set; } = string.Empty;
+        public string DocumentLevel { get; set; } = string.Empty;
         public List<ClassListDto> classes { get; set; } = new();
         public bool? IsRequested { get; set; }
-
     }
 
     public class CreateDocumentDto
@@ -86,6 +88,14 @@ namespace StudyHub.Backend.Api.Dtos
         public bool? IsInClass { get; set; }
 
         public bool IsFeatured { get; set; }
+
+        [Required(ErrorMessage = "Độ dài tài liệu là bắt buộc")]
+        [RegularExpression("Short|Medium|Long", ErrorMessage = "DocumentLengthType phải là Short, Medium hoặc Long")]
+        public string DocumentLengthType { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Độ khó tài liệu là bắt buộc")]
+        [RegularExpression("Easy|Medium|Hard", ErrorMessage = "DocumentLevel phải là Easy, Medium hoặc Hard")]
+        public string DocumentLevel { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "File tài liệu là bắt buộc")]
         public IFormFile DocumentFile { get; set; } = null!;
@@ -119,6 +129,14 @@ namespace StudyHub.Backend.Api.Dtos
 
         public bool IsFeatured { get; set; }
 
+        [Required(ErrorMessage = "Độ dài tài liệu là bắt buộc")]
+        [RegularExpression("Short|Medium|Long", ErrorMessage = "DocumentLengthType phải là Short, Medium hoặc Long")]
+        public string DocumentLengthType { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Độ khó tài liệu là bắt buộc")]
+        [RegularExpression("Easy|Medium|Hard", ErrorMessage = "DocumentLevel phải là Easy, Medium hoặc Hard")]
+        public string DocumentLevel { get; set; } = string.Empty;
+
         public IFormFile? DocumentFile { get; set; }
 
         public IFormFile? ThumbnailFile { get; set; }
@@ -141,12 +159,8 @@ namespace StudyHub.Backend.Api.Dtos
         public Guid? UpdatedBy { get; set; }
         public bool? Status { get; set; } = true;
         public bool? IsRequested { get; set; }
-        //public bool? IsPendingApproval { get; set; }
-        //public bool IncludeUnapproved { get; set; }
-        //public DateTime? CreatedFrom { get; set; }
-        //public DateTime? CreatedTo { get; set; }
-        //public DateTime? UpdatedFrom { get; set; }
-        //public DateTime? UpdatedTo { get; set; }
+        public string? DocumentLengthType { get; set; }
+        public string? DocumentLevel { get; set; }
         public List<ClassListDto> classes { get; set; } = new();
 
         public int PageNumber { get; set; } = 1;

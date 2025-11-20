@@ -15,7 +15,7 @@ public static class FileConstants
     };
 
     public const long MaxDocumentSize = 1024L * 1024L * 1000L;
-    public const long MaxImageSize = 5 * 1024 * 1024;
+    public const long MaxImageSize = 100 * 1024 * 1024;
 
     public const string DocumentUploadPath = "Documents/Raw";
     public const string ThumbnailUploadPath = "Documents/Thumbnails";

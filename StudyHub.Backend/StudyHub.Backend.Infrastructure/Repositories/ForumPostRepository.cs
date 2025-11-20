@@ -2,16 +2,19 @@
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories;
+using System.Linq;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
     public class ForumPostRepository : IForumPostRepository
     {
         private readonly Data.AppDbContext _context;
+        private readonly IForumCommentRepository _commentRepo;
 
-        public ForumPostRepository(Data.AppDbContext context)
+        public ForumPostRepository(Data.AppDbContext context, IForumCommentRepository commentRepo)
         {
             _context = context;
+            _commentRepo = commentRepo;
         }
 
         public async Task<ForumPost?> GetPostByIdAsync(int postId)
@@ -40,6 +43,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 mappedPost.Attachments = await _context.ForumAttachments
                     .Where(a => a.PostId == postId && a.DeletedAt == null)
+                    .Where(a => mappedPost.Status == null || a.IsApproved == true)
                     .Select(a => new ForumAttachment
                     {
                         Id = a.Id,
@@ -53,6 +57,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 mappedPost.ViolationRecords = await GetViolationRecordsByPostIdAsync(postId);
 
+                var (comments, _) = await _commentRepo.GetCommentsByPostIdAsync(postId);
+                mappedPost.CommentCount = await _context.ForumComments
+                    .CountAsync(c => c.PostId == postId && c.DeletedAt == null);
+                mappedPost.Comments = comments;
+
                 return mappedPost;
             }
             catch (Exception ex)
@@ -63,13 +72,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         public async Task<(List<ForumPost> posts, int totalCount)> GetPublicPostsAsync(
-            int schoolId,
-            int? subjectId = null,
-            int? flairId = null,
-            string? query = null,
-            string? sortBy = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+     int schoolId,
+     List<short>? subjectIds = null,
+     List<int>? flairIds = null,
+     string? query = null,
+     string? sortBy = null,
+     int? pageNumber = null,
+     int? pageSize = null)
         {
             try
             {
@@ -79,14 +88,16 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(p => p.CreatedByNavigation)
                     .Where(p => p.SchoolId == schoolId && p.DeletedAt == null && p.Status == true && p.IsHidden == false);
 
-                if (subjectId.HasValue)
-                    dbQuery = dbQuery.Where(p => p.SubjectId == subjectId.Value);
+                if (subjectIds != null && subjectIds.Any())
+                    dbQuery = dbQuery.Where(p => subjectIds.Contains(p.SubjectId));
 
-                if (flairId.HasValue)
-                    dbQuery = dbQuery.Where(p => p.FlairId == flairId.Value);
+                if (flairIds != null && flairIds.Any())
+                    dbQuery = dbQuery.Where(p => flairIds.Contains(p.FlairId!.Value));
 
                 if (!string.IsNullOrWhiteSpace(query))
-                    dbQuery = dbQuery.Where(p => p.Title.Contains(query));
+                    dbQuery = dbQuery.Where(p =>
+                        p.Title.Contains(query) ||
+                        p.CreatedByNavigation.Fullname.Contains(query));
 
                 var totalCount = await dbQuery.CountAsync();
 
@@ -94,6 +105,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     "date_asc" => dbQuery.OrderBy(p => p.CreatedAt),
                     "violation_score" => dbQuery.OrderByDescending(p => p.TotalViolationScore),
+                    "comment_count" => dbQuery.OrderByDescending(p => _context.ForumComments
+        .Count(c => c.PostId == p.Id && c.DeletedAt == null)),
                     _ => dbQuery.OrderByDescending(p => p.CreatedAt)
                 };
 
@@ -113,6 +126,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                     post.CommentCount = await _context.ForumComments
                         .CountAsync(c => c.PostId == post.Id && c.DeletedAt == null);
+
                     post.AttachmentCount = await _context.ForumAttachments
                         .CountAsync(a => a.PostId == post.Id && a.DeletedAt == null);
 
@@ -128,6 +142,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                             CreatedBy = a.CreatedBy
                         })
                         .ToListAsync();
+
+                    var (comments, _) = await _commentRepo.GetCommentsByPostIdAsync(post.Id);
+                    post.Comments = comments;
                 }
 
                 return (result, totalCount);
@@ -140,16 +157,16 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         public async Task<(List<ForumPost> posts, int totalCount)> GetOwnedPostsAsync(
-            Guid userId,
-            int schoolId,
-            int? subjectId = null,
-            int? flairId = null,
-            string? query = null,
-            bool? status = null,
-            DateTime? createdFrom = null,
-            DateTime? createdTo = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+        Guid userId,
+        int schoolId,
+        List<short>? subjectIds = null,
+        List<int>? flairIds = null,
+        string? query = null,
+        bool? status = null,
+        DateTime? createdFrom = null,
+        DateTime? createdTo = null,
+        int? pageNumber = null,
+        int? pageSize = null)
         {
             try
             {
@@ -159,14 +176,16 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(p => p.CreatedByNavigation)
                     .Where(p => p.SchoolId == schoolId && p.CreatedBy == userId && p.DeletedAt == null);
 
-                if (subjectId.HasValue)
-                    dbQuery = dbQuery.Where(p => p.SubjectId == subjectId.Value);
+                if (subjectIds != null && subjectIds.Any())
+                    dbQuery = dbQuery.Where(p => subjectIds.Contains(p.SubjectId));
 
-                if (flairId.HasValue)
-                    dbQuery = dbQuery.Where(p => p.FlairId == flairId.Value);
+                if (flairIds != null && flairIds.Any())
+                    dbQuery = dbQuery.Where(p => flairIds.Contains(p.FlairId!.Value));
 
                 if (!string.IsNullOrWhiteSpace(query))
-                    dbQuery = dbQuery.Where(p => p.Title.Contains(query));
+                    dbQuery = dbQuery.Where(p =>
+                        p.Title.Contains(query) ||
+                        p.CreatedByNavigation.Fullname.Contains(query));
 
                 if (status.HasValue)
                     dbQuery = dbQuery.Where(p => p.Status == status.Value);
@@ -197,6 +216,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                     post.CommentCount = await _context.ForumComments
                         .CountAsync(c => c.PostId == post.Id && c.DeletedAt == null);
+
                     post.AttachmentCount = await _context.ForumAttachments
                         .CountAsync(a => a.PostId == post.Id && a.DeletedAt == null);
 
@@ -213,7 +233,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         })
                         .ToListAsync();
 
-                    post.ViolationRecords = await GetViolationRecordsByPostIdAsync(post.Id);
+                    var (comments, _) = await _commentRepo.GetCommentsByPostIdAsync(post.Id);
+                    post.Comments = comments;
                 }
 
                 return (result, totalCount);
@@ -226,18 +247,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         public async Task<(List<ForumPost> posts, int totalCount)> GetModeratorPostsAsync(
-            int schoolId,
-            int? subjectId = null,
-            int? flairId = null,
-            string? query = null,
-            string? postStatus = null,
-            int? minViolationScore = null,
-            int? maxViolationScore = null,
-            DateTime? createdFrom = null,
-            DateTime? createdTo = null,
-            string? sortBy = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+         int schoolId,
+         List<short>? subjectIds = null,
+         List<int>? flairIds = null,
+         string? query = null,
+         string? postStatus = null,
+         int? minViolationScore = null,
+         int? maxViolationScore = null,
+         DateTime? createdFrom = null,
+         DateTime? createdTo = null,
+         string? sortBy = null,
+         int? pageNumber = null,
+         int? pageSize = null)
         {
             try
             {
@@ -247,14 +268,16 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(p => p.CreatedByNavigation)
                     .Where(p => p.SchoolId == schoolId && p.DeletedAt == null);
 
-                if (subjectId.HasValue)
-                    dbQuery = dbQuery.Where(p => p.SubjectId == subjectId.Value);
+                if (subjectIds != null && subjectIds.Any())
+                    dbQuery = dbQuery.Where(p => subjectIds.Contains(p.SubjectId));
 
-                if (flairId.HasValue)
-                    dbQuery = dbQuery.Where(p => p.FlairId == flairId.Value);
+                if (flairIds != null && flairIds.Any())
+                    dbQuery = dbQuery.Where(p => flairIds.Contains(p.FlairId!.Value));
 
                 if (!string.IsNullOrWhiteSpace(query))
-                    dbQuery = dbQuery.Where(p => p.Title.Contains(query));
+                    dbQuery = dbQuery.Where(p =>
+                        p.Title.Contains(query) ||
+                        p.CreatedByNavigation.Fullname.Contains(query));
 
                 if (!string.IsNullOrWhiteSpace(postStatus))
                 {
@@ -290,6 +313,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     "date_asc" => dbQuery.OrderBy(p => p.CreatedAt),
                     "violation_score" => dbQuery.OrderByDescending(p => p.TotalViolationScore),
+                    "comment_count" => dbQuery.OrderByDescending(p => _context.ForumComments
+        .Count(c => c.PostId == p.Id && c.DeletedAt == null)),
                     _ => dbQuery.OrderByDescending(p => p.CreatedAt)
                 };
 
@@ -324,7 +349,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                             CreatedBy = a.CreatedBy
                         })
                         .ToListAsync();
-
+                    var (comments, _) = await _commentRepo.GetCommentsByPostIdAsync(post.Id);
+                    post.Comments = comments;
                     post.ViolationRecords = await GetViolationRecordsByPostIdAsync(post.Id);
                 }
 
@@ -443,7 +469,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (entity == null) return false;
 
                 entity.Status = false;
-                entity.DeletedAt = DateTime.Now;
                 entity.UpdatedAt = DateTime.Now;
                 entity.UpdatedBy = moderatorId;
 
@@ -528,7 +553,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Username = p.CreatedByNavigation.Username,
                     Fullname = p.CreatedByNavigation.Fullname,
                     Avatar = p.CreatedByNavigation.Avatar
-                } : null
+                } : null,
+                Comments = new List<ForumComment>()
             };
         }
 
@@ -551,17 +577,28 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 User = r.User != null ? new AppUser
                 {
                     Id = Guid.Parse(r.User.Id.ToString()),
-                    Username = r.User.Username
+                    Username = r.User.Username,
+                    Fullname = r.User.Fullname
                 } : null,
                 Post = r.Post != null ? new ForumPost
                 {
                     Id = r.Post.Id,
-                    Title = r.Post.Title
+                    Title = r.Post.Title,
+                    Content = r.Post.Content
+                } : null,
+                Comment = r.Comment != null ? new ForumComment
+                {
+                    CommentId = r.Comment.Id,
+                    Content = r.Comment.Content,
+                    PostId = r.Comment.PostId
                 } : null,
                 Rule = r.MatchedRule != null ? new ForumRule
                 {
                     Id = r.MatchedRule.Id,
-                    Name = r.MatchedRule.Name
+                    Name = r.MatchedRule.Name,
+                    Severity = r.MatchedRule.Severity,
+                    Description = r.MatchedRule.Description,
+                    ViolationScore = r.MatchedRule.ViolationScore
                 } : null,
                 Pattern = r.MatchedPattern != null ? new RulePattern
                 {
@@ -571,7 +608,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Reporter = r.ReportedByNavigation != null ? new AppUser
                 {
                     Id = Guid.Parse(r.ReportedByNavigation.Id.ToString()),
-                    Username = r.ReportedByNavigation.Username
+                    Username = r.ReportedByNavigation.Username,
+                    Fullname = r.ReportedByNavigation.Fullname
                 } : null
             };
         }

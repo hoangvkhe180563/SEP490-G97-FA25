@@ -8,6 +8,8 @@ interface ManagerFilterState {
   selectedGrades: number[];
   selectedSubjects: string[];
   selectedCategories: number[];
+  selectedDocumentLengths: string[];
+  selectedDocumentLevels: string[];
 }
 
 const STORAGE_KEY = "manager-document-verification-state";
@@ -67,6 +69,8 @@ export const useManagerDocumentFilters = () => {
       selectedGrades: [],
       selectedSubjects: [],
       selectedCategories: [],
+      selectedDocumentLengths: [],
+      selectedDocumentLevels: [],
     }
   );
 
@@ -112,6 +116,8 @@ export const useManagerDocumentFilters = () => {
     filters.selectedGrades,
     filters.selectedSubjects,
     filters.selectedCategories,
+    filters.selectedDocumentLengths,
+    filters.selectedDocumentLevels,
   ]);
 
   const fetchDocuments = useCallback(async () => {
@@ -235,6 +241,18 @@ export const useManagerDocumentFilters = () => {
       }
     }
 
+    if (filters.selectedDocumentLengths.length > 0) {
+      if (!filters.selectedDocumentLengths.includes(doc.documentLengthType)) {
+        return false;
+      }
+    }
+
+    if (filters.selectedDocumentLevels.length > 0) {
+      if (!filters.selectedDocumentLevels.includes(doc.documentLevel)) {
+        return false;
+      }
+    }
+
     return true;
   });
 
@@ -265,6 +283,8 @@ export const useManagerDocumentFilters = () => {
       selectedGrades: [],
       selectedSubjects: [],
       selectedCategories: [],
+      selectedDocumentLengths: [],
+      selectedDocumentLevels: [],
     });
   };
 

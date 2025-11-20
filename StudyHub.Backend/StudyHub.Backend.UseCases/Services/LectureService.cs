@@ -7,11 +7,15 @@ namespace StudyHub.Backend.UseCases.Services
     {
         private readonly IChapterRepository _chapterRepo;
         private readonly ILessonRepository _lessonRepo;
+        private readonly IInteractiveQuestionRepository _questionRepo;
+        private readonly IInteractiveResponseRepository _responseRepo;
 
-        public LectureService(IChapterRepository chapterRepo, ILessonRepository lessonRepo)
+        public LectureService(IChapterRepository chapterRepo, ILessonRepository lessonRepo, IInteractiveQuestionRepository questionRepo, IInteractiveResponseRepository responseRepo)
         {
             _chapterRepo = chapterRepo;
             _lessonRepo = lessonRepo;
+            _questionRepo = questionRepo;
+            _responseRepo = responseRepo;
         }
 
         public List<Chapter> GetChaptersForCourse(int courseId)
@@ -36,5 +40,25 @@ namespace StudyHub.Backend.UseCases.Services
         public Lesson UpdateLesson(Lesson l) => _lessonRepo.UpdateLesson(l);
 
         public bool DeleteLesson(int id) => _lessonRepo.DeleteLesson(id);
+
+        public List<InteractiveQuestion> GetInteractiveQuestions(int lessonId)
+        {
+            return _questionRepo.GetByLessonId(lessonId);
+        }
+
+        public List<InteractiveQuestion> CreateInteractiveQuestions(int lessonId, List<InteractiveQuestion> questions)
+        {
+            return _questionRepo.CreateForLesson(lessonId, questions);
+        }
+
+        public List<InteractiveQuestion> ReplaceInteractiveQuestions(int lessonId, List<InteractiveQuestion> questions)
+        {
+            return _questionRepo.ReplaceForLesson(lessonId, questions);
+        }
+
+        public InteractiveResponse CreateInteractiveResponse(InteractiveResponse r)
+        {
+            return _responseRepo.Create(r);
+        }
     }
 }

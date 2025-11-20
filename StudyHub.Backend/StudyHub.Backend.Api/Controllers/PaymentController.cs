@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
-using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.UseCases.Services;
 using Microsoft.AspNetCore.SignalR;
 using StudyHub.Backend.Api.Hubs;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
+using StudyHub.Backend.Api.Dtos.PaymentDTOS;
 
 namespace StudyHub.Backend.Api.Controllers
 {

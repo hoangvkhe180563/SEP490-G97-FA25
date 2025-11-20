@@ -198,7 +198,7 @@ const WalletTopUp: React.FC = () => {
       if (number != notification.courseId) return;
 
       const params = new URLSearchParams();
-      params.set("amount", String(amount));
+      params.set("price", String(amount));
       if ((notification as any).reference)
         params.set("txRef", (notification as any).reference);
       navigate(`/payment/student/payment-success?${params.toString()}`);

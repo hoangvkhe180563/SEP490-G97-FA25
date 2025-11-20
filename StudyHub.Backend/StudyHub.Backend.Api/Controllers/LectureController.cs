@@ -12,11 +12,13 @@ namespace StudyHub.Backend.Api.Controllers
     {
         private readonly LectureService _service;
         private readonly CloudFileStorageService _fileStorage;
+        private readonly AuthService _authService;
 
-        public LectureController(LectureService service, CloudFileStorageService fileStorage)
+        public LectureController(LectureService service, CloudFileStorageService fileStorage, AuthService authService)
         {
             _service = service;
             _fileStorage = fileStorage;
+            _authService = authService;
         }
 
         // ==============================
@@ -106,7 +108,112 @@ namespace StudyHub.Backend.Api.Controllers
             var entity = l.ToEntity();
             var created = _service.CreateLesson(entity);
 
+            // persist interactive questions if provided
+            try
+            {
+                if (l.InteractiveQuestions != null && l.InteractiveQuestions.Any())
+                {
+                    var iq = l.InteractiveQuestions.Select(i => new StudyHub.Backend.Domain.Entities.InteractiveQuestion
+                    {
+                        TimeSec = i.TimeSec,
+                        QuestionText = i.Question,
+                        Type = i.Type,
+                        OptionsJson = i.Options != null ? System.Text.Json.JsonSerializer.Serialize(i.Options) : null,
+                        CorrectIndex = i.CorrectIndex,
+                        CorrectAnswer = i.CorrectAnswer,
+                        CreatedAt = DateTime.UtcNow
+                    }).ToList();
+                    _service.CreateInteractiveQuestions(created.Id, iq);
+                }
+            }
+            catch
+            {
+                // non-fatal: continue
+            }
+
             return CreatedAtAction(nameof(GetLesson), new { id = created.Id }, created.ToListDto());
+        }
+
+        [HttpPost("lesson/{lessonId}/interactive-response")]
+        public IActionResult SubmitInteractiveResponse(int lessonId, [FromBody] object payload)
+        {
+            // payload is expected to contain questionId and answer shape { selectedIndex?, value? }
+            try
+            {
+                if (payload == null) return BadRequest("payload required");
+                var doc = System.Text.Json.JsonSerializer.SerializeToElement(payload);
+                var questionId = doc.GetProperty("questionId").GetInt32();
+
+                var userId = _authService.GetCurrentUser().Id;
+
+                if (userId == Guid.Empty) return Unauthorized();
+
+                var resp = new StudyHub.Backend.Domain.Entities.InteractiveResponse
+                {
+                    LessonId = lessonId,
+                    QuestionId = questionId,
+                    AppUserId = userId,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                if (doc.TryGetProperty("answer", out var ans))
+                {
+                    if (ans.ValueKind == System.Text.Json.JsonValueKind.Object)
+                    {
+                        if (ans.TryGetProperty("selectedIndex", out var si) && si.ValueKind == System.Text.Json.JsonValueKind.Number)
+                        {
+                            resp.SelectedIndex = si.GetInt32();
+                        }
+                        if (ans.TryGetProperty("value", out var val) && val.ValueKind == System.Text.Json.JsonValueKind.String)
+                        {
+                            resp.AnswerText = val.GetString();
+                        }
+                    }
+                    else if (ans.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        resp.AnswerText = ans.GetString();
+                    }
+                }
+
+                // compute correctness if possible by looking up the question
+                try
+                {
+                    var qs = _service.GetInteractiveQuestions(lessonId);
+                    var q = qs?.FirstOrDefault(x => x.Id == questionId);
+                    if (q != null)
+                    {
+                        bool? isCorrect = null;
+                        if (q.Type == "mc")
+                        {
+                            if (resp.SelectedIndex.HasValue && q.CorrectIndex.HasValue)
+                            {
+                                isCorrect = resp.SelectedIndex.Value == q.CorrectIndex.Value;
+                            }
+                        }
+                        else if (q.Type == "text")
+                        {
+                            if (!string.IsNullOrEmpty(q.CorrectAnswer))
+                            {
+                                var given = (resp.AnswerText ?? string.Empty).Trim().ToLowerInvariant();
+                                var expect = q.CorrectAnswer.Trim().ToLowerInvariant();
+                                isCorrect = given == expect;
+                            }
+                        }
+                        resp.IsCorrect = isCorrect;
+                    }
+                }
+                catch
+                {
+                    // ignore correctness computation failures
+                }
+
+                var createdResp = _service.CreateInteractiveResponse(resp);
+                return Ok(new { success = true, data = createdResp, isCorrect = resp.IsCorrect });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
 
         [HttpPut("lesson/{id}")]
@@ -152,7 +259,45 @@ namespace StudyHub.Backend.Api.Controllers
             }
 
             var updated = _service.UpdateLesson(existing);
+            // if interactive questions provided in DTO, replace existing questions for this lesson
+            try
+            {
+                if (l.InteractiveQuestions != null && l.InteractiveQuestions.Any())
+                {
+                    var iq = l.InteractiveQuestions.Select(i => new StudyHub.Backend.Domain.Entities.InteractiveQuestion
+                    {
+                        TimeSec = i.TimeSec,
+                        QuestionText = i.Question,
+                        Type = i.Type,
+                        OptionsJson = i.Options != null ? System.Text.Json.JsonSerializer.Serialize(i.Options) : null,
+                        CorrectIndex = i.CorrectIndex,
+                        CorrectAnswer = i.CorrectAnswer,
+                        CreatedAt = DateTime.UtcNow
+                    }).ToList();
+                    _service.ReplaceInteractiveQuestions(updated.Id, iq);
+                }
+            }
+            catch
+            {
+                // non-fatal
+            }
+
             return Ok(updated.ToListDto());
+        }
+
+        [HttpGet("lesson/{lessonId}/interactive-questions")]
+        public IActionResult GetInteractiveQuestions(int lessonId)
+        {
+            try
+            {
+                var list = _service.GetInteractiveQuestions(lessonId);
+                if (list == null) return NotFound();
+                return Ok(list.Select(q => q.ToDto()));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
 
         [HttpDelete("lesson/{id}")]

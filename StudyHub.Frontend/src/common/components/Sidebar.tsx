@@ -20,7 +20,10 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { axiosInstance } from "@/lib/axios";
-
+import { MessageSquare } from "lucide-react";
+import { CreateAppealModal } from "@/forumManagement/components/CreateAppealModal";
+import { useAppealStore } from "@/forumManagement/stores/useAppealStore";
+import { toast } from "sonner";
 interface ISidebarContextProps {
   expanded: boolean;
 }
@@ -30,6 +33,8 @@ export const Sidebar = (props: {
   children: React.ReactNode;
   user: AppUser;
 }) => {
+  const [showAppealModal, setShowAppealModal] = useState(false);
+  const { createAppeal, isLoading } = useAppealStore();
   const logout = async () => {
     await axiosInstance.post("/auth/logout").then((res) => {
       if (res.status === 200) {
@@ -39,67 +44,100 @@ export const Sidebar = (props: {
       }
     });
   };
+  const handleCreateAppeal = async (reason: string) => {
+    if (!props.user.schoolId) {
+      toast.error("Không tìm thấy thông tin trường học");
+      return;
+    }
 
+    const result = await createAppeal(props.user.schoolId, reason);
+    if (result?.success) {
+      toast.success("Đã gửi kháng cáo thành công");
+    } else {
+      toast.error(result?.message || "Có lỗi xảy ra khi gửi kháng cáo");
+    }
+  };
   const [expanded, setExpanded] = useState<boolean>(true);
 
   return (
-    <aside className="transition-all inline-flex flex-col border-r border-gray-300 shadow-lg bg-slate-200">
-      <div className="p-4 pb-2 flex justify-between items-center">
-        <p className={`overflow-hidden transition-all text-center font-bold text-lg ${expanded ? "flex-1 w-32" : "w-0"}`}>
-          Danh mục
-        </p>
-        <Button
-          className="cursor-pointer"
-          onClick={() => setExpanded((curr) => !curr)}
-          variant="secondary"
-          size="icon"
-        >
-          {expanded ? (
-            <ChevronFirst className="size-6" />
-          ) : (
-            <Menu className="size-6" />
-          )}
-        </Button>
-      </div>
-
-      <SidebarContext.Provider value={{ expanded }}>
-        <ul className="flex-1 px-3">{props.children}</ul>
-      </SidebarContext.Provider>
-
-      <div className="p-2 text-gray-500 border-t border-gray-300 flex items-center justify-center">
-        <Avatar className="size-8">
-          <AvatarImage src={props.user.avatar} alt="User Avatar" />
-          <AvatarFallback>
-            {props.user.username.charAt(0).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div className={`flex items-center transition-all overflow-hidden ${expanded ? 'ml-3 flex-1' : 'w-0'}`}>
-          <div>
-            <p className="font-medium">{props.user.fullname}</p>
-            <p className="text-sm text-gray-600">{props.user.email}</p>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className={`hover:bg-sky-400 hover:text-white overflow-hidden ${expanded ? 'ml-2 w-10' : 'w-0'}`}
-              >
-                <EllipsisVertical size={16} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-50 ml-3">
-              <DropdownMenuItem>
-                <CircleUser className="mr-2 h-4 w-4" /> Thông tin cá nhân
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-red-600" onClick={logout}>
-                <LogOut className="mr-2 h-4 w-4 stroke-red-600" />{" "}
-                <span className="w-full hover:text-red-600">Đăng xuất</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+    <>
+      <aside className="transition-all inline-flex flex-col border-r border-gray-300 shadow-lg bg-slate-200">
+        <div className="p-4 pb-2 flex justify-between items-center">
+          <p
+            className={`overflow-hidden transition-all text-center font-bold text-lg ${
+              expanded ? "flex-1 w-32" : "w-0"
+            }`}
+          >
+            Danh mục
+          </p>
+          <Button
+            className="cursor-pointer"
+            onClick={() => setExpanded((curr) => !curr)}
+            variant="secondary"
+            size="icon"
+          >
+            {expanded ? (
+              <ChevronFirst className="size-6" />
+            ) : (
+              <Menu className="size-6" />
+            )}
+          </Button>
         </div>
-      </div>
-    </aside>
+
+        <SidebarContext.Provider value={{ expanded }}>
+          <ul className="flex-1 px-3">{props.children}</ul>
+        </SidebarContext.Provider>
+
+        <div className="p-2 text-gray-500 border-t border-gray-300 flex items-center justify-center">
+          <Avatar className="size-8">
+            <AvatarImage src={props.user.avatar} alt="User Avatar" />
+            <AvatarFallback>
+              {props.user.username.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div
+            className={`flex items-center transition-all overflow-hidden ${
+              expanded ? "ml-3 flex-1" : "w-0"
+            }`}
+          >
+            <div>
+              <p className="font-medium">{props.user.fullname}</p>
+              <p className="text-sm text-gray-600">{props.user.email}</p>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={`hover:bg-sky-400 hover:text-white overflow-hidden ${
+                    expanded ? "ml-2 w-10" : "w-0"
+                  }`}
+                >
+                  <EllipsisVertical size={16} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-50 ml-3">
+                <DropdownMenuItem>
+                  <CircleUser className="mr-2 h-4 w-4" /> Thông tin cá nhân
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowAppealModal(true)}>
+                  <MessageSquare className="mr-2 h-4 w-4" /> Tạo kháng cáo
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-red-600" onClick={logout}>
+                  <LogOut className="mr-2 h-4 w-4 stroke-red-600" />{" "}
+                  <span className="w-full hover:text-red-600">Đăng xuất</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </aside>
+      <CreateAppealModal
+        isOpen={showAppealModal}
+        onClose={() => setShowAppealModal(false)}
+        onSubmit={handleCreateAppeal}
+        isLoading={isLoading}
+      />
+    </>
   );
 };
 
@@ -108,8 +146,8 @@ export const SidebarItem = (props: ISidebarItem) => {
   const location = useLocation();
   let currentFunction = location.pathname.split("/")[1];
   const linkFunction = props.link.split("/")[1];
-  if (currentFunction === 'ui') {
-    currentFunction = '';
+  if (currentFunction === "ui") {
+    currentFunction = "";
   }
 
   return (
@@ -117,16 +155,18 @@ export const SidebarItem = (props: ISidebarItem) => {
       <Link
         to={props.link}
         className={`relative flex items-center py-2 px-3 my-1 font-medium rounded-md cursor-pointer transition-colors leading-4 group
-      ${currentFunction === linkFunction
-            ? "bg-gradient-to-tr from-sky-500 to-sky-200 text-blue-800"
-            : "hover:bg-sky-200 text-gray-600"
-          }
+      ${
+        currentFunction === linkFunction
+          ? "bg-gradient-to-tr from-sky-500 to-sky-200 text-blue-800"
+          : "hover:bg-sky-200 text-gray-600"
+      }
     `}
       >
         {props.icon}
         <span
-          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${expanded ? "w-40 ml-3" : "w-0"
-            }`}
+          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${
+            expanded ? "w-40 ml-3" : "w-0"
+          }`}
         >
           {props.text}
         </span>
@@ -163,8 +203,9 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
       >
         {props.icon}
         <span
-          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${expanded ? "w-40 ml-3" : "w-0"
-            }`}
+          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${
+            expanded ? "w-40 ml-3" : "w-0"
+          }`}
         >
           {props.text}
         </span>
@@ -188,10 +229,11 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
         )}
       </li>
       <ul
-        className={`transition-all duration-300 ${isOpen && expanded
-          ? "max-h-96 opacity-100 w-full"
-          : "max-h-0 opacity-0 w-0"
-          }`}
+        className={`transition-all duration-300 ${
+          isOpen && expanded
+            ? "max-h-96 opacity-100 w-full"
+            : "max-h-0 opacity-0 w-0"
+        }`}
       >
         {props.children &&
           props.children.map((child, index) => (
@@ -199,9 +241,10 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
               <Link
                 to={child.link}
                 className={`relative flex items-center py-2 px-3 my-1 ml-3 font-medium rounded-md cursor-pointer transition-colors leading-4 group text-sm
-                  ${currentFunction === linkFunction
-                    ? "bg-gradient-to-tr from-sky-400 to-sky-100 text-blue-800"
-                    : "hover:bg-sky-100 text-gray-600"
+                  ${
+                    currentFunction === linkFunction
+                      ? "bg-gradient-to-tr from-sky-400 to-sky-100 text-blue-800"
+                      : "hover:bg-sky-100 text-gray-600"
                   }
                 `}
               >

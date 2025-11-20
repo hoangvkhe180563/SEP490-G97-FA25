@@ -1053,6 +1053,30 @@ export default function DocumentViewer() {
                             </span>
                           </div>
                           <div className="flex justify-between text-xs">
+                            <span className="text-gray-600">Độ dài</span>
+                            <span className="font-medium text-right">
+                              {document?.documentLengthType === "Short"
+                                ? "Ngắn"
+                                : document?.documentLengthType === "Medium"
+                                ? "Trung bình"
+                                : document?.documentLengthType === "Long"
+                                ? "Dài"
+                                : "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-600">Độ khó</span>
+                            <span className="font-medium text-right">
+                              {document?.documentLevel === "Easy"
+                                ? "Dễ"
+                                : document?.documentLevel === "Medium"
+                                ? "Trung bình"
+                                : document?.documentLevel === "Hard"
+                                ? "Khó"
+                                : "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs">
                             <span className="text-gray-600">Ngày tạo</span>
                             <span className="font-medium text-right">
                               {document?.createdAt

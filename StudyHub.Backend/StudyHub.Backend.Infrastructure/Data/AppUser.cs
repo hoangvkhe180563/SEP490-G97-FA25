@@ -61,11 +61,17 @@ public partial class AppUser
 
     public DateTime? DeletedAt { get; set; }
 
-    public virtual ICollection<AppUserSubjectClass> AppUserSubjectClasses { get; set; } = new List<AppUserSubjectClass>();
+    public virtual ICollection<AccountRecoveryRequest> AccountRecoveryRequests { get; set; } = new List<AccountRecoveryRequest>();
+
+    public virtual ICollection<AppUserClass> AppUserClasses { get; set; } = new List<AppUserClass>();
+
+    public virtual ICollection<AppUserLoginHistory> AppUserLoginHistories { get; set; } = new List<AppUserLoginHistory>();
 
     public virtual Commune? Commune { get; set; }
 
     public virtual ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
+
+    public virtual ICollection<ExamResult> ExamResults { get; set; } = new List<ExamResult>();
 
     public virtual ICollection<ForumAppeal> ForumAppealUpdatedByNavigations { get; set; } = new List<ForumAppeal>();
 
@@ -81,7 +87,7 @@ public partial class AppUser
 
     public virtual ICollection<ForumRule> ForumRules { get; set; } = new List<ForumRule>();
 
-    public virtual ICollection<ExamResult> ExamResults { get; set; } = new List<ExamResult>();
+    public virtual ICollection<InteractiveResponse> InteractiveResponses { get; set; } = new List<InteractiveResponse>();
 
     public virtual ICollection<LessonComment> LessonComments { get; set; } = new List<LessonComment>();
 
@@ -93,6 +99,8 @@ public partial class AppUser
 
     public virtual ICollection<RulePattern> RulePatterns { get; set; } = new List<RulePattern>();
 
+    public virtual ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
+
     public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
 
     public virtual ICollection<UserForumStatus> UserForumStatuses { get; set; } = new List<UserForumStatus>();
@@ -102,4 +110,6 @@ public partial class AppUser
     public virtual ICollection<ViolationRecord> ViolationRecordUsers { get; set; } = new List<ViolationRecord>();
 
     public virtual ICollection<AppRole> Roles { get; set; } = new List<AppRole>();
+
+    public virtual ICollection<Subject> Subjects { get; set; } = new List<Subject>();
 }

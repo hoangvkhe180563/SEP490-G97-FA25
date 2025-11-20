@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import toast from "react-hot-toast";
 import { AlertCircle, Download, Inbox, Loader2 } from "lucide-react";
 import { Input } from "@/common/components/ui/input";
 import {
@@ -19,8 +20,12 @@ import {
   TableRow,
 } from "@/common/components/ui/table";
 import AccountItem from "../../components/AccountItem";
+import AccountImportPreviewModal from "../../components/AccountImportPreviewModal";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
+import useAppUserExcelStore from "@/user/stores/useAppUserExcelStore";
 import type { AppUser } from "@/user/interfaces/app-user";
+import { Link } from "react-router-dom";
+import { useAppRoleStore } from "@/user/stores/useRoleStore";
 
 import {
   Pagination,
@@ -30,8 +35,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/common/components/ui/pagination";
-import { Link } from "react-router-dom";
-import { useAppRoleStore } from "@/user/stores/useRoleStore";
+
 const AccountList = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -48,6 +52,33 @@ const AccountList = () => {
     message,
     filterAppUsers,
   } = useAppUserStore();
+  const {
+    previewFile,
+    exportAccounts,
+    exportTemplate,
+    importAccounts,
+    uploadPreview,
+  } = useAppUserExcelStore();
+  // import validation errors parsed into row -> messages
+  const [importErrors, setImportErrors] = useState<Record<number, string[]>>(
+    {}
+  );
+  // import cell-level errors: row -> colIndex -> messages
+  const [importCellErrors, setImportCellErrors] = useState<
+    Record<number, Record<number, string[]>>
+  >({});
+  const [showImportErrors, setShowImportErrors] = useState(false);
+
+  // file input ref for reliable file picker
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // preview modal state
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewData, setPreviewData] = useState<{
+    headers: string[];
+    rows: string[][];
+  } | null>(null);
+  console.log("Preview data:", previewData);
   const { appRoles, getAppRoles } = useAppRoleStore();
   // Map frontend status to backend expected values (Active/Inactive)
   const statusColor: Record<AppUser["status"], string> = {
@@ -61,6 +92,243 @@ const AccountList = () => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
     return () => clearTimeout(t);
   }, [search]);
+
+  const normalize = (s?: string) =>
+    String(s ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .replace(/[^a-z0-9]/g, "");
+
+  const cleanMessage = (msg: string, fieldName?: string) => {
+    let t = String(msg ?? "");
+    if (fieldName) {
+      const fn = normalize(fieldName);
+      // remove leading 'FieldName: ' or 'FieldName :' or 'FieldName -' if present in message
+      const prefixPattern = new RegExp(
+        "^\\s*" + escapeRegExp(fieldName) + "\\s*[:\\-\\s]+",
+        "i"
+      );
+      if (prefixPattern.test(t)) t = t.replace(prefixPattern, "").trim();
+      // also try normalized check: if message starts with a normalized field token
+      const tNorm = normalize(t);
+      if (tNorm.startsWith(fn)) {
+        // remove the raw token from start
+        t = t.replace(new RegExp("^\\s*" + fn + "[:\\-\\s]*", "i"), "").trim();
+      }
+    }
+    return t;
+  };
+
+  const headerMatchIndex = (headers: string[], fieldName?: string) => {
+    if (!fieldName) return -1;
+    const fnNorm = normalize(fieldName);
+    // common token heuristics
+    const usernameTokens = [
+      "user",
+      "username",
+      "tendangnhap",
+      "tendang",
+      "tendn",
+      "tennguoi",
+      "teng",
+      "tengnguoi",
+    ];
+    const phoneTokens = ["phone", "phonenumber", "sdt", "sodienthoai", "phone"];
+    const dobTokens = ["dob", "birth", "birthdate", "ngaysinh", "dob"];
+    const createdTokens = ["created", "createdat", "ngaytao", "ngaytao"];
+    const roleTokens = ["role", "roles", "roleids", "vaitro", "vaitro"];
+
+    return headers.findIndex((h) => {
+      if (!h) return false;
+      const hhNorm = normalize(h);
+      if (
+        hhNorm === fnNorm ||
+        hhNorm.includes(fnNorm) ||
+        fnNorm.includes(hhNorm)
+      )
+        return true;
+      // heuristics
+      if (
+        usernameTokens.some((t) => fnNorm.includes(t)) &&
+        (hhNorm.includes("tendang") ||
+          hhNorm.includes("tennguoi") ||
+          hhNorm.includes("username"))
+      )
+        return true;
+      if (
+        phoneTokens.some((t) => fnNorm.includes(t)) &&
+        hhNorm.includes("sodienthoai")
+      )
+        return true;
+      if (
+        dobTokens.some((t) => fnNorm.includes(t)) &&
+        hhNorm.includes("ngaysinh")
+      )
+        return true;
+      if (
+        createdTokens.some((t) => fnNorm.includes(t)) &&
+        hhNorm.includes("ngaytao")
+      )
+        return true;
+      if (
+        roleTokens.some((t) => fnNorm.includes(t)) &&
+        (hhNorm.includes("vaitro") || hhNorm.includes("role"))
+      )
+        return true;
+      return false;
+    });
+  };
+
+  const headerIndexByKeywords = (headers: string[], fnNorm: string) => {
+    if (!fnNorm) return -1;
+    const keywordGroups: Record<string, string[]> = {
+      phone: ["sodienthoai", "sdt", "phone"],
+      email: ["email"],
+      username: ["username", "tendangnhap", "tendang", "tendn"],
+      role: ["vaitro", "role", "roles", "roleids"],
+      dob: ["ngaysinh", "dob", "birth", "birthdate"],
+      created: ["ngaytao", "created", "createdat"],
+    };
+
+    for (const keys of Object.values(keywordGroups)) {
+      if (keys.some((k) => fnNorm.includes(k))) {
+        for (let i = 0; i < headers.length; i++) {
+          const hh = normalize(headers[i] || "");
+          if (keys.some((k) => hh.includes(k))) return i;
+        }
+      }
+    }
+    // also attempt a loose header scan: if any header contains any token from fnNorm
+    for (let i = 0; i < headers.length; i++) {
+      const hh = normalize(headers[i] || "");
+      if (fnNorm.split(/[^a-z0-9]+/).some((tok) => tok && hh.includes(tok)))
+        return i;
+    }
+    return -1;
+  };
+
+  const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const detectFieldFromMessage = (msg?: string) => {
+    const t = String(msg ?? "").toLowerCase();
+    if (!t) return null;
+    if (
+      t.includes("số điện thoại") ||
+      t.includes("sodienthoai") ||
+      t.includes("sdt") ||
+      t.includes("phone")
+    )
+      return "Số điện thoại";
+    if (t.includes("email")) return "Email";
+    if (
+      t.includes("tên người dùng") ||
+      t.includes("tendangnhap") ||
+      t.includes("tendang")
+    )
+      return "Tên người dùng";
+    if (t.includes("vai trò") || t.includes("vaitro") || t.includes("role"))
+      return "Vai trò";
+    if (
+      t.includes("ngày tạo") ||
+      t.includes("ngaytao") ||
+      t.includes("created")
+    )
+      return "Ngày tạo";
+    if (t.includes("ngày sinh") || t.includes("ngaysinh") || t.includes("dob"))
+      return "Ngày sinh";
+    return null;
+  };
+
+  const guessIndexFromMessageContent = (msg: string, headers: string[]) => {
+    const t = String(msg ?? "").toLowerCase();
+    // phone: look for at least 7 digits
+    const phoneMatch = t.match(/\d{7,}/);
+    if (phoneMatch) {
+      for (let i = 0; i < headers.length; i++) {
+        const hh = normalize(headers[i] || "");
+        if (
+          hh.includes("sodienthoai") ||
+          hh.includes("sdt") ||
+          hh.includes("phone")
+        )
+          return i;
+      }
+    }
+    // email
+    if (t.includes("@")) {
+      for (let i = 0; i < headers.length; i++) {
+        const hh = normalize(headers[i] || "");
+        if (hh.includes("email")) return i;
+      }
+    }
+    // role keywords
+    if (t.includes("vai trò") || t.includes("vaitro") || t.includes("role")) {
+      for (let i = 0; i < headers.length; i++) {
+        const hh = normalize(headers[i] || "");
+        if (hh.includes("vaitro") || hh.includes("role")) return i;
+      }
+    }
+    // username
+    if (
+      t.includes("tên người dùng") ||
+      t.includes("tendang") ||
+      t.includes("username")
+    ) {
+      for (let i = 0; i < headers.length; i++) {
+        const hh = normalize(headers[i] || "");
+        if (
+          hh.includes("tendang") ||
+          hh.includes("username") ||
+          hh.includes("tennguoi")
+        )
+          return i;
+      }
+    }
+    return -1;
+  };
+
+  const mapServerFieldToHeaderIndex = (
+    headers: string[],
+    fieldName?: string,
+    msg?: string
+  ) => {
+    if (!headers || headers.length === 0) return -1;
+    if (!fieldName) {
+      if (msg) return guessIndexFromMessageContent(msg, headers);
+      return -1;
+    }
+    // try direct header match first
+    let idx = headerMatchIndex(headers, fieldName);
+    if (idx >= 0) return idx;
+
+    // try keyword fallback
+    const fnNorm = normalize(fieldName);
+    idx = headerIndexByKeywords(headers, fnNorm);
+    if (idx >= 0) return idx;
+
+    // try known translations map from server keys to Vietnamese header text
+    const translations: Record<string, string> = {
+      PhoneNumber: "Số điện thoại",
+      Email: "Email",
+      Username: "Tên người dùng",
+      RoleIds: "Vai trò",
+      CreatedAt: "Ngày tạo",
+      Dob: "Ngày sinh",
+    };
+    const t = translations[fieldName];
+    if (t) {
+      idx = headerMatchIndex(headers, t);
+      if (idx >= 0) return idx;
+    }
+
+    // final fallback: guess from message content
+    if (msg) {
+      idx = guessIndexFromMessageContent(msg, headers);
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
 
   // Build query string for API call
   const query = useMemo(() => {
@@ -77,9 +345,9 @@ const AccountList = () => {
 
   useEffect(() => {
     // Fetch when query changes
-    filterAppUsers(query).catch((err) => console.error(err));
+    filterAppUsers(query).catch(() => {});
     // Fetch roles for the role filter dropdown
-    getAppRoles().catch((err) => console.error(err));
+    getAppRoles().catch(() => {});
   }, [query, filterAppUsers, getAppRoles]);
 
   const total = meta?.total ?? 0;
@@ -110,7 +378,7 @@ const AccountList = () => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6">
+    <div className="bg-white rounded-xl shadow-md p-6 max-h-full overflow-y-auto">
       <div className="flex items-center gap-4 mb-6">
         <Input
           placeholder="Tìm kiếm tài khoản..."
@@ -160,13 +428,283 @@ const AccountList = () => {
           variant="outline"
           className="ml-auto flex items-center gap-2"
           disabled={isLoading}
+          onClick={() => {
+            exportAccounts?.();
+          }}
         >
           <Download className="w-4 h-4" /> Export
+        </Button>
+        <Button
+          variant="outline"
+          className="ml-2 flex items-center gap-2"
+          onClick={() => exportTemplate?.(1000)}
+        >
+          Mẫu Import
+        </Button>
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          id="import-file"
+          className="hidden"
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            if (!f) return;
+            // generate preview client-side and open modal for editing
+            const p = await previewFile(f);
+            // clear previous errors when opening a new preview
+            setImportErrors({});
+            setImportCellErrors({});
+            setShowImportErrors(false);
+            if (p) {
+              setPreviewData(p);
+              setShowPreviewModal(true);
+            } else {
+              // fallback: directly call import and show errors
+              const result = await importAccounts?.(f, (errors) => {
+                const rowMap: Record<number, string[]> = {};
+                const cellMap: Record<number, Record<number, string[]>> = {};
+                try {
+                  Object.entries(errors || {}).forEach(([k, msgs]) => {
+                    const textMsgs = Array.isArray(msgs)
+                      ? msgs
+                      : [String(msgs)];
+                    textMsgs.forEach((raw) => {
+                      let t = String(raw ?? "");
+                      // try to extract row from key first
+                      const rowMatch = k.match(/(\d+)/);
+                      let row = rowMatch
+                        ? parseInt(rowMatch[1], 10)
+                        : undefined;
+                      // if not found, try to extract row from the message text (e.g., 'Hàng 2: ...')
+                      if (row === undefined) {
+                        const m2 = t.match(/(?:Hàng|Row)\s*(\d+)/i);
+                        if (m2) {
+                          row = parseInt(m2[1], 10);
+                          t = t
+                            .replace(/^(?:Hàng|Row)\s*\d+[:\s-]*/i, "")
+                            .trim();
+                        }
+                      }
+                      if (row === undefined) row = 0;
+
+                      // determine field name: either encoded in key or key itself (if not numeric)
+                      const fieldMatch =
+                        k.match(/Row\s*\d+\s*[-:]?\s*(.+)$/i) ||
+                        k.match(/(.+)[_\-.]\d+$/i);
+                      let fieldName = fieldMatch ? fieldMatch[1].trim() : null;
+                      if (!fieldName && !/\d+/.test(k)) fieldName = k.trim();
+                      // if still no fieldName, try to detect from message text
+                      if (!fieldName) {
+                        const d = detectFieldFromMessage(t);
+                        if (d) fieldName = d;
+                      }
+
+                      // clean message and try to map to a column by header heuristics
+                      t = cleanMessage(t, fieldName || undefined);
+                      if (fieldName && previewData) {
+                        const idx = mapServerFieldToHeaderIndex(
+                          previewData.headers,
+                          fieldName,
+                          t
+                        );
+                        if (idx >= 0) {
+                          if (!cellMap[row]) cellMap[row] = {};
+                          if (!cellMap[row][idx]) cellMap[row][idx] = [];
+                          cellMap[row][idx].push(t);
+                          return;
+                        }
+                      }
+
+                      if (!rowMap[row]) rowMap[row] = [];
+                      rowMap[row].push(t);
+                    });
+                  });
+                } catch (err) {
+                  rowMap[0] = [JSON.stringify(errors)];
+                }
+                setImportErrors(rowMap);
+                setImportCellErrors(cellMap);
+                setShowImportErrors(true);
+              });
+              if (result && result.success !== false) {
+                filterAppUsers(query).catch(() => {});
+                setImportErrors({});
+                setShowImportErrors(false);
+                toast.success("Import thành công");
+              }
+            }
+            e.currentTarget.value = "";
+          }}
+        />
+
+        <Button
+          className="bg-black text-white flex items-center gap-2"
+          onClick={() => {
+            // reset input value to ensure onChange fires even for the same file
+            if (inputRef?.current) inputRef.current.value = "";
+            inputRef?.current?.click();
+          }}
+        >
+          Import
         </Button>
         <Button className="bg-black text-white flex items-center gap-2">
           <Link to="/user/manager/add-account">+ Thêm tài khoản</Link>
         </Button>
       </div>
+      {showImportErrors && Object.keys(importErrors).length > 0 && (
+        <div className="mb-4 p-4 border border-rose-200 rounded-md bg-rose-50">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-rose-800">
+              Lỗi khi import
+            </h3>
+            <div className="flex items-center gap-2">
+              <button
+                className="text-sm text-rose-700 underline"
+                onClick={() => {
+                  // copy readable text to clipboard
+                  const lines: string[] = [];
+                  const rows = new Set<number>();
+                  Object.keys(importErrors).forEach((k) => rows.add(Number(k)));
+                  Object.keys(importCellErrors).forEach((k) =>
+                    rows.add(Number(k))
+                  );
+                  Array.from(rows)
+                    .sort((a, b) => a - b)
+                    .forEach((r) => {
+                      const rowMsgs = importErrors[Number(r)] ?? [];
+                      rowMsgs.forEach((m) => lines.push(`Hàng ${r}: ${m}`));
+                      const cellMsgs = importCellErrors[Number(r)] ?? {};
+                      Object.keys(cellMsgs)
+                        .map((ci) => Number(ci))
+                        .sort((a, b) => a - b)
+                        .forEach((ci) => {
+                          (cellMsgs[ci] || []).forEach((m) =>
+                            lines.push(`Hàng ${r}: ${m}`)
+                          );
+                        });
+                    });
+                  navigator.clipboard
+                    .writeText(lines.join("\n"))
+                    .then(() => toast.success("Copied lỗi vào clipboard"))
+                    .catch(() => toast.error("Không thể copy"));
+                }}
+              >
+                Copy
+              </button>
+              <button
+                className="text-sm text-rose-700"
+                onClick={() => setShowImportErrors(false)}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+          <div className="space-y-2 max-h-48 overflow-auto">
+            {(() => {
+              const rows = new Set<number>();
+              Object.keys(importErrors).forEach((k) => rows.add(Number(k)));
+              Object.keys(importCellErrors).forEach((k) => rows.add(Number(k)));
+              return Array.from(rows)
+                .sort((a, b) => a - b)
+                .map((r) => (
+                  <div key={r} className="text-sm">
+                    <div className="font-medium text-rose-800">Hàng {r}</div>
+                    <ul className="list-disc list-inside text-rose-700">
+                      {(importErrors[Number(r)] || []).map((m, i) => (
+                        <li key={`r-${i}`}>{m}</li>
+                      ))}
+                      {Object.keys(importCellErrors[Number(r)] || {})
+                        .map((ci) => Number(ci))
+                        .sort((a, b) => a - b)
+                        .flatMap((ci) =>
+                          (importCellErrors[Number(r)][ci] || []).map(
+                            (m, i) => <li key={`c-${ci}-${i}`}>{m}</li>
+                          )
+                        )}
+                    </ul>
+                  </div>
+                ));
+            })()}
+          </div>
+        </div>
+      )}
+      <AccountImportPreviewModal
+        open={showPreviewModal}
+        onOpenChange={(v) => setShowPreviewModal(v)}
+        previewData={previewData}
+        importErrors={importErrors}
+        importCellErrors={importCellErrors}
+        onPreviewChange={(p) => setPreviewData(p)}
+        onClose={() => setShowPreviewModal(false)}
+        onConfirmUpload={async () => {
+          if (!previewData) return;
+          const res = await uploadPreview(previewData, (errors) => {
+            const rowMap: Record<number, string[]> = {};
+            const cellMap: Record<number, Record<number, string[]>> = {};
+            try {
+              Object.entries(errors || {}).forEach(([k, msgs]) => {
+                const textMsgs = Array.isArray(msgs) ? msgs : [String(msgs)];
+                textMsgs.forEach((raw) => {
+                  let t = String(raw ?? "");
+                  const rowMatch = k.match(/(\d+)/);
+                  let row = rowMatch ? parseInt(rowMatch[1], 10) : undefined;
+                  if (row === undefined) {
+                    const m2 = t.match(/(?:Hàng|Row)\s*(\d+)/i);
+                    if (m2) {
+                      row = parseInt(m2[1], 10);
+                      t = t.replace(/^(?:Hàng|Row)\s*\d+[:\s-]*/i, "").trim();
+                    }
+                  }
+                  if (row === undefined) row = 0;
+
+                  const fieldMatch =
+                    k.match(/Row\s*\d+\s*[-:]?\s*(.+)$/i) ||
+                    k.match(/(.+)[_\-.]\d+$/i);
+                  let fieldName = fieldMatch ? fieldMatch[1].trim() : null;
+                  if (!fieldName && !/\d+/.test(k)) fieldName = k.trim();
+                  if (!fieldName) {
+                    const d = detectFieldFromMessage(t);
+                    if (d) fieldName = d;
+                  }
+
+                  t = cleanMessage(t, fieldName || undefined);
+                  if (fieldName && previewData) {
+                    const idx = mapServerFieldToHeaderIndex(
+                      previewData.headers,
+                      fieldName,
+                      t
+                    );
+                    if (idx >= 0) {
+                      if (!cellMap[row]) cellMap[row] = {};
+                      if (!cellMap[row][idx]) cellMap[row][idx] = [];
+                      cellMap[row][idx].push(t);
+                      return;
+                    }
+                  }
+
+                  if (!rowMap[row]) rowMap[row] = [];
+                  rowMap[row].push(t);
+                });
+              });
+            } catch (err) {
+              rowMap[0] = [JSON.stringify(errors)];
+            }
+            setImportErrors(rowMap);
+            setImportCellErrors(cellMap);
+            setShowImportErrors(true);
+          });
+          if (res && res.success !== false) {
+            filterAppUsers(query).catch(() => {});
+            setImportErrors({});
+            setImportCellErrors({});
+            setShowImportErrors(false);
+            setShowPreviewModal(false);
+            toast.success("Import thành công");
+          }
+        }}
+      />
       <div className="overflow-hidden rounded-md ">
         <Table>
           <TableHeader>

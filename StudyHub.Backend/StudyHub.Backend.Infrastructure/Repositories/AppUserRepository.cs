@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Exceptions;
+using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Repositories;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
@@ -76,8 +77,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 IsLoginWithGoogle = d.IsLoginWithGoogle,
                 Address = d.Address,
                 CommuneId = d.CommuneId,
-                Avatar = d.Avatar
-                ,
+                Avatar = d.Avatar,
                 Wallet = d.Wallet
             };
         }
@@ -120,10 +120,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 var users = _context.AppUsers
                     .Include(u => u.Roles)
-                    .Include(u => u.AppUserSubjectClasses)
-                        .ThenInclude(a => a.Subject)
+                    .Include(u => u.Subjects)
                     .Where(u => u.Roles.Any(r => (r.Name ?? "").Contains("Q&A Teacher"))
-                                && u.AppUserSubjectClasses.Any(a => a.SubjectId == subjectId))
+                                && u.Subjects.Any(a => a.Id == subjectId))
                     .ToList();
 
                 return users.Select(u => ToDomain(u)).ToList();
@@ -217,7 +216,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 }
                 if (d.CreatedAt == default)
                 {
-                    d.CreatedAt = DateTime.UtcNow;
+                    d.CreatedAt = DateTime.Now;
                 }
 
                 _context.AppUsers.Add(d);
@@ -259,13 +258,64 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
+        // Create multiple users in a single transaction and attach per-user roles
+        public void CreateUsersWithRoles(IEnumerable<(Domain.Entities.AppUser user, IEnumerable<Guid>? roleIds)> usersWithRoles)
+        {
+            using var transaction = _context.Database.BeginTransaction();
+            try
+            {
+                // Add all users first
+                foreach (var (user, _) in usersWithRoles)
+                {
+                    user.TransferId = GenerateUniqueTransferId();
+                    var d = ToData(user);
+                    if (d.CreatedBy == Guid.Empty) d.CreatedBy = Guid.Empty;
+                    if (d.CreatedAt == default) d.CreatedAt = DateTime.Now;
+                    _context.AppUsers.Add(d);
+                }
+
+                _context.SaveChanges();
+
+                // Attach roles for each created user
+                foreach (var (user, roleIds) in usersWithRoles)
+                {
+                    if (roleIds == null || !roleIds.Any()) continue;
+
+                    var existing = _context.AppUsers
+                                    .Include(u => u.Roles)
+                                    .FirstOrDefault(u => u.Id == user.Id);
+                    if (existing == null) continue;
+
+                    var roles = _context.AppRoles.Where(r => roleIds.Contains(r.Id)).ToList();
+                    foreach (var r in roles)
+                    {
+                        if (!existing.Roles.Any(rr => rr.Id == r.Id))
+                        {
+                            existing.Roles.Add(r);
+                        }
+                    }
+
+                    _context.AppUsers.Update(existing);
+                }
+
+                _context.SaveChanges();
+                transaction.Commit();
+            }
+            catch (Exception ex)
+            {
+                try { transaction.Rollback(); } catch { }
+                new InfrastructureException("AppUserRepository", "CreateUsersWithRoles failed. Inner error: " + ex.Message).LogError();
+                throw;
+            }
+        }
+
         public void UpdateUser(Domain.Entities.AppUser user, IEnumerable<Guid>? roleIds = null)
         {
             try
             {
                 var existing = _context.AppUsers
                                 .Include(u => u.Roles)
-                                .Include(u => u.AppUserSubjectClasses)
+                                .Include(u => u.Subjects)
                                 .FirstOrDefault(u => u.Id == user.Id);
 
                 if (existing == null) return;
@@ -273,6 +323,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 existing.Email = user.Email;
                 existing.PasswordHash = user.PasswordHash;
                 existing.Username = user.Username;
+                existing.Avatar = user.Avatar;
                 existing.Fullname = user.Fullname;
                 existing.Dob = user.Dob;
                 existing.Gender = user.Gender;
@@ -316,29 +367,52 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
-        public List<Domain.Entities.AppUserSubjectClass> GetClaimsForUser(Guid userId)
+        public List<AppUserClaim> GetClaimsForUser(Guid userId)
         {
-            // AppClaim table removed. Build subject-class assignments from AppUsersubjectclass table.
-            var assignments = _context.AppUserSubjectClasses
+            var result = new List<AppUserClaim>();
+
+            // 1) class assignments (from AppUserClasses table)
+            var classAssignments = _context.AppUserClasses
                 .Where(a => a.UserId == userId)
                 .Include(a => a.Class)
-                .Include(a => a.Subject)
                 .Include(a => a.User)
                 .ToList();
 
-            var result = new List<Domain.Entities.AppUserSubjectClass>();
-            foreach (var a in assignments)
+            foreach (var a in classAssignments)
             {
-                result.Add(new Domain.Entities.AppUserSubjectClass
+                result.Add(new AppUserClaim
                 {
                     UserId = a.UserId,
-                    SubjectId = a.SubjectId,
                     ClassId = a.ClassId,
-                    Class = new Domain.Entities.Class { Id = a.Class.Id, Name = a.Class.Name },
-                    Subject = new Domain.Entities.Subject { Id = a.Subject.Id, Name = a.Subject.Name },
-                    User = ToDomain(a.User)
+                    SubjectId = 0, // class-only assignment (subject not stored here)
+                    Class = a.Class != null ? new Domain.Entities.Class { Id = a.Class.Id, Name = a.Class.Name, Description = a.Class.Description } : null,
+                    Subject = null,
+                    User = a.User != null ? ToDomain(a.User) : null
                 });
             }
+
+            // 2) subjects assigned to the user (many-to-many AppUser.Subjects)
+            var userWithSubjects = _context.AppUsers
+                .Where(u => u.Id == userId)
+                .Include(u => u.Subjects)
+                .FirstOrDefault();
+
+            if (userWithSubjects != null && userWithSubjects.Subjects != null)
+            {
+                foreach (var s in userWithSubjects.Subjects)
+                {
+                    result.Add(new AppUserClaim
+                    {
+                        UserId = userId,
+                        SubjectId = s.Id,
+                        ClassId = 0, // subject-only assignment
+                        Class = null,
+                        Subject = new Domain.Entities.Subject { Id = s.Id, Name = s.Name },
+                        User = ToDomain(userWithSubjects)
+                    });
+                }
+            }
+
             return result;
         }
 
@@ -381,11 +455,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         // Lấy tất cả SubjectId mà user đã có claims
-        private List<short> GetUserSubjectIds(Guid userId)
+        public List<short> GetUserSubjectIds(Guid userId)
         {
-            var subjectIds = _context.AppUserSubjectClasses
-                .Where(a => a.UserId == userId)
-                .Select(a => a.SubjectId)
+            // Subjects are now directly associated to AppUser via many-to-many
+            var subjectIds = _context.AppUsers
+                .Where(u => u.Id == userId)
+                .SelectMany(u => u.Subjects.Select(s => s.Id))
                 .Distinct()
                 .ToList();
 
@@ -395,7 +470,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         // Lấy tất cả ClassId mà user đã có claims
         private List<int> GetUserClassIds(Guid userId)
         {
-            var classIds = _context.AppUserSubjectClasses
+            var classIds = _context.AppUserClasses
                 .Where(a => a.UserId == userId)
                 .Select(a => a.ClassId)
                 .Distinct()

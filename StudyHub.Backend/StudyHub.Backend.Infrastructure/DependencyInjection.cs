@@ -18,9 +18,12 @@ namespace StudyHub.Backend.Infrastructure
             services.AddDbContext<AppDbContext>(options => options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
             services.AddScoped<IAppUserRepository, AppUserRepository>();
+            services.AddScoped<IAppUserLoginHistoryRepository, AppUserLoginHistoryRepository>();
             services.AddScoped<ICourseRepository, CourseRepository>();
             services.AddScoped<IChapterRepository, ChapterRepository>();
             services.AddScoped<ILessonRepository, LessonRepository>();
+            services.AddScoped<IInteractiveQuestionRepository, InteractiveQuestionRepository>();
+            services.AddScoped<IInteractiveResponseRepository, InteractiveResponseRepository>();
             services.AddScoped<ILessonResourceRepository, LessonResourceRepository>();
             services.AddScoped<ILandingPageRepository, LandingPageRepository>();
             services.AddScoped<IDocumentRepository, DocumentRepository>();
@@ -38,8 +41,15 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<IQAConversationRepository, QAConversationRepository>();
             services.AddScoped<IQAConversationReadRepository, QAConversationReadRepository>();
             services.AddScoped<IQAMessageRepository, QAMessageRepository>();
+            services.AddScoped<IForumCommentRepository, ForumCommentRepository>();
+            services.AddScoped<IForumConfigRepository, ForumConfigRepository>();
+            services.AddScoped<IForumModerationRepository, ForumModerationRepository>();
+            services.AddScoped<IForumPostRepository, ForumPostRepository>();
             services.AddScoped<IExamRepository, ExamRepository>();
             services.AddScoped<IExamResultRepository, ExamResultRepository>();
+            services.AddScoped<IAccountRecoveryRequestRepository, AccountRecoveryRequestRepository>();
+            services.AddScoped<IStatisticsRepository, StatisticsRepository>();
+            services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 
             services.AddScoped<ICloudinaryRepository>(provider =>
             {

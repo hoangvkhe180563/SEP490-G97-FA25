@@ -12,6 +12,7 @@ namespace StudyHub.Backend.Domain.Entities
         public string? ViolationType { get; set; }
         public string? Likelihood { get; set; }
         public string? Details { get; set; }
+        public string? ModelPath { get; set; }
         public Dictionary<string, double> AllScores { get; set; } = new();
     }
 }
