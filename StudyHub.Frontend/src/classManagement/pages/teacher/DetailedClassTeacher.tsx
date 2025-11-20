@@ -41,6 +41,7 @@ import {
   BreadcrumbPage,
   BreadcrumbList,
 } from "@/common/components/ui/breadcrumb";
+import ClassExams from "@/classManagement/components/ClassExams";
 
 /* local type for links coming from PostComposer */
 type LinkPayload = { url: string; title?: string; thumbnail?: string };
@@ -243,7 +244,7 @@ const DetailedClassTeacher: React.FC = () => {
     isLoading,
     createNotification,
     getClassworkSubmissions,
-    getSubmissionCount, // <--- use the new store method
+    getSubmissionCount
   } = useClassStore();
 
   const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(
@@ -328,7 +329,7 @@ const DetailedClassTeacher: React.FC = () => {
         return next;
       });
     }
-  }, [currentClass?.data?.students, worksFromStore]);
+  }, [worksFromStore]);
 
   const fetchCountsForWork = async (workId: number) => {
     // member count
@@ -412,10 +413,7 @@ const DetailedClassTeacher: React.FC = () => {
   }, [
     activeTab,
     id,
-    getClassMembers,
-    currentClass?.data?.teacher,
-    currentClass?.data?.students,
-    currentClass?.data?.parents,
+    getClassMembers
   ]);
 
   const teacher: ClassMemberDto | null = currentClass?.data?.teacher ?? null;
@@ -430,13 +428,13 @@ const DetailedClassTeacher: React.FC = () => {
         getClassWorks(Number(id));
       }
     }
-  }, [activeTab, id, getClassWorks, currentClass?.data?.works]);
+  }, [activeTab, id]);
 
   useEffect(() => {
     if (currentClass?.data?.notifications) {
       setNotifications(currentClass.data.notifications);
     }
-  }, [currentClass?.data?.notifications]);
+  }, []);
 
   const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
 
@@ -600,6 +598,9 @@ const DetailedClassTeacher: React.FC = () => {
                 </TabsTrigger>
                 <TabsTrigger value="everyone" className="px-4 py-2 text-lg">
                   Mọi người
+                </TabsTrigger>
+                <TabsTrigger value="exam" className="px-4 py-2 text-lg">
+                  Bài kiểm tra
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -829,6 +830,9 @@ const DetailedClassTeacher: React.FC = () => {
                   </div>
                 </Card>
               </div>
+            </TabsContent>
+            <TabsContent value="exam">
+              <ClassExams classId={id} isTeacher={user?.roles.some(role => role.includes("Teacher")) ?? false} />
             </TabsContent>
           </Tabs>
         </div>

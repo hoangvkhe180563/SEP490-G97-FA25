@@ -341,7 +341,11 @@ const CreateExam = () => {
       const success = await examService.createExam(newExam);
       if (success) {
         toast.success('Tạo bài kiểm tra thành công!');
-        navigate(`/exam/teacher/class-exams/${classId}`);
+        if (classId !== 0) {
+          navigate(`/class/teacher/${classId}`);
+        }
+
+        // navigate(`/exam/teacher/class-exams/${classId}`);
       } else {
         toast.error('Tạo bài kiểm tra thất bại. Vui lòng thử lại.');
       }
