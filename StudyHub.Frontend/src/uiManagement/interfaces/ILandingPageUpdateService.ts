@@ -4,7 +4,6 @@ export interface ILandingPageUpdateService {
   description: string;
   deletedLandingPageImages: string[],
   newLandingPageImages: File[];
-  featuredTeachers: number[],
   featuredDocuments: number[];
   featuredCourses: number[]
 }

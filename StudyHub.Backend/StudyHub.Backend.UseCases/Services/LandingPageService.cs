@@ -74,15 +74,6 @@ namespace StudyHub.Backend.UseCases.Services
                 landingPage.SchoolLogoUrl = schoolLogoImageUrl;
             }
 
-            foreach (var images in landingPageDeleteImages)
-            {
-                bool hasDeleted = await _cloudRepo.DeleteFileAsync(images);
-                if (!hasDeleted)
-                {
-                    return "Không xóa được logo cũ!";
-                }
-            }
-
             List<string> landingPageNewImages = new();
             foreach (var file in landingPageNewFiles)
             {

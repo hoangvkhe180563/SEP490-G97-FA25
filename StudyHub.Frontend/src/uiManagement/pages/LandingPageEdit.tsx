@@ -12,6 +12,7 @@ import { Textarea } from '@/common/components/ui/textarea';
 import { useLoading } from '@/common/hooks/useLoading';
 import { useAuthStore } from '@/auth/stores/useAuthStore';
 import { ROLES } from '@/common/constants/Roles';
+import toast from 'react-hot-toast';
 
 interface IBanner {
   url: string,
@@ -25,7 +26,6 @@ interface ILogo {
 }
 
 const LandingPageEdit = () => {
-  const [error, setError] = useState<string[]>([]);
   const [selectedBanner, setSelectedBanner] = useState<IBanner | null>(null);
   const [selectedLogo, setSelectedLogo] = useState<IBanner | null>(null);
   const [selectedImages, setSelectedImages] = useState<ILogo[]>([]);
@@ -41,55 +41,60 @@ const LandingPageEdit = () => {
     logoImage: null,
     description: '',
     featuredCourses: [],
-    featuredTeachers: [],
     featuredDocuments: [],
     newLandingPageImages: [],
     deletedLandingPageImages: []
   });
+  const [descriptionError, setDescriptionError] = useState<string>('');
+  const [imagesError, setImagesError] = useState<string>('');
+  const [documentsError, setDocumentsError] = useState<string>('');
+  const [coursesError, setCoursesError] = useState<string>('');
+
   const uiManagementService = new UiManagementService();
   const { user } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
-      if (schoolId && user?.roles.includes(ROLES.UI_MANAGER)) {
-        const schoolIdInt = Number(schoolId);
-        const documentData = await uiManagementService.getAllDocuments(schoolIdInt);
-        setAllDocuments(documentData);
-        setFeaturedDocuments(documentData.filter(doc => doc.isFeatured).map(doc => doc.id));
-        const courseData = await uiManagementService.getAllCourses(schoolIdInt);
-        setAllCourses(courseData);
-        setFeaturedCourses(courseData.filter(c => c.isFeatured).map(c => c.id));
-
-        const landingPageData = await uiManagementService.getLandingPageSchool(schoolIdInt);
-
-        setLandingPageData({
-          bannerImage: null,
-          logoImage: null,
-          description: landingPageData.description,
-          featuredCourses: landingPageData.featuredCourses.map(course => course.id),
-          featuredDocuments: landingPageData.featuredDocuments.map(doc => doc.id),
-          featuredTeachers: landingPageData.featuredTeachers.map(teacher => teacher.id),
-          newLandingPageImages: [],
-          deletedLandingPageImages: []
-        });
-        setSelectedBanner({ file: null, url: landingPageData.bannerImage });
-        setSelectedLogo({ file: null, url: landingPageData.logoImage });
-        setSelectedImages(landingPageData.introductionImage.map(img => {
-          return {
-            file: null,
-            url: img,
-            isNew: false
-          }
-        }));
-      } else {
+      if (!user) {
+        return;
+      }
+      if (!schoolId || !user.roles.includes(ROLES.UI_MANAGER) || !user.roles.includes(ROLES.SCHOOL_ADMIN)) {
         navigate("/");
       }
+      setLoading(true);
+      const schoolIdInt = Number(schoolId);
+      const documentData = await uiManagementService.getAllDocuments(schoolIdInt);
+      setAllDocuments(documentData);
+      setFeaturedDocuments(documentData.filter(doc => doc.isFeatured).map(doc => doc.id));
+      const courseData = await uiManagementService.getAllCourses(schoolIdInt);
+      setAllCourses(courseData);
+      setFeaturedCourses(courseData.filter(c => c.isFeatured).map(c => c.id));
+
+      const landingPageData = await uiManagementService.getLandingPageSchool(schoolIdInt);
+
+      setLandingPageData({
+        bannerImage: null,
+        logoImage: null,
+        description: landingPageData.description,
+        featuredCourses: landingPageData.featuredCourses.map(course => course.id),
+        featuredDocuments: landingPageData.featuredDocuments.map(doc => doc.id),
+        newLandingPageImages: [],
+        deletedLandingPageImages: []
+      });
+      setSelectedBanner({ file: null, url: landingPageData.bannerImage });
+      setSelectedLogo({ file: null, url: landingPageData.logoImage });
+      setSelectedImages(landingPageData.introductionImage.map(img => {
+        return {
+          file: null,
+          url: img,
+          isNew: false
+        }
+      }));
     }
 
     fetchData().catch(console.error).finally(() => setLoading(false));
-  }, [])
+  }, [user])
 
   const handleDocumentSelect = (item: IDocumentItem) => {
     setFeaturedDocuments((docIds) => [...docIds, item.id]);
@@ -110,18 +115,13 @@ const LandingPageEdit = () => {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
       const file = event.target.files[0];
-      if (selectedImages.length === 3) {
-        setError(["Đã đạt giới hạn số ảnh logo!"]);
-      } else {
-        setError([]);
-        const imgUrl = URL.createObjectURL(file);
-        setSelectedImages([...selectedImages, { file: file, url: imgUrl, isNew: true }]);
+      const imgUrl = URL.createObjectURL(file);
+      setSelectedImages([...selectedImages, { file: file, url: imgUrl, isNew: true }]);
 
-        setLandingPageData(prevData => ({
-          ...prevData,
-          newLandingPageImages: [...landingPageData.newLandingPageImages, file]
-        }))
-      }
+      setLandingPageData(prevData => ({
+        ...prevData,
+        newLandingPageImages: [...landingPageData.newLandingPageImages, file]
+      }))
     }
     imgInputRef.current!.value = '';
   };
@@ -175,7 +175,6 @@ const LandingPageEdit = () => {
   }
 
   const handleRemoveFile = (imageIndex: number) => {
-    setError([]);
     const deleteImageUrl = selectedImages[imageIndex];
     if (!deleteImageUrl.isNew) {
       setLandingPageData(prevData => ({
@@ -198,28 +197,30 @@ const LandingPageEdit = () => {
   }
 
   const handleSave = async () => {
-    let error = [];
+    setLoading(true);
+    setDescriptionError('');
+    setImagesError('');
+    setDocumentsError('');
+    setCoursesError('');
     if (!Number(schoolId)) {
-      error.push("Có lỗi xảy ra, vui lòng thử lại!");
+      alert("Có lỗi xảy ra, vui lòng thử lại!");
       return;
     }
     if (selectedImages.length === 0) {
-      error.push("Vui lòng chọn ít nhất 1 logo trường!");
+      setImagesError("Vui lòng chọn ít nhất 1 logo trường!");
+      return;
     }
     if (landingPageData.description.length === 0) {
-      error.push("Mô tả không được để trống!");
-    }
-
-    if (error.length > 0) {
-      setError(error);
+      setDescriptionError("Mô tả không được để trống!");
       return;
     }
 
     const result = await uiManagementService.updateLandingPage(Number(schoolId), landingPageData);
+    setLoading(false);
     if (result) {
       alert(result);
     } else {
-      alert('success');
+      toast.success("Cập nhật trang giới thiệu thành công!");
       navigate(`/ui/${schoolId}/landing`);
     }
   };
@@ -231,16 +232,6 @@ const LandingPageEdit = () => {
   return (
     <div className="w-full h-full overflow-y-auto">
       <div className='max-w-3xl mx-auto my-12 p-8 rounded-lg shadow-xl border border-gray-200'>
-        {error.length > 0 && (
-          <div className='border border-red-500 bg-red-200 mb-2 px-2 py-2 flex items-center'>
-            <ul className='flex-1'>
-              {error.map((e, index) => <li key={`error-${index}`}>{e}</li>)}
-            </ul>
-            <button onClick={() => setError([])}>
-              <X className='stroke-gray-600' />
-            </button>
-          </div>
-        )}
         <div className="grid md:grid-cols-3 gap-x-12 gap-y-8">
           <div className="md:col-span-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">Banner trường <span className='text-red-500'>*</span></label>
@@ -274,6 +265,7 @@ const LandingPageEdit = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">Ảnh giới thiệu trường <span className='text-red-500'>*</span></label>
           </div>
           <Input ref={imgInputRef} type='file' className='md:col-span-2' onChange={handleFileUpload} />
+          {imagesError && <p className='text-red-500 font-bold'>{imagesError}</p>}
 
           {
             selectedImages.length > 0 && <>
@@ -295,6 +287,7 @@ const LandingPageEdit = () => {
           <div className="md:col-span-2 flex justify-between space-x-3 h-[150px]">
             <Textarea placeholder='Nhập mô tả trường...' value={landingPageData.description} onChange={(e) => handleDescriptionChange(e)} maxLength={500} />
           </div>
+          {descriptionError && <p className='text-red-500 font-bold'>{descriptionError}</p>}
 
           <div className="md:col-span-1 mt-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -323,6 +316,7 @@ const LandingPageEdit = () => {
                 )
               })}
             </div>
+            {documentsError && <p className='text-red-500 font-bold mt-2'>{documentsError}</p>}
           </div>
 
           <div className="md:col-span-1 mt-6">
@@ -350,6 +344,7 @@ const LandingPageEdit = () => {
                 </div>)
               })}
             </div>
+            {coursesError && <p className='text-red-500 font-bold mt-2'>{coursesError}</p>}
           </div>
         </div>
 
