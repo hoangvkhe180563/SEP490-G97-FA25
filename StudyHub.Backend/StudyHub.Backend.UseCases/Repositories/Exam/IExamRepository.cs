@@ -1,5 +1,7 @@
 ﻿
 
+using StudyHub.Backend.Domain.Entities.Exam;
+
 namespace StudyHub.Backend.UseCases.Repositories.Exam
 {
     public interface IExamRepository

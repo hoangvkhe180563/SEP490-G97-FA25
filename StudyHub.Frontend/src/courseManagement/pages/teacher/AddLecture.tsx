@@ -20,9 +20,9 @@ import "quill/dist/quill.snow.css";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import type { Exam, Question } from "@/courseManagement/interfaces/types";
-import LessonExamQuestions from "@/courseManagement/components/LessonExamQuestions";
 import { EXAM_TYPE } from "@/courseManagement/constants/ExamType";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import QuestionTemplate from "@/exam/components/QuestionTemplate";
 
 const AddLecture: React.FC = () => {
   const { user } = useAuthStore();
@@ -1193,7 +1193,7 @@ const AddLecture: React.FC = () => {
                 <Label>
                   Câu hỏi <span className="text-red-500">*</span>
                 </Label>
-                <LessonExamQuestions
+                <QuestionTemplate
                   questions={questions}
                   setQuestions={setQuestions}
                 />

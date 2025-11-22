@@ -18,11 +18,11 @@ import "quill/dist/quill.snow.css";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
 import type { Exam, Question } from "@/courseManagement/interfaces/types";
-import LessonExamQuestions from "@/courseManagement/components/LessonExamQuestions";
 import { EXAM_TYPE } from "@/courseManagement/constants/ExamType";
 import courseApi from "@/courseManagement/services/courseService";
 import { Checkbox } from "@radix-ui/react-checkbox";
 import { formatISO } from "date-fns";
+import QuestionTemplate from "@/exam/components/QuestionTemplate";
 
 const EditLecture: React.FC = () => {
   const navigate = useNavigate();
@@ -1538,7 +1538,7 @@ const EditLecture: React.FC = () => {
             <Label>
               Câu hỏi <span className="text-red-500">*</span>
             </Label>
-            <LessonExamQuestions
+            <QuestionTemplate
               questions={questions}
               setQuestions={setQuestions}
             />

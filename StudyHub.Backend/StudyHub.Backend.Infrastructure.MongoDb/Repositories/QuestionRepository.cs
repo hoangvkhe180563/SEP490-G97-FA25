@@ -107,7 +107,9 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
                             var update = Builders<Question>.Update
                                 .Set(q => q.QuestionText, questionData.QuestionText)
                                 .Set(q => q.Options, questionData.Options)
-                                .Set(q => q.CorrectAnswer, questionData.CorrectAnswer);
+                                .Set(q => q.CorrectAnswer, questionData.CorrectAnswer)
+                                .Set(q => q.SubjectId, questionData.SubjectId)
+                                .Set(q => q.Grade, questionData.Grade);
                             _questionCollection.UpdateOne(q => q.Id == questionData.Id, update);
                             break;
                         }
@@ -116,7 +118,9 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
                             var update = Builders<Question>.Update
                                 .Set(q => q.QuestionText, questionData.QuestionText)
                                 .Set(q => q.Options, questionData.Options)
-                                .Set(q => q.CorrectAnswer, questionData.CorrectAnswer);
+                                .Set(q => q.CorrectAnswer, questionData.CorrectAnswer)
+                                .Set(q => q.SubjectId, questionData.SubjectId)
+                                .Set(q => q.Grade, questionData.Grade);
                             _questionCollection.UpdateOne(q => q.Id == questionData.Id, update);
                             break;
                         }
@@ -124,7 +128,9 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
                         {
                             var update = Builders<Question>.Update
                                 .Set(q => q.QuestionText, questionData.QuestionText)
-                                .Set(q => q.CorrectAnswer, questionData.CorrectAnswer);
+                                .Set(q => q.CorrectAnswer, questionData.CorrectAnswer)
+                                .Set(q => q.SubjectId, questionData.SubjectId)
+                                .Set(q => q.Grade, questionData.Grade);
                             _questionCollection.UpdateOne(q => q.Id == questionData.Id, update);
                             break;
                         }
@@ -132,7 +138,9 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
                         {
                             var update = Builders<Question>.Update
                                 .Set(q => q.QuestionText, questionData.QuestionText)
-                                .Set(q => q.CorrectAnswer, questionData.CorrectAnswer);
+                                .Set(q => q.CorrectAnswer, questionData.CorrectAnswer)
+                                .Set(q => q.SubjectId, questionData.SubjectId)
+                                .Set(q => q.Grade, questionData.Grade);
                             _questionCollection.UpdateOne(q => q.Id == questionData.Id, update);
                             break;
                         }
@@ -142,7 +150,9 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
                                 .Set(q => q.QuestionText, questionData.QuestionText)
                                 .Set(q => q.Terms, questionData.Terms)
                                 .Set(q => q.Definitions, questionData.Definitions)
-                                .Set(q => q.CorrectAnswer, questionData.CorrectAnswer);
+                                .Set(q => q.CorrectAnswer, questionData.CorrectAnswer)
+                                .Set(q => q.SubjectId, questionData.SubjectId)
+                                .Set(q => q.Grade, questionData.Grade);
                             _questionCollection.UpdateOne(q => q.Id == questionData.Id, update);
                             break;
                         }
@@ -277,6 +287,29 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
                 new MongoDbException("QuestionRepository", "DeleteManyQuestions failed. Inner error: " + ex.Message).LogError();
             }
             return false;
+        }
+
+        public List<Domain.Entities.Exam.Question> GetCommonQuestions(int subjectId, int grade, int page, int pageSize)
+        {
+            try
+            {
+                var questions = _questionCollection.Find(q => q.SubjectId == subjectId && q.Grade == grade)
+                    .Skip((page - 1) * pageSize)
+                    .Limit(pageSize)
+                    .ToList();
+                List<Domain.Entities.Exam.Question> mappedQuestions = [];
+                foreach (var question in questions)
+                {
+                    Domain.Entities.Exam.Question questionEntity = question.ToQuestionEntity();
+                    mappedQuestions.Add(questionEntity);
+                }
+                return mappedQuestions;
+            }
+            catch (Exception ex)
+            {
+                new MongoDbException("QuestionRepository", "GetCommonQuestions failed. Inner error: " + ex.Message).LogError();
+            }
+            return [];
         }
     }
 }

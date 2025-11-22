@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos.ExamDTOS;
+using StudyHub.Backend.Api.Dtos.QuestionDTOS;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.Domain.Entities.Exam;
 using StudyHub.Backend.UseCases.Services;
-using System.Text.Json;
 
 namespace StudyHub.Backend.Api.Controllers
 {

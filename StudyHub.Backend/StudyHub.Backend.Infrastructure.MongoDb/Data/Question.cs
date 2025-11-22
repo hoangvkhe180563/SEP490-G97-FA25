@@ -23,6 +23,12 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data
         [BsonElement("definitions")]
         public List<string> Definitions { get; set; } = new List<string>();
 
+        [BsonElement("subjectId")]
+        public int? SubjectId { get; set; }
+
+        [BsonElement("grade")]
+        public int? Grade { get; set; }
+
         [BsonElement("correctAnswer")]
         public BsonValue CorrectAnswer { get; set; } = BsonNull.Value;
     }

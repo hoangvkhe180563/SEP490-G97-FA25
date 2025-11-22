@@ -59,7 +59,7 @@ const LandingPageEdit = () => {
       if (!user) {
         return;
       }
-      if (!schoolId || !user.roles.includes(ROLES.UI_MANAGER) || !user.roles.includes(ROLES.SCHOOL_ADMIN)) {
+      if (!schoolId || !user.roles.some(r => [ROLES.UI_MANAGER, ROLES.SCHOOL_ADMIN].includes(r))) {
         navigate("/");
       }
       setLoading(true);
@@ -204,14 +204,17 @@ const LandingPageEdit = () => {
     setCoursesError('');
     if (!Number(schoolId)) {
       alert("Có lỗi xảy ra, vui lòng thử lại!");
+      setLoading(false);
       return;
     }
     if (selectedImages.length === 0) {
       setImagesError("Vui lòng chọn ít nhất 1 logo trường!");
+      setLoading(false);
       return;
     }
     if (landingPageData.description.length === 0) {
       setDescriptionError("Mô tả không được để trống!");
+      setLoading(false);
       return;
     }
 
@@ -236,7 +239,7 @@ const LandingPageEdit = () => {
           <div className="md:col-span-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">Banner trường <span className='text-red-500'>*</span></label>
           </div>
-          <Input type='file' className='md:col-span-2' onChange={handleBannerUpload} />
+          <Input type='file' accept='image/*' className='md:col-span-2' onChange={handleBannerUpload} />
 
           {selectedBanner && (
             <>
@@ -250,7 +253,7 @@ const LandingPageEdit = () => {
           <div className="md:col-span-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">Logo trường <span className='text-red-500'>*</span></label>
           </div>
-          <Input type='file' className='md:col-span-2' onChange={handleLogoUpload} />
+          <Input type='file' accept='image/*' className='md:col-span-2' onChange={handleLogoUpload} />
 
           {selectedLogo && (
             <>
@@ -264,15 +267,17 @@ const LandingPageEdit = () => {
           <div className="md:col-span-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">Ảnh giới thiệu trường <span className='text-red-500'>*</span></label>
           </div>
-          <Input ref={imgInputRef} type='file' className='md:col-span-2' onChange={handleFileUpload} />
-          {imagesError && <p className='text-red-500 font-bold'>{imagesError}</p>}
+          <div className='md:col-span-2'>
+            <Input ref={imgInputRef} accept='image/*' type='file' onChange={handleFileUpload} />
+            {imagesError && <p className='text-red-500 font-bold'>{imagesError}</p>}
+          </div>
 
           {
             selectedImages.length > 0 && <>
               <div className="md:col-span-1"></div>
-              <div className="md:col-span-2 flex justify-between space-x-3 h-[150px]">
+              <div className="md:col-span-2 grid grid-cols-3 justify-between gap-3">
                 {selectedImages.map((image, index) => (
-                  <div className='rounded-md relative w-1/3 shadow-md' key={`image-${index}`}>
+                  <div className='rounded-md relative shadow-md aspect-square' key={`image-${index}`}>
                     <button className='absolute right-2 top-2 bg-gray-600 rounded-full text-white px-1 py-1' onClick={() => handleRemoveFile(index)}><X size={15} /></button>
                     <img src={image.url} className='w-full h-full object-contain' alt='No Image' />
                   </div>
@@ -284,10 +289,10 @@ const LandingPageEdit = () => {
           <div className='md:col-span-1'>
             <label className="block text-sm font-medium text-gray-700 mb-2">Mô tả giới thiệu <span className='text-red-500'>*</span></label>
           </div>
-          <div className="md:col-span-2 flex justify-between space-x-3 h-[150px]">
-            <Textarea placeholder='Nhập mô tả trường...' value={landingPageData.description} onChange={(e) => handleDescriptionChange(e)} maxLength={500} />
+          <div className="md:col-span-2">
+            <Textarea placeholder='Nhập mô tả trường...' value={landingPageData.description} onChange={(e) => handleDescriptionChange(e)} maxLength={500} className='h-[150px]'/>
+            {descriptionError && <p className='text-red-500 font-bold'>{descriptionError}</p>}
           </div>
-          {descriptionError && <p className='text-red-500 font-bold'>{descriptionError}</p>}
 
           <div className="md:col-span-1 mt-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">

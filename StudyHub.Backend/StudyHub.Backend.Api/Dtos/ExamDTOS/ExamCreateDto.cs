@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using StudyHub.Backend.Api.Dtos.QuestionDTOS;
+using System.ComponentModel.DataAnnotations;
 
 namespace StudyHub.Backend.Api.Dtos.ExamDTOS
 {
@@ -35,24 +36,5 @@ namespace StudyHub.Backend.Api.Dtos.ExamDTOS
 
         [Required(ErrorMessage = "Phải có ít nhất một câu hỏi!")]
         public List<QuestionCreateDto> Questions { get; set; } = new List<QuestionCreateDto>();
-    }
-
-    public class QuestionCreateDto
-    {
-
-        [Required]
-        public string QuestionText { get; set; } = string.Empty;
-
-        [Required]
-        public string Type { get; set; } = string.Empty;
-
-        public List<string> Options { get; set; } = new List<string>();
-
-        public List<string> Terms { get; set; } = new List<string>();
-
-        public List<string> Definitions { get; set; } = new List<string>();
-
-        [Required(ErrorMessage = "Câu hỏi phải có ít nhất 1 câu trả lời đúng!")]
-        public object CorrectAnswer { get; set; }
     }
 }

@@ -12,22 +12,24 @@ import { getFormattedDateTime } from '@/exam/utils/ExamUtils';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
-const UpdateExam = () => {
-  const { id } = useParams();
+const CreateExam = () => {
   const { user } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const [classId, setClassId] = useState<number>(0);
+  const [className, setClassName] = useState<string>('');
+  const [lessonId, setLessonId] = useState<number>(0);
+  const [lessonName, setLessonName] = useState<string>('');
   const navigate = useNavigate();
-  const [examCreatedBy, setExamCreatedBy] = useState('');
   const [examTitle, setExamTitle] = useState('');
   const [examDescription, setExamDescription] = useState('');
   const [examDuration, setExamDuration] = useState<string>('');
   const [questions, setQuestions] = useState<Question[]>([]);
   const { setLoading } = useLoading();
-  const [hasExam, setHasExam] = useState(false);
   const [showAnswers, setShowAnswers] = useState<boolean>(true);
   const [showCorrectAnswers, setShowCorrectAnswers] = useState<boolean>(false);
-  const [openTime, setOpenTime] = useState<string>('');
+  const [openTime, setOpenTime] = useState<string>(getFormattedDateTime(new Date()));
   const [closeTime, setCloseTime] = useState<string>('');
   const examService = new ExamService();
 
@@ -39,41 +41,24 @@ const UpdateExam = () => {
       navigate("/");
       return;
     }
-    if (!Number(id)) {
-      toast.error('Không thể tải bài kiểm tra.');
-      navigate('/exam/teacher/exams');
-      return;
-    }
-    const fetchExam = async () => {
-      try {
-        setLoading(true);
-        const fetched = await examService.getExamById(Number(id), true);
-        setExamTitle(fetched.title);
-        setExamDescription(fetched.description);
-        setExamDuration(fetched.duration.toString());
-        setExamCreatedBy(fetched.createdBy);
-        setQuestions(fetched.questions.map((q, index) => {
-          return {
-            ...q,
-            id: Date.now() + index
-          }
-        }));
-        setShowAnswers(fetched.showAnswers);
-        setShowCorrectAnswers(fetched.showCorrectAnswers);
-        setOpenTime(getFormattedDateTime(fetched.openTime));
-        if (fetched.closeTime) {
-          setCloseTime(getFormattedDateTime(fetched.closeTime));
-        }
-        setHasExam(true);
-      } catch (err) {
-        console.error('Failed to load exam:', err);
-        toast.error('Không thể tải bài kiểm tra.');
-      } finally {
-        setLoading(false);
+    const fetchData = async () => {
+      const classIdQuery = Number(searchParams.get("classId"));
+      const lessonIdQuery = Number(searchParams.get("lessonId"));
+      if (lessonIdQuery) {
+        setLessonId(lessonIdQuery);
+        const lessonName = await examService.getLessonName(lessonIdQuery);
+        setLessonName(lessonName);
+      } else if (classIdQuery) {
+        setClassId(classIdQuery);
+        const className = await examService.getClassName(classIdQuery);
+        setClassName(className);
+      } else {
+        toast.error("Chưa có id của lớp hoặc bài học để tạo bài kiểm tra!");
+        navigate("/");
       }
-    };
-    fetchExam();
-  }, [id, user]);
+    }
+    fetchData().catch(console.error);
+  }, [user])
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
@@ -141,39 +126,63 @@ const UpdateExam = () => {
           setLoading(false);
           return;
         }
+      } else if (q.type === EXAM_TYPE.MATCHING) {
+        if (!q.terms || q.terms.length === 0 || q.terms.some(term => !String(term).trim())) {
+          toast.error(`Vui lòng nhập đầy đủ các thuật ngữ cho câu hỏi ghép đôi "${q.questionText}".`);
+          setLoading(false);
+          return;
+        }
+        if (!q.definitions || q.definitions.length === 0 || q.definitions.some(def => !String(def).trim())) {
+          toast.error(`Vui lòng nhập đầy đủ các định nghĩa cho câu hỏi ghép đôi "${q.questionText}".`);
+          setLoading(false);
+          return;
+        }
+        if (q.terms.length !== q.definitions.length) {
+          toast.error(`Số lượng thuật ngữ và định nghĩa phải bằng nhau cho câu hỏi "${q.questionText}".`);
+          setLoading(false);
+          return;
+        }
       }
     }
 
-    const examToUpdate: Exam = {
-      id: Number(id),
+    const newExam: Exam = {
+      id: 999,
       title: examTitle,
       description: examDescription,
       duration: parseInt(examDuration),
-      createdBy: examCreatedBy,
-      questions: questions,
+      createdBy: user.id,
+      questions: questions.map(({ id, ...rest }, index) => {
+        return {
+          id: index + 1, ...rest
+        }
+      }),
       showAnswers: showAnswers,
       showCorrectAnswers: showCorrectAnswers,
+      classId: classId,
+      lessonId: lessonId,
       openTime: new Date(openTime),
       closeTime: closeTime ? new Date(closeTime) : undefined
     };
 
     try {
-      const success: boolean = await examService.updateExam(examToUpdate);
+      const success = await examService.createExam(newExam);
       if (success) {
-        toast.success('Cập nhật bài kiểm tra thành công!');
-        navigate('/exam/teacher/class-exams');
+        toast.success('Tạo bài kiểm tra thành công!');
+        if (classId !== 0) {
+          navigate(`/class/teacher/${classId}`);
+        }
+
+        // navigate(`/exam/teacher/class-exams/${classId}`);
       } else {
-        toast.error('Cập nhật bài kiểm tra thất bại. Vui lòng thử lại.');
+        toast.error('Tạo bài kiểm tra thất bại. Vui lòng thử lại.');
       }
     } catch (err) {
-      console.error("Failed to update exam:", err);
-      toast.error("Cập nhật bài kiểm tra thất bại. Vui lòng thử lại.");
+      console.error("Failed to create exam:", err);
+      toast.error("Tạo bài kiểm tra thất bại. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
   };
-
-  if (!id || !hasExam) return <p className="container mx-auto mt-8 p-4 text-gray-600">Không tìm thấy bài kiểm tra.</p>;
 
   return (
     <div className="h-full overflow-y-auto p-6">
@@ -182,7 +191,8 @@ const UpdateExam = () => {
         <span>Quay lại</span>
       </Button>
 
-      <h1 className="text-4xl font-bold mb-6 text-gray-800">Chỉnh sửa bài kiểm tra</h1>
+      {classId !== 0 && <h1 className="text-4xl font-bold mb-6 text-gray-800">Tạo bài kiểm tra mới cho lớp {className}</h1>}
+      {lessonId !== 0 && <h1 className="text-4xl font-bold mb-6 text-gray-800">Tạo bài kiểm tra mới cho bài học {lessonName}</h1>}
 
       <form onSubmit={handleSubmit}>
         <div className="mb-6">
@@ -222,7 +232,9 @@ const UpdateExam = () => {
               id="openTime"
               className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800"
               value={openTime}
-              onChange={(e) => setOpenTime(e.target.value)}
+              onChange={(e) => {
+                setOpenTime(e.target.value)
+              }}
               required
             />
           </div>
@@ -270,7 +282,7 @@ const UpdateExam = () => {
           <Label htmlFor="showCorrectAnswers">Hiện đáp án đúng/sai</Label>
         </div>
 
-        <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Câu hỏi</h2>
+        <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Câu hỏi <span className='text-red-500'>*</span></h2>
 
         <QuestionTemplate questions={questions} setQuestions={setQuestions} />
 
@@ -287,4 +299,4 @@ const UpdateExam = () => {
   );
 };
 
-export default UpdateExam;
+export default CreateExam;

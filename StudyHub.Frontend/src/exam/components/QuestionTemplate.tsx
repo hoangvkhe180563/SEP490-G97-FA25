@@ -1,10 +1,11 @@
 import { useState } from "react";
-import type { Question } from "../interfaces/types"
 import * as XLSX from 'xlsx';
-import { EXAM_TYPE } from "../constants/ExamType";
 import toast from "react-hot-toast";
+import { BLANK_PLACEHOLDER, EXAM_TYPE } from "../constants/Constants";
+import type { Question } from "../interfaces/models/Question";
+import { Plus } from "lucide-react";
 
-const LessonExamQuestions = (props: { questions: Question[], setQuestions: React.Dispatch<React.SetStateAction<Question[]>> }) => {
+const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Dispatch<React.SetStateAction<Question[]>> }) => {
   const [excelFileError, setExcelFileError] = useState<string>('');
 
   const handleExcelFileUpload: React.ChangeEventHandler<HTMLInputElement> = (e) => {
@@ -23,7 +24,7 @@ const LessonExamQuestions = (props: { questions: Question[], setQuestions: React
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
 
         if (json.length < 2) {
           setExcelFileError("File Excel không có dữ liệu câu hỏi.");
@@ -97,17 +98,47 @@ const LessonExamQuestions = (props: { questions: Question[], setQuestions: React
             } else if (questionType === EXAM_TYPE.TEXT_INPUT) {
               question.correctAnswer = correctAnswerRaw;
             } else if (questionType === EXAM_TYPE.FILL_IN_BLANK) {
-              const expectedBlanks = (questionText.match(new RegExp("[BLANK]".replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+              const expectedBlanks = (questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
               const correctAnswersArray = correctAnswerRaw.split(',').map(ans => ans.trim()).filter(ans => ans !== '');
 
               if (expectedBlanks === 0) {
-                rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi điền khuyết phải chứa ít nhất một placeholder '[BLANK]'.`);
+                rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi điền khuyết phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
                 isValidRow = false;
               } else if (correctAnswersArray.length !== expectedBlanks) {
                 rowErrors.push(`Hàng ${rowIndex + 2}: Số lượng đáp án đúng (${correctAnswersArray.length}) không khớp với số chỗ trống (${expectedBlanks}).`);
                 isValidRow = false;
               }
               question.correctAnswer = correctAnswersArray;
+            } else if (questionType === EXAM_TYPE.MATCHING) {
+              const termsRaw = String(row[header.indexOf('Các đáp án…')] || '').trim();
+              const definitionsRaw = correctAnswerRaw;
+
+              if (!termsRaw) {
+                rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi ghép đôi phải có thuật ngữ trong cột "Các đáp án".`);
+                isValidRow = false;
+              }
+
+              const terms = termsRaw.split(',').map(t => t.trim()).filter(t => t !== '');
+              const definitions = definitionsRaw.split(',').map(d => d.trim()).filter(d => d !== '');
+
+              if (terms.length === 0 || definitions.length === 0) {
+                rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi ghép đôi phải có ít nhất một thuật ngữ và một định nghĩa.`);
+                isValidRow = false;
+              }
+
+              if (terms.length !== definitions.length) {
+                rowErrors.push(`Hàng ${rowIndex + 2}: Số lượng thuật ngữ (${terms.length}) và định nghĩa (${definitions.length}) phải bằng nhau.`);
+                isValidRow = false;
+              }
+
+              question.terms = terms;
+              question.definitions = definitions;
+              // Create default 1-to-1 mapping (term index -> definition index)
+              const correctMatches: any = {};
+              for (let i = 0; i < terms.length; i++) {
+                correctMatches[i] = i;
+              }
+              question.correctAnswer = correctMatches;
             } else {
               rowErrors.push(`Hàng ${rowIndex + 2}: Loại câu hỏi không hợp lệ (${questionType}).`);
               isValidRow = false;
@@ -120,7 +151,7 @@ const LessonExamQuestions = (props: { questions: Question[], setQuestions: React
         });
 
         if (rowErrors.length > 0) {
-          setExcelFileError(`Có lỗi khi đọc file Excel:<br/>${rowErrors.slice(0, 10).join('<br/>')} ${rowErrors.length > 10 && '<br/>(Quá nhiều lỗi, vui lòng nhập đúng cấu trúc trong file mẫu!)'}`);
+          setExcelFileError(`Có lỗi khi đọc file Excel:<br/>${rowErrors.slice(0, 10).join('<br/>')} ${rowErrors.length > 10 ? '<br/>(Quá nhiều lỗi, vui lòng nhập đúng cấu trúc trong file mẫu!)' : ''}`);
           return;
         }
         if (newQuestions.length === 0) {
@@ -166,8 +197,12 @@ const LessonExamQuestions = (props: { questions: Question[], setQuestions: React
       newQuestion.options = [''];
       newQuestion.correctAnswer = [];
     } else if (type === EXAM_TYPE.FILL_IN_BLANK) {
-      newQuestion.questionText = `Câu hỏi có [BLANK] thứ nhất và [BLANK] thứ hai.`;
+      newQuestion.questionText = `Câu hỏi có ${BLANK_PLACEHOLDER} thứ nhất và ${BLANK_PLACEHOLDER} thứ hai.`;
       newQuestion.correctAnswer = ['', ''];
+    } else if (type === EXAM_TYPE.MATCHING) {
+      newQuestion.terms = [''];
+      newQuestion.definitions = [''];
+      newQuestion.correctAnswer = { 0: 0 }; // Term index -> Definition index
     }
     props.setQuestions([...props.questions, newQuestion]);
   };
@@ -178,7 +213,7 @@ const LessonExamQuestions = (props: { questions: Question[], setQuestions: React
         return q;
       }
       if (field === 'questionText' && q.type === EXAM_TYPE.FILL_IN_BLANK) {
-        const placeholderRegex = new RegExp("[BLANK]".replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+        const placeholderRegex = new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
         const expectedBlanks = (String(value).match(placeholderRegex) || []).length;
         const currentAnswers = Array.isArray(q.correctAnswer) ? [...q.correctAnswer] : [];
 
@@ -223,6 +258,54 @@ const LessonExamQuestions = (props: { questions: Question[], setQuestions: React
         const newCorrectAnswers = [...q.correctAnswer];
         newCorrectAnswers[optionIndex] = value;
         return { ...q, correctAnswer: newCorrectAnswers };
+      }
+      if (field === 'terms' && optionIndex !== null) {
+        const newTerms = [...(q.terms || [])];
+        newTerms[optionIndex] = value;
+        return { ...q, terms: newTerms };
+      }
+      if (field === 'definitions' && optionIndex !== null) {
+        const newDefinitions = [...(q.definitions || [])];
+        newDefinitions[optionIndex] = value;
+        return { ...q, definitions: newDefinitions };
+      }
+      if (field === 'addTerm') {
+        const newTerms = [...(q.terms || []), ''];
+        const newCorrectAnswer = { ...q.correctAnswer, [newTerms.length - 1]: 0 };
+        return { ...q, terms: newTerms, correctAnswer: newCorrectAnswer };
+      }
+      if (field === 'addDefinition') {
+        return { ...q, definitions: [...(q.definitions || []), ''] };
+      }
+      if (field === 'removeTerm' && optionIndex !== null) {
+        const newTerms = (q.terms || []).filter((_, idx) => idx !== optionIndex);
+        const newCorrectAnswer = { ...q.correctAnswer };
+        delete newCorrectAnswer[optionIndex];
+        // Reindex the correct answers
+        const reindexed: any = {};
+        Object.keys(newCorrectAnswer).forEach((key) => {
+          const oldIndex = parseInt(key);
+          const newIndex = oldIndex > optionIndex ? oldIndex - 1 : oldIndex;
+          reindexed[newIndex] = newCorrectAnswer[oldIndex];
+        });
+        return { ...q, terms: newTerms, correctAnswer: reindexed };
+      }
+      if (field === 'removeDefinition' && optionIndex !== null) {
+        const newDefinitions = (q.definitions || []).filter((_, idx) => idx !== optionIndex);
+        // Update correct answer mappings
+        const newCorrectAnswer = { ...q.correctAnswer };
+        Object.keys(newCorrectAnswer).forEach((termIdx) => {
+          if (newCorrectAnswer[termIdx] === optionIndex) {
+            newCorrectAnswer[termIdx] = 0;
+          } else if (newCorrectAnswer[termIdx] > optionIndex) {
+            newCorrectAnswer[termIdx] -= 1;
+          }
+        });
+        return { ...q, definitions: newDefinitions, correctAnswer: newCorrectAnswer };
+      }
+      if (field === 'matchingAnswer') {
+        const [termIndex, defIndex] = value;
+        return { ...q, correctAnswer: { ...q.correctAnswer, [termIndex]: defIndex } };
       }
       return { ...q, [field]: value };
     }));
@@ -372,38 +455,45 @@ const LessonExamQuestions = (props: { questions: Question[], setQuestions: React
         ))}
       </div>
 
-      <div className="mt-8 grid grid-cols-2 gap-2">
+      <div className="mt-8 grid grid-cols-5 gap-2">
         <button
           type="button"
           onClick={() => addQuestion(EXAM_TYPE.SINGLE_CHOICE)}
-          className="px-5 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600"
+          className="px-5 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex justify-center items-center"
         >
-          Thêm câu trắc nghiệm (1 đáp án)
+          <Plus size={16} className='mr-3' /> Trắc nghệm 1 đ.án
         </button>
         <button
           type="button"
           onClick={() => addQuestion(EXAM_TYPE.MULTI_CHOICE)}
-          className="px-5 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600"
+          className="px-5 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex justify-center items-center"
         >
-          Thêm câu trắc nghiệm (Nhiều đáp án)
+          <Plus size={16} className='mr-3' /> Trắc nghệm nhiều đ.án
         </button>
         <button
           type="button"
           onClick={() => addQuestion(EXAM_TYPE.TEXT_INPUT)}
-          className="px-5 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600"
+          className="px-5 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex justify-center items-center"
         >
-          Thêm câu điền từ/trả lời ngắn
+          <Plus size={16} className='mr-3' /> Điền từ/trả lời ngắn
         </button>
         <button
           type="button"
           onClick={() => addQuestion(EXAM_TYPE.FILL_IN_BLANK)}
-          className="px-5 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+          className="px-5 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 flex justify-center items-center"
         >
-          Thêm câu điền khuyết
+          <Plus size={16} className='mr-3' /> Điền khuyết
+        </button>
+        <button
+          type="button"
+          onClick={() => addQuestion(EXAM_TYPE.MATCHING)}
+          className="px-5 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 flex justify-center items-center"
+        >
+          <Plus size={16} className='mr-3' /> Ghép đôi
         </button>
       </div>
     </div>
   )
 }
 
-export default LessonExamQuestions
+export default QuestionTemplate

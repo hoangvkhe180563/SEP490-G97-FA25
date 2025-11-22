@@ -17,7 +17,9 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                         QuestionText = question.QuestionText,
                         Type = QuestionType.SingleChoice,
                         Options = question.Options,
-                        CorrectAnswer = question.CorrectAnswer.AsInt32
+                        CorrectAnswer = question.CorrectAnswer.AsInt32,
+                        SubjectId = question.SubjectId,
+                        Grade = question.Grade
                     };
                 case "multiple-choice":
                     {
@@ -34,7 +36,9 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                             QuestionText = question.QuestionText,
                             Type = QuestionType.MultipleChoice,
                             Options = question.Options,
-                            CorrectAnswer = correctAnswerIndexes
+                            CorrectAnswer = correctAnswerIndexes,
+                            SubjectId = question.SubjectId,
+                            Grade = question.Grade
                         };
                     }
                 case "text-input":
@@ -43,7 +47,9 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                         Id = question.Id.ToString(),
                         QuestionText = question.QuestionText,
                         Type = QuestionType.TextInput,
-                        CorrectAnswer = question.CorrectAnswer.AsString
+                        CorrectAnswer = question.CorrectAnswer.AsString,
+                        SubjectId = question.SubjectId,
+                        Grade = question.Grade
                     };
                 case "fill-blank":
                     return new FillBlankQuestion
@@ -51,7 +57,9 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                         Id = question.Id.ToString(),
                         QuestionText = question.QuestionText,
                         Type = QuestionType.FillBlank,
-                        CorrectAnswer = question.CorrectAnswer.AsBsonArray.Select(a => a.AsString).ToList()
+                        CorrectAnswer = question.CorrectAnswer.AsBsonArray.Select(a => a.AsString).ToList(),
+                        SubjectId = question.SubjectId,
+                        Grade = question.Grade
                     };
                 case "matching":
                     {
@@ -72,7 +80,9 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                             Type = QuestionType.Matching,
                             Terms = question.Terms,
                             Definitions = question.Definitions,
-                            CorrectMatches = correctMatches
+                            CorrectMatches = correctMatches,
+                            SubjectId = question.SubjectId,
+                            Grade = question.Grade
                         };
                     }
             }
@@ -84,6 +94,11 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
             if (question.Id != string.Empty)
             {
                 questionData.Id = ObjectId.Parse(question.Id);
+            }
+            if (question.SubjectId != null && question.Grade != null)
+            {
+                questionData.SubjectId = question.SubjectId;
+                questionData.Grade = question.Grade;
             }
             questionData.QuestionText = question.QuestionText;
             switch (question.Type)
