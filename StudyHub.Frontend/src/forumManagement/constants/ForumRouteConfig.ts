@@ -7,6 +7,7 @@ const ForumRouteConfig = {
   },
   MANAGER: {
     INDEX: "manager",
+    DASHBOARD: "dashboard",
     FORUMS: "forums",
     POST_DETAIL: "forums/details/:postId",
     POST_MANAGEMENT: "posts",

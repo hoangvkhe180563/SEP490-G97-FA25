@@ -61,6 +61,8 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public DateTime? UpdatedAt { get; set; }
         public Guid? UpdatedBy { get; set; }
         public DateTime? DeletedAt { get; set; }
+        public int CommentCount { get; set; }
+        public int AttachmentCount { get; set; }
         public List<ForumAttachmentDto> Attachments { get; set; } = new();
         public List<ForumCommentListDto> Comments { get; set; } = new();
         public List<ViolationRecordDto> ViolationRecords { get; set; } = new();

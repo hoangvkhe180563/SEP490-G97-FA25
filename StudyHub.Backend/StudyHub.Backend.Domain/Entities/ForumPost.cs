@@ -16,13 +16,14 @@
         public Guid? UpdatedBy { get; set; }
         public DateTime? DeletedAt { get; set; }
         public bool IsHidden { get; set; }
-
         public Subject? Subject { get; set; }
         public School? School { get; set; }
         public ForumFlair? Flair { get; set; }
         public AppUser? Creator { get; set; }
         public int CommentCount { get; set; }
         public int AttachmentCount { get; set; }
+        public int ViewCount { get; set; }
+
         public List<ForumAttachment>? Attachments { get; set; }
         public List<ForumComment>? Comments { get; set; }
         public List<ViolationRecord>? ViolationRecords { get; set; }

@@ -10,11 +10,16 @@ import FlairManagement from "../pages/FlairManagement";
 import ViolationRecords from "../pages/ViolationRecords";
 import { ForumLayout } from "../components/ForumLayout";
 import ForumRuleManagement from "../pages/ForumRuleManagement";
+import ModeratorDashboard from "../pages/ModeratorDashboard";
 
 const managerRoutes = [
   {
     index: true,
     element: <div>Manager Dashboard</div>,
+  },
+  {
+    path: ForumRouteConfig.MANAGER.DASHBOARD,
+    element: <ModeratorDashboard />,
   },
   {
     path: ForumRouteConfig.MANAGER.FORUMS,
