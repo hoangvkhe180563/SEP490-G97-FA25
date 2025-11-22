@@ -349,6 +349,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                             CreatedBy = a.CreatedBy
                         })
                         .ToListAsync();
+                    post.CommentCount = await _context.ForumComments
+    .CountAsync(c => c.PostId == post.Id && c.DeletedAt == null);
                     var (comments, _) = await _commentRepo.GetCommentsByPostIdAsync(post.Id);
                     post.Comments = comments;
                     post.ViolationRecords = await GetViolationRecordsByPostIdAsync(post.Id);

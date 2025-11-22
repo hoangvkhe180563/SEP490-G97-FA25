@@ -196,9 +196,9 @@ namespace StudyHub.Backend.Api.Mappers
                 SchoolId = appeal.SchoolId,
                 Reason = appeal.Reason,
                 Status = appeal.Status,
-                StatusText = appeal.Status ?? true
-                    ? "Approved"
-                    : (appeal.UpdatedAt.HasValue ? "Rejected" : "Pending"),
+                //StatusText = appeal.Status ?? true
+                //    ? "Approved"
+                //    : (appeal.UpdatedAt.HasValue ? "Rejected" : "Pending"),
                 CreatedAt = appeal.CreatedAt,
                 UpdatedAt = appeal.UpdatedAt,
                 UpdatedBy = appeal.UpdatedBy,
@@ -217,9 +217,9 @@ namespace StudyHub.Backend.Api.Mappers
                 SchoolId = appeal.SchoolId,
                 Reason = appeal.Reason,
                 Status = appeal.Status,
-                StatusText = appeal.Status ?? true
-                    ? "Approved"
-                    : (appeal.UpdatedAt.HasValue ? "Rejected" : "Pending"),
+                //StatusText = appeal.Status ?? true
+                //    ? "Approved"
+                //    : (appeal.UpdatedAt.HasValue ? "Rejected" : "Pending"),
                 CreatedAt = appeal.CreatedAt,
                 UpdatedAt = appeal.UpdatedAt,
                 UpdatedBy = appeal.UpdatedBy,

@@ -50,6 +50,7 @@ namespace StudyHub.Backend.Api.Mappers
                 CreatorAvatar = post.Creator?.Avatar,
                 AuthorInitials = authorInitials,
                 AuthorName = authorName,
+                CommentCount = post.CommentCount,
                 Attachments = shouldMaskContent
                 ? new List<ForumAttachmentDto>()
                 : (post.Attachments?.Select(a => new ForumAttachmentDto
@@ -63,9 +64,8 @@ namespace StudyHub.Backend.Api.Mappers
                 }).ToList() ?? new List<ForumAttachmentDto>()),
                 Comments = post.Comments?.Select(c => c.ToListDto(currentUserId, isModerator)).ToList()
                 ?? new List<ForumCommentListDto>(),
-                CommentCount = post.CommentCount,
                 AttachmentCount = post.AttachmentCount,
-                UpdatedAt = post.UpdatedAt
+                UpdatedAt = post.UpdatedAt,
             };
         }
         public static ForumPostDetailDto ToDetailDto(this ForumPost post, Guid? currentUserId = null, bool isModerator = false)
@@ -100,6 +100,7 @@ namespace StudyHub.Backend.Api.Mappers
                 CreatorAvatar = post.Creator?.Avatar,
                 CreatorFullname = post.Creator?.Fullname,
                 UpdatedAt = post.UpdatedAt,
+                CommentCount = post.CommentCount,
                 Attachments = shouldMaskContent
                     ? new List<ForumAttachmentDto>()
                     : (post.Attachments?.Select(a => new ForumAttachmentDto
