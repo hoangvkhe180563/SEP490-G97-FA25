@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import type {
@@ -34,7 +34,6 @@ const ClassworkSubmissionsPage: React.FC = () => {
   }>();
   const classId = Number(params.id ?? 0);
   const workId = Number(params.classworkId ?? 0);
-  const navigate = useNavigate();
 
   const {
     getClassworkSubmissions,
@@ -113,7 +112,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
             getSubmissionByUserAndClasswork(
               workId,
               String(m.userId ?? m.id ?? "").trim()
-            ).catch((e) => null)
+            )
           );
           const results = await Promise.all(promises);
           const found = results
@@ -153,7 +152,6 @@ const ClassworkSubmissionsPage: React.FC = () => {
   }, [
     classId,
     workId,
-    currentClass?.data?.students,
     getClassworkSubmissions,
     getClassMembers,
     getSubmissionByUserAndClasswork,

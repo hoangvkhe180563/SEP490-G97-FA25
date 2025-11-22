@@ -14,6 +14,7 @@ import type {
   DocumentDto,
 } from "../interfaces/class";
 import { axiosInstance } from "@/lib/axios";
+import type { Exam } from "../interfaces/Exam";
 
 const defaultClassInfo: ClassInfo = {
   id: 0,
@@ -49,7 +50,6 @@ export const useClassStore = create<ClassState>()(
       currentClass: defaultCurrentClass,
       // store documents per class to avoid repeated calls
       documentsByClass: {},
-
       getClasses: async (query?: string, memberId?: string) => {
         set({ isLoading: true, success: false, message: "" });
         try {
@@ -157,18 +157,18 @@ export const useClassStore = create<ClassState>()(
             created && created.data
               ? created.data
               : created && created.success !== undefined
-              ? created.data ?? null
-              : created;
+                ? created.data ?? null
+                : created;
 
           const mapped: ClassListDto | null = createdObj
             ? {
-                id: createdObj.id ?? createdObj.classId ?? 0,
-                name: createdObj.name ?? payload.title,
-                instructorName:
-                  createdObj.instructorName ?? createdObj.instructor ?? "",
-                description:
-                  createdObj.description ?? payload.description ?? "",
-              }
+              id: createdObj.id ?? createdObj.classId ?? 0,
+              name: createdObj.name ?? payload.title,
+              instructorName:
+                createdObj.instructorName ?? createdObj.instructor ?? "",
+              description:
+                createdObj.description ?? payload.description ?? "",
+            }
             : null;
 
           if (mapped) {
@@ -271,8 +271,8 @@ export const useClassStore = create<ClassState>()(
             raw && raw.data
               ? raw.data
               : raw && raw.success !== undefined
-              ? raw.data ?? null
-              : raw;
+                ? raw.data ?? null
+                : raw;
 
           if (!updatedObj) {
             set({ success: false, message: "Update returned empty response" });
@@ -345,15 +345,6 @@ export const useClassStore = create<ClassState>()(
               return [r];
             }
             return [];
-          };
-
-          const toBoolean = (v: any): boolean | undefined => {
-            if (v === undefined || v === null) return undefined;
-            if (typeof v === "boolean") return v;
-            const s = String(v).toLowerCase();
-            if (s === "true" || s === "1") return true;
-            if (s === "false" || s === "0") return false;
-            return undefined;
           };
 
           const members: ClassMemberDto[] = (
@@ -666,9 +657,9 @@ export const useClassStore = create<ClassState>()(
         set({ isLoading: true });
         try {
           const endpoints = [
-            `/api/Classwork/class/${classId}`,
             `/Classwork/class/${classId}`,
-            `/api/ClassNotification/class/${classId}`,
+            `/Classwork/class/${classId}`,
+            `/ClassNotification/class/${classId}`,
             `/ClassNotification/class/${classId}`,
           ];
           let res: any = null;
@@ -926,13 +917,13 @@ export const useClassStore = create<ClassState>()(
                 createdAt: d.createdAt ?? null,
                 classes: Array.isArray(d.classes)
                   ? d.classes.map((c: any) => ({
-                      id: c.id,
-                      name: c.name ?? null,
-                      subjectName: c.subjectName ?? null,
-                      instructorName: c.instructorName ?? null,
-                      description: c.description ?? null,
-                      subjectId: c.subjectId ?? null,
-                    }))
+                    id: c.id,
+                    name: c.name ?? null,
+                    subjectName: c.subjectName ?? null,
+                    instructorName: c.instructorName ?? null,
+                    description: c.description ?? null,
+                    subjectId: c.subjectId ?? null,
+                  }))
                   : undefined,
                 raw: d,
               } as DocumentDto;
@@ -1390,7 +1381,6 @@ export const useClassStore = create<ClassState>()(
 
           let res: any = null;
           let used: string | null = null;
-          let lastErr: any = null;
 
           // try relative / prefixed (axiosInstance will combine with baseURL)
           for (const ep of allCandidates) {
@@ -1402,7 +1392,6 @@ export const useClassStore = create<ClassState>()(
               used = ep;
               break;
             } catch (err: any) {
-              lastErr = err;
               console.warn(
                 "[gradeSubmission] endpoint failed:",
                 ep,
@@ -1417,11 +1406,10 @@ export const useClassStore = create<ClassState>()(
           // if still no response, try absolute URL (bypasses axios baseURL)
           if (!res) {
             try {
-              const abs = `${
-                window.location.origin
-              }/api/ClassNotification/${encodeURIComponent(
-                notificationId
-              )}/submissions/${encodeURIComponent(submissionId)}/grade`;
+              const abs = `${window.location.origin
+                }/api/ClassNotification/${encodeURIComponent(
+                  notificationId
+                )}/submissions/${encodeURIComponent(submissionId)}/grade`;
               console.debug(
                 "[gradeSubmission] try absolute URL:",
                 abs,
@@ -1984,6 +1972,28 @@ export const useClassStore = create<ClassState>()(
           set({ isLoading: false });
         }
       },
+      getClassExams: async (classId: string): Promise<Exam[]> => {
+        try {
+          const res = await axiosInstance.get("/exam/class/" + classId);
+          if (res.status === 200) {
+            return res.data.map((item: any) => {
+              return {
+                id: item.id,
+                title: item.title,
+                description: item.description,
+                duration: item.duration,
+                createdBy: item.createdBy,
+                totalQuestions: item.totalQuestions
+              }
+            });
+          } else {
+            throw new Error(`Status: ${res.status}`);
+          }
+        } catch (error) {
+          console.error("Error getClassExams: ", error);
+        }
+        return [];
+      }
     }),
     { name: "class-storage" }
   )
