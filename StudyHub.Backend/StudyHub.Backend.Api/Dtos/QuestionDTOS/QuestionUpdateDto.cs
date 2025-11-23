@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using StudyHub.Backend.Domain.Entities.Exam;
+using System.ComponentModel.DataAnnotations;
 
 namespace StudyHub.Backend.Api.Dtos.QuestionDTOS
 {
@@ -10,7 +11,7 @@ namespace StudyHub.Backend.Api.Dtos.QuestionDTOS
         public string QuestionText { get; set; } = string.Empty;
 
         [Required]
-        public string Type { get; set; } = string.Empty;
+        public QuestionType Type { get; set; } = QuestionType.SingleChoice;
 
         public List<string> Options { get; set; } = new List<string>();
 

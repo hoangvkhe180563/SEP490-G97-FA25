@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos.QuestionDTOS;
 using StudyHub.Backend.Api.Mappers;
-using StudyHub.Backend.Domain.Entities.Exam;
 using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -19,16 +18,30 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet]
         public IActionResult GetCommonQuestions([FromQuery] CommonQuestionGetDto dto)
         {
-            if (dto.SubjectId == 0 || dto.Grade == 0)
+            if (dto.SubjectId < 0)
             {
-                return BadRequest("Câu hỏi phải có id môn học và lớp!");
+                return BadRequest("Id môn học không hợp lệ!");
             }
-            if (dto.Page == 0 || dto.PageSize == 0)
+            if (dto.Grade < 0)
             {
-                return BadRequest("Phải có số trang!");
+                return BadRequest("Id môn học không hợp lệ!");
             }
-            var result = _questionService.GetCommonQuestions(dto.SubjectId, dto.Grade, dto.Page, dto.PageSize);
-            return Ok(result);
+            if (dto.Page <= 0)
+            {
+                return BadRequest("Số trang không hợp lệ!");
+            }
+            var result = _questionService.GetCommonQuestions(dto.SubjectId, dto.Grade, dto.Page, dto.Type, dto.QuestionText);
+            int totalQuestions = _questionService.GetTotalQuestions(dto.SubjectId, dto.Grade, dto.Type, dto.QuestionText);
+            int pageSize = 10;
+
+            var response = new CommonQuestionResponseDto
+            {
+                Questions = result.Select(q => q.ToDetailDto()).ToList(),
+                Page = dto.Page,
+                TotalPages = (int)Math.Ceiling((double)totalQuestions / pageSize),
+                TotalQuestions = totalQuestions
+            };
+            return Ok(response);
         }
 
         [HttpPost("common")]
@@ -62,15 +75,33 @@ namespace StudyHub.Backend.Api.Controllers
             return result ? Ok() : Conflict("Không cập nhật được câu hỏi!");
         }
 
-        [HttpDelete]
+        [HttpDelete("{questionObjectId}")]
         public IActionResult DeleteCommonQuestion(string questionObjectId)
         {
-            if (questionObjectId == string.Empty)
+            if (string.IsNullOrWhiteSpace(questionObjectId))
             {
                 return BadRequest("Phải có id câu hỏi!");
             }
             var result = _questionService.DeleteCommonQuestion(questionObjectId);
             return result ? Ok() : Conflict("Không xóa được câu hỏi!");
+        }
+
+        [HttpGet("{managerId:guid}/subjects")]
+        public IActionResult GetManagerSubjects(Guid managerId)
+        {
+            var subjects = _questionService.GetManagerSubjects(managerId);
+            return Ok(subjects);
+        }
+
+        [HttpGet("{id}/details")]
+        public IActionResult GetQuestionDetail(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id) || id.Length < 24)
+            {
+                return BadRequest("Phải có id câu hỏi, hoặc id không đúng định dạng!");
+            }
+            var question = _questionService.GetQuestionById(id);
+            return question != null ? Ok(question) : NotFound();
         }
     }
 }

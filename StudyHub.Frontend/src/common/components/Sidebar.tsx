@@ -100,9 +100,9 @@ export const Sidebar = (props: {
               expanded ? "ml-3 flex-1" : "w-0"
             }`}
           >
-            <div>
+            <div className="w-40">
               <p className="font-medium">{props.user.fullname}</p>
-              <p className="text-sm text-gray-600">{props.user.email}</p>
+              <p className="text-sm text-gray-600 truncate">{props.user.email}</p>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

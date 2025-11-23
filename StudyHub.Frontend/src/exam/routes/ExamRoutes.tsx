@@ -1,14 +1,15 @@
 import type { RouteObject } from "react-router-dom";
 import ExamRouteConfig from "../constants/ExamRouteConfig";
 import TakeExam from "../pages/student/TakeExam";
-import StudentListResults from "../pages/student/ListResults";
 import TeacherClassResults from "../pages/teacher/ListClassResults";
 import ViewResultDetail from "../pages/ViewResultDetail";
 import CreateClassExam from "../pages/teacher/CreateClassExam";
 import ViewExamHistory from "../pages/teacher/ViewExamHistory";
 import UpdateExam from "../pages/teacher/UpdateExam";
 import ViewExamDetail from "../pages/student/ViewExamDetail";
-import TeacherLessonExam from "../pages/teacher/LessonExam";
+import ListQuestions from "../pages/questionManager/ListQuestions";
+import AddQuestion from "../pages/questionManager/AddQuestion";
+import UpdateQuestion from "../pages/questionManager/UpdateQuestion";
 
 const examRoutes: RouteObject[] = [
   {
@@ -18,10 +19,6 @@ const examRoutes: RouteObject[] = [
   {
     path: ExamRouteConfig.STUDENT.TAKE_EXAM,
     element: <TakeExam />
-  },
-  {
-    path: ExamRouteConfig.STUDENT.CLASS.EXAM_RESULT_LIST,
-    element: <StudentListResults />
   },
   {
     path: ExamRouteConfig.EXAM_RESULT_DETAIL,
@@ -44,8 +41,16 @@ const examRoutes: RouteObject[] = [
     element: <TeacherClassResults />
   },
   {
-    path: ExamRouteConfig.TEACHER.LESSON.LESSON_EXAM,
-    element: <TeacherLessonExam />
+    path: ExamRouteConfig.QUESTION_MANAGER.QUESTION_LIST,
+    element: <ListQuestions />
+  },
+  {
+    path: ExamRouteConfig.QUESTION_MANAGER.CREATE_QUESTION,
+    element: <AddQuestion />
+  },
+  {
+    path: ExamRouteConfig.QUESTION_MANAGER.EDIT_QUESTION,
+    element: <UpdateQuestion />
   }
 ];
 

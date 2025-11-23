@@ -28,7 +28,7 @@ namespace StudyHub.Backend.Api.Mappers
             {
                 switch (question.Type)
                 {
-                    case "single-choice":
+                    case QuestionType.SingleChoice:
                         {
                             if (question.CorrectAnswer is JsonElement jsonElement)
                             {
@@ -43,7 +43,7 @@ namespace StudyHub.Backend.Api.Mappers
                             }
                             break;
                         }
-                    case "multiple-choice":
+                    case QuestionType.MultipleChoice:
                         {
                             if (question.CorrectAnswer is JsonElement jsonElement)
                             {
@@ -58,7 +58,7 @@ namespace StudyHub.Backend.Api.Mappers
                             }
                             break;
                         }
-                    case "text-input":
+                    case QuestionType.TextInput:
                         {
                             if (question.CorrectAnswer is JsonElement jsonElement)
                             {
@@ -72,7 +72,7 @@ namespace StudyHub.Backend.Api.Mappers
                             }
                             break;
                         }
-                    case "fill-blank":
+                    case QuestionType.FillBlank:
                         {
                             if (question.CorrectAnswer is JsonElement jsonElement)
                             {
@@ -86,7 +86,7 @@ namespace StudyHub.Backend.Api.Mappers
                             }
                             break;
                         }
-                    case "matching":
+                    case QuestionType.Matching:
                         {
                             if (question.CorrectAnswer is JsonElement jsonElement)
                             {
@@ -151,6 +151,7 @@ namespace StudyHub.Backend.Api.Mappers
                 QuestionDetailsDto q = new QuestionDetailsDto();
                 q.QuestionObjectId = question.Id;
                 q.QuestionText = question.QuestionText;
+                q.Type = question.Type;
 
                 switch (question.Type)
                 {
@@ -158,7 +159,6 @@ namespace StudyHub.Backend.Api.Mappers
                         {
                             if (question is SingleChoiceQuestion singleChoice)
                             {
-                                q.Type = "single-choice";
                                 q.CorrectAnswer = singleChoice.CorrectAnswer;
                                 q.Options = singleChoice.Options;
                             }
@@ -168,7 +168,6 @@ namespace StudyHub.Backend.Api.Mappers
                         {
                             if (question is MultipleChoiceQuestion multipleChoice)
                             {
-                                q.Type = "multiple-choice";
                                 q.CorrectAnswer = multipleChoice.CorrectAnswer;
                                 q.Options = multipleChoice.Options;
                             }
@@ -178,7 +177,6 @@ namespace StudyHub.Backend.Api.Mappers
                         {
                             if (question is TextInputQuestion textInput)
                             {
-                                q.Type = "text-input";
                                 q.CorrectAnswer = textInput.CorrectAnswer;
                             }
                         }
@@ -187,7 +185,6 @@ namespace StudyHub.Backend.Api.Mappers
                         {
                             if (question is FillBlankQuestion fillBlank)
                             {
-                                q.Type = "fill-blank";
                                 q.CorrectAnswer = fillBlank.CorrectAnswer;
                             }
                         }
@@ -196,7 +193,6 @@ namespace StudyHub.Backend.Api.Mappers
                         {
                             if (question is MatchingQuestion matching)
                             {
-                                q.Type = "matching";
                                 q.Terms = matching.Terms;
                                 q.Definitions = matching.Definitions;
                                 q.CorrectAnswer = matching.CorrectMatches;

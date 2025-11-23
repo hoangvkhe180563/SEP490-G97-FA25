@@ -10,7 +10,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
             switch (question.Type)
             {
                 default:
-                case "single-choice":
+                case 0:
                     return new SingleChoiceQuestion
                     {
                         Id = question.Id.ToString(),
@@ -21,7 +21,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                         SubjectId = question.SubjectId,
                         Grade = question.Grade
                     };
-                case "multiple-choice":
+                case 1:
                     {
                         BsonArray correctAnswerArray = question.CorrectAnswer.AsBsonArray;
                         List<int> correctAnswerIndexes = [];
@@ -41,7 +41,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                             Grade = question.Grade
                         };
                     }
-                case "text-input":
+                case 2:
                     return new TextInputQuestion
                     {
                         Id = question.Id.ToString(),
@@ -51,7 +51,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                         SubjectId = question.SubjectId,
                         Grade = question.Grade
                     };
-                case "fill-blank":
+                case 3:
                     return new FillBlankQuestion
                     {
                         Id = question.Id.ToString(),
@@ -61,7 +61,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                         SubjectId = question.SubjectId,
                         Grade = question.Grade
                     };
-                case "matching":
+                case 4:
                     {
                         BsonDocument correctMatchesDoc = question.CorrectAnswer.AsBsonDocument;
                         Dictionary<int, int> correctMatches = new Dictionary<int, int>();
@@ -104,25 +104,25 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
             switch (question.Type)
             {
                 case QuestionType.SingleChoice:
-                    questionData.Type = "single-choice";
+                    questionData.Type = 0;
                     questionData.Options = question is SingleChoiceQuestion scq ? scq.Options : [];
                     questionData.CorrectAnswer = question is SingleChoiceQuestion scq2 ? scq2.CorrectAnswer : string.Empty;
                     break;
                 case QuestionType.MultipleChoice:
-                    questionData.Type = "multiple-choice";
+                    questionData.Type = 1;
                     questionData.Options = question is MultipleChoiceQuestion mcq ? mcq.Options : [];
                     questionData.CorrectAnswer = question is MultipleChoiceQuestion mcq2 ? [.. mcq2.CorrectAnswer] : new BsonArray();
                     break;
                 case QuestionType.TextInput:
-                    questionData.Type = "text-input";
+                    questionData.Type = 2;
                     questionData.CorrectAnswer = question is TextInputQuestion tiq ? tiq.CorrectAnswer : string.Empty;
                     break;
                 case QuestionType.FillBlank:
-                    questionData.Type = "fill-blank";
+                    questionData.Type = 3;
                     questionData.CorrectAnswer = question is FillBlankQuestion fbq ? [.. fbq.CorrectAnswer] : new BsonArray();
                     break;
                 case QuestionType.Matching:
-                    questionData.Type = "matching";
+                    questionData.Type = 4;
                     if (question is MatchingQuestion mq)
                     {
                         questionData.Terms = mq.Terms;

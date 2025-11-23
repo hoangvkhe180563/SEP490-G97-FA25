@@ -10,12 +10,14 @@ const ExamRouteConfig = {
     CLASS: {
       EXAM_RESULT_LIST: "teacher/class-exams/results"
     },
-    LESSON: {
-      LESSON_EXAM: "teacher/lesson-exam/:lessonId"
-    },
     CREATE_CLASS_EXAM: "teacher/create-exam",
     EDIT_CLASS_EXAM: "teacher/edit-exam/:id",
     EXAM_DETAILS: "teacher/results/:id"
+  },
+  QUESTION_MANAGER: {
+    QUESTION_LIST: "manager/questions",
+    CREATE_QUESTION: "manager/questions/create",
+    EDIT_QUESTION: "manager/questions/edit/:id"
   },
   EXAM_RESULT_DETAIL: "results/:id"
 };

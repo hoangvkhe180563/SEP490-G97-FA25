@@ -167,7 +167,7 @@ const TakeExam = () => {
     handleBackupExamResult(false);
   }, [cheatTimes])
 
-  const handleAnswerChange = (questionId: number, value: any, type: string, blankIndex: number | null = null) => {
+  const handleAnswerChange = (questionId: number, value: any, type: number, blankIndex: number | null = null) => {
     setStudentAnswers((prevAnswers) => {
       if (type === EXAM_TYPE.MULTI_CHOICE) {
         const currentAnswers = prevAnswers[questionId] || [];

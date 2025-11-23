@@ -131,7 +131,7 @@ const ViewResultDetail = () => {
       <Button variant='outline' className='flex items-center' onClick={() => {
         if (user?.roles.some(role => role.includes("Student"))) {
           if (exam.classId) {
-            navigate('/exam/student/class-exams');
+            navigate(`/class/student/${exam.classId}`);
             return;
           } else if (exam.lessonId) {
             navigate(`/course/student/courses/${returnCourseId}/lecture/${exam.lessonId}`)

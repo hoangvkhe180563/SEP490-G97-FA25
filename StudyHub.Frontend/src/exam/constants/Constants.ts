@@ -1,13 +1,12 @@
-import type { Answer } from "../interfaces/models/Answer";
 import type { Exam } from "../interfaces/models/Exam";
 import type { ExamResult } from "../interfaces/models/ExamResult";
 
 export const EXAM_TYPE = {
-  SINGLE_CHOICE: "single-choice",
-  MULTI_CHOICE: "multiple-choice",
-  TEXT_INPUT: "text-input",
-  FILL_IN_BLANK: "fill-blank",
-  MATCHING: "matching"
+  SINGLE_CHOICE: 0,
+  MULTI_CHOICE: 1,
+  TEXT_INPUT: 2,
+  FILL_IN_BLANK: 3,
+  MATCHING: 4
 }
 
 export const BLANK_PLACEHOLDER = "[BLANK]";
@@ -32,10 +31,4 @@ export const DEFAULT_EXAM_RESULT: ExamResult = {
   answers: [],
   cheatTimes: 0,
   finishTime: new Date()
-}
-
-export const DEFAULT_ANSWER: Answer = {
-  questionId: 0,
-  jsonAnswers: null,
-  isCorrect: false
 }

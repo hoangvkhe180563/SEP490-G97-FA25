@@ -12,7 +12,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data
         public string QuestionText { get; set; } = string.Empty;
 
         [BsonElement("type")]
-        public string Type { get; set; } = string.Empty;
+        public int Type { get; set; } = 0;
 
         [BsonElement("options")]
         public List<string> Options { get; set; } = new List<string>();

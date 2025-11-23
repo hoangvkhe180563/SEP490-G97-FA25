@@ -40,7 +40,7 @@ const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Di
         questionRows.forEach((row: any, rowIndex) => {
           const question: Question = {
             id: Date.now(),
-            type: 'single-choice',
+            type: 0,
             questionText: '',
             options: [],
             correctAnswer: null
@@ -59,10 +59,16 @@ const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Di
           if (isValidRow) {
             question.id = Date.now() + rowIndex;
             question.questionText = questionText;
-            question.type = questionType as "single-choice" | "multiple-choice" | "text-input" | "fill-blank";
+            switch (questionType) {
+              default: case "single-choice": question.type = 0; break;
+              case "multiple-choice": question.type = 1; break;
+              case "text-input": question.type = 2; break;
+              case "fill-blank": question.type = 3; break;
+              case "matching": question.type = 4; break;
+            }
             question.options = [];
 
-            if (questionType === EXAM_TYPE.SINGLE_CHOICE || questionType === EXAM_TYPE.MULTI_CHOICE) {
+            if (question.type === EXAM_TYPE.SINGLE_CHOICE || question.type === EXAM_TYPE.MULTI_CHOICE) {
               const options: string[] = [];
               for (let i = header.indexOf('Các đáp án…'); i < row.length; i++) {
                 const optionValue = row[i];
@@ -76,7 +82,7 @@ const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Di
               }
               question.options = options;
 
-              if (questionType === EXAM_TYPE.SINGLE_CHOICE) {
+              if (question.type === EXAM_TYPE.SINGLE_CHOICE) {
                 question.correctAnswer = options.findIndex(o => o === correctAnswerRaw);
                 if (!options.includes(correctAnswerRaw)) {
                   rowErrors.push(`Hàng ${rowIndex + 2}: Đáp án đúng không nằm trong các lựa chọn.`);
@@ -95,9 +101,9 @@ const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Di
                 const correctAnswersIndex = correctAnswersArray.map(ans => options.findIndex(o => o === ans));
                 question.correctAnswer = correctAnswersIndex;
               }
-            } else if (questionType === EXAM_TYPE.TEXT_INPUT) {
+            } else if (question.type === EXAM_TYPE.TEXT_INPUT) {
               question.correctAnswer = correctAnswerRaw;
-            } else if (questionType === EXAM_TYPE.FILL_IN_BLANK) {
+            } else if (question.type === EXAM_TYPE.FILL_IN_BLANK) {
               const expectedBlanks = (questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
               const correctAnswersArray = correctAnswerRaw.split(',').map(ans => ans.trim()).filter(ans => ans !== '');
 
@@ -109,7 +115,7 @@ const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Di
                 isValidRow = false;
               }
               question.correctAnswer = correctAnswersArray;
-            } else if (questionType === EXAM_TYPE.MATCHING) {
+            } else if (question.type === EXAM_TYPE.MATCHING) {
               const termsRaw = String(row[header.indexOf('Các đáp án…')] || '').trim();
               const definitionsRaw = correctAnswerRaw;
 
@@ -180,15 +186,14 @@ const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Di
     reader.readAsArrayBuffer(file);
   }
 
-  const addQuestion = (type: string) => {
+  const addQuestion = (type: number) => {
     let newQuestion: Question = {
       id: Date.now(),
-      type: 'single-choice',
+      type: type,
       questionText: '',
       options: [],
       correctAnswer: ''
     };
-    newQuestion.type = type as "single-choice" | "multiple-choice" | "text-input" | "fill-blank";
 
     if (type === EXAM_TYPE.SINGLE_CHOICE) {
       newQuestion.options = [''];
@@ -449,6 +454,95 @@ const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Di
                     />
                   </div>
                 ))}
+              </div>
+            )}
+
+            {q.type === EXAM_TYPE.MATCHING && (
+              <div className="mb-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-700 text-sm font-bold mb-2">Thuật ngữ</label>
+                    {(q.terms || []).map((term, termIndex) => (
+                      <div key={termIndex} className="flex items-center mb-2">
+                        <input
+                          type="text"
+                          className="grow p-2 border border-gray-300 rounded-lg text-gray-800"
+                          value={term}
+                          onChange={(e) => updateQuestion(q.id, 'terms', e.target.value, termIndex)}
+                          placeholder={`Thuật ngữ ${termIndex + 1}`}
+                          required
+                        />
+                        {(q.terms || []).length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => updateQuestion(q.id, 'removeTerm', null, termIndex)}
+                            className="ml-2 text-red-500 hover:text-red-700"
+                          >
+                            &times;
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => updateQuestion(q.id, 'addTerm', null)}
+                      className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+                    >
+                      Thêm thuật ngữ
+                    </button>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm font-bold mb-2">Định nghĩa</label>
+                    {(q.definitions || []).map((definition, defIndex) => (
+                      <div key={defIndex} className="flex items-center mb-2">
+                        <input
+                          type="text"
+                          className="grow p-2 border border-gray-300 rounded-lg text-gray-800"
+                          value={definition}
+                          onChange={(e) => updateQuestion(q.id, 'definitions', e.target.value, defIndex)}
+                          placeholder={`Định nghĩa ${defIndex + 1}`}
+                          required
+                        />
+                        {(q.definitions || []).length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => updateQuestion(q.id, 'removeDefinition', null, defIndex)}
+                            className="ml-2 text-red-500 hover:text-red-700"
+                          >
+                            &times;
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => updateQuestion(q.id, 'addDefinition', null)}
+                      className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+                    >
+                      Thêm định nghĩa
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-gray-700 text-sm font-bold mb-2">Ghép đúng</label>
+                  {(q.terms || []).map((term, termIndex) => (
+                    <div key={termIndex} className="flex items-center mb-2">
+                      <span className="mr-2 text-gray-600 w-1/3">{term || `Thuật ngữ ${termIndex + 1}`}:</span>
+                      <select
+                        className="grow p-2 border border-gray-300 rounded-lg text-gray-800"
+                        value={q.correctAnswer?.[termIndex] ?? 0}
+                        onChange={(e) => updateQuestion(q.id, 'matchingAnswer', [termIndex, parseInt(e.target.value)])}
+                        required
+                      >
+                        {(q.definitions || []).map((def, defIndex) => (
+                          <option key={defIndex} value={defIndex}>
+                            {def || `Định nghĩa ${defIndex + 1}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

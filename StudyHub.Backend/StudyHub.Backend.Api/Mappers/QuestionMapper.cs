@@ -1,4 +1,5 @@
-﻿using StudyHub.Backend.Api.Dtos.QuestionDTOS;
+﻿using StudyHub.Backend.Api.Dtos.ExamDTOS;
+using StudyHub.Backend.Api.Dtos.QuestionDTOS;
 using StudyHub.Backend.Domain.Entities.Exam;
 using StudyHub.Backend.Infrastructure.MongoDb.Data;
 using System.Text.Json;
@@ -12,7 +13,7 @@ namespace StudyHub.Backend.Api.Mappers
             switch (question.Type)
             {
                 default:
-                case "single-choice":
+                case QuestionType.SingleChoice:
                     {
                         if (question.CorrectAnswer is JsonElement jsonElement)
                         {
@@ -29,7 +30,7 @@ namespace StudyHub.Backend.Api.Mappers
                         }
                         break;
                     }
-                case "multiple-choice":
+                case QuestionType.MultipleChoice:
                     {
                         if (question.CorrectAnswer is JsonElement jsonElement)
                         {
@@ -46,7 +47,7 @@ namespace StudyHub.Backend.Api.Mappers
                         }
                         break;
                     }
-                case "text-input":
+                case QuestionType.TextInput:
                     {
                         if (question.CorrectAnswer is JsonElement jsonElement)
                         {
@@ -62,7 +63,7 @@ namespace StudyHub.Backend.Api.Mappers
                         }
                         break;
                     }
-                case "fill-blank":
+                case QuestionType.FillBlank:
                     {
                         if (question.CorrectAnswer is JsonElement jsonElement)
                         {
@@ -78,7 +79,7 @@ namespace StudyHub.Backend.Api.Mappers
                         }
                         break;
                     }
-                case "matching":
+                case QuestionType.Matching:
                     {
                         if (question.CorrectAnswer is JsonElement jsonElement)
                         {
@@ -104,7 +105,7 @@ namespace StudyHub.Backend.Api.Mappers
         {
             switch (questionDto.Type)
             {
-                case "single-choice":
+                case QuestionType.SingleChoice:
                     {
                         if (questionDto.CorrectAnswer is JsonElement jsonElement)
                         {
@@ -122,7 +123,7 @@ namespace StudyHub.Backend.Api.Mappers
                         }
                         break;
                     }
-                case "multiple-choice":
+                case QuestionType.MultipleChoice:
                     {
                         if (questionDto.CorrectAnswer is JsonElement jsonElement)
                         {
@@ -140,7 +141,7 @@ namespace StudyHub.Backend.Api.Mappers
                         }
                         break;
                     }
-                case "text-input":
+                case QuestionType.TextInput:
                     {
                         if (questionDto.CorrectAnswer is JsonElement jsonElement)
                         {
@@ -157,7 +158,7 @@ namespace StudyHub.Backend.Api.Mappers
                         }
                         break;
                     }
-                case "fill-blank":
+                case QuestionType.FillBlank:
                     {
                         if (questionDto.CorrectAnswer is JsonElement jsonElement)
                         {
@@ -174,7 +175,7 @@ namespace StudyHub.Backend.Api.Mappers
                         }
                         break;
                     }
-                case "matching":
+                case QuestionType.Matching:
                     {
                         if (questionDto.CorrectAnswer is JsonElement jsonElement)
                         {
@@ -196,6 +197,63 @@ namespace StudyHub.Backend.Api.Mappers
             }
 
             throw new InvalidOperationException($"Unsupported question type: {questionDto.Type}");
+        }
+
+        public static QuestionDetailsDto ToDetailDto(this Domain.Entities.Exam.Question question)
+        {
+            QuestionDetailsDto dto = new QuestionDetailsDto();
+            dto.QuestionObjectId = question.Id;
+            dto.QuestionText = question.QuestionText;
+            dto.Type = question.Type;
+
+            switch (question.Type)
+            {
+                case QuestionType.SingleChoice:
+                    {
+                        if (question is SingleChoiceQuestion singleChoice)
+                        {
+                            dto.CorrectAnswer = singleChoice.CorrectAnswer;
+                            dto.Options = singleChoice.Options;
+                        }
+                    }
+                    break;
+                case QuestionType.MultipleChoice:
+                    {
+                        if (question is MultipleChoiceQuestion multipleChoice)
+                        {
+                            dto.CorrectAnswer = multipleChoice.CorrectAnswer;
+                            dto.Options = multipleChoice.Options;
+                        }
+                    }
+                    break;
+                case QuestionType.TextInput:
+                    {
+                        if (question is TextInputQuestion textInput)
+                        {
+                            dto.CorrectAnswer = textInput.CorrectAnswer;
+                        }
+                    }
+                    break;
+                case QuestionType.FillBlank:
+                    {
+                        if (question is FillBlankQuestion fillBlank)
+                        {
+                            dto.CorrectAnswer = fillBlank.CorrectAnswer;
+                        }
+                    }
+                    break;
+                case QuestionType.Matching:
+                    {
+                        if (question is MatchingQuestion matching)
+                        {
+                            dto.Terms = matching.Terms;
+                            dto.Definitions = matching.Definitions;
+                            dto.CorrectAnswer = matching.CorrectMatches;
+                        }
+                    }
+                    break;
+            }
+            return dto;
         }
     }
 }

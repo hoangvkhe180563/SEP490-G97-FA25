@@ -92,7 +92,7 @@ app.UseCors();
 
 //Use custom middleware to extract JWT from cookie and set in Authorization header
 //JWTBearerHandler automatically validates the token from Authorization header
-//app.UseMiddleware<JwtCookieMiddleware>();
+app.UseMiddleware<JwtCookieMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
@@ -104,7 +104,7 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 // Check that authenticated users are still active. If not, return a consistent AccountInactive payload.
-//app.UseMiddleware<AccountActiveMiddleware>();
+app.UseMiddleware<AccountActiveMiddleware>();
 app.UseAuthorization();
 app.UseSession();
 app.MapControllers();

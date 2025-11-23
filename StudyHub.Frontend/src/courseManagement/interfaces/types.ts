@@ -145,7 +145,7 @@ export interface Question {
   id: number;
   questionObjectId?: string;
   questionText: string;
-  type: "single-choice" | "multiple-choice" | "text-input" | "fill-blank" | "matching";
+  type: number;
   options: string[];
   correctAnswer: any;
 }
