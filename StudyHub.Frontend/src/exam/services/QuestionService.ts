@@ -2,6 +2,7 @@ import { axiosInstance } from "@/lib/axios";
 import type { CommonQuestionResponse } from "../interfaces/responses/CommonQuestionResponse";
 import type { Question } from "../interfaces/models/Question";
 import type { Subject } from "../interfaces/models/Subject";
+import type { ExcelQuestionResponse } from "../interfaces/responses/ExcelQuestionResponse";
 
 export class QuestionService {
   getCommonQuestions = async (subjectId: number, grade: number, type: number, page: number, questionText: string): Promise<CommonQuestionResponse | null> => {
@@ -135,5 +136,35 @@ export class QuestionService {
       console.error("Error getQuestionDetail: ", error);
     }
     return null;
+  }
+
+  importExcel = async (file: File): Promise<ExcelQuestionResponse> => {
+    try {
+      const formData = new FormData();
+      formData.append("excelFile", file);
+      const res = await axiosInstance.post("/question/excel", formData);
+      if (res.status === 200) {
+        return {
+          errorMessages: [],
+          questions: res.data.map((item: Question, index: number) => {
+            return {
+              ...item,
+              id: Date.now() + index
+            }
+          })
+        }
+      } else {
+        return {
+          errorMessages: res.data,
+          questions: []
+        };
+      }
+    } catch (error) {
+      console.error("Error importExcel: ", error);
+    }
+    return {
+      errorMessages: ["Không kết nối được CSDL!"],
+      questions: []
+    };
   }
 }

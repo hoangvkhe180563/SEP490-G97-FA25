@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos.QuestionDTOS;
 using StudyHub.Backend.Api.Mappers;
+using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -102,6 +103,17 @@ namespace StudyHub.Backend.Api.Controllers
             }
             var question = _questionService.GetQuestionById(id);
             return question != null ? Ok(question) : NotFound();
+        }
+
+        [HttpPost("excel")]
+        public IActionResult ImportExcelQuestions(IFormFile excelFile)
+        {
+            if (excelFile == null || excelFile.Length == 0)
+            {
+                return BadRequest("Không có file excel!");
+            }
+            QuestionExcelDto questions = _questionService.ImportQuestionsFromExcel(excelFile);
+            return questions.ErrorMessages.Count > 0 ? BadRequest(questions.ErrorMessages) : Ok(questions.Questions.Select(q => q.ToDetailDto()).ToList());
         }
     }
 }

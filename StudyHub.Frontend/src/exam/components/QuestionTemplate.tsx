@@ -1,189 +1,36 @@
 import { useState } from "react";
-import * as XLSX from 'xlsx';
 import toast from "react-hot-toast";
 import { BLANK_PLACEHOLDER, EXAM_TYPE } from "../constants/Constants";
 import type { Question } from "../interfaces/models/Question";
 import { Plus } from "lucide-react";
+import { useLoading } from "@/common/hooks/useLoading";
+import { QuestionService } from "../services/QuestionService";
 
 const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Dispatch<React.SetStateAction<Question[]>> }) => {
   const [excelFileError, setExcelFileError] = useState<string>('');
+  const { setLoading } = useLoading();
+  const questionService = new QuestionService();
 
-  const handleExcelFileUpload: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+  const handleExcelFileUpload: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
     if (!e.target.files) {
       setExcelFileError("Vui lòng chọn một file Excel.");
       return;
     }
     const file = e.target.files[0];
-
     setExcelFileError('');
-    const reader = new FileReader();
+    setLoading(true);
 
-    reader.onload = (event) => {
-      try {
-        const data = new Uint8Array(event.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
-
-        if (json.length < 2) {
-          setExcelFileError("File Excel không có dữ liệu câu hỏi.");
-          return;
-        }
-
-        const header: any = json[0]; // Hàng tiêu đề
-        const questionRows = json.slice(1); // Dữ liệu câu hỏi
-
-        const newQuestions: Question[] = [];
-        let rowErrors: string[] = [];
-
-        questionRows.forEach((row: any, rowIndex) => {
-          const question: Question = {
-            id: Date.now(),
-            type: 0,
-            questionText: '',
-            options: [],
-            correctAnswer: null
-          };
-          let isValidRow = true;
-
-          const questionType = String(row[header.indexOf('Loại câu hỏi')] || '').toLowerCase();
-          const questionText = String(row[header.indexOf('Tên câu hỏi')] || '').trim();
-          const correctAnswerRaw = String(row[header.indexOf('Đáp án đúng')] || '').trim();
-
-          if (!questionType || !questionText || !correctAnswerRaw) {
-            rowErrors.push(`Hàng ${rowIndex + 2}: Thiếu loại câu hỏi, nội dung hoặc đáp án đúng.`);
-            isValidRow = false;
-          }
-
-          if (isValidRow) {
-            question.id = Date.now() + rowIndex;
-            question.questionText = questionText;
-            switch (questionType) {
-              default: case "single-choice": question.type = 0; break;
-              case "multiple-choice": question.type = 1; break;
-              case "text-input": question.type = 2; break;
-              case "fill-blank": question.type = 3; break;
-              case "matching": question.type = 4; break;
-            }
-            question.options = [];
-
-            if (question.type === EXAM_TYPE.SINGLE_CHOICE || question.type === EXAM_TYPE.MULTI_CHOICE) {
-              const options: string[] = [];
-              for (let i = header.indexOf('Các đáp án…'); i < row.length; i++) {
-                const optionValue = row[i];
-                if (optionValue !== undefined && optionValue !== null && String(optionValue).trim() !== '') {
-                  options.push(String(optionValue).trim());
-                }
-              }
-              if (options.length === 0) {
-                rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi trắc nghiệm phải có ít nhất một lựa chọn.`);
-                isValidRow = false;
-              }
-              question.options = options;
-
-              if (question.type === EXAM_TYPE.SINGLE_CHOICE) {
-                question.correctAnswer = options.findIndex(o => o === correctAnswerRaw);
-                if (!options.includes(correctAnswerRaw)) {
-                  rowErrors.push(`Hàng ${rowIndex + 2}: Đáp án đúng không nằm trong các lựa chọn.`);
-                  isValidRow = false;
-                }
-              } else {
-                const correctAnswersArray = correctAnswerRaw.split(',').map(ans => ans.trim()).filter(ans => ans !== '');
-                if (correctAnswersArray.length === 0) {
-                  rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi nhiều đáp án phải có ít nhất một đáp án đúng.`);
-                  isValidRow = false;
-                }
-                if (!correctAnswersArray.every(ans => options.includes(ans))) {
-                  rowErrors.push(`Hàng ${rowIndex + 2}: Một hoặc nhiều đáp án đúng không nằm trong các lựa chọn.`);
-                  isValidRow = false;
-                }
-                const correctAnswersIndex = correctAnswersArray.map(ans => options.findIndex(o => o === ans));
-                question.correctAnswer = correctAnswersIndex;
-              }
-            } else if (question.type === EXAM_TYPE.TEXT_INPUT) {
-              question.correctAnswer = correctAnswerRaw;
-            } else if (question.type === EXAM_TYPE.FILL_IN_BLANK) {
-              const expectedBlanks = (questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
-              const correctAnswersArray = correctAnswerRaw.split(',').map(ans => ans.trim()).filter(ans => ans !== '');
-
-              if (expectedBlanks === 0) {
-                rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi điền khuyết phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
-                isValidRow = false;
-              } else if (correctAnswersArray.length !== expectedBlanks) {
-                rowErrors.push(`Hàng ${rowIndex + 2}: Số lượng đáp án đúng (${correctAnswersArray.length}) không khớp với số chỗ trống (${expectedBlanks}).`);
-                isValidRow = false;
-              }
-              question.correctAnswer = correctAnswersArray;
-            } else if (question.type === EXAM_TYPE.MATCHING) {
-              const termsRaw = String(row[header.indexOf('Các đáp án…')] || '').trim();
-              const definitionsRaw = correctAnswerRaw;
-
-              if (!termsRaw) {
-                rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi ghép đôi phải có thuật ngữ trong cột "Các đáp án".`);
-                isValidRow = false;
-              }
-
-              const terms = termsRaw.split(',').map(t => t.trim()).filter(t => t !== '');
-              const definitions = definitionsRaw.split(',').map(d => d.trim()).filter(d => d !== '');
-
-              if (terms.length === 0 || definitions.length === 0) {
-                rowErrors.push(`Hàng ${rowIndex + 2}: Câu hỏi ghép đôi phải có ít nhất một thuật ngữ và một định nghĩa.`);
-                isValidRow = false;
-              }
-
-              if (terms.length !== definitions.length) {
-                rowErrors.push(`Hàng ${rowIndex + 2}: Số lượng thuật ngữ (${terms.length}) và định nghĩa (${definitions.length}) phải bằng nhau.`);
-                isValidRow = false;
-              }
-
-              question.terms = terms;
-              question.definitions = definitions;
-              // Create default 1-to-1 mapping (term index -> definition index)
-              const correctMatches: any = {};
-              for (let i = 0; i < terms.length; i++) {
-                correctMatches[i] = i;
-              }
-              question.correctAnswer = correctMatches;
-            } else {
-              rowErrors.push(`Hàng ${rowIndex + 2}: Loại câu hỏi không hợp lệ (${questionType}).`);
-              isValidRow = false;
-            }
-          }
-
-          if (isValidRow) {
-            newQuestions.push(question);
-          }
-        });
-
-        if (rowErrors.length > 0) {
-          setExcelFileError(`Có lỗi khi đọc file Excel:<br/>${rowErrors.slice(0, 10).join('<br/>')} ${rowErrors.length > 10 ? '<br/>(Quá nhiều lỗi, vui lòng nhập đúng cấu trúc trong file mẫu!)' : ''}`);
-          return;
-        }
-        if (newQuestions.length === 0) {
-          setExcelFileError("Không có câu hỏi hợp lệ nào được tìm thấy trong file Excel.");
-          return;
-        }
-
-        props.setQuestions(prevQuestions => [...prevQuestions, ...newQuestions]);
-        toast.success(`Đã nhập thành công ${newQuestions.length} câu hỏi từ file Excel.`, {
-          style: { maxWidth: 600 }
-        });
-
-      } catch (err) {
-        console.error("Error reading Excel file:", err);
-        setExcelFileError(`Lỗi khi đọc file Excel.`);
-      } finally {
-        e.target.value = '';
-      }
-    };
-
-    reader.onerror = (error) => {
-      console.error("FileReader error:", error);
-      setExcelFileError("Lỗi đọc file. Vui lòng thử lại.");
-    };
-
-    reader.readAsArrayBuffer(file);
+    const res = await questionService.importExcel(file);
+    if (res.errorMessages.length) {
+      setExcelFileError(`Có lỗi khi đọc file Excel:<br/>${res.errorMessages.slice(0, 10).join('<br/>')} ${res.errorMessages.length > 10 ? '<br/>(Quá nhiều lỗi, vui lòng nhập đúng cấu trúc trong file mẫu!)' : ''}`);
+      toast.error("Có lỗi khi đọc file Excel!");
+    } else {
+      console.log(res.questions);
+      props.setQuestions(prevQuestions => [...prevQuestions, ...res.questions]);
+      toast.success("Nhập file excel thành công!");
+    }
+    setLoading(false);
+    e.target.value = '';
   }
 
   const addQuestion = (type: number) => {
