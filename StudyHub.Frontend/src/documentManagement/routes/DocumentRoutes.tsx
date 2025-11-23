@@ -1,6 +1,5 @@
 //src/documentManagement/routes/documentRoutes.tsx
 import DocumentRouteConfig from "@/documentManagement/constants/DocumentRouteConfig";
-
 import VerifyDocument from "@/documentManagement/pages/manager/VerifyDocument";
 import CreateDocument from "@/documentManagement/pages/teacher/CreateDocument";
 // import TeacherDocumentInfo from "@/documentManagement/pages/teacher/DocumentInfo";
@@ -10,6 +9,7 @@ import DocumentDetails from "@/documentManagement/pages/student/DocumentDetails"
 import StudentDocumentInfo from "@/documentManagement/pages/DocumentInfo";
 import DocumentList from "@/documentManagement/pages/DocumentList";
 import { Outlet, type RouteObject } from "react-router-dom";
+import DocumentDashboard from "../pages/manager/DocumentDashboard";
 
 const managerRoutes = [
   {
@@ -23,6 +23,10 @@ const managerRoutes = [
   {
     path: DocumentRouteConfig.MANAGER.DETAILS,
     element: <DocumentDetails />,
+  },
+  {
+    path: DocumentRouteConfig.MANAGER.DASHBOARD,
+    element: <DocumentDashboard />,
   },
   {
     path: DocumentRouteConfig.MANAGER.INFO,

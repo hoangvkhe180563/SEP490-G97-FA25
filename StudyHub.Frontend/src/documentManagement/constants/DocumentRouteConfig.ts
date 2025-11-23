@@ -11,6 +11,7 @@ const DocumentRouteConfig = {
   },
   MANAGER: {
     INDEX: "manager",
+    DASHBOARD: "dashboard",
     VERIFY: "verify",
     DETAILS: "details/:id",
     INFO: "doc-info/:id",
