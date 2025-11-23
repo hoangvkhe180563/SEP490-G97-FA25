@@ -11,7 +11,6 @@ const ForumRouteConfig = {
     FORUMS: "forums",
     POST_DETAIL: "forums/details/:postId",
     POST_MANAGEMENT: "posts",
-    COMMENT_MANAGEMENT: "comments",
     APPEAL_MANAGEMENT: "appeals",
     VIOLATION_ACCOUNTS: "accounts",
     VIOLATION_RECORDS: "violations",
