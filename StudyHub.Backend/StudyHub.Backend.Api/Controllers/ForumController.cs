@@ -18,6 +18,7 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly ForumModerationService _moderationService;
         private readonly AppUserService _userService;
         private readonly AuthService _authService;
+        private readonly AppRoleService _roleService;
         private readonly IHubContext<ForumHub> _forumHubContext;
         private readonly ILogger<ForumController> _logger;
         //private readonly AbacUtils _abacUtils;
@@ -28,6 +29,7 @@ namespace StudyHub.Backend.Api.Controllers
             ForumModerationService moderationService,
             AppUserService userService,
             AuthService authService,
+            AppRoleService roleService,
             IHubContext<ForumHub> forumHubContext,
             ILogger<ForumController> logger)
         {
@@ -37,26 +39,9 @@ namespace StudyHub.Backend.Api.Controllers
             _moderationService = moderationService;
             _userService = userService;
             _authService = authService;
+            _roleService = roleService;
             _forumHubContext = forumHubContext;
             _logger = logger;
-        }
-
-        private Guid? GetCurrentUserId()
-        {
-            var accessToken = Request.Cookies["access_token"];
-            if (string.IsNullOrEmpty(accessToken))
-                return null;
-
-            return _authService.ValidateAccessToken(accessToken);
-        }
-
-        private Domain.Entities.AppUser? GetCurrentUser()
-        {
-            var userId = GetCurrentUserId();
-            if (!userId.HasValue)
-                return null;
-
-            return _userService.GetUserById(userId.Value);
         }
 
         private IActionResult PagedResult<T>(List<T> items, int total, int page, int limit)
@@ -80,7 +65,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
                 {
                     _logger.LogWarning("Unauthorized access to posts for school {SchoolId}", filter.SchoolId);
@@ -113,7 +98,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     _logger.LogWarning("Unauthorized access to post {PostId}", postId);
@@ -166,7 +151,7 @@ namespace StudyHub.Backend.Api.Controllers
                     return BadRequest(new { success = false, errors = ModelState });
                 }
 
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     _logger.LogWarning("Unauthorized attempt to create post");
@@ -219,7 +204,7 @@ namespace StudyHub.Backend.Api.Controllers
             if (postId != dto.PostId)
                 return BadRequest(new { success = false, message = "PostId không khớp" });
 
-            var currentUser = GetCurrentUser();
+            var currentUser = _authService.GetCurrentUser();
             if (currentUser == null)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
@@ -249,7 +234,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -286,7 +271,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -313,7 +298,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     _logger.LogWarning("Unauthorized access to comments for post {PostId}", postId);
@@ -359,7 +344,7 @@ namespace StudyHub.Backend.Api.Controllers
                     return BadRequest(new { success = false, errors = ModelState });
                 }
 
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     _logger.LogWarning("Unauthorized attempt to create comment");
@@ -439,7 +424,7 @@ namespace StudyHub.Backend.Api.Controllers
             if (commentId != dto.CommentId)
                 return BadRequest(new { success = false, message = "CommentId không khớp" });
 
-            var currentUser = GetCurrentUser();
+            var currentUser = _authService.GetCurrentUser();
             if (currentUser == null)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
@@ -466,7 +451,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -503,7 +488,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
                 {
                     _logger.LogWarning("Unauthorized access to moderator posts for school {SchoolId}", filter.SchoolId);
@@ -537,7 +522,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
                 {
                     _logger.LogWarning("Unauthorized access to moderator comments for school {SchoolId}", filter.SchoolId);
@@ -568,7 +553,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     _logger.LogWarning("Unauthorized attempt to approve post {PostId}", postId);
@@ -607,7 +592,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     _logger.LogWarning("Unauthorized attempt to reject post {PostId}", postId);
@@ -646,7 +631,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -683,7 +668,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -721,7 +706,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -751,7 +736,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -782,7 +767,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
                 {
                     return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
@@ -810,7 +795,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -841,7 +826,7 @@ namespace StudyHub.Backend.Api.Controllers
                     return BadRequest(new { success = false, errors = ModelState });
                 }
 
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != dto.SchoolId)
                 {
                     return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
@@ -876,7 +861,7 @@ namespace StudyHub.Backend.Api.Controllers
                     return BadRequest(new { success = false, message = "FlairId không khớp" });
                 }
 
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -913,7 +898,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -952,7 +937,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -991,7 +976,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
                 {
                     return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
@@ -1019,7 +1004,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1050,7 +1035,7 @@ namespace StudyHub.Backend.Api.Controllers
                     return BadRequest(new { success = false, errors = ModelState });
                 }
 
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != dto.SchoolId)
                 {
                     return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
@@ -1086,7 +1071,7 @@ namespace StudyHub.Backend.Api.Controllers
                     return BadRequest(new { success = false, message = "RuleId không khớp" });
                 }
 
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1123,7 +1108,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1162,7 +1147,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1201,7 +1186,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1244,7 +1229,7 @@ namespace StudyHub.Backend.Api.Controllers
                     return BadRequest(new { success = false, errors = ModelState });
                 }
 
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1291,7 +1276,7 @@ namespace StudyHub.Backend.Api.Controllers
                     return BadRequest(new { success = false, message = "PatternId không khớp" });
                 }
 
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1329,7 +1314,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1369,7 +1354,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1409,7 +1394,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1442,7 +1427,7 @@ namespace StudyHub.Backend.Api.Controllers
                     return BadRequest(new { success = false, errors = ModelState });
                 }
 
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1478,7 +1463,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
                 {
                     return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
@@ -1508,7 +1493,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1536,7 +1521,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1564,7 +1549,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
                 {
                     _logger.LogWarning("Unauthorized access to violations for school {SchoolId}", filter.SchoolId);
@@ -1593,7 +1578,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1621,7 +1606,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1650,7 +1635,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
                 {
                     return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
@@ -1682,7 +1667,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != schoolId)
                 {
                     return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
@@ -1719,7 +1704,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != dto.SchoolId)
                 {
                     return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
@@ -1750,7 +1735,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != schoolId)
                 {
                     return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
@@ -1785,7 +1770,7 @@ namespace StudyHub.Backend.Api.Controllers
                     return BadRequest(new { success = false, errors = ModelState });
                 }
 
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != dto.SchoolId)
                 {
                     return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
@@ -1814,7 +1799,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1844,7 +1829,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != filter.SchoolId)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1875,7 +1860,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1898,7 +1883,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1927,7 +1912,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1956,7 +1941,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null)
                 {
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
@@ -1996,7 +1981,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var currentUser = GetCurrentUser();
+                var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != schoolId)
                 {
                     return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
