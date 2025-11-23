@@ -9,6 +9,7 @@ export interface Exam {
   questions: Question[],
   showAnswers: boolean,
   showCorrectAnswers: boolean,
+  isMultipleAttempts: boolean,
   totalQuestions?: number,
   classId?: number,
   lessonId?: number,

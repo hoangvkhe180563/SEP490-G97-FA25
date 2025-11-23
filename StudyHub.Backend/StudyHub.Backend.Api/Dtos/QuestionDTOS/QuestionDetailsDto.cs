@@ -11,5 +11,7 @@ namespace StudyHub.Backend.Api.Dtos.QuestionDTOS
         public List<string> Terms { get; set; } = new List<string>();
         public List<string> Definitions { get; set; } = new List<string>();
         public object CorrectAnswer { get; set; } = new object();
+        public int? SubjectId { get; set; }
+        public int? Grade { get; set; }
     }
 }

@@ -205,6 +205,8 @@ namespace StudyHub.Backend.Api.Mappers
             dto.QuestionObjectId = question.Id;
             dto.QuestionText = question.QuestionText;
             dto.Type = question.Type;
+            dto.SubjectId = question.SubjectId;
+            dto.Grade = question.Grade;
 
             switch (question.Type)
             {

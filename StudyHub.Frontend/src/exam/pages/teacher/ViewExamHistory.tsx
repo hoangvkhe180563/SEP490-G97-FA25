@@ -65,6 +65,7 @@ const ViewExamHistory = () => {
       <p className="text-sm text-gray-500 mb-4">Thời lượng: {exam.duration} phút — Số câu hỏi: {exam.totalQuestions}</p>
       <p className='text-gray-700'>Thời gian mở: {exam.openTime.toLocaleString("vi-VN")}</p>
       {exam.closeTime && <p className='text-gray-700'>Thời gian đóng: {exam.closeTime.toLocaleString("vi-VN")}</p>}
+      <p>Cho phép thi nhiều lần: <b>{exam.isMultipleAttempts ? 'Có' : 'Không'}</b></p>
       <p>Cho phép học sinh xem đáp án: <b>{exam.showAnswers ? 'Có' : 'Không'}</b></p>
       <p className='mb-5'>Cho phép học sinh xem câu trả lời đúng/sai: <b>{exam.showCorrectAnswers ? 'Có' : 'Không'}</b></p>
 

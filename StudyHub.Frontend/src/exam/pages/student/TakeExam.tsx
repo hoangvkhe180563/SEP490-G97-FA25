@@ -64,7 +64,8 @@ const TakeExam = () => {
       return;
     }
     if (!Number(id)) {
-      setError('Không thể tải bài kiểm tra.');
+      toast.error('Không thể tải bài kiểm tra.');
+      navigate(-1);
       return;
     }
     const fetchExam = async () => {
@@ -141,7 +142,7 @@ const TakeExam = () => {
     fetchExam();
     const backupInterval = setInterval(handleBackupExamResult, 30000);
     return () => clearInterval(backupInterval);
-  }, [id, user]);
+  }, [user]);
 
   useEffect(() => {
     if (exam.duration <= 0) return;

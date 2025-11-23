@@ -16,8 +16,7 @@ const ExamRouteConfig = {
   },
   QUESTION_MANAGER: {
     QUESTION_LIST: "manager/questions",
-    CREATE_QUESTION: "manager/questions/create",
-    EDIT_QUESTION: "manager/questions/edit/:id"
+    CREATE_QUESTION: "manager/questions/create"
   },
   EXAM_RESULT_DETAIL: "results/:id"
 };

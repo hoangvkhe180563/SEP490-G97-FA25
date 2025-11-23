@@ -17,6 +17,7 @@ namespace StudyHub.Backend.Api.Mappers
                 CreatedBy = examDto.CreatedBy,
                 ShowAnswers = examDto.ShowAnswers,
                 ShowCorrectAnswers = examDto.ShowCorrectAnswers,
+                IsMultipleAttempts = examDto.IsMultipleAttempts,
                 ClassId = examDto.ClassId ?? 0,
                 LessonId = examDto.LessonId ?? 0,
                 OpenTime = examDto.OpenTime,
@@ -120,6 +121,7 @@ namespace StudyHub.Backend.Api.Mappers
                 Duration = examDto.Duration,
                 ShowAnswers = examDto.ShowAnswers,
                 ShowCorrectAnswers = examDto.ShowCorrectAnswers,
+                IsMultipleAttempts = examDto.IsMultipleAttempts,
                 OpenTime = examDto.OpenTime,
                 CloseTime = examDto.CloseTime
             };
@@ -139,6 +141,7 @@ namespace StudyHub.Backend.Api.Mappers
                 CloseTime = exam.CloseTime,
                 ShowAnswers = exam.ShowAnswers,
                 ShowCorrectAnswers = exam.ShowCorrectAnswers,
+                IsMultipleAttempts = exam.IsMultipleAttempts,
                 CreatedBy = exam.CreatedBy,
                 ClassId = exam.ClassId,
                 LessonId = exam.LessonId,

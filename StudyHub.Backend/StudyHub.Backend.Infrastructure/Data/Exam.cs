@@ -19,8 +19,6 @@ public partial class Exam
 
     public DateTime? CloseTime { get; set; }
 
-    public byte Attempts { get; set; }
-
     public uint Duration { get; set; }
 
     public Guid CreatedBy { get; set; }
@@ -28,6 +26,8 @@ public partial class Exam
     public bool? ShowAnswers { get; set; }
 
     public bool ShowCorrectAnswers { get; set; }
+
+    public bool IsMultipleAttempts { get; set; }
 
     public virtual Class? Class { get; set; }
 

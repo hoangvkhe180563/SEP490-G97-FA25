@@ -148,6 +148,8 @@ export interface Question {
   type: number;
   options: string[];
   correctAnswer: any;
+  terms?: string[];
+  definitions?: string[];
 }
 
 export interface Exam {

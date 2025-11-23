@@ -27,6 +27,7 @@ const UpdateExam = () => {
   const [hasExam, setHasExam] = useState(false);
   const [showAnswers, setShowAnswers] = useState<boolean>(true);
   const [showCorrectAnswers, setShowCorrectAnswers] = useState<boolean>(false);
+  const [isMultipleAttempts, setIsMultipleAttempts] = useState<boolean>(false);
   const [openTime, setOpenTime] = useState<string>('');
   const [closeTime, setCloseTime] = useState<string>('');
   const examService = new ExamService();
@@ -153,6 +154,7 @@ const UpdateExam = () => {
       questions: questions,
       showAnswers: showAnswers,
       showCorrectAnswers: showCorrectAnswers,
+      isMultipleAttempts: isMultipleAttempts,
       openTime: new Date(openTime),
       closeTime: closeTime ? new Date(closeTime) : undefined
     };
@@ -254,8 +256,12 @@ const UpdateExam = () => {
             required
           />
         </div>
+        <div className="flex items-center gap-3 py-3">
+          <Checkbox id="showAnswers" checked={isMultipleAttempts} onCheckedChange={(value: boolean) => setIsMultipleAttempts(value)} />
+          <Label htmlFor="showAnswers">Cho phép thi nhiều lần</Label>
+        </div>
 
-        <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Khi nộp bài</h2>
+        <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b py-3">Khi nộp bài</h2>
         <div className="flex items-center gap-3 py-3">
           <Checkbox id="showAnswers" checked={showAnswers} onCheckedChange={(value: boolean) => {
             setShowAnswers(value);
@@ -275,12 +281,12 @@ const UpdateExam = () => {
         <QuestionTemplate questions={questions} setQuestions={setQuestions} />
 
         <div className="mt-10 text-center">
-          <button
+          <Button
             type="submit"
-            className="px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xl font-bold"
+            className="px-8 py-7 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xl font-bold"
           >
             Lưu bài kiểm tra
-          </button>
+          </Button>
         </div>
       </form>
     </div>

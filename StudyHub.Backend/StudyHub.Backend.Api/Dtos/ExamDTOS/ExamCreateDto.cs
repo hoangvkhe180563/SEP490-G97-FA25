@@ -26,7 +26,8 @@ namespace StudyHub.Backend.Api.Dtos.ExamDTOS
 
         [Required]
         public bool ShowCorrectAnswers { get; set; }
-
+        [Required]
+        public bool IsMultipleAttempts { get; set; }
         public int? ClassId { get; set; }
         public int? LessonId { get; set; }
 

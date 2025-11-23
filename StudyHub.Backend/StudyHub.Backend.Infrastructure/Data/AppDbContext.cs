@@ -598,7 +598,6 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.LessonId, "LessonId").IsUnique();
 
-            entity.Property(e => e.Attempts).HasDefaultValueSql("'1'");
             entity.Property(e => e.CloseTime).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.OpenTime)

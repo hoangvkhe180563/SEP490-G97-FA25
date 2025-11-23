@@ -32,6 +32,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                     ClassId = examEntity.ClassId == 0 ? null : examEntity.ClassId,
                     OpenTime = examEntity.OpenTime,
                     CloseTime = examEntity.CloseTime,
+                    IsMultipleAttempts = examEntity.IsMultipleAttempts,
                 };
                 _context.Add(exam);
                 _context.SaveChanges();
@@ -64,14 +65,15 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                 {
                     Id = e.Id,
                     Title = e.Title,
-                    Description = e.Description,
+                    Description = e.Description ?? "",
                     Duration = e.Duration,
                     OpenTime = e.OpenTime,
                     CloseTime = e.CloseTime,
                     ClassId = e.ClassId.GetValueOrDefault(),
                     ShowAnswers = e.ShowAnswers.GetValueOrDefault(),
                     ShowCorrectAnswers = e.ShowCorrectAnswers,
-                    TotalQuestions = e.ExamQuestions.Count
+                    TotalQuestions = e.ExamQuestions.Count,
+                    IsMultipleAttempts = e.IsMultipleAttempts
                 }).ToList();
             }
             catch (Exception ex)
@@ -91,14 +93,15 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                 {
                     Id = e.Id,
                     Title = e.Title,
-                    Description = e.Description,
+                    Description = e.Description ?? "",
                     Duration = e.Duration,
                     OpenTime = e.OpenTime,
                     CloseTime = e.CloseTime,
                     ClassId = e.ClassId.GetValueOrDefault(),
                     ShowAnswers = e.ShowAnswers.GetValueOrDefault(),
                     ShowCorrectAnswers = e.ShowCorrectAnswers,
-                    TotalQuestions = e.ExamQuestions.Count
+                    TotalQuestions = e.ExamQuestions.Count,
+                    IsMultipleAttempts = e.IsMultipleAttempts
                 }).ToList();
             }
             catch (Exception ex)
@@ -117,14 +120,15 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                 {
                     Id = e.Id,
                     Title = e.Title,
-                    Description = e.Description,
+                    Description = e.Description ?? "",
                     Duration = e.Duration,
                     OpenTime = e.OpenTime,
                     CloseTime = e.CloseTime,
                     ClassId = e.ClassId.GetValueOrDefault(),
                     ShowAnswers = e.ShowAnswers.GetValueOrDefault(),
                     ShowCorrectAnswers = e.ShowCorrectAnswers,
-                    TotalQuestions = e.ExamQuestions.Count
+                    TotalQuestions = e.ExamQuestions.Count,
+                    IsMultipleAttempts = e.IsMultipleAttempts
                 }).ToList();
             }
             catch (Exception ex)
@@ -158,7 +162,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                     {
                         Id = examData.Id,
                         Title = examData.Title,
-                        Description = examData.Description,
+                        Description = examData.Description ?? "",
                         Duration = examData.Duration,
                         OpenTime = examData.OpenTime,
                         CloseTime = examData.CloseTime,
@@ -167,7 +171,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                         CreatedBy = examData.CreatedBy,
                         ShowAnswers = examData.ShowAnswers.GetValueOrDefault(),
                         ShowCorrectAnswers = examData.ShowCorrectAnswers,
-                        TotalQuestions = examData.ExamQuestions.Count
+                        TotalQuestions = examData.ExamQuestions.Count,
+                        IsMultipleAttempts = examData.IsMultipleAttempts
                     };
                 }
             }
@@ -202,13 +207,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                     {
                         Id = examData.Id,
                         Title = examData.Title,
-                        Description = examData.Description,
+                        Description = examData.Description ?? "",
                         Duration = examData.Duration,
                         OpenTime = examData.OpenTime,
                         CloseTime = examData.CloseTime,
                         LessonId = examData.LessonId.GetValueOrDefault(),
                         ShowAnswers = examData.ShowAnswers.GetValueOrDefault(),
                         ShowCorrectAnswers = examData.ShowCorrectAnswers,
+                        IsMultipleAttempts = false
                     };
                 }
             }
@@ -276,6 +282,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                 exam.ShowCorrectAnswers = examEntity.ShowCorrectAnswers;
                 exam.OpenTime = examEntity.OpenTime;
                 exam.CloseTime = examEntity.CloseTime;
+                exam.IsMultipleAttempts = examEntity.IsMultipleAttempts;
 
                 _context.Exams.Update(exam);
                 _context.SaveChanges();

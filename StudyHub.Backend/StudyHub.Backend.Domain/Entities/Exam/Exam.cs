@@ -9,7 +9,7 @@
         public int ClassId { get; set; }
         public required DateTime OpenTime { get; set; } = DateTime.Now;
         public DateTime? CloseTime { get; set; }
-        public sbyte Attempts { get; set; } = 1;
+        public bool IsMultipleAttempts { get; set; }
         public required uint Duration { get; set; }
         public bool Status { get; set; } = true;
         public Guid CreatedBy { get; set; }

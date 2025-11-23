@@ -171,6 +171,8 @@ export default function ListQuestions() {
   const [gradeFilter, setGradeFilter] = useState<number>(0);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string>('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalQuestions, setTotalQuestions] = useState<number>(0);
@@ -183,7 +185,6 @@ export default function ListQuestions() {
     if (!user.roles.some(r => [ROLES.QUESTION_MANAGER, ROLES.SCHOOL_ADMIN].includes(r))) {
       navigate("/");
     }
-
     setLoading(true);
     const fetchData = async () => {
       const questionText = searchParams.get("questionText") ?? "";
@@ -248,8 +249,75 @@ export default function ListQuestions() {
     setSelectedQuestionId('');
   };
 
+  const handleOpenEditDialog = (question: Question) => {
+    setEditingQuestion({ ...question });
+    setEditDialogOpen(true);
+  };
+
+  const handleChangeOption = (index: number, value: string) => {
+    if (!editingQuestion) return;
+    const newOptions = [...editingQuestion.options];
+    newOptions[index] = value;
+    setEditingQuestion({ ...editingQuestion, options: newOptions });
+  };
+
+  const handleToggleCorrectAnswer = (index: number) => {
+    if (!editingQuestion) return;
+    if (editingQuestion.type === EXAM_TYPE.SINGLE_CHOICE) {
+      setEditingQuestion({ ...editingQuestion, correctAnswer: index });
+      return;
+    }
+    if (editingQuestion.type === EXAM_TYPE.MULTI_CHOICE) {
+      const current = Array.isArray(editingQuestion.correctAnswer) ? editingQuestion.correctAnswer as number[] : [];
+      const exists = current.includes(index);
+      const updated = exists ? current.filter(i => i !== index) : [...current, index];
+      setEditingQuestion({ ...editingQuestion, correctAnswer: updated });
+    }
+  };
+
+  const handleChangeBlankAnswer = (index: number, value: string) => {
+    if (!editingQuestion) return;
+    const current = Array.isArray(editingQuestion.correctAnswer) ? [...editingQuestion.correctAnswer] as string[] : [];
+    current[index] = value;
+    setEditingQuestion({ ...editingQuestion, correctAnswer: current });
+  };
+
+  const handleChangeTextAnswer = (value: string) => {
+    if (!editingQuestion) return;
+    setEditingQuestion({ ...editingQuestion, correctAnswer: value });
+  };
+
+  const handleChangeTerm = (index: number, value: string) => {
+    if (!editingQuestion) return;
+    const terms = editingQuestion.terms ? [...editingQuestion.terms] : [];
+    terms[index] = value;
+    setEditingQuestion({ ...editingQuestion, terms });
+  };
+
+  const handleChangeDefinition = (index: number, value: string) => {
+    if (!editingQuestion) return;
+    const definitions = editingQuestion.definitions ? [...editingQuestion.definitions] : [];
+    definitions[index] = value;
+    setEditingQuestion({ ...editingQuestion, definitions });
+  };
+
+  const handleUpdateQuestion = async () => {
+    if (!editingQuestion) return;
+    setLoading(true);
+    const isUpdated = await questionService.updateCommonQuestion(editingQuestion);
+    if (!isUpdated) {
+      toast.error("Cập nhật câu hỏi thất bại!");
+    } else {
+      toast.success("Cập nhật câu hỏi thành công!");
+      setQuestions(prev => prev.map(q => q.questionObjectId === editingQuestion.questionObjectId ? editingQuestion : q));
+      setEditDialogOpen(false);
+      setEditingQuestion(null);
+    }
+    setLoading(false);
+  };
+
   return (
-    <div className="p-6 h-full space-y-4 overflow-y-scroll">
+    <div className="p-6 h-full space-y-4 overflow-y-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Ngân hàng câu hỏi</h2>
@@ -262,7 +330,7 @@ export default function ListQuestions() {
       </div>
 
       <div className="space-x-3">
-        <Link to="/exam/manager/questions/create">
+        <Link to={`/exam/manager/questions/create?subjectId=${subjectFilter}&grade=${gradeFilter}`}>
           <Button>
             <Plus /> Thêm câu hỏi
           </Button>
@@ -386,11 +454,14 @@ export default function ListQuestions() {
                           </DialogContent>
                         </Dialog>
 
-                        <Link to={`/exam/manager/questions/edit/${question.questionObjectId}`}>
-                          <Button variant="ghost" size="icon" className="text-amber-500 hover:text-amber-700 hover:bg-amber-50">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                          onClick={() => handleOpenEditDialog(question)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
 
                         <Button variant="ghost" size="icon" onClick={() => {
                           setDeleteDialogOpen(true);
@@ -477,6 +548,144 @@ export default function ListQuestions() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <Dialog open={editDialogOpen} onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) {
+            setEditingQuestion(null);
+          }
+        }}>
+          <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Chỉnh sửa câu hỏi</DialogTitle>
+              {editingQuestion && (
+                <DialogDescription>
+                  Loại: <TypeBadge type={editingQuestion.type} />
+                </DialogDescription>
+              )}
+            </DialogHeader>
+
+            {editingQuestion && (
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="edit-question-text">Nội dung câu hỏi</Label>
+                  <Input
+                    id="edit-question-text"
+                    value={editingQuestion.questionText}
+                    onChange={(e) => setEditingQuestion({ ...editingQuestion, questionText: e.target.value })}
+                  />
+                </div>
+
+                {editingQuestion.type === EXAM_TYPE.SINGLE_CHOICE && (
+                  <div className="space-y-2">
+                    <Label>Phương án trả lời</Label>
+                    {editingQuestion.options.map((opt, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="edit-single-correct"
+                          checked={editingQuestion.correctAnswer === index}
+                          onChange={() => handleToggleCorrectAnswer(index)}
+                        />
+                        <Input
+                          value={opt}
+                          onChange={(e) => handleChangeOption(index, e.target.value)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {editingQuestion.type === EXAM_TYPE.MULTI_CHOICE && (
+                  <div className="space-y-2">
+                    <Label>Phương án trả lời</Label>
+                    {editingQuestion.options.map((opt, index) => {
+                      const current = Array.isArray(editingQuestion.correctAnswer) ? editingQuestion.correctAnswer as number[] : [];
+                      const checked = current.includes(index);
+                      return (
+                        <div key={index} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => handleToggleCorrectAnswer(index)}
+                          />
+                          <Input
+                            value={opt}
+                            onChange={(e) => handleChangeOption(index, e.target.value)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {editingQuestion.type === EXAM_TYPE.TEXT_INPUT && (
+                  <div className="space-y-2">
+                    <Label>Đáp án đúng</Label>
+                    <Input
+                      value={editingQuestion.correctAnswer ?? ''}
+                      onChange={(e) => handleChangeTextAnswer(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {editingQuestion.type === EXAM_TYPE.FILL_IN_BLANK && (
+                  <div className="space-y-2">
+                    <Label>Đáp án các chỗ trống</Label>
+                    {Array.isArray(editingQuestion.correctAnswer) && (editingQuestion.correctAnswer as string[]).map((ans, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <span className="w-16">Ô trống {index + 1}</span>
+                        <Input
+                          value={ans}
+                          onChange={(e) => handleChangeBlankAnswer(index, e.target.value)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {editingQuestion.type === EXAM_TYPE.MATCHING && (
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Thuật ngữ</Label>
+                      {(editingQuestion.terms || []).map((term, index) => (
+                        <div key={index} className="flex items-center gap-2 mt-1">
+                          <span className="w-6">{index + 1}.</span>
+                          <Input
+                            value={term}
+                            onChange={(e) => handleChangeTerm(index, e.target.value)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <Label>Định nghĩa</Label>
+                      {(editingQuestion.definitions || []).map((definition, index) => (
+                        <div key={index} className="flex items-center gap-2 mt-1">
+                          <span className="w-6">{String.fromCharCode(65 + index)}.</span>
+                          <Input
+                            value={definition}
+                            onChange={(e) => handleChangeDefinition(index, e.target.value)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => {
+                    setEditDialogOpen(false);
+                    setEditingQuestion(null);
+                  }}>
+                    Hủy
+                  </Button>
+                  <Button onClick={handleUpdateQuestion}>Lưu thay đổi</Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )

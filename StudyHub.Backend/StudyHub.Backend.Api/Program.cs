@@ -1,13 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using StudyHub.Backend.Domain;
+using OfficeOpenXml;
+using StudyHub.Backend.Api.Filters;
+using StudyHub.Backend.Api.Hubs;
+using StudyHub.Backend.Api.Middlewares;
 using StudyHub.Backend.Infrastructure;
 using StudyHub.Backend.Infrastructure.MongoDb;
 using StudyHub.Backend.UseCases;
 using StudyHub.Backend.UseCases.Utils;
-using StudyHub.Backend.Api.Filters;
-using StudyHub.Backend.Api.Hubs;
-using StudyHub.Backend.Api.Middlewares;
-using OfficeOpenXml;
 
 var builder = WebApplication.CreateBuilder(args);
 

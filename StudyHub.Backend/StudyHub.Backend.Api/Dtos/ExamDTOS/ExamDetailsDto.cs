@@ -17,6 +17,7 @@ namespace StudyHub.Backend.Api.Dtos.ExamDTOS
         public Guid CreatedBy { get; set; }
         public required bool ShowAnswers { get; set; } = true;
         public required bool ShowCorrectAnswers { get; set; } = false;
+        public bool IsMultipleAttempts { get; set; }
         public List<QuestionDetailsDto> Questions { get; set; } = new List<QuestionDetailsDto>();
         public int TotalQuestions { get; set; }
     }

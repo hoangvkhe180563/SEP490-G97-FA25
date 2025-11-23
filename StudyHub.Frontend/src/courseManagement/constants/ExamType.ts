@@ -2,5 +2,6 @@ export const EXAM_TYPE = {
   SINGLE_CHOICE: 0,
   MULTI_CHOICE: 1,
   TEXT_INPUT: 2,
-  FILL_IN_BLANK: 3
+  FILL_IN_BLANK: 3,
+  MATCHING: 4
 }

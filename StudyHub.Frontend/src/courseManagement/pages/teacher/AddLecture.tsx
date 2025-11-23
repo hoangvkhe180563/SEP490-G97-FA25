@@ -252,7 +252,6 @@ const AddLecture: React.FC = () => {
           const expectedBlanks = (
             q.questionText.match(
               new RegExp(
-                // eslint-disable-next-line no-useless-escape
                 "[BLANK]".replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
                 "g"
               )
@@ -271,6 +270,16 @@ const AddLecture: React.FC = () => {
             errors.push(
               `Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${q.questionText}".`
             );
+          }
+        } else if (q.type === EXAM_TYPE.MATCHING) {
+          if (!q.terms || q.terms.length === 0 || q.terms.some(term => !String(term).trim())) {
+            errors.push(`Vui lòng nhập đầy đủ các thuật ngữ cho câu hỏi ghép đôi "${q.questionText}".`);
+          }
+          if (!q.definitions || q.definitions.length === 0 || q.definitions.some(def => !String(def).trim())) {
+            errors.push(`Vui lòng nhập đầy đủ các định nghĩa cho câu hỏi ghép đôi "${q.questionText}".`);
+          }
+          if (q.terms?.length !== q.definitions?.length) {
+            errors.push(`Số lượng thuật ngữ và định nghĩa phải bằng nhau cho câu hỏi "${q.questionText}".`);
           }
         }
       }

@@ -2,6 +2,7 @@ import { useAuthStore } from '@/auth/stores/useAuthStore';
 import { Button } from '@/common/components/ui/button';
 import { Checkbox } from '@/common/components/ui/checkbox';
 import { Label } from '@/common/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/common/components/ui/tabs';
 import { useLoading } from '@/common/hooks/useLoading';
 import QuestionTemplate from '@/exam/components/QuestionTemplate';
 import { BLANK_PLACEHOLDER, EXAM_TYPE } from '@/exam/constants/Constants';
@@ -29,6 +30,7 @@ const CreateExam = () => {
   const { setLoading } = useLoading();
   const [showAnswers, setShowAnswers] = useState<boolean>(true);
   const [showCorrectAnswers, setShowCorrectAnswers] = useState<boolean>(false);
+  const [isMultipleAttempts, setIsMultipleAttempts] = useState<boolean>(false);
   const [openTime, setOpenTime] = useState<string>(getFormattedDateTime(new Date()));
   const [closeTime, setCloseTime] = useState<string>('');
   const examService = new ExamService();
@@ -158,6 +160,7 @@ const CreateExam = () => {
       }),
       showAnswers: showAnswers,
       showCorrectAnswers: showCorrectAnswers,
+      isMultipleAttempts: isMultipleAttempts,
       classId: classId,
       lessonId: lessonId,
       openTime: new Date(openTime),
@@ -171,8 +174,6 @@ const CreateExam = () => {
         if (classId !== 0) {
           navigate(`/class/teacher/${classId}`);
         }
-
-        // navigate(`/exam/teacher/class-exams/${classId}`);
       } else {
         toast.error('Tạo bài kiểm tra thất bại. Vui lòng thử lại.');
       }
@@ -266,8 +267,12 @@ const CreateExam = () => {
             required
           />
         </div>
+        <div className="flex items-center gap-3 py-3">
+          <Checkbox id="showAnswers" checked={isMultipleAttempts} onCheckedChange={(value: boolean) => setIsMultipleAttempts(value)} />
+          <Label htmlFor="showAnswers">Cho phép thi nhiều lần</Label>
+        </div>
 
-        <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Khi nộp bài</h2>
+        <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b py-3">Khi nộp bài</h2>
         <div className="flex items-center gap-3 py-3">
           <Checkbox id="showAnswers" checked={showAnswers} onCheckedChange={(value: boolean) => {
             setShowAnswers(value);
@@ -284,15 +289,26 @@ const CreateExam = () => {
 
         <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Câu hỏi <span className='text-red-500'>*</span></h2>
 
-        <QuestionTemplate questions={questions} setQuestions={setQuestions} />
+        <Tabs defaultValue='new-questions'>
+          <TabsList className='mx-auto bg-stone-300'>
+            <TabsTrigger value='new-questions' className='p-2'>Câu hỏi tự nhập</TabsTrigger>
+            <TabsTrigger value='bank-questions' className='p-2'>Câu hỏi từ ngân hàng</TabsTrigger>
+          </TabsList>
+          <TabsContent value='new-questions'>
+            <QuestionTemplate questions={questions} setQuestions={setQuestions} />
+          </TabsContent>
+          <TabsContent value='bank-questions'>
+            
+          </TabsContent>
+        </Tabs>
 
         <div className="mt-10 text-center">
-          <button
+          <Button
             type="submit"
-            className="px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xl font-bold"
+            className="px-8 py-7 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xl font-bold"
           >
             Lưu bài kiểm tra
-          </button>
+          </Button>
         </div>
       </form>
     </div>

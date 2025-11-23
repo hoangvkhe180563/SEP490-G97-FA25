@@ -71,7 +71,7 @@ export class QuestionService {
       return false;
     }
     try {
-      const res = await axiosInstance.post("question/common", question, {
+      const res = await axiosInstance.put("question/common", question, {
         headers: {
           "Content-Type": "application/json"
         }

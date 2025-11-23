@@ -43,17 +43,6 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(examResult);
         }
 
-        [HttpGet("by-exam/{examId:int}/{studentId:guid}/status")]
-        public IActionResult CheckExamStatus(int examId, Guid studentId)
-        {
-            if (studentId == Guid.Empty || examId == 0)
-            {
-                return BadRequest();
-            }
-            bool status = _service.CheckExamStatus(examId, studentId);
-            return Ok(status);
-        }
-
         [HttpGet("by-exam/{examId:int}/{studentId:guid}")]
         public IActionResult GetResultsByExamIdAndStudentId(int examId, Guid studentId)
         {

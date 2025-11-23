@@ -5,11 +5,10 @@ import TeacherClassResults from "../pages/teacher/ListClassResults";
 import ViewResultDetail from "../pages/ViewResultDetail";
 import CreateClassExam from "../pages/teacher/CreateClassExam";
 import ViewExamHistory from "../pages/teacher/ViewExamHistory";
-import UpdateExam from "../pages/teacher/UpdateExam";
+import UpdateExam from "../pages/teacher/UpdateClassExam";
 import ViewExamDetail from "../pages/student/ViewExamDetail";
 import ListQuestions from "../pages/questionManager/ListQuestions";
 import AddQuestion from "../pages/questionManager/AddQuestion";
-import UpdateQuestion from "../pages/questionManager/UpdateQuestion";
 
 const examRoutes: RouteObject[] = [
   {
@@ -47,10 +46,6 @@ const examRoutes: RouteObject[] = [
   {
     path: ExamRouteConfig.QUESTION_MANAGER.CREATE_QUESTION,
     element: <AddQuestion />
-  },
-  {
-    path: ExamRouteConfig.QUESTION_MANAGER.EDIT_QUESTION,
-    element: <UpdateQuestion />
   }
 ];
 

@@ -20,6 +20,7 @@ export const DEFAULT_EXAM: Exam = {
   questions: [],
   showAnswers: true,
   showCorrectAnswers: false,
+  isMultipleAttempts: false,
   openTime: new Date()
 }
 

@@ -152,15 +152,12 @@ namespace StudyHub.Backend.UseCases.Services
 
             var exam = _examRepo.GetExamById(result.ExamId);
 
+            if (exam == null) return null;
+
             var resultObjectId = result.Id;
             var answers = _answerRepo.GetAnswersByResultId(resultObjectId, exam.ShowAnswers, exam.ShowCorrectAnswers);
             result.Answers = answers;
             return result;
-        }
-
-        public bool CheckExamStatus(int examId, Guid studentId)
-        {
-            return _examResultRepo.CheckExamStatus(examId, studentId);
         }
 
         public List<ExamResult> GetResultsByExamIdAndStudentId(int examId, Guid studentId)

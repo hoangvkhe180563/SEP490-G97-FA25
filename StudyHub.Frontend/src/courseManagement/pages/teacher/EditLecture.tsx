@@ -256,13 +256,13 @@ const EditLecture: React.FC = () => {
                   q.type === "text" || q.type === "mc"
                     ? q.type
                     : q.type && String(q.type).toLowerCase().includes("text")
-                    ? "text"
-                    : "mc",
+                      ? "text"
+                      : "mc",
                 options: Array.isArray(q.options)
                   ? q.options
                   : q.options
-                  ? JSON.parse(JSON.stringify(q.options))
-                  : undefined,
+                    ? JSON.parse(JSON.stringify(q.options))
+                    : undefined,
                 correctIndex:
                   typeof q.correctIndex === "number" ? q.correctIndex : null,
                 correctAnswer: q.correctAnswer ?? null,
@@ -297,13 +297,13 @@ const EditLecture: React.FC = () => {
                     q.type === "text" || q.type === "mc"
                       ? q.type
                       : q.type && String(q.type).toLowerCase().includes("text")
-                      ? "text"
-                      : "mc",
+                        ? "text"
+                        : "mc",
                   options: Array.isArray(q.options)
                     ? q.options
                     : q.options
-                    ? JSON.parse(JSON.stringify(q.options))
-                    : undefined,
+                      ? JSON.parse(JSON.stringify(q.options))
+                      : undefined,
                   correctIndex:
                     typeof q.correctIndex === "number" ? q.correctIndex : null,
                   correctAnswer: q.correctAnswer ?? null,
@@ -473,12 +473,12 @@ const EditLecture: React.FC = () => {
       try {
         setTimeLabel(
           initial.timeLabel ??
-            ((): any => {
-              const s = Number(initial.timeSec) || 0;
-              const m = Math.floor(s / 60);
-              const sec = Math.floor(s % 60);
-              return `${m}:${sec.toString().padStart(2, "0")}`;
-            })()
+          ((): any => {
+            const s = Number(initial.timeSec) || 0;
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return `${m}:${sec.toString().padStart(2, "0")}`;
+          })()
         );
         setQuestionText(initial.question ?? "");
         setQtype(initial.type ?? "mc");
@@ -790,6 +790,16 @@ const EditLecture: React.FC = () => {
               `Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${q.questionText}".`
             );
           }
+        } else if (q.type === EXAM_TYPE.MATCHING) {
+          if (!q.terms || q.terms.length === 0 || q.terms.some(term => !String(term).trim())) {
+            errors.push(`Vui lòng nhập đầy đủ các thuật ngữ cho câu hỏi ghép đôi "${q.questionText}".`);
+          }
+          if (!q.definitions || q.definitions.length === 0 || q.definitions.some(def => !String(def).trim())) {
+            errors.push(`Vui lòng nhập đầy đủ các định nghĩa cho câu hỏi ghép đôi "${q.questionText}".`);
+          }
+          if (q.terms?.length !== q.definitions?.length) {
+            errors.push(`Số lượng thuật ngữ và định nghĩa phải bằng nhau cho câu hỏi "${q.questionText}".`);
+          }
         }
       }
     }
@@ -925,14 +935,14 @@ const EditLecture: React.FC = () => {
         interactiveQuestions:
           interactiveQuestions && interactiveQuestions.length
             ? interactiveQuestions.map((q) => ({
-                timeSec: q.timeSec,
-                question: q.question,
-                type: q.type,
-                options: q.options ?? null,
-                correctIndex:
-                  typeof q.correctIndex === "number" ? q.correctIndex : null,
-                correctAnswer: q.correctAnswer ?? null,
-              }))
+              timeSec: q.timeSec,
+              question: q.question,
+              type: q.type,
+              options: q.options ?? null,
+              correctIndex:
+                typeof q.correctIndex === "number" ? q.correctIndex : null,
+              correctAnswer: q.correctAnswer ?? null,
+            }))
             : null,
       };
 
@@ -1011,8 +1021,8 @@ const EditLecture: React.FC = () => {
               {type === "video"
                 ? "Video"
                 : type === "reading"
-                ? "Tài liệu đọc"
-                : "Bài kiểm tra"}
+                  ? "Tài liệu đọc"
+                  : "Bài kiểm tra"}
               )
             </h1>
             <p className="text-sm text-[#525252]">
@@ -1279,11 +1289,10 @@ const EditLecture: React.FC = () => {
                               <div className="text-xs text-gray-500">
                                 {q.type === "mc"
                                   ? `MC — ${q.options?.length ?? 0} lựa chọn`
-                                  : `Text${
-                                      q.correctAnswer
-                                        ? ` — đáp án: ${q.correctAnswer}`
-                                        : ""
-                                    }`}
+                                  : `Text${q.correctAnswer
+                                    ? ` — đáp án: ${q.correctAnswer}`
+                                    : ""
+                                  }`}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">

@@ -157,15 +157,23 @@ const ViewResultDetail = () => {
         <p className="text-lg text-gray-700"><strong>Mô tả:</strong> {exam.description}</p>
         <p className="text-lg text-gray-700"><strong>Thời lượng:</strong> {exam.duration} phút</p>
         <p className="text-lg text-gray-700"><strong>Tổng số câu hỏi:</strong> {exam.totalQuestions}</p>
+        <p className="text-lg text-gray-700"><strong>Cho phép thi nhiều lần:</strong> {exam.isMultipleAttempts ? 'Có' : 'Không'}</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <p className="text-lg text-gray-700"><strong>Học sinh:</strong> {result.studentName}</p>
-        <p className="text-lg text-gray-700"><strong>Điểm số:</strong> {result.score}</p>
-        <p className="text-lg text-gray-700"><strong>Ngày nộp:</strong> {result.submissionTime?.toLocaleString("vi-VN")}</p>
+      <div className="flex justify-between gap-4 mb-6">
+        <div>
+          <p className="text-lg text-gray-700"><strong>Học sinh:</strong> {result.studentName}</p>
+          {/* <p className="text-lg text-gray-700"><strong>Điểm số:</strong> {result.score}</p> */}
+          <p className="text-lg text-gray-700"><strong>Ngày nộp:</strong> {result.submissionTime?.toLocaleString("vi-VN")}</p>
+          <p className='text-lg text-gray-700'><strong>Số lần chuyển tab/thu nhỏ màn hình: <span className='text-red-500'>{result.cheatTimes}</span></strong></p>
+        </div>
+        <div className='mx-10'>
+          <p className='text-center'>Điểm:</p>
+          <div className='text-3xl w-15 h-15 flex justify-center items-center text-center p-4 rounded-lg bg-blue-100 text-blue-500'>{result.score}</div>
+        </div>
       </div>
 
-      {showAnswers && (
+      {showAnswers ? (
         <>
           <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Các câu hỏi và câu trả lời</h2>
 
@@ -316,6 +324,8 @@ const ViewResultDetail = () => {
             })}
           </div>
         </>
+      ) : (
+        <div className='text-lg italic'>Bạn không được phép xem nội dung của bài kiểm tra này.</div>
       )}
     </div>
   );

@@ -44,6 +44,7 @@ export class ExamService {
             createdBy: item.createdBy,
             showAnswers: item.showAnswers,
             showCorrectAnswers: item.showCorrectAnswers,
+            isMultipleAttempts: item.isMultipleAttempts,
             totalQuestions: item.totalQuestions
           }
         });
@@ -71,6 +72,7 @@ export class ExamService {
             createdBy: item.createdBy,
             showAnswers: item.showAnswers,
             showCorrectAnswers: item.showCorrectAnswers,
+            isMultipleAttempts: item.isMultipleAttempts,
             totalQuestions: item.totalQuestions
           }
         });
@@ -100,6 +102,7 @@ export class ExamService {
           createdBy: data.createdBy,
           showAnswers: data.showAnswers,
           showCorrectAnswers: data.showCorrectAnswers,
+          isMultipleAttempts: data.isMultipleAttempts,
           totalQuestions: data.totalQuestions,
           questions: data.questions
         };
@@ -341,20 +344,6 @@ export class ExamService {
       console.error("Error getLessonName: ", error);
     }
     return '';
-  }
-
-  checkExamStatus = async (studentId: string, examId: number): Promise<boolean> => {
-    try {
-      const res = await axiosInstance.get(`/examResult/by-exam/${examId}/${studentId}/status`);
-      if (res.status === 200) {
-        return res.data;
-      } else {
-        throw new Error(`Status: ${res.status}`);
-      }
-    } catch (error) {
-      console.error("Error checkExamStatus: ", error);
-    }
-    return false;
   }
 
   getCourseIdByLessonId = async (lessonId: number): Promise<number> => {
