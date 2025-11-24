@@ -2,7 +2,6 @@
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Utils;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -72,15 +71,6 @@ namespace StudyHub.Backend.UseCases.Services
                     return "Không tải được logo trường!";
                 }
                 landingPage.SchoolLogoUrl = schoolLogoImageUrl;
-            }
-
-            foreach (var images in landingPageDeleteImages)
-            {
-                bool hasDeleted = await _cloudRepo.DeleteFileAsync(images);
-                if (!hasDeleted)
-                {
-                    return "Không xóa được logo cũ!";
-                }
             }
 
             List<string> landingPageNewImages = new();

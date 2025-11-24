@@ -3,6 +3,7 @@ import { DEFAULT_EXAM, DEFAULT_EXAM_RESULT } from "../constants/Constants";
 import type { Exam } from "../interfaces/models/Exam";
 import type { ExamResult } from "../interfaces/models/ExamResult";
 import { formatISO } from "date-fns";
+import type { Question } from "../interfaces/models/Question";
 
 export class ExamService {
 
@@ -24,7 +25,7 @@ export class ExamService {
         throw new Error(`Status: ${res.status}`);
       }
     } catch (error) {
-      console.error("Error getStudentClassExams: ", error);
+      console.error("Error createExam: ", error);
     }
     return false;
   }
@@ -44,6 +45,7 @@ export class ExamService {
             createdBy: item.createdBy,
             showAnswers: item.showAnswers,
             showCorrectAnswers: item.showCorrectAnswers,
+            isMultipleAttempts: item.isMultipleAttempts,
             totalQuestions: item.totalQuestions
           }
         });
@@ -71,6 +73,7 @@ export class ExamService {
             createdBy: item.createdBy,
             showAnswers: item.showAnswers,
             showCorrectAnswers: item.showCorrectAnswers,
+            isMultipleAttempts: item.isMultipleAttempts,
             totalQuestions: item.totalQuestions
           }
         });
@@ -100,8 +103,12 @@ export class ExamService {
           createdBy: data.createdBy,
           showAnswers: data.showAnswers,
           showCorrectAnswers: data.showCorrectAnswers,
+          isMultipleAttempts: data.isMultipleAttempts,
           totalQuestions: data.totalQuestions,
-          questions: data.questions
+          questions: data.questions,
+          noRandomQuestions: data.noRandomQuestions,
+          subjectId: data.subjectId,
+          grade: data.grade
         };
       } else {
         throw new Error(`Status: ${res.status}`);
@@ -110,6 +117,20 @@ export class ExamService {
       console.error("Error getExamById: ", error);
     }
     return DEFAULT_EXAM;
+  }
+
+  getExamQuestionsByResultId = async (resultId: string) : Promise<Question[]> => {
+    try {
+      const res = await axiosInstance.get(`examResult/${resultId}/questions`);
+      if (res.status === 200) {
+        return res.data;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error getExamQuestionsByResultId: ", error);
+    }
+    return [];
   }
 
   updateExam = async (examData: Exam): Promise<boolean> => {
@@ -210,7 +231,7 @@ export class ExamService {
         throw new Error(`Status: ${res.status}`);
       }
     } catch (error) {
-      console.error("Error createResult: ", error);
+      console.error("Error updateResult: ", error);
     }
     return false;
   }
@@ -283,9 +304,9 @@ export class ExamService {
     return [];
   }
 
-  getResultDetail = async (id: string): Promise<ExamResult> => {
+  getResultDetail = async (id: string, isTeacher: boolean): Promise<ExamResult> => {
     try {
-      const res = await axiosInstance.get("/examResult/" + id);
+      const res = await axiosInstance.get("/examResult/" + id + "?isTeacher=" + isTeacher);
       if (res.status === 200) {
         const data = res.data;
         const answers = data.answers.map((ans: any) => {
@@ -343,20 +364,6 @@ export class ExamService {
     return '';
   }
 
-  checkExamStatus = async (studentId: string, examId: number): Promise<boolean> => {
-    try {
-      const res = await axiosInstance.get(`/examResult/by-exam/${examId}/${studentId}/status`);
-      if (res.status === 200) {
-        return res.data;
-      } else {
-        throw new Error(`Status: ${res.status}`);
-      }
-    } catch (error) {
-      console.error("Error checkExamStatus: ", error);
-    }
-    return false;
-  }
-
   getCourseIdByLessonId = async (lessonId: number): Promise<number> => {
     try {
       const res = await axiosInstance.get(`/exam/return-lesson-course/${lessonId}`);
@@ -366,8 +373,22 @@ export class ExamService {
         throw new Error(`Status: ${res.status}`);
       }
     } catch (error) {
-      console.error("Error checkExamStatus: ", error);
+      console.error("Error getCourseIdByLessonId: ", error);
     }
     return 0;
+  }
+
+  generateRandomQuestions = async (examId: number): Promise<Question[]> => {
+    try {
+      const res = await axiosInstance.get(`/exam/generate-random/${examId}`);
+      if (res.status === 200) {
+        return res.data;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error getCourseIdByLessonId: ", error);
+    }
+    return [];
   }
 }

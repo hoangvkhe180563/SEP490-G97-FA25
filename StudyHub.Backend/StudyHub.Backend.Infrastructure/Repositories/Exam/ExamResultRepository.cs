@@ -77,19 +77,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
             return [];
         }
 
-        public bool CheckExamStatus(int examId, Guid studentId)
-        {
-            try
-            {
-                return _context.ExamResults.Any(r => r.ExamId == examId && r.StudentId == studentId);
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("ExamResultRepository", "CheckExamStatus exception. Inner error: " + ex.Message).LogError();
-            }
-            return false;
-        }
-
         public List<Domain.Entities.Exam.ExamResult> GetResultsByExamIdAndStudentId(int examId, Guid studentId)
         {
             try

@@ -19,8 +19,6 @@ public partial class Exam
 
     public DateTime? CloseTime { get; set; }
 
-    public byte Attempts { get; set; }
-
     public uint Duration { get; set; }
 
     public Guid CreatedBy { get; set; }
@@ -29,9 +27,19 @@ public partial class Exam
 
     public bool ShowCorrectAnswers { get; set; }
 
+    public bool IsMultipleAttempts { get; set; }
+
+    public sbyte? NoRandomQuestions { get; set; }
+
+    public sbyte? Grade { get; set; }
+
+    public short? SubjectId { get; set; }
+
     public virtual Class? Class { get; set; }
 
     public virtual ICollection<ExamQuestion> ExamQuestions { get; set; } = new List<ExamQuestion>();
 
     public virtual ICollection<ExamResult> ExamResults { get; set; } = new List<ExamResult>();
+
+    public virtual Subject? Subject { get; set; }
 }
