@@ -9,34 +9,20 @@ namespace StudyHub.Backend.UseCases.Repositories
         Document? GetDocumentById(int id);
 
         (List<Document> documents, int totalCount) GetPublicDocuments(
-            string? query = null,
-            int? categoryId = null,
-            int? grade = null,
-            string? subject = null,
-            int? classId = null,
-            int? pageNumber = null,
-            int? pageSize = null);
+            string? query = null, int? categoryId = null, int? grade = null,
+            string? subject = null, int? classId = null, string? documentLengthType = null,
+            string? documentLevel = null, int? pageNumber = null, int? pageSize = null);
+
 
         (List<Document> documents, int totalCount) GetSchoolDocuments(
-            int schoolId,
-            string? query = null,
-            int? categoryId = null,
-            int? grade = null,
-            string? subject = null,
-            int? classId = null,
-            int? pageNumber = null,
-            int? pageSize = null);
-        (List<Document> documents, int totalCount) GetEditRequestDocuments(
-    bool? isRequested = null, int? pageNumber = null, int? pageSize = null);
+            int schoolId, string? query = null, int? categoryId = null, int? grade = null,
+            string? subject = null, int? classId = null, string? documentLengthType = null,
+            string? documentLevel = null, int? pageNumber = null, int? pageSize = null);
+
         (List<Document> documents, int totalCount) GetOwnedDocuments(
-            Guid creatorId,
-            string? query = null,
-            int? categoryId = null,
-            int? grade = null,
-            string? subject = null,
-            int? classId = null,
-            int? pageNumber = null,
-            int? pageSize = null);
+            Guid creatorId, string? query = null, int? categoryId = null, int? grade = null,
+            string? subject = null, int? classId = null, string? documentLengthType = null,
+            string? documentLevel = null, int? pageNumber = null, int? pageSize = null);
 
         (List<Document> documents, int totalCount) GetManagerPublicDocuments(
        string? query = null,
@@ -70,6 +56,7 @@ namespace StudyHub.Backend.UseCases.Repositories
             DateTime? updatedTo = null,
             int? pageNumber = null,
             int? pageSize = null);
+        (List<Document> documents, int totalCount) GetEditRequestDocuments(bool? isRequested = null, int? pageNumber = null, int? pageSize = null);
         List<Document> GetDocumentsBySubject(int subjectId);
         List<Document> GetDocumentsBySubjectForPublic(int subjectId);
         List<Document> GetDocumentsBySubjectForSchool(int subjectId, int schoolId);

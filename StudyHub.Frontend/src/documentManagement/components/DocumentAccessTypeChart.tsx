@@ -56,14 +56,14 @@ const DocumentAccessTypeChart: React.FC<DocumentAccessTypeChartProps> = ({
   }
 
   const chartData = [
-    { name: "Công khai", value: stats.publicDocuments },
-    { name: "Trong trường", value: stats.schoolDocuments },
+    { name: "Nổi bật (Featured)", value: stats.featuredDocuments },
+    { name: "Thường", value: stats.totalDocuments - stats.featuredDocuments },
   ];
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Phân loại quyền truy cập</CardTitle>
+        <CardTitle>Tài liệu nổi bật</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={250}>
