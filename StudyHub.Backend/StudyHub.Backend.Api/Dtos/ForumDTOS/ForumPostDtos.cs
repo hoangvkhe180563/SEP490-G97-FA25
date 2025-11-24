@@ -153,7 +153,11 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
 
         public string? Reason { get; set; }
     }
-
+    public class UpdateStatusDto
+    {
+        public string Action { get; set; } = string.Empty;
+        public int? ViolationScore { get; set; }
+    }
     public class UnhidePostDto
     {
         [Required]

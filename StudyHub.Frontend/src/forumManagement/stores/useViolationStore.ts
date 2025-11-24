@@ -227,6 +227,49 @@ export const useViolationStore = create<ViolationState>((set, get) => ({
     }
   },
 
+  muteUser: async (userId: string, schoolId: number) => {
+    try {
+      const response = await axiosInstance.post(
+        `/Forum/moderator/mute-user/${userId}/mute?schoolId=${schoolId}`
+      );
+
+      if (response.data?.success) {
+        await get().fetchUserStatuses();
+        return true;
+      }
+      return false;
+    } catch (error: any) {
+      console.error("Error muting user:", error);
+      set({
+        error:
+          error.response?.data?.message || "Có lỗi xảy ra khi cấm người dùng",
+      });
+      return false;
+    }
+  },
+
+  unmuteUser: async (userId: string, schoolId: number) => {
+    try {
+      const response = await axiosInstance.post(
+        `/Forum/moderator/mute-user/${userId}/unmute?schoolId=${schoolId}`
+      );
+
+      if (response.data?.success) {
+        await get().fetchUserStatuses();
+        return true;
+      }
+      return false;
+    } catch (error: any) {
+      console.error("Error unmuting user:", error);
+      set({
+        error:
+          error.response?.data?.message ||
+          "Có lỗi xảy ra khi bỏ cấm người dùng",
+      });
+      return false;
+    }
+  },
+
   fetchUserStatuses: async () => {
     const { userFilters } = get();
 
@@ -299,52 +342,6 @@ export const useViolationStore = create<ViolationState>((set, get) => ({
     set((state) => ({
       userFilters: { ...state.userFilters, ...newFilters },
     }));
-  },
-
-  muteUser: async (userId: string, schoolId: number) => {
-    try {
-      const response = await axiosInstance.post(
-        `/Forum/moderator/mute-user/${userId}`,
-        { schoolId }
-      );
-
-      if (response.data?.success) {
-        await get().fetchUserStatuses();
-        return true;
-      }
-      return false;
-    } catch (error: any) {
-      console.error("Error muting user:", error);
-      set({
-        error:
-          error.response?.data?.message || "Có lỗi xảy ra khi cấm người dùng",
-      });
-      return false;
-    }
-  },
-
-  unmuteUser: async (userId: string, schoolId: number) => {
-    try {
-      const response = await axiosInstance.post(
-        `/Forum/moderator/unmute-user/${userId}`,
-        null,
-        { params: { schoolId } }
-      );
-
-      if (response.data?.success) {
-        await get().fetchUserStatuses();
-        return true;
-      }
-      return false;
-    } catch (error: any) {
-      console.error("Error unmuting user:", error);
-      set({
-        error:
-          error.response?.data?.message ||
-          "Có lỗi xảy ra khi bỏ cấm người dùng",
-      });
-      return false;
-    }
   },
 
   reset: () => {

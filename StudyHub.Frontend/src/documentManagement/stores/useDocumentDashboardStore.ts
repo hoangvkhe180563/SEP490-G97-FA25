@@ -33,21 +33,41 @@ export const useDocumentDashboardStore = create<DocumentDashboardState>()(
         params.append("pageNumber", "1");
         params.append("pageSize", "10000");
 
-        let publicResponse, schoolResponse;
+        let response;
 
         if (schoolId) {
-          schoolResponse = await axiosInstance.get(
+          response = await axiosInstance.get(
             `/Document/manager/school/${schoolId}?${params.toString()}`
           );
         } else {
-          publicResponse = await axiosInstance.get(
+          response = await axiosInstance.get(
             `/Document/manager/public?${params.toString()}`
           );
         }
 
-        const documents: Document[] = schoolId
-          ? schoolResponse?.data?.data?.items || []
-          : publicResponse?.data?.data?.items || [];
+        const documents: Document[] = response?.data?.data?.items || [];
+
+        if (documents.length === 0) {
+          set({
+            stats: {
+              totalDocuments: 0,
+              publicDocuments: 0,
+              schoolDocuments: 0,
+              pendingApproval: 0,
+              approvedDocuments: 0,
+              rejectedDocuments: 0,
+              editRequests: 0,
+              featuredDocuments: 0,
+            },
+            categoryStats: [],
+            gradeStats: [],
+            subjectStats: [],
+            uploaderStats: [],
+            lengthStats: [],
+            levelStats: [],
+          });
+          return;
+        }
 
         const stats: DocumentStatsDto = {
           totalDocuments: documents.length,

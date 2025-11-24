@@ -202,6 +202,31 @@ export const useFlairStore = create<FlairState>()(
         }
       },
 
+      toggleFlairStatus: async (flairId: number) => {
+        set({ isLoading: true });
+        try {
+          const resp = await axiosInstance.post(
+            `/Forum/flairs/${flairId}/toggle-status`
+          );
+          const body = resp.data;
+
+          if (body?.success) {
+            set({
+              success: true,
+              message: body?.message || "Đã cập nhật trạng thái flair",
+            });
+          } else {
+            set({ success: false, message: body?.message || "" });
+          }
+          return body;
+        } catch (err: any) {
+          set({ success: false, message: axiosMessageErrorHandler(err) });
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
       deleteFlair: async (flairId: number) => {
         set({ isLoading: true });
         try {
@@ -216,31 +241,6 @@ export const useFlairStore = create<FlairState>()(
               success: true,
               message: body?.message || "Xóa flair thành công",
             }));
-          } else {
-            set({ success: false, message: body?.message || "" });
-          }
-          return body;
-        } catch (err: any) {
-          set({ success: false, message: axiosMessageErrorHandler(err) });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
-
-      toggleFlairStatus: async (flairId: number) => {
-        set({ isLoading: true });
-        try {
-          const resp = await axiosInstance.post(
-            `/Forum/flairs/${flairId}/toggle-status`
-          );
-          const body = resp.data;
-
-          if (body?.success) {
-            set({
-              success: true,
-              message: body?.message || "Đã cập nhật trạng thái flair",
-            });
           } else {
             set({ success: false, message: body?.message || "" });
           }
