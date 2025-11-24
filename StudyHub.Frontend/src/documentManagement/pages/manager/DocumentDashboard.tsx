@@ -11,7 +11,7 @@ import DocumentAccessTypeChart from "@/documentManagement/components/DocumentAcc
 import DocumentApprovalChart from "@/documentManagement/components/DocumentApprovalChart";
 import TopUploadersTable from "@/documentManagement/components/TopUploadersTable";
 import DocumentLengthLevelChart from "@/documentManagement/components/DocumentLengthLevelChart";
-
+import { Card, CardContent } from "@/common/components/ui/card";
 import {
   Tabs,
   TabsContent,
@@ -34,6 +34,7 @@ const DocumentDashboard: React.FC = () => {
     lengthStats,
     levelStats,
     isLoading,
+    error,
     calculateStats,
   } = useDocumentDashboardStore();
 
@@ -48,6 +49,20 @@ const DocumentDashboard: React.FC = () => {
       calculateStats(user.schoolId || undefined);
     }
   };
+
+  if (!user) {
+    return (
+      <div className="p-4">
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-slate-500">
+              Vui lòng đăng nhập để xem dashboard
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 max-h-screen overflow-y-auto">
@@ -66,6 +81,14 @@ const DocumentDashboard: React.FC = () => {
           Làm mới
         </Button>
       </div>
+
+      {error && (
+        <Card className="mb-4 border-red-200 bg-red-50">
+          <CardContent className="py-4">
+            <p className="text-red-600">Lỗi: {error}</p>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs
         value={activeTab}

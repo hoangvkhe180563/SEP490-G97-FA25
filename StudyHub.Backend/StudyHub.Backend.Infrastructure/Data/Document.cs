@@ -23,7 +23,7 @@ public partial class Document
 
     public string? Thumbnail { get; set; }
 
-    public string DocumentLenthType { get; set; } = null!;
+    public string DocumentLengthType { get; set; } = null!;
 
     public string DocumentLevel { get; set; } = null!;
 

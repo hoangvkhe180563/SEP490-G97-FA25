@@ -30,23 +30,16 @@ export const useDocumentDashboardStore = create<DocumentDashboardState>()(
       set({ isLoading: true, error: null });
       try {
         const params = new URLSearchParams();
-        params.append("pageNumber", "1");
-        params.append("pageSize", "10000");
-
-        let response;
+        let url;
 
         if (schoolId) {
-          response = await axiosInstance.get(
-            `/Document/manager/school/${schoolId}?${params.toString()}`
-          );
+          url = `/Document/manager/school/${schoolId}?${params.toString()}`;
         } else {
-          response = await axiosInstance.get(
-            `/Document/manager/public?${params.toString()}`
-          );
+          url = `/Document/manager/public?${params.toString()}`;
         }
 
+        const response = await axiosInstance.get(url);
         const documents: Document[] = response?.data?.data?.items || [];
-
         if (documents.length === 0) {
           set({
             stats: {
@@ -109,8 +102,10 @@ export const useDocumentDashboardStore = create<DocumentDashboardState>()(
 
         const gradeMap = new Map<number, number>();
         documents.forEach((doc) => {
-          const count = gradeMap.get(doc.grade) || 0;
-          gradeMap.set(doc.grade, count + 1);
+          if (doc.grade !== undefined && doc.grade !== null) {
+            const count = gradeMap.get(doc.grade) || 0;
+            gradeMap.set(doc.grade, count + 1);
+          }
         });
 
         const gradeStats: DocumentGradeStatsDto[] = Array.from(
@@ -158,16 +153,19 @@ export const useDocumentDashboardStore = create<DocumentDashboardState>()(
         >();
 
         documents.forEach((doc) => {
-          if (doc.createdBy) {
-            const existing = uploaderMap.get(doc.createdBy);
+          if (doc.uploaderName) {
+            const existing = uploaderMap.get(doc.uploaderName);
             if (existing) {
               existing.total++;
               if (doc.isApproved === true) existing.approved++;
               if (doc.isApproved === null) existing.pending++;
             } else {
-              uploaderMap.set(doc.createdBy, {
+              uploaderMap.set(doc.uploaderName, {
                 name:
-                  doc.uploaderName || doc.uploaderFullname || "Không xác định",
+                  doc.uploaderName ||
+                  doc.uploaderFullname ||
+                  doc.uploaderUrl ||
+                  "Không xác định",
                 total: 1,
                 approved: doc.isApproved === true ? 1 : 0,
                 pending: doc.isApproved === null ? 1 : 0,
@@ -188,7 +186,6 @@ export const useDocumentDashboardStore = create<DocumentDashboardState>()(
           }))
           .sort((a, b) => b.totalDocuments - a.totalDocuments)
           .slice(0, 10);
-
         const lengthMap = new Map<string, number>();
         documents.forEach((doc) => {
           if (doc.documentLengthType) {
@@ -204,7 +201,6 @@ export const useDocumentDashboardStore = create<DocumentDashboardState>()(
           count,
           percentage: (count / documents.length) * 100,
         }));
-
         const levelMap = new Map<string, number>();
         documents.forEach((doc) => {
           if (doc.documentLevel) {
@@ -220,7 +216,6 @@ export const useDocumentDashboardStore = create<DocumentDashboardState>()(
           count,
           percentage: (count / documents.length) * 100,
         }));
-
         set({
           stats,
           categoryStats,
@@ -231,8 +226,8 @@ export const useDocumentDashboardStore = create<DocumentDashboardState>()(
           levelStats,
         });
       } catch (error) {
+        console.error("Error calculating stats:", error);
         set({ error: axiosMessageErrorHandler(error) });
-        console.error(error);
       } finally {
         set({ isLoading: false });
       }

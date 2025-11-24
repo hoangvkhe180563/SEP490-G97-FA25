@@ -1327,42 +1327,42 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        //[HttpGet("user/status")]
-        //public async Task<IActionResult> GetCurrentUserStatus([FromQuery] int schoolId)
-        //{
-        //    try
-        //    {
-        //        var currentUser = _authService.GetCurrentUser();
-        //        if (currentUser == null || currentUser.SchoolId != schoolId)
-        //        {
-        //            return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
-        //        }
+        [HttpGet("user/status")]
+        public async Task<IActionResult> GetCurrentUserStatus([FromQuery] int schoolId)
+        {
+            try
+            {
+                var currentUser = _authService.GetCurrentUser();
+                if (currentUser == null || currentUser.SchoolId != schoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
 
-        //        var status = await _moderationService.GetUserForumStatusAsync(currentUser.Id, schoolId);
+                var status = await _moderationService.GetUserForumStatusAsync(currentUser.Id, schoolId);
 
-        //        if (status == null)
-        //        {
-        //            return Ok(new
-        //            {
-        //                success = true,
-        //                data = new
-        //                {
-        //                    UserId = currentUser.Id,
-        //                    TotalViolationScore = 50,
-        //                    IsMute = false,
-        //                    MuteUntil = (DateTime?)null
-        //                }
-        //            });
-        //        }
+                if (status == null)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        data = new
+                        {
+                            UserId = currentUser.Id,
+                            TotalViolationScore = 100,
+                            IsMute = false,
+                            MuteUntil = (DateTime?)null
+                        }
+                    });
+                }
 
-        //        return Ok(new { success = true, data = status.ToDto() });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Error getting user status");
-        //        return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-        //    }
-        //}
+                return Ok(new { success = true, data = status.ToDto() });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user status");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
 
         //[HttpPost("moderator/reset-violation-score")]
         //public async Task<IActionResult> ResetViolationScore([FromBody] ResetUserViolationScoreDto dto)
