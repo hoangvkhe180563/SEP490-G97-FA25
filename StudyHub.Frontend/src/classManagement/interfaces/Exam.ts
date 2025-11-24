@@ -4,5 +4,6 @@ export interface Exam {
   description: string,
   duration: number,
   createdBy: string,
-  totalQuestions?: number
+  totalQuestions?: number,
+  noRandomQuestions?: number
 }

@@ -1,6 +1,6 @@
 import {
   BookOpen,
-  FilePen,
+  FileQuestion,
   LayoutDashboard,
   LibraryBig,
   MessageCircleQuestionMark,
@@ -104,10 +104,15 @@ export const documentManagerSidebarItems: ISidebarItem[] = [
 
 export const questionManagerSidebarItems: ISidebarItem[] = [
   {
-    icon: <FilePen size={20} />,
-    text: "Quản lý bài kiểm tra",
+    icon: <LayoutDashboard size={20} />,
+    text: "Trang chủ",
     link: "/",
   },
+  {
+    icon: <FileQuestion size={20} />,
+    text: "Ngân hàng câu hỏi",
+    link: "/exam/manager/questions",
+  }
 ];
 
 export const financialManagerSidebarItems: ISidebarItem[] = [];

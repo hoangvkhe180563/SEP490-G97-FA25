@@ -20,9 +20,9 @@ import "quill/dist/quill.snow.css";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import type { Exam, Question } from "@/courseManagement/interfaces/types";
-import LessonExamQuestions from "@/courseManagement/components/LessonExamQuestions";
 import { EXAM_TYPE } from "@/courseManagement/constants/ExamType";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import QuestionTemplate from "@/exam/components/QuestionTemplate";
 
 const AddLecture: React.FC = () => {
   const { user } = useAuthStore();
@@ -252,7 +252,6 @@ const AddLecture: React.FC = () => {
           const expectedBlanks = (
             q.questionText.match(
               new RegExp(
-                // eslint-disable-next-line no-useless-escape
                 "[BLANK]".replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
                 "g"
               )
@@ -271,6 +270,16 @@ const AddLecture: React.FC = () => {
             errors.push(
               `Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${q.questionText}".`
             );
+          }
+        } else if (q.type === EXAM_TYPE.MATCHING) {
+          if (!q.terms || q.terms.length === 0 || q.terms.some(term => !String(term).trim())) {
+            errors.push(`Vui lòng nhập đầy đủ các thuật ngữ cho câu hỏi ghép đôi "${q.questionText}".`);
+          }
+          if (!q.definitions || q.definitions.length === 0 || q.definitions.some(def => !String(def).trim())) {
+            errors.push(`Vui lòng nhập đầy đủ các định nghĩa cho câu hỏi ghép đôi "${q.questionText}".`);
+          }
+          if (q.terms?.length !== q.definitions?.length) {
+            errors.push(`Số lượng thuật ngữ và định nghĩa phải bằng nhau cho câu hỏi "${q.questionText}".`);
           }
         }
       }
@@ -1193,7 +1202,7 @@ const AddLecture: React.FC = () => {
                 <Label>
                   Câu hỏi <span className="text-red-500">*</span>
                 </Label>
-                <LessonExamQuestions
+                <QuestionTemplate
                   questions={questions}
                   setQuestions={setQuestions}
                 />

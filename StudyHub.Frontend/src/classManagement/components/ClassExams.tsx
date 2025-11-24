@@ -6,7 +6,6 @@ import { Button } from "@/common/components/ui/button";
 import { Eye } from "lucide-react";
 
 const ClassExams = (props: { classId: string, isTeacher: boolean }) => {
-  console.log(props.isTeacher);
   const [classExams, setClassExams] = useState<Exam[]>([]);
 
   const { getClassExams } = useClassStore();
@@ -48,7 +47,7 @@ const ClassExams = (props: { classId: string, isTeacher: boolean }) => {
           <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
             <span>{exam.totalQuestions} câu hỏi - {exam.duration} phút</span>
             <Link
-              to={`/exam/student/exams/${exam.id}`}
+              to={props.isTeacher ? `/exam/teacher/results/${exam.id}` : `/exam/student/exams/${exam.id}`}
             >
               <Button
                 className="bg-blue-600 text-white hover:bg-blue-700 space-x-1">

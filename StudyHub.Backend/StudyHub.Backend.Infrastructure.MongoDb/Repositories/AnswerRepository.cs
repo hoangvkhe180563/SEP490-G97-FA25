@@ -30,7 +30,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
             }
             catch (Exception ex)
             {
-                new MongoDbException("AnswerRepository", "GetAnswersByResultId failed. Inner error: " + ex.Message).LogError();
+                new MongoDbException("AnswerRepository", "AddManyAnswers failed. Inner error: " + ex.Message).LogError();
             }
             return string.Empty;
         }
@@ -65,6 +65,22 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
             return [];
         }
 
+        public List<string> GetQuestionIdsByResult(string resultId)
+        {
+            try
+            {
+                var result = _resultCollection.Find(r => r.Id == ObjectId.Parse(resultId)).FirstOrDefault();
+                if (result == null) return [];
+
+                return result.Answers.Select(a => a.QuestionId.ToString()).ToList();
+            }
+            catch (Exception ex)
+            {
+                new MongoDbException("AnswerRepository", "GetQuestionIdsByResult failed. Inner error: " + ex.Message).LogError();
+            }
+            return [];
+        }
+
         public bool UpdateManyAnswers(string resultObjectId, List<ExamAnswer> answers)
         {
             try
@@ -78,7 +94,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
             }
             catch (Exception ex)
             {
-                new MongoDbException("AnswerRepository", "UpdateExamPaper failed. Inner error: " + ex.Message).LogError();
+                new MongoDbException("AnswerRepository", "UpdateManyAnswers failed. Inner error: " + ex.Message).LogError();
             }
             return false;
         }

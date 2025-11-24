@@ -6,10 +6,11 @@ import Introduction from "../components/Introduction";
 import FeaturedDocuments from "../components/FeaturedDocuments";
 import FeaturedCourses from "../components/FeaturedCourses";
 import FeaturedTeachers from "../components/FeaturedTeachers";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 const SchoolHomepage = () => {
   const [data, setData] = useState<ILandingPageService>();
+  const navigate = useNavigate();
   const uiManagementService = new UiManagementService();
   const { schoolId } = useParams();
 
@@ -17,8 +18,8 @@ const SchoolHomepage = () => {
     const fetchData = async () => {
       try {
         if (!Number(schoolId)) {
-          //navigate to Not Found
-          throw new Error("Truyền sai id. Ngu như bò (bò ở đây là TL)!");
+          navigate("/not-found");
+          return;
         }
         const landingPageData = await uiManagementService.getLandingPageSchool(Number(schoolId));
         setData(landingPageData);
@@ -32,7 +33,6 @@ const SchoolHomepage = () => {
           featuredDocuments: [],
           featuredTeachers: [
             {
-              id: 1,
               imageUrl: "https://github.com/shadcn.png",
               name: "Giáo viên 1"
             }
@@ -55,6 +55,16 @@ const SchoolHomepage = () => {
     {data && data.featuredTeachers && <FeaturedTeachers data={data.featuredTeachers ?? []} />}
     <FeaturedDocuments data={data?.featuredDocuments ?? []} />
     <FeaturedCourses data={data?.featuredCourses ?? []} />
+    <footer>
+      <div className="w-full py-2 bg-gray-100 flex flex-col items-center gap-2 bg-gradient-to-b from-sky-200 to-sky-300">
+        <div className="flex space-x-5 justify-center items-center">
+          <img className="w-70 h-30" src="/src/common/assets/StudyHubLogo.png" alt="[StudyHub Logo]" />
+          <span className="font-bold text-lg">x</span>
+          <img className="w-70 h-30" src={data?.logoImage} alt="[School Logo]" />
+        </div>
+        <span className="text-gray-500 text-sm font-bold">© 2025 StudyHub. Tất cả quyền được bảo lưu. <span className="text-blue-600 underline">Gửi phản hồi</span></span>
+      </div>
+    </footer>
   </div>
 }
 

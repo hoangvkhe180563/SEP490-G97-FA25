@@ -49,6 +49,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Avatar = d.Avatar,
                 PhoneNumber = d.PhoneNumber,
                 Wallet = d.Wallet,
+                Subjects = d.Subjects != null ? d.Subjects.Select(s => new Domain.Entities.Subject { Id = s.Id, Name = s.Name }).ToList() : new List<Domain.Entities.Subject>()
             };
         }
 
@@ -164,6 +165,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     users = users.Where(u => (u.Email ?? "").ToLower().Contains(q) || (u.Username ?? "").ToLower().Contains(q) || (u.Fullname ?? "").ToLower().Contains(q));
                 }
 
+                // ensure subjects navigation is loaded for list queries so callers can access user.Subjects
+                users = users.Include(u => u.Subjects);
+
                 var total = users.Count();
                 if (page < 1) page = DEFAULT_CURRENT_PAGE;
                 if (limit < 1) limit = DEFAULT_PAGE_SIZE;
@@ -193,7 +197,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public Domain.Entities.AppUser? GetById(Guid id)
         {
-            var d = _context.AppUsers.Find(id);
+            var d = _context.AppUsers
+                .Include(u => u.Subjects)
+                .FirstOrDefault(u => u.Id == id);
             return d == null ? null : ToDomain(d);
         }
         public Domain.Entities.AppUser? GetByTransferId(int transferId)
@@ -202,7 +208,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return d == null ? null : ToDomain(d);
         }
 
-        public void CreateUser(Domain.Entities.AppUser user, IEnumerable<Guid>? roleIds = null)
+        public void CreateUser(Domain.Entities.AppUser user, IEnumerable<Guid>? roleIds = null, IEnumerable<short>? subjectIds = null)
         {
             try
             {
@@ -247,6 +253,32 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     catch (Exception innerEx)
                     {
                         new InfrastructureException("AppUserRepository", "Attach roles failed after creating user. Inner error: " + innerEx.Message).LogError();
+                        throw;
+                    }
+                }
+
+                // Attach subjects to the newly created user (if provided)
+                if (subjectIds != null && subjectIds.Any())
+                {
+                    try
+                    {
+                        var existingUser = _context.AppUsers
+                                    .Include(u => u.Subjects)
+                                    .FirstOrDefault(u => u.Id == d.Id);
+                        if (existingUser != null)
+                        {
+                            var subjects = _context.Subjects.Where(s => subjectIds.Contains(s.Id)).ToList();
+                            foreach (var s in subjects)
+                            {
+                                if (!existingUser.Subjects.Any(ss => ss.Id == s.Id)) existingUser.Subjects.Add(s);
+                            }
+                            _context.AppUsers.Update(existingUser);
+                            _context.SaveChanges();
+                        }
+                    }
+                    catch (Exception innerEx)
+                    {
+                        new InfrastructureException("AppUserRepository", "Attach subjects failed after creating user. Inner error: " + innerEx.Message).LogError();
                         throw;
                     }
                 }
@@ -309,7 +341,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
-        public void UpdateUser(Domain.Entities.AppUser user, IEnumerable<Guid>? roleIds = null)
+        public void UpdateUser(Domain.Entities.AppUser user, IEnumerable<Guid>? roleIds = null, IEnumerable<short>? subjectIds = null)
         {
             try
             {
@@ -354,6 +386,20 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     foreach (var r in roles)
                     {
                         existing.Roles.Add(r);
+                    }
+                }
+
+                // Update subjects if provided (replace existing set)
+                if (subjectIds != null)
+                {
+                    existing.Subjects.Clear();
+                    if (subjectIds.Any())
+                    {
+                        var subjects = _context.Subjects.Where(s => subjectIds.Contains(s.Id)).ToList();
+                        foreach (var s in subjects)
+                        {
+                            existing.Subjects.Add(s);
+                        }
                     }
                 }
 

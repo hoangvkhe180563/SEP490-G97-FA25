@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos.ExamDTOS;
+using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.Domain.Entities.Exam;
 using StudyHub.Backend.UseCases.Services;
 
@@ -28,14 +29,14 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpGet("{resultId}")]
-        public IActionResult GetExamResultById(string resultId)
+        public IActionResult GetExamResultById(string resultId, bool isTeacher)
         {
             if (resultId == string.Empty || resultId.Length != 24)
             {
                 return BadRequest("Truyền sai id");
             }
 
-            var examResult = _service.GetExamResultById(resultId);
+            var examResult = _service.GetExamResultById(resultId, isTeacher);
             if (examResult == null)
             {
                 return NotFound();
@@ -43,15 +44,16 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(examResult);
         }
 
-        [HttpGet("by-exam/{examId:int}/{studentId:guid}/status")]
-        public IActionResult CheckExamStatus(int examId, Guid studentId)
+        [HttpGet("{resultId}/questions")]
+        public IActionResult GetExamQuestionsByResult(string resultId)
         {
-            if (studentId == Guid.Empty || examId == 0)
+            if (resultId == string.Empty || resultId.Length != 24)
             {
-                return BadRequest();
+                return BadRequest("Truyền sai id");
             }
-            bool status = _service.CheckExamStatus(examId, studentId);
-            return Ok(status);
+
+            var questions = _service.GetExamQuestionsByResult(resultId);
+            return Ok(questions.Select(q => q.ToDetailDto()));
         }
 
         [HttpGet("by-exam/{examId:int}/{studentId:guid}")]

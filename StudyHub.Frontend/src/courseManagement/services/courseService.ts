@@ -220,6 +220,7 @@ export const courseApi = {
   async createExam(examData: Exam): Promise<boolean> {
     const payload = {
       ...examData,
+      isMultipleAttempts: false,
       openTime: formatISO(examData.openTime),
       closeTime: examData.closeTime && formatISO(examData.closeTime)
     }

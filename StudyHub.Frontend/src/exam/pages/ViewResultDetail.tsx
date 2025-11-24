@@ -16,6 +16,7 @@ const ViewResultDetail = () => {
   const navigate = useNavigate();
   const [result, setResult] = useState<ExamResult>(DEFAULT_EXAM_RESULT);
   const [exam, setExam] = useState<Exam>(DEFAULT_EXAM);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const { setLoading } = useLoading();
   const [error, setError] = useState<string>('');
   const examService = new ExamService();
@@ -34,17 +35,20 @@ const ViewResultDetail = () => {
     const fetchResultDetails = async () => {
       try {
         setLoading(true);
-        const fetchedResult = await examService.getResultDetail(id);
+        const isTeacher = user.roles.some(r => r.includes("Teacher"));
+        const fetchedResult = await examService.getResultDetail(id, isTeacher);
         if (fetchedResult.examId === 0) {
           setError("Không thể tải chi tiết kết quả.");
           return;
         }
         setResult(fetchedResult);
-
-        const fetchedExam = await examService.getExamById(fetchedResult.examId, true);
+        const fetchedExam = await examService.getExamById(fetchedResult.examId);
         setExam(fetchedExam);
-        setShowAnswers(fetchedExam.showAnswers);
-        setShowCorrectAnswers(fetchedExam.showCorrectAnswers);
+        setShowAnswers(fetchedExam.showAnswers || isTeacher);
+        setShowCorrectAnswers(fetchedExam.showCorrectAnswers || isTeacher);
+
+        const fetchedQuestions = await examService.getExamQuestionsByResultId(id);
+        setQuestions(fetchedQuestions);
 
         if (fetchedExam.lessonId) {
           const courseId = await examService.getCourseIdByLessonId(fetchedExam.lessonId);
@@ -131,7 +135,7 @@ const ViewResultDetail = () => {
       <Button variant='outline' className='flex items-center' onClick={() => {
         if (user?.roles.some(role => role.includes("Student"))) {
           if (exam.classId) {
-            navigate('/exam/student/class-exams');
+            navigate(`/class/student/${exam.classId}`);
             return;
           } else if (exam.lessonId) {
             navigate(`/course/student/courses/${returnCourseId}/lecture/${exam.lessonId}`)
@@ -139,7 +143,7 @@ const ViewResultDetail = () => {
           }
         } else if (user?.roles.some(role => role.includes("Teacher"))) {
           if (exam.classId) {
-            navigate('/exam/teacher/class-exams/' + exam.classId);
+            navigate('/exam/teacher/results/' + exam.id);
             return;
           }
         }
@@ -157,20 +161,28 @@ const ViewResultDetail = () => {
         <p className="text-lg text-gray-700"><strong>Mô tả:</strong> {exam.description}</p>
         <p className="text-lg text-gray-700"><strong>Thời lượng:</strong> {exam.duration} phút</p>
         <p className="text-lg text-gray-700"><strong>Tổng số câu hỏi:</strong> {exam.totalQuestions}</p>
+        <p className="text-lg text-gray-700"><strong>Cho phép thi nhiều lần:</strong> {exam.isMultipleAttempts ? 'Có' : 'Không'}</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <p className="text-lg text-gray-700"><strong>Học sinh:</strong> {result.studentName}</p>
-        <p className="text-lg text-gray-700"><strong>Điểm số:</strong> {result.score}</p>
-        <p className="text-lg text-gray-700"><strong>Ngày nộp:</strong> {result.submissionTime?.toLocaleString("vi-VN")}</p>
+      <div className="flex justify-between gap-4 mb-6">
+        <div>
+          <p className="text-lg text-gray-700"><strong>Học sinh:</strong> {result.studentName}</p>
+          {/* <p className="text-lg text-gray-700"><strong>Điểm số:</strong> {result.score}</p> */}
+          <p className="text-lg text-gray-700"><strong>Ngày nộp:</strong> {result.submissionTime?.toLocaleString("vi-VN")}</p>
+          <p className='text-lg text-gray-700'><strong>Số lần chuyển tab/thu nhỏ màn hình: <span className='text-red-500'>{result.cheatTimes}</span></strong></p>
+        </div>
+        <div className='mx-10'>
+          <p className='text-center'>Điểm:</p>
+          <div className='text-3xl w-15 h-15 flex justify-center items-center text-center p-4 rounded-lg bg-blue-100 text-blue-500'>{result.score}</div>
+        </div>
       </div>
 
-      {showAnswers && (
+      {showAnswers ? (
         <>
           <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Các câu hỏi và câu trả lời</h2>
 
           <div className="space-y-8">
-            {exam.questions.map((question, index) => {
+            {questions.map((question, index) => {
               const studentAnswerEntry = result.answers.find(ans => ans.questionId === question.questionObjectId);
               const isCorrect = studentAnswerEntry?.isCorrect;
               const studentAnswer = studentAnswerEntry?.jsonAnswers;
@@ -316,6 +328,8 @@ const ViewResultDetail = () => {
             })}
           </div>
         </>
+      ) : (
+        <div className='text-lg italic'>Bạn không được phép xem nội dung của bài kiểm tra này.</div>
       )}
     </div>
   );
