@@ -1,5 +1,8 @@
 ﻿using StudyHub.Backend.Api.Dtos.AppUserDTOS;
 using StudyHub.Backend.UseCases.Dtos;
+using StudyHub.Backend.Api;
+using System.Linq;
+using StudyHub.Backend.Api.Dtos;
 
 namespace StudyHub.Backend.Api.Mappers
 {
@@ -28,6 +31,8 @@ namespace StudyHub.Backend.Api.Mappers
                 ProvinceId = provinceId,
                 Roles = roles?.ToList() ?? new List<string>(),
                 CommuneId = communeId
+                ,
+                Subjects = user.Subjects?.Select(s => new SubjectDto { Id = s.Id, Name = s.Name })?.ToList() ?? new List<SubjectDto>()
             };
         }
 

@@ -271,6 +271,8 @@ const CourseList: React.FC = () => {
                     createdAt: c.createdAt,
                     subjectName: c.subjectName ?? "",
                     isApproved: c.isApproved ?? false,
+                    difficulty: c.difficulty ?? null,
+                    length: c.length ?? null,
                   };
 
                   return (
