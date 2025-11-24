@@ -136,10 +136,13 @@ namespace StudyHub.Backend.Api.Controllers
             }
 
             var examEntity = examDto.ToExamEntity();
-            bool isQuestionsUpdated = _service.UpdateExamQuestions(examEntity.Id, examDto.QuestionObjectIds);
-            if (!isQuestionsUpdated)
+            if (examDto.QuestionObjectIds.Count != 0)
             {
-                return Conflict("Cập nhật câu hỏi thất bại!");
+                bool isQuestionsUpdated = _service.UpdateExamQuestions(examEntity.Id, examDto.QuestionObjectIds);
+                if (!isQuestionsUpdated)
+                {
+                    return Conflict("Cập nhật câu hỏi thất bại!");
+                }
             }
 
             bool isExamUpdated = _service.UpdateExam(examEntity);
@@ -163,6 +166,17 @@ namespace StudyHub.Backend.Api.Controllers
         {
             var courseId = _service.GetCourseIdByLessonId(lessonId);
             return courseId == 0 ? NotFound() : Ok(courseId);
+        }
+
+        [HttpGet("generate-random/{examId:int}")]
+        public IActionResult GenerateRandomQuestions(int examId)
+        {
+            if (examId == 0)
+            {
+                return BadRequest();
+            }
+            List<Question> questions = _service.GenerateRandomQuestions(examId);
+            return questions.Count == 0 ? NotFound() : Ok(questions.Select(q => q.ToDetailDto()));
         }
     }
 }

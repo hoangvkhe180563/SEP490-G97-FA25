@@ -68,7 +68,7 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 return null;
             }
-            if (retrieveQuestions)
+            if (retrieveQuestions && exam.NoRandomQuestions == null)
             {
                 var questionObjectIds = _examRepo.GetExamQuestionObjectIds(id);
                 var questions = _questionRepo.GetManyQuestionsById(questionObjectIds);
@@ -84,10 +84,10 @@ namespace StudyHub.Backend.UseCases.Services
 
         public bool CreateExam(Exam examEntity)
         {
-            List<string> questionObjectIds = _questionRepo.AddManyQuestions(examEntity.Questions);
-            if (questionObjectIds.Count == 0)
+            List<string> questionObjectIds = [];
+            if (examEntity.Questions.Count != 0)
             {
-                return false;
+                questionObjectIds = _questionRepo.AddManyQuestions(examEntity.Questions);
             }
             bool success = _examRepo.CreateExam(examEntity, questionObjectIds);
             return success;
@@ -145,7 +145,7 @@ namespace StudyHub.Backend.UseCases.Services
             return result;
         }
 
-        public ExamResult? GetExamResultById(string resultId)
+        public ExamResult? GetExamResultById(string resultId, bool isTeacher)
         {
             var result = _examResultRepo.GetExamResultById(resultId);
             if (result == null) return null;
@@ -155,7 +155,10 @@ namespace StudyHub.Backend.UseCases.Services
             if (exam == null) return null;
 
             var resultObjectId = result.Id;
-            var answers = _answerRepo.GetAnswersByResultId(resultObjectId, exam.ShowAnswers, exam.ShowCorrectAnswers);
+
+            bool showAnswers = isTeacher || exam.ShowAnswers;
+            bool showCorrectAnswers = isTeacher || exam.ShowCorrectAnswers;
+            var answers = _answerRepo.GetAnswersByResultId(resultObjectId, showAnswers, showCorrectAnswers);
             result.Answers = answers;
             return result;
         }
@@ -197,25 +200,9 @@ namespace StudyHub.Backend.UseCases.Services
             //1. get all the answers of the exam paper
             List<ExamAnswer> answers = _answerRepo.GetAnswersByResultId(resultId, true, false);
 
-            //2. get all the questions of the exam of the exam paper
-            int examId = _examRepo.GetExamIdByResultId(resultId);
-            if (examId == 0)
-            {
-                new UseCaseException("ExamService", "SubmitExamResult error: Cannot retrieve exam id!").LogError();
-                return false;
-            }
-            var exam = GetExamById(examId, true);
-            if (exam == null)
-            {
-                new UseCaseException("ExamService", "SubmitExamResult error: Cannot found exam!").LogError();
-                return false;
-            }
-            List<Question> questions = exam.Questions;
-            if (questions.Count != answers.Count)
-            {
-                new UseCaseException("ExamService", "SubmitExamResult error: Number of questions and answers doesn't match!").LogError();
-                return false;
-            }
+            //2. get all the questions of the exam paper
+            List<string> questionObjectIds = answers.Select(a => a.QuestionId).ToList();
+            List<Question> questions = _questionRepo.GetManyQuestionsById(questionObjectIds);
 
             //3. calculate mark
             int corrects = 0;
@@ -225,7 +212,7 @@ namespace StudyHub.Backend.UseCases.Services
                 {
                     case QuestionType.SingleChoice:
                         {
-                            SingleChoiceQuestion scq = questions[i] as SingleChoiceQuestion;
+                            SingleChoiceQuestion? scq = questions[i] as SingleChoiceQuestion;
                             int studentAnswer = int.Parse(answers[i].JsonAnswers);
                             if (studentAnswer == scq.CorrectAnswer)
                             {
@@ -240,7 +227,7 @@ namespace StudyHub.Backend.UseCases.Services
                         break;
                     case QuestionType.MultipleChoice:
                         {
-                            MultipleChoiceQuestion mcq = questions[i] as MultipleChoiceQuestion;
+                            MultipleChoiceQuestion? mcq = questions[i] as MultipleChoiceQuestion;
                             List<int> studentAnswer = JsonSerializer.Deserialize<List<int>>(answers[i].JsonAnswers) ?? [];
                             if (studentAnswer.Count != 0 && studentAnswer.Count == mcq.CorrectAnswer.Count && studentAnswer.All(mcq.CorrectAnswer.Contains))
                             {
@@ -255,7 +242,7 @@ namespace StudyHub.Backend.UseCases.Services
                         break;
                     case QuestionType.TextInput:
                         {
-                            TextInputQuestion tiq = questions[i] as TextInputQuestion;
+                            TextInputQuestion? tiq = questions[i] as TextInputQuestion;
                             string studentAnswer = answers[i].JsonAnswers;
                             if (studentAnswer.ToLower().Trim() == tiq.CorrectAnswer.ToLower().Trim())
                             {
@@ -270,7 +257,7 @@ namespace StudyHub.Backend.UseCases.Services
                         break;
                     case QuestionType.FillBlank:
                         {
-                            FillBlankQuestion fbq = questions[i] as FillBlankQuestion;
+                            FillBlankQuestion? fbq = questions[i] as FillBlankQuestion;
                             List<string> studentAnswer = JsonSerializer.Deserialize<List<string>>(answers[i].JsonAnswers) ?? [];
 
                             fbq.CorrectAnswer = fbq.CorrectAnswer.Select(ans => ans.ToLower().Trim()).ToList();
@@ -289,7 +276,7 @@ namespace StudyHub.Backend.UseCases.Services
                         break;
                     case QuestionType.Matching:
                         {
-                            MatchingQuestion mq = questions[i] as MatchingQuestion;
+                            MatchingQuestion? mq = questions[i] as MatchingQuestion;
                             Dictionary<string, int> tempAnswer = JsonSerializer.Deserialize<Dictionary<string, int>>(answers[i].JsonAnswers) ?? new Dictionary<string, int>();
                             Dictionary<int, int> studentAnswer = new Dictionary<int, int>();
                             foreach (var kvp in tempAnswer)
@@ -356,6 +343,13 @@ namespace StudyHub.Backend.UseCases.Services
             }
 
             //6. update learning progress if it is the lesson exam
+            int examId = _examRepo.GetExamIdByResultId(resultId);
+            var exam = GetExamById(examId, false);
+            if (exam == null)
+            {
+                new UseCaseException("ExamService", "SubmitExamResult error: Cannot found exam!").LogError();
+                return false;
+            }
             if (exam.LessonId != 0)
             {
                 int enrollmentId = _examResultRepo.GetEnrollmentId(resultId, exam.LessonId);
@@ -366,7 +360,6 @@ namespace StudyHub.Backend.UseCases.Services
                 }
 
                 return _examResultRepo.CreateProgress(enrollmentId, exam.LessonId);
-
             }
             else return isResultSubmitted;
         }
@@ -374,6 +367,28 @@ namespace StudyHub.Backend.UseCases.Services
         public int GetCourseIdByLessonId(int lessonId)
         {
             return _examRepo.GetCourseIdByLessonId(lessonId);
+        }
+
+        public List<Question> GetExamQuestionsByResult(string resultId)
+        {
+            var questionObjectIds = _answerRepo.GetQuestionIdsByResult(resultId);
+            if (questionObjectIds.Count == 0)
+            {
+                new UseCaseException("ExamService", "GetExamQuestionsByResult error: No question available in this exam paper!").LogError();
+            }
+
+            return _questionRepo.GetManyQuestionsById(questionObjectIds);
+        }
+
+        public List<Question> GenerateRandomQuestions(int examId)
+        {
+            var exam = _examRepo.GetExamById(examId);
+            if (exam == null || exam.NoRandomQuestions == null || exam.SubjectId == null || exam.Grade == null)
+            {
+                new UseCaseException("ExamService", "GenerateRandomQuestions error: The exam's questions might be manually input!").LogError();
+                return [];
+            }
+            return _questionRepo.GenerateRandomQuestions(exam.NoRandomQuestions.Value, exam.SubjectId.Value, exam.Grade.Value);
         }
     }
 }

@@ -29,9 +29,17 @@ public partial class Exam
 
     public bool IsMultipleAttempts { get; set; }
 
+    public sbyte? NoRandomQuestions { get; set; }
+
+    public sbyte? Grade { get; set; }
+
+    public short? SubjectId { get; set; }
+
     public virtual Class? Class { get; set; }
 
     public virtual ICollection<ExamQuestion> ExamQuestions { get; set; } = new List<ExamQuestion>();
 
     public virtual ICollection<ExamResult> ExamResults { get; set; } = new List<ExamResult>();
+
+    public virtual Subject? Subject { get; set; }
 }

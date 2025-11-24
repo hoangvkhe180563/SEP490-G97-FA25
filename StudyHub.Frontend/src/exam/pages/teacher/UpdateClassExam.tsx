@@ -4,6 +4,7 @@ import { Checkbox } from '@/common/components/ui/checkbox';
 import { Label } from '@/common/components/ui/label';
 import { useLoading } from '@/common/hooks/useLoading';
 import QuestionTemplate from '@/exam/components/QuestionTemplate';
+import RandomQuestionTemplate from '@/exam/components/RandomQuestionTemplate';
 import { BLANK_PLACEHOLDER, EXAM_TYPE } from '@/exam/constants/Constants';
 import type { Exam } from '@/exam/interfaces/models/Exam';
 import type { Question } from '@/exam/interfaces/models/Question';
@@ -12,7 +13,7 @@ import { getFormattedDateTime } from '@/exam/utils/ExamUtils';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 const UpdateExam = () => {
   const { id } = useParams();
@@ -28,6 +29,9 @@ const UpdateExam = () => {
   const [showAnswers, setShowAnswers] = useState<boolean>(true);
   const [showCorrectAnswers, setShowCorrectAnswers] = useState<boolean>(false);
   const [isMultipleAttempts, setIsMultipleAttempts] = useState<boolean>(false);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number>(0);
+  const [selectedGrade, setSelectedGrade] = useState<number>(0);
+  const [randomQuestions, setRandomQuestions] = useState<string>('');
   const [openTime, setOpenTime] = useState<string>('');
   const [closeTime, setCloseTime] = useState<string>('');
   const examService = new ExamService();
@@ -65,6 +69,9 @@ const UpdateExam = () => {
         if (fetched.closeTime) {
           setCloseTime(getFormattedDateTime(fetched.closeTime));
         }
+        setRandomQuestions(fetched.noRandomQuestions?.toString() ?? '');
+        setSelectedSubjectId(fetched.subjectId ?? 0);
+        setSelectedGrade(fetched.grade ?? 0);
         setHasExam(true);
       } catch (err) {
         console.error('Failed to load exam:', err);
@@ -85,7 +92,7 @@ const UpdateExam = () => {
     }
     setLoading(true);
 
-    if (!examTitle || !examDescription || !examDuration || questions.length === 0) {
+    if (!examTitle || !examDescription || !examDuration) {
       toast.error("Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi.");
       setLoading(false);
       return;
@@ -98,50 +105,74 @@ const UpdateExam = () => {
     }
 
     // Basic validation for questions
-    for (const q of questions) {
-      if (!q.questionText.trim()) {
-        toast.error("Vui lòng nhập nội dung cho tất cả các câu hỏi.");
+    if (questions.length !== 0) {
+      for (const q of questions) {
+        if (!q.questionText.trim()) {
+          toast.error("Vui lòng nhập nội dung cho tất cả các câu hỏi.");
+          setLoading(false);
+          return;
+        }
+        if (q.type === EXAM_TYPE.SINGLE_CHOICE || q.type === EXAM_TYPE.MULTI_CHOICE) {
+          if (q.options.some(opt => !String(opt).trim())) {
+            toast.error(`Vui lòng nhập nội dung cho tất cả các lựa chọn hoặc xóa lựa chọn trống cho câu hỏi "${q.questionText}".`);
+            setLoading(false);
+            return;
+          }
+        }
+
+        if (q.type === EXAM_TYPE.SINGLE_CHOICE) {
+          if (!String(q.correctAnswer).trim()) {
+            toast.error(`Vui lòng chọn đáp án đúng cho câu hỏi "${q.questionText}".`);
+            setLoading(false);
+            return;
+          }
+        } else if (q.type === EXAM_TYPE.MULTI_CHOICE) {
+          if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length === 0 || q.correctAnswer.some(ans => !String(ans).trim())) {
+            toast.error(`Vui lòng chọn ít nhất một đáp án đúng cho câu hỏi "${q.questionText}".`);
+            setLoading(false);
+            return;
+          }
+        } else if (q.type === EXAM_TYPE.TEXT_INPUT) {
+          if (!String(q.correctAnswer).trim()) {
+            toast.error(`Vui lòng nhập đáp án đúng cho câu hỏi "${q.questionText}".`);
+            setLoading(false);
+            return;
+          }
+        } else if (q.type === EXAM_TYPE.FILL_IN_BLANK) {
+          const expectedBlanks = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+          if (expectedBlanks === 0) {
+            toast.error(`Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
+            setLoading(false);
+            return;
+          }
+          if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length !== expectedBlanks || q.correctAnswer.some(ans => !String(ans).trim())) {
+            toast.error(`Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${q.questionText}".`);
+            setLoading(false);
+            return;
+          }
+        } else if (q.type === EXAM_TYPE.MATCHING) {
+          if (!q.terms || q.terms.length === 0 || q.terms.some(term => !String(term).trim())) {
+            toast.error(`Vui lòng nhập đầy đủ các thuật ngữ cho câu hỏi ghép đôi "${q.questionText}".`);
+            setLoading(false);
+            return;
+          }
+          if (!q.definitions || q.definitions.length === 0 || q.definitions.some(def => !String(def).trim())) {
+            toast.error(`Vui lòng nhập đầy đủ các định nghĩa cho câu hỏi ghép đôi "${q.questionText}".`);
+            setLoading(false);
+            return;
+          }
+          if (q.terms.length !== q.definitions.length) {
+            toast.error(`Số lượng thuật ngữ và định nghĩa phải bằng nhau cho câu hỏi "${q.questionText}".`);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+    } else {
+      if (selectedSubjectId === 0 || selectedGrade === 0 || !Number(randomQuestions)) {
+        toast.error("Vui lòng điền số câu hỏi cần tạo!");
         setLoading(false);
         return;
-      }
-      if (q.type === EXAM_TYPE.SINGLE_CHOICE || q.type === EXAM_TYPE.MULTI_CHOICE) {
-        if (q.options.some(opt => !String(opt).trim())) {
-          toast.error(`Vui lòng nhập nội dung cho tất cả các lựa chọn hoặc xóa lựa chọn trống cho câu hỏi "${q.questionText}".`);
-          setLoading(false);
-          return;
-        }
-      }
-
-      if (q.type === EXAM_TYPE.SINGLE_CHOICE) {
-        if (!String(q.correctAnswer).trim()) {
-          toast.error(`Vui lòng chọn đáp án đúng cho câu hỏi "${q.questionText}".`);
-          setLoading(false);
-          return;
-        }
-      } else if (q.type === EXAM_TYPE.MULTI_CHOICE) {
-        if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length === 0 || q.correctAnswer.some(ans => !String(ans).trim())) {
-          toast.error(`Vui lòng chọn ít nhất một đáp án đúng cho câu hỏi "${q.questionText}".`);
-          setLoading(false);
-          return;
-        }
-      } else if (q.type === EXAM_TYPE.TEXT_INPUT) {
-        if (!String(q.correctAnswer).trim()) {
-          toast.error(`Vui lòng nhập đáp án đúng cho câu hỏi "${q.questionText}".`);
-          setLoading(false);
-          return;
-        }
-      } else if (q.type === EXAM_TYPE.FILL_IN_BLANK) {
-        const expectedBlanks = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
-        if (expectedBlanks === 0) {
-          toast.error(`Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
-          setLoading(false);
-          return;
-        }
-        if (!Array.isArray(q.correctAnswer) || q.correctAnswer.length !== expectedBlanks || q.correctAnswer.some(ans => !String(ans).trim())) {
-          toast.error(`Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${q.questionText}".`);
-          setLoading(false);
-          return;
-        }
       }
     }
 
@@ -159,11 +190,17 @@ const UpdateExam = () => {
       closeTime: closeTime ? new Date(closeTime) : undefined
     };
 
+    if (questions.length === 0) {
+      examToUpdate.noRandomQuestions = Number(randomQuestions) ?? 0;
+      examToUpdate.subjectId = selectedSubjectId;
+      examToUpdate.grade = selectedGrade;
+    }
+
     try {
       const success: boolean = await examService.updateExam(examToUpdate);
       if (success) {
         toast.success('Cập nhật bài kiểm tra thành công!');
-        navigate('/exam/teacher/class-exams');
+        navigate(`/exam/teacher/results/${id}`);
       } else {
         toast.error('Cập nhật bài kiểm tra thất bại. Vui lòng thử lại.');
       }
@@ -179,10 +216,12 @@ const UpdateExam = () => {
 
   return (
     <div className="h-full overflow-y-auto p-6">
-      <Button variant='outline' className='flex items-center' onClick={() => history.back()}>
-        <ArrowLeft />
-        <span>Quay lại</span>
-      </Button>
+      <Link to={`/exam/teacher/results/${id}`}>
+        <Button variant='outline' className='flex items-center'>
+          <ArrowLeft />
+          <span>Quay lại</span>
+        </Button>
+      </Link>
 
       <h1 className="text-4xl font-bold mb-6 text-gray-800">Chỉnh sửa bài kiểm tra</h1>
 
@@ -276,9 +315,13 @@ const UpdateExam = () => {
           <Label htmlFor="showCorrectAnswers">Hiện đáp án đúng/sai</Label>
         </div>
 
-        <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Câu hỏi</h2>
+        <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Câu hỏi <span className='text-red-500'>*</span></h2>
 
-        <QuestionTemplate questions={questions} setQuestions={setQuestions} />
+        {questions.length !== 0 ? (
+          <QuestionTemplate questions={questions} setQuestions={setQuestions} />
+        ) : (
+          <RandomQuestionTemplate selectedSubjectId={selectedSubjectId} setSelectedSubjectId={setSelectedSubjectId} selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} selectedRandomQuestions={randomQuestions} setSelectedRandomQuestions={setRandomQuestions} />
+        )}
 
         <div className="mt-10 text-center">
           <Button

@@ -16,6 +16,7 @@ const ViewResultDetail = () => {
   const navigate = useNavigate();
   const [result, setResult] = useState<ExamResult>(DEFAULT_EXAM_RESULT);
   const [exam, setExam] = useState<Exam>(DEFAULT_EXAM);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const { setLoading } = useLoading();
   const [error, setError] = useState<string>('');
   const examService = new ExamService();
@@ -34,17 +35,20 @@ const ViewResultDetail = () => {
     const fetchResultDetails = async () => {
       try {
         setLoading(true);
-        const fetchedResult = await examService.getResultDetail(id);
+        const isTeacher = user.roles.some(r => r.includes("Teacher"));
+        const fetchedResult = await examService.getResultDetail(id, isTeacher);
         if (fetchedResult.examId === 0) {
           setError("Không thể tải chi tiết kết quả.");
           return;
         }
         setResult(fetchedResult);
-
-        const fetchedExam = await examService.getExamById(fetchedResult.examId, true);
+        const fetchedExam = await examService.getExamById(fetchedResult.examId);
         setExam(fetchedExam);
-        setShowAnswers(fetchedExam.showAnswers);
-        setShowCorrectAnswers(fetchedExam.showCorrectAnswers);
+        setShowAnswers(fetchedExam.showAnswers || isTeacher);
+        setShowCorrectAnswers(fetchedExam.showCorrectAnswers || isTeacher);
+
+        const fetchedQuestions = await examService.getExamQuestionsByResultId(id);
+        setQuestions(fetchedQuestions);
 
         if (fetchedExam.lessonId) {
           const courseId = await examService.getCourseIdByLessonId(fetchedExam.lessonId);
@@ -139,7 +143,7 @@ const ViewResultDetail = () => {
           }
         } else if (user?.roles.some(role => role.includes("Teacher"))) {
           if (exam.classId) {
-            navigate('/exam/teacher/class-exams/' + exam.classId);
+            navigate('/exam/teacher/results/' + exam.id);
             return;
           }
         }
@@ -178,7 +182,7 @@ const ViewResultDetail = () => {
           <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Các câu hỏi và câu trả lời</h2>
 
           <div className="space-y-8">
-            {exam.questions.map((question, index) => {
+            {questions.map((question, index) => {
               const studentAnswerEntry = result.answers.find(ans => ans.questionId === question.questionObjectId);
               const isCorrect = studentAnswerEntry?.isCorrect;
               const studentAnswer = studentAnswerEntry?.jsonAnswers;

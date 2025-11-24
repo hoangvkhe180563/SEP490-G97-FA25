@@ -37,5 +37,8 @@ namespace StudyHub.Backend.Api.Dtos.ExamDTOS
 
         [Required(ErrorMessage = "Phải có ít nhất một câu hỏi!")]
         public List<QuestionCreateDto> Questions { get; set; } = new List<QuestionCreateDto>();
+        public sbyte? NoRandomQuestions { get; set; }
+        public sbyte? Grade { get; set; }
+        public short? SubjectId { get; set; }
     }
 }

@@ -598,6 +598,8 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.LessonId, "LessonId").IsUnique();
 
+            entity.HasIndex(e => e.SubjectId, "SubjectId");
+
             entity.Property(e => e.CloseTime).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.OpenTime)
@@ -611,6 +613,10 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Class).WithMany(p => p.Exams)
                 .HasForeignKey(d => d.ClassId)
                 .HasConstraintName("exams_ibfk_1");
+
+            entity.HasOne(d => d.Subject).WithMany(p => p.Exams)
+                .HasForeignKey(d => d.SubjectId)
+                .HasConstraintName("exams_ibfk_2");
         });
 
         modelBuilder.Entity<ExamQuestion>(entity =>

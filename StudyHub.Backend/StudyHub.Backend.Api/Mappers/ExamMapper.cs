@@ -21,7 +21,10 @@ namespace StudyHub.Backend.Api.Mappers
                 ClassId = examDto.ClassId ?? 0,
                 LessonId = examDto.LessonId ?? 0,
                 OpenTime = examDto.OpenTime,
-                CloseTime = examDto.CloseTime
+                CloseTime = examDto.CloseTime,
+                NoRandomQuestions = examDto.NoRandomQuestions,
+                SubjectId = examDto.SubjectId,
+                Grade = examDto.Grade
             };
 
             List<Question> questions = new List<Question>();
@@ -123,7 +126,10 @@ namespace StudyHub.Backend.Api.Mappers
                 ShowCorrectAnswers = examDto.ShowCorrectAnswers,
                 IsMultipleAttempts = examDto.IsMultipleAttempts,
                 OpenTime = examDto.OpenTime,
-                CloseTime = examDto.CloseTime
+                CloseTime = examDto.CloseTime,
+                NoRandomQuestions = examDto.NoRandomQuestions,
+                SubjectId = examDto.SubjectId,
+                Grade = examDto.Grade
             };
 
             return examEntity;
@@ -145,7 +151,10 @@ namespace StudyHub.Backend.Api.Mappers
                 CreatedBy = exam.CreatedBy,
                 ClassId = exam.ClassId,
                 LessonId = exam.LessonId,
-                TotalQuestions = exam.TotalQuestions
+                TotalQuestions = exam.TotalQuestions,
+                NoRandomQuestions = exam.NoRandomQuestions,
+                SubjectId = exam.SubjectId,
+                Grade = exam.Grade
             };
 
             List<QuestionDetailsDto> questionDto = new List<QuestionDetailsDto>();

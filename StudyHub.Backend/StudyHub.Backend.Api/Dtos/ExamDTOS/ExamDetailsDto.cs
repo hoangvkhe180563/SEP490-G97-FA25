@@ -20,5 +20,8 @@ namespace StudyHub.Backend.Api.Dtos.ExamDTOS
         public bool IsMultipleAttempts { get; set; }
         public List<QuestionDetailsDto> Questions { get; set; } = new List<QuestionDetailsDto>();
         public int TotalQuestions { get; set; }
+        public sbyte? NoRandomQuestions { get; set; }
+        public sbyte? Grade { get; set; }
+        public short? SubjectId { get; set; }
     }
 }

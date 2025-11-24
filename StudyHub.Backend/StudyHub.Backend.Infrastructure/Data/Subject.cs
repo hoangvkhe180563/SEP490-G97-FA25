@@ -13,6 +13,8 @@ public partial class Subject
 
     public virtual ICollection<Document> Documents { get; set; } = new List<Document>();
 
+    public virtual ICollection<Exam> Exams { get; set; } = new List<Exam>();
+
     public virtual ICollection<ForumPost> ForumPosts { get; set; } = new List<ForumPost>();
 
     public virtual ICollection<QATopic> QATopics { get; set; } = new List<QATopic>();

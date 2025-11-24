@@ -45,6 +45,30 @@ export class QuestionService {
     return null;
   }
 
+  getTotalQuestions = async (subjectId: number, grade: number): Promise<number> => {
+    if (subjectId === 0 || grade === 0) {
+      return 0;
+    }
+
+    try {
+      const res = await axiosInstance.get("question", {
+        params: {
+          subjectId,
+          grade
+        }
+      });
+      if (res.status === 200) {
+        const data = res.data;
+        return data.totalQuestions;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error getTotalQuestions: ", error);
+    }
+    return 0;
+  }
+
   addCommonQuestions = async (questions: Question[]): Promise<boolean> => {
     if (questions.length === 0) {
       return false;
@@ -102,6 +126,20 @@ export class QuestionService {
       console.error("Error deleteCommonQuestion: ", error);
     }
     return false;
+  }
+
+  getAllSubjects = async (): Promise<Subject[]> => {
+    try {
+      const res = await axiosInstance.get(`subject/allsubject`);
+      if (res.status === 200) {
+        return res.data;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error getManagerSubjects: ", error);
+    }
+    return [];
   }
 
   getManagerSubjects = async (managerId: string): Promise<Subject[]> => {

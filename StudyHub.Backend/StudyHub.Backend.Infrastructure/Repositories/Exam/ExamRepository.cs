@@ -1,9 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Domain.Entities.Exam;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories.Exam;
 using System;
+using System.Diagnostics;
 
 namespace StudyHub.Backend.Infrastructure.Repositories.Exam
 {
@@ -33,18 +35,24 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                     OpenTime = examEntity.OpenTime,
                     CloseTime = examEntity.CloseTime,
                     IsMultipleAttempts = examEntity.IsMultipleAttempts,
+                    NoRandomQuestions = examEntity.NoRandomQuestions,
+                    SubjectId = examEntity.SubjectId,
+                    Grade = examEntity.Grade
                 };
                 _context.Add(exam);
                 _context.SaveChanges();
 
-                var questions = questionObjectIds.Select(id => new ExamQuestion
+                if (questionObjectIds.Count != 0)
                 {
-                    ExamId = exam.Id,
-                    QuestionObjectId = id
-                });
+                    var questions = questionObjectIds.Select(id => new ExamQuestion
+                    {
+                        ExamId = exam.Id,
+                        QuestionObjectId = id
+                    });
 
-                _context.ExamQuestions.AddRange(questions);
-                _context.SaveChanges();
+                    _context.ExamQuestions.AddRange(questions);
+                    _context.SaveChanges();
+                }
                 transaction.Commit();
                 return true;
             }
@@ -72,7 +80,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                     ClassId = e.ClassId.GetValueOrDefault(),
                     ShowAnswers = e.ShowAnswers.GetValueOrDefault(),
                     ShowCorrectAnswers = e.ShowCorrectAnswers,
-                    TotalQuestions = e.ExamQuestions.Count,
+                    TotalQuestions = e.NoRandomQuestions != null ? (int)e.NoRandomQuestions : e.ExamQuestions.Count,
                     IsMultipleAttempts = e.IsMultipleAttempts
                 }).ToList();
             }
@@ -100,7 +108,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                     ClassId = e.ClassId.GetValueOrDefault(),
                     ShowAnswers = e.ShowAnswers.GetValueOrDefault(),
                     ShowCorrectAnswers = e.ShowCorrectAnswers,
-                    TotalQuestions = e.ExamQuestions.Count,
+                    TotalQuestions = e.NoRandomQuestions != null ? (int)e.NoRandomQuestions : e.ExamQuestions.Count,
                     IsMultipleAttempts = e.IsMultipleAttempts
                 }).ToList();
             }
@@ -127,7 +135,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                     ClassId = e.ClassId.GetValueOrDefault(),
                     ShowAnswers = e.ShowAnswers.GetValueOrDefault(),
                     ShowCorrectAnswers = e.ShowCorrectAnswers,
-                    TotalQuestions = e.ExamQuestions.Count,
+                    TotalQuestions = e.NoRandomQuestions != null ? (int)e.NoRandomQuestions : e.ExamQuestions.Count,
                     IsMultipleAttempts = e.IsMultipleAttempts
                 }).ToList();
             }
@@ -171,8 +179,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                         CreatedBy = examData.CreatedBy,
                         ShowAnswers = examData.ShowAnswers.GetValueOrDefault(),
                         ShowCorrectAnswers = examData.ShowCorrectAnswers,
-                        TotalQuestions = examData.ExamQuestions.Count,
-                        IsMultipleAttempts = examData.IsMultipleAttempts
+                        TotalQuestions = examData.NoRandomQuestions != null ? (int)examData.NoRandomQuestions : examData.ExamQuestions.Count,
+                        IsMultipleAttempts = examData.IsMultipleAttempts,
+                        NoRandomQuestions = examData.NoRandomQuestions,
+                        SubjectId = examData.SubjectId,
+                        Grade = examData.Grade
                     };
                 }
             }
@@ -283,6 +294,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                 exam.OpenTime = examEntity.OpenTime;
                 exam.CloseTime = examEntity.CloseTime;
                 exam.IsMultipleAttempts = examEntity.IsMultipleAttempts;
+                exam.NoRandomQuestions = examEntity.NoRandomQuestions;
+                exam.SubjectId = examEntity.SubjectId;
+                exam.Grade = examEntity.Grade;
 
                 _context.Exams.Update(exam);
                 _context.SaveChanges();

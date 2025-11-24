@@ -14,5 +14,8 @@ export interface Exam {
   classId?: number,
   lessonId?: number,
   openTime: Date,
-  closeTime?: Date
+  closeTime?: Date,
+  noRandomQuestions?: number,
+  subjectId?: number,
+  grade?: number
 }

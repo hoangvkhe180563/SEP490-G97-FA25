@@ -75,7 +75,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
             }
             catch (Exception ex)
             {
-                new MongoDbException("QuestionRepository", "GetQuestionById failed. Inner error: " + ex.Message).LogError();
+                new MongoDbException("QuestionRepository", "AddOneQuestion failed. Inner error: " + ex.Message).LogError();
             }
             return string.Empty;
         }
@@ -218,7 +218,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
             }
             try
             {
-                var objectIds = ids.Select(id => ObjectId.Parse(id)).ToList();
+                var objectIds = ids.Select(ObjectId.Parse).ToList();
                 var questions = _questionCollection.Find(q => objectIds.Contains(q.Id)).ToList();
                 return questions.Select(questions => questions.ToQuestionEntity()).ToList();
             }
@@ -301,6 +301,28 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
                 new MongoDbException("QuestionRepository", "GetTotalQuestions failed. Inner error: " + ex.Message).LogError();
             }
             return 0;
+        }
+
+        public List<Domain.Entities.Exam.Question> GenerateRandomQuestions(sbyte noRandomQuestions, short subjectId, sbyte grade)
+        {
+            try
+            {
+                var questions = _questionCollection.Find(q => q.SubjectId == subjectId && q.Grade == grade).ToList();
+                var random = new Random();
+                var randomQuestions = questions.OrderBy(x => random.Next()).Take(noRandomQuestions).ToList();
+                List<Domain.Entities.Exam.Question> mappedQuestions = [];
+                foreach (var question in randomQuestions)
+                {
+                    Domain.Entities.Exam.Question questionEntity = question.ToQuestionEntity();
+                    mappedQuestions.Add(questionEntity);
+                }
+                return mappedQuestions;
+            }
+            catch (Exception ex)
+            {
+                new MongoDbException("QuestionRepository", "GenerateRandomQuestions failed. Inner error: " + ex.Message).LogError();
+            }
+            return [];
         }
     }
 }

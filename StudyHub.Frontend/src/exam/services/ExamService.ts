@@ -3,6 +3,7 @@ import { DEFAULT_EXAM, DEFAULT_EXAM_RESULT } from "../constants/Constants";
 import type { Exam } from "../interfaces/models/Exam";
 import type { ExamResult } from "../interfaces/models/ExamResult";
 import { formatISO } from "date-fns";
+import type { Question } from "../interfaces/models/Question";
 
 export class ExamService {
 
@@ -24,7 +25,7 @@ export class ExamService {
         throw new Error(`Status: ${res.status}`);
       }
     } catch (error) {
-      console.error("Error getStudentClassExams: ", error);
+      console.error("Error createExam: ", error);
     }
     return false;
   }
@@ -104,7 +105,10 @@ export class ExamService {
           showCorrectAnswers: data.showCorrectAnswers,
           isMultipleAttempts: data.isMultipleAttempts,
           totalQuestions: data.totalQuestions,
-          questions: data.questions
+          questions: data.questions,
+          noRandomQuestions: data.noRandomQuestions,
+          subjectId: data.subjectId,
+          grade: data.grade
         };
       } else {
         throw new Error(`Status: ${res.status}`);
@@ -113,6 +117,20 @@ export class ExamService {
       console.error("Error getExamById: ", error);
     }
     return DEFAULT_EXAM;
+  }
+
+  getExamQuestionsByResultId = async (resultId: string) : Promise<Question[]> => {
+    try {
+      const res = await axiosInstance.get(`examResult/${resultId}/questions`);
+      if (res.status === 200) {
+        return res.data;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error getExamQuestionsByResultId: ", error);
+    }
+    return [];
   }
 
   updateExam = async (examData: Exam): Promise<boolean> => {
@@ -213,7 +231,7 @@ export class ExamService {
         throw new Error(`Status: ${res.status}`);
       }
     } catch (error) {
-      console.error("Error createResult: ", error);
+      console.error("Error updateResult: ", error);
     }
     return false;
   }
@@ -286,9 +304,9 @@ export class ExamService {
     return [];
   }
 
-  getResultDetail = async (id: string): Promise<ExamResult> => {
+  getResultDetail = async (id: string, isTeacher: boolean): Promise<ExamResult> => {
     try {
-      const res = await axiosInstance.get("/examResult/" + id);
+      const res = await axiosInstance.get("/examResult/" + id + "?isTeacher=" + isTeacher);
       if (res.status === 200) {
         const data = res.data;
         const answers = data.answers.map((ans: any) => {
@@ -355,8 +373,22 @@ export class ExamService {
         throw new Error(`Status: ${res.status}`);
       }
     } catch (error) {
-      console.error("Error checkExamStatus: ", error);
+      console.error("Error getCourseIdByLessonId: ", error);
     }
     return 0;
+  }
+
+  generateRandomQuestions = async (examId: number): Promise<Question[]> => {
+    try {
+      const res = await axiosInstance.get(`/exam/generate-random/${examId}`);
+      if (res.status === 200) {
+        return res.data;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error getCourseIdByLessonId: ", error);
+    }
+    return [];
   }
 }

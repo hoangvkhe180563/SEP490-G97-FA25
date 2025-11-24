@@ -29,5 +29,8 @@ namespace StudyHub.Backend.Api.Dtos.ExamDTOS
         public DateTime OpenTime { get; set; }
         public DateTime? CloseTime { get; set; }
         public List<string> QuestionObjectIds { get; set; } = new List<string>();
+        public sbyte? NoRandomQuestions { get; set; }
+        public sbyte? Grade { get; set; }
+        public short? SubjectId { get; set; }
     }
 }

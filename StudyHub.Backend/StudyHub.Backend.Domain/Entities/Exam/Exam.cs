@@ -18,5 +18,8 @@
         public List<Question> Questions { get; set; } = new List<Question>();
         public int TotalQuestions { get; set; }
         public List<ExamResult> Results { get; set; } = new List<ExamResult>();
+        public sbyte? NoRandomQuestions { get; set; }
+        public sbyte? Grade { get; set; }
+        public short? SubjectId { get; set; }
     }
 }

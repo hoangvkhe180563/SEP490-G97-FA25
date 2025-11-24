@@ -55,10 +55,12 @@ const ViewExamHistory = () => {
 
   return (
     <div className="w-full h-full overflow-y-auto p-6">
-      <Button variant='outline' className='flex items-center' onClick={() => history.back()}>
-        <ArrowLeft />
-        <span>Quay lại</span>
-      </Button>
+      <Link to={`/class/teacher/${exam.classId}`}>
+        <Button variant='outline' className='flex items-center'>
+          <ArrowLeft />
+          <span>Quay lại</span>
+        </Button>
+      </Link>
 
       <h1 className="text-3xl font-bold mb-3">Chi tiết bài kiểm tra: {exam.title}</h1>
       <p className="text-gray-700 mb-2">{exam.description}</p>

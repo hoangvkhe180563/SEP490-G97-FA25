@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescript
 import { useAuthStore } from '@/auth/stores/useAuthStore';
 import { calculateFinishTime } from '@/exam/utils/ExamUtils';
 import toast from 'react-hot-toast';
+import type { Question } from '@/exam/interfaces/models/Question';
 
 const TakeExam = () => {
   const { id } = useParams();
@@ -27,17 +28,18 @@ const TakeExam = () => {
   }>({});
   const [timeLeft, setTimeLeft] = useState(0);
   const { setLoading } = useLoading();
-  const [error, setError] = useState<string>('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const isVisible = useDocumentVisibility();
   const examService = new ExamService();
   const [cheatTimes, setCheatTimes] = useState<number>(0);
   const [cheatDialogOpen, setCheatDialogOpen] = useState<boolean>(false);
+  const [questions, setQuestions] = useState<Question[]>([]);
 
   const examRef = useRef(exam);
   const examResultRef = useRef(examResult);
   const studentAnswersRef = useRef(studentAnswers);
   const cheatTimesRef = useRef(cheatTimes);
+  const questionsRef = useRef(questions);
 
   useEffect(() => {
     examRef.current = exam;
@@ -56,6 +58,10 @@ const TakeExam = () => {
   }, [cheatTimes]);
 
   useEffect(() => {
+    questionsRef.current = questions;
+  }, [questions]);
+
+  useEffect(() => {
     if (!user) {
       return;
     }
@@ -68,6 +74,8 @@ const TakeExam = () => {
       navigate(-1);
       return;
     }
+
+    let backupInterval = 0;
     const fetchExam = async () => {
       try {
         setLoading(true);
@@ -75,11 +83,21 @@ const TakeExam = () => {
         setExam(fetchedExam);
         setTimeLeft(fetchedExam.duration * 60);
 
+        //TODO: fetch questions
+        let questions: Question[] = fetchedExam.questions;
+        if (fetchedExam.noRandomQuestions) {
+          questions = await examService.generateRandomQuestions(Number(id));
+        }
+        if (questions.length === 0) {
+          throw new Error("Không load được câu hỏi!");
+        }
+        setQuestions(questions);
+
         const examResult: ExamResult = {
           id: '',
           examId: Number(fetchedExam.id),
           studentId: user.id,
-          answers: fetchedExam.questions.map((q) => {
+          answers: questions.map((q) => {
             let initialAnswer;
             switch (q.type) {
               case EXAM_TYPE.SINGLE_CHOICE:
@@ -117,7 +135,7 @@ const TakeExam = () => {
         };
         setStudentAnswers(_ => {
           const newAnswers: { [key: number]: any } = {};
-          fetchedExam.questions.forEach((q, index) => {
+          questions.forEach((q, index) => {
             const answerEntry = examResult.answers.find(a => a.questionId === q.questionObjectId);
             if (answerEntry) {
               newAnswers[index + 1] = q.type === EXAM_TYPE.TEXT_INPUT ? answerEntry.jsonAnswers : JSON.parse(answerEntry.jsonAnswers);
@@ -131,16 +149,16 @@ const TakeExam = () => {
         }
         examResult.id = resultObjectId;
         setExamResult(examResult);
+        backupInterval = setInterval(handleBackupExamResult, 30000);
       } catch (err) {
         console.error("Failed to fetch exam:", err);
-        setError("Không thể tải bài kiểm tra.");
-        setExam(DEFAULT_EXAM);
+        toast.error("Không thể tải bài kiểm tra.");
+        navigate(-1);
       } finally {
         setLoading(false);
       }
     };
     fetchExam();
-    const backupInterval = setInterval(handleBackupExamResult, 30000);
     return () => clearInterval(backupInterval);
   }, [user]);
 
@@ -206,7 +224,7 @@ const TakeExam = () => {
 
   const handleSubmitExam = async () => {
     if (!user) {
-      setError("Có gì đó sai sai. Bạn cần đăng nhập để nộp bài.");
+      toast.error("Có gì đó sai sai. Bạn cần đăng nhập để nộp bài.");
       return;
     }
 
@@ -223,12 +241,12 @@ const TakeExam = () => {
   };
 
   const handleBackupExamResult = async (isSubmission: boolean) => {
-    const currentExam = examRef.current;
     const currentStudentAnswers = studentAnswersRef.current;
     const currentCheatTimes = cheatTimesRef.current;
     const currentExamResult = examResultRef.current;
+    const currentQuestions = questionsRef.current;
 
-    const answeredQuestions = currentExam.questions.map((q, index) => {
+    const answeredQuestions = currentQuestions.map((q, index) => {
       const studentAns = currentStudentAnswers[index + 1];
 
       return {
@@ -270,10 +288,6 @@ const TakeExam = () => {
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  if (error) {
-    return <div className="container mx-auto mt-8 p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>;
-  }
-
   if (!exam) {
     return <p className="container mx-auto mt-8 p-4 text-gray-600">Không tìm thấy bài kiểm tra hoặc có lỗi khi tải.</p>;
   }
@@ -298,11 +312,7 @@ const TakeExam = () => {
         </div>
       </div>
 
-      <div className="px-8 py-3 w-full border-b border-gray-400"> {/*grid grid-cols-3 */}
-        {/* <div className="col-start-2 flex justify-center space-x-6 items-center">
-          <Button className="border-blue-700" variant="outline">Quay lại</Button>
-          <Button className="bg-blue-500 hover:bg-blue-700">Tiếp theo</Button>
-        </div> */}
+      <div className="px-8 py-3 w-full border-b border-gray-400">
         <div className="flex justify-end items-center space-x-4">
           <Button className="bg-blue-500 hover:bg-blue-700" onClick={() => handleBackupExamResult(false)}>Lưu</Button>
           <div className="flex space-x-2">
@@ -313,7 +323,7 @@ const TakeExam = () => {
         </div>
       </div>
       <div className="px-6 py-6 space-y-3 flex-1 overflow-y-auto">
-        {exam.questions.map((question, index) => (
+        {questions.map((question, index) => (
           <div key={question.questionObjectId} id={`q${index + 1}`} tabIndex={0} className="bg-gray-50 p-6 rounded-lg shadow-sm border border-gray-200 transition-all focus-within:ring-2 focus-within:ring-blue-500">
             <p className="text-lg font-semibold mb-3 text-gray-800">
               Câu {index + 1}: {question.type !== EXAM_TYPE.FILL_IN_BLANK && <span>{question.questionText}</span>}
@@ -426,7 +436,7 @@ const TakeExam = () => {
       </div>
       <div className="px-3 py-3 flex gap-3">
         {
-          Object.keys(studentAnswers).length > 0 && exam.questions.map((q, index) => {
+          Object.keys(studentAnswers).length > 0 && questions.map((q, index) => {
             let hasAnswered = false;
             switch (q.type) {
               case EXAM_TYPE.SINGLE_CHOICE:

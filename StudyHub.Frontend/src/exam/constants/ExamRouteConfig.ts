@@ -1,10 +1,7 @@
 const ExamRouteConfig = {
   STUDENT: {
     EXAM_DETAIL: "student/exams/:id",
-    TAKE_EXAM: "student/take-exam/:id",
-    CLASS: {
-      EXAM_RESULT_LIST: "student/class-exams/results"
-    }
+    TAKE_EXAM: "student/take-exam/:id"
   },
   TEACHER: {
     CLASS: {
