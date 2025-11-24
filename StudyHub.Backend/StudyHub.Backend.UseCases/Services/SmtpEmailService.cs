@@ -28,19 +28,30 @@ namespace StudyHub.Backend.Api.Services
             var resetLink = $"{baseUrl.TrimEnd('/')}/auth/reset-password?token={resetToken}";
 
             var htmlBody = $@"
-                                <html>
-                                <body style='font-family: Arial, sans-serif; color: #222;'>
-                                    <h2 style='color:#333'>{appName} - Password reset</h2>
-                                    <p>We received a request to reset your password. Click the button below to set a new password. This link is valid for 1 hour.</p>
-                                    <p style='text-align:center'>
-                                        <a href='{resetLink}' style='display:inline-block;padding:12px 20px;background:#0d6efd;color:#fff;border-radius:6px;text-decoration:none;'>Reset password</a>
-                                    </p>
-                                    <p>If you didn't request this, you can safely ignore this email.</p>
-                                    <hr/>
-                                    <small>{appName} Team</small>
-                                </body>
-                                </html>
-                        ";
+            <html>
+            <body style='font-family: Arial, sans-serif; background: #f5f7fa; padding: 24px;'>
+            <div style='max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 32px; border: 1px solid #e8eaee;'>
+
+                <h2 style='color:#1a73e8; margin-top:0;'>Đặt lại mật khẩu</h2>
+                <p>Xin chào,</p>
+                <p>Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản <strong>{appName}</strong> của bạn. Nhấn vào nút bên dưới để tạo mật khẩu mới.</p>
+
+                <div style='text-align:center;margin:24px 0;'>
+                <a href='{resetLink}' 
+                    style='background:#1a73e8;color:#fff;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600;'>
+                    Đặt lại mật khẩu
+                </a>
+                </div>
+
+                <p>Liên kết này có hiệu lực trong <strong>1 giờ</strong>. Nếu bạn không yêu cầu thao tác này, vui lòng bỏ qua email.</p>
+
+                <hr style='margin:32px 0;border:none;border-top:1px solid #eee;'/>
+                <p style='font-size:12px;color:#6b7280;text-align:center;'>© {DateTime.UtcNow.Year} {appName}. Giữ mọi quyền.</p>
+
+            </div>
+            </body>
+            </html>";
+
 
             var message = new MailMessage(from, toEmail)
             {
@@ -68,19 +79,32 @@ namespace StudyHub.Backend.Api.Services
             var verifyLink = $"{baseUrl.TrimEnd('/')}/auth/verify-email?token={Uri.EscapeDataString(verificationToken)}";
 
             var htmlBody = $@"
-                    <html>
-                    <body style='font-family: Arial, sans-serif; color: #222;'>
-                        <h2 style='color:#333'>{appName} - Verify your email</h2>
-                        <p>Click the button below to verify your email address. This link is valid for 24 hours.</p>
-                        <p style='text-align:center'>
-                            <a href='{verifyLink}' style='display:inline-block;padding:12px 20px;background:#0d6efd;color:#fff;border-radius:6px;text-decoration:none;'>Verify email</a>
-                        </p>
-                        <p>If you didn't create an account with this email, you can ignore this message.</p>
-                        <hr/>
-                        <small>{appName} Team</small>
-                    </body>
-                    </html>
-            ";
+            <html>
+            <body style='font-family: Arial, sans-serif; background:#f5f7fa; padding:24px;'>
+            <div style='max-width:560px;margin:auto;background:#fff;border-radius:12px;padding:32px;border:1px solid #e8eaee;'>
+
+                <h2 style='color:#1a73e8;margin-top:0;'>Xác thực email của bạn</h2>
+                <p>Chào mừng bạn đến với <strong>{appName}</strong>!</p>
+                <p>Nhấn vào nút bên dưới để xác thực địa chỉ email và kích hoạt tài khoản của bạn.</p>
+
+                <div style='text-align:center;margin:24px 0;'>
+                <a href='{verifyLink}' 
+                    style='background:#1a73e8;color:#fff;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600;'>
+                    Xác thực email
+                </a>
+                </div>
+
+                <p>Liên kết có hiệu lực trong <strong>24 giờ</strong>.</p>
+                <p>Nếu bạn không đăng ký tài khoản bằng email này, vui lòng bỏ qua.</p>
+
+                <hr style='margin:32px 0;border-top:1px solid #eee;'/>
+                <p style='font-size:12px;color:#6b7280;text-align:center;'>© {DateTime.UtcNow.Year} {appName}. Giữ mọi quyền.</p>
+
+            </div>
+            </body>
+            </html>";
+
+
 
             var message = new MailMessage(from, toEmail)
             {
@@ -106,35 +130,37 @@ namespace StudyHub.Backend.Api.Services
             var inviterLine = !string.IsNullOrWhiteSpace(inviterName) ? $"<div style='color:#5f6368'>Invited by {WebUtility.HtmlEncode(inviterName)}</div>" : "";
 
             var htmlBody = $@"
-                <html>
-                <body style='font-family: Arial, sans-serif; color: #222;'>
-                  <div style='max-width:600px;margin:0 auto;padding:18px;border:1px solid #eaeaea;border-radius:8px;'>
-                    <div style='display:flex;gap:12px;align-items:center'>
-                      <div style='width:48px;height:48px;border-radius:6px;background:#f5f7fb;display:flex;align-items:center;justify-content:center;font-weight:700;color:#1a73e8;font-size:20px;'>C</div>
-                      <div>
-                        <div style='font-size:18px;font-weight:600;color:#202124'>You were invited to join a class</div>
-                        <div style='color:#5f6368;margin-top:6px;font-size:14px;'>Class: <strong>{WebUtility.HtmlEncode(className)}</strong></div>
-                        {inviterLine}
-                      </div>
-                    </div>
+            <html>
+            <body style='font-family: Arial, sans-serif; background:#f5f7fa; padding:24px;'>
+            <div style='max-width:600px;margin:auto;background:#fff;border-radius:12px;padding:32px;border:1px solid #e8eaee;'>
 
-                    {(!string.IsNullOrWhiteSpace(customMessage) ? $"<div style='margin-top:12px;color:#3c4043'>{WebUtility.HtmlEncode(customMessage)}</div>" : "")}
+                <h2 style='color:#1a73e8;margin-top:0;'>Lời mời tham gia lớp học</h2>
 
-                    <div style='margin-top:18px;text-align:center;'>
-                      <a href='{acceptUrl}' style='display:inline-block;padding:12px 20px;background:#1a73e8;color:#fff;border-radius:6px;text-decoration:none;font-weight:600'>Accept Invitation</a>
-                    </div>
+                <p>Bạn đã được mời tham gia lớp học:</p>
+                <p style='font-size:18px;font-weight:600;color:#111;margin:8px 0;'>📘 {WebUtility.HtmlEncode(className)}</p>
 
-                    <div style='margin-top:16px;color:#5f6368;font-size:12px'>
-                      If the above link doesn't work, copy and paste the following URL into your browser:
-                      <div style='word-break:break-all;margin-top:8px'>{WebUtility.HtmlEncode(acceptUrl)}</div>
-                    </div>
+                {(string.IsNullOrWhiteSpace(inviterName) ? "" : $"<p>Người mời: <strong>{WebUtility.HtmlEncode(inviterName)}</strong></p>")}
 
-                    <hr style='margin-top:18px;border:none;border-top:1px solid #eee'/>
-                    <div style='font-size:12px;color:#9aa0a6'>This email was sent by {WebUtility.HtmlEncode(appName)}.</div>
-                  </div>
-                </body>
-                </html>
-            ";
+                {(string.IsNullOrWhiteSpace(customMessage) ? "" : $"<p style='margin-top:12px;color:#374151'>{WebUtility.HtmlEncode(customMessage)}</p>")}
+
+                <div style='text-align:center;margin:24px 0;'>
+                <a href='{acceptUrl}' 
+                    style='background:#1a73e8;color:#fff;padding:14px 24px;border-radius:8px;text-decoration:none;font-weight:600;'>
+                    Tham gia lớp học
+                </a>
+                </div>
+
+                <p>Nếu nút không hoạt động, hãy sao chép và dán liên kết dưới đây vào trình duyệt của bạn:</p>
+                <p style='word-break:break-all;color:#374151'>{WebUtility.HtmlEncode(acceptUrl)}</p>
+
+                <hr style='margin:32px 0;border-top:1px solid #eee;'/>
+                <p style='font-size:12px;color:#6b7280;text-align:center;'>© {DateTime.UtcNow.Year} {appName}. Giữ mọi quyền.</p>
+
+            </div>
+            </body>
+            </html>";
+
+
 
             var message = new MailMessage(from, toEmail)
             {
@@ -167,49 +193,82 @@ namespace StudyHub.Backend.Api.Services
             {
                 subject = $"{appName} - Yêu cầu khôi phục: Đã phê duyệt";
                 body = $@"
-                    <html>
-                    <body style='font-family: Arial, sans-serif; color: #222;'>
-                      <h2 style='color:#333'>{appName}</h2>
-                      <p>Xin chào {System.Net.WebUtility.HtmlEncode(username ?? "")},</p>
-                      <p>Yêu cầu khôi phục tài khoản của bạn đã được <strong>phê duyệt</strong>. Bạn có thể đăng nhập lại vào hệ thống.</p>
-                      {(string.IsNullOrWhiteSpace(reason) ? "" : $"<p>Lý do: {System.Net.WebUtility.HtmlEncode(reason)}</p>")}
-                      <hr/>
-                      <small>{appName} Team</small>
-                    </body>
-                    </html>
-                ";
+                <html>
+                <body style='font-family:Arial;background:#f5f7fa;padding:24px;'>
+                <div style='max-width:560px;margin:auto;background:#fff;border-radius:12px;padding:32px;border:1px solid #e8eaee;'>
+
+                    <h2 style='color:#1a73e8;margin-top:0;'>Yêu cầu khôi phục đã được phê duyệt</h2>
+
+                    <p>Xin chào <strong>{WebUtility.HtmlEncode(username)}</strong>,</p>
+                    <p>Yêu cầu khôi phục tài khoản của bạn đã được <strong style='color:#16a34a;'>phê duyệt</strong>.</p>
+                    {(string.IsNullOrWhiteSpace(reason) ? "" : $"<p><strong>Ghi chú:</strong> {WebUtility.HtmlEncode(reason)}</p>")}
+
+                    <p>Bạn có thể đăng nhập trở lại hệ thống.</p>
+
+                    <hr style='margin:32px 0;border-top:1px solid #eee;'/>
+                    <p style='font-size:12px;color:#6b7280;text-align:center;'>© {DateTime.UtcNow.Year} {appName}</p>
+
+                </div>
+                </body>
+                </html>";
+
+
             }
             else if (status?.Equals("Đã từ chối", System.StringComparison.OrdinalIgnoreCase) == true || status?.Equals("Rejected", System.StringComparison.OrdinalIgnoreCase) == true)
             {
                 subject = $"{appName} - Yêu cầu khôi phục: Đã từ chối";
                 body = $@"
-                    <html>
-                    <body style='font-family: Arial, sans-serif; color: #222;'>
-                      <h2 style='color:#333'>{appName}</h2>
-                      <p>Xin chào {System.Net.WebUtility.HtmlEncode(username ?? "")},</p>
-                      <p>Rất tiếc, yêu cầu khôi phục tài khoản của bạn đã bị <strong>từ chối</strong>.</p>
-                      {(string.IsNullOrWhiteSpace(reason) ? "" : $"<p>Lý do: {System.Net.WebUtility.HtmlEncode(reason)}</p>")}
-                      <hr/>
-                      <small>{appName} Team</small>
-                    </body>
-                    </html>
-                ";
+                <html>
+                <body style='font-family:Arial;background:#f5f7fa;padding:24px;'>
+                <div style='max-width:560px;margin:auto;background:#fff;border-radius:12px;padding:32px;border:1px solid #e8eaee;'>
+
+                    <h2 style='color:#dc2626;margin-top:0;'>Yêu cầu khôi phục bị từ chối</h2>
+
+                    <p>Xin chào <strong>{WebUtility.HtmlEncode(username)}</strong>,</p>
+                    <p>Rất tiếc, yêu cầu khôi phục tài khoản của bạn đã bị <strong style='color:#dc2626;'>từ chối</strong>.</p>
+                    {(string.IsNullOrWhiteSpace(reason) ? "" : $"<p><strong>Lý do:</strong> {WebUtility.HtmlEncode(reason)}</p>")}
+
+                    <p>Nếu bạn cho rằng đây là nhầm lẫn, vui lòng liên hệ bộ phận hỗ trợ.</p>
+
+                    <hr style='margin:32px 0;border-top:1px solid #eee;'/>
+                    <p style='font-size:12px;color:#6b7280;text-align:center;'>© {DateTime.UtcNow.Year} {appName}</p>
+
+                </div>
+                </body>
+                </html>";
+
             }
             else
             {
                 subject = $"{appName} - Yêu cầu khôi phục";
                 body = $@"
-                    <html>
-                    <body style='font-family: Arial, sans-serif; color: #222;'>
-                      <h2 style='color:#333'>{appName}</h2>
-                      <p>Xin chào {System.Net.WebUtility.HtmlEncode(username ?? "")},</p>
-                      <p>Trạng thái yêu cầu khôi phục tài khoản của bạn: <strong>{System.Net.WebUtility.HtmlEncode(status ?? "")}</strong></p>
-                      {(string.IsNullOrWhiteSpace(reason) ? "" : $"<p>Lý do: {System.Net.WebUtility.HtmlEncode(reason)}</p>")}
-                      <hr/>
-                      <small>{appName} Team</small>
-                    </body>
-                    </html>
-                ";
+                <html>
+                <body style='font-family: Arial, sans-serif; background:#f5f7fa; padding:24px;'>
+                <div style='max-width:560px;margin:auto;background:#ffffff;border-radius:12px;padding:32px;border:1px solid #e8eaee;'>
+
+                    <h2 style='color:#1a73e8;margin-top:0;'>Cập nhật trạng thái yêu cầu khôi phục</h2>
+
+                    <p>Xin chào <strong>{WebUtility.HtmlEncode(username ?? "")}</strong>,</p>
+
+                    <p>Trạng thái yêu cầu khôi phục tài khoản của bạn hiện tại là:</p>
+
+                    <p style='font-size:16px;margin:12px 0;'>
+                    <strong style='color:#111'>{WebUtility.HtmlEncode(status ?? "")}</strong>
+                    </p>
+
+                    {(string.IsNullOrWhiteSpace(reason) ? "" : $@"
+                    <p><strong>Lý do:</strong> {WebUtility.HtmlEncode(reason)}</p>
+                    ")}
+
+                    <p>Nếu bạn cần hỗ trợ thêm, vui lòng phản hồi email này hoặc liên hệ đội ngũ hỗ trợ <strong>{appName}</strong>.</p>
+
+                    <hr style='margin:32px 0;border-top:1px solid #eee;'/>
+                    <p style='font-size:12px;color:#6b7280;text-align:center;'>© {DateTime.UtcNow.Year} {appName}. Giữ mọi quyền.</p>
+
+                </div>
+                </body>
+                </html>";
+
             }
 
             var message = new System.Net.Mail.MailMessage(from, toEmail)

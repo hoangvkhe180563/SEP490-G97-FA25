@@ -1,5 +1,6 @@
 ﻿using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Api.Dtos;
+using StudyHub.Backend.UseCases.Dtos;
 
 namespace StudyHub.Backend.Api.Mappers
 {
