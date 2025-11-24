@@ -101,38 +101,6 @@ export const useAppealStore = create<AppealState>()(
         }
       },
 
-      approveAppeal: async (appealId: number) => {
-        set({ isLoading: true });
-        try {
-          const resp = await axiosInstance.post(
-            `/Forum/appeals/${appealId}/approve`
-          );
-          const body = resp.data;
-
-          if (body?.success) {
-            set({
-              success: true,
-              message: body?.message || "Đã chấp nhận kháng cáo thành công",
-            });
-          } else {
-            set({
-              success: false,
-              message: body?.message || "Không thể chấp nhận kháng cáo",
-            });
-          }
-          return body;
-        } catch (err: any) {
-          set({
-            success: false,
-            message:
-              axiosMessageErrorHandler(err) || "Lỗi khi chấp nhận kháng cáo",
-          });
-          return null;
-        } finally {
-          set({ isLoading: false });
-        }
-      },
-
       createAppeal: async (schoolId: number, reason: string) => {
         set({ isLoading: true });
         try {
@@ -163,6 +131,38 @@ export const useAppealStore = create<AppealState>()(
             message:
               axiosMessageErrorHandler(err) ||
               "Lỗi khi tạo kháng cáo. Vui lòng thử lại sau.",
+          });
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      approveAppeal: async (appealId: number) => {
+        set({ isLoading: true });
+        try {
+          const resp = await axiosInstance.post(
+            `/Forum/appeals/${appealId}/approve`
+          );
+          const body = resp.data;
+
+          if (body?.success) {
+            set({
+              success: true,
+              message: body?.message || "Đã chấp nhận kháng cáo thành công",
+            });
+          } else {
+            set({
+              success: false,
+              message: body?.message || "Không thể chấp nhận kháng cáo",
+            });
+          }
+          return body;
+        } catch (err: any) {
+          set({
+            success: false,
+            message:
+              axiosMessageErrorHandler(err) || "Lỗi khi chấp nhận kháng cáo",
           });
           return null;
         } finally {

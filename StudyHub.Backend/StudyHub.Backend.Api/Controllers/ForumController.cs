@@ -229,43 +229,7 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(new { success = true, data = postDto });
         }
 
-        [HttpDelete("posts/{postId:int}")]
-        public async Task<IActionResult> DeletePost(int postId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
 
-                var post = await _postService.GetPostByIdAsync(postId);
-                if (post == null)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy bài viết" });
-                }
-
-                if (post.CreatedBy != currentUser.Id)
-                {
-                    return Forbid();
-                }
-
-                await _postService.SoftDeletePostAsync(postId, currentUser.Id);
-
-                _logger.LogInformation("User {UserId} deleted post {PostId}", currentUser.Id, postId);
-
-                await _forumHubContext.Clients.Group($"school-{post.SchoolId}").SendAsync("PostDeleted", postId);
-                await _forumHubContext.Clients.Group($"post-{postId}").SendAsync("PostDeleted", postId);
-
-                return Ok(new { success = true, message = "Đã xóa bài viết" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting post {PostId}", postId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi xóa bài viết" });
-            }
-        }
         [HttpGet("comments/{commentId:int}")]
         public async Task<IActionResult> GetCommentById(int commentId)
         {
@@ -331,7 +295,93 @@ namespace StudyHub.Backend.Api.Controllers
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi tải bình luận" });
             }
         }
+        [HttpPost("{entityType}/{entityId:int}/{status}")]
+        public async Task<IActionResult> ModerateEntity(string entityType, int entityId, string status)
+        {
+            try
+            {
+                if (status != "approve" && status != "reject")
+                {
+                    return BadRequest(new { success = false, message = "Status không hợp lệ" });
+                }
 
+                var currentUser = _authService.GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                bool result;
+                string successMessage;
+                string notFoundMessage;
+
+                switch (entityType.ToLower())
+                {
+                    case "posts":
+                        result = status == "approve"
+                            ? await _postService.ApprovePostAsync(entityId, currentUser.Id.ToString())
+                            : await _postService.RejectPostAsync(entityId, currentUser.Id.ToString());
+                        successMessage = status == "approve" ? "Đã duyệt bài viết" : "Đã từ chối bài viết";
+                        notFoundMessage = "Không tìm thấy bài viết";
+
+                        if (result)
+                        {
+                            var post = await _postService.GetPostByIdAsync(entityId);
+                            await _forumHubContext.Clients.Group($"moderators-{post?.SchoolId}").SendAsync("ModerationAction", new
+                            {
+                                ContentType = "post",
+                                ContentId = entityId,
+                                Action = status + "d",
+                                Timestamp = DateTime.Now
+                            });
+                        }
+                        break;
+
+                    case "appeals":
+                        result = status == "approve"
+                            ? await _moderationService.ApproveAppealAsync(entityId, currentUser.Id)
+                            : await _moderationService.RejectAppealAsync(entityId, currentUser.Id);
+                        successMessage = status == "approve" ? "Đã chấp nhận khiếu nại" : "Đã từ chối khiếu nại";
+                        notFoundMessage = "Không tìm thấy khiếu nại";
+                        break;
+
+                    case "report":
+                    case "reports":
+                        result = status == "approve"
+                            ? await _moderationService.ApproveReportAsync(entityId, currentUser.Id)
+                            : await _moderationService.RejectReportAsync(entityId, currentUser.Id);
+                        successMessage = status == "approve" ? "Đã chấp nhận tố cáo" : "Đã từ chối tố cáo";
+                        notFoundMessage = "Không tìm thấy tố cáo";
+                        break;
+
+                    case "attachments":
+                        result = status == "approve"
+                            ? await _configService.ApproveAttachmentAsync(entityId, currentUser.Id)
+                            : await _configService.RejectAttachmentAsync(entityId);
+                        successMessage = status == "approve" ? "Đã duyệt attachment" : "Đã từ chối attachment";
+                        notFoundMessage = "Không tìm thấy attachment";
+                        break;
+
+                    default:
+                        return BadRequest(new { success = false, message = "Entity type không hợp lệ" });
+                }
+
+                if (!result)
+                {
+                    return NotFound(new { success = false, message = notFoundMessage });
+                }
+
+                _logger.LogInformation("Moderator {UserId} {Status}d {EntityType} {EntityId}",
+                    currentUser.Id, status, entityType, entityId);
+
+                return Ok(new { success = true, message = successMessage });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error {Status}ing {EntityType} {EntityId}", status, entityType, entityId);
+                return StatusCode(500, new { success = false, message = $"Có lỗi xảy ra khi {status} {entityType}" });
+            }
+        }
         [HttpPost("comments/create")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreateComment([FromForm] CreateForumCommentDto dto)
@@ -446,42 +496,6 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(new { success = true, data = commentDto });
         }
 
-        [HttpDelete("comments/{commentId:int}")]
-        public async Task<IActionResult> DeleteComment(int commentId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-
-                var comment = await _commentService.GetCommentByIdAsync(commentId);
-                if (comment == null)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy bình luận" });
-                }
-
-                if (comment.CreatedBy != currentUser.Id)
-                {
-                    return Forbid();
-                }
-
-                await _commentService.SoftDeleteCommentAsync(commentId, currentUser.Id);
-
-                _logger.LogInformation("User {UserId} deleted comment {CommentId}", currentUser.Id, commentId);
-
-                await _forumHubContext.Clients.Group($"post-{comment.PostId}").SendAsync("CommentDeleted", commentId);
-
-                return Ok(new { success = true, message = "Đã xóa bình luận" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting comment {CommentId}", commentId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi xóa bình luận" });
-            }
-        }
 
         [HttpGet("moderator/posts")]
         public async Task<IActionResult> GetModeratorPosts([FromQuery] ForumPostFilterDto filter)
@@ -547,87 +561,8 @@ namespace StudyHub.Backend.Api.Controllers
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi tải bình luận" });
             }
         }
-
-        [HttpPost("posts/{postId:int}/approve")]
-        public async Task<IActionResult> ApprovePost(int postId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    _logger.LogWarning("Unauthorized attempt to approve post {PostId}", postId);
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-
-                var result = await _postService.ApprovePostAsync(postId, currentUser.Id.ToString());
-                if (!result)
-                {
-                    _logger.LogWarning("Post {PostId} not found for approval", postId);
-                    return NotFound(new { success = false, message = "Không tìm thấy bài viết" });
-                }
-
-                _logger.LogInformation("Moderator {UserId} approved post {PostId}", currentUser.Id, postId);
-
-                var post = await _postService.GetPostByIdAsync(postId);
-                await _forumHubContext.Clients.Group($"moderators-{post?.SchoolId}").SendAsync("ModerationAction", new
-                {
-                    ContentType = "post",
-                    ContentId = postId,
-                    Action = "approved",
-                    Timestamp = DateTime.Now
-                });
-
-                return Ok(new { success = true, message = "Đã duyệt bài viết" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error approving post {PostId}", postId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi duyệt bài viết" });
-            }
-        }
-
-        [HttpPost("posts/{postId:int}/reject")]
-        public async Task<IActionResult> RejectPost(int postId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    _logger.LogWarning("Unauthorized attempt to reject post {PostId}", postId);
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-
-                var result = await _postService.RejectPostAsync(postId, currentUser.Id.ToString());
-                if (!result)
-                {
-                    _logger.LogWarning("Post {PostId} not found for rejection", postId);
-                    return NotFound(new { success = false, message = "Không tìm thấy bài viết" });
-                }
-
-                _logger.LogInformation("Moderator {UserId} rejected post {PostId}", currentUser.Id, postId);
-
-                var post = await _postService.GetPostByIdAsync(postId);
-                await _forumHubContext.Clients.Group($"moderators-{post?.SchoolId}").SendAsync("ModerationAction", new
-                {
-                    ContentType = "post",
-                    ContentId = postId,
-                    Action = "rejected",
-                    Timestamp = DateTime.Now
-                });
-
-                return Ok(new { success = true, message = "Đã từ chối bài viết" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error rejecting post {PostId}", postId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi từ chối bài viết" });
-            }
-        }
-
-        [HttpPost("posts/{postId:int}/report")]
-        public async Task<IActionResult> ReportPost(int postId, [FromBody] ReportPostDto dto)
+        [HttpDelete("{entityType}/{entityId:int}")]
+        public async Task<IActionResult> DeleteEntity(string entityType, int entityId, [FromQuery] int? schoolId = null)
         {
             try
             {
@@ -637,131 +572,125 @@ namespace StudyHub.Backend.Api.Controllers
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
                 }
 
-                var result = await _postService.ReportPostAsync(postId, currentUser.Id, dto.RuleId, dto.Reason);
-                if (!result)
+                bool result;
+                string entityName;
+                object? entity = null;
+
+                switch (entityType.ToLower())
                 {
-                    return NotFound(new { success = false, message = "Không tìm thấy bài viết hoặc rule" });
+                    case "posts":
+                        var post = await _postService.GetPostByIdAsync(entityId);
+                        if (post == null)
+                        {
+                            return NotFound(new { success = false, message = "Không tìm thấy bài viết" });
+                        }
+                        if (post.CreatedBy != currentUser.Id)
+                        {
+                            return Forbid();
+                        }
+                        await _postService.SoftDeletePostAsync(entityId, currentUser.Id);
+                        await _forumHubContext.Clients.Group($"school-{post.SchoolId}")
+                            .SendAsync("PostDeleted", entityId);
+                        await _forumHubContext.Clients.Group($"post-{entityId}")
+                            .SendAsync("PostDeleted", entityId);
+                        entityName = "bài viết";
+                        result = true;
+                        break;
+
+                    case "comments":
+                        var comment = await _commentService.GetCommentByIdAsync(entityId);
+                        if (comment == null)
+                        {
+                            return NotFound(new { success = false, message = "Không tìm thấy bình luận" });
+                        }
+                        if (comment.CreatedBy != currentUser.Id)
+                        {
+                            return Forbid();
+                        }
+                        await _commentService.SoftDeleteCommentAsync(entityId, currentUser.Id);
+                        await _forumHubContext.Clients.Group($"post-{comment.PostId}")
+                            .SendAsync("CommentDeleted", entityId);
+                        entityName = "bình luận";
+                        result = true;
+                        break;
+
+                    case "flairs":
+                        var flair = await _configService.GetFlairByIdAsync(entityId);
+                        if (flair == null)
+                        {
+                            return NotFound(new { success = false, message = "Không tìm thấy flair" });
+                        }
+                        if (currentUser.SchoolId != flair.SchoolId)
+                        {
+                            return Forbid();
+                        }
+                        result = await _configService.DeleteFlairAsync(entityId);
+                        entityName = "flair";
+                        break;
+
+                    case "rules":
+                        var rule = await _moderationService.GetRuleByIdAsync(entityId);
+                        if (rule == null)
+                        {
+                            return NotFound(new { success = false, message = "Không tìm thấy rule" });
+                        }
+                        if (currentUser.SchoolId != rule.SchoolId)
+                        {
+                            return Forbid();
+                        }
+                        result = await _moderationService.DeleteRuleAsync(entityId);
+                        entityName = "rule";
+                        break;
+
+                    case "patterns":
+                        var pattern = await _moderationService.GetPatternByIdAsync(entityId);
+                        if (pattern == null)
+                        {
+                            return NotFound(new { success = false, message = "Không tìm thấy pattern" });
+                        }
+                        var patternRule = await _moderationService.GetRuleByIdAsync(pattern.RuleId);
+                        if (currentUser.SchoolId != patternRule?.SchoolId)
+                        {
+                            return Forbid();
+                        }
+                        result = await _moderationService.DeletePatternAsync(entityId);
+                        entityName = "pattern";
+                        break;
+
+                    case "attachments":
+                        var attachment = await _configService.GetAttachmentByIdAsync(entityId);
+                        if (attachment == null)
+                        {
+                            return NotFound(new { success = false, message = "Không tìm thấy attachment" });
+                        }
+                        if (attachment.CreatedBy != currentUser.Id)
+                        {
+                            return Forbid();
+                        }
+                        result = await _configService.SoftDeleteAttachmentAsync(entityId);
+                        entityName = "attachment";
+                        break;
+
+                    default:
+                        return BadRequest(new { success = false, message = "Entity type không hợp lệ" });
                 }
 
-                _logger.LogInformation("User {UserId} reported post {PostId}", currentUser.Id, postId);
-
-                var post = await _postService.GetPostByIdAsync(postId);
-                await _forumHubContext.Clients.Group($"moderators-{post?.SchoolId}").SendAsync("NewReport", new
+                if (!result)
                 {
-                    ContentType = "post",
-                    ContentId = postId,
-                    ReportedBy = currentUser.Id,
-                    Timestamp = DateTime.Now
-                });
+                    return BadRequest(new { success = false, message = $"Không thể xóa {entityName}" });
+                }
 
-                return Ok(new { success = true, message = "Đã gửi báo cáo" });
+                _logger.LogInformation("User {UserId} deleted {EntityType} {EntityId}",
+                    currentUser.Id, entityType, entityId);
+
+                return Ok(new { success = true, message = $"Đã xóa {entityName}" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error reporting post {PostId}", postId);
+                _logger.LogError(ex, "Error deleting {EntityType} {EntityId}", entityType, entityId);
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
             }
         }
-
-        [HttpPost("comments/{commentId:int}/report")]
-        public async Task<IActionResult> ReportComment(int commentId, [FromBody] ReportCommentDto dto)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-
-                var result = await _commentService.ReportCommentAsync(commentId, currentUser.Id, dto.RuleId, dto.Reason);
-                if (!result)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy bình luận hoặc rule" });
-                }
-
-                _logger.LogInformation("User {UserId} reported comment {CommentId}", currentUser.Id, commentId);
-
-                var comment = await _commentService.GetCommentByIdAsync(commentId);
-                var post = await _postService.GetPostByIdAsync(comment!.PostId);
-                await _forumHubContext.Clients.Group($"moderators-{post?.SchoolId}").SendAsync("NewReport", new
-                {
-                    ContentType = "comment",
-                    ContentId = commentId,
-                    ReportedBy = currentUser.Id,
-                    Timestamp = DateTime.Now
-                });
-
-                return Ok(new { success = true, message = "Đã gửi báo cáo" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error reporting comment {CommentId}", commentId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-            }
-        }
-
-        [HttpPost("posts/{postId:int}/hide")]
-        public async Task<IActionResult> HidePost(int postId, [FromBody] HidePostDto dto)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-
-                var result = await _postService.HidePostByModeratorAsync(postId, currentUser.Id, dto.ViolationScore);
-                if (!result)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy bài viết" });
-                }
-
-                _logger.LogInformation("Moderator {UserId} hid post {PostId}", currentUser.Id, postId);
-
-                var post = await _postService.GetPostByIdAsync(postId);
-                await _forumHubContext.Clients.Group($"school-{post?.SchoolId}").SendAsync("PostHidden", postId);
-
-                return Ok(new { success = true, message = "Đã ẩn bài viết" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error hiding post {PostId}", postId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-            }
-        }
-        [HttpPost("comments/{commentId:int}/hide")]
-        public async Task<IActionResult> HideComment(int commentId, [FromBody] HideCommentDto dto)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-
-                var result = await _commentService.HideCommentByModeratorAsync(commentId, currentUser.Id, dto.ViolationScore);
-                if (!result)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy bình luận" });
-                }
-
-                _logger.LogInformation("Moderator {UserId} hid comment {CommentId}", currentUser.Id, commentId);
-
-                var comment = await _commentService.GetCommentByIdAsync(commentId);
-                await _forumHubContext.Clients.Group($"post-{comment?.PostId}").SendAsync("CommentHidden", commentId);
-
-                return Ok(new { success = true, message = "Đã ẩn bình luận" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error hiding comment {CommentId}", commentId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-            }
-        }
-
         [HttpGet("flairs")]
         public async Task<IActionResult> GetFlairs([FromQuery] ForumFlairFilterDto filter)
         {
@@ -786,6 +715,85 @@ namespace StudyHub.Backend.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting flairs");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+        [HttpPost("{contentType}/{contentId:int}/report")]
+        public async Task<IActionResult> ReportContent(string contentType, int contentId, [FromBody] ReportContentDto dto)
+        {
+            try
+            {
+                var currentUser = _authService.GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                bool result;
+                int? schoolId = null;
+                string entityName;
+
+                switch (contentType.ToLower())
+                {
+                    case "posts":
+                        result = await _postService.ReportPostAsync(contentId, currentUser.Id, dto.RuleId, dto.Reason);
+                        var post = await _postService.GetPostByIdAsync(contentId);
+                        schoolId = post?.SchoolId;
+                        entityName = "bài viết";
+
+                        if (result)
+                        {
+                            await _forumHubContext.Clients.Group($"moderators-{schoolId}")
+                                .SendAsync("NewReport", new
+                                {
+                                    ContentType = "post",
+                                    ContentId = contentId,
+                                    ReportedBy = currentUser.Id,
+                                    Timestamp = DateTime.Now
+                                });
+                        }
+                        break;
+
+                    case "comments":
+                        result = await _commentService.ReportCommentAsync(contentId, currentUser.Id, dto.RuleId, dto.Reason);
+                        var comment = await _commentService.GetCommentByIdAsync(contentId);
+                        if (comment != null)
+                        {
+                            var commentPost = await _postService.GetPostByIdAsync(comment.PostId);
+                            schoolId = commentPost?.SchoolId;
+                        }
+                        entityName = "bình luận";
+
+                        if (result)
+                        {
+                            await _forumHubContext.Clients.Group($"moderators-{schoolId}")
+                                .SendAsync("NewReport", new
+                                {
+                                    ContentType = "comment",
+                                    ContentId = contentId,
+                                    ReportedBy = currentUser.Id,
+                                    Timestamp = DateTime.Now
+                                });
+                        }
+                        break;
+
+                    default:
+                        return BadRequest(new { success = false, message = "Content type không hợp lệ" });
+                }
+
+                if (!result)
+                {
+                    return NotFound(new { success = false, message = $"Không tìm thấy {entityName} hoặc rule" });
+                }
+
+                _logger.LogInformation("User {UserId} reported {ContentType} {ContentId}",
+                    currentUser.Id, contentType, contentId);
+
+                return Ok(new { success = true, message = "Đã gửi báo cáo" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reporting {ContentType} {ContentId}", contentType, contentId);
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
             }
         }
@@ -893,83 +901,6 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        [HttpDelete("flairs/{flairId:int}")]
-        public async Task<IActionResult> DeleteFlair(int flairId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-
-                var flair = await _configService.GetFlairByIdAsync(flairId);
-                if (flair == null)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy flair" });
-                }
-
-                if (currentUser.SchoolId != flair.SchoolId)
-                {
-                    return Forbid();
-                }
-
-                var result = await _configService.DeleteFlairAsync(flairId);
-                if (!result)
-                {
-                    return BadRequest(new { success = false, message = "Không thể xóa flair" });
-                }
-
-                _logger.LogInformation("Moderator {UserId} deleted flair {FlairId}", currentUser.Id, flairId);
-
-                return Ok(new { success = true, message = "Đã xóa flair" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting flair {FlairId}", flairId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-            }
-        }
-
-        [HttpPost("flairs/{flairId:int}/toggle-status")]
-        public async Task<IActionResult> ToggleFlairStatus(int flairId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-
-                var flair = await _configService.GetFlairByIdAsync(flairId);
-                if (flair == null)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy flair" });
-                }
-
-                if (currentUser.SchoolId != flair.SchoolId)
-                {
-                    return Forbid();
-                }
-
-                var result = await _configService.ToggleFlairStatusAsync(flairId);
-                if (!result)
-                {
-                    return BadRequest(new { success = false, message = "Không thể toggle status" });
-                }
-
-                _logger.LogInformation("Moderator {UserId} toggled flair {FlairId} status", currentUser.Id, flairId);
-
-                return Ok(new { success = true, message = "Đã cập nhật trạng thái flair" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error toggling flair status {FlairId}", flairId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-            }
-        }
 
         [HttpGet("rules")]
         public async Task<IActionResult> GetRules([FromQuery] ForumRuleFilterDto filter)
@@ -1103,83 +1034,7 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        [HttpDelete("rules/{ruleId:int}")]
-        public async Task<IActionResult> DeleteRule(int ruleId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
 
-                var rule = await _moderationService.GetRuleByIdAsync(ruleId);
-                if (rule == null)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy rule" });
-                }
-
-                if (currentUser.SchoolId != rule.SchoolId)
-                {
-                    return Forbid();
-                }
-
-                var result = await _moderationService.DeleteRuleAsync(ruleId);
-                if (!result)
-                {
-                    return BadRequest(new { success = false, message = "Không thể xóa rule" });
-                }
-
-                _logger.LogInformation("Moderator {UserId} deleted rule {RuleId}", currentUser.Id, ruleId);
-
-                return Ok(new { success = true, message = "Đã xóa rule" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting rule {RuleId}", ruleId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-            }
-        }
-
-        [HttpPost("rules/{ruleId:int}/toggle-status")]
-        public async Task<IActionResult> ToggleRuleStatus(int ruleId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-
-                var rule = await _moderationService.GetRuleByIdAsync(ruleId);
-                if (rule == null)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy rule" });
-                }
-
-                if (currentUser.SchoolId != rule.SchoolId)
-                {
-                    return Forbid();
-                }
-
-                var result = await _moderationService.ToggleRuleStatusAsync(ruleId);
-                if (!result)
-                {
-                    return BadRequest(new { success = false, message = "Không thể toggle status" });
-                }
-
-                _logger.LogInformation("Moderator {UserId} toggled rule {RuleId} status", currentUser.Id, ruleId);
-
-                return Ok(new { success = true, message = "Đã cập nhật trạng thái rule" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error toggling rule status {RuleId}", ruleId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-            }
-        }
 
         [HttpGet("rules/{ruleId:int}/patterns")]
         public async Task<IActionResult> GetPatternsByRule(int ruleId, [FromQuery] RulePatternFilterDto filter)
@@ -1309,85 +1164,7 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        [HttpDelete("patterns/{patternId:int}")]
-        public async Task<IActionResult> DeletePattern(int patternId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-
-                var pattern = await _moderationService.GetPatternByIdAsync(patternId);
-                if (pattern == null)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy pattern" });
-                }
-
-                var rule = await _moderationService.GetRuleByIdAsync(pattern.RuleId);
-                if (currentUser.SchoolId != rule?.SchoolId)
-                {
-                    return Forbid();
-                }
-
-                var result = await _moderationService.DeletePatternAsync(patternId);
-                if (!result)
-                {
-                    return BadRequest(new { success = false, message = "Không thể xóa pattern" });
-                }
-
-                _logger.LogInformation("Moderator {UserId} deleted pattern {PatternId}", currentUser.Id, patternId);
-
-                return Ok(new { success = true, message = "Đã xóa pattern" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting pattern {PatternId}", patternId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-            }
-        }
-
-        [HttpPost("patterns/{patternId:int}/toggle-status")]
-        public async Task<IActionResult> TogglePatternStatus(int patternId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-
-                var pattern = await _moderationService.GetPatternByIdAsync(patternId);
-                if (pattern == null)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy pattern" });
-                }
-
-                var rule = await _moderationService.GetRuleByIdAsync(pattern.RuleId);
-                if (currentUser.SchoolId != rule?.SchoolId)
-                {
-                    return Forbid();
-                }
-
-                var result = await _moderationService.TogglePatternStatusAsync(patternId);
-                if (!result)
-                {
-                    return BadRequest(new { success = false, message = "Không thể toggle status" });
-                }
-
-                _logger.LogInformation("Moderator {UserId} toggled pattern {PatternId} status", currentUser.Id, patternId);
-
-                return Ok(new { success = true, message = "Đã cập nhật trạng thái pattern" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error toggling pattern status {PatternId}", patternId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-            }
-        }
+ 
 
         [HttpGet("appeals")]
         public async Task<IActionResult> GetUserAppeals([FromQuery] ForumAppealFilterDto filter)
@@ -1488,62 +1265,6 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        [HttpPost("appeals/{appealId:int}/approve")]
-        public async Task<IActionResult> ApproveAppeal(int appealId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-
-                var result = await _moderationService.ApproveAppealAsync(appealId, currentUser.Id);
-                if (!result)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy khiếu nại" });
-                }
-
-                _logger.LogInformation("Moderator {UserId} approved appeal {AppealId}", currentUser.Id, appealId);
-
-                return Ok(new { success = true, message = "Đã chấp nhận khiếu nại" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error approving appeal {AppealId}", appealId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi duyệt khiếu nại" });
-            }
-        }
-
-        [HttpPost("appeals/{appealId:int}/reject")]
-        public async Task<IActionResult> RejectAppeal(int appealId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-
-                var result = await _moderationService.RejectAppealAsync(appealId, currentUser.Id);
-                if (!result)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy khiếu nại" });
-                }
-
-                _logger.LogInformation("Moderator {UserId} rejected appeal {AppealId}", currentUser.Id, appealId);
-
-                return Ok(new { success = true, message = "Đã từ chối khiếu nại" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error rejecting appeal {AppealId}", appealId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi từ chối khiếu nại" });
-            }
-        }
-
         [HttpGet("moderator/violations")]
         public async Task<IActionResult> GetViolationRecords([FromQuery] ViolationRecordFilterDto filter)
         {
@@ -1573,62 +1294,6 @@ namespace StudyHub.Backend.Api.Controllers
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi tải vi phạm" });
             }
         }
-        [HttpPost("report/{violationReportId:int}/approve")]
-        public async Task<IActionResult> ApproveReport(int violationReportId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-
-                var result = await _moderationService.ApproveReportAsync(violationReportId, currentUser.Id);
-                if (!result)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy tố cáo" });
-                }
-
-                _logger.LogInformation("Moderator {UserId} approved appeal {violationReportId}", currentUser.Id, violationReportId);
-
-                return Ok(new { success = true, message = "Đã chấp nhận tố cáo" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error approving report {violationReportId}", violationReportId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi duyệt tố cáo" });
-            }
-        }
-
-        [HttpPost("report/{violationReportId:int}/reject")]
-        public async Task<IActionResult> RejectReport(int violationReportId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
-                {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-                }
-
-                var result = await _moderationService.RejectReportAsync(violationReportId, currentUser.Id);
-                if (!result)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy tố cáo" });
-                }
-
-                _logger.LogInformation("Moderator {UserId} rejected report {violationReportId}", currentUser.Id, violationReportId);
-
-                return Ok(new { success = true, message = "Đã từ chối tố cáoi" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error rejecting report {violationReportId}", violationReportId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi từ chối tố cáo" });
-            }
-        }
-
 
         [HttpGet("moderator/user-status")]
         public async Task<IActionResult> GetUserForumStatuses([FromQuery] UserForumStatusFilterDto filter)
@@ -1662,137 +1327,76 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        [HttpGet("user/status")]
-        public async Task<IActionResult> GetCurrentUserStatus([FromQuery] int schoolId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null || currentUser.SchoolId != schoolId)
-                {
-                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
-                }
+        //[HttpGet("user/status")]
+        //public async Task<IActionResult> GetCurrentUserStatus([FromQuery] int schoolId)
+        //{
+        //    try
+        //    {
+        //        var currentUser = _authService.GetCurrentUser();
+        //        if (currentUser == null || currentUser.SchoolId != schoolId)
+        //        {
+        //            return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+        //        }
 
-                var status = await _moderationService.GetUserForumStatusAsync(currentUser.Id, schoolId);
+        //        var status = await _moderationService.GetUserForumStatusAsync(currentUser.Id, schoolId);
 
-                if (status == null)
-                {
-                    return Ok(new
-                    {
-                        success = true,
-                        data = new
-                        {
-                            UserId = currentUser.Id,
-                            TotalViolationScore = 50,
-                            IsMute = false,
-                            MuteUntil = (DateTime?)null
-                        }
-                    });
-                }
+        //        if (status == null)
+        //        {
+        //            return Ok(new
+        //            {
+        //                success = true,
+        //                data = new
+        //                {
+        //                    UserId = currentUser.Id,
+        //                    TotalViolationScore = 50,
+        //                    IsMute = false,
+        //                    MuteUntil = (DateTime?)null
+        //                }
+        //            });
+        //        }
 
-                return Ok(new { success = true, data = status.ToDto() });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting user status");
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-            }
-        }
+        //        return Ok(new { success = true, data = status.ToDto() });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error getting user status");
+        //        return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+        //    }
+        //}
 
-        [HttpPost("moderator/mute-user/{userId}")]
-        public async Task<IActionResult> MuteUser(Guid userId, [FromBody] MuteUserRequestDto dto)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null || currentUser.SchoolId != dto.SchoolId)
-                {
-                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
-                }
+        //[HttpPost("moderator/reset-violation-score")]
+        //public async Task<IActionResult> ResetViolationScore([FromBody] ResetUserViolationScoreDto dto)
+        //{
+        //    try
+        //    {
+        //        if (!ModelState.IsValid)
+        //        {
+        //            return BadRequest(new { success = false, errors = ModelState });
+        //        }
 
-                var muteUntil = DateTime.UtcNow.AddDays(7);
-                var result = await _moderationService.MuteUserAsync(userId, dto.SchoolId, muteUntil);
+        //        var currentUser = _authService.GetCurrentUser();
+        //        if (currentUser == null || currentUser.SchoolId != dto.SchoolId)
+        //        {
+        //            return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+        //        }
 
-                if (!result)
-                {
-                    return BadRequest(new { success = false, message = "Không thể cấm người dùng" });
-                }
+        //        var result = await _moderationService.ResetViolationScoreAsync(dto.UserId, dto.SchoolId);
+        //        if (!result)
+        //        {
+        //            return BadRequest(new { success = false, message = "Không thể reset điểm vi phạm" });
+        //        }
 
-                _logger.LogInformation("Moderator {ModeratorId} muted user {UserId} until {MuteUntil}",
-                    currentUser.Id, userId, muteUntil);
+        //        _logger.LogInformation("Moderator {ModeratorId} reset violation score for user {UserId}",
+        //            currentUser.Id, dto.UserId);
 
-                return Ok(new { success = true, message = "Đã cấm người dùng trong 7 ngày" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error muting user {UserId}", userId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-            }
-        }
-
-        [HttpPost("moderator/unmute-user/{userId}")]
-        public async Task<IActionResult> UnmuteUser(Guid userId, [FromQuery] int schoolId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null || currentUser.SchoolId != schoolId)
-                {
-                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
-                }
-
-                var result = await _moderationService.UnmuteUserAsync(userId, schoolId);
-
-                if (!result)
-                {
-                    return BadRequest(new { success = false, message = "Không thể bỏ cấm người dùng" });
-                }
-
-                _logger.LogInformation("Moderator {ModeratorId} unmuted user {UserId}",
-                    currentUser.Id, userId);
-
-                return Ok(new { success = true, message = "Đã bỏ cấm người dùng" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error unmuting user {UserId}", userId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-            }
-        }
-
-        [HttpPost("moderator/reset-violation-score")]
-        public async Task<IActionResult> ResetViolationScore([FromBody] ResetUserViolationScoreDto dto)
-        {
-            try
-            {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(new { success = false, errors = ModelState });
-                }
-
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null || currentUser.SchoolId != dto.SchoolId)
-                {
-                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
-                }
-
-                var result = await _moderationService.ResetViolationScoreAsync(dto.UserId, dto.SchoolId);
-                if (!result)
-                {
-                    return BadRequest(new { success = false, message = "Không thể reset điểm vi phạm" });
-                }
-
-                _logger.LogInformation("Moderator {ModeratorId} reset violation score for user {UserId}",
-                    currentUser.Id, dto.UserId);
-
-                return Ok(new { success = true, message = "Đã reset điểm vi phạm" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error resetting violation score");
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-            }
-        }
+        //        return Ok(new { success = true, message = "Đã reset điểm vi phạm" });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error resetting violation score");
+        //        return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+        //    }
+        //}
 
         [HttpGet("user/violations")]
         public async Task<IActionResult> GetUserViolations([FromQuery] ViolationRecordFilterDto filter)
@@ -1855,8 +1459,8 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        [HttpGet("attachments/pending")]
-        public async Task<IActionResult> GetPendingAttachments([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
+        [HttpPost("{contentType}/{contentId:int}/hide")]
+        public async Task<IActionResult> HideContent(string contentType, int contentId, [FromBody] HideContentDto dto)
         {
             try
             {
@@ -1866,49 +1470,57 @@ namespace StudyHub.Backend.Api.Controllers
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
                 }
 
-                var (attachments, totalCount) = await _configService.GetPendingAttachmentsAsync(pageNumber, pageSize);
-                var dtos = attachments.Select(a => a.ToDto()).ToList();
+                bool result;
+                string entityName;
+                object? entity = null;
 
-                return PagedResult(dtos, totalCount, pageNumber, pageSize);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting pending attachments");
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-            }
-        }
-
-        [HttpPost("attachments/{attachmentId:int}/approve")]
-        public async Task<IActionResult> ApproveAttachment(int attachmentId)
-        {
-            try
-            {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
+                switch (contentType.ToLower())
                 {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                    case "posts":
+                        result = await _postService.HidePostByModeratorAsync(contentId, currentUser.Id, dto.ViolationScore);
+                        entityName = "bài viết";
+                        entity = await _postService.GetPostByIdAsync(contentId);
+                        if (result && entity != null)
+                        {
+                            await _forumHubContext.Clients.Group($"school-{((dynamic)entity).SchoolId}")
+                                .SendAsync("PostHidden", contentId);
+                        }
+                        break;
+
+                    case "comments":
+                        result = await _commentService.HideCommentByModeratorAsync(contentId, currentUser.Id, dto.ViolationScore);
+                        entityName = "bình luận";
+                        entity = await _commentService.GetCommentByIdAsync(contentId);
+                        if (result && entity != null)
+                        {
+                            await _forumHubContext.Clients.Group($"post-{((dynamic)entity).PostId}")
+                                .SendAsync("CommentHidden", contentId);
+                        }
+                        break;
+
+                    default:
+                        return BadRequest(new { success = false, message = "Content type không hợp lệ" });
                 }
 
-                var result = await _configService.ApproveAttachmentAsync(attachmentId, currentUser.Id);
                 if (!result)
                 {
-                    return NotFound(new { success = false, message = "Không tìm thấy attachment" });
+                    return NotFound(new { success = false, message = $"Không tìm thấy {entityName}" });
                 }
 
-                _logger.LogInformation("Moderator {UserId} approved attachment {AttachmentId}",
-                    currentUser.Id, attachmentId);
+                _logger.LogInformation("Moderator {UserId} hid {ContentType} {ContentId}",
+                    currentUser.Id, contentType, contentId);
 
-                return Ok(new { success = true, message = "Đã duyệt attachment" });
+                return Ok(new { success = true, message = $"Đã ẩn {entityName}" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error approving attachment {AttachmentId}", attachmentId);
+                _logger.LogError(ex, "Error hiding {ContentType} {ContentId}", contentType, contentId);
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
             }
         }
 
-        [HttpPost("attachments/{attachmentId:int}/reject")]
-        public async Task<IActionResult> RejectAttachment(int attachmentId)
+        [HttpPost("{entityType}/{entityId:int}/toggle-status")]
+        public async Task<IActionResult> ToggleStatus(string entityType, int entityId)
         {
             try
             {
@@ -1918,95 +1530,132 @@ namespace StudyHub.Backend.Api.Controllers
                     return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
                 }
 
-                var result = await _configService.RejectAttachmentAsync(attachmentId);
-                if (!result)
+                bool result;
+                string entityName;
+
+                switch (entityType.ToLower())
                 {
-                    return NotFound(new { success = false, message = "Không tìm thấy attachment" });
+                    case "flairs":
+                        var flair = await _configService.GetFlairByIdAsync(entityId);
+                        if (flair == null)
+                        {
+                            return NotFound(new { success = false, message = "Không tìm thấy flair" });
+                        }
+                        if (currentUser.SchoolId != flair.SchoolId)
+                        {
+                            return Forbid();
+                        }
+                        result = await _configService.ToggleFlairStatusAsync(entityId);
+                        entityName = "flair";
+                        break;
+
+                    case "rules":
+                        var rule = await _moderationService.GetRuleByIdAsync(entityId);
+                        if (rule == null)
+                        {
+                            return NotFound(new { success = false, message = "Không tìm thấy rule" });
+                        }
+                        if (currentUser.SchoolId != rule.SchoolId)
+                        {
+                            return Forbid();
+                        }
+                        result = await _moderationService.ToggleRuleStatusAsync(entityId);
+                        entityName = "rule";
+                        break;
+
+                    case "patterns":
+                        var pattern = await _moderationService.GetPatternByIdAsync(entityId);
+                        if (pattern == null)
+                        {
+                            return NotFound(new { success = false, message = "Không tìm thấy pattern" });
+                        }
+                        var patternRule = await _moderationService.GetRuleByIdAsync(pattern.RuleId);
+                        if (currentUser.SchoolId != patternRule?.SchoolId)
+                        {
+                            return Forbid();
+                        }
+                        result = await _moderationService.TogglePatternStatusAsync(entityId);
+                        entityName = "pattern";
+                        break;
+
+                    default:
+                        return BadRequest(new { success = false, message = "Entity type không hợp lệ" });
                 }
 
-                _logger.LogInformation("Moderator {UserId} rejected attachment {AttachmentId}",
-                    currentUser.Id, attachmentId);
+                if (!result)
+                {
+                    return BadRequest(new { success = false, message = "Không thể toggle status" });
+                }
 
-                return Ok(new { success = true, message = "Đã từ chối attachment" });
+                _logger.LogInformation("Moderator {UserId} toggled {EntityType} {EntityId} status",
+                    currentUser.Id, entityType, entityId);
+
+                return Ok(new { success = true, message = $"Đã cập nhật trạng thái {entityName}" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error rejecting attachment {AttachmentId}", attachmentId);
+                _logger.LogError(ex, "Error toggling {EntityType} status {EntityId}", entityType, entityId);
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
             }
         }
-
-        [HttpDelete("attachments/{attachmentId:int}")]
-        public async Task<IActionResult> DeleteAttachment(int attachmentId)
+    
+        [HttpPost("moderator/mute-user/{userId}/{action}")]
+        public async Task<IActionResult> MuteAction(Guid userId, string action, [FromQuery] int schoolId)
         {
             try
             {
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null)
+                if (action != "mute" && action != "unmute")
                 {
-                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                    return BadRequest(new { success = false, message = "Action không hợp lệ" });
                 }
 
-                var attachment = await _configService.GetAttachmentByIdAsync(attachmentId);
-                if (attachment == null)
-                {
-                    return NotFound(new { success = false, message = "Không tìm thấy attachment" });
-                }
-
-                if (attachment.CreatedBy != currentUser.Id)
-                {
-                    return Forbid();
-                }
-
-                var result = await _configService.SoftDeleteAttachmentAsync(attachmentId);
-                if (!result)
-                {
-                    return BadRequest(new { success = false, message = "Không thể xóa attachment" });
-                }
-
-                _logger.LogInformation("User {UserId} deleted attachment {AttachmentId}",
-                    currentUser.Id, attachmentId);
-
-                return Ok(new { success = true, message = "Đã xóa attachment" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting attachment {AttachmentId}", attachmentId);
-                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
-            }
-        }
-
-        [HttpGet("statistics")]
-        public async Task<IActionResult> GetForumStatistics([FromQuery] int schoolId)
-        {
-            try
-            {
                 var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null || currentUser.SchoolId != schoolId)
                 {
                     return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
                 }
 
-                var (posts, _) = await _postService.GetPublicPostsAsync(schoolId, null, null, null, null, 1, 1);
-                var (comments, _) = await _commentService.GetCommentsByPostIdAsync(posts.FirstOrDefault()?.Id ?? 0, 1, 1);
+                bool result;
+                string successMessage;
 
-                return Ok(new
+                if (action == "mute")
                 {
-                    success = true,
-                    data = new
+                    var muteUntil = DateTime.UtcNow.AddDays(7);
+                    result = await _moderationService.MuteUserAsync(userId, schoolId, muteUntil);
+                    successMessage = "Đã cấm người dùng trong 7 ngày";
+
+                    if (result)
                     {
-                        TotalPosts = posts.Count,
-                        TotalComments = comments.Count,
-                        LastUpdated = DateTime.Now
+                        _logger.LogInformation("Moderator {ModeratorId} muted user {UserId} until {MuteUntil}",
+                            currentUser.Id, userId, muteUntil);
                     }
-                });
+                }
+                else
+                {
+                    result = await _moderationService.UnmuteUserAsync(userId, schoolId);
+                    successMessage = "Đã bỏ cấm người dùng";
+
+                    if (result)
+                    {
+                        _logger.LogInformation("Moderator {ModeratorId} unmuted user {UserId}",
+                            currentUser.Id, userId);
+                    }
+                }
+
+                if (!result)
+                {
+                    return BadRequest(new { success = false, message = $"Không thể {action} người dùng" });
+                }
+
+                return Ok(new { success = true, message = successMessage });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting forum statistics");
+                _logger.LogError(ex, "Error {Action} user {UserId}", action, userId);
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
             }
         }
+
         private bool IsModerator()
         {
             var roleClaim = User.Claims.FirstOrDefault(c =>
