@@ -16,6 +16,13 @@ namespace StudyHub.Backend.UseCases.Dtos
         public string Status { get; set; } = null!; // Active/Inactive
         public string CreatedAt { get; set; } = null!; // yyyy/MM/dd
         public List<string> Roles { get; set; } = new();
+        // Subjects assigned to the user (for teacher role)
+        public List<SubjectDto> Subjects { get; set; } = new();
+    }
+    public class SubjectDto
+    {
+        public short Id { get; set; }
+        public string Name { get; set; } = null!;
     }
     public class UserInfoDtos
     {

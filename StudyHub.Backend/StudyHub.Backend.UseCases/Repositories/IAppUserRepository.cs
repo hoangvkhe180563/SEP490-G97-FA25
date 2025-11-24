@@ -12,10 +12,10 @@ namespace StudyHub.Backend.UseCases.Repositories
         public AppUser? GetByUsername(string username);
         public AppUser? GetById(Guid id);
         public AppUser? GetByTransferId(int id);
-        public void CreateUser(AppUser user, IEnumerable<Guid>? roleIds = null);
+        public void CreateUser(AppUser user, IEnumerable<Guid>? roleIds = null, IEnumerable<short>? subjectIds = null);
         // Create multiple users in a single operation and attach roles to each user
         public void CreateUsersWithRoles(IEnumerable<(AppUser user, IEnumerable<Guid>? roleIds)> usersWithRoles);
-        public void UpdateUser(AppUser user, IEnumerable<Guid>? roleIds = null);
+        public void UpdateUser(AppUser user, IEnumerable<Guid>? roleIds = null, IEnumerable<short>? subjectIds = null);
 
         // Get all users who have a teacher-related role (role name contains "teacher")
         public List<AppUser> GetQATeachers();

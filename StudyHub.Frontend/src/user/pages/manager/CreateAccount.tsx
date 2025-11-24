@@ -30,6 +30,7 @@ import { useNavigate } from "react-router-dom";
 import type { CreateAccountDto } from "@/user/interfaces/dtos";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useAppRoleStore } from "@/user/stores/useRoleStore";
+import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
 import { Badge } from "@/common/components/ui/badge";
 import { useLocationStore } from "@/user/stores/useLocationStore";
 import toast from "react-hot-toast";
@@ -64,6 +65,7 @@ const schema = z
     roleIds: z
       .array(z.union([z.string(), z.number()]))
       .min(1, "Phải chọn ít nhất một vai trò"),
+    subjectIds: z.array(z.union([z.string(), z.number()])).optional(),
     // gender stored as string in form but represents numeric codes: "1"=Male, "0"=Female, "2"=Other
     gender: z
       .union([z.literal("0"), z.literal("1"), z.literal("2")])
@@ -92,6 +94,7 @@ const CreateAccount: React.FC = () => {
     communes,
     schools,
   } = useLocationStore();
+  const { getSubjects, subjects } = useDocumentStore();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -109,6 +112,7 @@ const CreateAccount: React.FC = () => {
       schoolId: undefined,
       gender: undefined,
       roleIds: [],
+      subjectIds: [],
     },
   });
 
@@ -223,6 +227,7 @@ const CreateAccount: React.FC = () => {
       fullname: data.fullname,
       // ensure roleIds are strings (GUIDs expected by backend)
       roleIds: (data.roleIds ?? []).map((r: any) => String(r)),
+      subjectIds: (data.subjectIds ?? []).map((s: any) => Number(s)),
       // convert gender code to number
       gender: Number(data.gender ?? 0),
       avatarFile: file ?? null,
@@ -259,10 +264,12 @@ const CreateAccount: React.FC = () => {
   }
 
   const selectedRoles = watch("roleIds") || [];
+  const selectedSubjects = watch("subjectIds") || [];
 
   useEffect(() => {
     getAppRoles();
     fetchCities();
+    getSubjects();
   }, [fetchCities, getAppRoles]);
 
   const onCityChange = async (value?: string) => {
@@ -326,6 +333,20 @@ const CreateAccount: React.FC = () => {
     const prev = getValues("roleIds") || [];
     if (prev.find((x: any) => String(x) === String(id))) return;
     setValue("roleIds", [...prev, id]);
+  }
+
+  function removeSubject(id: number | string) {
+    const prev = getValues("subjectIds") || [];
+    setValue(
+      "subjectIds",
+      prev.filter((x: any) => String(x) !== String(id))
+    );
+  }
+
+  function addSubject(id: number | string) {
+    const prev = getValues("subjectIds") || [];
+    if (prev.find((x: any) => String(x) === String(id))) return;
+    setValue("subjectIds", [...prev, String(id)]);
   }
 
   // location handlers are inlined in the Select onValueChange callbacks below
@@ -450,6 +471,77 @@ const CreateAccount: React.FC = () => {
                   {String(formState.errors.roleIds.message)}
                 </p>
               )}
+            </FormItem>
+            <FormItem className="w-full">
+              <div className="flex items-center justify-between w-full">
+                <FormLabel>Môn học</FormLabel>
+              </div>
+
+              <div className="mt-2 flex flex-col gap-2">
+                {(!subjects || subjects.length) === 0 ? (
+                  <div className="text-sm text-gray-500">Chưa có môn học</div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap gap-2 max-h-36 overflow-auto pr-2">
+                      {(selectedSubjects || []).map((sid: any) => {
+                        const sub = (subjects || []).find(
+                          (s: any) => String(s.id) === String(sid)
+                        );
+                        return sub ? (
+                          <Badge
+                            key={String(sid)}
+                            className="flex items-center gap-2 cursor-pointer"
+                            onClick={() => removeSubject(String(sid))}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`Remove subject ${sub.name}`}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                removeSubject(String(sid));
+                              }
+                            }}
+                          >
+                            <span className="text-sm">{sub.name}</span>
+                            <span className="opacity-60" aria-hidden>
+                              ×
+                            </span>
+                          </Badge>
+                        ) : null;
+                      })}
+                    </div>
+
+                    <div className="mt-2">
+                      <Select
+                        onValueChange={(v) => {
+                          if (!v) return;
+                          addSubject(v);
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <span className="text-sm text-gray-700">
+                            Thêm môn học
+                          </span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(subjects || [])
+                            .filter(
+                              (s: any) =>
+                                !(selectedSubjects || []).some(
+                                  (ss: any) => String(ss) === String(s.id)
+                                )
+                            )
+                            .map((s: any) => (
+                              <SelectItem key={s.id} value={String(s.id)}>
+                                {s.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+              </div>
             </FormItem>
           </div>
 

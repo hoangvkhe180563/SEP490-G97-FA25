@@ -83,6 +83,64 @@ const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
           </TooltipProvider>
         )}
       </TableCell>
+      <TableCell className="px-6 py-4 text-center">
+        {(() => {
+          const roles = user.roles || [];
+          const isTeacher = roles.some((r: any) => {
+            const v = String(r || "").toLowerCase();
+            return (
+              v.includes("teacher") ||
+              v.includes("giáo") ||
+              v.includes("giaovien")
+            );
+          });
+          const subjects = (user as any).subjects || [];
+          if (!isTeacher)
+            return <span className="text-sm text-gray-500">-</span>;
+          if (!subjects || subjects.length === 0)
+            return <span className="text-sm text-gray-500">Chưa có</span>;
+
+          // show only the first subject and a +N indicator; hovering shows full list in a tooltip
+          const first = subjects[0];
+          const restCount = subjects.length - 1;
+          if (restCount <= 0) {
+            return (
+              <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-1 text-xs font-medium">
+                {first?.name ?? String(first)}
+              </span>
+            );
+          }
+
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center justify-center gap-2 cursor-pointer">
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-1 text-xs font-medium">
+                      {first?.name ?? String(first)}
+                    </span>
+                    <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-600 px-2 py-0.5 text-xs">
+                      +{restCount}
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-xs">
+                  <div className="flex flex-col gap-1.5">
+                    {subjects.map((s: any) => (
+                      <span
+                        key={s?.id ?? s}
+                        className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-1 text-xs font-medium"
+                      >
+                        {s?.name ?? String(s)}
+                      </span>
+                    ))}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        })()}
+      </TableCell>
       <TableCell className="px-6 py-4 text-gray-600 text-center">
         {formatDate(user.createdAt)}
       </TableCell>

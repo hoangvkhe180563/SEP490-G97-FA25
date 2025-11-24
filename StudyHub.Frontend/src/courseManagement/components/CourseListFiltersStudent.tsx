@@ -14,6 +14,8 @@ type FiltersShape = {
   subjectId?: number | string;
   grade?: number | string;
   level?: number | string;
+  difficulty?: string | number;
+  length?: string | number;
   instructor?: string | number;
   isFeatured?: boolean;
   minDuration?: number;
@@ -41,6 +43,8 @@ const CourseListFiltersStudent: React.FC<Props> = ({
   const [local, setLocal] = useState<Record<string, any>>({
     subjectId: filters.subjectId ?? undefined,
     grade: filters.grade ?? filters.level ?? undefined,
+    difficulty: filters.difficulty ?? undefined,
+    length: filters.length ?? undefined,
     instructor: filters.instructor ?? undefined,
     displayInstructor: undefined,
     isFeatured: filters.isFeatured ?? undefined,
@@ -147,6 +151,53 @@ const CourseListFiltersStudent: React.FC<Props> = ({
                   {cat.name}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {/* Mức độ */}
+        <div>
+          <Label className="text-sm font-medium">Mức độ</Label>
+          <Select
+            value={local.difficulty ?? "all"}
+            onValueChange={(v) =>
+              setLocal((prev) => ({
+                ...prev,
+                difficulty: v === "all" ? undefined : v,
+              }))
+            }
+          >
+            <SelectTrigger className="mt-2 w-full">
+              <SelectValue placeholder="Chọn mức độ" />
+            </SelectTrigger>
+            <SelectContent className="max-h-40 overflow-y-auto">
+              <SelectItem value="all">Tất cả mức độ</SelectItem>
+              <SelectItem value="Beginner">Cơ bản</SelectItem>
+              <SelectItem value="Intermediate">Trung cấp</SelectItem>
+              <SelectItem value="Advanced">Nâng cao</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Độ dài */}
+        <div>
+          <Label className="text-sm font-medium">Độ dài</Label>
+          <Select
+            value={local.length ?? "all"}
+            onValueChange={(v) =>
+              setLocal((prev) => ({
+                ...prev,
+                length: v === "all" ? undefined : v,
+              }))
+            }
+          >
+            <SelectTrigger className="mt-2 w-full">
+              <SelectValue placeholder="Chọn độ dài" />
+            </SelectTrigger>
+            <SelectContent className="max-h-40 overflow-y-auto">
+              <SelectItem value="all">Tất cả độ dài</SelectItem>
+              <SelectItem value="Short">Ngắn</SelectItem>
+              <SelectItem value="Medium">Trung bình</SelectItem>
+              <SelectItem value="Long">Dài</SelectItem>
             </SelectContent>
           </Select>
         </div>
