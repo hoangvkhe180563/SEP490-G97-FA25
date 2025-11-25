@@ -90,6 +90,11 @@ const CreateExam = () => {
 
     // Basic validation for questions
     if (selectedTab === 'new-questions') {
+      if (questions.length === 0) {
+        toast.error("Vui lòng điền ít nhất một câu hỏi!");
+        setLoading(false);
+        return;
+      }
       for (const q of questions) {
         if (!q.questionText.trim()) {
           toast.error("Vui lòng nhập nội dung cho tất cả các câu hỏi.");

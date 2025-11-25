@@ -105,7 +105,7 @@ const UpdateExam = () => {
     }
 
     // Basic validation for questions
-    if (questions.length !== 0) {
+    if (!randomQuestions) {
       for (const q of questions) {
         if (!q.questionText.trim()) {
           toast.error("Vui lòng nhập nội dung cho tất cả các câu hỏi.");
@@ -168,12 +168,10 @@ const UpdateExam = () => {
           }
         }
       }
-    } else {
-      if (selectedSubjectId === 0 || selectedGrade === 0 || !Number(randomQuestions)) {
-        toast.error("Vui lòng điền số câu hỏi cần tạo!");
-        setLoading(false);
-        return;
-      }
+    } else if (selectedSubjectId === 0 || selectedGrade === 0 || !Number(randomQuestions)) {
+      toast.error("Vui lòng điền số câu hỏi cần tạo!");
+      setLoading(false);
+      return;
     }
 
     const examToUpdate: Exam = {
