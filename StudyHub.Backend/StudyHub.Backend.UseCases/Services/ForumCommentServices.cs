@@ -74,6 +74,7 @@ namespace StudyHub.Backend.UseCases.Services
                     var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
                     bool isImage = imageExtensions.Contains(extension);
 
+                    bool currentFileViolation = false;
                     if (isImage)
                     {
                         try
@@ -82,7 +83,7 @@ namespace StudyHub.Backend.UseCases.Services
                             if (moderationResult.IsViolation)
                             {
                                 hasImageViolation = true;
-                                continue;
+                                currentFileViolation = true;
                             }
                         }
                         catch (Exception)
@@ -104,7 +105,7 @@ namespace StudyHub.Backend.UseCases.Services
                         FileUrl = fileUrl,
                         CreatedBy = comment.CreatedBy,
                         CreatedAt = DateTime.Now,
-                        IsApproved = true
+                        IsApproved = !currentFileViolation
                     });
                 }
             }
@@ -249,10 +250,16 @@ namespace StudyHub.Backend.UseCases.Services
             if (comment == null) return false;
 
             comment.TotalViolationScore += violationScore;
-            comment.IsHidden = false;
-            comment.Status = true;
+            comment.IsHidden = true;
+            comment.Status = false;
 
             await _commentRepo.UpdateCommentAsync(comment);
+
+            var attachments = await _configRepo.GetAttachmentsByCommentIdAsync(commentId);
+            foreach (var att in attachments.Where(a => a.IsApproved == true))
+            {
+                await _configRepo.RejectAttachmentAsync(att.Id);
+            }
 
             await _moderationRepo.CreateViolationRecordAsync(new ViolationRecord
             {

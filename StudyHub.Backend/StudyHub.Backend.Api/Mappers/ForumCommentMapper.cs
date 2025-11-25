@@ -42,7 +42,7 @@ namespace StudyHub.Backend.Api.Mappers
                 Attachments = shouldMaskContent
                     ? new List<ForumAttachmentDto>()
                     : (comment.Attachments?
-                        .Where(a => a.IsApproved == true)
+                        .Where(a => isModerator || isOwner || a.IsApproved == true)
                         .Select(a => new ForumAttachmentDto
                         {
                             AttachmentId = a.Id,
@@ -84,14 +84,16 @@ namespace StudyHub.Backend.Api.Mappers
                     ?? new List<ForumCommentListDto>(),
                 Attachments = shouldMaskContent
                     ? new List<ForumAttachmentDto>()
-                    : (comment.Attachments?.Select(a => new ForumAttachmentDto
-                    {
-                        AttachmentId = a.Id,
-                        CommentId = a.CommentId,
-                        FileUrl = a.FileUrl,
-                        IsApproved = a.IsApproved,
-                        CreatedAt = a.CreatedAt
-                    }).ToList() ?? new List<ForumAttachmentDto>()),
+                    : (comment.Attachments?
+                        .Where(a => isModerator || isOwner || a.IsApproved == true)
+                        .Select(a => new ForumAttachmentDto
+                        {
+                            AttachmentId = a.Id,
+                            CommentId = a.CommentId,
+                            FileUrl = a.FileUrl,
+                            IsApproved = a.IsApproved,
+                            CreatedAt = a.CreatedAt
+                        }).ToList() ?? new List<ForumAttachmentDto>()),
                 ViolationRecords = isModerator || isOwner
                     ? (comment.ViolationRecords?.Select(v => v.ToDto()).ToList() ?? new List<ViolationRecordDto>())
                     : new List<ViolationRecordDto>()

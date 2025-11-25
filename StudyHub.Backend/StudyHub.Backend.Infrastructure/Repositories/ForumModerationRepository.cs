@@ -693,9 +693,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     if (post != null)
                     {
                         post.TotalViolationScore += entity.ViolationScore;
-                        if (post.TotalViolationScore >= 10)
+
+                        if (post.TotalViolationScore >= 10 && post.Status == true)
                         {
                             post.IsHidden = false;
+
+                            var attachments = await _context.ForumAttachments
+                                .Where(a => a.PostId == entity.PostId.Value && a.IsApproved == true && a.DeletedAt == null)
+                                .ToListAsync();
+                            foreach (var att in attachments)
+                            {
+                                att.IsApproved = false;
+                            }
                         }
                     }
                 }
@@ -706,9 +715,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     if (comment != null)
                     {
                         comment.TotalViolationScore += entity.ViolationScore;
-                        if (comment.TotalViolationScore >= 10)
+
+                        if (comment.TotalViolationScore >= 10 && comment.Status == true)
                         {
                             comment.IsHidden = false;
+
+                            var attachments = await _context.ForumAttachments
+                                .Where(a => a.CommentId == entity.CommentId.Value && a.IsApproved == true && a.DeletedAt == null)
+                                .ToListAsync();
+                            foreach (var att in attachments)
+                            {
+                                att.IsApproved = false;
+                            }
                         }
                     }
                 }

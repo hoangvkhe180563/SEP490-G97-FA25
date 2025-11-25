@@ -96,7 +96,6 @@ namespace StudyHub.Backend.UseCases.Services
             bool hasProtectedFlair = flair?.IsProtected ?? false;
 
             List<ForumAttachment> processedAttachments = new List<ForumAttachment>();
-            List<string> violationFileUrls = new List<string>();
             bool hasImageViolation = false;
 
             if (attachments != null && attachments.Any())
@@ -110,6 +109,7 @@ namespace StudyHub.Backend.UseCases.Services
                     var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
                     bool isImage = imageExtensions.Contains(extension);
 
+                    bool currentFileViolation = false;
                     if (isImage)
                     {
                         try
@@ -119,29 +119,7 @@ namespace StudyHub.Backend.UseCases.Services
                             if (moderationResult.IsViolation)
                             {
                                 hasImageViolation = true;
-
-                                var violationFileUrl = await _fileStorage.UploadFileAsync(file, FileConstants.ForumPostAttachmentUploadPath);
-
-                                if (string.IsNullOrWhiteSpace(violationFileUrl))
-                                {
-                                    throw new InvalidOperationException($"Không thể tải lên file {file.FileName}");
-                                }
-
-                                if (hasProtectedFlair)
-                                {
-                                    processedAttachments.Add(new ForumAttachment
-                                    {
-                                        FileUrl = violationFileUrl,
-                                        CreatedBy = post.CreatedBy,
-                                        CreatedAt = DateTime.Now,
-                                        IsApproved = false
-                                    });
-                                }
-                                else
-                                {
-                                    violationFileUrls.Add(violationFileUrl);
-                                }
-                                continue;
+                                currentFileViolation = true;
                             }
                         }
                         catch (Exception)
@@ -151,22 +129,23 @@ namespace StudyHub.Backend.UseCases.Services
                         }
                     }
 
-                    var normalFileUrl = await _fileStorage.UploadFileAsync(file, FileConstants.ForumPostAttachmentUploadPath);
+                    var fileUrl = await _fileStorage.UploadFileAsync(file, FileConstants.ForumPostAttachmentUploadPath);
 
-                    if (string.IsNullOrWhiteSpace(normalFileUrl))
+                    if (string.IsNullOrWhiteSpace(fileUrl))
                     {
                         throw new InvalidOperationException($"Không thể tải lên file {file.FileName}");
                     }
 
                     processedAttachments.Add(new ForumAttachment
                     {
-                        FileUrl = normalFileUrl,
+                        FileUrl = fileUrl,
                         CreatedBy = post.CreatedBy,
                         CreatedAt = DateTime.Now,
-                        IsApproved = true
+                        IsApproved = !currentFileViolation
                     });
                 }
             }
+
             if (hasTextViolations)
             {
                 foreach (var violation in violations)
@@ -199,11 +178,6 @@ namespace StudyHub.Backend.UseCases.Services
                     if (hasImageViolation)
                     {
                         await _moderationRepo.AddViolationScoreAsync(post.CreatedBy, post.SchoolId, 10);
-                    }
-
-                    foreach (var fileUrl in violationFileUrls)
-                    {
-                        await _fileStorage.DeleteFileAsync(fileUrl);
                     }
                 }
             }
@@ -285,6 +259,18 @@ namespace StudyHub.Backend.UseCases.Services
                 await _configRepo.ApproveAttachmentAsync(att.Id, Guid.Parse(moderatorId));
             }
 
+            bool hasProtectedFlair = post.Flair?.IsProtected ?? false;
+            if (hasProtectedFlair && post.TotalViolationScore > 0)
+            {
+                foreach (var violation in post.ViolationRecords ?? new List<ViolationRecord>())
+                {
+                    if (violation.SourceType == "auto" && violation.ViolationScore > 0)
+                    {
+                        await _moderationRepo.AddViolationScoreAsync(post.CreatedBy, post.SchoolId, violation.ViolationScore);
+                    }
+                }
+            }
+
             return await _postRepo.ApprovePostAsync(postId, Guid.Parse(moderatorId));
         }
 
@@ -296,8 +282,7 @@ namespace StudyHub.Backend.UseCases.Services
             var attachments = await _configRepo.GetAttachmentsByPostIdAsync(postId);
             foreach (var att in attachments)
             {
-                await _fileStorage.DeleteFileAsync(att.FileUrl);
-                await _configRepo.SoftDeleteAttachmentAsync(att.Id);
+                await _configRepo.RejectAttachmentAsync(att.Id);
             }
 
             post.IsHidden = true;
@@ -348,11 +333,11 @@ namespace StudyHub.Backend.UseCases.Services
             var post = await _postRepo.GetPostByIdAsync(postId);
             if (post == null) return false;
 
-            post.TotalViolationScore += violationScore;
-            post.IsHidden = false;
-            post.Status = true;
-
-            await _postRepo.UpdatePostAsync(post);
+            var attachments = await _configRepo.GetAttachmentsByPostIdAsync(postId);
+            foreach (var att in attachments.Where(a => a.IsApproved == true))
+            {
+                await _configRepo.RejectAttachmentAsync(att.Id);
+            }
 
             await _moderationRepo.CreateViolationRecordAsync(new ViolationRecord
             {
@@ -365,6 +350,15 @@ namespace StudyHub.Backend.UseCases.Services
             });
 
             await _moderationRepo.AddViolationScoreAsync(post.CreatedBy, post.SchoolId, violationScore);
+
+            post = await _postRepo.GetPostByIdAsync(postId);
+
+            post.TotalViolationScore += violationScore;
+            post.IsHidden = false;
+            post.Status = true;
+
+
+            await _postRepo.UpdatePostAsync(post);
 
             return true;
         }

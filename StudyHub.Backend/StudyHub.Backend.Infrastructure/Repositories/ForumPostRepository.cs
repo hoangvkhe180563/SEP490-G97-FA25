@@ -43,7 +43,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 mappedPost.Attachments = await _context.ForumAttachments
                     .Where(a => a.PostId == postId && a.DeletedAt == null)
-                    .Where(a => mappedPost.Status == null || a.IsApproved == true)
                     .Select(a => new ForumAttachment
                     {
                         Id = a.Id,
@@ -409,6 +408,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.Content = post.Content;
                 entity.TotalViolationScore = post.TotalViolationScore;
                 entity.Status = post.Status;
+                entity.IsHidden = post.IsHidden;
                 entity.UpdatedAt = DateTime.Now;
                 entity.UpdatedBy = post.UpdatedBy;
 
