@@ -31,7 +31,7 @@ namespace StudyHub.Backend.UseCases.Dtos
     }
 
     // Recommendation Result
-    public class RecommendationResult
+    public class CourseRecommendationResult
     {
         public string Id { get; set; }
         public string Title { get; set; }
@@ -42,30 +42,5 @@ namespace StudyHub.Backend.UseCases.Dtos
         public string Length { get; set; }
         public string Information { get; set; }
         public int Grade { get; set; }
-    }
-
-    // Full Recommendation Response
-    public class LLMRecommendationResponse
-    {
-        public UserPreferenceProfile Profile { get; set; }
-        public List<RecommendationResult> Recommendations { get; set; }
-        public string Explanation { get; set; }
-        public int TotalResults { get; set; }
-    }
-
-    // Elasticsearch Document cho Hybrid Search
-    public class CourseDocumentHybrid
-    {
-        public string Id { get; set; }
-        public string Title { get; set; }
-        public string Description { get; set; }
-        public string Subject { get; set; }
-        public string Difficulty { get; set; }
-        public string Length { get; set; }
-        public int Grade { get; set; }
-        public List<string> Topics { get; set; }
-        public float[] DenseVector { get; set; }
-        public Dictionary<string, float> SparseVector { get; set; } // BM25 terms
-        public string LearningStyle { get; set; }
     }
 }

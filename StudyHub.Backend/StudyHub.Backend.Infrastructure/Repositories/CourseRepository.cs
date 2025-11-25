@@ -223,7 +223,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Status = course.Status,
                     Difficulty = (sbyte)course.Difficulty,
                     Length = (sbyte)course.Length,
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.Now,
                     StartAt = course.StartAt,
                     EndAt = course.EndAt,
                     CreatedBy = course.CreatedBy,
@@ -263,7 +263,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.Length = (sbyte)course.Length;
                 entity.StartAt = course.StartAt;
                 entity.EndAt = course.EndAt;
-                entity.UpdatedAt = DateTime.UtcNow;
+                entity.UpdatedAt = DateTime.Now;
                 entity.UpdatedBy = course.UpdatedBy;
                 entity.IsApproved = course.IsApproved;
 

@@ -63,7 +63,7 @@ namespace StudyHub.Backend.UseCases.Services
         // PROMPT TEMPLATE 2: Tạo Explanation cho recommendations
         private string GetExplanationPrompt(
         UserPreferenceProfile profile,
-        List<RecommendationResult> recommendations)
+        List<CourseRecommendationResult> recommendations)
         {
             var profileJson = JsonSerializer.Serialize(profile, new JsonSerializerOptions
             {
@@ -156,7 +156,7 @@ namespace StudyHub.Backend.UseCases.Services
 
         public async Task<string> GenerateExplanationAsync(
         UserPreferenceProfile profile,
-        List<RecommendationResult> recommendations)
+        List<CourseRecommendationResult> recommendations)
         {
 
             var model = configuration["HuggingFace:LLMModel"] ?? "Qwen/Qwen3-4B-Instruct-2507";

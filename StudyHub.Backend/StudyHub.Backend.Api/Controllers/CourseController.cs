@@ -101,7 +101,7 @@ public class CourseController : ControllerBase
             Grade = created.Grade,
             //IsFeatured = created.IsFeatured,
             Status = created.Status,
-            //StartAt = created.StartAt,
+            //StartAt = created.StartAtutc
             //EndAt = created.EndAt
         };
         await _elasticsearchService.IndexCourseAsync(elasticCourse);
@@ -134,7 +134,7 @@ public class CourseController : ControllerBase
         // Difficulty & Length
         existing.Difficulty = System.Enum.TryParse<StudyHub.Backend.Domain.Entities.CourseDifficulty>(dto.Difficulty, true, out var _d) ? _d : existing.Difficulty;
         existing.Length = System.Enum.TryParse<StudyHub.Backend.Domain.Entities.CourseLength>(dto.Length, true, out var _l) ? _l : existing.Length;
-        existing.UpdatedAt = DateTime.UtcNow;
+        existing.UpdatedAt = DateTime.Now;
         existing.UpdatedBy = dto.UpdatedBy;
         existing.IsApproved = dto.IsApproved;
 
@@ -168,12 +168,13 @@ public class CourseController : ControllerBase
 
     // ===================== DELETE =====================
     [HttpDelete("{id}")]
-    public IActionResult Delete(int id)
+    public async Task<IActionResult> Delete(int id)
     {
         var ok = _service.DeleteCourse(id);
         if (!ok)
             return NotFound();
 
+        await _elasticsearchService.DeleteCourseByIdAsync(id);
         return NoContent();
     }
 

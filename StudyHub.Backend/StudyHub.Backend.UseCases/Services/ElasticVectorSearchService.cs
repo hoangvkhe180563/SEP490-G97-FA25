@@ -10,10 +10,12 @@ namespace StudyHub.Backend.UseCases.Services
     {
         private readonly ElasticClient _client;
         private readonly EmbeddingService _embeddingService;
+        private readonly CourseService _courseService;
         private readonly IConfiguration _configuration;
+        private readonly AuthService _authService;
         private const string INDEX_NAME = "courses";
 
-        public ElasticVectorSearchService(EmbeddingService embeddingService, IConfiguration configuration)
+        public ElasticVectorSearchService(EmbeddingService embeddingService, IConfiguration configuration, CourseService courseService, AuthService authService)
         {
             _configuration = configuration;
             var elasticsearchUrl = _configuration["Elasticsearch:Url"] ?? "http://localhost0:9200";
@@ -23,6 +25,73 @@ namespace StudyHub.Backend.UseCases.Services
 
             _client = new ElasticClient(settings);
             _embeddingService = embeddingService;
+            _courseService = courseService;
+            _authService = authService;
+        }
+
+        // Index all courses from MySQL (via CourseService) into Elasticsearch
+        public async Task<bool> IndexAllCoursesFromDbAsync()
+        {
+            try
+            {
+                var query = new CourseQueryParams { Page = 1, PageSize = int.MaxValue };
+                var paged = _courseService.GetAllCourses(query);
+                var courses = paged.Items ?? new List<Course>();
+
+                if (courses.Count == 0)
+                    return true;
+
+                var documents = new List<ElasticCourse>();
+                var texts = courses.Select(c => _embeddingService.ConvertCourseToText(c)).ToList();
+
+                var vectors = await _embeddingService.GetEmbeddingsBatchAsync(texts);
+
+                for (int i = 0; i < courses.Count; i++)
+                {
+                    var course = courses[i];
+                    documents.Add(new ElasticCourse
+                    {
+                        Id = course.Id,
+                        Name = course.Name,
+                        Information = course.Information ?? "",
+                        SchoolId = course.SchoolId,
+                        Status = course.Status,
+                        SubjectName = course.Subject?.Name ?? string.Empty,
+                        Difficulty = course.Difficulty.ToString(),
+                        Length = course.Length.ToString(),
+                        Grade = course.Grade,
+                        CourseVector = vectors[i],
+                        SearchableText = texts[i]
+                    });
+                }
+
+                var bulkResponse = await _client.BulkAsync(b => b
+                    .Index(INDEX_NAME)
+                    .IndexMany(documents)
+                );
+
+                await _client.Indices.RefreshAsync(INDEX_NAME);
+
+                return bulkResponse.IsValid;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // Delete a document in Elasticsearch index by course id
+        public async Task<bool> DeleteCourseByIdAsync(int id)
+        {
+            try
+            {
+                var response = await _client.DeleteAsync(new DeleteRequest(INDEX_NAME, id.ToString()));
+                return response.IsValid;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public async Task<bool> CreateIndexAsync()
@@ -68,7 +137,7 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 Id = course.Id,
                 Name = course.Name,
-                Information = course.Information,
+                Information = course.Information ?? "",
                 SchoolId = course.SchoolId,
                 Status = course.Status,
                 SubjectName = course.Subject.Name,
@@ -98,7 +167,7 @@ namespace StudyHub.Backend.UseCases.Services
                 {
                     Id = course.Id,
                     Name = course.Name,
-                    Information = course.Information,
+                    Information = course.Information ?? "",
                     SchoolId = course.SchoolId,
                     Status = course.Status,
                     SubjectName = course.Subject.Name,
@@ -155,7 +224,7 @@ namespace StudyHub.Backend.UseCases.Services
             );
 
             //// Filter SchoolId (null thì filter null)
-            if (profile.SchoolId == null || profile.SchoolId == 0)
+            if (profile.SchoolId < 1)
             {
                 filters.Add(f => f
                     .Bool(b => b
@@ -168,9 +237,12 @@ namespace StudyHub.Backend.UseCases.Services
             else
             {
                 filters.Add(f => f
-                    .Term(t => t
-                        .Field(fd => fd.SchoolId)
-                        .Value(profile.SchoolId)    // filter theo SchoolId của user
+                    .Bool(b => b
+                        .Should(
+                            sh => sh.Term(t => t.Field(fd => fd.SchoolId).Value(profile.SchoolId)),
+                            sh => sh.Bool(bb => bb.MustNot(m => m.Exists(e => e.Field(fd => fd.SchoolId))))
+                        )
+                        .MinimumShouldMatch(1)
                     )
                 );
             }
@@ -311,10 +383,13 @@ namespace StudyHub.Backend.UseCases.Services
         }
 
         // CORE: Hybrid Search with LLM Profile
-        public async Task<List<RecommendationResult>> SearchWithLLMProfileAsync(
+        public async Task<List<CourseRecommendationResult>> SearchWithLLMProfileAsync(
             UserPreferenceProfile profile,
             int topK = 30)
         {
+            var user = _authService.GetCurrentUser();
+            var schoolId = user?.SchoolId ?? 0;
+
             // Step 1: Tạo query text từ goal + topic (để embed)
             var queryText = _embeddingService.BuildQueryTextForEmbedding(profile);
 
@@ -325,8 +400,50 @@ namespace StudyHub.Backend.UseCases.Services
             var targetDifficulty = MapLevelToDifficulty(profile.Level);
             var targetLength = MapPreferredLength(profile.PreferredLength);
 
+            // Build filters
+            var filters = new List<Func<QueryContainerDescriptor<ElasticCourse>, QueryContainer>>();
+
+            filters.Add(f => f
+                .Terms(t => t
+                    .Field(fd => fd.SubjectName)
+                    .Terms(profile.Subject)
+                )
+            );
+
+            //// Filter Status
+            filters.Add(f => f
+                .Term(t => t
+                    .Field(fd => fd.Status)
+                    .Value("Mở") // hoặc profile.Status nếu có
+                )
+            );
+
+            //// Filter SchoolId (null thì filter null)
+            if (schoolId < 1)
+            {
+                filters.Add(f => f
+                    .Bool(b => b
+                        .MustNot(m => m
+                            .Exists(e => e.Field(fd => fd.SchoolId))
+                        )
+                    )
+                );
+            }
+            else
+            {
+                filters.Add(f => f
+                    .Bool(b => b
+                        .Should(
+                            sh => sh.Term(t => t.Field(fd => fd.SchoolId).Value(schoolId)),
+                            sh => sh.Bool(bb => bb.MustNot(m => m.Exists(e => e.Field(fd => fd.SchoolId))))
+                        )
+                        .MinimumShouldMatch(1)
+                    )
+                );
+            }
+
             // Step 4: Build Elasticsearch Query
-            var searchResponse = await _client.SearchAsync<ElasticCourse>(s => s
+            var searchCourseResponse = await _client.SearchAsync<ElasticCourse>(s => s
                 .Index(INDEX_NAME)
                 .Size(topK * 2)
                 .Query(q => q
@@ -334,12 +451,7 @@ namespace StudyHub.Backend.UseCases.Services
                         .Query(query => query
                             .Bool(b => b
                                 // MUST: Filter by subjects
-                                .Filter(f => f
-                                    .Terms(t => t
-                                        .Field(fd => fd.SubjectName)
-                                        .Terms(profile.Subject)
-                                    )
-                                )
+                                .Filter(filters.ToArray())
                                 // SHOULD: BM25 cho topicKeywords trên Title + Description
                                 .Should(
                                     // BM25 trên Name (Title)
@@ -399,8 +511,8 @@ namespace StudyHub.Backend.UseCases.Services
             );
 
             // Step 5: Transform results
-            var results = searchResponse.Hits
-                .Select(hit => new RecommendationResult
+            var results = searchCourseResponse.Hits
+                .Select(hit => new CourseRecommendationResult
                 {
                     Id = hit.Source?.Id.ToString() ?? "",
                     Title = hit.Source?.Name ?? "",
@@ -723,7 +835,7 @@ namespace StudyHub.Backend.UseCases.Services
                     Id = course.Id,
                     Name = course.Name,
                     Status = course.Status,
-                    Information = course.Information,
+                    Information = course.Information ?? "",
                     SchoolId = course.SchoolId,
                     SubjectName = course.Subject.Name,
                     Difficulty = course.Difficulty.ToString(),
