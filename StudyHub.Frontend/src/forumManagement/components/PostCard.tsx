@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/common/components/ui/dropdown-menu";
-import { Trash2, MoreVertical, Flag, Edit } from "lucide-react";
+import { MoreVertical, Flag, Edit } from "lucide-react";
 import { ReportModal } from "./ReportModal";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { Button } from "@/common/components/ui/button";
@@ -46,7 +46,40 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
     ? post.image_urls.split(",").filter((url) => url.trim())
     : [];
   const displayComments = post.comments || [];
+  const [commentImageModal, setCommentImageModal] = useState({
+    isOpen: false,
+    images: [] as string[],
+    selectedIndex: 0,
+    zoom: 1,
+  });
+  const handleCommentImageClick = (images: string[], idx: number) => {
+    setCommentImageModal({
+      isOpen: true,
+      images,
+      selectedIndex: idx,
+      zoom: 1,
+    });
+  };
+  const handleCloseCommentImageModal = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCommentImageModal((prev) => ({ ...prev, isOpen: false, zoom: 1 }));
+  };
 
+  const handleCommentZoomIn = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCommentImageModal((prev) => ({
+      ...prev,
+      zoom: Math.min(prev.zoom + 0.25, 3),
+    }));
+  };
+
+  const handleCommentZoomOut = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCommentImageModal((prev) => ({
+      ...prev,
+      zoom: Math.max(prev.zoom - 0.25, 0.5),
+    }));
+  };
   const handleToggleComments = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!showComments) {
@@ -215,6 +248,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
                 showSort={false}
                 onRefreshComments={undefined}
                 maxVisibleReplies={2}
+                onImageClick={handleCommentImageClick}
               />
               {displayComments.length > visibleComments && (
                 <button
@@ -253,6 +287,39 @@ const PostCard: React.FC<PostCardProps> = ({ post, onViewDetails }) => {
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
           onIndexChange={(index) => setSelectedImageIndex(index)}
+        />
+      )}
+      {commentImageModal.isOpen && (
+        <ImageModal
+          images={commentImageModal.images}
+          selectedIndex={commentImageModal.selectedIndex}
+          zoom={commentImageModal.zoom}
+          onClose={handleCloseCommentImageModal}
+          onPrevious={(e) => {
+            e.stopPropagation();
+            setCommentImageModal((prev) => ({
+              ...prev,
+              selectedIndex:
+                prev.selectedIndex === 0
+                  ? prev.images.length - 1
+                  : prev.selectedIndex - 1,
+            }));
+          }}
+          onNext={(e) => {
+            e.stopPropagation();
+            setCommentImageModal((prev) => ({
+              ...prev,
+              selectedIndex:
+                prev.selectedIndex === prev.images.length - 1
+                  ? 0
+                  : prev.selectedIndex + 1,
+            }));
+          }}
+          onZoomIn={handleCommentZoomIn}
+          onZoomOut={handleCommentZoomOut}
+          onIndexChange={(index) =>
+            setCommentImageModal((prev) => ({ ...prev, selectedIndex: index }))
+          }
         />
       )}
       <ReportModal

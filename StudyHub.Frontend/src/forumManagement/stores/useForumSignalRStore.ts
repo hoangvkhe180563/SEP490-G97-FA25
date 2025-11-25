@@ -92,7 +92,6 @@ export const useForumSignalRStore = create<ForumSignalRState>()(
           });
 
           conn.on("PostUpdated", (dto: any) => {
-            console.log("PostUpdated signal received:", dto);
             const handler = get().onPostUpdated;
             if (handler) handler(dto);
           });
@@ -130,7 +129,6 @@ export const useForumSignalRStore = create<ForumSignalRState>()(
 
           await conn.start();
           set({ isForumConnected: true });
-          console.log("Forum connection started successfully");
         } catch (error) {
           console.error("Failed to start forum connection:", error);
           const existingConn = (window as any).__forumConn;
@@ -162,12 +160,10 @@ export const useForumSignalRStore = create<ForumSignalRState>()(
       joinSchoolForum: async (schoolId: number) => {
         const conn: HubConnection | undefined = (window as any).__forumConn;
         if (!conn || conn.state !== "Connected") {
-          console.warn("Connection not ready for joinSchoolForum");
           return;
         }
         try {
           await conn.invoke("JoinSchoolForum", schoolId);
-          console.log(`Joined school forum: ${schoolId}`);
         } catch (err) {
           console.error("Error joining school forum:", err);
         }
@@ -178,7 +174,6 @@ export const useForumSignalRStore = create<ForumSignalRState>()(
         if (!conn) return;
         try {
           await conn.invoke("LeaveSchoolForum", schoolId);
-          console.log(`Left school forum: ${schoolId}`);
         } catch (err) {
           console.error("Error leaving school forum:", err);
         }
@@ -187,12 +182,10 @@ export const useForumSignalRStore = create<ForumSignalRState>()(
       joinPost: async (postId: number) => {
         const conn: HubConnection | undefined = (window as any).__forumConn;
         if (!conn || conn.state !== "Connected") {
-          console.warn("Connection not ready for joinPost");
           return;
         }
         try {
           await conn.invoke("JoinPost", postId);
-          console.log(`Joined post: ${postId}`);
         } catch (err) {
           console.error("Error joining post:", err);
         }
@@ -201,12 +194,10 @@ export const useForumSignalRStore = create<ForumSignalRState>()(
       leavePost: async (postId: number) => {
         const conn: HubConnection | undefined = (window as any).__forumConn;
         if (!conn || conn.state !== "Connected") {
-          console.warn("Connection not ready for leavePost");
           return;
         }
         try {
           await conn.invoke("LeavePost", postId);
-          console.log(`Left post: ${postId}`);
         } catch (err) {
           console.error("Error leaving post:", err);
         }
@@ -218,7 +209,6 @@ export const useForumSignalRStore = create<ForumSignalRState>()(
         try {
           await conn.invoke("TypingInPost", postId, isTyping);
         } catch (err) {
-          // Not critical, just log
           console.debug("Error sending typing status:", err);
         }
       },

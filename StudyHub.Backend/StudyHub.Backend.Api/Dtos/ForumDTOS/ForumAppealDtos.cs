@@ -45,7 +45,7 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public int SchoolId { get; set; }
 
         [Required(ErrorMessage = "Lý do kháng cáo là bắt buộc")]
-        [StringLength(2000, MinimumLength = 50, ErrorMessage = "Lý do kháng cáo phải từ 50-2000 ký tự")]
+        [StringLength(2000, MinimumLength = 10, ErrorMessage = "Lý do kháng cáo phải từ 50-2000 ký tự")]
         public string Reason { get; set; } = string.Empty;
     }
 

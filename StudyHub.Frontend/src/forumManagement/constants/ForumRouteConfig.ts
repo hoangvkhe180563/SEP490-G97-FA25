@@ -7,15 +7,15 @@ const ForumRouteConfig = {
   },
   MANAGER: {
     INDEX: "manager",
+    DASHBOARD: "dashboard",
     FORUMS: "forums",
     POST_DETAIL: "forums/details/:postId",
     POST_MANAGEMENT: "posts",
-    COMMENT_MANAGEMENT: "comments",
     APPEAL_MANAGEMENT: "appeals",
     VIOLATION_ACCOUNTS: "accounts",
     VIOLATION_RECORDS: "violations",
     FLAIR_MANAGEMENT: "flairs",
-    // REPORT_MANAGEMENT: "reports",
+    RULE_MANAGEMENT: "rules",
   },
   STUDENT: {
     INDEX: "",

@@ -25,6 +25,8 @@ import type { Post } from "../interfaces/forum";
 import { getSubjectBadgeColor, getFlairColor } from "../utils/colorUtils";
 import { formatTimestamp } from "../utils/dateUtils";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { ImageModal } from "./ImageModal";
+import { createPortal } from "react-dom";
 
 interface PostDetailModalProps {
   isOpen: boolean;
@@ -58,7 +60,41 @@ export const PostDetailModal = ({
   const { user } = useAuthStore();
   const [commentContent, setCommentContent] = useState("");
   const [commentImages, setCommentImages] = useState<File[]>([]);
+  const [commentImageModal, setCommentImageModal] = useState({
+    isOpen: false,
+    images: [] as string[],
+    selectedIndex: 0,
+    zoom: 1,
+  });
+  const handleCommentImageClick = (images: string[], idx: number) => {
+    setCommentImageModal({
+      isOpen: true,
+      images,
+      selectedIndex: idx,
+      zoom: 1,
+    });
+  };
 
+  const handleCloseCommentImageModal = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCommentImageModal((prev) => ({ ...prev, isOpen: false, zoom: 1 }));
+  };
+
+  const handleCommentZoomIn = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCommentImageModal((prev) => ({
+      ...prev,
+      zoom: Math.min(prev.zoom + 0.25, 3),
+    }));
+  };
+
+  const handleCommentZoomOut = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCommentImageModal((prev) => ({
+      ...prev,
+      zoom: Math.max(prev.zoom - 0.25, 0.5),
+    }));
+  };
   useEffect(() => {
     if (highlightCommentId && post?.comments) {
       const timer = setTimeout(() => {
@@ -191,6 +227,7 @@ export const PostDetailModal = ({
               showSort={true}
               onRefreshComments={onRefreshComments}
               maxVisibleReplies={2}
+              onImageClick={handleCommentImageClick}
             />
             {(post.comments || []).length > visibleComments && (
               <button
@@ -271,7 +308,53 @@ export const PostDetailModal = ({
                   ))}
                 </div>
               )}
+              {commentImageModal.isOpen &&
+                createPortal(
+                  <>
+                    <div
+                      className="fixed inset-0 bg-black/95 z-[9998]"
+                      onClick={handleCloseCommentImageModal}
+                    />
 
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+                      <ImageModal
+                        images={commentImageModal.images}
+                        selectedIndex={commentImageModal.selectedIndex}
+                        zoom={commentImageModal.zoom}
+                        onClose={handleCloseCommentImageModal}
+                        onPrevious={(e) => {
+                          e.stopPropagation();
+                          setCommentImageModal((prev) => ({
+                            ...prev,
+                            selectedIndex:
+                              prev.selectedIndex === 0
+                                ? prev.images.length - 1
+                                : prev.selectedIndex - 1,
+                          }));
+                        }}
+                        onNext={(e) => {
+                          e.stopPropagation();
+                          setCommentImageModal((prev) => ({
+                            ...prev,
+                            selectedIndex:
+                              prev.selectedIndex === prev.images.length - 1
+                                ? 0
+                                : prev.selectedIndex + 1,
+                          }));
+                        }}
+                        onZoomIn={handleCommentZoomIn}
+                        onZoomOut={handleCommentZoomOut}
+                        onIndexChange={(index) =>
+                          setCommentImageModal((prev) => ({
+                            ...prev,
+                            selectedIndex: index,
+                          }))
+                        }
+                      />
+                    </div>
+                  </>,
+                  document.body
+                )}
               <div className="flex gap-2">
                 <Button
                   type="button"

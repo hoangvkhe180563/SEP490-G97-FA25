@@ -52,10 +52,17 @@ export const Sidebar = (props: {
 
     const result = await createAppeal(props.user.schoolId, reason);
     if (result?.success) {
-      toast.success("Đã gửi kháng cáo thành công");
+      toast.success(
+        result?.message ||
+          "Đã tạo kháng cáo thành công. Vui lòng đợi moderator xem xét."
+      );
     } else {
-      toast.error(result?.message || "Có lỗi xảy ra khi gửi kháng cáo");
+      toast.error(
+        result?.message || "Không thể tạo kháng cáo. Vui lòng thử lại."
+      );
     }
+
+    return result;
   };
   const [expanded, setExpanded] = useState<boolean>(true);
 

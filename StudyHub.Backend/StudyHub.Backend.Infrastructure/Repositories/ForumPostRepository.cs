@@ -43,7 +43,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 mappedPost.Attachments = await _context.ForumAttachments
                     .Where(a => a.PostId == postId && a.DeletedAt == null)
-                    .Where(a => mappedPost.Status == null || a.IsApproved == true)
                     .Select(a => new ForumAttachment
                     {
                         Id = a.Id,
@@ -83,10 +82,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             try
             {
                 var dbQuery = _context.ForumPosts
-                    .Include(p => p.Subject)
-                    .Include(p => p.Flair)
-                    .Include(p => p.CreatedByNavigation)
-                    .Where(p => p.SchoolId == schoolId && p.DeletedAt == null && p.Status == true && p.IsHidden == false);
+     .Include(p => p.Subject)
+     .Include(p => p.Flair)
+     .Include(p => p.CreatedByNavigation)
+     .Where(p => p.SchoolId == schoolId && p.DeletedAt == null && p.Status == true && !(p.IsHidden == true && p.Status == false));
 
                 if (subjectIds != null && subjectIds.Any())
                     dbQuery = dbQuery.Where(p => subjectIds.Contains(p.SubjectId));
@@ -349,6 +348,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                             CreatedBy = a.CreatedBy
                         })
                         .ToListAsync();
+                    post.CommentCount = await _context.ForumComments
+    .CountAsync(c => c.PostId == post.Id && c.DeletedAt == null);
                     var (comments, _) = await _commentRepo.GetCommentsByPostIdAsync(post.Id);
                     post.Comments = comments;
                     post.ViolationRecords = await GetViolationRecordsByPostIdAsync(post.Id);
@@ -407,6 +408,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.Content = post.Content;
                 entity.TotalViolationScore = post.TotalViolationScore;
                 entity.Status = post.Status;
+                entity.IsHidden = post.IsHidden;
                 entity.UpdatedAt = DateTime.Now;
                 entity.UpdatedBy = post.UpdatedBy;
 
