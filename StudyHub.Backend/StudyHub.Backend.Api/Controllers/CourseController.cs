@@ -3,6 +3,7 @@ using StudyHub.Backend.UseCases.Services;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.Api.Dtos.CourseDTOS;
 using StudyHub.Backend.UseCases.Dtos;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace StudyHub.Backend.Api.Controllers;
 
@@ -12,11 +13,13 @@ public class CourseController : ControllerBase
 {
     private readonly CourseService _service;
     private readonly CloudFileStorageService _fileStorage;
+    private readonly ElasticVectorSearchService _elasticsearchService;
 
-    public CourseController(CourseService service, CloudFileStorageService fileStorage)
+    public CourseController(CourseService service, CloudFileStorageService fileStorage, ElasticVectorSearchService elasticsearchService)
     {
         _service = service;
         _fileStorage = fileStorage;
+        _elasticsearchService = elasticsearchService;
     }
 
     // ===================== GET ALL =====================
@@ -78,19 +81,36 @@ public class CourseController : ControllerBase
 
     // ===================== CREATE =====================
     [HttpPost]
-    public IActionResult Create([FromBody] CourseDto dto)
+    public async Task<IActionResult> Create([FromBody] CourseDto dto)
     {
         if (dto == null)
             return BadRequest("Course data is required.");
 
         var entity = dto.ToEntity();
         var created = _service.CreateCourse(entity);
+        var elasticCourse = new UpsertElasticCourseRequest
+        {
+            Id = created.Id,
+            Name = created.Name,
+            Information = created.Information,
+            Difficulty = created.Difficulty,
+            Length = created.Length,
+            Subject = created.Subject,
+            SchoolId = created.SchoolId,
+            //Price = created.Price,
+            Grade = created.Grade,
+            //IsFeatured = created.IsFeatured,
+            Status = created.Status,
+            //StartAt = created.StartAt,
+            //EndAt = created.EndAt
+        };
+        await _elasticsearchService.IndexCourseAsync(elasticCourse);
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created.ToListDto());
     }
 
     // ===================== UPDATE =====================
     [HttpPut("{id}")]
-    public IActionResult Update(int id, [FromBody] CourseDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] CourseDto dto)
     {
         if (dto == null)
             return BadRequest("Course data is required.");
@@ -125,6 +145,24 @@ public class CourseController : ControllerBase
         }
 
         var updated = _service.UpdateCourse(existing);
+
+        var elasticCourse = new UpsertElasticCourseRequest
+        {
+            Id = updated.Id,
+            Name = updated.Name,
+            Information = updated.Information,
+            Difficulty = updated.Difficulty,
+            Length = updated.Length,
+            Subject = updated.Subject,
+            SchoolId = updated.SchoolId,
+            //Price = created.Price,
+            Grade = updated.Grade,
+            //IsFeatured = created.IsFeatured,
+            Status = updated.Status,
+            //StartAt = created.StartAt,
+            //EndAt = created.EndAt
+        };
+        await _elasticsearchService.IndexCourseAsync(elasticCourse);
         return Ok(updated.ToDto());
     }
 

@@ -8,6 +8,7 @@ using StudyHub.Backend.Api.Filters;
 using StudyHub.Backend.Api.Hubs;
 using StudyHub.Backend.Api.Middlewares;
 using OfficeOpenXml;
+using StudyHub.Backend.UseCases.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

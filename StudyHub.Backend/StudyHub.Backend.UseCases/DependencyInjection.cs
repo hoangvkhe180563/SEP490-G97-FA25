@@ -44,6 +44,9 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<ForumPostService>();
             services.AddScoped<IImageModerationService, ImageDectectService>();
             services.AddScoped<ExamService>();
+            services.AddScoped<EmbeddingService>();
+            services.AddScoped<ElasticVectorSearchService>();
+            services.AddScoped<QwenLLMService>();
             services.AddScoped<SubscriptionService>();
 
 

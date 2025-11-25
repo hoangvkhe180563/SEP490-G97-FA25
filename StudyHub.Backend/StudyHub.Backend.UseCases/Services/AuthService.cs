@@ -116,7 +116,7 @@ namespace StudyHub.Backend.UseCases.Services
             var refreshToken = JwtUtils.GenerateRefreshToken();
             var refreshExpireMinutes = jwtSection.GetValue<int?>("RefreshExpiresMinutes") ?? DEFAULT_REFRESH_EXPIRES_MINUTES;
             user.RefreshToken = refreshToken;
-            user.RefreshTokenExpire = DateTime.UtcNow.AddMinutes(refreshExpireMinutes);
+            user.RefreshTokenExpire = DateTime.Now.AddMinutes(refreshExpireMinutes);
             _userRepository.UpdateUser(user);
 
             var loginResult = new LoginResult
@@ -124,9 +124,9 @@ namespace StudyHub.Backend.UseCases.Services
                 Tokens = new TokenPair
                 {
                     AccessToken = accessToken,
-                    AccessTokenExpire = DateTime.UtcNow.AddMinutes(accessTokenExpireMinutes),
+                    AccessTokenExpire = DateTime.Now.AddMinutes(accessTokenExpireMinutes),
                     RefreshToken = refreshToken,
-                    RefreshTokenExpire = user.RefreshTokenExpire ?? DateTime.UtcNow.AddMinutes(refreshExpireMinutes)
+                    RefreshTokenExpire = user.RefreshTokenExpire ?? DateTime.Now.AddMinutes(refreshExpireMinutes)
                 },
                 User = user,
                 Roles = roleNames,
@@ -169,7 +169,7 @@ namespace StudyHub.Backend.UseCases.Services
             if (user.IsVerified) return null;
 
             var token = JwtUtils.CreateAccessToken(user, [], _configuration); // cryptographically strong random token
-            var expire = DateTime.UtcNow.AddHours(24);
+            var expire = DateTime.Now.AddHours(24);
             _userRepository.UpdateEmailVerificationToken(user.Id, token.Token, expire);
             return token.Token;
         }
@@ -182,10 +182,10 @@ namespace StudyHub.Backend.UseCases.Services
             if (string.IsNullOrEmpty(token)) return false;
             var user = _userRepository.GetByEmailVerificationToken(token);
             if (user == null) return false;
-            if (!user.EmailVerificationExpire.HasValue || user.EmailVerificationExpire.Value < DateTime.UtcNow) return false;
+            if (!user.EmailVerificationExpire.HasValue || user.EmailVerificationExpire.Value < DateTime.Now) return false;
 
             user.IsVerified = true;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
             // clear token
             user.EmailVerificationToken = null;
             user.EmailVerificationExpire = null;
@@ -220,8 +220,8 @@ namespace StudyHub.Backend.UseCases.Services
                 Username = username,
                 Fullname = fullname,
                 PhoneNumber = phoneNumber,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now,
                 CommuneId = communeId,
                 SchoolId = schoolId,
                 Avatar = avatar,
@@ -238,7 +238,7 @@ namespace StudyHub.Backend.UseCases.Services
                 string? token = CreateVerificationTokenForEmail(email);
                 if (token != null)
                 {
-                   await _emailService.SendVerificationEmailAsync(email, token);
+                    await _emailService.SendVerificationEmailAsync(email, token);
                 }
                 return user;
             }
@@ -278,7 +278,7 @@ namespace StudyHub.Backend.UseCases.Services
                     var sid = http.Request.Cookies["session_id"];
                     if (!string.IsNullOrEmpty(sid) && Guid.TryParse(sid, out var sessionId))
                     {
-                        _loginHistoryRepository?.SetLogoutBySessionId(sessionId, DateTime.UtcNow);
+                        _loginHistoryRepository?.SetLogoutBySessionId(sessionId, DateTime.Now);
                     }
                 }
             }
@@ -296,7 +296,7 @@ namespace StudyHub.Backend.UseCases.Services
             if (string.IsNullOrEmpty(refreshToken)) return null;
             var user = _userRepository.GetByRefreshToken(refreshToken);
             if (user == null) return null;
-            if (!user.RefreshTokenExpire.HasValue || user.RefreshTokenExpire.Value < DateTime.UtcNow) return null;
+            if (!user.RefreshTokenExpire.HasValue || user.RefreshTokenExpire.Value < DateTime.Now) return null;
 
             // Build roles/claims again
             var roles = _roleRepository.GetRolesForUser(user.Id);
@@ -311,7 +311,7 @@ namespace StudyHub.Backend.UseCases.Services
             var refreshExpireMinutes = jwtSection.GetValue<int?>("RefreshExpiresMinutes") ?? DEFAULT_REFRESH_EXPIRES_MINUTES;
 
             user.RefreshToken = refreshTokenNew;
-            user.RefreshTokenExpire = DateTime.UtcNow.AddMinutes(refreshExpireMinutes);
+            user.RefreshTokenExpire = DateTime.Now.AddMinutes(refreshExpireMinutes);
             _userRepository.UpdateUser(user);
 
             return new LoginResult
@@ -319,9 +319,9 @@ namespace StudyHub.Backend.UseCases.Services
                 Tokens = new TokenPair
                 {
                     AccessToken = accessToken,
-                    AccessTokenExpire = DateTime.UtcNow.AddMinutes(accessTokenExpireMinutes),
+                    AccessTokenExpire = DateTime.Now.AddMinutes(accessTokenExpireMinutes),
                     RefreshToken = refreshTokenNew,
-                    RefreshTokenExpire = user.RefreshTokenExpire ?? DateTime.UtcNow.AddMinutes(refreshExpireMinutes)
+                    RefreshTokenExpire = user.RefreshTokenExpire ?? DateTime.Now.AddMinutes(refreshExpireMinutes)
                 },
                 User = user,
                 Roles = roles?.Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList() ?? new List<string>(),
@@ -373,8 +373,8 @@ namespace StudyHub.Backend.UseCases.Services
                         Wallet = 0,
                         IsLoginWithGoogle = true,
                         IsVerified = true,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow,
+                        CreatedAt = DateTime.Now,
+                        UpdatedAt = DateTime.Now,
                     };
                     // auto-assign Student role if exists
                     var studentRole = _roleRepository.GetRoleByName("External Student");
@@ -415,7 +415,7 @@ namespace StudyHub.Backend.UseCases.Services
                 var refreshToken = JwtUtils.GenerateRefreshToken();
                 var refreshExpireMinutes = jwtSection.GetValue<int?>("RefreshExpiresMinutes") ?? DEFAULT_REFRESH_EXPIRES_MINUTES;
                 user.RefreshToken = refreshToken;
-                user.RefreshTokenExpire = DateTime.UtcNow.AddMinutes(refreshExpireMinutes);
+                user.RefreshTokenExpire = DateTime.Now.AddMinutes(refreshExpireMinutes);
                 _userRepository.UpdateUser(user);
 
                 // build permissions
@@ -440,9 +440,9 @@ namespace StudyHub.Backend.UseCases.Services
                     Tokens = new TokenPair
                     {
                         AccessToken = accessToken,
-                        AccessTokenExpire = DateTime.UtcNow.AddMinutes(accessTokenExpireMinutes),
+                        AccessTokenExpire = DateTime.Now.AddMinutes(accessTokenExpireMinutes),
                         RefreshToken = refreshToken,
-                        RefreshTokenExpire = user.RefreshTokenExpire ?? DateTime.UtcNow.AddMinutes(refreshExpireMinutes)
+                        RefreshTokenExpire = user.RefreshTokenExpire ?? DateTime.Now.AddMinutes(refreshExpireMinutes)
                     },
                     User = user,
                     Roles = roleNames,
@@ -599,7 +599,7 @@ namespace StudyHub.Backend.UseCases.Services
             if (user == null) return null;
 
             var token = JwtUtils.CreateAccessToken(user, [], _configuration);
-            var expire = DateTime.UtcNow.AddHours(1);
+            var expire = DateTime.Now.AddHours(1);
             _userRepository.UpdateResetToken(user.Id, token.Token, expire);
             return token.Token;
         }
@@ -612,7 +612,7 @@ namespace StudyHub.Backend.UseCases.Services
             if (string.IsNullOrEmpty(resetToken) || string.IsNullOrEmpty(newPassword)) return false;
             var user = _userRepository.GetByResetToken(resetToken);
             if (user == null) return false;
-            if (!user.ResetPasswordExpire.HasValue || user.ResetPasswordExpire.Value < DateTime.UtcNow) return false;
+            if (!user.ResetPasswordExpire.HasValue || user.ResetPasswordExpire.Value < DateTime.Now) return false;
 
             // Update password hash and clear reset token
             var hash = BCrypt.Net.BCrypt.HashPassword(newPassword, SALT_ROUNDS);
@@ -650,7 +650,7 @@ namespace StudyHub.Backend.UseCases.Services
                 roleNames = roles.Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
             }
 
-                List<short> subjectIds = _userRepository.GetUserSubjectIds(user.Id) ?? new List<short>();
+            List<short> subjectIds = _userRepository.GetUserSubjectIds(user.Id) ?? new List<short>();
 
             List<int> classIds = new List<int>();
             if (userClaims != null)
