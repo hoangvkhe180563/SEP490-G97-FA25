@@ -108,7 +108,7 @@ export const Sidebar = (props: {
             }`}
           >
             <div className="w-40">
-              <p className="font-medium">{props.user.fullname}</p>
+              <p className="font-medium truncate">{props.user.fullname}</p>
               <p className="text-sm text-gray-600 truncate">{props.user.email}</p>
             </div>
             <DropdownMenu>
