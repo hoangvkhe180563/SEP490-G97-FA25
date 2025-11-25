@@ -11,11 +11,13 @@ namespace StudyHub.Backend.Api.Controllers
     {
         private readonly ElasticVectorSearchService _elasticsearchService;
         private readonly QwenLLMService _llmService;
+        private readonly EmbeddingService _embeddingService;
 
-        public RecommendationController(ElasticVectorSearchService elasticsearchService, QwenLLMService llmService)
+        public RecommendationController(ElasticVectorSearchService elasticsearchService, QwenLLMService llmService, EmbeddingService embeddingService)
         {
             _elasticsearchService = elasticsearchService;
             _llmService = llmService;
+            _embeddingService = embeddingService;
         }
 
         // API để lấy khuyến nghị khóa học
@@ -67,12 +69,20 @@ namespace StudyHub.Backend.Api.Controllers
                 {
                     profile = request.Profile;
                 }
-                // Step 2: Search với profile (goal + topic → vector, topicKeywords → BM25)
-                var courseRecommendations = await _elasticsearchService.SearchWithLLMProfileAsync(
+
+                // Step 2: Tạo query text từ goal + topic (để embed)
+                var queryText = _embeddingService.BuildQueryTextForEmbedding(profile);
+
+                // Step 3: Tạo dense vector
+                var denseVector = await _embeddingService.GetEmbeddingAsync(queryText);
+
+                // Step 4: Search với profile (goal + topic → vector, topicKeywords → BM25)
+                var courseRecommendations = await _elasticsearchService.SearchCourseWithLLMProfileAsync(
+                    denseVector,
                     profile,
                     request.TopK ?? 30);
 
-                // Step 3: Generate explanation cho top 5
+                // Step 5: Generate explanation cho top 5
                 var explanation = await _llmService.GenerateExplanationAsync(
                     profile,
                     courseRecommendations.Take(5).ToList());

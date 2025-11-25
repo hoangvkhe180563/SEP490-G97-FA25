@@ -383,18 +383,13 @@ namespace StudyHub.Backend.UseCases.Services
         }
 
         // CORE: Hybrid Search with LLM Profile
-        public async Task<List<CourseRecommendationResult>> SearchWithLLMProfileAsync(
+        public async Task<List<CourseRecommendationResult>> SearchCourseWithLLMProfileAsync(
+            float[] denseVector,
             UserPreferenceProfile profile,
             int topK = 30)
         {
             var user = _authService.GetCurrentUser();
             var schoolId = user?.SchoolId ?? 0;
-
-            // Step 1: Tạo query text từ goal + topic (để embed)
-            var queryText = _embeddingService.BuildQueryTextForEmbedding(profile);
-
-            // Step 2: Tạo dense vector
-            var denseVector = await _embeddingService.GetEmbeddingAsync(queryText);
 
             // Step 3: Map level to difficulty
             var targetDifficulty = MapLevelToDifficulty(profile.Level);
