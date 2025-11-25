@@ -345,7 +345,6 @@ namespace StudyHub.Backend.Api.Controllers
                         notFoundMessage = "Không tìm thấy khiếu nại";
                         break;
 
-                    case "report":
                     case "reports":
                         result = status == "approve"
                             ? await _moderationService.ApproveReportAsync(entityId, currentUser.Id)

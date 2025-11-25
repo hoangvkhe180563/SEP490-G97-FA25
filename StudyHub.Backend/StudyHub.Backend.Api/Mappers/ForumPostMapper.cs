@@ -13,15 +13,19 @@ namespace StudyHub.Backend.Api.Mappers
                 : "U";
 
             bool isOwner = currentUserId.HasValue && post.CreatedBy == currentUserId.Value;
+            //bool isProtectedFlair = post.Flair?.IsProtected ?? false;
+
             bool isAutoDetected = post.IsHidden && post.Status == false;
             bool isManuallyHidden = post.TotalViolationScore >= 10 && !post.IsHidden && post.Status == true;
-            bool shouldMaskContent = isManuallyHidden && !isOwner && !isModerator;
+
             bool shouldHideFromPublic = isAutoDetected && !isOwner && !isModerator;
+            bool shouldMaskContent = isManuallyHidden && !isOwner && !isModerator;
 
             if (shouldHideFromPublic)
             {
                 return null;
             }
+
             return new ForumPostListDto
             {
                 PostId = post.Id,
@@ -32,17 +36,17 @@ namespace StudyHub.Backend.Api.Mappers
                 FlairId = post.FlairId,
                 FlairName = post.Flair?.Name,
                 Title = shouldMaskContent ? "[Bài viết vi phạm]" : post.Title,
-                Content = shouldMaskContent ? "" : (post.Content ?? string.Empty),
+                Content = shouldMaskContent ? "Nội dung này đã bị ẩn do vi phạm quy định cộng đồng." : post.Content,
                 ContentPreview = shouldMaskContent
-                ? "[Bài viết vi phạm]"
-                : ((post.Content?.Length ?? 0) > 200
-                    ? post.Content!.Substring(0, 200) + "..."
-                    : post.Content ?? string.Empty),
+                    ? "[Bài viết vi phạm]"
+                    : ((post.Content?.Length ?? 0) > 200
+                        ? post.Content!.Substring(0, 200) + "..."
+                        : post.Content ?? string.Empty),
                 TotalViolationScore = post.TotalViolationScore,
                 Status = post.Status,
                 StatusText = post.Status == null
-                ? "Pending"
-                : (post.Status.Value ? "Approved" : "Rejected"),
+                    ? "Pending"
+                    : (post.Status.Value ? "Approved" : "Rejected"),
                 IsHidden = post.IsHidden,
                 CreatedAt = post.CreatedAt,
                 CreatedBy = post.CreatedBy,
@@ -52,29 +56,34 @@ namespace StudyHub.Backend.Api.Mappers
                 AuthorName = authorName,
                 CommentCount = post.CommentCount,
                 Attachments = shouldMaskContent
-                ? new List<ForumAttachmentDto>()
-                : (post.Attachments?.Select(a => new ForumAttachmentDto
-                {
-                    AttachmentId = a.Id,
-                    CommentId = a.CommentId,
-                    FileUrl = a.FileUrl,
-                    IsApproved = a.IsApproved,
-                    CreatedAt = a.CreatedAt,
-                    CreatedBy = a.CreatedBy ?? Guid.Empty
-                }).ToList() ?? new List<ForumAttachmentDto>()),
+                    ? new List<ForumAttachmentDto>()
+                    : (post.Attachments?
+                        .Where(a => isModerator || isOwner || a.IsApproved == true)
+                        .Select(a => new ForumAttachmentDto
+                        {
+                            AttachmentId = a.Id,
+                            CommentId = a.CommentId,
+                            FileUrl = a.FileUrl,
+                            IsApproved = a.IsApproved,
+                            CreatedAt = a.CreatedAt,
+                            CreatedBy = a.CreatedBy ?? Guid.Empty
+                        }).ToList() ?? new List<ForumAttachmentDto>()),
                 Comments = post.Comments?.Select(c => c.ToListDto(currentUserId, isModerator)).ToList()
-                ?? new List<ForumCommentListDto>(),
+                    ?? new List<ForumCommentListDto>(),
                 AttachmentCount = post.AttachmentCount,
                 UpdatedAt = post.UpdatedAt,
             };
         }
+
         public static ForumPostDetailDto ToDetailDto(this ForumPost post, Guid? currentUserId = null, bool isModerator = false)
         {
             bool isOwner = currentUserId.HasValue && post.CreatedBy == currentUserId.Value;
+            //bool isProtectedFlair = post.Flair?.IsProtected ?? false;
+
             bool isAutoDetected = post.IsHidden && post.Status == false;
             bool isManuallyHidden = post.TotalViolationScore >= 10 && !post.IsHidden && post.Status == true;
+
             bool shouldMaskContent = isManuallyHidden && !isOwner && !isModerator;
-            bool shouldHideFromPublic = isAutoDetected && !isOwner && !isModerator;
 
             return new ForumPostDetailDto
             {
@@ -103,14 +112,16 @@ namespace StudyHub.Backend.Api.Mappers
                 CommentCount = post.CommentCount,
                 Attachments = shouldMaskContent
                     ? new List<ForumAttachmentDto>()
-                    : (post.Attachments?.Select(a => new ForumAttachmentDto
-                    {
-                        AttachmentId = a.Id,
-                        PostId = a.PostId,
-                        FileUrl = a.FileUrl,
-                        IsApproved = a.IsApproved,
-                        CreatedAt = a.CreatedAt
-                    }).ToList() ?? new List<ForumAttachmentDto>()),
+                    : (post.Attachments?
+                        .Where(a => isModerator || isOwner || a.IsApproved == true)
+                        .Select(a => new ForumAttachmentDto
+                        {
+                            AttachmentId = a.Id,
+                            PostId = a.PostId,
+                            FileUrl = a.FileUrl,
+                            IsApproved = a.IsApproved,
+                            CreatedAt = a.CreatedAt
+                        }).ToList() ?? new List<ForumAttachmentDto>()),
                 Comments = post.Comments?.Select(c => c.ToListDto(currentUserId, isModerator)).ToList()
                     ?? new List<ForumCommentListDto>(),
                 ViolationRecords = isModerator || isOwner
