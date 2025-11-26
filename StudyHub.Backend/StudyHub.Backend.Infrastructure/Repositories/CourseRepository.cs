@@ -1,24 +1,27 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Repositories;
+using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
     public class CourseRepository : ICourseRepository
     {
         private readonly Data.AppDbContext _context;
-
         public CourseRepository(Data.AppDbContext context)
         {
             _context = context;
         }
+
         public PagedResult<Course> GetAllCourses(CourseQueryParams query)
         {
             try
             {
                 var q = _context.Courses
+                    .Include(c => c.Subject)
                     .Include(c => c.Chapters)
                         .ThenInclude(ch => ch.Lessons)
                     .AsQueryable();
@@ -111,7 +114,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         UpdatedAt = c.UpdatedAt,
                         UpdatedBy = c.UpdatedBy,
                         CreatedBy = c.CreatedBy,
-                        IsApproved = c.IsApproved
+                        IsApproved = c.IsApproved,
+                        Subject = new Subject
+                        {
+                            Id = c.Subject.Id,
+                            Name = c.Subject.Name
+                        }
                     })
                     .ToList();
 
@@ -234,6 +242,16 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 _context.SaveChanges();
 
                 course.Id = entity.Id;
+                var subject = _context.Subjects.Where(s => s.Id == entity.SubjectId).FirstOrDefault();
+                if (subject == null)
+                {
+                    return course;
+                }
+                course.Subject = new Subject
+                {
+                    Id = subject.Id,
+                    Name = subject.Name
+                };
                 return course;
             }
             catch (Exception ex)
@@ -268,6 +286,17 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.IsApproved = course.IsApproved;
 
                 _context.SaveChanges();
+
+                var subject = _context.Subjects.Where(s => s.Id == entity.SubjectId).FirstOrDefault();
+                if (subject == null)
+                {
+                    return course;
+                }
+                course.Subject = new Subject
+                {
+                    Id = subject.Id,
+                    Name = subject.Name
+                };
                 return course;
             }
             catch (Exception ex)

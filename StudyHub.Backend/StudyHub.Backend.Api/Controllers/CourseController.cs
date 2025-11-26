@@ -13,9 +13,9 @@ public class CourseController : ControllerBase
 {
     private readonly CourseService _service;
     private readonly CloudFileStorageService _fileStorage;
-    private readonly ElasticVectorSearchService _elasticsearchService;
+    private readonly ElasticCourseVectorSearchService _elasticsearchService;
 
-    public CourseController(CourseService service, CloudFileStorageService fileStorage, ElasticVectorSearchService elasticsearchService)
+    public CourseController(CourseService service, CloudFileStorageService fileStorage, ElasticCourseVectorSearchService elasticsearchService)
     {
         _service = service;
         _fileStorage = fileStorage;
@@ -87,24 +87,8 @@ public class CourseController : ControllerBase
             return BadRequest("Course data is required.");
 
         var entity = dto.ToEntity();
-        var created = _service.CreateCourse(entity);
-        var elasticCourse = new UpsertElasticCourseRequest
-        {
-            Id = created.Id,
-            Name = created.Name,
-            Information = created.Information,
-            Difficulty = created.Difficulty,
-            Length = created.Length,
-            Subject = created.Subject,
-            SchoolId = created.SchoolId,
-            //Price = created.Price,
-            Grade = created.Grade,
-            //IsFeatured = created.IsFeatured,
-            Status = created.Status,
-            //StartAt = created.StartAtutc
-            //EndAt = created.EndAt
-        };
-        await _elasticsearchService.IndexCourseAsync(elasticCourse);
+        var created = await _service.CreateCourse(entity);
+
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created.ToListDto());
     }
 
@@ -144,25 +128,8 @@ public class CourseController : ControllerBase
             existing.Chapters = dto.Chapters.Select(ch => ch.ToEntity()).ToList();
         }
 
-        var updated = _service.UpdateCourse(existing);
+        var updated = await _service.UpdateCourse(existing);
 
-        var elasticCourse = new UpsertElasticCourseRequest
-        {
-            Id = updated.Id,
-            Name = updated.Name,
-            Information = updated.Information,
-            Difficulty = updated.Difficulty,
-            Length = updated.Length,
-            Subject = updated.Subject,
-            SchoolId = updated.SchoolId,
-            //Price = created.Price,
-            Grade = updated.Grade,
-            //IsFeatured = created.IsFeatured,
-            Status = updated.Status,
-            //StartAt = created.StartAt,
-            //EndAt = created.EndAt
-        };
-        await _elasticsearchService.IndexCourseAsync(elasticCourse);
         return Ok(updated.ToDto());
     }
 
@@ -170,11 +137,10 @@ public class CourseController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var ok = _service.DeleteCourse(id);
+        var ok = await _service.DeleteCourse(id);
         if (!ok)
             return NotFound();
 
-        await _elasticsearchService.DeleteCourseByIdAsync(id);
         return NoContent();
     }
 

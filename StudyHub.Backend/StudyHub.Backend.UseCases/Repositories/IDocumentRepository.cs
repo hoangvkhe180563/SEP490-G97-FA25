@@ -8,6 +8,8 @@ namespace StudyHub.Backend.UseCases.Repositories
     {
         Document? GetDocumentById(int id);
 
+        List<Document> GetDocuments();
+
         (List<Document> documents, int totalCount) GetPublicDocuments(
             string? query = null,
             int? categoryId = null,

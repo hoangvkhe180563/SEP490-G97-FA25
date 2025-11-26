@@ -38,7 +38,8 @@ namespace StudyHub.Backend.UseCases.Services
                     FORMAT OUTPUT (BẮT BUỘC):
                     {{
                       ""subject"": [""Toán học""],
-                      ""level"": ""beginner"",
+                      ""courseLevel"": ""beginner"",
+                      ""documentLevel"": ""easy"",
                       ""goal"": ""thi vào 10"",
                       ""preferredLength"": ""medium"",
                       ""grade"": 9,
@@ -48,7 +49,8 @@ namespace StudyHub.Backend.UseCases.Services
 
                     GIẢI THÍCH CÁC TRƯỜNG:
                     - subject: Môn học (array) - VD: [""Toán học"", ""Vật lý""]
-                    - level: ""beginner"" | ""intermediate"" | ""advanced""
+                    - courseLevel: ""beginner"" | ""intermediate"" | ""advanced""
+                    - documentLevel: ""easy"" | ""medium"" | ""hard""
                     - goal: Mục tiêu học tập - VD: ""thi vào 10"", ""củng cố kiến thức"", ""luyện đề""
                     - preferredLength: ""short"" | ""medium"" | ""long""
                     - grade: Lớp học (6-12)
@@ -59,9 +61,7 @@ namespace StudyHub.Backend.UseCases.Services
 
                     HÃY TRẢ VỀ JSON (không markdown, không giải thích):";
         }
-
-        // PROMPT TEMPLATE 2: Tạo Explanation cho recommendations
-        private string GetExplanationPrompt(
+        private string GetCourseExplanationPrompt(
         UserPreferenceProfile profile,
         List<CourseRecommendationResult> recommendations)
         {
@@ -89,6 +89,38 @@ namespace StudyHub.Backend.UseCases.Services
                     {profileJson}
 
                     CÁC KHÓA HỌC ĐỀ XUẤT:
+                    {coursesInfo}
+
+                    HÃY GIẢI THÍCH (format: đoạn văn dễ đọc, có đánh số thứ tự):";
+        }
+        private string GetDocumentExplanationPrompt(
+        UserPreferenceProfile profile,
+        List<DocumentRecommendationResult> recommendations)
+        {
+            var profileJson = JsonSerializer.Serialize(profile, new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
+
+            var coursesInfo = string.Join("\n", recommendations.Select((r, i) =>
+                $"{i + 1}. {r.Title} (Điểm: {r.Score:F2})"));
+
+            return $@"Bạn là một AI assistant thân thiện, giúp học sinh hiểu tại sao các tài liệu được đề xuất.
+
+                    NHIỆM VỤ: Giải thích tại sao các tài liệu dưới đây phù hợp với nhu cầu của học sinh.
+
+                    NGUYÊN TẮC:
+                    - Giải thích ngắn gọn, dễ hiểu (2-3 câu mỗi tài liệu)
+                    - Liên kết trực tiếp giữa nhu cầu của học sinh và đặc điểm tài liệu
+                    - Tập trung vào điểm mạnh của từng tài liệu
+                    - Tạo động lực học tập
+                    - Sử dụng tone thân thiện, tích cực
+
+                    HỒ SƠ NHU CẦU CỦA HỌC SINH:
+                    {profileJson}
+
+                    CÁC TÀI LIỆU ĐỀ XUẤT:
                     {coursesInfo}
 
                     HÃY GIẢI THÍCH (format: đoạn văn dễ đọc, có đánh số thứ tự):";
@@ -154,7 +186,7 @@ namespace StudyHub.Backend.UseCases.Services
             return new UserPreferenceProfile();
         }
 
-        public async Task<string> GenerateExplanationAsync(
+        public async Task<string> GenerateCourseExplanationAsync(
         UserPreferenceProfile profile,
         List<CourseRecommendationResult> recommendations)
         {
@@ -162,7 +194,64 @@ namespace StudyHub.Backend.UseCases.Services
             var model = configuration["HuggingFace:LLMModel"] ?? "Qwen/Qwen3-4B-Instruct-2507";
             var apiKey = configuration["HuggingFace:ApiToken"] ?? "";
 
-            var prompt = GetExplanationPrompt(profile, recommendations);
+            var prompt = GetCourseExplanationPrompt(profile, recommendations);
+
+            var request = new RestRequest();
+            request.Method = Method.Post;
+            request.AddHeader("Authorization", $"Bearer {apiKey}");
+            request.AddJsonBody(new
+            {
+                model,
+                messages = new[]{
+                    new
+                    {
+                        role = "user",
+                        content = prompt
+                    }
+                },
+                max_new_tokens = 800,
+                temperature = 0.7,
+                top_p = 0.95,
+                return_full_text = false
+            });
+
+            var response = await _client.ExecuteAsync(request);
+
+            if (!response.IsSuccessful)
+            {
+                throw new Exception($"LLM API error: {response.Content}");
+            }
+            var resultJson = response.Content;
+
+            if (string.IsNullOrEmpty(resultJson))
+            {
+                throw new Exception("LLM API returned empty response.");
+            }
+            var doc = JsonDocument.Parse(resultJson);
+            var choices = doc.RootElement.GetProperty("choices");
+            if (choices.GetArrayLength() > 0)
+            {
+                var message = choices[0].GetProperty("message");
+                if (message.TryGetProperty("content", out var contentProp))
+                {
+                    var raw = contentProp.GetString() ?? "";
+                    raw = raw.Trim();
+                    return raw;
+                }
+            }
+
+            return "";
+        }
+
+        public async Task<string> GenerateDocumentExplanationAsync(
+       UserPreferenceProfile profile,
+       List<DocumentRecommendationResult> recommendations)
+        {
+
+            var model = configuration["HuggingFace:LLMModel"] ?? "Qwen/Qwen3-4B-Instruct-2507";
+            var apiKey = configuration["HuggingFace:ApiToken"] ?? "";
+
+            var prompt = GetDocumentExplanationPrompt(profile, recommendations);
 
             var request = new RestRequest();
             request.Method = Method.Post;

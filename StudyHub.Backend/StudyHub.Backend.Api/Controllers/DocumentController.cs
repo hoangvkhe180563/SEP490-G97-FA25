@@ -4,6 +4,7 @@ using StudyHub.Backend.Api.Dtos.AuthDTOS;
 using StudyHub.Backend.Api.Dtos.ClassDTOS;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.Domain.Entities;
+using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Services;
 using System;
 using System.Linq;
@@ -312,7 +313,7 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        public IActionResult DeleteDocument(int id)
+        public async Task<IActionResult> DeleteDocument(int id)
         {
             var currentUserId = GetCurrentUserId();
             if (!currentUserId.HasValue)
@@ -325,7 +326,7 @@ namespace StudyHub.Backend.Api.Controllers
             if (existingDoc.CreatedBy != currentUserId.Value)
                 return Forbid();
 
-            var result = _documentService.DeleteDocument(id);
+            var result = await _documentService.DeleteDocument(id);
             if (!result)
                 return NotFound(new { success = false, message = "Xóa thất bại" });
 
@@ -333,13 +334,13 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpPatch("soft-delete/{id:int}")]
-        public IActionResult SoftDeleteDocument(int id)
+        public async Task<IActionResult> SoftDeleteDocument(int id)
         {
             var currentUserId = GetCurrentUserId();
             if (!currentUserId.HasValue)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var result = _documentService.SoftDeleteDocument(id, currentUserId.Value);
+            var result = await _documentService.SoftDeleteDocument(id, currentUserId.Value);
             if (!result)
                 return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
 
@@ -347,50 +348,47 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpPost("approve")]
-        public IActionResult ApproveDocument([FromBody] ApprovalDto dto)
+        public async Task<IActionResult> ApproveDocument([FromBody] ApprovalDto dto)
         {
             var currentUserId = GetCurrentUserId();
             if (!currentUserId.HasValue)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var document = _documentService.ApproveDocument(dto.DocumentId, currentUserId.Value);
+            var document = await _documentService.ApproveDocument(dto.DocumentId, currentUserId.Value);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
         [HttpPost("reject")]
-        public IActionResult RejectDocument([FromBody] ApprovalDto dto)
+        public async Task<IActionResult> RejectDocument([FromBody] ApprovalDto dto)
         {
             var currentUserId = GetCurrentUserId();
             if (!currentUserId.HasValue)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var document = _documentService.RejectDocument(dto.DocumentId, currentUserId.Value);
+            var document = await _documentService.RejectDocument(dto.DocumentId, currentUserId.Value);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
         [HttpPost("revoke")]
-        public IActionResult RevokeApproval([FromBody] ApprovalDto dto)
+        public async Task<IActionResult> RevokeApproval([FromBody] ApprovalDto dto)
         {
             var currentUserId = GetCurrentUserId();
             if (!currentUserId.HasValue)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var document = _documentService.RevokeApproval(dto.DocumentId, currentUserId.Value);
-
-            document.Status = true;
-            _documentService.UpdateDocumentAsync(document);
+            var document = await _documentService.RevokeApproval(dto.DocumentId, currentUserId.Value);
 
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
         [HttpPost("toggle-featured")]
-        public IActionResult ToggleFeatured([FromBody] ToggleFeaturedDto dto)
+        public async Task<IActionResult> ToggleFeatured([FromBody] ToggleFeaturedDto dto)
         {
             var currentUserId = GetCurrentUserId();
             if (!currentUserId.HasValue)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var document = _documentService.ToggleFeatured(dto.DocumentId, currentUserId.Value);
+            var document = await _documentService.ToggleFeatured(dto.DocumentId, currentUserId.Value);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
@@ -490,23 +488,23 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
         [HttpPost("approve-edit-request")]
-        public IActionResult ApproveEditRequest([FromBody] ApprovalDto dto)
+        public async Task<IActionResult> ApproveEditRequest([FromBody] ApprovalDto dto)
         {
             var currentUserId = GetCurrentUserId();
             if (!currentUserId.HasValue)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var document = _documentService.ApproveEditRequest(dto.DocumentId, currentUserId.Value);
+            var document = await _documentService.ApproveEditRequest(dto.DocumentId, currentUserId.Value);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
         [HttpPost("reject-edit-request")]
-        public IActionResult RejectEditRequest([FromBody] ApprovalDto dto)
+        public async Task<IActionResult> RejectEditRequest([FromBody] ApprovalDto dto)
         {
             var currentUserId = GetCurrentUserId();
             if (!currentUserId.HasValue)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var document = _documentService.RejectEditRequest(dto.DocumentId, currentUserId.Value);
+            var document = await _documentService.RejectEditRequest(dto.DocumentId, currentUserId.Value);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
         [HttpGet("edit-requests")]

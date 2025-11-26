@@ -8,14 +8,14 @@ namespace StudyHub.Backend.UseCases.Dtos
 {
     public class CourseRecommendationResult
     {
-        public string Id { get; set; }
-        public string Title { get; set; }
+        public string Id { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
         public double Score { get; set; }
-        public string Reason { get; set; }
-        public string Subject { get; set; }
-        public string Difficulty { get; set; }
-        public string Length { get; set; }
-        public string Information { get; set; }
+        public string Reason { get; set; } = string.Empty;
+        public string Subject { get; set; } = string.Empty;
+        public string Difficulty { get; set; } = string.Empty;
+        public string Length { get; set; } = string.Empty;
+        public string Information { get; set; } = string.Empty;
         public int Grade { get; set; }
     }
 }

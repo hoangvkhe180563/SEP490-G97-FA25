@@ -7,13 +7,13 @@ using StudyHub.Backend.Domain.Entities;
 
 namespace StudyHub.Backend.UseCases.Dtos
 {
-    public class SubjectPreference
+    public class DocumentSubjectPreference
     {
-        public string SubjectName { get; set; }
+        public string SubjectName { get; set; } = string.Empty;
         public float DifficultyScore { get; set; }
-        public CourseDifficulty PreferredDifficulty { get; set; }
+        public string PreferredDifficulty { get; set; } = string.Empty;
         public float LengthPreferenceScore { get; set; }
-        public CourseLength PreferredLength { get; set; }
+        public string PreferredLength { get; set; } = string.Empty;
         public float WeakSubjectPriority { get; set; }
     }
 }

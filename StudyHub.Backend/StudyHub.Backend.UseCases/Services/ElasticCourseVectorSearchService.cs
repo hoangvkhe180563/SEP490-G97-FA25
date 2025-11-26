@@ -3,76 +3,79 @@ using Nest;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Utils;
+using StudyHub.Backend.UseCases.Repositories;
+using StudyHub.Backend.Domain.Entities.ElasticSearch;
 
 namespace StudyHub.Backend.UseCases.Services
 {
-    public class ElasticVectorSearchService
+    public class ElasticCourseVectorSearchService
     {
-        private readonly ElasticClient _client;
         private readonly EmbeddingService _embeddingService;
-        private readonly CourseService _courseService;
-        private readonly IConfiguration _configuration;
+        private readonly ICourseRepository courseRepository;
         private readonly AuthService _authService;
-        private const string INDEX_NAME = "courses";
+        private readonly IElasticSearchCourse _elasticSearchCourseRepository;
 
-        public ElasticVectorSearchService(EmbeddingService embeddingService, IConfiguration configuration, CourseService courseService, AuthService authService)
+        public ElasticCourseVectorSearchService(EmbeddingService embeddingService, ICourseRepository courseRepository, AuthService authService, IElasticSearchCourse elasticSearchCourseRepository)
         {
-            _configuration = configuration;
-            var elasticsearchUrl = _configuration["Elasticsearch:Url"] ?? "http://localhost0:9200";
-            var settings = new ConnectionSettings(new Uri(elasticsearchUrl))
-                .DefaultIndex(INDEX_NAME)
-                .DisableDirectStreaming();
-
-            _client = new ElasticClient(settings);
             _embeddingService = embeddingService;
-            _courseService = courseService;
+            this.courseRepository = courseRepository;
             _authService = authService;
+            _elasticSearchCourseRepository = elasticSearchCourseRepository;
         }
 
-        // Index all courses from MySQL (via CourseService) into Elasticsearch
+        public async Task<bool> CreateCourseIndexAsync()
+        {
+            return await _elasticSearchCourseRepository.CreateCourseIndexAsync();
+        }
+
+        public async Task<bool> IndexCourseAsync(UpsertElasticCourseRequest course)
+        {
+            var domain = new Course
+            {
+                Id = course.Id,
+                Name = course.Name,
+                ImageUrl = course.ImageUrl,
+                Price = course.Price,
+                StartAt = course.StartAt,
+                EndAt = course.EndAt,
+                CreatedAt = course.CreatedAt,
+                UpdatedAt = course.UpdatedAt,
+                CreatedBy = course.CreatedById,
+                Information = course.Information,
+                Status = course.Status,
+                SchoolId = course.SchoolId,
+                Subject = course.Subject,
+                Difficulty = course.Difficulty,
+                Length = course.Length,
+                Grade = course.Grade
+            };
+
+            var searchableText = _embeddingService.ConvertEmbeddingCourseToText(domain);
+            var vector = await _embeddingService.GetEmbeddingAsync(searchableText);
+            return await _elasticSearchCourseRepository.IndexCourseAsync(domain, searchableText, vector);
+        }
+
+        public async Task<bool> IndexCoursesBatchAsync(List<Course> courses)
+        {
+            var texts = courses.Select(c => _embeddingService.ConvertCourseToText(c)).ToList();
+
+            var vectors = await _embeddingService.GetEmbeddingsBatchAsync(texts);
+
+            return await _elasticSearchCourseRepository.IndexCoursesBatchAsync(courses, texts, vectors);
+        }
+
         public async Task<bool> IndexAllCoursesFromDbAsync()
         {
             try
             {
                 var query = new CourseQueryParams { Page = 1, PageSize = int.MaxValue };
-                var paged = _courseService.GetAllCourses(query);
+                var paged = courseRepository.GetAllCourses(query);
                 var courses = paged.Items ?? new List<Course>();
 
                 if (courses.Count == 0)
                     return true;
 
-                var documents = new List<ElasticCourse>();
-                var texts = courses.Select(c => _embeddingService.ConvertCourseToText(c)).ToList();
-
-                var vectors = await _embeddingService.GetEmbeddingsBatchAsync(texts);
-
-                for (int i = 0; i < courses.Count; i++)
-                {
-                    var course = courses[i];
-                    documents.Add(new ElasticCourse
-                    {
-                        Id = course.Id,
-                        Name = course.Name,
-                        Information = course.Information ?? "",
-                        SchoolId = course.SchoolId,
-                        Status = course.Status,
-                        SubjectName = course.Subject?.Name ?? string.Empty,
-                        Difficulty = course.Difficulty.ToString(),
-                        Length = course.Length.ToString(),
-                        Grade = course.Grade,
-                        CourseVector = vectors[i],
-                        SearchableText = texts[i]
-                    });
-                }
-
-                var bulkResponse = await _client.BulkAsync(b => b
-                    .Index(INDEX_NAME)
-                    .IndexMany(documents)
-                );
-
-                await _client.Indices.RefreshAsync(INDEX_NAME);
-
-                return bulkResponse.IsValid;
+                return await IndexCoursesBatchAsync(courses);
             }
             catch
             {
@@ -80,122 +83,22 @@ namespace StudyHub.Backend.UseCases.Services
             }
         }
 
-        // Delete a document in Elasticsearch index by course id
         public async Task<bool> DeleteCourseByIdAsync(int id)
         {
-            try
-            {
-                var response = await _client.DeleteAsync(new DeleteRequest(INDEX_NAME, id.ToString()));
-                return response.IsValid;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        public async Task<bool> CreateIndexAsync()
-        {
-            var indexExists = await _client.Indices.ExistsAsync(INDEX_NAME);
-
-            if (indexExists.Exists)
-            {
-                await _client.Indices.DeleteAsync(INDEX_NAME);
-            }
-
-            var createIndexResponse = await _client.Indices.CreateAsync(INDEX_NAME, c => c
-                .Map<ElasticCourse>(m => m
-                    .Properties(p => p
-                        .Number(n => n.Name(f => f.Id))
-                        .Text(t => t.Name(f => f.Name))
-                        .Text(t => t.Name(f => f.Information))
-                        .Number(n => n.Name(f => f.SchoolId))
-                        .Keyword(k => k.Name(f => f.SubjectName))
-                        .Keyword(k => k.Name(f => f.Difficulty))
-                        .Keyword(k => k.Name(f => f.Length))
-                        .Keyword(k => k.Name(f => f.Status))
-                        .Number(n => n.Name(f => f.Grade))
-                        .DenseVector(d => d
-                            .Name(f => f.CourseVector)
-                            .Dimensions(1024))
-                        .Text(t => t.Name(f => f.SearchableText))
-                    )
-                )
-            );
-
-            return createIndexResponse.IsValid;
+            return await _elasticSearchCourseRepository.DeleteCourseByIdAsync(id);
         }
 
 
-        // Upsert 1 course into Elasticsearch
-        public async Task<bool> IndexCourseAsync(UpsertElasticCourseRequest course)
-        {
-            var searchableText = _embeddingService.ConvertEmbeddingCourseToText(course);
-            var vector = await _embeddingService.GetEmbeddingAsync(searchableText);
-
-            var document = new ElasticCourse
-            {
-                Id = course.Id,
-                Name = course.Name,
-                Information = course.Information ?? "",
-                SchoolId = course.SchoolId,
-                Status = course.Status,
-                SubjectName = course.Subject.Name,
-                Difficulty = course.Difficulty.ToString(),
-                Length = course.Length.ToString(),
-                Grade = course.Grade,
-                CourseVector = vector,
-                SearchableText = searchableText
-            };
-
-            var response = await _client.IndexDocumentAsync(document);
-            return response.IsValid;
-        }
-
-        public async Task<bool> IndexCoursesBatchAsync(List<Course> courses)
-        {
-            var documents = new List<ElasticCourse>();
-            var texts = courses.Select(c => _embeddingService.ConvertCourseToText(c)).ToList();
-
-            // Batch embedding để tối ưu API calls
-            var vectors = await _embeddingService.GetEmbeddingsBatchAsync(texts);
-
-            for (int i = 0; i < courses.Count; i++)
-            {
-                var course = courses[i];
-                documents.Add(new ElasticCourse
-                {
-                    Id = course.Id,
-                    Name = course.Name,
-                    Information = course.Information ?? "",
-                    SchoolId = course.SchoolId,
-                    Status = course.Status,
-                    SubjectName = course.Subject.Name,
-                    Difficulty = course.Difficulty.ToString(),
-                    Length = course.Length.ToString(),
-                    Grade = course.Grade,
-                    CourseVector = vectors[i],
-                    SearchableText = texts[i]
-                });
-            }
-
-            var bulkResponse = await _client.BulkAsync(b => b
-                .Index(INDEX_NAME)
-                .IndexMany(documents)
-            );
-
-            return bulkResponse.IsValid;
-        }
 
         public async Task<List<ElasticCourse>> RecommendCoursesAsync(
             UserLearningProfile profile,
             int topK = 30)
         {
             // Bước 1: Tính toán preferences cho từng môn
-            var preferences = PreferenceUtils.CalculateSubjectPreferences(profile);
+            var preferences = PreferenceUtils.CalculateCourseSubjectPreferences(profile);
 
             // Bước 2: Convert user profile to text và tạo vector
-            var userText = _embeddingService.ConvertUserProfileToText(profile, preferences);
+            var userText = _embeddingService.ConvertUserProfileToCourseText(profile, preferences);
             var userVector = await _embeddingService.GetEmbeddingAsync(userText);
 
             var filters = new List<Func<QueryContainerDescriptor<ElasticCourse>, QueryContainer>>();
@@ -293,7 +196,7 @@ namespace StudyHub.Backend.UseCases.Services
                 // === QUERY 4: Fallback - Độ khó liền kề ===
                 // Nếu là Intermediate, cũng xét Beginner và Advanced
                 // Điều này đảm bảo đủ 30 kết quả
-                var adjacentDifficulties = GetAdjacentDifficulties(pref.PreferredDifficulty);
+                var adjacentDifficulties = GetAdjacentCourseDifficulties(pref.PreferredDifficulty);
                 foreach (var adjDiff in adjacentDifficulties)
                 {
                     shouldQueries.Add(q => q
@@ -310,7 +213,7 @@ namespace StudyHub.Backend.UseCases.Services
                 // === QUERY 5: Fallback - Độ dài liền kề ===
                 // Nếu là Medium, cũng xét Short và Long
                 // Điều này đảm bảo đủ 30 kết quả
-                var adjacentLongs = GetAdjacentLengths(pref.PreferredLength);
+                var adjacentLongs = GetAdjacentCourseLengths(pref.PreferredLength);
                 foreach (var adjLong in adjacentLongs)
                 {
                     shouldQueries.Add(q => q
@@ -325,64 +228,14 @@ namespace StudyHub.Backend.UseCases.Services
                 }
             }
 
-            // Vector search with filters
-            var searchResponse = await _client.SearchAsync<ElasticCourse>(s => s
-                .Index(INDEX_NAME)
-                .Size(topK)
-                .Sort(st => st.Descending("_score"))
-                .Query(q => q
-                    .ScriptScore(ss => ss
-                        .Query(query => query
-                            .Bool(b => b
-                                .Filter(filters.ToArray())
-                                .Should(shouldQueries.ToArray())
-                                .MinimumShouldMatch(1)
-                            )
-                        )
-                        .Script(sc => sc
-                            .Source($@"
-                                double sim = (cosineSimilarity(params.queryVector, 'courseVector') + 1.0) / 2.0;
-                                return (sim * params.embeddingWeight)
-                                     + (_score * params.preferenceWeight);
-                            ")
-                            .Params(p => p
-                                .Add("queryVector", userVector)
-                                .Add("embeddingWeight", 0.3)
-                                .Add("preferenceWeight", 0.7)
-                            )
-                        )
-                    )
-                )
+            return await _elasticSearchCourseRepository.RecommendCoursesAsync(
+                            filters,
+                            shouldQueries,
+                            userVector,
+                            topK
             );
-
-            return searchResponse.Documents.ToList();
-        }
-        private List<CourseDifficulty> GetAdjacentDifficulties(CourseDifficulty difficulty)
-        {
-            return difficulty switch
-            {
-                //In case user want to try other logic
-                //CourseDifficulty.Beginner => new List<CourseDifficulty> { CourseDifficulty.Intermediate },
-                //CourseDifficulty.Intermediate => new List<CourseDifficulty> { CourseDifficulty.Beginner, CourseDifficulty.Advanced },
-                //CourseDifficulty.Advanced => new List<CourseDifficulty> { CourseDifficulty.Intermediate },
-
-                CourseDifficulty.Intermediate => new List<CourseDifficulty> { CourseDifficulty.Beginner },
-                CourseDifficulty.Advanced => new List<CourseDifficulty> { CourseDifficulty.Intermediate },
-                _ => new List<CourseDifficulty>()
-            };
         }
 
-        private List<CourseLength> GetAdjacentLengths(CourseLength length)
-        {
-            return length switch
-            {
-                CourseLength.Long => new List<CourseLength> { CourseLength.Medium },
-                CourseLength.Medium => new List<CourseLength> { CourseLength.Short },
-                _ => new List<CourseLength>()
-            };
-        }
-
-        // CORE: Hybrid Search with LLM Profile
         public async Task<List<CourseRecommendationResult>> SearchCourseWithLLMProfileAsync(
             float[] denseVector,
             UserPreferenceProfile profile,
@@ -391,11 +244,9 @@ namespace StudyHub.Backend.UseCases.Services
             var user = _authService.GetCurrentUser();
             var schoolId = user?.SchoolId ?? 0;
 
-            // Step 3: Map level to difficulty
-            var targetDifficulty = MapLevelToDifficulty(profile.Level);
+            var targetDifficulty = MapLevelToCourseDifficulty(profile.CourseLevel);
             var targetLength = MapPreferredLength(profile.PreferredLength);
 
-            // Build filters
             var filters = new List<Func<QueryContainerDescriptor<ElasticCourse>, QueryContainer>>();
 
             filters.Add(f => f
@@ -405,15 +256,13 @@ namespace StudyHub.Backend.UseCases.Services
                 )
             );
 
-            //// Filter Status
             filters.Add(f => f
                 .Term(t => t
                     .Field(fd => fd.Status)
-                    .Value("Mở") // hoặc profile.Status nếu có
+                    .Value("Mở")
                 )
             );
 
-            //// Filter SchoolId (null thì filter null)
             if (schoolId < 1)
             {
                 filters.Add(f => f
@@ -437,72 +286,13 @@ namespace StudyHub.Backend.UseCases.Services
                 );
             }
 
-            // Step 4: Build Elasticsearch Query
-            var searchCourseResponse = await _client.SearchAsync<ElasticCourse>(s => s
-                .Index(INDEX_NAME)
-                .Size(topK * 2)
-                .Query(q => q
-                    .ScriptScore(ss => ss
-                        .Query(query => query
-                            .Bool(b => b
-                                // MUST: Filter by subjects
-                                .Filter(filters.ToArray())
-                                // SHOULD: BM25 cho topicKeywords trên Title + Description
-                                .Should(
-                                    // BM25 trên Name (Title)
-                                    sh => sh.Match(m => m
-                                        .Field(fd => fd.Name)
-                                        .Query(string.Join(" ", profile.TopicKeywords))
-                                        .Boost(3.0)
-                                    ),
-                                    // BM25 trên Information (Description)
-                                    sh => sh.Match(m => m
-                                        .Field(fd => fd.Information)
-                                        .Query(string.Join(" ", profile.TopicKeywords))
-                                        .Boost(2.0)
-                                    ),
-                                    // Match difficulty
-                                    sh => sh.Term(t => t
-                                        .Field(fd => fd.Difficulty)
-                                        .Value(targetDifficulty)
-                                        .Boost(1.5)
-                                    ),
-                                    // Match length
-                                    sh => sh.Term(t => t
-                                        .Field(fd => fd.Length)
-                                        .Value(targetLength)
-                                        .Boost(1.2)
-                                    ),
-                                    // Match grade (±1)
-                                    sh => sh.Range(r => r
-                                        .Field(fd => fd.Grade)
-                                        .GreaterThanOrEquals(profile.Grade - 1)
-                                        .LessThanOrEquals(profile.Grade + 1)
-                                        .Boost(1.0)
-                                    )
-                                )
-                                .MinimumShouldMatch(1)
-                            )
-                        )
-                        .Script(sc => sc
-                            .Source(@"
-                                double vec = cosineSimilarity(params.queryVector, 'courseVector');
-                                double vectorScore = Math.max(0.0, (vec + 1.0) / 2.0);
-                                
-                                double bm25 = _score;
-                                double bm25Norm = bm25 > 0 ? Math.log(1 + bm25) / 5.0 : 0.0;
-
-                                return (params.denseWeight * vectorScore) + (params.spareWeight * bm25Norm);
-                            ")
-                            .Params(p => p
-                                .Add("queryVector", denseVector)
-                                .Add("denseWeight", 0.7)
-                                .Add("spareWeight", 0.3)
-                            )
-
-                        )
-                    )
-                )
+            var searchCourseResponse = await _elasticSearchCourseRepository.SearchCourseWithLLMProfileAsync(
+                denseVector,
+                profile,
+                filters,
+                targetDifficulty,
+                targetLength,
+                topK
             );
 
             // Step 5: Transform results
@@ -524,8 +314,35 @@ namespace StudyHub.Backend.UseCases.Services
             return results;
         }
 
+        private List<CourseDifficulty> GetAdjacentCourseDifficulties(CourseDifficulty difficulty)
+        {
+            return difficulty switch
+            {
+                //In case user want to try other logic
+                //CourseDifficulty.Beginner => new List<CourseDifficulty> { CourseDifficulty.Intermediate },
+                //CourseDifficulty.Intermediate => new List<CourseDifficulty> { CourseDifficulty.Beginner, CourseDifficulty.Advanced },
+                //CourseDifficulty.Advanced => new List<CourseDifficulty> { CourseDifficulty.Intermediate },
+
+                CourseDifficulty.Intermediate => new List<CourseDifficulty> { CourseDifficulty.Beginner },
+                CourseDifficulty.Advanced => new List<CourseDifficulty> { CourseDifficulty.Intermediate },
+                _ => new List<CourseDifficulty>()
+            };
+        }
+
+        private List<CourseLength> GetAdjacentCourseLengths(CourseLength length)
+        {
+            return length switch
+            {
+                CourseLength.Long => new List<CourseLength> { CourseLength.Medium },
+                CourseLength.Medium => new List<CourseLength> { CourseLength.Short },
+                _ => new List<CourseLength>()
+            };
+        }
+
+
+
         // Helper: Map level to difficulty
-        private string MapLevelToDifficulty(string level)
+        private string MapLevelToCourseDifficulty(string level)
         {
             return level?.ToLower() switch
             {
@@ -815,36 +632,14 @@ namespace StudyHub.Backend.UseCases.Services
         };
 
             // Generate embeddings
-            var texts = courses.Select(c =>
-                $"{c.Subject.Name} {c.Information}".ToLower()
-            ).ToList();
-
+            //var texts = courses.Select(c =>
+            //    $"{c.Subject.Name} {c.Information}".ToLower()
+            //).ToList();
+            // Convert to texts and generate embeddings
+            var texts = courses.Select(c => _embeddingService.ConvertCourseToText(c)).ToList();
             var embeddings = await _embeddingService.GetEmbeddingsBatchAsync(texts);
 
-            // Index courses
-            for (int i = 0; i < courses.Count; i++)
-            {
-                var course = courses[i];
-                var document = new ElasticCourse
-                {
-                    Id = course.Id,
-                    Name = course.Name,
-                    Status = course.Status,
-                    Information = course.Information ?? "",
-                    SchoolId = course.SchoolId,
-                    SubjectName = course.Subject.Name,
-                    Difficulty = course.Difficulty.ToString(),
-                    Length = course.Length.ToString(),
-                    Grade = course.Grade,
-                    CourseVector = embeddings[i],
-                    SearchableText = texts[i]
-                };
-
-                await _client.IndexDocumentAsync(document);
-            }
-
-            await _client.Indices.RefreshAsync(INDEX_NAME);
-            return true;
+            return _elasticSearchCourseRepository.IndexCoursesBatchAsync(courses, texts, embeddings).Result;
         }
     }
 

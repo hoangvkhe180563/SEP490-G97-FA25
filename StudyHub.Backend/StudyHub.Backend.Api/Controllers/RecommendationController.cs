@@ -9,24 +9,33 @@ namespace StudyHub.Backend.Api.Controllers
     [ApiController]
     public class RecommendationController : ControllerBase
     {
-        private readonly ElasticVectorSearchService _elasticsearchService;
+        private readonly ElasticCourseVectorSearchService _elasticCourseVectorSearchService;
+        private readonly ElasticDocumentVectorSearchService _elasticDocumentVectorSearchService;
         private readonly QwenLLMService _llmService;
         private readonly EmbeddingService _embeddingService;
 
-        public RecommendationController(ElasticVectorSearchService elasticsearchService, QwenLLMService llmService, EmbeddingService embeddingService)
+        public RecommendationController(ElasticCourseVectorSearchService elasticCourseVectorSearchService, ElasticDocumentVectorSearchService elasticDocumentVectorSearchService, QwenLLMService llmService, EmbeddingService embeddingService)
         {
-            _elasticsearchService = elasticsearchService;
+            _elasticCourseVectorSearchService = elasticCourseVectorSearchService;
+            _elasticDocumentVectorSearchService = elasticDocumentVectorSearchService;
             _llmService = llmService;
             _embeddingService = embeddingService;
         }
 
+
+
         // API để lấy khuyến nghị khóa học
         [HttpPost("recommend")]
-        public async Task<IActionResult> RecommendCourses([FromBody] RecommendationRequest request)
+        public async Task<IActionResult> Recommend([FromBody] RecommendationRequest request)
         {
             try
             {
-                var recommendations = await _elasticsearchService.RecommendCoursesAsync(
+                var courseRecommendations = await _elasticCourseVectorSearchService.RecommendCoursesAsync(
+                    request.Profile,
+                    request.TopK ?? 30
+                );
+
+                var documentRecommendations = await _elasticDocumentVectorSearchService.RecommendDocumentsAsync(
                     request.Profile,
                     request.TopK ?? 30
                 );
@@ -34,8 +43,9 @@ namespace StudyHub.Backend.Api.Controllers
                 return Ok(new
                 {
                     userId = request.Profile.UserId,
-                    totalRecommendations = recommendations.Count,
-                    courses = recommendations.Select(c => new
+                    totalCourseRecommendations = courseRecommendations.Count,
+                    totalDocumentRecommendations = documentRecommendations.Count,
+                    courses = courseRecommendations.Select(c => new
                     {
                         c.Id,
                         c.Name,
@@ -44,6 +54,16 @@ namespace StudyHub.Backend.Api.Controllers
                         c.Length,
                         c.Grade,
                         c.Information
+                    }),
+                    documents = documentRecommendations.Select(d => new
+                    {
+                        d.Id,
+                        d.Name,
+                        d.SubjectName,
+                        d.DocumentLevel,
+                        d.DocumentLengthType,
+                        d.Grade,
+                        d.Description
                     })
                 });
             }
@@ -77,22 +97,35 @@ namespace StudyHub.Backend.Api.Controllers
                 var denseVector = await _embeddingService.GetEmbeddingAsync(queryText);
 
                 // Step 4: Search với profile (goal + topic → vector, topicKeywords → BM25)
-                var courseRecommendations = await _elasticsearchService.SearchCourseWithLLMProfileAsync(
+                var courseRecommendations = await _elasticCourseVectorSearchService.SearchCourseWithLLMProfileAsync(
+                    denseVector,
+                    profile,
+                    request.TopK ?? 30);
+
+                var documentRecomendations = await _elasticDocumentVectorSearchService.SearchDocumentWithLLMProfileAsync(
                     denseVector,
                     profile,
                     request.TopK ?? 30);
 
                 // Step 5: Generate explanation cho top 5
-                var explanation = await _llmService.GenerateExplanationAsync(
+                var courseExplaination = await _llmService.GenerateCourseExplanationAsync(
                     profile,
                     courseRecommendations.Take(5).ToList());
+
+                // Step 6: Generate explanation cho top 5 document 
+                var documentExplaination = await _llmService.GenerateDocumentExplanationAsync(
+                    profile,
+                    documentRecomendations.Take(5).ToList());
 
                 return Ok(new LLMRecommendationResponse
                 {
                     Profile = profile,
                     CourseRecommendations = courseRecommendations,
-                    Explanation = explanation,
-                    TotalResults = courseRecommendations.Count
+                    DocumentRecommendations = documentRecomendations,
+                    CourseExplanation = courseExplaination,
+                    DocumentExplanation = documentExplaination,
+                    CourseTotalResults = courseRecommendations.Count,
+                    DocumentTotalResults = documentRecomendations.Count
                 });
             }
             catch (Exception ex)

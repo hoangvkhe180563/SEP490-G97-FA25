@@ -50,6 +50,8 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<IAccountRecoveryRequestRepository, AccountRecoveryRequestRepository>();
             services.AddScoped<IStatisticsRepository, StatisticsRepository>();
             services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+            services.AddScoped<IElasticSearchDocument, ElasticSearchDocumentRepository>();
+            services.AddScoped<IElasticSearchCourse, ElasticSearchCourseRepository>();
 
             services.AddScoped<ICloudinaryRepository>(provider =>
             {

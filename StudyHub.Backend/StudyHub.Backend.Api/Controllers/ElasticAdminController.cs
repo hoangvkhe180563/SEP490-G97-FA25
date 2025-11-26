@@ -9,19 +9,35 @@ namespace StudyHub.Backend.Api.Controllers
     [ApiController]
     public class ElasticAdminController : ControllerBase
     {
-        private readonly ElasticVectorSearchService _elasticsearchService;
+        private readonly ElasticCourseVectorSearchService _elasticCourseVectorSearchService;
+        private readonly ElasticDocumentVectorSearchService _elasticDocumentVectorSearchService;
 
-        public ElasticAdminController(ElasticVectorSearchService elasticsearchService)
+        public ElasticAdminController(ElasticCourseVectorSearchService elasticCourseVectorSearchService, ElasticDocumentVectorSearchService elasticDocumentVectorSearchService)
         {
-            _elasticsearchService = elasticsearchService;
+            _elasticCourseVectorSearchService = elasticCourseVectorSearchService;
+            _elasticDocumentVectorSearchService = elasticDocumentVectorSearchService;
         }
 
-        [HttpPost("setup-index")]
-        public async Task<IActionResult> SetupIndex()
+        [HttpPost("setup-course-index")]
+        public async Task<IActionResult> SetupCourseIndex()
         {
             try
             {
-                var result = await _elasticsearchService.CreateIndexAsync();
+                var result = await _elasticCourseVectorSearchService.CreateCourseIndexAsync();
+                return Ok(new { success = result, message = "Index created successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("setup-document-index")]
+        public async Task<IActionResult> SetupDocumentIndex()
+        {
+            try
+            {
+                var result = await _elasticDocumentVectorSearchService.CreateDocumentIndexAsync();
                 return Ok(new { success = result, message = "Index created successfully" });
             }
             catch (Exception ex)
@@ -35,7 +51,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var result = await _elasticsearchService.IndexCourseAsync(course);
+                var result = await _elasticCourseVectorSearchService.IndexCourseAsync(course);
                 return Ok(new { success = result, message = "Course added successfully" });
             }
             catch (Exception ex)
@@ -44,13 +60,13 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        [HttpPost("index-all-db")]
-        public async Task<IActionResult> IndexAllFromDb()
+        [HttpPost("index-document")]
+        public async Task<IActionResult> AddDocument([FromBody] UpsertElasticDocumentRequest document)
         {
             try
             {
-                var result = await _elasticsearchService.IndexAllCoursesFromDbAsync();
-                return Ok(new { success = result, message = result ? "All courses indexed successfully" : "Failed to index courses" });
+                var result = await _elasticDocumentVectorSearchService.IndexDocumentAsync(document);
+                return Ok(new { success = result, message = "Document added successfully" });
             }
             catch (Exception ex)
             {
@@ -58,12 +74,53 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        [HttpDelete("index/{id}")]
-        public async Task<IActionResult> DeleteIndexById(int id)
+        [HttpPost("index-all-course-db")]
+        public async Task<IActionResult> IndexAllCourseFromDb()
         {
             try
             {
-                var result = await _elasticsearchService.DeleteCourseByIdAsync(id);
+                var result = await _elasticCourseVectorSearchService.IndexAllCoursesFromDbAsync();
+                return Ok(new { success = result, message = result ? "All courses indexed successfully" : "Failed to index courses" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+        [HttpPost("index-all-document-db")]
+        public async Task<IActionResult> IndexAllDocumentFromDb()
+        {
+            try
+            {
+                var result = await _elasticDocumentVectorSearchService.IndexAllDocumentsFromDbAsync();
+                return Ok(new { success = result, message = result ? "All documents indexed successfully" : "Failed to index documents" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpDelete("index-course/{id}")]
+        public async Task<IActionResult> DeleteCourseIndexById(int id)
+        {
+            try
+            {
+                var result = await _elasticCourseVectorSearchService.DeleteCourseByIdAsync(id);
+                return Ok(new { success = result, message = result ? "Course deleted successfully" : "Failed to delete course" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpDelete("index-document/{id}")]
+        public async Task<IActionResult> DeleteDocumentIndexById(int id)
+        {
+            try
+            {
+                var result = await _elasticDocumentVectorSearchService.DeleteDocumentByIdAsync(id);
                 return Ok(new { success = result, message = result ? "Document deleted successfully" : "Failed to delete document" });
             }
             catch (Exception ex)
@@ -78,7 +135,7 @@ namespace StudyHub.Backend.Api.Controllers
             try
             {
                 var courses = GenerateTestCourses();
-                var result = await _elasticsearchService.IndexCoursesBatchAsync(courses);
+                var result = await _elasticCourseVectorSearchService.IndexCoursesBatchAsync(courses);
 
                 return Ok(new
                 {
@@ -98,11 +155,49 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var result = await _elasticsearchService.SeedSampleCoursesAsync();
+                var result = await _elasticCourseVectorSearchService.SeedSampleCoursesAsync();
                 return Ok(new
                 {
                     success = result,
                     message = "20 sample courses seeded successfully for LLM testing"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message, stack = ex.StackTrace });
+            }
+        }
+        [HttpPost("seed-documents")]
+        public async Task<IActionResult> SeedDocuments()
+        {
+            try
+            {
+                var docs = GenerateTestDocuments();
+                var result = await _elasticDocumentVectorSearchService.IndexDocumentsBatchAsync(docs);
+
+                return Ok(new
+                {
+                    success = result,
+                    message = $"{docs.Count} documents indexed successfully",
+                    documents = docs.Select(d => new { d.Id, d.Name, d.Grade })
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("seed-llm-documents")]
+        public async Task<IActionResult> SeedLLMDocuments()
+        {
+            try
+            {
+                var result = await _elasticDocumentVectorSearchService.SeedSampleDocumentsAsync();
+                return Ok(new
+                {
+                    success = result,
+                    message = "20 sample documents seeded successfully for LLM testing"
                 });
             }
             catch (Exception ex)
@@ -165,6 +260,66 @@ namespace StudyHub.Backend.Api.Controllers
             }
 
             return courses;
+        }
+
+        private List<Document> GenerateTestDocuments()
+        {
+            var docs = new List<Document>();
+            var subjects = new[] { "Toán học", "Hóa học", "Ngữ văn", "Vật lý" };
+            var categories = new[] { "LectureNotes", "Exercise", "Exam", "Summary" };
+            var difficulties = new[]
+            {
+                "Easy",
+                "Medium",
+                "Hard"
+            };
+            var lengths = new[]
+            {
+                "Short",
+                "Medium",
+                "Long"
+            };
+            int id = 1;
+
+            foreach (var subject in subjects)
+            {
+                foreach (var difficulty in difficulties)
+                {
+                    // 2-3 khóa học cho mỗi môn ở mỗi độ khó
+                    for (int i = 0; i < 2; i++)
+                    {
+                        var grade = (sbyte)(9 + (i % 4));
+                        var category = categories[i % categories.Length];
+
+                        var difficultyName = difficulty switch
+                        {
+                            "Easy" => "cơ bản",
+                            "Medium" => "trung bình",
+                            "Hard" => "nâng cao",
+                            _ => ""
+                        };
+
+                        docs.Add(new Document
+                        {
+                            Id = id++,
+                            Name = $"{subject} - Tài liệu {category} {i + 1}",
+                            Description = $"{category} về {subject}, phù hợp cho lớp {grade}, độ khó {difficultyName}. Giúp học sinh nắm vững kiến thức và kỹ năng {subject}.",
+                            DocumentUrl = $"https://example.com/{subject.ToLower().Replace(' ', '-')}/{category.ToLower()}/{i + 1}",
+                            Thumbnail = null,
+                            SchoolId = 1,
+                            Subject = new Subject { Name = subject },
+                            DocumentCategory = new DocumentCategory { Name = category },
+                            Grade = grade,
+                            IsInClass = false,
+                            IsFeatured = false,
+                            DocumentLengthType = lengths[i % 3],
+                            DocumentLevel = difficulty
+                        });
+                    }
+                }
+            }
+
+            return docs;
         }
     }
 }
