@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace StudyHub.Backend.UseCases.Dtos
 {
-    public class UserLearningProfile
+    public class UserLearningProfile 
     {
         public string UserId { get; set; }
         public int SchoolId { get; set; }

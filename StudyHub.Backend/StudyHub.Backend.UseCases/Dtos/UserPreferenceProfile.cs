@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace StudyHub.Backend.UseCases.Dtos
 {
-    public class UserPreferenceProfile
+    public class UserPreferenceProfile  
     {
         public List<string> Subject { get; set; } = new();
         public string CourseLevel { get; set; } // "beginner" | "intermediate" | "advanced"

@@ -13,18 +13,41 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly ElasticDocumentVectorSearchService _elasticDocumentVectorSearchService;
         private readonly QwenLLMService _llmService;
         private readonly EmbeddingService _embeddingService;
+        private readonly AuthService _authService;
+        private readonly IProfileService _profileService;
 
-        public RecommendationController(ElasticCourseVectorSearchService elasticCourseVectorSearchService, ElasticDocumentVectorSearchService elasticDocumentVectorSearchService, QwenLLMService llmService, EmbeddingService embeddingService)
+        public RecommendationController(ElasticCourseVectorSearchService elasticCourseVectorSearchService, ElasticDocumentVectorSearchService elasticDocumentVectorSearchService, QwenLLMService llmService, EmbeddingService embeddingService, AuthService authService, IProfileService profileService)
         {
             _elasticCourseVectorSearchService = elasticCourseVectorSearchService;
             _elasticDocumentVectorSearchService = elasticDocumentVectorSearchService;
             _llmService = llmService;
             _embeddingService = embeddingService;
+            _authService = authService;
+            _profileService = profileService;
         }
 
 
 
         // API để lấy khuyến nghị khóa học
+        // API để lấy profile học tập của user hiện tại
+        [HttpGet("profile-current")]
+        public IActionResult GetCurrentUserLearningProfile()
+        {
+            try
+            {
+                var currentUser = _authService.GetCurrentUser();
+                if (currentUser == null) return Unauthorized();
+
+                var profile = _profileService.GetUserLearningProfile(currentUser.Id);
+
+                return Ok(new { profile = profile, topK = 30 });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
         [HttpPost("recommend")]
         public async Task<IActionResult> Recommend([FromBody] RecommendationRequest request)
         {

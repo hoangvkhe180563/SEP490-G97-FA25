@@ -240,5 +240,32 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
             }
             return false;
         }
+
+        public List<Domain.Entities.Exam.ExamResult> GetResultsByStudentId(Guid studentId)
+        {
+            try
+            {
+                var results = _context.ExamResults.Include(r => r.Exam).Where(r => r.StudentId == studentId)
+                    .Select(r => new Domain.Entities.Exam.ExamResult
+                    {
+                        Id = r.ResultObjectId,
+                        ExamId = r.ExamId,
+                        StudentId = r.StudentId,
+                        StudentName = r.Student != null ? r.Student.Fullname ?? string.Empty : string.Empty,
+                        FinishTime = r.FinishTime,
+                        SubmissionTime = r.SubmissionTime.GetValueOrDefault(),
+                        CheatTimes = r.CheatTimes,
+                        Score = r.Score
+                    })
+                    .ToList();
+
+                return results;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ExamResultRepository", "GetResultsByStudentId exception. Inner error: " + ex.Message).LogError();
+            }
+            return new List<Domain.Entities.Exam.ExamResult>();
+        }
     }
 }
