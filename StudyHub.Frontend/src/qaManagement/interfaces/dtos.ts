@@ -17,6 +17,7 @@ interface CreateMessageDTO {
   content: string;
   isFromAi: boolean;
   isPaid: boolean;
+  documentIds?: number[];
 }
 
 interface UpdateMessageDTO {

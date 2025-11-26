@@ -61,6 +61,8 @@ export const useCourseStore = create<CourseState>((set, get) => ({
         status: query.status,
         isFeatured: query.isFeatured,
         isApproved: query.isApproved,
+        length: query.length,
+        difficulty: query.difficulty,
       });
 
       set({

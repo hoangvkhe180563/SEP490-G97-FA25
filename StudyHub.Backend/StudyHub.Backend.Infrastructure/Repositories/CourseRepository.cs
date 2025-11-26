@@ -55,6 +55,22 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (query.IsApproved.HasValue)
                     q = q.Where(c => c.IsApproved == query.IsApproved.Value);
 
+                if (!string.IsNullOrEmpty(query.Difficulty))
+                {
+                    if (Enum.TryParse<CourseDifficulty>(query.Difficulty, true, out var _diff))
+                    {
+                        q = q.Where(c => c.Difficulty == (sbyte)_diff);
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(query.Length))
+                {
+                    if (Enum.TryParse<CourseLength>(query.Length, true, out var _len))
+                    {
+                        q = q.Where(c => c.Length == (sbyte)_len);
+                    }
+                }
+
                 var courses = q.AsEnumerable()
                                 .Where(c =>
                                 {

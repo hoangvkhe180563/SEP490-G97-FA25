@@ -134,15 +134,29 @@ namespace StudyHub.Backend.UseCases.Services
             return await _moderationRepo.GetUserForumStatusAsync(userId, schoolId);
         }
 
-        public async Task<(List<UserForumStatus> statuses, int totalCount)> GetMutedUsersAsync(
-            int schoolId,
-            DateTime? mutedFrom = null,
-            DateTime? mutedTo = null,
-            int? pageNumber = null,
-            int? pageSize = null)
+        public async Task<(List<UserForumStatus> statuses, int totalCount)> GetUserForumStatusesAsync(
+       int schoolId,
+       string? query = null,
+       bool? isMuted = null,
+       int? minViolationScore = null,
+       int? maxViolationScore = null,
+       string? sortBy = null,
+       int? pageNumber = null,
+       int? pageSize = null)
         {
-            return await _moderationRepo.GetMutedUsersAsync(
-                schoolId, mutedFrom, mutedTo, pageNumber, pageSize);
+            return await _moderationRepo.GetUserForumStatusesAsync(
+                schoolId, query, isMuted, minViolationScore, maxViolationScore,
+                sortBy, pageNumber, pageSize);
+        }
+
+        public async Task<bool> MuteUserAsync(string userId, int schoolId, DateTime muteUntil)
+        {
+            return await _moderationRepo.MuteUserAsync(Guid.Parse(userId), schoolId, muteUntil);
+        }
+
+        public async Task<bool> UnmuteUserAsync(string userId, int schoolId)
+        {
+            return await _moderationRepo.UnmuteUserAsync(Guid.Parse(userId), schoolId);
         }
 
         public async Task<UserForumStatus> CreateOrUpdateUserForumStatusAsync(UserForumStatus status)

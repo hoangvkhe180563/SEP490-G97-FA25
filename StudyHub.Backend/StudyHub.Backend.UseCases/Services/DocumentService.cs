@@ -24,19 +24,22 @@ namespace StudyHub.Backend.UseCases.Services
         public Document? GetDocumentById(int id) => _repo.GetDocumentById(id);
 
         public (List<Document> documents, int totalCount) GetPublicDocuments(
-            string? query = null, int? categoryId = null, int? grade = null,
-            string? subject = null, int? classId = null, int pageNumber = 1, int pageSize = 10)
-            => _repo.GetPublicDocuments(query, categoryId, grade, subject, classId, pageNumber, pageSize);
+           string? query = null, int? categoryId = null, int? grade = null,
+           string? subject = null, int? classId = null, string? documentLengthType = null,
+           string? documentLevel = null, int pageNumber = 1, int pageSize = 10)
+           => _repo.GetPublicDocuments(query, categoryId, grade, subject, classId, documentLengthType, documentLevel, pageNumber, pageSize);
 
         public (List<Document> documents, int totalCount) GetSchoolDocuments(
             int schoolId, string? query = null, int? categoryId = null, int? grade = null,
-            string? subject = null, int? classId = null, int pageNumber = 1, int pageSize = 10)
-            => _repo.GetSchoolDocuments(schoolId, query, categoryId, grade, subject, classId, pageNumber, pageSize);
+            string? subject = null, int? classId = null, string? documentLengthType = null,
+            string? documentLevel = null, int pageNumber = 1, int pageSize = 10)
+            => _repo.GetSchoolDocuments(schoolId, query, categoryId, grade, subject, classId, documentLengthType, documentLevel, pageNumber, pageSize);
 
         public (List<Document> documents, int totalCount) GetOwnedDocuments(
             Guid creatorId, string? query = null, int? categoryId = null, int? grade = null,
-            string? subject = null, int? classId = null, int pageNumber = 1, int pageSize = 10)
-            => _repo.GetOwnedDocuments(creatorId, query, categoryId, grade, subject, classId, pageNumber, pageSize);
+            string? subject = null, int? classId = null, string? documentLengthType = null,
+            string? documentLevel = null, int pageNumber = 1, int pageSize = 10)
+            => _repo.GetOwnedDocuments(creatorId, query, categoryId, grade, subject, classId, documentLengthType, documentLevel, pageNumber, pageSize);
 
         public (List<Document> documents, int totalCount) GetManagerPublicDocuments(
             string? query = null, int? categoryId = null, int? grade = null, string? subject = null,

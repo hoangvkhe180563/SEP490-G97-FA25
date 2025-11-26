@@ -651,6 +651,7 @@ namespace StudyHub.Backend.UseCases.Services
                     Status = (u.Status == true) ? "Active" : "Inactive",
                     CreatedAt = u.CreatedAt.ToString("yyyy/MM/dd"),
                     Roles = roles,
+                    Subjects = (u.Subjects ?? new List<Domain.Entities.Subject>()).Select(s => new SubjectDto { Id = s.Id, Name = s.Name }).ToList(),
                 });
             }
 
@@ -721,7 +722,7 @@ namespace StudyHub.Backend.UseCases.Services
         public AppUser? GetUserByUsername(string username) => _userRepository.GetByUsername(username);
 
         // Async create account with optional avatar upload handled here (clean architecture: business logic in service)
-        public async Task<AppUser> CreateAccountAsync(string email, string password, string username, IEnumerable<Guid>? roleIds, int communeId, int schoolId, string? fullname = null, DateOnly? dob = null, IFormFile? avatarFile = null, int gender = 0, string? address = null, string? phoneNumber = null)
+        public async Task<AppUser> CreateAccountAsync(string email, string password, string username, IEnumerable<Guid>? roleIds, int communeId, int schoolId, string? fullname = null, DateOnly? dob = null, IFormFile? avatarFile = null, int gender = 0, string? address = null, string? phoneNumber = null, IEnumerable<short>? subjectIds = null)
         {
             Dictionary<string, string> errors = new Dictionary<string, string>();
 
@@ -803,7 +804,7 @@ namespace StudyHub.Backend.UseCases.Services
 
             try
             {
-                _userRepository.CreateUser(user, roleIds);
+                _userRepository.CreateUser(user, roleIds, subjectIds);
                 return user;
             }
             catch (Exception ex)
@@ -818,7 +819,7 @@ namespace StudyHub.Backend.UseCases.Services
         }
 
         // Async edit account with optional avatar upload and old-avatar deletion
-        public async Task<AppUser?> EditAccountAsync(Guid id, string? email = null, string? username = null, string? fullname = null, DateOnly? dob = null, int? communeId = null, bool? status = null, IFormFile? avatarFile = null, int? gender = null, IEnumerable<Guid>? roleIds = null, int? schoolId = null, string? address = null, string? phoneNumber = null)
+        public async Task<AppUser?> EditAccountAsync(Guid id, string? email = null, string? username = null, string? fullname = null, DateOnly? dob = null, int? communeId = null, bool? status = null, IFormFile? avatarFile = null, int? gender = null, IEnumerable<Guid>? roleIds = null, int? schoolId = null, string? address = null, string? phoneNumber = null, IEnumerable<short>? subjectIds = null)
         {
             Dictionary<string, string> errors = new Dictionary<string, string>();
 
@@ -905,7 +906,7 @@ namespace StudyHub.Backend.UseCases.Services
 
             try
             {
-                _userRepository.UpdateUser(user, roleIds);
+                _userRepository.UpdateUser(user, roleIds, subjectIds);
 
                 // after success, if avatar changed and we uploaded a new one, delete old
                 if (!string.IsNullOrEmpty(oldAvatar) && !string.IsNullOrEmpty(uploadedUrl) && !string.Equals(oldAvatar, uploadedUrl, StringComparison.OrdinalIgnoreCase))

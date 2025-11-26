@@ -110,6 +110,8 @@ const CourseList: React.FC = () => {
     createdBy: teachers.find((t) => t.id === c.createdBy)?.fullname || "",
     chapters: c.chapters ?? [],
     isApproved: c.isApproved,
+    difficulty: c.difficulty,
+    length: c.length,
   }));
 
   const startRange = page && pageSize ? (page - 1) * pageSize + 1 : 0;

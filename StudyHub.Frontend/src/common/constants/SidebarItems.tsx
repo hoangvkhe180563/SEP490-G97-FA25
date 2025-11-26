@@ -1,6 +1,6 @@
 import {
   BookOpen,
-  FilePen,
+  FileQuestion,
   LayoutDashboard,
   LibraryBig,
   MessageCircleQuestionMark,
@@ -104,10 +104,15 @@ export const documentManagerSidebarItems: ISidebarItem[] = [
 
 export const questionManagerSidebarItems: ISidebarItem[] = [
   {
-    icon: <FilePen size={20} />,
-    text: "Quản lý bài kiểm tra",
+    icon: <LayoutDashboard size={20} />,
+    text: "Trang chủ",
     link: "/",
   },
+  {
+    icon: <FileQuestion size={20} />,
+    text: "Ngân hàng câu hỏi",
+    link: "/exam/manager/questions",
+  }
 ];
 
 export const financialManagerSidebarItems: ISidebarItem[] = [];
@@ -118,17 +123,37 @@ export const moderatorSidebarItems: ISidebarItem[] = [
   {
     icon: <LayoutDashboard size={20} />,
     text: "Trang chủ",
-    link: "/",
+    link: "/forum/manager/dashboard",
   },
   {
     icon: <BookOpen size={20} />,
     text: "Duyệt bài viết forum",
-    link: "/manager/posts",
+    link: "/forum/manager/posts",
   },
   {
     icon: <Users size={20} />,
     text: "Quản lý luật forum",
-    link: "/classes",
+    link: "/forum/manager/rules",
+  },
+  {
+    icon: <Users size={20} />,
+    text: "Quản lý khiếu nại",
+    link: "/forum/manager/appeals",
+  },
+  {
+    icon: <Users size={20} />,
+    text: "Quản lý vi phạm",
+    link: "/forum/manager/violations",
+  },
+  {
+    icon: <Users size={20} />,
+    text: "Quản lý luật thẻ",
+    link: "/forum/manager/flairs",
+  },
+  {
+    icon: <Users size={20} />,
+    text: "Quản lý tài khoản",
+    link: "/forum/manager/accounts",
   },
 ];
 

@@ -12,7 +12,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data
         public string QuestionText { get; set; } = string.Empty;
 
         [BsonElement("type")]
-        public string Type { get; set; } = string.Empty;
+        public int Type { get; set; } = 0;
 
         [BsonElement("options")]
         public List<string> Options { get; set; } = new List<string>();
@@ -22,6 +22,12 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data
 
         [BsonElement("definitions")]
         public List<string> Definitions { get; set; } = new List<string>();
+
+        [BsonElement("subjectId")]
+        public int? SubjectId { get; set; }
+
+        [BsonElement("grade")]
+        public int? Grade { get; set; }
 
         [BsonElement("correctAnswer")]
         public BsonValue CorrectAnswer { get; set; } = BsonNull.Value;

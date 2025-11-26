@@ -20,6 +20,8 @@ const CourseFilterTeacher: React.FC = () => {
   >([]);
   const [subjects, setSubjects] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
+  const [difficulty, setDifficulty] = useState<string>("all");
+  const [length, setLength] = useState<string>("all");
 
   const fetchCourses = useCourseStore((s) => s.fetchCourses);
   const authUser = useAuthStore((s) => s.user);
@@ -43,12 +45,22 @@ const CourseFilterTeacher: React.FC = () => {
           subjectId: subjects !== "all" ? Number(subjects) : undefined,
           schoolId: authUser?.schoolId,
           status: status !== "all" ? status : undefined,
+          difficulty: difficulty !== "all" ? difficulty : undefined,
+          length: length !== "all" ? length : undefined,
           isApproved: true,
         });
     }, 300);
 
     return () => clearTimeout(handler);
-  }, [q, subjects, status, fetchCourses, authUser?.schoolId]);
+  }, [
+    q,
+    subjects,
+    status,
+    difficulty,
+    length,
+    fetchCourses,
+    authUser?.schoolId,
+  ]);
 
   return (
     <div className="bg-white rounded-md shadow-sm p-4 mb-4">
@@ -86,6 +98,32 @@ const CourseFilterTeacher: React.FC = () => {
             <SelectItem value="Nháp">Nháp</SelectItem>
             <SelectItem value="Mở">Đang mở</SelectItem>
             <SelectItem value="Đóng">Đã đóng</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Chọn mức độ */}
+        <Select value={difficulty} onValueChange={(v) => setDifficulty(v)}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Tất cả mức độ" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tất cả mức độ</SelectItem>
+            <SelectItem value="Beginner">Cơ bản</SelectItem>
+            <SelectItem value="Intermediate">Trung cấp</SelectItem>
+            <SelectItem value="Advanced">Nâng cao</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Chọn độ dài */}
+        <Select value={length} onValueChange={(v) => setLength(v)}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Tất cả độ dài" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tất cả độ dài</SelectItem>
+            <SelectItem value="Short">Ngắn</SelectItem>
+            <SelectItem value="Medium">Trung bình</SelectItem>
+            <SelectItem value="Long">Dài</SelectItem>
           </SelectContent>
         </Select>
 

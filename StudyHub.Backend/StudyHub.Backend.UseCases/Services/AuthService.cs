@@ -234,7 +234,7 @@ namespace StudyHub.Backend.UseCases.Services
             };
             try
             {
-                _userRepository.CreateUser(user, roleIds);
+                _userRepository.CreateUser(user, roleIds, null);
                 string? token = CreateVerificationTokenForEmail(email);
                 if (token != null)
                 {
@@ -380,11 +380,11 @@ namespace StudyHub.Backend.UseCases.Services
                     var studentRole = _roleRepository.GetRoleByName("External Student");
                     if (studentRole != null)
                     {
-                        _userRepository.CreateUser(user, new List<Guid> { studentRole.Id });
+                        _userRepository.CreateUser(user, new List<Guid> { studentRole.Id }, null);
                     }
                     else
                     {
-                        _userRepository.CreateUser(user);
+                        _userRepository.CreateUser(user, null, null);
                     }
                 }
                 else

@@ -1,4 +1,5 @@
 ﻿using StudyHub.Backend.Api.Dtos.ExamDTOS;
+using StudyHub.Backend.Api.Dtos.QuestionDTOS;
 using StudyHub.Backend.Domain.Entities.Exam;
 using System.Text.Json;
 
@@ -16,10 +17,14 @@ namespace StudyHub.Backend.Api.Mappers
                 CreatedBy = examDto.CreatedBy,
                 ShowAnswers = examDto.ShowAnswers,
                 ShowCorrectAnswers = examDto.ShowCorrectAnswers,
+                IsMultipleAttempts = examDto.IsMultipleAttempts,
                 ClassId = examDto.ClassId ?? 0,
                 LessonId = examDto.LessonId ?? 0,
                 OpenTime = examDto.OpenTime,
-                CloseTime = examDto.CloseTime
+                CloseTime = examDto.CloseTime,
+                NoRandomQuestions = examDto.NoRandomQuestions,
+                SubjectId = examDto.SubjectId,
+                Grade = examDto.Grade
             };
 
             List<Question> questions = new List<Question>();
@@ -27,7 +32,7 @@ namespace StudyHub.Backend.Api.Mappers
             {
                 switch (question.Type)
                 {
-                    case "single-choice":
+                    case QuestionType.SingleChoice:
                         {
                             if (question.CorrectAnswer is JsonElement jsonElement)
                             {
@@ -42,7 +47,7 @@ namespace StudyHub.Backend.Api.Mappers
                             }
                             break;
                         }
-                    case "multiple-choice":
+                    case QuestionType.MultipleChoice:
                         {
                             if (question.CorrectAnswer is JsonElement jsonElement)
                             {
@@ -57,7 +62,7 @@ namespace StudyHub.Backend.Api.Mappers
                             }
                             break;
                         }
-                    case "text-input":
+                    case QuestionType.TextInput:
                         {
                             if (question.CorrectAnswer is JsonElement jsonElement)
                             {
@@ -71,7 +76,7 @@ namespace StudyHub.Backend.Api.Mappers
                             }
                             break;
                         }
-                    case "fill-blank":
+                    case QuestionType.FillBlank:
                         {
                             if (question.CorrectAnswer is JsonElement jsonElement)
                             {
@@ -85,7 +90,7 @@ namespace StudyHub.Backend.Api.Mappers
                             }
                             break;
                         }
-                    case "matching":
+                    case QuestionType.Matching:
                         {
                             if (question.CorrectAnswer is JsonElement jsonElement)
                             {
@@ -119,8 +124,12 @@ namespace StudyHub.Backend.Api.Mappers
                 Duration = examDto.Duration,
                 ShowAnswers = examDto.ShowAnswers,
                 ShowCorrectAnswers = examDto.ShowCorrectAnswers,
+                IsMultipleAttempts = examDto.IsMultipleAttempts,
                 OpenTime = examDto.OpenTime,
-                CloseTime = examDto.CloseTime
+                CloseTime = examDto.CloseTime,
+                NoRandomQuestions = examDto.NoRandomQuestions,
+                SubjectId = examDto.SubjectId,
+                Grade = examDto.Grade
             };
 
             return examEntity;
@@ -138,10 +147,14 @@ namespace StudyHub.Backend.Api.Mappers
                 CloseTime = exam.CloseTime,
                 ShowAnswers = exam.ShowAnswers,
                 ShowCorrectAnswers = exam.ShowCorrectAnswers,
+                IsMultipleAttempts = exam.IsMultipleAttempts,
                 CreatedBy = exam.CreatedBy,
                 ClassId = exam.ClassId,
                 LessonId = exam.LessonId,
-                TotalQuestions = exam.TotalQuestions
+                TotalQuestions = exam.TotalQuestions,
+                NoRandomQuestions = exam.NoRandomQuestions,
+                SubjectId = exam.SubjectId,
+                Grade = exam.Grade
             };
 
             List<QuestionDetailsDto> questionDto = new List<QuestionDetailsDto>();
@@ -150,6 +163,7 @@ namespace StudyHub.Backend.Api.Mappers
                 QuestionDetailsDto q = new QuestionDetailsDto();
                 q.QuestionObjectId = question.Id;
                 q.QuestionText = question.QuestionText;
+                q.Type = question.Type;
 
                 switch (question.Type)
                 {
@@ -157,7 +171,6 @@ namespace StudyHub.Backend.Api.Mappers
                         {
                             if (question is SingleChoiceQuestion singleChoice)
                             {
-                                q.Type = "single-choice";
                                 q.CorrectAnswer = singleChoice.CorrectAnswer;
                                 q.Options = singleChoice.Options;
                             }
@@ -167,7 +180,6 @@ namespace StudyHub.Backend.Api.Mappers
                         {
                             if (question is MultipleChoiceQuestion multipleChoice)
                             {
-                                q.Type = "multiple-choice";
                                 q.CorrectAnswer = multipleChoice.CorrectAnswer;
                                 q.Options = multipleChoice.Options;
                             }
@@ -177,7 +189,6 @@ namespace StudyHub.Backend.Api.Mappers
                         {
                             if (question is TextInputQuestion textInput)
                             {
-                                q.Type = "text-input";
                                 q.CorrectAnswer = textInput.CorrectAnswer;
                             }
                         }
@@ -186,7 +197,6 @@ namespace StudyHub.Backend.Api.Mappers
                         {
                             if (question is FillBlankQuestion fillBlank)
                             {
-                                q.Type = "fill-blank";
                                 q.CorrectAnswer = fillBlank.CorrectAnswer;
                             }
                         }
@@ -195,7 +205,6 @@ namespace StudyHub.Backend.Api.Mappers
                         {
                             if (question is MatchingQuestion matching)
                             {
-                                q.Type = "matching";
                                 q.Terms = matching.Terms;
                                 q.Definitions = matching.Definitions;
                                 q.CorrectAnswer = matching.CorrectMatches;
@@ -209,94 +218,6 @@ namespace StudyHub.Backend.Api.Mappers
 
             examDto.Questions = questionDto;
             return examDto;
-        }
-
-        public static Question ToQuestionEntity(this QuestionUpdateDto questionDto)
-        {
-            switch (questionDto.Type)
-            {
-                case "single-choice":
-                    {
-                        if (questionDto.CorrectAnswer is JsonElement jsonElement)
-                        {
-                            int correctAnswer = jsonElement.Deserialize<int>();
-                            return new SingleChoiceQuestion
-                            {
-                                Id = questionDto.QuestionObjectId,
-                                Options = questionDto.Options,
-                                CorrectAnswer = correctAnswer,
-                                QuestionText = questionDto.QuestionText,
-                                Type = QuestionType.SingleChoice
-                            };
-                        }
-                        break;
-                    }
-                case "multiple-choice":
-                    {
-                        if (questionDto.CorrectAnswer is JsonElement jsonElement)
-                        {
-                            int[] correctAnsArray = jsonElement.Deserialize<int[]>() ?? Array.Empty<int>();
-                            return new MultipleChoiceQuestion
-                            {
-                                Id = questionDto.QuestionObjectId,
-                                Options = questionDto.Options,
-                                CorrectAnswer = correctAnsArray.ToList(),
-                                QuestionText = questionDto.QuestionText,
-                                Type = QuestionType.MultipleChoice
-                            };
-                        }
-                        break;
-                    }
-                case "text-input":
-                    {
-                        if (questionDto.CorrectAnswer is JsonElement jsonElement)
-                        {
-                            string correctAnswer = jsonElement.Deserialize<string>() ?? string.Empty;
-                            return new TextInputQuestion
-                            {
-                                Id = questionDto.QuestionObjectId,
-                                QuestionText = questionDto.QuestionText,
-                                Type = QuestionType.TextInput,
-                                CorrectAnswer = correctAnswer
-                            };
-                        }
-                        break;
-                    }
-                case "fill-blank":
-                    {
-                        if (questionDto.CorrectAnswer is JsonElement jsonElement)
-                        {
-                            string[] correctAnsArray = jsonElement.Deserialize<string[]>() ?? Array.Empty<string>();
-                            return new FillBlankQuestion
-                            {
-                                Id = questionDto.QuestionObjectId,
-                                QuestionText = questionDto.QuestionText,
-                                Type = QuestionType.FillBlank,
-                                CorrectAnswer = correctAnsArray.ToList()
-                            };
-                        }
-                        break;
-                    }
-                case "matching":
-                    {
-                        if (questionDto.CorrectAnswer is JsonElement jsonElement)
-                        {
-                            Dictionary<int, int> correctMatches = jsonElement.Deserialize<Dictionary<int, int>>() ?? new Dictionary<int, int>();
-                            return new MatchingQuestion
-                            {
-                                Id = questionDto.QuestionObjectId,
-                                QuestionText = questionDto.QuestionText,
-                                Type = QuestionType.Matching,
-                                Terms = questionDto.Terms,
-                                Definitions = questionDto.Definitions,
-                                CorrectMatches = correctMatches
-                            };
-                        }
-                        break;
-                    }
-            }
-
-            throw new InvalidOperationException($"Unsupported question type: {questionDto.Type}");
         }
     }
 }

@@ -37,14 +37,17 @@ const ViewExamDetail = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [fetchedExam, status, results] = await Promise.all([
+        const [fetchedExam, results] = await Promise.all([
           examService.getExamById(Number(id)),
-          examService.checkExamStatus(user.id, Number(id)),
           examService.getResultsByStudentAndExamId(user.id, Number(id))
         ]);
         setExam(fetchedExam);
-        setHasTaken(status);
-        setResults(results);
+        setResults(results.sort((a, b) => {
+          const dateA = a.submissionTime ? a.submissionTime.getTime() : 0;
+          const dateB = b.submissionTime ? b.submissionTime.getTime() : 0;
+          return dateB - dateA;
+        }));
+        setHasTaken(!fetchedExam.isMultipleAttempts && results.length >= 1);
       } catch (err) {
         console.error('Failed to load exam results:', err);
         setError('Không thể tải dữ liệu.');
@@ -95,7 +98,7 @@ const ViewExamDetail = () => {
             <div key={r.id} className="p-4 bg-gray-50 border rounded flex justify-between items-center">
               <div>
                 <p className="font-semibold">Học sinh: {r.studentName}</p>
-                <p className="text-sm text-gray-600">Nộp lúc: {r.submissionTime?.toLocaleString("vi-VN")}</p>
+                <p className="text-sm text-gray-600">Nộp lúc: <b>{r.submissionTime?.toLocaleString("vi-VN")}</b></p>
                 <p className="text-sm text-gray-700">Điểm: {r.score}</p>
                 <p className="text-sm text-gray-700">Số lần chuyển tab/thu nhỏ màn hình: <span className='text-red-600'>{r.cheatTimes}</span></p>
               </div>

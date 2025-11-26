@@ -16,4 +16,4 @@ namespace StudyHub.Backend.UseCases.Repositories
         QAMessage? UpdateQAMessage(QAMessage message);
     }
 }
- 
+

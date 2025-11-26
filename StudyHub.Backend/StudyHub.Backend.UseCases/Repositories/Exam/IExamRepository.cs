@@ -1,6 +1,4 @@
-﻿
-
-namespace StudyHub.Backend.UseCases.Repositories.Exam
+﻿namespace StudyHub.Backend.UseCases.Repositories.Exam
 {
     public interface IExamRepository
     {

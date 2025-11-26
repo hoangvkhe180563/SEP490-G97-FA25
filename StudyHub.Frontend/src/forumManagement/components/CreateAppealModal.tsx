@@ -1,4 +1,3 @@
-// src/forumManagement/components/CreateAppealModal.tsx
 import { useState } from "react";
 import {
   Dialog,
@@ -10,12 +9,12 @@ import {
 } from "@/common/components/ui/dialog";
 import { Button } from "@/common/components/ui/button";
 import { Textarea } from "@/common/components/ui/textarea";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 
 interface CreateAppealModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (reason: string) => Promise<void>;
+  onSubmit: (reason: string) => Promise<{ success: boolean; message?: string }>;
   isLoading?: boolean;
 }
 
@@ -26,20 +25,53 @@ export const CreateAppealModal = ({
   isLoading = false,
 }: CreateAppealModalProps) => {
   const [reason, setReason] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reason.trim()) return;
 
-    await onSubmit(reason);
-    setReason("");
-    onClose();
+    const trimmedReason = reason.trim();
+
+    if (trimmedReason.length < 10) {
+      setError("Lý do kháng cáo phải có ít nhất 10 ký tự");
+      return;
+    }
+
+    setError("");
+    setSubmitting(true);
+
+    try {
+      const result = await onSubmit(trimmedReason);
+
+      if (result?.success) {
+        setReason("");
+        setTimeout(() => {
+          onClose();
+        }, 500);
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleClose = () => {
-    setReason("");
-    onClose();
+    if (!submitting && !isLoading) {
+      setReason("");
+      setError("");
+      onClose();
+    }
   };
+
+  const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setReason(e.target.value);
+    if (error && e.target.value.trim().length >= 10) {
+      setError("");
+    }
+  };
+
+  const isValid = reason.trim().length >= 10;
+  const isProcessing = submitting || isLoading;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -57,17 +89,37 @@ export const CreateAppealModal = ({
             <div>
               <label className="text-sm font-medium mb-2 block">
                 Lý do kháng cáo <span className="text-red-500">*</span>
+                <span className="text-gray-500 font-normal ml-2">
+                  (Tối thiểu 10 ký tự)
+                </span>
               </label>
               <Textarea
                 placeholder="Mô tả chi tiết lý do bạn muốn kháng cáo..."
                 value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                className="min-h-[150px] resize-none"
-                maxLength={500}
+                onChange={handleReasonChange}
+                className={`min-h-[150px] resize-none ${
+                  error ? "border-red-500" : ""
+                }`}
+                maxLength={2000}
                 required
+                disabled={isProcessing}
               />
-              <div className="text-xs text-gray-500 mt-1 text-right">
-                {reason.length}/500 ký tự
+              <div className="flex justify-between items-center mt-1">
+                <div>
+                  {error && (
+                    <div className="flex items-center gap-1 text-red-500 text-xs">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+                </div>
+                <div
+                  className={`text-xs ${
+                    reason.trim().length < 10 ? "text-red-500" : "text-gray-500"
+                  }`}
+                >
+                  {reason.length}/2000 ký tự
+                </div>
               </div>
             </div>
           </div>
@@ -77,12 +129,12 @@ export const CreateAppealModal = ({
               type="button"
               variant="outline"
               onClick={handleClose}
-              disabled={isLoading}
+              disabled={isProcessing}
             >
               Hủy
             </Button>
-            <Button type="submit" disabled={!reason.trim() || isLoading}>
-              {isLoading ? (
+            <Button type="submit" disabled={!isValid || isProcessing}>
+              {isProcessing ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Đang gửi...

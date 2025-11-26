@@ -35,6 +35,7 @@ import { useParams } from "react-router-dom";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useAppRoleStore } from "@/user/stores/useRoleStore";
 import { useLocationStore } from "@/user/stores/useLocationStore";
+import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
 import { Badge } from "@/common/components/ui/badge";
 import toast from "react-hot-toast";
 import useDobStore from "@/user/stores/useDobStore";
@@ -69,6 +70,7 @@ const schema = z.object({
   provinceId: z.string().optional(),
   schoolId: z.string().optional(),
   roleIds: z.array(z.string()).min(1, "Phải chọn ít nhất một vai trò"),
+  subjectIds: z.array(z.union([z.string(), z.number()])).optional(),
   gender: z.union([z.literal("0"), z.literal("1"), z.literal("2")]).optional(),
   address: z.string().optional(),
   phoneNumber: z
@@ -106,6 +108,7 @@ const UpdateAccount: React.FC = () => {
     communes,
     schools,
   } = useLocationStore();
+  const { getSubjects, subjects } = useDocumentStore();
 
   const [currentRoles, setCurrentRoles] = useState<string[]>([]);
   // removed unused currentStatus state - form's `status` value is authoritative
@@ -122,6 +125,7 @@ const UpdateAccount: React.FC = () => {
     communeId: undefined,
     schoolId: undefined,
     roleIds: [] as string[],
+    subjectIds: [] as string[],
     gender: undefined as any,
     status: true,
     address: "",
@@ -230,6 +234,7 @@ const UpdateAccount: React.FC = () => {
   };
 
   const selectedRoles = watch("roleIds") || [];
+  const selectedSubjects = watch("subjectIds") || [];
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
@@ -241,6 +246,7 @@ const UpdateAccount: React.FC = () => {
     const loadData = async () => {
       await getAppRoles();
       await fetchCities();
+      await getSubjects();
 
       if (id) {
         const data = await getAppUserById(id);
@@ -287,6 +293,7 @@ const UpdateAccount: React.FC = () => {
             phoneNumber: user.phoneNumber ?? "",
             schoolId: user.schoolId ? String(user.schoolId) : undefined,
             roleIds: mappedRoleIds,
+            subjectIds: (user.subjects ?? []).map((s: any) => String(s.id)),
             gender:
               typeof normalizeGender !== "undefined"
                 ? (normalizeGender as any)
@@ -372,6 +379,20 @@ const UpdateAccount: React.FC = () => {
     setValue("roleIds", [...prev, idRole]);
   }
 
+  function removeSubject(id: number | string) {
+    const prev = getValues("subjectIds") || [];
+    setValue(
+      "subjectIds",
+      prev.filter((x: any) => String(x) !== String(id))
+    );
+  }
+
+  function addSubject(id: number | string) {
+    const prev = getValues("subjectIds") || [];
+    if (prev.find((x: any) => String(x) === String(id))) return;
+    setValue("subjectIds", [...prev, String(id)]);
+  }
+
   const onSubmit = async (data: FormValues) => {
     if (!id) return;
 
@@ -401,6 +422,8 @@ const UpdateAccount: React.FC = () => {
     if (data.address) dto.address = data.address;
     if (data.dob)
       dto.dob = useDobStore.getState().displayToIso(data.dob) ?? null;
+    if (data.subjectIds)
+      dto.subjectIds = (data.subjectIds ?? []).map((s: any) => Number(s));
 
     try {
       await updateAccount(
@@ -882,6 +905,67 @@ const UpdateAccount: React.FC = () => {
                   {String(formState.errors.roleIds.message)}
                 </p>
               )}
+            </div>
+          </FormItem>
+          <FormItem className="w-full">
+            <FormLabel>Môn học</FormLabel>
+            <div className="mt-2 flex flex-col gap-2">
+              <div className="flex flex-wrap gap-2 max-h-36 overflow-auto pr-2">
+                {selectedSubjects.map((sid: any) => {
+                  const sub = (subjects || []).find(
+                    (s: any) => String(s.id) === String(sid)
+                  );
+                  const name = sub ? sub.name : String(sid);
+                  return (
+                    <Badge
+                      key={String(sid)}
+                      className="flex items-center gap-2 cursor-pointer"
+                      onClick={() => removeSubject(String(sid))}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Remove subject ${name}`}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          removeSubject(String(sid));
+                        }
+                      }}
+                    >
+                      <span className="text-sm">{name}</span>
+                      <span className="opacity-60" aria-hidden>
+                        ×
+                      </span>
+                    </Badge>
+                  );
+                })}
+              </div>
+
+              <div className="mt-2">
+                <Select
+                  onValueChange={(v) => {
+                    if (!v) return;
+                    addSubject(v);
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <span className="text-sm text-gray-700">Thêm môn học</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(subjects || [])
+                      .filter(
+                        (s: any) =>
+                          !selectedSubjects.some(
+                            (ss: any) => String(ss) === String(s.id)
+                          )
+                      )
+                      .map((s: any) => (
+                        <SelectItem key={s.id} value={String(s.id)}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </FormItem>
         </div>

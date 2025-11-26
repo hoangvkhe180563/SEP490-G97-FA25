@@ -34,24 +34,6 @@ namespace StudyHub.Backend.Api.Controllers
             _authService = authService;
         }
 
-        private Guid? GetCurrentUserId()
-        {
-            var accessToken = Request.Cookies["access_token"];
-            if (string.IsNullOrEmpty(accessToken))
-                return null;
-
-            return _authService.ValidateAccessToken(accessToken);
-        }
-
-        private Domain.Entities.AppUser? GetCurrentUser()
-        {
-            var userId = GetCurrentUserId();
-            if (!userId.HasValue)
-                return null;
-
-            return _userService.GetUserById(userId.Value);
-        }
-
         private IActionResult PagedResult<T>(List<T> items, int total, int page, int limit)
         {
             return Ok(new
@@ -70,16 +52,18 @@ namespace StudyHub.Backend.Api.Controllers
 
         [HttpGet("public")]
         public IActionResult GetPublicDocuments(
-            [FromQuery] string? query = null,
-            [FromQuery] int? categoryId = null,
-            [FromQuery] int? grade = null,
-            [FromQuery] string? subject = null,
-            [FromQuery] int? classId = null,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10)
+         [FromQuery] string? query = null,
+         [FromQuery] int? categoryId = null,
+         [FromQuery] int? grade = null,
+         [FromQuery] string? subject = null,
+         [FromQuery] int? classId = null,
+         [FromQuery] string? documentLengthType = null,
+         [FromQuery] string? documentLevel = null,
+         [FromQuery] int pageNumber = 1,
+         [FromQuery] int pageSize = 10)
         {
             var (documents, totalCount) = _documentService.GetPublicDocuments(
-                query, categoryId, grade, subject, classId, pageNumber, pageSize);
+                query, categoryId, grade, subject, classId, documentLengthType, documentLevel, pageNumber, pageSize);
             return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
         }
 
@@ -91,10 +75,12 @@ namespace StudyHub.Backend.Api.Controllers
             [FromQuery] int? grade = null,
             [FromQuery] string? subject = null,
             [FromQuery] int? classId = null,
+            [FromQuery] string? documentLengthType = null,
+            [FromQuery] string? documentLevel = null,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
-            var currentUser = GetCurrentUser();
+            var currentUser = _authService.GetCurrentUser();
             if (currentUser == null)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
@@ -102,7 +88,7 @@ namespace StudyHub.Backend.Api.Controllers
                 return Forbid();
 
             var (documents, totalCount) = _documentService.GetSchoolDocuments(
-                schoolId, query, categoryId, grade, subject, classId, pageNumber, pageSize);
+                schoolId, query, categoryId, grade, subject, classId, documentLengthType, documentLevel, pageNumber, pageSize);
             return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
         }
 
@@ -114,11 +100,13 @@ namespace StudyHub.Backend.Api.Controllers
             [FromQuery] int? grade = null,
             [FromQuery] string? subject = null,
             [FromQuery] int? classId = null,
+            [FromQuery] string? documentLengthType = null,
+            [FromQuery] string? documentLevel = null,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
             var (documents, totalCount) = _documentService.GetOwnedDocuments(
-                creatorId, query, categoryId, grade, subject, classId, pageNumber, pageSize);
+                creatorId, query, categoryId, grade, subject, classId, documentLengthType, documentLevel, pageNumber, pageSize);
             return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
         }
 
@@ -164,7 +152,7 @@ namespace StudyHub.Backend.Api.Controllers
     [FromQuery] int pageNumber = 1,
     [FromQuery] int pageSize = 10)
         {
-            var currentUser = GetCurrentUser();
+            var currentUser = _authService.GetCurrentUser();
             if (currentUser == null)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
@@ -193,7 +181,7 @@ namespace StudyHub.Backend.Api.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(new { success = false, errors = ModelState });
 
-            var currentUser = GetCurrentUser();
+            var currentUser = _authService.GetCurrentUser();
             if (currentUser == null)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
@@ -260,7 +248,7 @@ namespace StudyHub.Backend.Api.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(new { success = false, errors = ModelState });
 
-            var currentUser = GetCurrentUser();
+            var currentUser = _authService.GetCurrentUser();
             if (currentUser == null)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
@@ -315,15 +303,15 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeleteDocument(int id)
         {
-            var currentUserId = GetCurrentUserId();
-            if (!currentUserId.HasValue)
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
             var existingDoc = _documentService.GetDocumentById(id);
             if (existingDoc == null)
                 return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
 
-            if (existingDoc.CreatedBy != currentUserId.Value)
+            if (existingDoc.CreatedBy != currentUser.Id)
                 return Forbid();
 
             var result = await _documentService.DeleteDocument(id);
@@ -336,11 +324,11 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpPatch("soft-delete/{id:int}")]
         public async Task<IActionResult> SoftDeleteDocument(int id)
         {
-            var currentUserId = GetCurrentUserId();
-            if (!currentUserId.HasValue)
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var result = await _documentService.SoftDeleteDocument(id, currentUserId.Value);
+            var result = await _documentService.SoftDeleteDocument(id, currentUser.Id);
             if (!result)
                 return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
 
@@ -350,33 +338,33 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpPost("approve")]
         public async Task<IActionResult> ApproveDocument([FromBody] ApprovalDto dto)
         {
-            var currentUserId = GetCurrentUserId();
-            if (!currentUserId.HasValue)
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var document = await _documentService.ApproveDocument(dto.DocumentId, currentUserId.Value);
+            var document = await _documentService.ApproveDocument(dto.DocumentId, currentUser.Id);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
         [HttpPost("reject")]
         public async Task<IActionResult> RejectDocument([FromBody] ApprovalDto dto)
         {
-            var currentUserId = GetCurrentUserId();
-            if (!currentUserId.HasValue)
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var document = await _documentService.RejectDocument(dto.DocumentId, currentUserId.Value);
+            var document = await _documentService.RejectDocument(dto.DocumentId, currentUser.Id);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
         [HttpPost("revoke")]
         public async Task<IActionResult> RevokeApproval([FromBody] ApprovalDto dto)
         {
-            var currentUserId = GetCurrentUserId();
-            if (!currentUserId.HasValue)
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var document = await _documentService.RevokeApproval(dto.DocumentId, currentUserId.Value);
+            var document = await _documentService.RevokeApproval(dto.DocumentId, currentUser.Id);
 
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
@@ -384,11 +372,11 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpPost("toggle-featured")]
         public async Task<IActionResult> ToggleFeatured([FromBody] ToggleFeaturedDto dto)
         {
-            var currentUserId = GetCurrentUserId();
-            if (!currentUserId.HasValue)
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var document = await _documentService.ToggleFeatured(dto.DocumentId, currentUserId.Value);
+            var document = await _documentService.ToggleFeatured(dto.DocumentId, currentUser.Id);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
 
@@ -459,8 +447,8 @@ namespace StudyHub.Backend.Api.Controllers
             var teachers = _classService.GetTeachers();
 
             var result = classes
-                .GroupBy(c => c.Id) // Loại bỏ duplicate theo Id
-                .Select(g => g.First()) // Lấy item đầu tiên của mỗi group
+                .GroupBy(c => c.Id) 
+                .Select(g => g.First()) 
                 .Select(c =>
                 {
                     var teacher = teachers.FirstOrDefault(t => t.Id == c.CreatedBy);
@@ -470,6 +458,7 @@ namespace StudyHub.Backend.Api.Controllers
 
             return Ok(new { success = true, data = result });
         }
+
         [HttpGet("GetAllDocumentByClassId/{classId:int}")]
         public IActionResult GetDocumentsByClass(int classId)
         {
@@ -480,31 +469,33 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpPost("request-edit")]
         public IActionResult RequestEdit([FromBody] ApprovalDto dto)
         {
-            var currentUserId = GetCurrentUserId();
-            if (!currentUserId.HasValue)
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var document = _documentService.RequestEditDocument(dto.DocumentId, currentUserId.Value);
+            var document = _documentService.RequestEditDocument(dto.DocumentId, currentUser.Id);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
+
         [HttpPost("approve-edit-request")]
         public async Task<IActionResult> ApproveEditRequest([FromBody] ApprovalDto dto)
         {
-            var currentUserId = GetCurrentUserId();
-            if (!currentUserId.HasValue)
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var document = await _documentService.ApproveEditRequest(dto.DocumentId, currentUserId.Value);
+            var document = await _documentService.ApproveEditRequest(dto.DocumentId, currentUser.Id);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
+
         [HttpPost("reject-edit-request")]
         public async Task<IActionResult> RejectEditRequest([FromBody] ApprovalDto dto)
         {
-            var currentUserId = GetCurrentUserId();
-            if (!currentUserId.HasValue)
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
                 return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var document = await _documentService.RejectEditRequest(dto.DocumentId, currentUserId.Value);
+            var document = await _documentService.RejectEditRequest(dto.DocumentId, currentUser.Id);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
         [HttpGet("edit-requests")]
@@ -527,7 +518,7 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("by-subject/{subjectId:int}")]
         public IActionResult GetDocumentsBySubject(int subjectId)
         {
-            var currentUser = GetCurrentUser();
+            var currentUser = _authService.GetCurrentUser();
 
             List<Document> documents;
             if (currentUser != null && currentUser.SchoolId.HasValue)
