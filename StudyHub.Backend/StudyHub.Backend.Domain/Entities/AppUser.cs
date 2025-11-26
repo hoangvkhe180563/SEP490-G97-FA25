@@ -45,4 +45,5 @@ public class AppUser : IAuditTrail
     public bool? Status { get; set; }
     public List<AppRole> Roles { get; set; } = new List<AppRole>();
     public List<Subject> Subjects { get; set; } = new List<Subject>();
+    public List<QAConversationFile> QAConversationFiles { get; set; } = new List<QAConversationFile>();
 }
