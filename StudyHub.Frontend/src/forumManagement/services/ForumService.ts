@@ -1,3 +1,4 @@
+// src/forumManagement/services/ForumService.ts
 import { axiosInstance } from "@/lib/axios";
 import type { Flair } from "../interfaces/forum";
 
@@ -68,6 +69,43 @@ export const forumService = {
       Reason: content,
     });
 
+    return response.data;
+  },
+
+  createFlair: async (data: {
+    schoolId: number;
+    flairName: string;
+    description?: string;
+    isProtected?: boolean;
+  }) => {
+    const response = await axiosInstance.post(`/Forum/flairs/create`, data);
+    return response.data;
+  },
+
+  updateFlair: async (
+    flairId: number,
+    data: {
+      flairName: string;
+      description?: string;
+      isProtected: boolean;
+    }
+  ) => {
+    const response = await axiosInstance.put(`/Forum/flairs/${flairId}`, {
+      flairId,
+      ...data,
+    });
+    return response.data;
+  },
+
+  deleteFlair: async (flairId: number) => {
+    const response = await axiosInstance.delete(`/Forum/flairs/${flairId}`);
+    return response.data;
+  },
+
+  toggleFlairStatus: async (flairId: number) => {
+    const response = await axiosInstance.post(
+      `/Forum/flairs/${flairId}/toggle-status`
+    );
     return response.data;
   },
 };

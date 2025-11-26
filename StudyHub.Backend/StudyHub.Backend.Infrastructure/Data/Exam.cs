@@ -31,9 +31,9 @@ public partial class Exam
 
     public sbyte? NoRandomQuestions { get; set; }
 
-    public sbyte? Grade { get; set; }
-
     public short? SubjectId { get; set; }
+
+    public sbyte? Grade { get; set; }
 
     public virtual Class? Class { get; set; }
 

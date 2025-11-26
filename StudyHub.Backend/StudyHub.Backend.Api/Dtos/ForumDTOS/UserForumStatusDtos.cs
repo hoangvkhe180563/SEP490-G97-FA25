@@ -89,7 +89,11 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         [StringLength(500)]
         public string? Reason { get; set; }
     }
-
+    public class MuteUserRequestDto
+    {
+        [Required]
+        public int SchoolId { get; set; }
+    }
     public class ResetUserViolationScoreDto
     {
         [Required]

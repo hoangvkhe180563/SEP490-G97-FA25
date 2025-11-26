@@ -116,6 +116,7 @@ const ForumMain = () => {
         leaveSchoolForum(schoolId);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolId, isForumConnected]);
 
   useEffect(() => {
@@ -222,6 +223,7 @@ const ForumMain = () => {
         leavePost(parseInt(modalPostId));
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalPostId, isForumConnected]);
 
   useEffect(() => {

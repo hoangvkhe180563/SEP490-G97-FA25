@@ -48,7 +48,7 @@ namespace StudyHub.Backend.UseCases.Services
                 {
                     Name = "NSFW Detector",
                     ModelPath = "google/vit-base-patch16-224",
-                    Threshold = 0.6,
+                    Threshold = 0.3,
                     ViolationLabels = new List<string> { "nsfw", "porn", "sexy", "hentai", "drawing" },
                     ViolationType = "NSFW"
                 },

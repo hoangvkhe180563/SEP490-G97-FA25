@@ -134,4 +134,13 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         [StringLength(500)]
         public string? Reason { get; set; }
     }
+    public class HideContentDto
+    {
+        public int ViolationScore { get; set; }
+    }
+    public class ReportContentDto
+    {
+        public int RuleId { get; set; }
+        public string? Reason { get; set; }
+    }
 }

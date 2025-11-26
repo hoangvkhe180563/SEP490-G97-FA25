@@ -82,9 +82,11 @@ namespace StudyHub.Backend.Api.Mappers
                 PatternId = pattern.Id,
                 RuleId = pattern.RuleId,
                 Pattern = pattern.Pattern,
-                //IsActive = pattern.IsActive,
+                IsActive = pattern.IsActive ?? true, 
                 CreatedAt = pattern.CreatedAt,
-                UpdatedAt = pattern.UpdatedAt
+                CreatedBy = pattern.CreatedBy ?? Guid.Empty,
+                UpdatedAt = pattern.UpdatedAt,
+                UpdatedBy = pattern.UpdatedBy
             };
         }
 
@@ -118,10 +120,10 @@ namespace StudyHub.Backend.Api.Mappers
                 Fullname = record.User?.Fullname,
                 SchoolId = record.SchoolId,
                 PostId = record.PostId,
-                PostTitle = record.Post?.Title,
-                PostContent = record.Post?.Content,
+                PostTitle = record.Post?.IsHidden == true ? "[Bài viết vi phạm]" : record.Post?.Title,
+                PostContent = record.Post?.IsHidden == true ? "[Nội dung bị ẩn]" : record.Post?.Content,
                 CommentId = record.CommentId,
-                CommentContent = record.Comment?.Content,
+                CommentContent = record.Comment?.IsHidden == true ? "[Bình luận vi phạm]" : record.Comment?.Content,
                 MatchedRuleId = record.MatchedRuleId,
                 RuleName = record.Rule?.Name,
                 RuleSeverity = record.Rule?.Severity,
@@ -173,6 +175,7 @@ namespace StudyHub.Backend.Api.Mappers
                 UserId = status.UserId,
                 Username = status.User?.Username,
                 Fullname = status.User?.Fullname,
+                Avatar = status.User?.Avatar,
                 SchoolId = status.SchoolId,
                 TotalViolationScore = status.TotalViolationScore,
                 IsMute = status.IsMute,
@@ -193,9 +196,9 @@ namespace StudyHub.Backend.Api.Mappers
                 SchoolId = appeal.SchoolId,
                 Reason = appeal.Reason,
                 Status = appeal.Status,
-                StatusText = appeal.Status ?? true
-                    ? "Approved"
-                    : (appeal.UpdatedAt.HasValue ? "Rejected" : "Pending"),
+                //StatusText = appeal.Status ?? true
+                //    ? "Approved"
+                //    : (appeal.UpdatedAt.HasValue ? "Rejected" : "Pending"),
                 CreatedAt = appeal.CreatedAt,
                 UpdatedAt = appeal.UpdatedAt,
                 UpdatedBy = appeal.UpdatedBy,
@@ -214,9 +217,9 @@ namespace StudyHub.Backend.Api.Mappers
                 SchoolId = appeal.SchoolId,
                 Reason = appeal.Reason,
                 Status = appeal.Status,
-                StatusText = appeal.Status ?? true
-                    ? "Approved"
-                    : (appeal.UpdatedAt.HasValue ? "Rejected" : "Pending"),
+                //StatusText = appeal.Status ?? true
+                //    ? "Approved"
+                //    : (appeal.UpdatedAt.HasValue ? "Rejected" : "Pending"),
                 CreatedAt = appeal.CreatedAt,
                 UpdatedAt = appeal.UpdatedAt,
                 UpdatedBy = appeal.UpdatedBy,

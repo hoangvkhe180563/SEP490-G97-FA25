@@ -1,5 +1,5 @@
-// .../PostDetail.tsx
-import { useState, useEffect } from "react";
+// PostDetails
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Input } from "@/common/components/ui/input";
 import { Textarea } from "@/common/components/ui/textarea";
@@ -23,8 +23,6 @@ import {
 import {
   ArrowLeft,
   MessageSquare,
-  ChevronDown,
-  ChevronUp,
   Send,
   Share2,
   Bookmark,
@@ -73,10 +71,12 @@ const PostDetail = () => {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [editFlairId, setEditFlairId] = useState<number | null>(null);
-
-  const [expandedReplies, setExpandedReplies] = useState<Set<number>>(
-    new Set()
-  );
+  const [replyToUsernames, setReplyToUsernames] = useState<{
+    [key: number]: string;
+  }>({});
+  const [visibleReplies, setVisibleReplies] = useState<{
+    [key: number]: number;
+  }>({});
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [commentSort, setCommentSort] = useState("newest");
   const [showImageModal, setShowImageModal] = useState(false);
@@ -90,7 +90,9 @@ const PostDetail = () => {
     id: number;
     type: "post" | "comment";
   } | null>(null);
-  const [replyContent, setReplyContent] = useState("");
+  const [replyContents, setReplyContents] = useState<{ [key: number]: string }>(
+    {}
+  );
   const [newCommentContent, setNewCommentContent] = useState("");
   const [newCommentImages, setNewCommentImages] = useState<File[]>([]);
   const [editImages, setEditImages] = useState<string[]>([]);
@@ -101,15 +103,64 @@ const PostDetail = () => {
   const [deletedCommentImageUrls, setDeletedCommentImageUrls] = useState<
     string[]
   >([]);
+  const [replyImagesList, setReplyImagesList] = useState<{
+    [key: number]: File[];
+  }>({});
+
   const post = currentPost;
 
-  const handleCancelEditComment = () => {
-    setEditingCommentId(null);
-    setEditCommentContent("");
-    setEditCommentImages([]);
-    setNewEditCommentImages([]);
-    setDeletedCommentImageUrls([]);
+  const flattenComments = (comments: any[]): any[] => {
+    const result: any[] = [];
+
+    const flatten = (commentList: any[], parentId: number | null = null) => {
+      commentList.forEach((comment) => {
+        result.push({ ...comment, parent_comment_id: parentId });
+        if (comment.replies && comment.replies.length > 0) {
+          flatten(comment.replies, comment.comment_id);
+        }
+      });
+    };
+
+    const topLevel = comments.filter((c) => !c.parent_comment_id);
+    flatten(topLevel);
+
+    return result;
   };
+
+  const flatComments = useMemo(
+    () => flattenComments(post?.comments || []),
+    [post?.comments]
+  );
+
+  const groupedComments = useMemo(() => {
+    const groups: { [key: number]: any[] } = {};
+
+    flatComments.forEach((comment) => {
+      if (!comment.parent_comment_id) {
+        if (!groups[comment.comment_id]) {
+          groups[comment.comment_id] = [];
+        }
+      } else {
+        let currentParent = comment.parent_comment_id;
+        while (currentParent) {
+          const parent = flatComments.find(
+            (c) => c.comment_id === currentParent
+          );
+          if (!parent?.parent_comment_id) {
+            if (!groups[currentParent]) {
+              groups[currentParent] = [];
+            }
+            groups[currentParent].push(comment);
+            break;
+          }
+          currentParent = parent.parent_comment_id;
+        }
+      }
+    });
+
+    return groups;
+  }, [flatComments]);
+
   useEffect(() => {
     useForumSignalRStore.setState({
       onPostUpdated: (dto: any) => {
@@ -124,7 +175,8 @@ const PostDetail = () => {
     return () => {
       useForumSignalRStore.setState({ onPostUpdated: undefined });
     };
-  }, [post?.post_id]);
+  }, [post?.post_id, getPostById]);
+
   useEffect(() => {
     if (!postId) return;
 
@@ -157,7 +209,7 @@ const PostDetail = () => {
         leavePost(id);
       }
     };
-  }, [postId, isForumConnected]);
+  }, [postId, isForumConnected, getPostById, joinPost, leavePost, getComments]);
 
   useEffect(() => {
     if (currentPost) {
@@ -173,6 +225,7 @@ const PostDetail = () => {
       setDeletedImageUrls([]);
     }
   }, [currentPost]);
+
   useEffect(() => {
     if (currentPost?.subject_id) {
       getPosts(
@@ -186,6 +239,7 @@ const PostDetail = () => {
       );
     }
   }, [currentPost?.subject_id, currentPost?.school_id, getPosts]);
+
   const handleBack = () => {
     if (location.state?.fromModal) {
       navigate("/forum/forums", { state: { fromModal: true } });
@@ -193,11 +247,13 @@ const PostDetail = () => {
       navigate("/forum/forums");
     }
   };
+
   const handleTyping = (isTyping: boolean) => {
     if (post) {
       sendTyping(post.post_id, isTyping);
     }
   };
+
   const handleRemoveEditImage = (imageUrl: string) => {
     setEditImages((prev) => prev.filter((url) => url !== imageUrl));
     setDeletedImageUrls((prev) => [...prev, imageUrl]);
@@ -211,6 +267,7 @@ const PostDetail = () => {
     }
     setNewEditImages((prev) => [...prev, ...files]);
   };
+
   const handleImageClick = (images: string[], idx: number) => {
     setDetailImages(images);
     setSelectedImageIndex(idx);
@@ -234,33 +291,29 @@ const PostDetail = () => {
     setImageZoom((prev) => Math.max(prev - 0.25, 0.5));
   };
 
-  const toggleReplies = (commentId: number) => {
-    setExpandedReplies((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(commentId)) {
-        newSet.delete(commentId);
-      } else {
-        newSet.add(commentId);
-      }
-      return newSet;
-    });
+  const loadMoreReplies = (commentId: number) => {
+    setVisibleReplies((prev) => ({
+      ...prev,
+      [commentId]: (prev[commentId] || 2) + 5,
+    }));
   };
 
-  const getSortedComments = (comments: any[]) => {
-    const topLevelComments = comments.filter((c) => !c.parent_comment_id);
+  const getSortedTopLevelComments = () => {
+    const topLevel = flatComments.filter((c) => !c.parent_comment_id);
+
     switch (commentSort) {
       case "newest":
-        return [...topLevelComments].sort(
+        return [...topLevel].sort(
           (a, b) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
       case "oldest":
-        return [...topLevelComments].sort(
+        return [...topLevel].sort(
           (a, b) =>
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
       default:
-        return topLevelComments;
+        return topLevel;
     }
   };
 
@@ -281,8 +334,10 @@ const PostDetail = () => {
   };
 
   const handleRemoveEditCommentImage = (imageUrl: string) => {
-    setEditCommentImages((prev) => prev.filter((url) => url !== imageUrl));
-    setDeletedCommentImageUrls((prev) => [...prev, imageUrl]);
+    setEditCommentImages((prev: string[]) =>
+      prev.filter((url: string) => url !== imageUrl)
+    );
+    setDeletedCommentImageUrls((prev: string[]) => [...prev, imageUrl]);
   };
 
   const handleAddNewEditCommentImage = (
@@ -327,6 +382,14 @@ const PostDetail = () => {
     }
   };
 
+  const handleCancelEditComment = () => {
+    setEditingCommentId(null);
+    setEditCommentContent("");
+    setEditCommentImages([]);
+    setNewEditCommentImages([]);
+    setDeletedCommentImageUrls([]);
+  };
+
   const handleDeleteComment = async (commentId: number) => {
     if (!confirm("Bạn có chắc muốn xóa bình luận này?")) return;
     const result = await deleteComment(commentId);
@@ -336,18 +399,37 @@ const PostDetail = () => {
   };
 
   const handleSubmitReply = async (parentCommentId: number) => {
-    if (!replyContent.trim() || !post) return;
+    let content = replyContents[parentCommentId];
+    if (!content?.trim() || !post) return;
 
+    if (replyToUsernames[parentCommentId]) {
+      content = `@${replyToUsernames[parentCommentId]} ${content}`;
+    }
     const formData = new FormData();
     formData.append("postId", post.post_id.toString());
     formData.append("parentCommentId", parentCommentId.toString());
-    formData.append("content", replyContent);
+    formData.append("content", content);
+
+    const images = replyImagesList[parentCommentId] || [];
+    images.forEach((img) => formData.append("attachments", img));
 
     const result = await createComment(formData);
     if (result?.success) {
-      setReplyContent("");
+      setReplyContents((prev) => {
+        const newState = { ...prev };
+        delete newState[parentCommentId];
+        return newState;
+      });
+      setReplyImagesList((prev) => {
+        const newState = { ...prev };
+        delete newState[parentCommentId];
+        return newState;
+      });
       setReplyingTo(null);
-      await getComments(post.post_id);
+      if (postId) {
+        const postIdNum = parseInt(postId);
+        await getComments(postIdNum);
+      }
     }
   };
 
@@ -363,7 +445,10 @@ const PostDetail = () => {
     if (result?.success) {
       setNewCommentContent("");
       setNewCommentImages([]);
-      await getComments(post.post_id);
+      if (postId) {
+        await getPostById(parseInt(postId));
+        await getComments(parseInt(postId));
+      }
     }
   };
 
@@ -376,6 +461,24 @@ const PostDetail = () => {
       return;
     }
     setNewCommentImages((prev) => [...prev, ...files]);
+  };
+
+  const handleReplyImageSelect = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    commentId: number
+  ) => {
+    const files = Array.from(e.target.files || []);
+    const currentImages = replyImagesList[commentId] || [];
+
+    if (files.length + currentImages.length > 4) {
+      alert("Tối đa 4 ảnh");
+      return;
+    }
+
+    setReplyImagesList({
+      ...replyImagesList,
+      [commentId]: [...currentImages, ...files],
+    });
   };
 
   const handleSavePost = async () => {
@@ -421,29 +524,777 @@ const PostDetail = () => {
     setIsEditMode(false);
   };
 
-  const renderComment = (comment: any, depth: number = 0) => {
-    const isRepliesExpanded = expandedReplies.has(comment.comment_id);
-    const replies = comment.replies || [];
+  const renderComment = (comment: any) => {
+    const replies = groupedComments[comment.comment_id] || [];
     const canEdit = user?.id === comment.created_by;
+    const isReplying = replyingTo === comment.comment_id;
+    const isEditing = editingCommentId === comment.comment_id;
 
     return (
-      <div
-        key={comment.comment_id}
-        className={`${depth > 0 ? "pl-6 border-l-2 border-gray-200" : ""}`}
-      >
-        <div className="flex gap-3 mb-4">
+      <div key={comment.comment_id} id={`comment-${comment.comment_id}`}>
+        <div className="flex gap-3">
           <Avatar className="w-10 h-10 flex-shrink-0">
-            <AvatarFallback className="bg-gradient-to-br from-pink-400 to-orange-400 text-white font-bold">
+            <AvatarFallback className="bg-gradient-to-br from-sky-500 to-sky-700 text-white font-bold">
               {comment.author_initials}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-semibold">{comment.author_name}</span>
+          <div className="flex-1 min-w-0">
+            {isEditing ? (
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3 border border-gray-200">
+                <Textarea
+                  value={editCommentContent}
+                  onChange={(e) => setEditCommentContent(e.target.value)}
+                  className="w-full min-h-[100px]"
+                  placeholder="Nội dung bình luận..."
+                  autoFocus
+                />
+
+                {(editCommentImages.length > 0 ||
+                  newEditCommentImages.length > 0) && (
+                  <div className="grid grid-cols-4 gap-2">
+                    {editCommentImages.map((url, idx) => (
+                      <div key={`existing-${idx}`} className="relative group">
+                        <img
+                          src={url}
+                          alt={`Ảnh ${idx + 1}`}
+                          className="w-full h-24 object-cover rounded border-2 border-gray-300"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEditCommentImage(url)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+
+                    {newEditCommentImages.map((file, idx) => (
+                      <div key={`new-${idx}`} className="relative group">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Ảnh mới ${idx + 1}`}
+                          className="w-full h-24 object-cover rounded border-2 border-green-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewEditCommentImages((prev) =>
+                              prev.filter((_, i) => i !== idx)
+                            );
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        document
+                          .getElementById(
+                            `edit-comment-images-${comment.comment_id}`
+                          )
+                          ?.click()
+                      }
+                      disabled={
+                        editCommentImages.length +
+                          newEditCommentImages.length >=
+                        4
+                      }
+                      className="gap-2"
+                    >
+                      <ImagePlus className="w-4 h-4" />
+                      Thêm ảnh (
+                      {editCommentImages.length + newEditCommentImages.length}
+                      /4)
+                    </Button>
+                    <input
+                      id={`edit-comment-images-${comment.comment_id}`}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleAddNewEditCommentImage}
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleSaveEdit(comment.comment_id)}
+                      disabled={isLoading || !editCommentContent.trim()}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      {isLoading ? (
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-1" />
+                      )}
+                      Lưu
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleCancelEditComment}
+                      disabled={isLoading}
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Hủy
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="bg-gray-100 rounded-2xl px-4 py-3 hover:bg-gray-200 transition-colors">
+                  <div className="font-semibold text-sm">
+                    {comment.author_name}
+                  </div>
+                  <p className="text-sm mt-1 break-words whitespace-pre-wrap">
+                    {(() => {
+                      const parts = comment.content.split(/(@\w+)/g);
+                      return parts.map((part: string, idx: number) => {
+                        if (part.startsWith("@")) {
+                          return (
+                            <span
+                              key={idx}
+                              className="font-bold italic text-sky-600"
+                            >
+                              {part}{" "}
+                            </span>
+                          );
+                        }
+                        return part;
+                      });
+                    })()}
+                  </p>
+                </div>
+
+                {comment.image_urls &&
+                  comment.image_urls
+                    .split(",")
+                    .filter((url: string) => url.trim()).length > 0 && (
+                    <ImageGrid
+                      images={comment.image_urls
+                        .split(",")
+                        .filter((url: string) => url.trim())}
+                      onImageClick={(idx) =>
+                        handleImageClick(
+                          comment.image_urls
+                            .split(",")
+                            .filter((url: string) => url.trim()),
+                          idx
+                        )
+                      }
+                      className="mt-2 mb-2"
+                      isNsfwContent={false}
+                    />
+                  )}
+              </>
+            )}
+
+            <div className="flex gap-4 px-4 mt-2">
+              <button
+                className="text-xs text-gray-600 hover:text-sky-600 hover:underline font-semibold transition-colors"
+                onClick={() => {
+                  const isCurrentlyReplying = replyingTo === comment.comment_id;
+                  setReplyingTo(
+                    isCurrentlyReplying ? null : comment.comment_id
+                  );
+                  if (!isCurrentlyReplying) {
+                    setReplyContents({
+                      ...replyContents,
+                      [comment.comment_id]: "",
+                    });
+                    setReplyToUsernames({
+                      ...replyToUsernames,
+                      [comment.comment_id]: comment.author_name,
+                    });
+                  }
+                }}
+              >
+                Phản hồi
+              </button>
               <span className="text-xs text-gray-500">
                 {formatTimestamp(comment.created_at)}
               </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <MoreVertical className="w-3 h-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {canEdit && (
+                    <>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          handleEditComment(
+                            comment.comment_id,
+                            comment.content,
+                            comment.image_urls
+                          )
+                        }
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        <span className="font-medium">Chỉnh sửa</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleDeleteComment(comment.comment_id)}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        <span className="font-bold">Xóa</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setReportTarget({
+                        id: comment.comment_id,
+                        type: "comment",
+                      });
+                      setShowReportModal(true);
+                    }}
+                  >
+                    <Flag className="w-4 h-4 mr-2" />
+                    <span className="font-bold">Báo cáo</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
+            {isReplying && (
+              <div className="flex gap-2 mt-3 ml-4 animate-in slide-in-from-top-2 duration-200">
+                <Avatar className="w-8 h-8 flex-shrink-0">
+                  <AvatarFallback className="bg-gradient-to-br from-sky-500 to-sky-600 text-white text-xs font-bold">
+                    {user?.username?.substring(0, 2).toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="mb-2">
+                    {replyToUsernames[comment.comment_id] && (
+                      <div className="text-xs text-gray-600 mb-1 flex items-center gap-1">
+                        <span className="font-bold italic">
+                          @{replyToUsernames[comment.comment_id]}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReplyToUsernames((prev) => {
+                              const newState = { ...prev };
+                              delete newState[comment.comment_id];
+                              return newState;
+                            });
+                          }}
+                          className="text-gray-400 hover:text-red-500"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                    <Input
+                      placeholder="Viết phản hồi của bạn..."
+                      className="rounded-full text-sm hover:border-sky-300 focus:border-sky-500 transition-colors"
+                      value={replyContents[comment.comment_id] || ""}
+                      onChange={(e) => {
+                        setReplyContents({
+                          ...replyContents,
+                          [comment.comment_id]: e.target.value,
+                        });
+                      }}
+                      onFocus={() => handleTyping(true)}
+                      onBlur={() => handleTyping(false)}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSubmitReply(comment.comment_id);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {(replyImagesList[comment.comment_id]?.length || 0) > 0 && (
+                    <div className="flex gap-2 mb-2 flex-wrap">
+                      {replyImagesList[comment.comment_id].map((img, idx) => (
+                        <div key={idx} className="relative">
+                          <img
+                            src={URL.createObjectURL(img)}
+                            alt={`Preview ${idx + 1}`}
+                            className="w-16 h-16 object-cover rounded"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReplyImagesList({
+                                ...replyImagesList,
+                                [comment.comment_id]: replyImagesList[
+                                  comment.comment_id
+                                ].filter((_, i) => i !== idx),
+                              });
+                            }}
+                            className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        document
+                          .getElementById(`reply-images-${comment.comment_id}`)
+                          ?.click();
+                      }}
+                      disabled={
+                        (replyImagesList[comment.comment_id]?.length || 0) >= 4
+                      }
+                    >
+                      <ImagePlus className="w-4 h-4 mr-1" />
+                      Ảnh ({replyImagesList[comment.comment_id]?.length || 0}/4)
+                    </Button>
+                    <input
+                      id={`reply-images-${comment.comment_id}`}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) =>
+                        handleReplyImageSelect(e, comment.comment_id)
+                      }
+                    />
+
+                    <Button
+                      size="sm"
+                      className="rounded-full px-4 hover:scale-105 transition-transform ml-auto"
+                      onClick={() => handleSubmitReply(comment.comment_id)}
+                      disabled={
+                        isLoading || !replyContents[comment.comment_id]?.trim()
+                      }
+                    >
+                      {isLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {replies
+              .slice(0, visibleReplies[comment.comment_id] || 2)
+              .map((reply: any) => {
+                const isReplyEditing = editingCommentId === reply.comment_id;
+                const canEditReply = user?.id === reply.created_by;
+
+                return (
+                  <div
+                    key={reply.comment_id}
+                    id={`comment-${reply.comment_id}`}
+                    className="flex gap-3 mt-3 ml-10 animate-in slide-in-from-top-2 duration-200"
+                  >
+                    <Avatar className="w-8 h-8 flex-shrink-0">
+                      <AvatarFallback className="bg-gradient-to-br from-blue-400 to-sky-400 text-white text-xs font-bold">
+                        {reply.author_initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      {isReplyEditing ? (
+                        <div className="space-y-2">
+                          <Input
+                            value={editCommentContent}
+                            onChange={(e) =>
+                              setEditCommentContent(e.target.value)
+                            }
+                            className="w-full text-sm"
+                          />
+                          {(editCommentImages.length > 0 ||
+                            newEditCommentImages.length > 0) && (
+                            <div className="flex gap-2 flex-wrap">
+                              {editCommentImages.map((url, idx) => (
+                                <div
+                                  key={`existing-${idx}`}
+                                  className="relative"
+                                >
+                                  <img
+                                    src={url}
+                                    className="w-16 h-16 object-cover rounded"
+                                  />
+                                  <button
+                                    onClick={() =>
+                                      handleRemoveEditCommentImage(url)
+                                    }
+                                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ))}
+                              {newEditCommentImages.map((file, idx) => (
+                                <div key={`new-${idx}`} className="relative">
+                                  <img
+                                    src={URL.createObjectURL(file)}
+                                    className="w-16 h-16 object-cover rounded"
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      setNewEditCommentImages((prev) =>
+                                        prev.filter((_, i) => i !== idx)
+                                      );
+                                    }}
+                                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() =>
+                                document
+                                  .getElementById(
+                                    `edit-comment-images-${reply.comment_id}`
+                                  )
+                                  ?.click()
+                              }
+                              disabled={
+                                editCommentImages.length +
+                                  newEditCommentImages.length >=
+                                4
+                              }
+                            >
+                              <ImagePlus className="w-4 h-4 mr-1" />
+                              Ảnh (
+                              {editCommentImages.length +
+                                newEditCommentImages.length}
+                              /4)
+                            </Button>
+                            <input
+                              id={`edit-comment-images-${reply.comment_id}`}
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              className="hidden"
+                              onChange={handleAddNewEditCommentImage}
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => handleSaveEdit(reply.comment_id)}
+                              disabled={!editCommentContent.trim()}
+                            >
+                              Lưu
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={handleCancelEditComment}
+                            >
+                              Hủy
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="bg-gray-100 rounded-2xl px-4 py-2 hover:bg-gray-200 transition-colors">
+                            <div className="font-semibold text-xs">
+                              {reply.author_name}
+                            </div>
+                            <p className="text-xs mt-1 break-words whitespace-pre-wrap">
+                              {(() => {
+                                const parts = reply.content.split(/(@\w+)/g);
+                                return parts.map(
+                                  (part: string, idx: number) => {
+                                    if (part.startsWith("@")) {
+                                      return (
+                                        <span
+                                          key={idx}
+                                          className="font-bold italic text-sky-600"
+                                        >
+                                          {part}{" "}
+                                        </span>
+                                      );
+                                    }
+                                    return part;
+                                  }
+                                );
+                              })()}
+                            </p>
+                          </div>
+                          {reply.image_urls &&
+                            reply.image_urls
+                              .split(",")
+                              .filter((url: string) => url.trim()).length >
+                              0 && (
+                              <div className="mt-2 flex gap-2 flex-wrap">
+                                {reply.image_urls
+                                  .split(",")
+                                  .filter((url: string) => url.trim())
+                                  .map((img: string, idx: number) => (
+                                    <img
+                                      key={idx}
+                                      src={img}
+                                      alt={`Reply attachment ${idx + 1}`}
+                                      className="max-w-[150px] max-h-[150px] rounded object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                      onClick={() =>
+                                        handleImageClick(
+                                          reply.image_urls
+                                            .split(",")
+                                            .filter((url: string) =>
+                                              url.trim()
+                                            ),
+                                          idx
+                                        )
+                                      }
+                                    />
+                                  ))}
+                              </div>
+                            )}
+                        </>
+                      )}
+                      <div className="flex gap-4 px-4 mt-1">
+                        <button
+                          className="text-xs text-gray-600 hover:text-sky-600 hover:underline font-semibold transition-colors"
+                          onClick={() => {
+                            setReplyingTo(reply.comment_id);
+                            setReplyContents({
+                              ...replyContents,
+                              [reply.comment_id]: "",
+                            });
+                            setReplyToUsernames({
+                              ...replyToUsernames,
+                              [reply.comment_id]: reply.author_name,
+                            });
+                          }}
+                        >
+                          Phản hồi
+                        </button>
+                        <span className="text-xs text-gray-500">
+                          {formatTimestamp(reply.created_at)}
+                        </span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5"
+                            >
+                              <MoreVertical className="w-3 h-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {canEditReply && (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleEditComment(
+                                      reply.comment_id,
+                                      reply.content,
+                                      reply.image_urls
+                                    )
+                                  }
+                                >
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  <span className="font-medium">Chỉnh sửa</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleDeleteComment(reply.comment_id)
+                                  }
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  <span className="font-bold">Xóa</span>
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setReportTarget({
+                                  id: reply.comment_id,
+                                  type: "comment",
+                                });
+                                setShowReportModal(true);
+                              }}
+                            >
+                              <Flag className="w-4 h-4 mr-2" />
+                              <span className="font-bold">Báo cáo</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      {replyingTo === reply.comment_id && (
+                        <div className="flex gap-2 mt-3 animate-in slide-in-from-top-2 duration-200">
+                          <Avatar className="w-8 h-8 flex-shrink-0">
+                            <AvatarFallback className="bg-gradient-to-br from-sky-500 to-sky-600 text-white text-xs font-bold">
+                              {user?.username?.substring(0, 2).toUpperCase() ||
+                                "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="mb-2">
+                              {replyToUsernames[reply.comment_id] && (
+                                <div className="text-xs text-gray-600 mb-1 flex items-center gap-1">
+                                  <span className="font-bold italic">
+                                    @{replyToUsernames[reply.comment_id]}
+                                  </span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setReplyToUsernames((prev) => {
+                                        const newState = { ...prev };
+                                        delete newState[reply.comment_id];
+                                        return newState;
+                                      });
+                                    }}
+                                    className="text-gray-400 hover:text-red-500"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+                              <Input
+                                placeholder="Viết phản hồi của bạn..."
+                                className="rounded-full text-sm hover:border-sky-300 focus:border-sky-500 transition-colors"
+                                value={replyContents[reply.comment_id] || ""}
+                                onChange={(e) => {
+                                  setReplyContents({
+                                    ...replyContents,
+                                    [reply.comment_id]: e.target.value,
+                                  });
+                                }}
+                                onFocus={() => handleTyping(true)}
+                                onBlur={() => handleTyping(false)}
+                                onKeyPress={(e) => {
+                                  if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSubmitReply(reply.comment_id);
+                                  }
+                                }}
+                              />
+                            </div>
+                            {(replyImagesList[reply.comment_id]?.length || 0) >
+                              0 && (
+                              <div className="flex gap-2 mb-2 flex-wrap">
+                                {replyImagesList[reply.comment_id].map(
+                                  (img, idx) => (
+                                    <div key={idx} className="relative">
+                                      <img
+                                        src={URL.createObjectURL(img)}
+                                        alt={`Preview ${idx + 1}`}
+                                        className="w-16 h-16 object-cover rounded"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setReplyImagesList({
+                                            ...replyImagesList,
+                                            [reply.comment_id]: replyImagesList[
+                                              reply.comment_id
+                                            ].filter((_, i) => i !== idx),
+                                          });
+                                        }}
+                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            )}
+
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  document
+                                    .getElementById(
+                                      `reply-images-${reply.comment_id}`
+                                    )
+                                    ?.click();
+                                }}
+                                disabled={
+                                  (replyImagesList[reply.comment_id]?.length ||
+                                    0) >= 4
+                                }
+                              >
+                                <ImagePlus className="w-4 h-4 mr-1" />
+                                Ảnh (
+                                {replyImagesList[reply.comment_id]?.length || 0}
+                                /4)
+                              </Button>
+                              <input
+                                id={`reply-images-${reply.comment_id}`}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={(e) =>
+                                  handleReplyImageSelect(e, reply.comment_id)
+                                }
+                              />
+
+                              <Button
+                                size="sm"
+                                className="rounded-full px-4 hover:scale-105 transition-transform ml-auto"
+                                onClick={() =>
+                                  handleSubmitReply(reply.comment_id)
+                                }
+                                disabled={
+                                  isLoading ||
+                                  !replyContents[reply.comment_id]?.trim()
+                                }
+                              >
+                                {isLoading ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Send className="w-4 h-4" />
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            {replies.length > (visibleReplies[comment.comment_id] || 2) && (
+              <button
+                onClick={() => loadMoreReplies(comment.comment_id)}
+                className="ml-10 mt-2 text-sm text-sky-600 hover:text-sky-600 hover:underline"
+              >
+                Xem thêm{" "}
+                {Math.min(
+                  5,
+                  replies.length - (visibleReplies[comment.comment_id] || 2)
+                )}{" "}
+                phản hồi...
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -489,101 +1340,29 @@ const PostDetail = () => {
             {canEditPost && (
               <div className="flex gap-2">
                 {isEditMode ? (
-                  <div className="space-y-4">
-                    <Input
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      className="text-3xl font-bold"
-                      placeholder="Tiêu đề bài viết"
-                    />
-                    <Textarea
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      className="text-lg min-h-[200px]"
-                      placeholder="Nội dung bài viết"
-                    />
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="text-sm font-medium">
-                          Ảnh đính kèm
-                        </label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            document.getElementById("edit-post-images")?.click()
-                          }
-                          disabled={
-                            editImages.length + newEditImages.length >= 4
-                          }
-                        >
-                          <ImagePlus className="w-4 h-4 mr-1" />
-                          Thêm ảnh ({editImages.length + newEditImages.length}
-                          /4)
-                        </Button>
-                        <input
-                          id="edit-post-images"
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                          onChange={handleAddNewEditImage}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-4 gap-2">
-                        {editImages.map((url, idx) => (
-                          <div key={`existing-${idx}`} className="relative">
-                            <img
-                              src={url}
-                              alt={`Existing ${idx + 1}`}
-                              className="w-full h-32 object-cover rounded"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveEditImage(url)}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-
-                        {newEditImages.map((file, idx) => (
-                          <div key={`new-${idx}`} className="relative">
-                            <img
-                              src={URL.createObjectURL(file)}
-                              alt={`New ${idx + 1}`}
-                              className="w-full h-32 object-cover rounded border-2 border-green-500"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setNewEditImages((prev) =>
-                                  prev.filter((_, i) => i !== idx)
-                                );
-                              }}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                            <div className="absolute bottom-0 left-0 right-0 bg-green-500 text-white text-xs py-1 text-center">
-                              Mới
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
                   <>
-                    <h1 className="text-3xl font-bold mb-4">{post.title}</h1>
-                    <p className="text-gray-700 text-lg leading-relaxed mb-6">
-                      {post.content}
-                    </p>
+                    <Button
+                      onClick={handleSavePost}
+                      disabled={isLoading}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      {isLoading ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-2" />
+                      )}
+                      Lưu
+                    </Button>
+                    <Button variant="ghost" onClick={handleCancelEdit}>
+                      <X className="w-4 h-4 mr-2" />
+                      Hủy
+                    </Button>
                   </>
+                ) : (
+                  <Button onClick={() => setIsEditMode(true)}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Chỉnh sửa
+                  </Button>
                 )}
               </div>
             )}
@@ -625,7 +1404,7 @@ const PostDetail = () => {
                               onClick={() => setIsEditMode(true)}
                             >
                               <Edit className="w-4 h-4 mr-2" />
-                              <span className="italic">Chỉnh sửa</span>
+                              <span className="font-medium">Chỉnh sửa</span>
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem
@@ -638,7 +1417,7 @@ const PostDetail = () => {
                             }}
                           >
                             <Flag className="w-4 h-4 mr-2" />
-                            <span className="font-bold">Báo cáo</span>
+                            <span className="font-medium">Báo cáo</span>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -698,6 +1477,85 @@ const PostDetail = () => {
                         className="text-lg min-h-[200px]"
                         placeholder="Nội dung bài viết"
                       />
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">
+                            Ảnh đính kèm
+                          </label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              document
+                                .getElementById("edit-post-images")
+                                ?.click()
+                            }
+                            disabled={
+                              editImages.length + newEditImages.length >= 4
+                            }
+                          >
+                            <ImagePlus className="w-4 h-4 mr-1" />
+                            Thêm ảnh ({editImages.length + newEditImages.length}
+                            /4)
+                          </Button>
+                          <input
+                            id="edit-post-images"
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={handleAddNewEditImage}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-2">
+                          {editImages.map((url, idx) => (
+                            <div
+                              key={`existing-${idx}`}
+                              className="relative group"
+                            >
+                              <img
+                                src={url}
+                                alt={`Existing ${idx + 1}`}
+                                className="w-full h-32 object-cover rounded"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveEditImage(url)}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+
+                          {newEditImages.map((file, idx) => (
+                            <div key={`new-${idx}`} className="relative group">
+                              <img
+                                src={URL.createObjectURL(file)}
+                                alt={`New ${idx + 1}`}
+                                className="w-full h-32 object-cover rounded border-2 border-green-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNewEditImages((prev) =>
+                                    prev.filter((_, i) => i !== idx)
+                                  );
+                                }}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                              <div className="absolute bottom-0 left-0 right-0 bg-green-500 text-white text-xs py-1 text-center">
+                                Mới
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <>
@@ -708,7 +1566,7 @@ const PostDetail = () => {
                     </>
                   )}
 
-                  {images.length > 0 && (
+                  {!isEditMode && images.length > 0 && (
                     <ImageGrid
                       images={images}
                       onImageClick={(idx) => handleImageClick(images, idx)}
@@ -761,8 +1619,8 @@ const PostDetail = () => {
                     </div>
 
                     <div className="flex gap-3 mb-6 pb-6 border-b">
-                      <Avatar className="w-10 h-10">
-                        <AvatarFallback className="bg-gradient-to-br from-sky-500 to-sky-600 text-white font-bold">
+                      <Avatar className="w-10 h-10 flex-shrink-0">
+                        <AvatarFallback className="bg-gradient-to-br from-sky-500 to-sky-700 text-white font-bold">
                           {user?.username?.substring(0, 2).toUpperCase() || "U"}
                         </AvatarFallback>
                       </Avatar>
@@ -770,7 +1628,7 @@ const PostDetail = () => {
                         <div className="flex gap-2 mb-2">
                           <Input
                             placeholder="Viết bình luận của bạn..."
-                            className="rounded-lg"
+                            className="rounded-full hover:border-sky-300 focus:border-sky-500 transition-colors"
                             value={newCommentContent}
                             onChange={(e) =>
                               setNewCommentContent(e.target.value)
@@ -785,12 +1643,12 @@ const PostDetail = () => {
                             }}
                           />
                           <Button
-                            className="rounded-lg px-6"
+                            className="rounded-full px-6 hover:scale-105 transition-transform"
                             onClick={handleSubmitNewComment}
                             disabled={isLoading || !newCommentContent.trim()}
                           >
                             {isLoading ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                             ) : (
                               <Send className="w-4 h-4 mr-2" />
                             )}
@@ -851,7 +1709,7 @@ const PostDetail = () => {
                     </div>
 
                     <div className="space-y-6">
-                      {getSortedComments(post.comments || []).map((comment) =>
+                      {getSortedTopLevelComments().map((comment) =>
                         renderComment(comment)
                       )}
                     </div>
@@ -896,14 +1754,16 @@ const PostDetail = () => {
                   </div>
                 </CardContent>
               </Card>
-              <ForumSidebar
-                topPosts={[]}
-                currentSubjectId={post.subject_id}
-                currentPostId={post.post_id}
-                showStats={false}
-                showRules={true}
-                showRelatedPosts={true}
-              />
+              <div className="mt-4">
+                <ForumSidebar
+                  topPosts={[]}
+                  currentSubjectId={post.subject_id}
+                  currentPostId={post.post_id}
+                  showStats={true}
+                  showRules={true}
+                  showRelatedPosts={true}
+                />
+              </div>
             </div>
           </div>
         </div>

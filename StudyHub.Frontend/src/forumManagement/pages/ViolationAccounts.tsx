@@ -1,10 +1,13 @@
-// StudyHub.Frontend/src/forumManagement/moderator/pages/ViolationAccounts.tsx
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
 import { Input } from "@/common/components/ui/input";
 import { Button } from "@/common/components/ui/button";
 import { Badge } from "@/common/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/common/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -20,12 +23,42 @@ import {
   TableHeader,
   TableRow,
 } from "@/common/components/ui/table";
-import { Search, Ban, UserX } from "lucide-react";
-import type { UserForumStatus } from "../interfaces/moderator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/common/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/common/components/ui/alert-dialog";
+import { Search, Ban, Unlock, MoreVertical } from "lucide-react";
 import type { PaginationInfo } from "@/documentManagement/interfaces/document";
 import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination";
+import { useViolationStore } from "../stores/useViolationStore";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { toast } from "sonner";
 
 const ViolationAccounts = () => {
+  const { user } = useAuthStore();
+  const schoolId = user?.schoolId || 1;
+
+  const {
+    userStatuses,
+    isLoading,
+    fetchUserStatuses,
+    setUserFilters,
+    muteUser,
+    unmuteUser,
+  } = useViolationStore();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [muteFilter, setMuteFilter] = useState("all");
   const [scoreFilter, setScoreFilter] = useState("all");
@@ -33,117 +66,80 @@ const ViolationAccounts = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  const users: UserForumStatus[] = useMemo(
-    () => [
-      {
-        user_id: "user-001",
-        user_name: "Nguyễn Văn A",
-        school_id: 1,
-        total_violation_score: 65,
-        is_mute: false,
-        created_at: "2024-10-20T10:00:00",
-      },
-      {
-        user_id: "user-002",
-        user_name: "Trần Thị B",
-        school_id: 1,
-        total_violation_score: 85,
-        is_mute: true,
-        mute_until: "2024-11-10T10:00:00",
-        created_at: "2024-10-15T10:00:00",
-      },
-      {
-        user_id: "user-003",
-        user_name: "Lê Văn C",
-        school_id: 1,
-        total_violation_score: 30,
-        is_mute: false,
-        created_at: "2024-10-18T14:30:00",
-      },
-      {
-        user_id: "user-004",
-        user_name: "Phạm Thị D",
-        school_id: 1,
-        total_violation_score: 50,
-        is_mute: false,
-        created_at: "2024-10-19T09:15:00",
-      },
-      {
-        user_id: "user-005",
-        user_name: "Hoàng Văn E",
-        school_id: 1,
-        total_violation_score: 95,
-        is_mute: true,
-        mute_until: "2024-12-01T10:00:00",
-        created_at: "2024-10-10T11:20:00",
-      },
-    ],
-    []
-  );
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    action: "mute" | "unmute";
+    userId: string;
+    userName: string;
+  }>({ open: false, action: "mute", userId: "", userName: "" });
 
-  const filteredAndSortedUsers = useMemo(() => {
-    const filtered = users.filter((user) => {
-      const matchesSearch =
-        user.user_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.user_id.toLowerCase().includes(searchQuery.toLowerCase());
+  useEffect(() => {
+    if (schoolId) {
+      setUserFilters({
+        schoolId,
+        pageNumber: 1,
+        pageSize: 1000,
+      });
+      fetchUserStatuses();
+    }
+  }, [schoolId, setUserFilters, fetchUserStatuses]);
 
-      const matchesMute =
-        muteFilter === "all" ||
-        (muteFilter === "muted" && user.is_mute) ||
-        (muteFilter === "active" && !user.is_mute);
+  const filteredUsers = userStatuses.filter((user) => {
+    const matchesSearch =
+      user.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.userId.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesScore =
-        scoreFilter === "all" ||
-        (scoreFilter === "critical" && user.total_violation_score >= 70) ||
-        (scoreFilter === "warning" &&
-          user.total_violation_score >= 40 &&
-          user.total_violation_score < 70) ||
-        (scoreFilter === "minor" && user.total_violation_score < 40);
+    const matchesMute =
+      muteFilter === "all" ||
+      (muteFilter === "muted" && user.isMute) ||
+      (muteFilter === "active" && !user.isMute);
 
-      return matchesSearch && matchesMute && matchesScore;
-    });
+    const matchesScore =
+      scoreFilter === "all" ||
+      (scoreFilter === "critical" && user.totalViolationScore < 40) ||
+      (scoreFilter === "warning" &&
+        user.totalViolationScore >= 40 &&
+        user.totalViolationScore < 80) ||
+      (scoreFilter === "minor" && user.totalViolationScore >= 80);
 
-    // Sort
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "score-desc":
-          return b.total_violation_score - a.total_violation_score;
-        case "score-asc":
-          return a.total_violation_score - b.total_violation_score;
-        case "newest":
-          return (
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
-        case "oldest":
-          return (
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          );
-        default:
-          return 0;
-      }
-    });
+    return matchesSearch && matchesMute && matchesScore;
+  });
 
-    return filtered;
-  }, [users, searchQuery, muteFilter, scoreFilter, sortBy]);
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    switch (sortBy) {
+      case "score-desc":
+        return b.totalViolationScore - a.totalViolationScore;
+      case "score-asc":
+        return a.totalViolationScore - b.totalViolationScore;
+      case "newest":
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      case "oldest":
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      default:
+        return 0;
+    }
+  });
 
-  const paginatedUsers = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    return filteredAndSortedUsers.slice(startIndex, startIndex + pageSize);
-  }, [filteredAndSortedUsers, currentPage]);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedUsers = sortedUsers.slice(startIndex, startIndex + pageSize);
 
   const pagination: PaginationInfo = {
     currentPage,
-    totalPages: Math.ceil(filteredAndSortedUsers.length / pageSize),
-    totalCount: filteredAndSortedUsers.length,
+    totalPages: Math.ceil(sortedUsers.length / pageSize),
+    totalCount: sortedUsers.length,
     pageSize,
   };
 
   const getScoreBadge = (score: number) => {
-    if (score >= 70)
+    if (score < 40)
       return <Badge className="bg-red-500 text-white">Nghiêm trọng</Badge>;
-    if (score >= 40)
+    if (score < 80)
       return <Badge className="bg-orange-500 text-white">Cảnh báo</Badge>;
-    return <Badge className="bg-yellow-500 text-white">Nhẹ</Badge>;
+    return <Badge className="bg-green-400 text-white">Nhẹ</Badge>;
   };
 
   const formatDate = (dateString: string) => {
@@ -164,6 +160,43 @@ const ViolationAccounts = () => {
     setCurrentPage(1);
   };
 
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleMuteClick = (userId: string, userName: string) => {
+    setConfirmDialog({ open: true, action: "mute", userId, userName });
+  };
+
+  const handleUnmuteClick = (userId: string, userName: string) => {
+    setConfirmDialog({ open: true, action: "unmute", userId, userName });
+  };
+
+  const handleConfirmAction = async () => {
+    const { action, userId } = confirmDialog;
+
+    const success =
+      action === "mute"
+        ? await muteUser(userId, schoolId)
+        : await unmuteUser(userId, schoolId);
+
+    if (success) {
+      toast.success(
+        action === "mute"
+          ? "Đã cấm người dùng trong 7 ngày"
+          : "Đã bỏ cấm người dùng"
+      );
+    } else {
+      toast.error("Có lỗi xảy ra");
+    }
+
+    setConfirmDialog({ open: false, action: "mute", userId: "", userName: "" });
+  };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, muteFilter, scoreFilter, sortBy]);
+
   return (
     <div className="w-full h-full overflow-auto p-6 bg-gray-50">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -180,61 +213,42 @@ const ViolationAccounts = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
                 <Input
-                  placeholder="Tìm kiếm theo tên hoặc ID người dùng..."
+                  placeholder="Tìm kiếm theo tên người dùng..."
                   className="pl-10"
                   value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setCurrentPage(1);
-                  }}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <Select
-                  value={muteFilter}
-                  onValueChange={(value) => {
-                    setMuteFilter(value);
-                    setCurrentPage(1);
-                  }}
-                >
+                <Select value={muteFilter} onValueChange={setMuteFilter}>
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Trạng thái Mute" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tất cả</SelectItem>
-                    <SelectItem value="muted">Đang bị mute</SelectItem>
+                    <SelectItem value="muted">Đang bị cấm</SelectItem>
                     <SelectItem value="active">
                       Hoạt động bình thường
                     </SelectItem>
                   </SelectContent>
                 </Select>
 
-                <Select
-                  value={scoreFilter}
-                  onValueChange={(value) => {
-                    setScoreFilter(value);
-                    setCurrentPage(1);
-                  }}
-                >
+                <Select value={scoreFilter} onValueChange={setScoreFilter}>
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Mức độ vi phạm" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tất cả</SelectItem>
-                    <SelectItem value="critical">Nghiêm trọng (≥70)</SelectItem>
-                    <SelectItem value="warning">Cảnh báo (40-69)</SelectItem>
-                    <SelectItem value="minor">Nhẹ (&lt;40)</SelectItem>
+                    <SelectItem value="critical">
+                      Nghiêm trọng (&lt;40)
+                    </SelectItem>
+                    <SelectItem value="warning">Cảnh báo (40-79)</SelectItem>
+                    <SelectItem value="minor">Nhẹ (≥80)</SelectItem>
                   </SelectContent>
                 </Select>
 
-                <Select
-                  value={sortBy}
-                  onValueChange={(value) => {
-                    setSortBy(value);
-                    setCurrentPage(1);
-                  }}
-                >
+                <Select value={sortBy} onValueChange={setSortBy}>
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Sắp xếp" />
                   </SelectTrigger>
@@ -257,13 +271,16 @@ const ViolationAccounts = () => {
               </div>
 
               <div className="text-sm text-gray-600">
-                Tìm thấy <strong>{filteredAndSortedUsers.length}</strong> tài
-                khoản
+                Tìm thấy <strong>{sortedUsers.length}</strong> tài khoản
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            {paginatedUsers.length > 0 ? (
+            {isLoading ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">Đang tải...</p>
+              </div>
+            ) : paginatedUsers.length > 0 ? (
               <>
                 <Table>
                   <TableHeader>
@@ -272,73 +289,91 @@ const ViolationAccounts = () => {
                       <TableHead>Điểm vi phạm</TableHead>
                       <TableHead>Mức độ</TableHead>
                       <TableHead>Trạng thái</TableHead>
-                      <TableHead>Mute đến</TableHead>
+                      <TableHead>Cấm đến</TableHead>
                       <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedUsers.map((user) => (
-                      <TableRow key={user.user_id}>
+                      <TableRow key={user.userId}>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Avatar className="w-8 h-8">
+                              {user.userAvatar ? (
+                                <AvatarImage src={user.userAvatar} />
+                              ) : null}
                               <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs">
-                                {user.user_name.substring(0, 2).toUpperCase()}
+                                {user.userName.substring(0, 2).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
-                            <div>
-                              <div className="font-medium">
-                                {user.user_name}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                ID: {user.user_id}
-                              </div>
-                            </div>
+                            <div className="font-medium">{user.userName}</div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <span className="font-bold text-lg">
-                            {user.total_violation_score}
+                            {user.totalViolationScore}
                           </span>
                           <span className="text-gray-500 text-sm">/100</span>
                         </TableCell>
                         <TableCell>
-                          {getScoreBadge(user.total_violation_score)}
+                          {getScoreBadge(user.totalViolationScore)}
                         </TableCell>
                         <TableCell>
-                          {user.is_mute ? (
+                          {user.isMute ? (
                             <Badge className="bg-red-500 text-white">
-                              Đang bị mute
+                              Đang bị cấm
                             </Badge>
                           ) : (
-                            <Badge className="bg-green-500 text-white">
+                            <Badge className="bg-green-400 text-white">
                               Bình thường
                             </Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {user.mute_until ? formatDate(user.mute_until) : "-"}
+                          {user.muteUntil ? formatDate(user.muteUntil) : "-"}
                         </TableCell>
                         <TableCell>
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1"
-                              title="Mute người dùng"
-                            >
-                              <Ban className="w-4 h-4" />
-                              Mute
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="gap-1"
-                              title="Ban người dùng"
-                            >
-                              <UserX className="w-4 h-4" />
-                              Ban
-                            </Button>
+                          <div className="flex justify-end">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {!user.isMute ? (
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      handleMuteClick(
+                                        user.userId,
+                                        user.userName
+                                      )
+                                    }
+                                    className="text-orange-600"
+                                  >
+                                    <Ban className="w-4 h-4 mr-2" />
+                                    Cấm người dùng
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      handleUnmuteClick(
+                                        user.userId,
+                                        user.userName
+                                      )
+                                    }
+                                    className="text-green-400"
+                                  >
+                                    <Unlock className="w-4 h-4 mr-2" />
+                                    Bỏ cấm
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -347,7 +382,7 @@ const ViolationAccounts = () => {
                 </Table>
                 <DocumentPagination
                   pagination={pagination}
-                  onPageChange={setCurrentPage}
+                  onPageChange={handlePageChange}
                 />
               </>
             ) : (
@@ -367,6 +402,32 @@ const ViolationAccounts = () => {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmDialog.action === "mute"
+                ? "Xác nhận cấm người dùng"
+                : "Xác nhận bỏ cấm người dùng"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDialog.action === "mute"
+                ? `Bạn có muốn cấm người dùng "${confirmDialog.userName}" trong vòng 7 ngày?`
+                : `Bạn có muốn bỏ cấm người dùng "${confirmDialog.userName}"?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmAction}>
+              Xác nhận
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
