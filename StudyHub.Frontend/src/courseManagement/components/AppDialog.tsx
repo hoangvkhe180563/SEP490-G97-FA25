@@ -8,6 +8,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogAction,
+  AlertDialogCancel,
 } from "@/common/components/ui/alert-dialog";
 
 export interface DialogProps {
@@ -15,6 +16,8 @@ export interface DialogProps {
   title: string;
   message: React.ReactNode;
   onConfirm?: () => void;
+  onCancel?: () => void;
+  showCancel?: boolean;
   navigateTo?: string;
 }
 
@@ -39,6 +42,16 @@ export const AppDialog: React.FC<{
     }
   };
 
+  const handleCancel = () => {
+    // Đóng dialog
+    setDialog((prev) => ({ ...prev, open: false }));
+
+    // Gọi hàm nếu có
+    if (dialog.onCancel) {
+      setTimeout(() => dialog.onCancel?.(), 150);
+    }
+  };
+
   return (
     <AlertDialog
       open={dialog.open}
@@ -50,7 +63,12 @@ export const AppDialog: React.FC<{
           <AlertDialogDescription>{dialog.message}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogAction onClick={handleConfirm}>OK</AlertDialogAction>
+          {dialog.showCancel && (
+            <AlertDialogCancel onClick={handleCancel}>Hủy</AlertDialogCancel>
+          )}
+          <AlertDialogAction onClick={handleConfirm}>
+            Xác nhận
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

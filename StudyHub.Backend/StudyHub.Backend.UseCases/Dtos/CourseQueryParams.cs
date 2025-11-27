@@ -15,6 +15,7 @@ public class CourseQueryParams
     public string? Status { get; set; }
     public bool? IsFeatured { get; set; }
     public bool? IsApproved { get; set; }
+    public bool? PublicOnly { get; set; }
 
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 5;
