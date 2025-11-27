@@ -1,3 +1,4 @@
+// Modifications in ClassList component: fetch unread counts for visible classItems and pass to ClassCard
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import ClassCard from "@/classManagement/components/ui/classcard";
@@ -41,6 +42,8 @@ const ClassList: React.FC = () => {
     meta,
     getAllSubjects,
     subjects,
+    // useClassStore.getUnreadCount just-in-time below
+    getUnreadCount,
   } = useClassStore();
 
   const { user } = useAuthStore();
@@ -58,6 +61,9 @@ const ClassList: React.FC = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
+
+  // unread map local: classId -> count
+  const [unreadMap, setUnreadMap] = useState<Record<number, number>>({});
 
   // derive coarse role from stored user roles (if available), otherwise fallback to path heuristic
   const userRoleFromPath: UserRole = useMemo(() => {
@@ -129,6 +135,31 @@ const ClassList: React.FC = () => {
       navigate(`/class/${userRole}/${id}?tab=everyone`);
     }
   };
+
+  // Fetch unread counts for visible classItems (only counts, no mutation)
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const ids = classItems.map((c) => Number(c.id)).filter(Boolean);
+        if (ids.length === 0) {
+          if (mounted) setUnreadMap({});
+          return;
+        }
+        // Parallel fetch but limit concurrency if desired. Keep simple here.
+        const promises = ids.map((cid) => getUnreadCount(Number(cid), "notification").catch(() => 0));
+        const results = await Promise.all(promises);
+        const map: Record<number, number> = {};
+        ids.forEach((cid, idx) => {
+          map[cid] = Number(results[idx] ?? 0);
+        });
+        if (mounted) setUnreadMap(map);
+      } catch (err) {
+        console.warn("failed to load unread counts for classes", err);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [classItems, getUnreadCount]);
 
   const handleCreate = async (payload: { title: string; description?: string }) => {
     // pass createdBy from auth store
@@ -220,7 +251,15 @@ const ClassList: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {classItems.map((c) => (
               <div key={c.id} className="transform hover:scale-[1.01] transition">
-                <ClassCard id={c.id} title={c.title} teacher={c.teacher}  userRole={userRole} onView={handleView} onMenu={handleMenu} />
+                <ClassCard
+                  id={c.id}
+                  title={c.title}
+                  teacher={c.teacher}
+                  userRole={userRole}
+                  onView={handleView}
+                  onMenu={handleMenu}
+                  unread={Number(unreadMap[Number(c.id)] ?? 0)} // pass unread count
+                />
               </div>
             ))}
 

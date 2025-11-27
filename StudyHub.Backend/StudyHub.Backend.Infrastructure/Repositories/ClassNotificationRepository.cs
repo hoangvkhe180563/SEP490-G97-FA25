@@ -50,7 +50,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Type = notification.Type ?? "notification",
                 Title = notification.Title,
                 Description = notification.Description,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
                 AppUserId = notification.AppUserId,
                 Deadline = notification.Deadline,
                 MaxScore = notification.MaxScore,
@@ -75,7 +75,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             entity.AllowSubmission = notification.AllowSubmission;
             entity.GradeType = notification.GradeType;
             entity.InstructionsHtml = notification.InstructionsHtml;
-            entity.UpdatedAt = DateTime.UtcNow;
+            entity.UpdatedAt = DateTime.Now;
             _context.ClassNotifications.Update(entity);
             _context.SaveChanges();
             return notification;
@@ -109,7 +109,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             var noti = _context.ClassNotifications.FirstOrDefault(c => c.Id == id);
             if (noti != null)
             {
-                noti.DeletedAt = DateTime.UtcNow;
+                noti.DeletedAt = DateTime.Now;
                 _context.ClassNotifications.Update(noti);
                 _context.SaveChanges();
                 return true;
@@ -356,6 +356,32 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
             return classEntity.Count();
         }
+        public int GetTotalUnreadNotifications(int classID, Guid userID, string type)
+        {
+            var query = _context.ClassNotifications
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (classID > 0)
+            {
+                query = query.Where(n => n.ClassId == classID);
+            }
+
+            if (!string.IsNullOrWhiteSpace(type))
+            {
+                query = query.Where(n => n.Type == type);
+            }
+
+            query = query.Where(n => n.DeletedAt == null);
+
+           
+            var unreadCount = query.Count(n =>
+                !_context.ClassNotificationReadStatuses
+                    .Any(r => r.NotificationId == n.Id && r.AppUserId == userID && r.IsRead));
+
+            return unreadCount;
+        }
+
 
         public int GetMemberClassCount(int classID)
         {
