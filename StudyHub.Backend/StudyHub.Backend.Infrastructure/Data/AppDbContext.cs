@@ -99,6 +99,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<QAMessage> QAMessages { get; set; }
 
+    public virtual DbSet<QAConversationFile> QAConversationFiles { get; set; }
+
     public virtual DbSet<QATopic> QATopics { get; set; }
 
     public virtual DbSet<RulePattern> RulePatterns { get; set; }
@@ -1214,6 +1216,32 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Sender).WithMany(p => p.QAMessages)
                 .HasForeignKey(d => d.SenderId)
                 .HasConstraintName("q&_a_message_ibfk_2");
+        });
+
+        modelBuilder.Entity<QAConversationFile>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("q&_a_conversation_file");
+
+            entity.HasIndex(e => e.ConversationId, "ConversationId");
+
+            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
+
+            entity.Property(e => e.FileName).HasMaxLength(200);
+            entity.Property(e => e.FileType).HasMaxLength(100);
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Conversation).WithMany(p => p.QAConversationFiles)
+                .HasForeignKey(d => d.ConversationId)
+                .HasConstraintName("q&_a_conversation_file_ibfk_1");
+
+            entity.HasOne(d => d.Creator).WithMany(p => p.QAConversationFiles)
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("q&_a_conversation_file_ibfk_2");
         });
 
         modelBuilder.Entity<QATopic>(entity =>

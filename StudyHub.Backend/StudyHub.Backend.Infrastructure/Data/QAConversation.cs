@@ -24,6 +24,7 @@ public partial class QAConversation
     public virtual ICollection<QAConversationRead> QAConversationReads { get; set; } = new List<QAConversationRead>();
 
     public virtual ICollection<QAMessage> QAMessages { get; set; } = new List<QAMessage>();
+    public virtual ICollection<QAConversationFile> QAConversationFiles { get; set; } = new List<QAConversationFile>();
 
     public virtual AppUser Student { get; set; } = null!;
 

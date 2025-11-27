@@ -15,7 +15,7 @@ const Homepage = () => {
   const uiManagementService = new UiManagementService();
 
   useEffect(() => {
-    if (user && user.schoolId !== 0) {
+    if (user && user.schoolId !== null) {
       navigate(`/ui/${user.schoolId}/landing`);
       return;
     }

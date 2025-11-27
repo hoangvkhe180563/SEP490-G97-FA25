@@ -27,6 +27,7 @@ namespace StudyHub.Backend.Domain.Entities
         public List<QAConversationRead> QAConversationReads { get; set; } = new List<QAConversationRead>();
 
         public List<QAMessage> QAMessages { get; set; } = new List<QAMessage>();
+        public List<QAConversationFile> QAConversationFiles { get; set; } = new List<QAConversationFile>();
 
         public AppUser Student { get; set; } = null!;
 
