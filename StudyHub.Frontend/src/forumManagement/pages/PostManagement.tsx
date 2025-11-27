@@ -97,7 +97,18 @@ const PostManagement = () => {
     documentService.getSubjects().then(setSubjects);
     loadFlairs(schoolId);
   }, [schoolId, loadFlairs]);
+  useEffect(() => {
+    const newSearchParams = new URLSearchParams();
+    if (searchQuery) newSearchParams.set("q", searchQuery);
+    if (selectedSubjects.length > 0)
+      newSearchParams.set("subjects", selectedSubjects.join(","));
+    if (selectedFlairs.length > 0)
+      newSearchParams.set("flairs", selectedFlairs.join(","));
+    if (statusFilter !== "all") newSearchParams.set("status", statusFilter);
+    if (sortBy !== "newest") newSearchParams.set("sort", sortBy);
 
+    window.history.replaceState(null, "", `?${newSearchParams.toString()}`);
+  }, [searchQuery, selectedSubjects, selectedFlairs, statusFilter, sortBy]);
   const fetchModeratorPosts = useCallback(async () => {
     const sortByParam =
       sortBy === "oldest"
@@ -120,12 +131,12 @@ const PostManagement = () => {
       selectedSubjects.length > 0 ? selectedSubjects : undefined,
       selectedFlairs.length > 0 ? selectedFlairs : undefined,
       searchQuery || undefined,
+      sortByParam,
       postStatusParam,
       undefined,
       undefined,
       undefined,
       undefined,
-      sortByParam,
       currentPage,
       pageSize
     );
@@ -341,6 +352,7 @@ const PostManagement = () => {
                   value={statusFilter}
                   onValueChange={(value) => {
                     setStatusFilter(value);
+                    setCurrentPage(1);
                   }}
                 >
                   <SelectTrigger className="w-48">

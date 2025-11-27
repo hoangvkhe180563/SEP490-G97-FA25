@@ -96,7 +96,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (!string.IsNullOrWhiteSpace(query))
                     dbQuery = dbQuery.Where(p =>
                         p.Title.Contains(query) ||
-                        p.CreatedByNavigation.Fullname.Contains(query));
+                        p.CreatedByNavigation.Fullname.Contains(query)
+                        || p.CreatedByNavigation.Username.Contains(query));
+                ;
+
 
                 var totalCount = await dbQuery.CountAsync();
 
@@ -184,8 +187,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (!string.IsNullOrWhiteSpace(query))
                     dbQuery = dbQuery.Where(p =>
                         p.Title.Contains(query) ||
-                        p.CreatedByNavigation.Fullname.Contains(query));
-
+                        p.CreatedByNavigation.Fullname.Contains(query) ||
+                        p.CreatedByNavigation.Username.Contains(query));
                 if (status.HasValue)
                     dbQuery = dbQuery.Where(p => p.Status == status.Value);
 
@@ -276,7 +279,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (!string.IsNullOrWhiteSpace(query))
                     dbQuery = dbQuery.Where(p =>
                         p.Title.Contains(query) ||
-                        p.CreatedByNavigation.Fullname.Contains(query));
+                        p.CreatedByNavigation.Fullname.Contains(query) ||
+                        p.CreatedByNavigation.Username.Contains(query));
 
                 if (!string.IsNullOrWhiteSpace(postStatus))
                 {
