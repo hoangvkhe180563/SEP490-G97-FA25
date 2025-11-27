@@ -15,6 +15,7 @@ import type {
   DocumentDto,
 } from "../interfaces/class";
 import { axiosInstance } from "@/lib/axios";
+import type { Exam } from "../interfaces/Exam";
 
 const defaultClassInfo: ClassInfo = {
   id: 0,
@@ -40,7 +41,6 @@ export type LinkPayload = { url: string; title?: string; thumbnail?: string };
 // Accepts numbers, ISO strings (with/without Z), "/Date(...)/" MS format, and common date strings.
 // Returns ISO string in UTC (new Date(...).toISOString()) or fallback to current time ISO.
 
-
 export const useClassStore = create<ClassState>()(
   devtools(
     (set, get) => ({
@@ -55,7 +55,6 @@ export const useClassStore = create<ClassState>()(
       currentClass: defaultCurrentClass,
       // store documents per class to avoid repeated calls
       documentsByClass: {},
-
       getClasses: async (query?: string, memberId?: string) => {
         set({ isLoading: true, success: false, message: "" });
         try {
@@ -232,10 +231,7 @@ export const useClassStore = create<ClassState>()(
           };
 
           // Try both route variants in case axiosInstance.baseURL already contains /api
-          const endpoints = [
-            `/Class/${encodeURIComponent(payload.id)}`,
-            `/api/Class/${encodeURIComponent(payload.id)}`,
-          ];
+          const endpoints = [`/Class/${encodeURIComponent(payload.id)}`];
 
           let res: any = null;
           let lastError: any = null;
@@ -353,15 +349,6 @@ export const useClassStore = create<ClassState>()(
             return [];
           };
 
-          const toBoolean = (v: any): boolean | undefined => {
-            if (v === undefined || v === null) return undefined;
-            if (typeof v === "boolean") return v;
-            const s = String(v).toLowerCase();
-            if (s === "true" || s === "1") return true;
-            if (s === "false" || s === "0") return false;
-            return undefined;
-          };
-
           const members: ClassMemberDto[] = (
             Array.isArray(membersRaw) ? membersRaw : []
           ).map((m: any) => {
@@ -446,6 +433,85 @@ export const useClassStore = create<ClassState>()(
           set({ isLoading: false });
         }
       },
+      importMembers: async (classId: number, formData: FormData) => {
+        set({ isLoading: true, success: false, message: "" });
+        try {
+          const endpoints = [
+            `/ClassMember/invite-excel?classId=${encodeURIComponent(classId)}`,
+            `/ClassMember/invite/excel?classId=${encodeURIComponent(classId)}`,
+          ];
+
+          let res: any = null;
+          let lastError: any = null;
+
+          for (const ep of endpoints) {
+            try {
+              res = await axiosInstance.post(ep, formData, {
+                headers: {
+                  /* Don't set Content-Type; browser will set multipart boundary */
+                },
+              });
+              break;
+            } catch (err: any) {
+              lastError = err;
+              if (err?.response?.status === 404) continue;
+              if (err?.response) break;
+            }
+          }
+
+          if (!res) {
+            const serverMsg =
+              lastError?.response?.data?.message ??
+              lastError?.message ??
+              "Failed to import invites";
+            set({
+              isLoading: false,
+              success: false,
+              message: serverMsg,
+            });
+            return { success: false, message: serverMsg };
+          }
+
+          const raw = res?.data ?? null;
+          if (raw && raw.success === false) {
+            set({
+              isLoading: false,
+              success: false,
+              message: raw?.message ?? "Failed to import invites",
+            });
+            return {
+              success: false,
+              message: raw?.message ?? "Failed to import invites",
+            };
+          }
+
+          const success = raw?.success ?? true;
+          const message = raw?.message ?? "Import completed";
+          const data = raw?.data ?? raw;
+
+          set({
+            isLoading: false,
+            success,
+            message,
+          });
+
+          try {
+            await get().getClassMembers(classId);
+          } catch { /* empty */ }
+
+          return { success, message, data };
+        } catch (error) {
+          console.error("importMembers error:", error);
+          set({
+            isLoading: false,
+            success: false,
+            message: "Failed to import invites",
+          });
+          return { success: false, message: "Failed to import invites" };
+        } finally {
+          set({ isLoading: false });
+        }
+      },
       inviteMembers: async (
         classId: number,
         emails: string[],
@@ -473,11 +539,8 @@ export const useClassStore = create<ClassState>()(
           // Also try without /api prefix or with classId path segment as fallback.
           const endpoints = [
             `/ClassMember/invite?classId=${encodeURIComponent(classId)}`,
-            `/api/ClassMember/invite?classId=${encodeURIComponent(classId)}`,
             `/ClassMember/invite/${encodeURIComponent(classId)}`,
-            `/api/ClassMember/invite/${encodeURIComponent(classId)}`,
             `/Class/${encodeURIComponent(classId)}/members/invite`,
-            `/api/Class/${encodeURIComponent(classId)}/members/invite`,
           ];
 
           let res: any = null;
@@ -585,9 +648,6 @@ export const useClassStore = create<ClassState>()(
             `/ClassMember/${encodeURIComponent(
               userId
             )}/confirm?classId=${encodeURIComponent(classId)}`,
-            `/api/ClassMember/${encodeURIComponent(
-              userId
-            )}/confirm?classId=${encodeURIComponent(classId)}`,
           ];
 
           let res: any = null;
@@ -663,12 +723,13 @@ export const useClassStore = create<ClassState>()(
       getClassWorks: async (classId: number): Promise<ClassWork[] | null> => {
         set({ isLoading: true });
         try {
+          // Prefer the Classwork/class endpoint shown in your API docs/screenshot.
           const endpoints = [
-            `/api/Classwork/class/${classId}`,
             `/Classwork/class/${classId}`,
-            `/api/ClassNotification/class/${classId}`,
+            // keep legacy fallbacks if needed
             `/ClassNotification/class/${classId}`,
           ];
+
           let res: any = null;
           let raw: any = null;
           for (const ep of endpoints) {
@@ -678,38 +739,83 @@ export const useClassStore = create<ClassState>()(
               if (raw !== null) break;
             } catch (e) {
               // try next endpoint
+              console.debug(
+                "[useClassStore] getClassWorks: request failed for",
+                ep,
+                e
+              );
             }
           }
+
           if (!raw) {
             set({ isLoading: false });
             return null;
           }
 
+          // Normalize possible response shapes to an array of work objects
           let arr: any[] = [];
-          // support multiple shapes
           if (Array.isArray(raw.classes)) arr = raw.classes;
           else if (Array.isArray(raw.data)) arr = raw.data;
           else if (raw.data && Array.isArray(raw.data.classes))
             arr = raw.data.classes;
           else if (Array.isArray(raw)) arr = raw;
+          else {
+            // If the API returned a wrapper like { success:true, classes: [...] } we've already handled classes above.
+            // Fallback: try to find an array field on the payload
+            const maybeArray = Object.values(raw).find((v) =>
+              Array.isArray(v)
+            ) as any[] | undefined;
+            if (maybeArray) arr = maybeArray;
+          }
 
+          // Map/normalize each work and include files if present
           const works: ClassWork[] = (Array.isArray(arr) ? arr : []).map(
-            (w: any) => ({
-              id: w.id ?? w.workId ?? 0,
-              classId: w.classId ?? classId,
-              title: w.title ?? w.name ?? "",
-              description: w.description ?? w.desc ?? "",
-              deadline: w.deadline ?? w.dueDate ?? null,
-              maxScore: w.maxScore ?? w.max_score ?? null,
-              allowSubmission:
-                w.allowSubmission ??
-                w.allow_submission ??
-                w.allow_submit ??
-                true,
-              ...w,
-            })
+            (w: any) => {
+              // normalize files from many possible shapes on each work item
+              const filesRaw =
+                (w as any).files ??
+                (w as any).attachments ??
+                (w as any).documents ??
+                (w as any).fileList ??
+                (w as any).raw?.files ??
+                [];
+
+              const files = Array.isArray(filesRaw)
+                ? filesRaw.map((f: any, idx: number) => ({
+                    id: f.id ?? `${w.id ?? w.workId ?? "work"}-file-${idx}`,
+                    fileName:
+                      f.fileName ?? f.name ?? f.title ?? f.file_name ?? "",
+                    fileUrl:
+                      f.fileUrl ?? f.url ?? f.file_url ?? f.documentUrl ?? "",
+                    thumbnail: f.thumbnail ?? f.thumb ?? undefined,
+                    fileType: (f.fileType ?? f.contentType ?? "")
+                      .toString()
+                      .toLowerCase(),
+                    raw: f,
+                  }))
+                : [];
+
+              return {
+                id: w.id ?? w.workId ?? 0,
+                classId: w.classId ?? classId,
+                title: w.title ?? w.name ?? "",
+                description: w.description ?? w.desc ?? "",
+                deadline: w.deadline ?? w.dueDate ?? null,
+                maxScore: w.maxScore ?? w.max_score ?? null,
+                allowSubmission:
+                  w.allowSubmission ??
+                  w.allow_submission ??
+                  w.allow_submit ??
+                  true,
+                files, // attach normalized files array here
+                raw: w,
+                // preserve all original fields for compatibility
+                ...w,
+              } as ClassWork;
+            }
           );
 
+          // Store works in currentClass.data.works (preserve other class state)
           set((state) => {
             const cur = state.currentClass ?? defaultCurrentClass;
             return {
@@ -724,6 +830,10 @@ export const useClassStore = create<ClassState>()(
             };
           });
 
+          console.debug(
+            "[useClassStore] getClassWorks: loaded works count",
+            works.length
+          );
           return works;
         } catch (err) {
           console.error("getClassWorks error:", err);
@@ -869,10 +979,7 @@ export const useClassStore = create<ClassState>()(
           }
 
           // Try primary endpoint first. If backend baseURL/config differs, fallback to /api prefix.
-          const endpoints = [
-            `/Document/GetAllDocumentByClassId/${classId}`,
-            `/api/Document/GetAllDocumentByClassId/${classId}`,
-          ];
+          const endpoints = [`/Document/GetAllDocumentByClassId/${classId}`];
 
           let res: any = null;
           let raw: any = null;
@@ -921,7 +1028,9 @@ export const useClassStore = create<ClassState>()(
                 description: d.description ?? null,
                 fileType: fileType,
                 uploaderName: d.uploaderName ?? d.uploaderFullname ?? null,
-                createdAt: formatISO(d.createdAt) ? formatISO(d.createdAt) : null,
+                createdAt: formatISO(d.createdAt)
+                  ? formatISO(d.createdAt)
+                  : null,
                 classes: Array.isArray(d.classes)
                   ? d.classes.map((c: any) => ({
                       id: c.id,
@@ -1079,21 +1188,95 @@ export const useClassStore = create<ClassState>()(
 
       editClasswork: async (payload: {
         id: number;
-        classId: number;
+        classId?: number;
         title: string;
         description?: string;
-        deadline?: string;
+        deadline?: string | null;
+        maxScore?: number | null;
+        gradeType?: string | null;
+        allowSubmission?: boolean | null;
+        instructionsHtml?: string | null;
+        files?: File[] | null;
+        links?: Array<{ url: string; title?: string }> | null;
       }) => {
         set({ isLoading: true, message: "" });
         try {
-          const body = {
-            classId: payload.classId,
-            title: payload.title,
-            description: payload.description ?? "",
-            deadline: payload.deadline ?? null,
-          };
-          const res = await axiosInstance.put(`/Classwork/${payload.id}`, body);
+          // Build FormData to match EditClassworkDto ([FromForm])
+          const form = new FormData();
+
+          // Required/primary fields
+          form.append("Title", payload.title ?? "");
+          if (payload.description !== undefined)
+            form.append("Description", payload.description ?? "");
+          // Deadline: if null explicitly, append empty or omit; server will treat missing as no-change
+          if (payload.deadline !== undefined && payload.deadline !== null) {
+            // ensure ISO format if possible
+            try {
+              const d = new Date(payload.deadline);
+              if (!isNaN(d.getTime())) form.append("Deadline", d.toISOString());
+              else form.append("Deadline", String(payload.deadline));
+            } catch {
+              form.append("Deadline", String(payload.deadline));
+            }
+          }
+
+          // Optional classwork-specific fields
+          if (payload.maxScore !== undefined && payload.maxScore !== null) {
+            form.append("MaxScore", String(payload.maxScore));
+          }
+          if (payload.gradeType !== undefined && payload.gradeType !== null) {
+            form.append("GradeType", payload.gradeType);
+          }
+          if (
+            payload.allowSubmission !== undefined &&
+            payload.allowSubmission !== null
+          ) {
+            form.append(
+              "AllowSubmission",
+              payload.allowSubmission ? "true" : "false"
+            );
+          }
+          if (
+            payload.instructionsHtml !== undefined &&
+            payload.instructionsHtml !== null
+          ) {
+            form.append("InstructionsHtml", payload.instructionsHtml);
+          }
+
+          // Links: server DTO exposes LinksJson which the DTO parses to Links.
+          if (
+            payload.links &&
+            Array.isArray(payload.links) &&
+            payload.links.length > 0
+          ) {
+            try {
+              form.append("LinksJson", JSON.stringify(payload.links));
+            } catch {
+              // ignore / don't append if stringify fails
+            }
+          }
+
+          // Files: append multiple files with the same field name "Files"
+          if (
+            payload.files &&
+            Array.isArray(payload.files) &&
+            payload.files.length > 0
+          ) {
+            for (const f of payload.files) {
+              if (!f) continue;
+              form.append("Files", f, f.name);
+            }
+          }
+
+          // Note: if server expects additional form fields (e.g., ClassId), you can append here.
+          if (payload.classId !== undefined && payload.classId !== null) {
+            form.append("ClassId", String(payload.classId));
+          }
+
+          // Send PUT with FormData. Do NOT set Content-Type header explicitly so browser sets boundary.
+          const res = await axiosInstance.put(`/Classwork/${payload.id}`, form);
           const raw = res?.data ?? null;
+
           if (!raw || raw.success === false) {
             set({
               isLoading: false,
@@ -1102,6 +1285,7 @@ export const useClassStore = create<ClassState>()(
             });
             return null;
           }
+
           set({
             isLoading: false,
             success: true,
@@ -1109,6 +1293,7 @@ export const useClassStore = create<ClassState>()(
           });
           return raw.data ?? raw;
         } catch (err) {
+          console.error("editClasswork error:", err);
           set({
             isLoading: false,
             success: false,
@@ -1138,9 +1323,7 @@ export const useClassStore = create<ClassState>()(
           }
 
           const endpoints = [
-            `/api/Classwork/${classworkId}/submit`,
             `/Classwork/${classworkId}/submit`,
-            `/api/ClassNotification/${classworkId}/submit`,
             `/ClassNotification/${classworkId}/submit`,
           ];
 
@@ -1202,9 +1385,7 @@ export const useClassStore = create<ClassState>()(
         set({ isLoading: true });
         try {
           const endpoints = [
-            `/api/Classwork/${classworkId}/submissions`,
             `/Classwork/${classworkId}/submissions`,
-            `/api/ClassNotification/${classworkId}/submissions`,
             `/ClassNotification/${classworkId}/submissions`,
           ];
           let res: any = null;
@@ -1261,18 +1442,8 @@ export const useClassStore = create<ClassState>()(
         }
       },
 
-      getClassworkDetail: async (
-        id: number
-      ): Promise<
-        | {
-            success?: boolean;
-            data?: any;
-            submissions?: any[];
-            files?: any[];
-            raw?: any;
-          }
-        | null
-      > => {
+      // replace current getClassworkDetail implementation with this
+      getClassworkDetail: async (id: number) => {
         set({ isLoading: true });
         try {
           if (!id) {
@@ -1281,10 +1452,8 @@ export const useClassStore = create<ClassState>()(
           }
 
           const endpoints = [
-            `/api/Classwork/${id}/detail`,
             `/Classwork/${id}/detail`,
-            `/api/ClassNotification/${id}/detail`,
-            `/ClassNotification/${id}/detail`,
+            `/Classwork/${id}/detail`,
           ];
 
           let res: any = null;
@@ -1305,9 +1474,31 @@ export const useClassStore = create<ClassState>()(
           }
 
           // normalize known shapes
-          const data = raw.data ?? raw?.data ?? raw;
-          const submissions = raw.submissions ?? raw.data?.submissions ?? raw.submissionList ?? raw.submissions ?? [];
-          const files = raw.files ?? raw.data?.files ?? raw.attachments ?? raw.documents ?? [];
+          const data = raw.data ?? raw ?? {};
+          const submissions =
+            raw.submissions ??
+            raw.data?.submissions ??
+            raw.submissionList ??
+            raw.submissions ??
+            [];
+          const filesRaw =
+            raw.files ??
+            raw.data?.files ??
+            raw.attachments ??
+            raw.documents ??
+            [];
+
+          const files = Array.isArray(filesRaw)
+            ? filesRaw.map((f: any, idx: number) => ({
+                id: f.id ?? `${id}-file-${idx}`,
+                fileName: f.fileName ?? f.name ?? f.title ?? f.file_name ?? "",
+                fileUrl:
+                  f.fileUrl ?? f.url ?? f.file_url ?? f.documentUrl ?? "",
+                thumbnail: f.thumbnail ?? f.thumb ?? undefined,
+                isExternal: !!(f.isExternal ?? (f.url && !f.fileName)),
+                raw: f,
+              }))
+            : [];
 
           const result = {
             success: raw.success ?? true,
@@ -1317,6 +1508,49 @@ export const useClassStore = create<ClassState>()(
             raw,
           };
 
+          // MERGE files into currentClass.data.works if present
+          set((state) => {
+            const cur = state.currentClass ?? defaultCurrentClass;
+            const oldWorks = Array.isArray(cur.data?.works)
+              ? cur.data!.works
+              : [];
+            let found = false;
+            const works = oldWorks.map((wk: any) => {
+              if (String(wk.id) === String(id)) {
+                found = true;
+                // preserve existing fields but set normalized files
+                return {
+                  ...wk,
+                  files,
+                  raw: { ...(wk.raw ?? {}), ...(raw ?? {}) },
+                };
+              }
+              return wk;
+            });
+            // optional: if work not present, append a minimal entry so UI can read it
+            if (!found) {
+              works.push({
+                id,
+                title: data?.title ?? data?.name ?? "",
+                description: data?.description ?? data?.desc ?? "",
+                deadline: data?.deadline ?? data?.dueDate ?? null,
+                files,
+                raw: data,
+              });
+            }
+
+            return {
+              currentClass: {
+                ...cur,
+                data: {
+                  ...cur.data,
+                  works,
+                },
+                success: cur.success ?? true,
+              },
+            };
+          });
+
           set({ isLoading: false });
           return result;
         } catch (err) {
@@ -1325,6 +1559,8 @@ export const useClassStore = create<ClassState>()(
           return null;
         }
       },
+
+      // Replace or update the getSubmissionByUserAndClasswork function in your store with the snippet below.
 
       getSubmissionByUserAndClasswork: async (
         classworkId: number,
@@ -1337,13 +1573,10 @@ export const useClassStore = create<ClassState>()(
             return null;
           }
           const endpoints = [
-            `/api/Classwork/submission?classworkID=${encodeURIComponent(
-              classworkId
-            )}&userid=${encodeURIComponent(appUserId)}`,
             `/Classwork/submission?classworkID=${encodeURIComponent(
               classworkId
             )}&userid=${encodeURIComponent(appUserId)}`,
-            `/api/ClassNotification/submission?notificationId=${encodeURIComponent(
+            `/Classwork/submission?classworkID=${encodeURIComponent(
               classworkId
             )}&userid=${encodeURIComponent(appUserId)}`,
             `/ClassNotification/submission?notificationId=${encodeURIComponent(
@@ -1369,6 +1602,7 @@ export const useClassStore = create<ClassState>()(
           }
 
           const d = raw.data ?? raw;
+
           const files = (d.submissionFiles ?? d.files ?? []).map((f: any) => ({
             id: f.id,
             fileName: f.fileName ?? f.file_name ?? f.name,
@@ -1383,6 +1617,30 @@ export const useClassStore = create<ClassState>()(
             d.workId ??
             d.work_id ??
             classworkId;
+
+          // Normalize graded/feedback fields (support multiple possible names)
+          const feedback =
+            d.feedback ??
+            d.gradeFeedback ??
+            d.graderFeedback ??
+            d.teacherFeedback ??
+            d.feedbackText ??
+            null;
+
+          const gradedAt =
+            d.gradedAt ?? d.graded_at ?? d.gradedDate ?? d.graded_date ?? null;
+
+          const gradedBy =
+            d.gradedBy ?? d.graded_by ?? d.grader ?? d.graderId ?? null;
+
+          // map grade-by-name (support multiple possible field names)
+          const gradeByName =
+            d.gradeByName ??
+            d.graderName ??
+            d.gradedByName ??
+            d.graderFullname ??
+            d.graderFullName ??
+            null;
 
           const submission: ClassworkSubmission = {
             id: d.id,
@@ -1401,8 +1659,14 @@ export const useClassStore = create<ClassState>()(
             files,
             score: d.score ?? d.Score ?? null,
             submissionStatus: d.submissionStatus ?? d.status ?? null,
+            // new fields:
+            feedback: feedback ?? null,
+            gradedAt: gradedAt ?? null,
+            gradedBy: gradedBy ?? null,
+            gradeByName: gradeByName ?? null,
             raw: d,
-          };
+          } as any; // cast as any if your ClassworkSubmission type doesn't yet declare the new optional fields
+
           set({ isLoading: false });
           return submission;
         } catch (err) {
@@ -1453,7 +1717,6 @@ export const useClassStore = create<ClassState>()(
 
           let res: any = null;
           let used: string | null = null;
-          let lastErr: any = null;
 
           for (const ep of allCandidates) {
             try {
@@ -1464,7 +1727,6 @@ export const useClassStore = create<ClassState>()(
               used = ep;
               break;
             } catch (err: any) {
-              lastErr = err;
               console.warn(
                 "[gradeSubmission] endpoint failed:",
                 ep,
@@ -1480,7 +1742,7 @@ export const useClassStore = create<ClassState>()(
             try {
               const abs = `${
                 window.location.origin
-              }/api/ClassNotification/${encodeURIComponent(
+              }/ClassNotification/${encodeURIComponent(
                 notificationId
               )}/submissions/${encodeURIComponent(submissionId)}/grade`;
               console.debug(
@@ -1603,29 +1865,15 @@ export const useClassStore = create<ClassState>()(
           if (!classworkId) return null;
 
           const endpoints = [
-            `/api/Classwork/submissioncount/${encodeURIComponent(classworkId)}`,
             `/Classwork/submissioncount/${encodeURIComponent(classworkId)}`,
-            `/api/Classwork/${encodeURIComponent(classworkId)}/submissioncount`,
             `/Classwork/${encodeURIComponent(classworkId)}/submissioncount`,
-            `/api/ClassNotification/submissioncount/${encodeURIComponent(
-              classworkId
-            )}`,
             `/ClassNotification/submissioncount/${encodeURIComponent(
               classworkId
             )}`,
-            `/api/ClassNotification/${encodeURIComponent(
-              classworkId
-            )}/submissioncount`,
             `/ClassNotification/${encodeURIComponent(
               classworkId
             )}/submissioncount`,
-            `/api/Classwork/submissioncount?classworkId=${encodeURIComponent(
-              classworkId
-            )}`,
             `/Classwork/submissioncount?classworkId=${encodeURIComponent(
-              classworkId
-            )}`,
-            `/api/ClassNotification/submissioncount?notificationId=${encodeURIComponent(
               classworkId
             )}`,
             `/ClassNotification/submissioncount?notificationId=${encodeURIComponent(
@@ -1733,7 +1981,7 @@ export const useClassStore = create<ClassState>()(
               fd.append("Files", payload.files[i], payload.files[i].name);
             }
           }
-
+          console.log("createNotification - links appended:", payload.links);
           if (payload.links && payload.links.length > 0) {
             const sanitizedLinks: LinkPayload[] = payload.links
               .filter(
@@ -1782,7 +2030,7 @@ export const useClassStore = create<ClassState>()(
           }
 
           // Try endpoint variants so we don't break when axiosInstance.baseURL already contains /api
-          const endpoints = ["/ClassNotification", "/api/ClassNotification"];
+          const endpoints = ["/ClassNotification"];
           let res: any = null;
           let lastError: any = null;
 
@@ -1912,23 +2160,21 @@ export const useClassStore = create<ClassState>()(
             `/ClassMember/${encodeURIComponent(
               userId
             )}/decline?classId=${encodeURIComponent(classId)}`,
-            `/api/ClassMember/${encodeURIComponent(
-              userId
-            )}/decline?classId=${encodeURIComponent(classId)}`,
             `/ClassMember/${encodeURIComponent(
-              userId
-            )}/reject?classId=${encodeURIComponent(classId)}`,
-            `/api/ClassMember/${encodeURIComponent(
               userId
             )}/reject?classId=${encodeURIComponent(classId)}`,
             `/Class/${encodeURIComponent(classId)}/members/${encodeURIComponent(
               userId
             )}/decline`,
-            `/api/Class/${encodeURIComponent(classId)}/members/${encodeURIComponent(userId)}/decline`,
+            `/Class/${encodeURIComponent(classId)}/members/${encodeURIComponent(
+              userId
+            )}/decline`,
             `/Class/${encodeURIComponent(classId)}/members/${encodeURIComponent(
               userId
             )}/reject`,
-            `/api/Class/${encodeURIComponent(classId)}/members/${encodeURIComponent(userId)}/reject`,
+            `/Class/${encodeURIComponent(classId)}/members/${encodeURIComponent(
+              userId
+            )}/reject`,
           ];
 
           let res: any = null;
@@ -1952,13 +2198,7 @@ export const useClassStore = create<ClassState>()(
               `/Class/${encodeURIComponent(
                 classId
               )}/members/${encodeURIComponent(userId)}`,
-              `/api/Class/${encodeURIComponent(
-                classId
-              )}/members/${encodeURIComponent(userId)}`,
               `/ClassMember?classId=${encodeURIComponent(
-                classId
-              )}&userId=${encodeURIComponent(userId)}`,
-              `/api/ClassMember?classId=${encodeURIComponent(
                 classId
               )}&userId=${encodeURIComponent(userId)}`,
             ];
@@ -2025,6 +2265,95 @@ export const useClassStore = create<ClassState>()(
           return null;
         } finally {
           set({ isLoading: false });
+        }
+      },
+      getClassExams: async (classId: string): Promise<Exam[]> => {
+        try {
+          const res = await axiosInstance.get("/exam/class/" + classId);
+          if (res.status === 200) {
+            return res.data.map((item: any) => {
+              return {
+                id: item.id,
+                title: item.title,
+                description: item.description,
+                duration: item.duration,
+                createdBy: item.createdBy,
+                totalQuestions: item.totalQuestions,
+              };
+            });
+          } else {
+            throw new Error(`Status: ${res.status}`);
+          }
+        } catch (error) {
+          console.error("Error getClassExams: ", error);
+        }
+        return [];
+      },
+      // Replace or update the getUnreadCount function in your store with the code below.
+
+      getUnreadCount: async (
+        classId: number,
+        type?: string,
+        userId?: string
+      ): Promise<number> => {
+        if (!classId) return 0;
+
+        try {
+          // Prefer explicit userId param (API requires userId). If not provided, log a warning.
+          if (
+            !userId ||
+            typeof userId !== "string" ||
+            userId.trim().length === 0
+          ) {
+            console.warn(
+              "[useClassStore] getUnreadCount called without userId. The API requires userId; result may be 401."
+            );
+          }
+
+          const params = new URLSearchParams();
+          if (userId && userId.trim().length > 0)
+            params.append("userId", userId.trim());
+          if (type && type.trim().length > 0)
+            params.append("type", type.trim());
+          const qs = params.toString() ? `?${params.toString()}` : "";
+
+          const endpoints = [
+            `/ClassNotification/class/${encodeURIComponent(
+              classId
+            )}/unread-count${qs}`,
+          ];
+
+          let res: any = null;
+          for (const ep of endpoints) {
+            try {
+              res = await axiosInstance.get(ep);
+              if (res && res.data !== undefined && res.data !== null) break;
+            } catch (err) {
+              // try next endpoint variant (and log)
+              console.debug(
+                "[useClassStore] getUnreadCount request failed for",
+                ep,
+                err
+              );
+            }
+          }
+
+          const raw = res?.data ?? null;
+          if (!raw) return 0;
+
+          const maybeUnread =
+            raw?.data?.data?.unread ??
+            raw?.data?.unread ??
+            raw?.data?.unreadCount ??
+            raw?.unread ??
+            raw?.data ??
+            raw;
+
+          const val = Number(maybeUnread ?? 0);
+          return Number.isFinite(val) ? val : 0;
+        } catch (err) {
+          console.error("getUnreadCount error", err);
+          return 0;
         }
       },
     }),

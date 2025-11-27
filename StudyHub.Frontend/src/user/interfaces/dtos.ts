@@ -15,6 +15,8 @@ interface CreateAccountDto {
   gender: number;
   phoneNumber?: string;
   address?: string;
+  // Subject ids (short ints) assigned to the user (teachers)
+  subjectIds?: number[];
 }
 
 interface EditAccountDto {
@@ -34,6 +36,8 @@ interface EditAccountDto {
   phoneNumber?: string;
   address?: string;
   dob?: string | null;
+  // Optional subject ids to assign/replace for the user
+  subjectIds?: number[] | null;
 }
 
 interface UpdateProfileDto {

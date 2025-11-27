@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 import React, { useEffect, useState } from "react";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 
@@ -28,6 +29,9 @@ export const CreateClassModal: React.FC<{
 
   const { subjects, getAllSubjects } = useClassStore();
 
+  // toast state
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
   // only fetch subjects when modal opens
   useEffect(() => {
     if (open) {
@@ -41,6 +45,7 @@ export const CreateClassModal: React.FC<{
       setTitle("");
       setDescription("");
       setSubmitting(false);
+      setSuccessMsg(null);
     }
   }, [open]);
 
@@ -56,7 +61,17 @@ export const CreateClassModal: React.FC<{
         title: title.trim(),
         description: description.trim() || undefined,
       });
-      onClose();
+
+      // show success toast, then close modal shortly after
+      setSuccessMsg("Tạo lớp thành công");
+      // let user see the toast before closing the modal
+      setTimeout(() => {
+        setSuccessMsg(null);
+        onClose();
+      }, 1500);
+    } catch (err) {
+      // Optionally show error handling here
+      console.error("CreateClassModal onCreate error:", err);
     } finally {
       setSubmitting(false);
     }
@@ -71,7 +86,9 @@ export const CreateClassModal: React.FC<{
               <DialogTitle>Tạo lớp học</DialogTitle>
               {/* single close control */}
               <DialogClose asChild>
-               
+                <button aria-label="Close" className="p-1 rounded hover:bg-slate-100">
+                  <X className="w-4 h-4" />
+                </button>
               </DialogClose>
             </div>
             <DialogDescription className="text-sm text-slate-500">
@@ -115,6 +132,17 @@ export const CreateClassModal: React.FC<{
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {/* Success toast */}
+      {successMsg && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed right-6 top-6 z-[60] bg-white border px-4 py-2 rounded shadow-md text-sm text-green-700"
+        >
+          {successMsg}
+        </div>
+      )}
     </Dialog>
   );
 };

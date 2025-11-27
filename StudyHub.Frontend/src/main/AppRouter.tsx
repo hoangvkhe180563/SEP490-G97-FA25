@@ -92,8 +92,7 @@ const AppRouter = () => {
         /* ignore */
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authChecked]);
+  }, []); //bảo sao bị call 2 lần => x2 call api
 
   useEffect(() => {
     if (authChecked && !user && !location.pathname.includes("/auth")) {

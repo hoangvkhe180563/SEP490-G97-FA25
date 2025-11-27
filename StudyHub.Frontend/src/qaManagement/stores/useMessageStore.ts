@@ -10,6 +10,7 @@ export const useMessageStore = create<MessageState>()(
   devtools(
     (set) => ({
       messages: [],
+      files: [],
       // realtime
       isChatConnected: false,
       typingUsers: [],
@@ -142,6 +143,60 @@ export const useMessageStore = create<MessageState>()(
             success: body?.success ?? true,
             message: body?.message ?? "",
           });
+          return body;
+        } catch (err: any) {
+          set({ success: false, message: axiosMessageErrorHandler(err) });
+          console.error(err);
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      getFilesByConversationId: async (conversationId: string) => {
+        set({ isLoading: true });
+        try {
+          const resp = await axiosInstance.get(
+            `/QAConversationFile/conversation/${conversationId}`
+          );
+          const body = resp.data;
+          // body.data expected: array of file records
+          set({
+            files: body?.data ?? [],
+            success: body?.success ?? true,
+            message: body?.message ?? "",
+          });
+          return body;
+        } catch (err: any) {
+          set({ success: false, message: axiosMessageErrorHandler(err) });
+          console.error(err);
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      uploadFile: async (conversationId: string, file: File) => {
+        set({ isLoading: true });
+        try {
+          const fd = new FormData();
+          fd.append("conversationId", conversationId);
+          fd.append("file", file);
+
+          const resp = await axiosInstance.post(
+            `/QAConversationFile/upload`,
+            fd,
+            {
+              headers: { "Content-Type": "multipart/form-data" },
+            }
+          );
+          const body = resp.data;
+          // after upload, we can refresh files
+          try {
+            await (useMessageStore
+              .getState()
+              .getFilesByConversationId?.(conversationId) as any);
+          } catch {
+            // ignore
+          }
           return body;
         } catch (err: any) {
           set({ success: false, message: axiosMessageErrorHandler(err) });

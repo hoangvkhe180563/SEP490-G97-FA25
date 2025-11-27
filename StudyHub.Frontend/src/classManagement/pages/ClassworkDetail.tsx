@@ -129,7 +129,7 @@ const ClassworkDetail: React.FC = () => {
     getClassWorks,
     submitClasswork,
     getClassworkSubmissions,
-    getClassworkDetail, 
+    getClassworkDetail,
     getClassInfo,
     getSubmissionByUserAndClasswork,
     currentClass,
@@ -445,6 +445,25 @@ const ClassworkDetail: React.FC = () => {
   const classworkFiles: any[] = (classwork.files && classwork.files.length > 0) ? classwork.files : (cwDetail?.files ?? []);
   const classworkLinks: any[] = (classwork.links && classwork.links.length > 0) ? classwork.links : (cwDetail?.data?.links ?? cwDetail?.data?.linkDtos ?? []);
 
+  // derive teacher feedback and grader info for the current user's submission
+  const teacherFeedback =
+    userSubmission?.feedback ??
+    (userSubmission as any)?.feedback ??
+    (userSubmission as any)?.graderFeedback ??
+    (userSubmission as any)?.teacherFeedback ??
+    (userSubmission as any)?.feedbackText ??
+    "";
+  const gradedBy =
+    (userSubmission as any)?.gradeByName ??
+    (userSubmission as any)?.gradeByName ??
+    (userSubmission as any)?.gradeByName ??
+    null;
+  const gradedAt =
+    (userSubmission as any)?.gradedAt ??
+    (userSubmission as any)?.graded_at ??
+    (userSubmission as any)?.gradedDate ??
+    null;
+  
   return (
     <div className="p-8 w-full h-full overflow-y-auto">
       <div className="flex items-start justify-between mb-8">
@@ -668,9 +687,35 @@ const ClassworkDetail: React.FC = () => {
             </div>
           </Card>
 
+          {/* Show teacher's feedback for the current user's submission */}
           <Card className="p-5">
             <div className="text-sm text-slate-700">
-              <Button variant="link" className="p-0">Thêm nhận xét riêng tư cho {currentClass?.data?.teacher?.fullname ?? "giáo viên"}</Button>
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12">
+                  <Avatar className="w-12 h-12">
+                    <AvatarFallback className="text-lg">
+                      {gradedBy ? String(gradedBy).charAt(0).toUpperCase() : (currentClass?.data?.teacher?.fullname ? currentClass.data.teacher.fullname.charAt(0).toUpperCase() : "G")}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
+                <div className="flex-1">
+                  <div className="text-xs text-slate-400">Nhận xét của giáo viên</div>
+                  <div className="mt-2 bg-slate-50 p-4 rounded-md text-sm text-slate-800 min-h-[48px]">
+                    {teacherFeedback && String(teacherFeedback).trim().length > 0 ? (
+                      <div style={{ whiteSpace: "pre-wrap" }}>{teacherFeedback}</div>
+                    ) : (
+                      <div className="text-slate-400">Chưa có nhận xét</div>
+                    )}
+                  </div>
+                  {(gradedBy || gradedAt) && (
+                    <div className="mt-2 text-xs text-slate-400">
+                      {gradedBy ? <span>Chấm bởi {gradedBy}</span> : null}
+                      {gradedBy && gradedAt ? <span> • </span> : null}
+                      {gradedAt ? <span>{new Date(gradedAt).toLocaleString()}</span> : null}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </Card>
         </aside>

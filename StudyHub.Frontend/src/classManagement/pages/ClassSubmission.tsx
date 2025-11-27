@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import type {
@@ -27,8 +28,10 @@ const ClassworkSubmissionsPage: React.FC = () => {
   }>();
   const classId = Number(params.id ?? 0);
   const workId = Number(params.classworkId ?? 0);
+
+  // use react-router's useLocation to read navigation state safely
+  const location = useLocation() as unknown as { state?: { maxScore?: number } };
   const navigate = useNavigate();
-  const location = useLocation();
 
   const {
     getClassworkSubmissions,
@@ -36,10 +39,12 @@ const ClassworkSubmissionsPage: React.FC = () => {
     currentClass,
     getSubmissionByUserAndClasswork,
     gradeSubmission,
+    getClassworkDetail,
   } = useClassStore();
   const { user } = useAuthStore();
 
   const coarseRole = mapToCoarseRole(user?.roles);
+  const role = coarseRole === "student" ? "student" : "teacher";
   const isTeacher = coarseRole === "teacher";
 
   const [submissions, setSubmissions] = useState<ClassworkSubmission[] | null>(
@@ -70,6 +75,9 @@ const ClassworkSubmissionsPage: React.FC = () => {
     incomingMaxRaw !== undefined && incomingMaxRaw !== null
       ? Number(incomingMaxRaw)
       : NaN;
+
+  // store classwork detail (server)
+  const [cwDetail, setCwDetail] = useState<any | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -107,7 +115,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
             getSubmissionByUserAndClasswork(
               workId,
               String(m.userId ?? m.id ?? "").trim()
-            ).catch((e) => null)
+            )
           );
           const results = await Promise.all(promises);
           const found = results
@@ -124,6 +132,19 @@ const ClassworkSubmissionsPage: React.FC = () => {
               if (!existingIds.has(f.id)) merged.push(f);
             }
             if (mounted) setSubmissions(merged);
+          }
+        }
+
+        // Fetch classwork detail to get accurate maxScore and other fields
+        if (typeof getClassworkDetail === "function" && workId) {
+          try {
+            const det = await getClassworkDetail(workId);
+            if (!mounted) return;
+            const payload = det ?? null;
+            setCwDetail(payload);
+          } catch (err) {
+            console.warn("getClassworkDetail failed", err);
+            setCwDetail(null);
           }
         }
       } catch (err) {
@@ -146,10 +167,11 @@ const ClassworkSubmissionsPage: React.FC = () => {
   }, [
     classId,
     workId,
-    currentClass?.data?.students,
     getClassworkSubmissions,
     getClassMembers,
     getSubmissionByUserAndClasswork,
+    getClassworkDetail,
+    currentClass?.data?.students,
   ]);
 
   if (loading) return <div className="p-8 text-slate-500">Đang tải...</div>;
@@ -215,9 +237,56 @@ const ClassworkSubmissionsPage: React.FC = () => {
   };
   const globalMaxScore = inferMaxScore();
 
+  // Try to find the specific classwork's maxScore from cwDetail first, then from currentClass store
+  const detailMaxScore = (() => {
+    try {
+      if (!cwDetail) return null;
+      const candList = [
+        cwDetail.maxScore,
+        cwDetail.MaxScore,
+        cwDetail.data?.maxScore,
+        cwDetail.data?.MaxScore,
+        cwDetail.data?.max_points,
+        cwDetail.max_points,
+        cwDetail.data?.total,
+        cwDetail.data?.max,
+      ];
+      for (const c of candList) {
+        const n = Number(c);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  })();
+
+  const workMaxScore = (() => {
+    try {
+      const works = currentClass?.data?.works ?? [];
+      const w = works.find((x: any) => Number(x.id) === Number(workId));
+      if (!w) return null;
+      const candidates = [w.maxScore, (w as any).max_points, (w as any).total, (w as any).max];
+      for (const c of candidates) {
+        const n = Number(c);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const maxAllowedForThisWork =
+    detailMaxScore !== null && Number.isFinite(Number(detailMaxScore)) && detailMaxScore > 0
+      ? Number(detailMaxScore)
+      : workMaxScore !== null && Number.isFinite(Number(workMaxScore)) && workMaxScore > 0
+      ? Number(workMaxScore)
+      : globalMaxScore;
+
   const scoreColorClass = (score: number | null | undefined, max = globalMaxScore) => {
-    if (score === null || score === undefined || !Number.isFinite(Number(score))) return "text-slate-500";
-    const p = Math.max(0, Math.min(100, (Number(score) / max) * 100));
+    if (score === null || score === undefined || !Number.isFinite(Number(score)) || !Number.isFinite(Number(max)) || Number(max) <= 0) return "text-slate-500";
+    const p = Math.max(0, Math.min(100, (Number(score) / Number(max)) * 100));
     if (p >= 90) return "text-emerald-600";
     if (p >= 75) return "text-lime-600";
     if (p >= 50) return "text-amber-600";
@@ -269,6 +338,16 @@ const ClassworkSubmissionsPage: React.FC = () => {
           const n = Number(scoreVal);
           setGradeValue(Number.isFinite(n) ? n : (String(scoreVal) as any));
         }
+
+        // set feedback if present (support multiple field names)
+        const fb =
+          s.feedback ??
+          (s as any).gradeFeedback ??
+          (s as any).graderFeedback ??
+          (s as any).teacherFeedback ??
+          (s as any).feedbackText ??
+          "";
+        setGradeFeedback(typeof fb === "string" ? fb : String(fb ?? ""));
       } else {
         const fallback = submissionMap.get(userId) ?? null;
         setSelectedSubmission(fallback);
@@ -283,6 +362,15 @@ const ClassworkSubmissionsPage: React.FC = () => {
             const n = Number(scoreVal);
             setGradeValue(Number.isFinite(n) ? n : (String(scoreVal) as any));
           }
+
+          const fb =
+            (fallback as any).feedback ??
+            (fallback as any).gradeFeedback ??
+            (fallback as any).graderFeedback ??
+            (fallback as any).teacherFeedback ??
+            (fallback as any).feedbackText ??
+            "";
+          setGradeFeedback(typeof fb === "string" ? fb : String(fb ?? ""));
         }
       }
     } catch (err) {
@@ -312,8 +400,10 @@ const ClassworkSubmissionsPage: React.FC = () => {
       return;
     }
 
-    if (Number.isFinite(globalMaxScore) && numeric > globalMaxScore) {
-      alert(`Điểm không hợp lệ: không được vượt quá ${globalMaxScore}.`);
+    // Use the per-work max if available, otherwise fall back to globalMaxScore
+    const maxAllowed = maxAllowedForThisWork;
+    if (Number.isFinite(maxAllowed) && numeric > maxAllowed) {
+      alert(`Điểm không hợp lệ: không được vượt quá ${maxAllowed}.`);
       return;
     }
 
@@ -417,6 +507,16 @@ const ClassworkSubmissionsPage: React.FC = () => {
         finalSubmission = { ...optimisticSubmission, ...serverSubmission };
       }
 
+      // update gradeFeedback from server response if present
+      const serverFb =
+        (finalSubmission as any).feedback ??
+        (finalSubmission as any).gradeFeedback ??
+        (finalSubmission as any).graderFeedback ??
+        (finalSubmission as any).teacherFeedback ??
+        (finalSubmission as any).feedbackText ??
+        null;
+      setGradeFeedback(typeof serverFb === "string" ? serverFb : String(serverFb ?? ""));
+
       setSubmissions((prev) => {
         const copy = prev ? [...prev] : [];
         const idxById = copy.findIndex((s) => s.id === finalSubmission.id && finalSubmission.id);
@@ -450,6 +550,20 @@ const ClassworkSubmissionsPage: React.FC = () => {
           refreshed.files =
             refreshed.files ?? (refreshed as any).submissionFiles ?? [];
           setSelectedSubmission(refreshed);
+          // also update grade value & feedback from refreshed
+          const refreshedScore = refreshed.score ?? (refreshed as any).raw?.score ?? null;
+          if (refreshedScore !== undefined && refreshedScore !== null && String(refreshedScore).trim() !== "") {
+            const n = Number(refreshedScore);
+            setGradeValue(Number.isFinite(n) ? n : (String(refreshedScore) as any));
+          }
+          const refreshedFb =
+            (refreshed as any).feedback ??
+            (refreshed as any).gradeFeedback ??
+            (refreshed as any).graderFeedback ??
+            (refreshed as any).teacherFeedback ??
+            (refreshed as any).feedbackText ??
+            "";
+          setGradeFeedback(typeof refreshedFb === "string" ? refreshedFb : String(refreshedFb ?? ""));
           setSubmissions((prev) => {
             const copy = prev ? [...prev] : [];
             const idxById = copy.findIndex((s) => s.id === refreshed.id && refreshed.id);
@@ -500,14 +614,12 @@ const ClassworkSubmissionsPage: React.FC = () => {
       : String(member.userId).charAt(0).toUpperCase();
 
     const scoreVal = submission ? Number(submission.score ?? (submission as any).raw?.score ?? null) : null;
-    const colorClass = scoreColorClass(Number.isFinite(Number(scoreVal)) ? scoreVal : null, globalMaxScore);
+    const colorClass = scoreColorClass(Number.isFinite(Number(scoreVal)) ? scoreVal : null, maxAllowedForThisWork);
 
     return (
       <Card
         onClick={() => pickMember(member)}
-        className={`relative flex  justify-between cursor-pointer px-4 py-3 transition-colors ${
-          isSelected ? "bg-slate-100 shadow-sm" : "hover:bg-slate-50"
-        }`}
+        className={`relative flex  justify-between cursor-pointer px-4 py-3 transition-colors ${        isSelected ? "bg-slate-100 shadow-sm" : "hover:bg-slate-50"      }`}
       >
         {/* LEFT: avatar + name (force left alignment) */}
         <div className="flex items-center gap-4 min-w-0">
@@ -531,7 +643,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
         <div className="flex items-center gap-3 ml-4 whitespace-nowrap">
           <div className="text-xs text-slate-400">Điểm</div>
           <div className={`font-semibold text-lg ${colorClass}`}>{scoreText}</div>
-          <div className="text-sm text-slate-400">/ {globalMaxScore}</div>
+          <div className="text-sm text-slate-400">/ {maxAllowedForThisWork}</div>
         </div>
       </Card>
     );
@@ -625,7 +737,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
                 const s = submissionMap.get(normalizeUserId(m.userId ?? m.id ?? "")) ?? null;
                 return <MemberRow key={m.userId} member={m} submission={s} />;
               })
-            )}
+            )} 
           </div>
 
           <Separator className="my-6" />
@@ -655,29 +767,40 @@ const ClassworkSubmissionsPage: React.FC = () => {
         style={{ minHeight: 720 }}
       >
         <div className="flex items-center justify-between px-8 py-6 border-b">
-          <div>
-            <div className="text-2xl md:text-3xl font-semibold">{selectedMember ? selectedMember.fullname : "Chọn học viên"}</div>
-            <div className="text-sm text-slate-500 mt-1">
-              {selectedSubmission ? (
-                <span>
-                  Đã nộp •{" "}
-                  {new Date(
-                    selectedSubmission.latestSubmissionTime ??
-                      selectedSubmission.firstSubmissionTime ??
-                      Date.now()
-                  ).toLocaleString()}
-                </span>
-              ) : (
-                <span>Chưa nộp</span>
-              )}
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate(`/class/${role}/${classId}`)} aria-label="Quay về lớp">
+              ←
+            </Button>
+            <div>
+              <div className="text-2xl md:text-3xl font-semibold">{selectedMember ? selectedMember.fullname : "Chọn học viên"}</div>
+              <div className="text-sm text-slate-500 mt-1">
+                {selectedSubmission ? (
+                  <span>
+                    Đã nộp •{" "}
+                    {new Date(
+                      selectedSubmission.latestSubmissionTime ??
+                        selectedSubmission.firstSubmissionTime ??
+                        Date.now()
+                    ).toLocaleString()}
+                  </span>
+                ) : (
+                  <span>Chưa nộp</span>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="text-right">
             <div className="text-sm text-slate-500">Điểm</div>
-            <div className="mt-2 inline-flex items-center justify-center w-32 h-14 rounded-lg bg-slate-100 text-2xl font-semibold text-slate-800">
-              {selectedSubmission ? getScoreText(selectedSubmission) ?? "—" : "—"}
-            </div>
+            {(() => {
+              const s = selectedSubmission ? Number(selectedSubmission.score ?? (selectedSubmission as any).raw?.score ?? null) : null;
+              const cls = scoreColorClass(Number.isFinite(Number(s)) ? s : null, maxAllowedForThisWork);
+              return (
+                <div className={`mt-2 inline-flex items-center justify-center w-32 h-14 rounded-lg bg-slate-100 text-2xl font-semibold ${cls}`}>
+                  {selectedSubmission ? getScoreText(selectedSubmission) ?? "—" : "—"}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -725,7 +848,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
                       placeholder="Điểm"
                       className="w-36 py-3 text-lg"
                       min={0}
-                      max={globalMaxScore}
+                      max={maxAllowedForThisWork}
                     />
                     <Textarea
                       value={gradeFeedback}
@@ -740,22 +863,13 @@ const ClassworkSubmissionsPage: React.FC = () => {
                       Hủy
                     </Button>
                   </div>
+                  <div className="text-xs text-slate-400 mt-2">Tối đa: {maxAllowedForThisWork}</div>
                 </Card>
               )}
             </div>
           ) : (
             <div className="text-slate-500">Học viên này chưa nộp bài.</div>
           )}
-        </div>
-
-        <div className="border-t px-6 py-4 flex items-center gap-4">
-          <div className="w-12 h-12">
-            <Avatar className="w-12 h-12">
-              <AvatarFallback className="text-lg">{user?.fullname ? user.fullname.charAt(0).toUpperCase() : "C"}</AvatarFallback>
-            </Avatar>
-          </div>
-          <Input type="text" placeholder="Thêm nhận xét riêng tư..." className="flex-1 rounded-full py-3" />
-          <Button className="ml-2 px-6 py-3">Gửi</Button>
         </div>
       </main>
     </div>

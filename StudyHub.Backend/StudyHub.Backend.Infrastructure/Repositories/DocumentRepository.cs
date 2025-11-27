@@ -43,8 +43,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         public (List<Document> documents, int totalCount) GetPublicDocuments(
-            string? query = null, int? categoryId = null, int? grade = null,
-            string? subject = null, int? classId = null, int? pageNumber = null, int? pageSize = null)
+     string? query = null, int? categoryId = null, int? grade = null,
+     string? subject = null, int? classId = null, string? documentLengthType = null,
+     string? documentLevel = null, int? pageNumber = null, int? pageSize = null)
         {
             try
             {
@@ -54,7 +55,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.School)
                     .Include(d => d.Classes)
                     .Where(d => d.DeletedAt == null && d.SchoolId == null && d.IsInClass == false && d.IsApproved == true);
-                return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, null, null, pageNumber, pageSize, true);
+                return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, documentLengthType, documentLevel, null, null, pageNumber, pageSize, true);
             }
             catch (Exception ex)
             {
@@ -65,7 +66,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public (List<Document> documents, int totalCount) GetSchoolDocuments(
             int schoolId, string? query = null, int? categoryId = null, int? grade = null,
-            string? subject = null, int? classId = null, int? pageNumber = null, int? pageSize = null)
+            string? subject = null, int? classId = null, string? documentLengthType = null,
+            string? documentLevel = null, int? pageNumber = null, int? pageSize = null)
         {
             try
             {
@@ -75,7 +77,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.School)
                     .Include(d => d.Classes)
                     .Where(d => d.DeletedAt == null && d.SchoolId == schoolId && d.IsInClass == false && d.IsApproved == true);
-                return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, null, null, pageNumber, pageSize, true);
+                return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, documentLengthType, documentLevel, null, null, pageNumber, pageSize, true);
             }
             catch (Exception ex)
             {
@@ -85,8 +87,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         public (List<Document> documents, int totalCount) GetOwnedDocuments(
-            Guid creatorId, string? query = null, int? categoryId = null, int? grade = null,
-            string? subject = null, int? classId = null, int? pageNumber = null, int? pageSize = null)
+          Guid creatorId, string? query = null, int? categoryId = null, int? grade = null,
+          string? subject = null, int? classId = null, string? documentLengthType = null,
+          string? documentLevel = null, int? pageNumber = null, int? pageSize = null)
         {
             try
             {
@@ -97,7 +100,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.Classes)
                     .Where(d => d.DeletedAt == null && d.CreatedBy == creatorId);
 
-                return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, null, null, pageNumber, pageSize, false);
+                return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, documentLengthType, documentLevel, null, null, pageNumber, pageSize, false);
             }
             catch (Exception ex)
             {
@@ -107,11 +110,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         public (List<Document> documents, int totalCount) GetManagerPublicDocuments(
-            string? query = null, int? categoryId = null, int? grade = null, string? subject = null,
-            int? classId = null, bool? isApproved = null, bool? status = null, bool? hasEditRequest = null,
-            DateTime? createdFrom = null, DateTime? createdTo = null,
-            DateTime? updatedFrom = null, DateTime? updatedTo = null,
-            int? pageNumber = null, int? pageSize = null)
+     string? query = null, int? categoryId = null, int? grade = null, string? subject = null,
+     int? classId = null, bool? isApproved = null, bool? status = null, bool? hasEditRequest = null,
+     DateTime? createdFrom = null, DateTime? createdTo = null,
+     DateTime? updatedFrom = null, DateTime? updatedTo = null,
+     int? pageNumber = null, int? pageSize = null)
         {
             try
             {
@@ -120,7 +123,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.DocumentCategory)
                     .Include(d => d.School)
                     .Include(d => d.Classes)
-                    .Where(d => d.DeletedAt == null && d.SchoolId == null && d.IsInClass == false);
+                    .Where(d => d.DeletedAt == null
+                        && d.SchoolId == null
+                        && (d.IsInClass == false || d.IsInClass == null));
+
                 return ExecuteManagerQuery(dbQuery, query, categoryId, grade, subject, classId, isApproved, status, hasEditRequest, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
             }
             catch (Exception ex)
@@ -131,11 +137,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         public (List<Document> documents, int totalCount) GetManagerSchoolDocuments(
-            int schoolId, string? query = null, int? categoryId = null, int? grade = null, string? subject = null,
-            int? classId = null, bool? isApproved = null, bool? status = null, bool? hasEditRequest = null,
-            DateTime? createdFrom = null, DateTime? createdTo = null,
-            DateTime? updatedFrom = null, DateTime? updatedTo = null,
-            int? pageNumber = null, int? pageSize = null)
+                    int schoolId, string? query = null, int? categoryId = null, int? grade = null, string? subject = null,
+                    int? classId = null, bool? isApproved = null, bool? status = null, bool? hasEditRequest = null,
+                    DateTime? createdFrom = null, DateTime? createdTo = null,
+                    DateTime? updatedFrom = null, DateTime? updatedTo = null,
+                    int? pageNumber = null, int? pageSize = null)
         {
             try
             {
@@ -179,11 +185,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }).ToList();
             return (result, totalCount);
         }
-
         private IQueryable<Data.Document> ApplyManagerFilters(
-       IQueryable<Data.Document> query, string? searchQuery, int? categoryId, int? grade,
-       string? subject, int? classId, bool? isApproved, bool? status, bool? hasEditRequest,
-       DateTime? createdFrom, DateTime? createdTo, DateTime? updatedFrom, DateTime? updatedTo)
+     IQueryable<Data.Document> query, string? searchQuery, int? categoryId, int? grade,
+     string? subject, int? classId, bool? isApproved, bool? status, bool? hasEditRequest,
+     DateTime? createdFrom, DateTime? createdTo, DateTime? updatedFrom, DateTime? updatedTo)
         {
             if (!string.IsNullOrWhiteSpace(searchQuery))
             {
@@ -194,44 +199,49 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         (u.Username.Contains(searchQuery) ||
                          (u.Fullname != null && u.Fullname.Contains(searchQuery)))));
             }
+
             if (categoryId.HasValue)
                 query = query.Where(d => d.DocumentCategoryId == categoryId.Value);
+
             if (grade.HasValue)
                 query = query.Where(d => d.Grade == grade);
+
             if (!string.IsNullOrEmpty(subject))
                 query = query.Where(d => d.Subject.Name.Contains(subject));
+
             if (classId.HasValue)
                 query = query.Where(d => d.Classes.Any(c => c.Id == classId.Value));
 
-            if (hasEditRequest.HasValue && hasEditRequest.Value)
+            if (hasEditRequest.HasValue)
             {
-                query = query.Where(d => d.IsRequested == true);
-            }
-            else if (isApproved.HasValue)
-            {
-                if (isApproved.Value)
-                    query = query.Where(d => d.IsApproved == true && (d.IsRequested == null ));
+                if (hasEditRequest.Value)
+                    query = query.Where(d => d.IsRequested == true);
                 else
-                    query = query.Where(d => d.IsApproved == false && (d.IsRequested == null));
+                    query = query.Where(d => d.IsRequested == null || d.IsRequested == false);
             }
-            else
+
+            if (isApproved.HasValue)
             {
-                query = query.Where(d => d.IsApproved == null && (d.IsRequested == null));
+                query = query.Where(d => d.IsApproved == isApproved.Value);
             }
 
             if (status.HasValue)
                 query = query.Where(d => d.Status == status.Value);
+
             if (createdFrom.HasValue)
                 query = query.Where(d => d.CreatedAt >= createdFrom.Value);
+
             if (createdTo.HasValue)
                 query = query.Where(d => d.CreatedAt <= createdTo.Value);
+
             if (updatedFrom.HasValue)
                 query = query.Where(d => d.UpdatedAt.HasValue && d.UpdatedAt >= updatedFrom.Value);
+
             if (updatedTo.HasValue)
                 query = query.Where(d => d.UpdatedAt.HasValue && d.UpdatedAt <= updatedTo.Value);
+
             return query;
         }
-
         public (List<Document> documents, int totalCount) GetEditRequestDocuments(
      bool? isRequested = null, int? pageNumber = null, int? pageSize = null)
         {
@@ -302,11 +312,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
         private (List<Document>, int) ExecuteQuery(
-            IQueryable<Data.Document> dbQuery, string? query, int? categoryId, int? grade,
-            string? subject, int? classId, bool? isApproved, bool? status,
-            int? pageNumber, int? pageSize, bool orderByFeatured)
+        IQueryable<Data.Document> dbQuery, string? query, int? categoryId, int? grade,
+        string? subject, int? classId, string? documentLengthType, string? documentLevel,
+        bool? isApproved, bool? status, int? pageNumber, int? pageSize, bool orderByFeatured)
         {
-            dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId, isApproved, status);
+            dbQuery = ApplyFilters(dbQuery, query, categoryId, grade, subject, classId, documentLengthType, documentLevel, isApproved, status);
             var totalCount = dbQuery.Count();
 
             dbQuery = orderByFeatured
@@ -333,8 +343,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return (result, totalCount);
         }
 
+
         private IQueryable<Data.Document> ApplyFilters(
-            IQueryable<Data.Document> query, string? searchQuery, int? categoryId, int? grade, string? subject, int? classId, bool? isApproved, bool? status)
+            IQueryable<Data.Document> query, string? searchQuery, int? categoryId, int? grade,
+            string? subject, int? classId, string? documentLengthType, string? documentLevel,
+            bool? isApproved, bool? status)
         {
             if (!string.IsNullOrWhiteSpace(searchQuery))
             {
@@ -357,6 +370,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
             if (classId.HasValue)
                 query = query.Where(d => d.Classes.Any(c => c.Id == classId.Value));
+
+            if (!string.IsNullOrEmpty(documentLengthType))
+                query = query.Where(d => d.DocumentLengthType == documentLengthType);
+
+            if (!string.IsNullOrEmpty(documentLevel))
+                query = query.Where(d => d.DocumentLevel == documentLevel);
 
             if (isApproved.HasValue)
             {
@@ -391,7 +410,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     IsFeatured = doc.IsFeatured,
                     IsApproved = doc.IsApproved,
                     Status = doc.Status,
-                    DocumentLenthType = doc.DocumentLengthType,
+                    DocumentLengthType = doc.DocumentLengthType,
                     DocumentLevel = doc.DocumentLevel,
                     CreatedAt = doc.CreatedAt,
                     CreatedBy = doc.CreatedBy
@@ -443,7 +462,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.IsApproved = doc.IsApproved;
                 entity.IsRequested = doc.IsRequested;
                 entity.Status = doc.Status ?? true;
-                entity.DocumentLenthType = doc.DocumentLengthType;
+                entity.DocumentLengthType = doc.DocumentLengthType;
                 entity.DocumentLevel = doc.DocumentLevel;
                 entity.UpdatedAt = doc.UpdatedAt;
                 entity.UpdatedBy = doc.UpdatedBy;
@@ -614,7 +633,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 IsApproved = d.IsApproved,
                 IsRequested = d.IsRequested,
                 Status = d.Status,
-                DocumentLengthType = d.DocumentLenthType,
+                DocumentLengthType = d.DocumentLengthType,
                 DocumentLevel = d.DocumentLevel,
                 CreatedAt = d.CreatedAt,
                 CreatedBy = d.CreatedBy,

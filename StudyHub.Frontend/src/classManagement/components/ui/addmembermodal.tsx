@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
-import type { ClassMemberDto } from "@/classManagement/interfaces/class";
 
 /* shadcn components */
 import {
@@ -12,12 +11,8 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/common/components/ui/dialog";
-import { Input } from "@/common/components/ui/input";
 import { Button } from "@/common/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avatar";
-import { Badge } from "@/common/components/ui/badge";
 import { ScrollArea } from "@/common/components/ui/scroll-area";
-import { X } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -26,135 +21,90 @@ type Props = {
   onInvited?: (result?: any) => void;
 };
 
-const emailRegex = (s: string) =>
-  /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(s.trim());
-
 const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) => {
-  // select inviteMembers from store
-  const inviteMembersFromHook = useClassStore((s) => s.inviteMembers);
-  // fallback to direct getter in case selector returns undefined during SSR/hydration edge-cases
-  const inviteMembers = inviteMembersFromHook ?? useClassStore.getState().inviteMembers;
+  // importMembers from store (uploads Excel)
+  const importMembersFromHook = useClassStore((s) => (s as any).importMembers);
+  const importMembers = importMembersFromHook ?? (useClassStore.getState() as any).importMembers;
 
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<string[]>([]);
-  const [suggestions, setSuggestions] = useState<Array<{ name?: string; email: string }>>([]);
-  const [isSending, setIsSending] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [debounced, setDebounced] = useState(query);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(query), 250);
-    return () => clearTimeout(t);
-  }, [query]);
-
-  useEffect(() => {
-    const q = debounced.trim();
-    if (!q) {
-      setSuggestions([]);
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`/User/search?query=${encodeURIComponent(q)}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (cancelled) return;
-        if (Array.isArray(data)) {
-          setSuggestions(
-            data.map((u: any) => ({ name: u.fullname ?? u.name ?? undefined, email: u.email ?? u.userName ?? "" }))
-          );
-        } else if (data?.data && Array.isArray(data.data)) {
-          setSuggestions(
-            data.data.map((u: any) => ({ name: u.fullname ?? u.name ?? undefined, email: u.email ?? u.userName ?? "" }))
-          );
-        }
-      } catch {
-        // ignore suggestion errors
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [debounced]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!open) {
-      setQuery("");
-      setSelected([]);
-      setSuggestions([]);
+      setFile(null);
+      setIsProcessing(false);
       setError(null);
-      setIsSending(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const addEmail = (email: string) => {
-    const cleaned = email.trim();
-    if (!cleaned) return;
-    if (!selected.includes(cleaned)) setSelected((s) => [...s, cleaned]);
-    setQuery("");
-    setSuggestions([]);
-  };
-
-  const removeEmail = (email: string) => {
-    setSelected((s) => s.filter((e) => e !== email));
-  };
-
-  const handleSend = async () => {
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
-    // normalize and dedupe selected items, allow comma separated in query as well
-    const extras = query
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const all = Array.from(new Set([...selected, ...extras]));
+    const f = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    if (f) {
+      const name = f.name.toLowerCase();
+      if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) {
+        setError("Vui lòng chọn file Excel (.xlsx hoặc .xls).");
+        setFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+      setFile(f);
+    } else {
+      setFile(null);
+    }
+  };
 
-    const valid = all.filter((e) => emailRegex(e));
-    if (valid.length === 0) {
-      setError("Vui lòng thêm ít nhất 1 email hợp lệ.");
+  const removeChosenFile = () => {
+    setFile(null);
+    setError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const humanFileSize = (size: number) => {
+    if (size < 1024) return `${size} B`;
+    const kb = size / 1024;
+    if (kb < 1024) return `${kb.toFixed(1)} KB`;
+    const mb = kb / 1024;
+    if (mb < 1024) return `${mb.toFixed(2)} MB`;
+    const gb = mb / 1024;
+    return `${gb.toFixed(2)} GB`;
+  };
+
+  const handleImport = async () => {
+    setError(null);
+    if (!file) {
+      setError("Vui lòng chọn file Excel trước khi import.");
+      return;
+    }
+    if (typeof importMembers !== "function") {
+      setError("Chức năng import hiện không khả dụng. Vui lòng thử lại sau.");
       return;
     }
 
-    if (typeof inviteMembers !== "function") {
-      setError("Chức năng mời hiện không khả dụng. Vui lòng thử lại sau.");
-      return;
-    }
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("role", "Student");
 
-    setIsSending(true);
-    setError(null);
+    setIsProcessing(true);
     try {
-      // inviteMembers returns either { success, message, data } or throws
-      const result = await inviteMembers(classId, valid, "Student");
-
-      // handle multiple possible shapes of response
-      if (result === true) {
-        onInvited?.(result);
+      const res = await importMembers(classId, fd);
+      // accept multiple positive shapes
+      if (res === true || (res && (res.success === true || res.data))) {
+        onInvited?.(res);
         onClose();
         return;
       }
-
-      if (result && typeof result === "object") {
-        if (result.success === true || result?.data) {
-          onInvited?.(result);
-          onClose();
-          return;
-        } else {
-          setError(result?.message ?? "Không thể gửi lời mời.");
-          return;
-        }
-      }
-
-      // fallback: if result is falsy or unexpected
-      setError("Không thể gửi lời mời. Vui lòng thử lại sau.");
+      setError(res?.message ?? "Import thất bại.");
     } catch (err: any) {
-      console.error("inviteMembers error", err);
-      // try to read server message
-      const msg = err?.response?.data?.message ?? err?.message ?? "Lỗi khi gửi lời mời.";
+      console.error("importMembers error", err);
+      const msg = err?.response?.data?.message ?? err?.message ?? "Lỗi khi import file.";
       setError(msg);
     } finally {
-      setIsSending(false);
+      setIsProcessing(false);
     }
   };
 
@@ -166,85 +116,111 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
         <DialogHeader>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <DialogTitle>Mời thành viên</DialogTitle>
+              <DialogTitle>Import & Mời thành viên</DialogTitle>
               <DialogDescription className="text-sm text-slate-500">
-                Nhập email hoặc tên để mời thành viên vào lớp
+                Upload file Excel (.xlsx hoặc .xls) chứa danh sách email. Hệ thống sẽ xử lý file và gửi lời mời tự động.
+                File nên có cột "Email", "Full Name", "Student ID", "Grade", "Section", "Role".
               </DialogDescription>
             </div>
             <DialogClose asChild>
-              
             </DialogClose>
           </div>
         </DialogHeader>
 
         <div className="px-4 pb-4">
           <div>
-            <label className="text-sm text-slate-600 block mb-2">Nhập tên hoặc email</label>
-            <Input
-              placeholder="Nhập email hoặc tên, nhấn Enter để thêm"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  const items = query.split(",").map((s) => s.trim()).filter(Boolean);
-                  if (items.length > 1) {
-                    items.forEach(addEmail);
-                  } else {
-                    if (emailRegex(query)) addEmail(query);
-                    else if (suggestions[0]) addEmail(suggestions[0].email);
-                    else {
-                      // if not an email and no suggestion, still push as raw text so user can edit later
-                      addEmail(query);
-                    }
-                  }
-                }
-              }}
-              disabled={isSending}
-            />
+            <label className="text-sm text-slate-600 block mb-2">Chọn file Excel</label>
+            <div className="flex items-center gap-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={onFileChange}
+                disabled={isProcessing}
+                className="hidden"
+                id="excel-file-input"
+              />
+              <label htmlFor="excel-file-input">
+                <Button onClick={() => fileInputRef.current?.click()} disabled={isProcessing}>
+                  Chọn file
+                </Button>
+              </label>
+
+              <div className="text-sm text-slate-500"> hoặc kéo thả file vào đây (tính năng kéo thả có thể được hỗ trợ sau)</div>
+            </div>
+
+            {/* Prominent file chosen display */}
+            {file ? (
+              <div
+                className="mt-4 border-2 border-dashed border-sky-300 bg-sky-50 rounded-lg p-4 flex items-center justify-between gap-4 shadow-sm"
+                role="group"
+                aria-label="Selected file"
+              >
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="w-12 h-12 flex items-center justify-center rounded-md bg-white border">
+                    {/* Simple file icon */}
+                    <svg className="w-6 h-6 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M7 7h6l4 4v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7z" />
+                    </svg>
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-slate-900 truncate">{file.name}</div>
+                    <div className="text-xs text-slate-500 mt-1">{humanFileSize(file.size)}</div>
+                    <div className="text-xs text-slate-400 mt-1">Sẵn sàng để import</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // re-open file dialog to replace file
+                      fileInputRef.current?.click();
+                    }}
+                    disabled={isProcessing}
+                    className="text-xs px-3 py-1 rounded bg-white border hover:bg-slate-100"
+                  >
+                    Thay đổi
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={removeChosenFile}
+                    disabled={isProcessing}
+                    aria-label="Remove chosen file"
+                    className="text-xs px-3 py-1 rounded bg-red-50 text-red-700 border border-red-100 hover:bg-red-100"
+                  >
+                    Xóa
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-md border border-dashed border-slate-200 p-4 bg-white text-sm text-slate-500">
+                Chưa có file được chọn. Hãy nhấn "Chọn file" để chọn file Excel mẫu.
+              </div>
+            )}
           </div>
 
-          {suggestions.length > 0 && (
-            <div className="mt-3 border rounded overflow-hidden">
-              <ScrollArea className="max-h-44">
-                {suggestions.map((s, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => addEmail(s.email)}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-3"
-                    type="button"
-                    disabled={isSending}
-                  >
-                    <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-sm">
-                      {s.name ? s.name.split(" ").slice(-1)[0].charAt(0) : s.email.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{s.name ?? s.email}</div>
-                      <div className="text-xs text-slate-500 truncate">{s.email}</div>
-                    </div>
-                  </button>
-                ))}
-              </ScrollArea>
-            </div>
-          )}
-
-          {selected.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {selected.map((e) => (
-                <div key={e} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100">
-                  <span className="text-xs">{e}</span>
-                 
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="mt-4">
+            <div className="text-sm text-slate-600 mb-2">Lưu ý</div>
+            <ScrollArea className="max-h-36 rounded border p-3 bg-slate-50">
+              <ul className="text-sm list-disc pl-5 space-y-1 text-slate-700">
+                <li>File nên có cột "Email" (không phân biệt hoa thường). Nếu không có header, hệ thống sẽ đọc cột đầu tiên.</li>
+                <li>Thêm cột "Full Name", "Student ID", "Grade", "Section" để thuận tiện cho nhà trường.</li>
+                <li>Hệ thống sẽ lọc trùng lặp và chỉ import các email hợp lệ.</li>
+                <li>Server sẽ gửi email mời — frontend chỉ upload file và hiển thị kết quả trả về.</li>
+                <li>Giới hạn kích thước file tùy thuộc cấu hình server.</li>
+              </ul>
+            </ScrollArea>
+          </div>
 
           {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
 
-          <div className="mt-4 flex justify-end gap-3">
-            <Button variant="ghost" onClick={onClose} disabled={isSending}>Hủy</Button>
-            <Button onClick={handleSend} disabled={isSending}>
-              {isSending ? "Đang gửi..." : "Mời"}
+          <div className="mt-6 flex justify-end gap-3">
+            <Button variant="ghost" onClick={onClose} disabled={isProcessing}>Hủy</Button>
+            <Button onClick={handleImport} disabled={isProcessing}>
+              {isProcessing ? "Đang xử lý..." : "Import & Mời"}
             </Button>
           </div>
         </div>

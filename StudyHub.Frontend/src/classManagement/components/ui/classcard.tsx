@@ -9,6 +9,7 @@ export type ClassCardProps = {
   teacher: string;
   subject?: string;
   userRole: UserRole;
+  unread?: number; // NEW: unread count for this class
   onView: (id: string | number, role: UserRole) => void;
   onMenu?: (action: MenuAction, id: string | number) => void;
 };
@@ -29,6 +30,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
   teacher,
   subject,
   userRole,
+  unread = 0,
   onView,
   onMenu,
 }) => {
@@ -39,7 +41,14 @@ export const ClassCard: React.FC<ClassCardProps> = ({
           <h3 className="text-xl font-semibold">{title}</h3>
           <p className="text-sm text-gray-600 mt-1">{teacher}</p>
         </div>
-       
+
+        {unread > 0 && (
+          <div className="ml-3">
+            <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold text-white bg-red-600 rounded-full">
+              {unread > 99 ? "99+" : unread}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="mt-4 flex items-center justify-between">

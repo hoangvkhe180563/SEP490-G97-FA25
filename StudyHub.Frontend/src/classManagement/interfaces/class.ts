@@ -1,10 +1,11 @@
 import type { Subject } from "@/classManagement/interfaces/subject";
 import type { PostComment } from "../components/ui/postcard";
+import type { Exam } from "./Exam";
 
 export interface ClassListDto {
   id: number;
-  name: string; 
-  instructorName: string; 
+  name: string;
+  instructorName: string;
   description?: string;
 }
 
@@ -22,12 +23,12 @@ export type ClassMemberDto = {
   joinDate: string;
 
   email?: string | null;
-  gender?: boolean | number | string; 
+  gender?: boolean | number | string;
   schoolId?: number | null;
   schoolName?: string | null;
   address?: string | null;
   communeId?: number | null;
-  communes?: string | null; 
+  communes?: string | null;
   phoneNumber?: string | null;
   wallet?: number;
 
@@ -123,7 +124,7 @@ export type ClassworkSubmission = {
   feedback?: string | null;
   gradedAt?: string | null;
   gradedBy?: string | null;
-
+  gradeByName?: string | null;
   submissionStatus?: string | null;
   status?: string | null;
 
@@ -170,20 +171,21 @@ export interface ClassState {
   classes: ClassListDto[];
   subjects: Subject[];
   currentClass: ClassDetailResponse; // store keeps a default non-null currentClass
-   documentsByClass?: Record<number, DocumentDto[] | undefined>;
+  documentsByClass?: Record<number, DocumentDto[] | undefined>;
+  exams: Exam[];
   isLoading: boolean;
   success: boolean;
   message: string;
   meta?: Meta | null;
 
-  getClasses: (query: string,memberUserId?: string) => Promise<GetClassesResponse | null>;
-  addClass: (payload: { title: string; description?: string ;createdBy:string}) => Promise<any | null>;
+  getClasses: (query: string, memberUserId?: string) => Promise<GetClassesResponse | null>;
+  addClass: (payload: { title: string; description?: string; createdBy: string }) => Promise<any | null>;
   getAllSubjects: () => Promise<Subject[]>;
-  updateClass: (payload: { id: number; title: string; description?: string; updateBy?:string }) => Promise<any | null>;
+  updateClass: (payload: { id: number; title: string; description?: string; updateBy?: string }) => Promise<any | null>;
 
- 
+
   getClassInfo: (id: number) => Promise<ClassDetailResponse | null>;
-  
+
   getClassMembers: (id: number) => Promise<ClassMemberDto[] | null>;
 
   createNotification: (payload: {
@@ -195,18 +197,18 @@ export interface ClassState {
     links?: LinkPayload[];
   }) => Promise<ClassNotification | null>;
   addComment: (payload: {
-    notificationId: number|string;
+    notificationId: number | string;
     userId: string;
     content: string;
   }) => Promise<PostComment | null>;
   deleteNotification: (notificationId: number | string) => Promise<boolean>;
   inviteMembers: (classId: number, emails: string[], role?: string) => Promise<any | null>;
   getClassWorks: (classId: number) => Promise<ClassWork[] | null>;
-   createClasswork: (payload: { classId: number; title: string; description?: string; deadline?: string }) => Promise<ClassWork | null>;
+  createClasswork: (payload: { classId: number; title: string; description?: string; deadline?: string }) => Promise<ClassWork | null>;
   editClasswork: (payload: { id: number; classId: number; title: string; description?: string; deadline?: string }) => Promise<ClassWork | null>;
-  submitClasswork: (classworkId: number, appUserId: string, files: File[],links?: LinkPayload[]) => Promise<any | null>;
+  submitClasswork: (classworkId: number, appUserId: string, files: File[], links?: LinkPayload[]) => Promise<any | null>;
   getClassworkSubmissions: (classworkId: number) => Promise<ClassworkSubmission[] | null>;
-
+  getClassworkDetail: (classworkId: number) => Promise<ClassWork | null>;
   getSubmissionByUserAndClasswork: (classworkId: number, appUserId: string) => Promise<ClassworkSubmission | null>;
   
   gradeSubmission: (
@@ -216,16 +218,17 @@ export interface ClassState {
     feedback?: string,
     gradedBy?: string
   ) => Promise<{
-    raw: any; success: boolean; message?: string 
-} | null>;
+    raw: any; success: boolean; message?: string
+  } | null>;
 
   getSubmissionCount: (classworkId: number) => Promise<number | null>;
 
-  getMemberCount:  (classId: number)=> Promise<number | null>;
-  getClassworkDetail: (classworkId: number) => Promise<ClassWork | null>;
+  getMemberCount: (classId: number) => Promise<number | null>;
 
   getDocumentsByClassId?: (classId: number) => Promise<DocumentDto[] | null>;
 
   confirmMember: (classId: number, userId: string) => Promise<boolean>;
   declineMember: (classId: number, userId: string) => Promise<boolean>;
+  getClassExams: (classId: number) => Promise<Exam[]>;
+  getUnreadCount: (classId: number, type?: string, userId?: string) => Promise<number>;
 }

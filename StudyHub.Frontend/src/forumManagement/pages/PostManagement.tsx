@@ -66,8 +66,6 @@ const PostManagement = () => {
     currentPost,
     getPostById,
     getComments,
-    joinPost,
-    leavePost,
     isLoading,
   } = useForumStore();
 
@@ -92,12 +90,8 @@ const PostManagement = () => {
     if (selectedPostId) {
       getPostById(selectedPostId);
       getComments(selectedPostId);
-      joinPost(selectedPostId);
     }
-    return () => {
-      if (selectedPostId) leavePost(selectedPostId);
-    };
-  }, [selectedPostId, getPostById, getComments, joinPost, leavePost]);
+  }, [selectedPostId, getPostById, getComments]);
 
   useEffect(() => {
     documentService.getSubjects().then(setSubjects);

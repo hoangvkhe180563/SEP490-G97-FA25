@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos.ExamDTOS;
+using StudyHub.Backend.Api.Dtos.QuestionDTOS;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.Domain.Entities.Exam;
 using StudyHub.Backend.UseCases.Services;
-using System.Text.Json;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -117,11 +117,6 @@ namespace StudyHub.Backend.Api.Controllers
             {
                 return BadRequest("Phải có class id hoặc lesson id!");
             }
-            List<string> questionTypes = ["single-choice", "multiple-choice", "text-input", "fill-blank", "matching"];
-            if (!examDto.Questions.All(q => questionTypes.Contains(q.Type)))
-            {
-                return BadRequest("Các câu hỏi phải có 1 trong các định dạng: single-choice, multiple-choice, text-input, fill-blank, matching.");
-            }
 
             if (!examDto.Questions.All(q => q.CorrectAnswer != null))
             {
@@ -141,10 +136,13 @@ namespace StudyHub.Backend.Api.Controllers
             }
 
             var examEntity = examDto.ToExamEntity();
-            bool isQuestionsUpdated = _service.UpdateExamQuestions(examEntity.Id, examDto.QuestionObjectIds);
-            if (!isQuestionsUpdated)
+            if (examDto.QuestionObjectIds.Count != 0)
             {
-                return Conflict("Cập nhật câu hỏi thất bại!");
+                bool isQuestionsUpdated = _service.UpdateExamQuestions(examEntity.Id, examDto.QuestionObjectIds);
+                if (!isQuestionsUpdated)
+                {
+                    return Conflict("Cập nhật câu hỏi thất bại!");
+                }
             }
 
             bool isExamUpdated = _service.UpdateExam(examEntity);
@@ -154,12 +152,6 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpPut("{examId:int}/update-questions")]
         public IActionResult UpdateExamQuestions(int examId, [FromBody] List<QuestionUpdateDto> questions)
         {
-            List<string> questionTypes = ["single-choice", "multiple-choice", "text-input", "fill-blank", "matching"];
-            if (!questions.All(q => questionTypes.Contains(q.Type)))
-            {
-                return BadRequest("Các câu hỏi phải có 1 trong các định dạng: single-choice, multiple-choice, text-input, fill-blank, matching.");
-            }
-
             if (!questions.All(q => q.CorrectAnswer != null))
             {
                 return BadRequest("Các câu hỏi phải có ít nhất 1 câu trả lời đúng!");
@@ -174,6 +166,17 @@ namespace StudyHub.Backend.Api.Controllers
         {
             var courseId = _service.GetCourseIdByLessonId(lessonId);
             return courseId == 0 ? NotFound() : Ok(courseId);
+        }
+
+        [HttpGet("generate-random/{examId:int}")]
+        public IActionResult GenerateRandomQuestions(int examId)
+        {
+            if (examId == 0)
+            {
+                return BadRequest();
+            }
+            List<Question> questions = _service.GenerateRandomQuestions(examId);
+            return questions.Count == 0 ? NotFound() : Ok(questions.Select(q => q.ToDetailDto()));
         }
     }
 }

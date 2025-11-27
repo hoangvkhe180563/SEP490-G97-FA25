@@ -123,6 +123,12 @@ export const useAppUserStore = create<AppUserState>()(
               formData.append(`RoleIds[${i}]`, String(r))
             );
           }
+          // append subject ids if present
+          if ((dto as any).subjectIds && (dto as any).subjectIds.length > 0) {
+            (dto as any).subjectIds.forEach((s: number, i: number) =>
+              formData.append(`SubjectIds[${i}]`, String(s))
+            );
+          }
           if ((dto as any).avatarFile)
             formData.append("AvatarFile", (dto as any).avatarFile as File);
 
@@ -201,6 +207,11 @@ export const useAppUserStore = create<AppUserState>()(
           if (dto.roleIds && dto.roleIds.length > 0) {
             dto.roleIds.forEach((r, i) =>
               formData.append(`RoleIds[${i}]`, String(r))
+            );
+          }
+          if (dto.subjectIds && dto.subjectIds.length > 0) {
+            dto.subjectIds.forEach((s, i) =>
+              formData.append(`SubjectIds[${i}]`, String(s))
             );
           }
           // include date of birth when provided (ISO yyyy-MM-dd expected)

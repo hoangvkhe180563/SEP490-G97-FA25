@@ -62,7 +62,32 @@ namespace StudyHub.Backend.Api.Controllers
             var results = await _service.InviteByEmailsAsync(classId, request.Emails, request.Role, request.Message, baseFrontendUrl);
             return Ok(new { success = true, message = "Đã gửi lời mời.", data = results });
         }
+        [HttpPost("invite-excel")]
+        public async Task<IActionResult> InviteExcel(int classId, IFormFile file, [FromForm] string role = "Student", [FromForm] string? message = null)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { success = false, message = "Cần cung cấp file Excel." });
 
+            var cls = _classService.GetClassById(classId);
+            if (cls == null) return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
+
+            var baseFrontendUrl = _config["App:BaseUrl"]?.TrimEnd('/') ?? $"{Request.Scheme}://{Request.Host}";
+
+            try
+            {
+                var results = await _service.InviteByExcelAsync(classId, file, role ?? "Student", message, baseFrontendUrl);
+                return Ok(new { success = true, message = "Đã gửi lời mời từ file.", data = results });
+            }
+            catch (ArgumentException aex)
+            {
+                return BadRequest(new { success = false, message = aex.Message });
+            }
+            catch (Exception ex)
+            {
+                // log if needed
+                return StatusCode(500, new { success = false, message = $"Lỗi server: {ex.Message}" });
+            }
+        }
         [HttpPost("{userId}/confirm")]
         public IActionResult Confirm(int classId, string userId)
         {

@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using StudyHub.Backend.Api.Dtos.ClassDTOS;
 using StudyHub.Backend.Api.Dtos.ClassworkDTOS;
+using StudyHub.Backend.Api.Hubs;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.Api.Services;
 using StudyHub.Backend.Domain.Entities;
@@ -9,6 +11,7 @@ using StudyHub.Backend.UseCases.Services;
 using StudyHub.Backend.UseCases.Utils;
 using System;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -20,15 +23,17 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly ClassNotificationService _service;
         private readonly AppUserService _aUserService;
         private readonly ICloudinaryRepository _fileStorage;
-
+        private readonly IHubContext<ClassNotificationHub> _hubContext;
         public ClassNotificationController(
             ClassNotificationService service,
             AppUserService aUserService,
-            ICloudinaryRepository fileStorage)
+            ICloudinaryRepository fileStorage,
+            IHubContext<ClassNotificationHub> hubContext)
         {
             _service = service;
             _aUserService = aUserService;
             _fileStorage = fileStorage;
+            _hubContext = hubContext;
         }
 
         //
@@ -59,7 +64,7 @@ namespace StudyHub.Backend.Api.Controllers
                     return BadRequest(new { success = false, message = "ClassId không hợp lệ." });
 
                 var notificationEntity = new ClassNotification
-                {
+                {   
                     ClassId = dto.ClassId,
                     Type = dto.Type ?? "notification",
                     Title = dto.Title.Trim(),
@@ -107,14 +112,51 @@ namespace StudyHub.Backend.Api.Controllers
                         }
                     }
                 }
+                // If files provided, upload and persist file records
+                if (dto.Links != null && dto.Links.Any())
+                {
+                    foreach (var link in dto.Links)
+                    {
+                        if (link == null ) continue;
+                        try
+                        {
+                                var fileEntity = new ClassNotificationFile
+                                {
+                                    NotificationId = createdNoti.Id,
+                                    FileName = link.Title,
+                                    FileUrl = link.Url,
+                                    ThumbnailUrl = null,
+                                };
+                                _service.CreateNotificationFile(fileEntity);
+                        }
+                        catch
+                        {
+                            // ignore file upload failures for other files
+                        }
+                    }
+                }
 
-                // If links JSON provided, the frontend usually sends LinksJson => you can store as files or in a links table.
-                // For now we ignore LinksJson or you can extend ClassNotification to store LinksJson if needed.
-
-                // reload files/comments for response if desired
                 var files = _service.GetFilesByNotification(createdNoti.Id);
                 var response = createdNoti.ToNotificationDto(_aUserService.GetUserById(createdNoti.AppUserId), files.Select(f => f.ToFileDto()).ToList(), null);
+                try
+                {
+                    await _hubContext.Clients.Group($"class_{createdNoti.ClassId}")
+                        .SendAsync("NewNotification", createdNoti.ClassId, createdNoti.Title);
 
+                    try
+                    {
+                        await _hubContext.Clients.Group($"class_{createdNoti.ClassId}")
+                            .SendAsync("NewNotificationFull", response);
+                    }
+                    catch
+                    {
+                        // ignore if full payload fails
+                    }
+                }
+                catch
+                {
+                    // ignore hub broadcast failures to not break the API flow
+                }
                 return Ok(new { success = true, message = "Tạo thông báo thành công.", data = response });
             }
             catch (ArgumentException aex)
@@ -200,30 +242,125 @@ namespace StudyHub.Backend.Api.Controllers
                     description = n.Description,
                     deadline = n.Deadline,
                     maxScore = n.MaxScore,
-                    allowSubmission = n.AllowSubmission
+                    allowSubmission = n.AllowSubmission,
+                    files= _service.GetFilesByNotification(n.Id)
                 })
                 .ToList();
 
             return Ok(new { success = true, message = "Danh sách classworks.", classes = classworks });
         }
 
-       
+
 
         // Edit classwork (old route)
         [HttpPut("/api/Classwork/{id}")]
-        public IActionResult EditClasswork(int id, [FromBody] EditClassworkDto dto)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> EditClasswork(int id, [FromForm] EditClassworkDto dto)
         {
-            var noti = _service.GetNotification(id);
-            if (noti == null) return NotFound(new { success = false, message = "Không tìm thấy classwork" });
+            try
+            {
+                var noti = _service.GetNotification(id);
+                if (noti == null) return NotFound(new { success = false, message = "Không tìm thấy classwork" });
 
-            if (!string.IsNullOrWhiteSpace(dto.Title)) noti.Title = dto.Title;
-            noti.Description = dto.Description;
-            noti.Deadline = dto.Deadline;
-            noti.UpdatedAt = DateTime.UtcNow;
+                // Update scalar fields if provided
+                if (!string.IsNullOrWhiteSpace(dto.Title)) noti.Title = dto.Title.Trim();
+                noti.Description = dto.Description ?? noti.Description;
+                noti.Deadline = dto.Deadline ?? noti.Deadline;
+                noti.UpdatedAt = DateTime.UtcNow;
 
-            var res = _service.EditNotification(noti);
-            if (res == null) return StatusCode(500, new { success = false, message = "Cập nhật thất bại" });
-            return Ok(new { success = true, message = "Đã update", data = res });
+                // New/updated fields requested
+                if (dto.MaxScore.HasValue) noti.MaxScore = dto.MaxScore.Value;
+                if (!string.IsNullOrWhiteSpace(dto.GradeType)) noti.GradeType = dto.GradeType;
+                // AllowSubmission is a bool (non-nullable) in DTO — update directly
+                noti.AllowSubmission = dto.AllowSubmission;
+                if (!string.IsNullOrWhiteSpace(dto.InstructionsHtml)) noti.InstructionsHtml = dto.InstructionsHtml;
+
+                // Persist base notification changes
+                var res = _service.EditNotification(noti);
+                if (res == null) return StatusCode(500, new { success = false, message = "Cập nhật thất bại" });
+
+                // Handle uploaded files (if any)
+                if (dto.Files != null && dto.Files.Any())
+                {
+                    foreach (var formFile in dto.Files)
+                    {
+                        if (formFile == null || formFile.Length == 0) continue;
+                        try
+                        {
+                            var uploadedUrl = await _fileStorage.UploadFileAsync(formFile, FileConstants.ClassNotificationUploadPAth);
+                            if (!string.IsNullOrWhiteSpace(uploadedUrl))
+                            {
+                                var fileEntity = new ClassNotificationFile
+                                {
+                                    NotificationId = res.Id,
+                                    FileName = formFile.FileName,
+                                    FileUrl = uploadedUrl,
+                                    ThumbnailUrl = null,
+                                    FileType = formFile.ContentType
+                                };
+                                _service.CreateNotificationFile(fileEntity);
+                            }
+                        }
+                        catch
+                        {
+                            // ignore file upload failure for this file and continue with others
+                        }
+                    }
+                }
+
+                // Handle link attachments (Links property already parses LinksJson via DTO)
+                if (dto.Links != null && dto.Links.Any())
+                {
+                    foreach (var link in dto.Links)
+                    {
+                        if (link == null) continue;
+                        try
+                        {
+                            var fileEntity = new ClassNotificationFile
+                            {
+                                NotificationId = res.Id,
+                                FileName = link.Title,
+                                FileUrl = link.Url,
+                                ThumbnailUrl = null,
+                                FileType = null
+                            };
+                            _service.CreateNotificationFile(fileEntity);
+                        }
+                        catch
+                        {
+                            // ignore link persistence failure
+                        }
+                    }
+                }
+
+                // Re-read files for response
+                var files = _service.GetFilesByNotification(res.Id);
+                var response = res.ToNotificationDto(_aUserService.GetUserById(res.AppUserId), files.Select(f => f.ToFileDto()).ToList(), null);
+
+                // Notify clients about the update (best-effort)
+                try
+                {
+                    await _hubContext.Clients.Group($"class_{res.ClassId}")
+                        .SendAsync("UpdatedNotification", response);
+                    // Optionally also send a lightweight signal
+                    await _hubContext.Clients.Group($"class_{res.ClassId}")
+                        .SendAsync("NewNotification", res.ClassId, res.Title);
+                }
+                catch
+                {
+                    // ignore hub failures
+                }
+
+                return Ok(new { success = true, message = "Đã update", data = response });
+            }
+            catch (ArgumentException aex)
+            {
+                return BadRequest(new { success = false, message = aex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = $"Lỗi server: {ex.Message}", error = ex.ToString() });
+            }
         }
 
         // Get detail (classwork detail + submissions) - old route
@@ -274,9 +411,27 @@ namespace StudyHub.Backend.Api.Controllers
             if (submit == null) return NotFound(new { success = false, message = "Không tìm thấy submission" });
 
             var files = _service.GetSubmissionFiles(submit.Id);
-            return Ok(new { success = true, data = submit.ToSubmissionDto(files) });
+            Guid gradeby = submit.GradedBy?? Guid.Empty;
+            var user = _aUserService.GetUserById(gradeby);
+            return Ok(new { success = true, data = submit.ToSubmissionDto(files,user) });
         }
+        [HttpGet("/api/Classwork/{classworkId}/submissions")]
+        public IActionResult GetSubmissionsByClassworkID( int classworkId)
+        {
+            var submit = _service.GetSubmissionsByNotificationId(classworkId);
+            if (submit == null) return NotFound(new { success = false, message = "Không tìm thấy submission" });
+            List<SubmissionFileDto> result=new List<SubmissionFileDto>();
+            foreach(NotificationSubmission sub in submit)
+            {
+                var files = _service.GetSubmissionFiles(sub.Id);
+                Guid gradeby = sub.GradedBy ?? Guid.Empty;
+                var user = _aUserService.GetUserById(gradeby);
+                result.Add(sub.ToSubmissionDto(files, user));
 
+            }
+           
+            return Ok(new { success = true, data = result });
+        }
         [HttpGet("/api/Classwork/submissioncount/{classworkID}")]
         public IActionResult GetSubmissionCount(int classworkID)
         {
@@ -315,13 +470,32 @@ namespace StudyHub.Backend.Api.Controllers
                 // Optionally return updated submission for frontend convenience
                 var refreshed = _service.GetSubmissionsByNotificationId(notificationId).FirstOrDefault(s => s.Id == submissionId);
                 var files = refreshed != null ? _service.GetSubmissionFiles(refreshed.Id) : new System.Collections.Generic.List<SubmissionFile>();
-                var submissionDto = refreshed?.ToSubmissionDto(files);
+                var submissionDto = refreshed?.ToSubmissionDto(files,null);
 
                 return Ok(new { success = true, message = "Chấm điểm thành công.", data = submissionDto });
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { success = false, message = $"Lỗi khi chấm điểm: {ex.Message}", error = ex.ToString() });
+            }
+        }
+        [HttpGet("class/{classId}/unread-count")]
+        public IActionResult GetUnreadCount(int classId, [FromQuery] Guid userId, [FromQuery] string? type = null)
+        {
+            try
+            {
+               
+
+                var typeArg = type ?? string.Empty;
+
+                // Gọi service
+                var total = _service.GetTotalUnreadNotifications(classId, userId, typeArg);
+
+                return Ok(new { success = true, data = new { classId = classId, unread = total } });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Lỗi server khi lấy số thông báo chưa đọc.", error = ex.Message });
             }
         }
 

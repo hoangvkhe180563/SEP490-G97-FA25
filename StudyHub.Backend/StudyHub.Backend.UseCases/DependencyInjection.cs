@@ -34,6 +34,7 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<QAConversationService>();
             services.AddScoped<QAConversationReadService>();
             services.AddScoped<QAMessageService>();
+            services.AddScoped<QAConversationFileService>();
             services.AddScoped<AccountRecoveryService>();
             services.AddScoped<StatisticsService>();
             services.AddScoped<ExamService>();
@@ -45,7 +46,7 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<IImageModerationService, ImageDectectService>();
             services.AddScoped<ExamService>();
             services.AddScoped<SubscriptionService>();
-
+            services.AddScoped<QuestionService>();
 
             return services;
         }

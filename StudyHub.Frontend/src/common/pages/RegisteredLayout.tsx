@@ -6,9 +6,10 @@ import {
 import { Outlet } from "react-router-dom";
 import type { AppUser } from "@/auth/interfaces/app-user";
 import { useEffect, useState } from "react";
-import { studentSidebarItems, schoolStudentSidebarItems, teacherSidebarItems, headOfDepartmentTeacherSidebarItems as headTeacherSidebarItems, qAndATeacherSidebarItems, documentManagerSidebarItems, financialManagerSidebarItems, uiManagerSidebarItems, questionManagerSidebarItems, moderatorSidebarItems, schoolAdminSidebarItems } from "../constants/SidebarItems";
+import { studentSidebarItems, schoolStudentSidebarItems, teacherSidebarItems, headOfDepartmentTeacherSidebarItems as headTeacherSidebarItems, qAndATeacherSidebarItems, documentManagerSidebarItems, financialManagerSidebarItems, questionManagerSidebarItems, moderatorSidebarItems, schoolAdminSidebarItems } from "../constants/SidebarItems";
 import { ROLES } from "../constants/Roles";
 import type { ISidebarItem } from "../interfaces/IMainLayoutProps";
+import { LayoutDashboard, Settings } from "lucide-react";
 
 interface IRegisteredLayoutProps {
   user: AppUser | null
@@ -47,7 +48,25 @@ const RegisteredLayout = (props: IRegisteredLayoutProps) => {
         allSidebarItems.push(...financialManagerSidebarItems);
       }
       if (role === ROLES.UI_MANAGER) {
-        allSidebarItems.push(...uiManagerSidebarItems);
+        const schoolId = props.user?.schoolId;
+        const uiSidebarItems = [{
+          icon: <LayoutDashboard size={20} />,
+          text: "Trang chủ",
+          link: "/",
+          children: [
+            {
+              icon: <LayoutDashboard size={20} />,
+              text: "Xem giao diện",
+              link: `/ui/${schoolId}/landing`
+            },
+            {
+              icon: <Settings size={20} />,
+              text: "Sửa giao diện",
+              link: `/ui/${schoolId}/landing/edit`
+            }
+          ]
+        }]
+        allSidebarItems.push(...uiSidebarItems);
       }
       if (role === ROLES.QUESTION_MANAGER) {
         allSidebarItems.push(...questionManagerSidebarItems)

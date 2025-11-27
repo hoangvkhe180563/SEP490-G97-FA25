@@ -38,6 +38,9 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
   const { user } = useAuthStore();
   const currentUserId = user?.id ?? "";
 
+  // toast state
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
   useEffect(() => {
     if (open) {
       getAllSubjects?.();
@@ -63,14 +66,23 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
     if (!classItem) return;
     if (!valid) return;
 
-    await updateClass({
-      id: classItem.id,
-      title: title.trim(),
-      description: description.trim(),
-      updateBy: currentUserId,
-    });
+    try {
+      await updateClass({
+        id: classItem.id,
+        title: title.trim(),
+        description: description.trim(),
+        updateBy: currentUserId,
+      });
 
-    onClose();
+      // show success toast and then close modal after short delay
+      setSuccessMsg("Cập nhật lớp thành công");
+      setTimeout(() => {
+        setSuccessMsg(null);
+        onClose();
+      }, 1500);
+    } catch (err) {
+      console.error("EditClassModal updateClass error:", err);
+    }
   };
 
   return (
@@ -81,7 +93,9 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
             <div className="flex items-center justify-between">
               <DialogTitle>Chỉnh sửa lớp học</DialogTitle>
               <DialogClose asChild>
-                
+                <button aria-label="Close" className="p-1 rounded hover:bg-slate-100">
+                  <X className="w-4 h-4" />
+                </button>
               </DialogClose>
             </div>
             <DialogDescription className="text-sm text-slate-500">
@@ -124,6 +138,17 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {/* Success toast */}
+      {successMsg && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed right-6 top-6 z-[60] bg-white border px-4 py-2 rounded shadow-md text-sm text-green-700"
+        >
+          {successMsg}
+        </div>
+      )}
     </Dialog>
   );
 };

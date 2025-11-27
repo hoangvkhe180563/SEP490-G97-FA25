@@ -22,7 +22,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             return _context.ClassNotifications
                 .Where(n => n.ClassId == classId && n.DeletedAt == null)
-                .OrderBy(n => n.CreatedAt)
+                .OrderByDescending(n => n.CreatedAt)
                 .Select(n => new ClassNotification
                 {
                     Id = n.Id,
@@ -356,6 +356,32 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
             return classEntity.Count();
         }
+        public int GetTotalUnreadNotifications(int classID, Guid userID, string type)
+        {
+            var query = _context.ClassNotifications
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (classID > 0)
+            {
+                query = query.Where(n => n.ClassId == classID);
+            }
+
+            if (!string.IsNullOrWhiteSpace(type))
+            {
+                query = query.Where(n => n.Type == type);
+            }
+
+            query = query.Where(n => n.DeletedAt == null);
+
+           
+            var unreadCount = query.Count(n =>
+                !_context.ClassNotificationReadStatuses
+                    .Any(r => r.NotificationId == n.Id && r.AppUserId == userID && r.IsRead));
+
+            return unreadCount;
+        }
+
 
         public int GetMemberClassCount(int classID)
         {

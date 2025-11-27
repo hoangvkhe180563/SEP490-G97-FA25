@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 import React, { useState, useEffect, useRef } from "react";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 import { useNavigate, useParams } from "react-router-dom";
@@ -17,11 +18,15 @@ import { formatISO } from "date-fns";
 
 type LinkItem = { title: string; url: string };
 
+// FilePreview supports both newly selected files (file present) and existing remote files (existing=true)
 type FilePreview = {
   id: string;
-  file: File;
-  url?: string; // object URL for images
+  file?: File;
+  url?: string; // object URL for images or remote URL
   type: "image" | "pdf" | "other";
+  existing?: boolean;
+  fileId?: number | string; // id from server when existing
+  fileName?: string; // for existing entries
 };
 
 const AddEditClassworkForm: React.FC = () => {
@@ -39,7 +44,6 @@ const AddEditClassworkForm: React.FC = () => {
     getClassWorks,
     getClassInfo,
     currentClass,
-    getSubmissionByUserAndClasswork,
   } = useClassStore();
   const navigate = useNavigate();
 
@@ -56,6 +60,9 @@ const AddEditClassworkForm: React.FC = () => {
   const [filePreviews, setFilePreviews] = useState<FilePreview[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // to track which existing remote file ids user removed in the UI (server-side deletion optional)
+  const [removedExistingFileIds, setRemovedExistingFileIds] = useState<(number | string)[]>([]);
+
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [linkTitle, setLinkTitle] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
@@ -69,7 +76,23 @@ const AddEditClassworkForm: React.FC = () => {
     }
   }, [role, id, navigate]);
 
-  // when editing, prefill fields from store.currentClass.works if present
+  // helper: detect type from File or filename/url
+  const detectFileType = (fileOrName: File | string | undefined): FilePreview["type"] => {
+    if (!fileOrName) return "other";
+    const t = typeof fileOrName === "string" ? "" : fileOrName.type ?? "";
+    if (typeof fileOrName === "string") {
+      const lower = fileOrName.toLowerCase();
+      if (/\.(png|jpe?g|gif|webp|bmp|svg)$/.test(lower)) return "image";
+      if (/\.pdf$/.test(lower)) return "pdf";
+      return "other";
+    } else {
+      if (/image\/(jpeg|png|webp|gif|bmp|svg)/i.test(t)) return "image";
+      if (/pdf/i.test(t) || (fileOrName.name && fileOrName.name.toLowerCase().endsWith(".pdf"))) return "pdf";
+      return "other";
+    }
+  };
+
+  // when editing, prefill fields from store.currentClass.works if present, including existing files/links
   useEffect(() => {
     if (isEdit && params.classworkId && currentClass?.data?.works) {
       const cw = currentClass.data.works.find(
@@ -82,7 +105,7 @@ const AddEditClassworkForm: React.FC = () => {
         if (cw.deadline) {
           const d = new Date(cw.deadline);
           const tzOffset = d.getTimezoneOffset() * 60000;
-          const localISO = formatISO(new Date(d.getTime() - tzOffset)) .slice(0, -1);
+          const localISO = formatISO(new Date(d.getTime() - tzOffset)).slice(0, -1);
           setDeadline(localISO.slice(0, 16));
         } else {
           setDeadline("");
@@ -90,8 +113,37 @@ const AddEditClassworkForm: React.FC = () => {
         setMaxScore((cw as any).maxScore ?? (cw as any).max_score ?? "");
         setGradeType((cw as any).gradeType ?? "points");
         setAllowSubmission((cw as any).allowSubmission ?? true);
+
+        // Prefill links if present on cw
+        const existingLinks: any[] =
+          (cw.links ?? (cw as any).linkDtos ?? (cw as any).linkDto ?? (cw as any).raw?.links ?? (cw as any).raw?.linkDtos) || [];
+        const normLinks = existingLinks.map((l: any) => ({
+          title: l.title ?? l.name ?? l.fileName ?? l.url ?? "",
+          url: l.url ?? l.link ?? l.fileUrl ?? "",
+        })).filter((x: LinkItem) => !!x.url);
+        setLinks(normLinks);
+
+        // Prefill existing files if available (cw.files or cw.raw.files)
+        const existingFiles = (cw.files ?? (cw as any).raw?.files ?? (cw as any).submissionFiles ?? []) as any[];
+        const existingPreviews: FilePreview[] = (existingFiles || []).map((f: any) => {
+          const url = f.fileUrl ?? f.url ?? f.file_url ?? f.urlPath ?? null;
+          const name = f.fileName ?? f.name ?? f.file_name ?? "file";
+          const type = detectFileType(name);
+          return {
+            id: `existing-${f.id ?? Math.random().toString(36).slice(2,8)}`,
+            url: url ?? undefined,
+            type,
+            existing: true,
+            fileId: f.id,
+            fileName: name,
+          } as FilePreview;
+        });
+        if (existingPreviews.length > 0) {
+          setFilePreviews((prev) => [...existingPreviews, ...prev]);
+        }
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, params.classworkId, currentClass?.data?.works]);
 
   useEffect(() => {
@@ -102,7 +154,7 @@ const AddEditClassworkForm: React.FC = () => {
   useEffect(() => {
     return () => {
       filePreviews.forEach((p) => {
-        if (p.url) URL.revokeObjectURL(p.url);
+        if (p.url && !p.existing) URL.revokeObjectURL(p.url);
       });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -151,53 +203,35 @@ const AddEditClassworkForm: React.FC = () => {
         return;
       }
 
-      // If editing -> try legacy edit route for classwork (keeps compatibility)
+      // If editing -> use store.editClasswork which expects a payload with files array (Files only new files)
       if (isEdit && params.classworkId) {
-        const putBody: any = {
+        const payload: any = {
+          id: Number(params.classworkId),
           classId: Number(id),
           title: title.trim(),
           description: description?.trim() ?? "",
-          deadline: deadline ? formatISO(new Date(deadline))  : null,
+          deadline: deadline ? formatISO(new Date(deadline)) : null,
           maxScore: maxScore === "" ? null : Number(maxScore),
           gradeType: gradeType ?? null,
           allowSubmission: !!allowSubmission,
           instructionsHtml: instructionsHtml ?? null,
+          // Include only newly selected files (existing remote files are already on server)
+          files: filePreviews.filter((p) => !p.existing && p.file).map((p) => p.file) as File[] | undefined,
           links: links.length > 0 ? links : undefined,
+          // include removedExistingFileIds so server may remove them if supported
+          removedFileIds: removedExistingFileIds.length > 0 ? removedExistingFileIds : undefined,
         };
 
-        const putEndpoints = [
-          `/api/ClassNotification/${encodeURIComponent(params.classworkId)}`,
-          `/ClassNotification/${encodeURIComponent(params.classworkId)}`,
-          `/api/Classwork/${encodeURIComponent(params.classworkId)}`,
-          `/Classwork/${encodeURIComponent(params.classworkId)}`,
-        ];
-
-        let putRes: any = null;
-        let lastPutErr: any = null;
-        for (const ep of putEndpoints) {
-          try {
-            putRes = await axiosInstance.put(ep, putBody, {
-              headers: { "Content-Type": "application/json" },
-            });
-            break;
-          } catch (err: any) {
-            lastPutErr = err;
-            if (err?.response?.status === 404) continue;
-            if (err?.response) break;
-          }
+        const edited = await editClasswork(payload);
+        if (!edited) {
+          alert("Không thể cập nhật bài tập");
+          setLoading(false);
+          return;
         }
 
-        if (!putRes) {
-          const msg =
-            lastPutErr?.response?.data?.message ??
-            lastPutErr?.message ??
-            "Không thể cập nhật bài tập";
-          alert(msg);
-        } else {
-          await getClassWorks(Number(id));
-          await getClassInfo(Number(id));
-          navigate(`/class/${role}/${id}?tab=exercise`);
-        }
+        await getClassWorks(Number(id));
+        await getClassInfo(Number(id));
+        navigate(`/class/${role}/${id}?tab=exercise`);
         setLoading(false);
         return;
       }
@@ -215,10 +249,10 @@ const AddEditClassworkForm: React.FC = () => {
       fd.append("AllowSubmission", String(allowSubmission));
       if (instructionsHtml) fd.append("InstructionsHtml", instructionsHtml);
 
-      // append files from filePreviews
+      // append files from filePreviews but only newly selected files (existing ones are remote)
       if (filePreviews.length > 0) {
         filePreviews.forEach((p) => {
-          fd.append("Files", p.file, p.file.name);
+          if (!p.existing && p.file) fd.append("Files", p.file, p.file.name);
         });
       }
 
@@ -248,16 +282,7 @@ const AddEditClassworkForm: React.FC = () => {
     }
   };
 
-  const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
-
   // --- File selection like notification: click or drag-and-drop, thumbnails, remove ---
-  const detectFileType = (file: File): FilePreview["type"] => {
-    const t = file.type ?? "";
-    if (/image\/(jpeg|png|webp|gif|bmp)/i.test(t)) return "image";
-    if (/pdf/i.test(t) || file.name.toLowerCase().endsWith(".pdf")) return "pdf";
-    return "other";
-  };
-
   const handleFiles = (files: File[]) => {
     const next: FilePreview[] = files.map((f) => {
       const tp = detectFileType(f);
@@ -278,7 +303,6 @@ const AddEditClassworkForm: React.FC = () => {
   };
 
   const openFileDialog = () => {
-    // Programmatically open file chooser to avoid label/click issues with custom Button components
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
@@ -297,10 +321,18 @@ const AddEditClassworkForm: React.FC = () => {
   const removeFile = (id: string) => {
     setFilePreviews((prev) => {
       const toRemove = prev.find((p) => p.id === id);
-      if (toRemove && toRemove.url) {
-        URL.revokeObjectURL(toRemove.url);
+      if (!toRemove) return prev;
+      if (toRemove.existing) {
+        // mark existing server-side file id for removal (server must support this)
+        if (toRemove.fileId !== undefined) {
+          setRemovedExistingFileIds((s) => [...s, toRemove.fileId as number | string]);
+        }
+        return prev.filter((p) => p.id !== id);
+      } else {
+        // revoke object URL for newly added file
+        if (toRemove.url) URL.revokeObjectURL(toRemove.url);
+        return prev.filter((p) => p.id !== id);
       }
-      return prev.filter((p) => p.id !== id);
     });
   };
 
@@ -327,6 +359,8 @@ const AddEditClassworkForm: React.FC = () => {
   const removeLink = (index: number) => {
     setLinks((prev) => prev.filter((_, i) => i !== index));
   };
+
+  const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
 
   return (
     <div className="p-8">
@@ -360,7 +394,10 @@ const AddEditClassworkForm: React.FC = () => {
         <div className="col-span-12 lg:col-span-8">
           <Card className="p-6 mb-4">
             <div className="mb-4">
-              <Label>Tiêu đề*</Label>
+              <Label>
+                Tiêu đề
+                <span className="text-red-600 ml-1">*</span>
+              </Label>
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -401,7 +438,6 @@ const AddEditClassworkForm: React.FC = () => {
                       onChange={handleFilesChange}
                       className="hidden"
                     />
-                    {/* Use programmatic click to ensure file chooser opens even if Button is custom */}
                     <Button size="sm" onClick={openFileDialog}>
                       Chọn tệp
                     </Button>
@@ -414,7 +450,7 @@ const AddEditClassworkForm: React.FC = () => {
                       <div key={p.id} className="bg-white border rounded p-2 flex items-start gap-2">
                         <div className="w-16 h-16 flex items-center justify-center bg-slate-100 rounded overflow-hidden shrink-0">
                           {p.type === "image" && p.url ? (
-                            <img src={p.url} alt={p.file.name} className="w-full h-full object-cover" />
+                            <img src={p.url} alt={p.fileName ?? p.file?.name} className="w-full h-full object-cover" />
                           ) : p.type === "pdf" ? (
                             <div className="text-slate-600 text-lg">📄 PDF</div>
                           ) : (
@@ -422,24 +458,24 @@ const AddEditClassworkForm: React.FC = () => {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">{p.file.name}</div>
+                          <div className="font-medium text-sm truncate">{p.existing ? (p.fileName ?? "file") : p.file?.name}</div>
                           <div className="text-xs text-slate-400 mt-1">
-                            {(p.file.size / 1024).toFixed(0)} KB
+                            {p.existing ? "" : p.file ? `${(p.file.size / 1024).toFixed(0)} KB` : ""}
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                          <a
-                            href={p.url ?? "#"}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => {
-                              // if preview exists (image) open object URL; otherwise prevent default (no direct URL)
-                              if (!p.url) e.preventDefault();
-                            }}
-                            className="text-xs text-blue-600 hover:underline"
-                          >
-                            Xem
-                          </a>
+                          {p.url ? (
+                            <a
+                              href={p.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-blue-600 hover:underline"
+                            >
+                              Xem
+                            </a>
+                          ) : (
+                            <div className="text-xs text-slate-400">—</div>
+                          )}
                           <Button size="sm" variant="ghost" onClick={() => removeFile(p.id)}>
                             Xóa
                           </Button>
@@ -501,7 +537,9 @@ const AddEditClassworkForm: React.FC = () => {
           {/* Sidebar: assignment-specific fields */}
           <Card className="p-5 space-y-4">
             <div>
-              <Label>Hạn nộp</Label>
+              <Label>
+                Hạn nộp
+              </Label>
               <Input
                 type="datetime-local"
                 value={deadline}

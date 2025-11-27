@@ -155,7 +155,7 @@ namespace StudyHub.Backend.Api.Controllers
         {
             try
             {
-                var user = await _userService.CreateAccountAsync(req.Email, req.Password, req.Username, req.RoleIds, req.CommuneId, req.SchoolId, req.Fullname, req.Dob, req.AvatarFile, req.Gender, req.Address, req.PhoneNumber);
+                var user = await _userService.CreateAccountAsync(req.Email, req.Password, req.Username, req.RoleIds, req.CommuneId, req.SchoolId, req.Fullname, req.Dob, req.AvatarFile, req.Gender, req.Address, req.PhoneNumber, req.SubjectIds);
 
                 // map to dto
                 var roles = _roleService.GetRolesByUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
@@ -192,7 +192,7 @@ namespace StudyHub.Backend.Api.Controllers
             try
             {
 
-                var user = await _userService.EditAccountAsync(id, req.Email, req.Username, req.Fullname, req.Dob, req.CommuneId, req.Status, req.AvatarFile, req.Gender, req.RoleIds, req.SchoolId, req.Address, req.PhoneNumber);
+                var user = await _userService.EditAccountAsync(id, req.Email, req.Username, req.Fullname, req.Dob, req.CommuneId, req.Status, req.AvatarFile, req.Gender, req.RoleIds, req.SchoolId, req.Address, req.PhoneNumber, req.SubjectIds);
                 if (user == null) return NotFound(new { Success = false, Message = "Người dùng không tìm thấy" });
 
                 var roles = _roleService.GetRolesByUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();

@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/common/components/ui/select";
-import { Send, Loader2, ImagePlus, X } from "lucide-react";
+import { Trash2, Send, Loader2, ImagePlus, X } from "lucide-react";
 import { useForumStore } from "../stores/useForumStore";
 import { useForumSignalRStore } from "../stores/useForumSignalRStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
@@ -34,7 +34,15 @@ interface CommentSectionProps {
   onRefreshComments?: () => void;
   maxVisibleReplies?: number;
 }
-
+interface CommentSectionProps {
+  post: Post;
+  comments: Comment[];
+  isExpanded: boolean;
+  showSort?: boolean;
+  onRefreshComments?: () => void;
+  maxVisibleReplies?: number;
+  onImageClick?: (images: string[], index: number) => void;
+}
 const flattenComments = (comments: Comment[]): Comment[] => {
   const result: Comment[] = [];
 
@@ -59,6 +67,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   isExpanded,
   showSort = true,
   onRefreshComments,
+  onImageClick,
 }) => {
   const { user } = useAuthStore();
   const { createComment, updateComment, isLoading } = useForumStore();
@@ -69,7 +78,9 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   const [editImages, setEditImages] = useState<File[]>([]);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportTargetId, setReportTargetId] = useState<number | null>(null);
-
+  const [replyToUsernames, setReplyToUsernames] = useState<{
+    [key: number]: string;
+  }>({});
   const [visibleReplies, setVisibleReplies] = useState<{
     [key: number]: number;
   }>({});
@@ -229,8 +240,12 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   };
 
   const handleSubmitReply = async (parentCommentId: number) => {
-    const content = replyContents[parentCommentId];
+    let content = replyContents[parentCommentId];
     if (!content?.trim()) return;
+
+    if (replyToUsernames[parentCommentId]) {
+      content = `@${replyToUsernames[parentCommentId]} ${content}`;
+    }
 
     const formData = new FormData();
     formData.append("postId", post.post_id.toString());
@@ -285,7 +300,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
 
       {topLevelComments.map((comment) => {
         const isReplying = replyingTo === comment.comment_id;
-        const isEditing = editingCommentId === comment.comment_id;
+        // const isEditing = editingCommentId === comment.comment_id;
         const replies = groupedComments[comment.comment_id] || [];
 
         return (
@@ -389,7 +404,22 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                         {comment.author_name}
                       </div>
                       <p className="text-sm mt-1 break-words whitespace-pre-wrap">
-                        {comment.content}
+                        {(() => {
+                          const parts = comment.content.split(/(@\w+)/g);
+                          return parts.map((part, idx) => {
+                            if (part.startsWith("@")) {
+                              return (
+                                <span
+                                  key={idx}
+                                  className="font-bold italic text-sky-600"
+                                >
+                                  {part}{" "}
+                                </span>
+                              );
+                            }
+                            return part;
+                          });
+                        })()}
                       </p>
                     </div>
                     {comment.image_urls && (
@@ -405,6 +435,12 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                               className="max-w-[200px] max-h-[200px] rounded object-cover cursor-pointer hover:opacity-90 transition-opacity"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                if (onImageClick) {
+                                  const imgs = comment.image_urls
+                                    .split(",")
+                                    .filter((url: string) => url.trim());
+                                  onImageClick(imgs, idx);
+                                }
                               }}
                             />
                           ))}
@@ -423,10 +459,14 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                       setReplyingTo(
                         isCurrentlyReplying ? null : comment.comment_id
                       );
-                      if (!isCurrentlyReplying && !comment.parent_comment_id) {
+                      if (!isCurrentlyReplying) {
                         setReplyContents({
                           ...replyContents,
                           [comment.comment_id]: "",
+                        });
+                        setReplyToUsernames({
+                          ...replyToUsernames,
+                          [comment.comment_id]: comment.author_name,
                         });
                       }
                     }}
@@ -466,6 +506,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                             }}
                             className="text-red-600"
                           >
+                            <Trash2 className="w-4 h-4 mr-2" />
                             <span className="font-bold">Xóa</span>
                           </DropdownMenuItem>
                         </>
@@ -493,11 +534,26 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="mb-2">
-                        <div className="text-xs text-gray-600 mb-1">
-                          <span className="font-bold italic">
-                            @{comment.author_name}
-                          </span>
-                        </div>
+                        {replyToUsernames[comment.comment_id] && (
+                          <div className="text-xs text-gray-600 mb-1 flex items-center gap-1">
+                            <span className="font-bold italic">
+                              @{replyToUsernames[comment.comment_id]}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setReplyToUsernames((prev) => {
+                                  const newState = { ...prev };
+                                  delete newState[comment.comment_id];
+                                  return newState;
+                                });
+                              }}
+                              className="text-gray-400 hover:text-red-500"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
                         <Input
                           placeholder="Viết phản hồi của bạn..."
                           className="rounded-full text-sm hover:border-sky-300 focus:border-sky-500 transition-colors"
@@ -723,20 +779,23 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                                   {reply.author_name}
                                 </div>
                                 <p className="text-xs mt-1 break-words whitespace-pre-wrap">
-                                  {reply.parent_comment_id !==
-                                    comment.comment_id && (
-                                    <span className="font-bold italic">
-                                      @
-                                      {
-                                        flatComments.find(
-                                          (c) =>
-                                            c.comment_id ===
-                                            reply.parent_comment_id
-                                        )?.author_name
-                                      }{" "}
-                                    </span>
-                                  )}
-                                  {reply.content}
+                                  {(() => {
+                                    const parts =
+                                      reply.content.split(/(@\w+)/g);
+                                    return parts.map((part, idx) => {
+                                      if (part.startsWith("@")) {
+                                        return (
+                                          <span
+                                            key={idx}
+                                            className="font-bold italic text-sky-600"
+                                          >
+                                            {part}{" "}
+                                          </span>
+                                        );
+                                      }
+                                      return part;
+                                    });
+                                  })()}
                                 </p>
                               </div>
                               {reply.image_urls && (
@@ -752,6 +811,14 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                                         className="max-w-[150px] max-h-[150px] rounded object-cover cursor-pointer hover:opacity-90 transition-opacity"
                                         onClick={(e) => {
                                           e.stopPropagation();
+                                          if (onImageClick) {
+                                            const imgs = reply.image_urls
+                                              .split(",")
+                                              .filter((url: string) =>
+                                                url.trim()
+                                              );
+                                            onImageClick(imgs, idx);
+                                          }
                                         }}
                                       />
                                     ))}
@@ -768,6 +835,10 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                                 setReplyContents({
                                   ...replyContents,
                                   [reply.comment_id]: "",
+                                });
+                                setReplyToUsernames({
+                                  ...replyToUsernames,
+                                  [reply.comment_id]: reply.author_name,
                                 });
                               }}
                               onDoubleClick={(e) => e.stopPropagation()}
@@ -814,6 +885,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                                       }}
                                       className="text-red-600"
                                     >
+                                      <Trash2 className="w-4 h-4 mr-2" />
                                       <span className="font-bold">Xóa</span>
                                     </DropdownMenuItem>
                                   </>
@@ -831,7 +903,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
-
                           {replyingTo === reply.comment_id && (
                             <div className="flex gap-2 mt-3 animate-in slide-in-from-top-2 duration-200">
                               <Avatar className="w-8 h-8 flex-shrink-0">
@@ -843,11 +914,26 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                               </Avatar>
                               <div className="flex-1 min-w-0">
                                 <div className="mb-2">
-                                  <div className="text-xs text-gray-600 mb-1">
-                                    <span className="font-bold italic">
-                                      @{reply.author_name}
-                                    </span>
-                                  </div>
+                                  {replyToUsernames[reply.comment_id] && (
+                                    <div className="text-xs text-gray-600 mb-1 flex items-center gap-1">
+                                      <span className="font-bold italic">
+                                        @{replyToUsernames[reply.comment_id]}
+                                      </span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setReplyToUsernames((prev) => {
+                                            const newState = { ...prev };
+                                            delete newState[reply.comment_id];
+                                            return newState;
+                                          });
+                                        }}
+                                        className="text-gray-400 hover:text-red-500"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  )}
                                   <Input
                                     placeholder="Viết phản hồi của bạn..."
                                     className="rounded-full text-sm hover:border-sky-300 focus:border-sky-500 transition-colors"

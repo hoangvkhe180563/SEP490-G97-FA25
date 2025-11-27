@@ -19,7 +19,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public List<Domain.Entities.AppUserClass> GetClassMembers(int classId)
         {
             var member = _context.AppUserClasses
-       .Where(m => m.ClassId == classId)
+       .Where(m => m.ClassId == classId && m.Status.Equals("joined"))
        .GroupBy(m => m.UserId)
        .Select(g => g.FirstOrDefault()) 
        .ToList();
