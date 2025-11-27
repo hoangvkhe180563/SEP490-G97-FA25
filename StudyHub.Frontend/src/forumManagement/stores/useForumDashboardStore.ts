@@ -14,7 +14,8 @@ import type {
 
 interface State {
   schoolId: number | null;
-  dateRange: number;
+  startDate: Date | null;
+  endDate: Date | null;
   postStats: PostStatsDto | null;
   commentStats: CommentStatsDto | null;
   violationStats: ViolationStatsDto | null;
@@ -26,21 +27,54 @@ interface State {
   error: string | null;
 
   setSchoolId: (id: number) => void;
-  setDateRange: (days: number) => void;
-  fetchPostStats: (schoolId: number, days: number) => Promise<void>;
-  fetchCommentStats: (schoolId: number, days: number) => Promise<void>;
-  fetchViolationStats: (schoolId: number, days: number) => Promise<void>;
-  fetchAppealStats: (schoolId: number, days: number) => Promise<void>;
-  fetchUserActivityStats: (schoolId: number, days: number) => Promise<void>;
-  fetchModeratorActivity: (schoolId: number, days: number) => Promise<void>;
-  fetchTopEngagedPosts: (schoolId: number, days: number) => Promise<void>;
-  fetchAllStats: (schoolId: number, days: number) => Promise<void>;
+  setDateRange: (startDate: Date | null, endDate: Date | null) => void;
+  fetchPostStats: (
+    schoolId: number,
+    startDate: Date,
+    endDate: Date
+  ) => Promise<void>;
+  fetchCommentStats: (
+    schoolId: number,
+    startDate: Date,
+    endDate: Date
+  ) => Promise<void>;
+  fetchViolationStats: (
+    schoolId: number,
+    startDate: Date,
+    endDate: Date
+  ) => Promise<void>;
+  fetchAppealStats: (
+    schoolId: number,
+    startDate: Date,
+    endDate: Date
+  ) => Promise<void>;
+  fetchUserActivityStats: (
+    schoolId: number,
+    startDate: Date,
+    endDate: Date
+  ) => Promise<void>;
+  fetchModeratorActivity: (
+    schoolId: number,
+    startDate: Date,
+    endDate: Date
+  ) => Promise<void>;
+  fetchTopEngagedPosts: (
+    schoolId: number,
+    startDate: Date,
+    endDate: Date
+  ) => Promise<void>;
+  fetchAllStats: (
+    schoolId: number,
+    startDate: Date,
+    endDate: Date
+  ) => Promise<void>;
 }
 
 export const useForumDashboardStore = create<State>()(
   devtools((set, get) => ({
     schoolId: null,
-    dateRange: 7,
+    startDate: null,
+    endDate: null,
     postStats: null,
     commentStats: null,
     violationStats: null,
@@ -52,15 +86,15 @@ export const useForumDashboardStore = create<State>()(
     error: null,
 
     setSchoolId: (id) => set({ schoolId: id }),
-    setDateRange: (days) => set({ dateRange: days }),
+    setDateRange: (startDate, endDate) => set({ startDate, endDate }),
 
-    fetchPostStats: async (schoolId: number, days: number) => {
+    fetchPostStats: async (
+      schoolId: number,
+      startDate: Date,
+      endDate: Date
+    ) => {
       set({ isLoading: true, error: null });
       try {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(endDate.getDate() - days);
-
         const resp = await axiosInstance.get(`/Forum/moderator/posts`, {
           params: {
             schoolId,
@@ -76,7 +110,9 @@ export const useForumDashboardStore = create<State>()(
         const approved = posts.filter((p: any) => p.status === true).length;
         const pending = posts.filter((p: any) => p.status === null).length;
         const rejected = posts.filter((p: any) => p.status === false).length;
-        const hidden = posts.filter((p: any) => p.isHidden === true).length;
+        const hidden = posts.filter(
+          (p: any) => p.isHidden === true && p.status === false
+        ).length;
 
         const postsByDate = posts.reduce((acc: any, post: any) => {
           const date = new Date(post.createdAt).toISOString().split("T")[0];
@@ -132,13 +168,13 @@ export const useForumDashboardStore = create<State>()(
       }
     },
 
-    fetchCommentStats: async (schoolId: number, days: number) => {
+    fetchCommentStats: async (
+      schoolId: number,
+      startDate: Date,
+      endDate: Date
+    ) => {
       set({ isLoading: true, error: null });
       try {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(endDate.getDate() - days);
-
         const resp = await axiosInstance.get(`/Forum/moderator/comments`, {
           params: {
             schoolId,
@@ -187,13 +223,13 @@ export const useForumDashboardStore = create<State>()(
       }
     },
 
-    fetchViolationStats: async (schoolId: number, days: number) => {
+    fetchViolationStats: async (
+      schoolId: number,
+      startDate: Date,
+      endDate: Date
+    ) => {
       set({ isLoading: true, error: null });
       try {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(endDate.getDate() - days);
-
         const resp = await axiosInstance.get(`/Forum/moderator/violations`, {
           params: {
             schoolId,
@@ -318,7 +354,11 @@ export const useForumDashboardStore = create<State>()(
       }
     },
 
-    fetchAppealStats: async (schoolId: number, days: number) => {
+    fetchAppealStats: async (
+      schoolId: number,
+      startDate: Date,
+      endDate: Date
+    ) => {
       set({ isLoading: true, error: null });
       try {
         const resp = await axiosInstance.get(`/Forum/moderator/appeals`, {
@@ -330,10 +370,6 @@ export const useForumDashboardStore = create<State>()(
         });
 
         const appeals = resp.data?.data?.items || [];
-
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(endDate.getDate() - days);
 
         const filteredAppeals = appeals.filter((a: any) => {
           const createdAt = new Date(a.createdAt);
@@ -404,7 +440,12 @@ export const useForumDashboardStore = create<State>()(
         set({ isLoading: false });
       }
     },
-    fetchUserActivityStats: async (schoolId: number, days: number) => {
+
+    fetchUserActivityStats: async (
+      schoolId: number,
+      startDate: Date,
+      endDate: Date
+    ) => {
       set({ isLoading: true, error: null });
       try {
         const resp = await axiosInstance.get(`/Forum/moderator/user-status`, {
@@ -418,10 +459,6 @@ export const useForumDashboardStore = create<State>()(
         const users = resp.data?.data?.items || [];
         const totalActiveUsers = users.length;
         const mutedUsers = users.filter((u: any) => u.isMute === true).length;
-
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(endDate.getDate() - days);
 
         const postResp = await axiosInstance.get(`/Forum/moderator/posts`, {
           params: {
@@ -491,7 +528,11 @@ export const useForumDashboardStore = create<State>()(
       }
     },
 
-    fetchModeratorActivity: async (_schoolId: number, _days: number) => {
+    fetchModeratorActivity: async (
+      _schoolId: number,
+      _startDate: Date,
+      _endDate: Date
+    ) => {
       set({ isLoading: true, error: null });
       try {
         set({ moderatorActivity: null });
@@ -502,13 +543,13 @@ export const useForumDashboardStore = create<State>()(
       }
     },
 
-    fetchTopEngagedPosts: async (schoolId: number, days: number) => {
+    fetchTopEngagedPosts: async (
+      schoolId: number,
+      startDate: Date,
+      endDate: Date
+    ) => {
       set({ isLoading: true, error: null });
       try {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(endDate.getDate() - days);
-
         const postsResp = await axiosInstance.get(`/Forum/moderator/posts`, {
           params: {
             schoolId,
@@ -542,7 +583,7 @@ export const useForumDashboardStore = create<State>()(
       }
     },
 
-    fetchAllStats: async (schoolId: number, days: number) => {
+    fetchAllStats: async (schoolId: number, startDate: Date, endDate: Date) => {
       const {
         fetchPostStats,
         fetchCommentStats,
@@ -556,13 +597,13 @@ export const useForumDashboardStore = create<State>()(
       set({ isLoading: true, error: null });
       try {
         await Promise.all([
-          fetchPostStats(schoolId, days),
-          fetchCommentStats(schoolId, days),
-          fetchViolationStats(schoolId, days),
-          fetchAppealStats(schoolId, days),
-          fetchUserActivityStats(schoolId, days),
-          fetchModeratorActivity(schoolId, days),
-          fetchTopEngagedPosts(schoolId, days),
+          fetchPostStats(schoolId, startDate, endDate),
+          fetchCommentStats(schoolId, startDate, endDate),
+          fetchViolationStats(schoolId, startDate, endDate),
+          fetchAppealStats(schoolId, startDate, endDate),
+          fetchUserActivityStats(schoolId, startDate, endDate),
+          fetchModeratorActivity(schoolId, startDate, endDate),
+          fetchTopEngagedPosts(schoolId, startDate, endDate),
         ]);
       } catch (err) {
         set({ error: axiosMessageErrorHandler(err) });
