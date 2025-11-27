@@ -2,6 +2,6 @@
 Chuột phải project mở terminal. (KHÔNG MỞ TRONG FOLDER DATA)
 Câu lệnh để generate:
 
-dotnet ef dbcontext scaffold "server=localhost;database=studyhub;user=root;password=Chuchung1@" Pomelo.EntityFrameworkCore.MySql -o Data -c AppDbContext -f --no-onconfiguring
+dotnet ef dbcontext scaffold "server=localhost;database=studyhub;user=root;password=123456" Pomelo.EntityFrameworkCore.MySql -o Data -c AppDbContext -f --no-onconfiguring
 
 Trong đó: -c: tên file dbcontext, -f: nếu có sửa DB thì khi scaffold bắt nó override
