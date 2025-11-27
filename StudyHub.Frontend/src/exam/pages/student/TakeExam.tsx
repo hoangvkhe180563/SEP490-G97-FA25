@@ -16,6 +16,7 @@ import { useAuthStore } from '@/auth/stores/useAuthStore';
 import { calculateFinishTime } from '@/exam/utils/ExamUtils';
 import toast from 'react-hot-toast';
 import type { Question } from '@/exam/interfaces/models/Question';
+import Matching from '@/exam/components/Matching';
 
 const TakeExam = () => {
   const { id } = useParams();
@@ -83,7 +84,6 @@ const TakeExam = () => {
         setExam(fetchedExam);
         setTimeLeft(fetchedExam.duration * 60);
 
-        //TODO: fetch questions
         let questions: Question[] = fetchedExam.questions;
         if (fetchedExam.noRandomQuestions) {
           questions = await examService.generateRandomQuestions(Number(id));
@@ -306,7 +306,7 @@ const TakeExam = () => {
           <Clock />
           <span className="text-lg">{formatTime(timeLeft)}</span>
           <Button className="bg-white hover:bg-slate-200 text-blue-800 active:translate-y-[2px] font-bold text-xs" onClick={handleSubmitExam} disabled={isSubmitted || timeLeft === 0}>{isSubmitted ? 'Đã nộp bài' : 'Nộp bài'}</Button>
-          <Button variant="ghost" size="icon" asChild className="hover:bg-transparent hover:text-slate-400">
+          <Button variant="ghost" size="icon" asChild className="hover:bg-transparent hover:text-slate-400" onClick={() => document.body.requestFullscreen()}>
             <Maximize className="size-10" />
           </Button>
         </div>
@@ -389,46 +389,15 @@ const TakeExam = () => {
 
             {question.type === EXAM_TYPE.MATCHING && (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <h4 className="font-semibold text-gray-700 mb-2">Thuật ngữ</h4>
-                    {(question.terms || []).map((term, termIndex) => (
-                      <div key={termIndex} className="p-2 bg-blue-50 border border-blue-200 rounded mb-2">
-                        {termIndex + 1}. {term}
-                      </div>
-                    ))}
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-700 mb-2">Định nghĩa</h4>
-                    {(question.definitions || []).map((definition, defIndex) => (
-                      <div key={defIndex} className="p-2 bg-green-50 border border-green-200 rounded mb-2">
-                        {String.fromCharCode(65 + defIndex)}. {definition}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-700 mb-2">Chọn định nghĩa cho từng thuật ngữ</h4>
-                  {(question.terms || []).map((term, termIndex) => (
-                    <div key={termIndex} className="flex items-center mb-2 gap-2">
-                      <span className="w-1/3 text-gray-700 font-medium">{termIndex + 1}. {term}</span>
-                      <span className="text-gray-500">→</span>
-                      <select
-                        className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                        value={studentAnswers[index + 1]?.[termIndex] ?? -1}
-                        onChange={(e) => handleAnswerChange(index + 1, [termIndex, parseInt(e.target.value)], question.type)}
-                        disabled={isSubmitted}
-                      >
-                        <option value={-1} disabled>Chọn định nghĩa...</option>
-                        {(question.definitions || []).map((def, defIndex) => (
-                          <option key={defIndex} value={defIndex}>
-                            {String.fromCharCode(65 + defIndex)}. {def}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-                </div>
+                <Matching
+                  initialTerms={question.terms ?? []}
+                  initialDefinitions={question.definitions ?? []}
+                  currentMatches={studentAnswers[index + 1]}
+                  questionNumber={index + 1}
+                  handleChange={(key, value) => {
+                    handleAnswerChange(index + 1, [key, value], question.type);
+                  }}
+                />
               </div>
             )}
           </div>
