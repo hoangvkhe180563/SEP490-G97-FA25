@@ -1,4 +1,3 @@
-// (updated) Type definitions for class management state and DTOs
 import type { Subject } from "@/classManagement/interfaces/subject";
 import type { PostComment } from "../components/ui/postcard";
 import type { Exam } from "./Exam";
@@ -94,6 +93,7 @@ export type ClassWork = {
   deadline?: string | null;
   maxScore?: number | null;
   allowSubmission?: boolean;
+  files: ClassNotificationFile[];
   [key: string]: any;
 };
 export type ClassworkSubmissionFile = {
@@ -124,7 +124,7 @@ export type ClassworkSubmission = {
   feedback?: string | null;
   gradedAt?: string | null;
   gradedBy?: string | null;
-
+  gradeByName?: string | null;
   submissionStatus?: string | null;
   status?: string | null;
 
@@ -208,11 +208,9 @@ export interface ClassState {
   editClasswork: (payload: { id: number; classId: number; title: string; description?: string; deadline?: string }) => Promise<ClassWork | null>;
   submitClasswork: (classworkId: number, appUserId: string, files: File[], links?: LinkPayload[]) => Promise<any | null>;
   getClassworkSubmissions: (classworkId: number) => Promise<ClassworkSubmission[] | null>;
-
-  // NEW: fetch a single submission for a given user + classwork
+  getClassworkDetail: (classworkId: number) => Promise<ClassWork | null>;
   getSubmissionByUserAndClasswork: (classworkId: number, appUserId: string) => Promise<ClassworkSubmission | null>;
-  // Updated signature for grading to match the store implementation:
-  // notificationId (i.e. the ClassNotification id / classwork id), submissionId, score, optional feedback, optional grader id
+  
   gradeSubmission: (
     notificationId: number,
     submissionId: number,
@@ -223,7 +221,6 @@ export interface ClassState {
     raw: any; success: boolean; message?: string
   } | null>;
 
-  // NEW: efficient count of how many unique students submitted for a given classwork/notification
   getSubmissionCount: (classworkId: number) => Promise<number | null>;
 
   getMemberCount: (classId: number) => Promise<number | null>;
@@ -233,4 +230,5 @@ export interface ClassState {
   confirmMember: (classId: number, userId: string) => Promise<boolean>;
   declineMember: (classId: number, userId: string) => Promise<boolean>;
   getClassExams: (classId: number) => Promise<Exam[]>;
+  getUnreadCount: (classId: number, type?: string, userId?: string) => Promise<number>;
 }

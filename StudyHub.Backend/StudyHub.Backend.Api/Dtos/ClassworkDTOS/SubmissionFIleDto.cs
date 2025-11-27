@@ -10,6 +10,7 @@ namespace StudyHub.Backend.Api.Dtos.ClassworkDTOS
         public decimal? Score { get; set; }
         public DateTime? GradedAt { get; set; }
         public Guid? GradedBy { get; set; }
+        public string GradeByName { get; set; }
         public string Feedback { get; set; }
         public Guid AppUserId { get; set; } = Guid.Empty;
         public string SubmissionStatus { get; set; }

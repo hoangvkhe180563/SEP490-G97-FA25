@@ -11,7 +11,7 @@ type Props = {
   onSend: (text: string) => void;
 };
 
-const CommentComposer: React.FC<Props> = ({ avatarUrl, placeholder = "Write a comment...", onSend }) => {
+const CommentComposer: React.FC<Props> = ({ avatarUrl, placeholder = "Viết bình luận...", onSend }) => {
   const [text, setText] = useState("");
 
   const submit = (e?: React.FormEvent) => {

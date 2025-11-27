@@ -30,6 +30,9 @@ interface MessageState {
   success: boolean;
   message: string;
   getMessagesByConversationId: (conversationId: string) => Promise<void>;
+  files?: any[];
+  getFilesByConversationId?: (conversationId: string) => Promise<void>;
+  uploadFile?: (conversationId: string, file: File) => Promise<void>;
   sendMessage: (message: CreateMessageDTO) => Promise<void>;
   updateMessage: (id: string, dto: any) => Promise<void>;
   getAllMessages: () => Promise<void>;

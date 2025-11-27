@@ -28,6 +28,7 @@ const ConversationDetails = () => {
   const [messages, setMessages] = useState<Partial<Message>[]>([]);
   const [conversation, setConversation] =
     useState<Partial<Conversation> | null>(null);
+  const storeFiles = useMessageStore((s) => s.files || []);
 
   // reactive presence list so UI updates when presence changes
   const onlineUsers = useUserOnlineStore((s) => s.onlineUsers);
@@ -84,6 +85,7 @@ const ConversationDetails = () => {
   const [error, setError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const typingTimeoutRef = useRef<any>(null);
   const storeMessages = useMessageStore((s) => s.messages);
@@ -115,6 +117,34 @@ const ConversationDetails = () => {
     }));
     setMessages(mapped);
   }, [storeMessages]);
+
+  // combined timeline: messages + files, sorted by createdAt
+  const timeline = React.useMemo(() => {
+    const fileItems = (storeFiles || []).map((f: any) => ({
+      type: "file",
+      id: f.id ?? f.Id,
+      fileName: f.fileName ?? f.FileName,
+      fileUrl: f.fileUrl ?? f.FileUrl,
+      fileType: f.fileType ?? f.FileType,
+      createdAt: new Date(f.createdAt ?? f.CreatedAt).toISOString(),
+      createdBy: String(f.createdBy ?? f.CreatedBy ?? ""),
+    }));
+
+    const msgItems = (messages || []).map((m: any) => ({
+      type: "message",
+      id: m.id,
+      senderId: String(m.senderId ?? ""),
+      content: m.content ?? m.Content ?? "",
+      createdAt: new Date(m.createdAt ?? m.CreatedAt).toISOString(),
+    }));
+
+    const combined = [...msgItems, ...fileItems];
+    combined.sort(
+      (a: any, b: any) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+    return combined;
+  }, [messages, storeFiles]);
 
   useEffect(() => {
     // load messages for conversation if id provided
@@ -176,6 +206,14 @@ const ConversationDetails = () => {
         await useMessageStore
           .getState()
           .getMessagesByConversationId(conversationId);
+        // load files for this conversation
+        try {
+          await useMessageStore
+            .getState()
+            .getFilesByConversationId?.(conversationId || "");
+        } catch (err) {
+          // ignore
+        }
         const msgs = useMessageStore.getState().messages || [];
         if (mounted) {
           const mapped = msgs.map((d: any) => ({
@@ -234,6 +272,25 @@ const ConversationDetails = () => {
       })();
     };
   }, [conversationId]);
+
+  const onSelectFileClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f || !conversationId) return;
+    try {
+      // optimistic: show uploading state in UI (optional)
+      await useMessageStore.getState().uploadFile?.(conversationId, f);
+      // refresh messages/files already handled by store upload
+    } catch (err) {
+      console.error("upload failed", err);
+    } finally {
+      // clear input so same file can be selected again
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const onSend = () => {
     if (!text.trim()) return;
@@ -409,27 +466,77 @@ const ConversationDetails = () => {
               </div>
             )}
             {error && <div className="text-sm text-red-600">{error}</div>}
-            {messages.map((m) => {
-              const isMe = m.senderId === user?.id;
+            {timeline.map((item: any) => {
+              if (item.type === "message") {
+                const isMe = item.senderId === user?.id;
+                return (
+                  <div
+                    key={`m-${item.id}`}
+                    className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-[70%] ${
+                        isMe
+                          ? "bg-blue-600 text-white rounded-l-xl rounded-tr-xl"
+                          : "bg-gray-100 text-gray-900 rounded-r-xl rounded-tl-xl"
+                      } px-4 py-2`}
+                    >
+                      <div className="whitespace-pre-wrap">{item.content}</div>
+                      <div
+                        className={`text-[10px] mt-1 ${
+                          isMe ? "text-blue-100" : "text-muted-foreground"
+                        }`}
+                      >
+                        {formatTime(item.createdAt ?? "")}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // file item
+              const isMyFile = String(item.createdBy) === String(user?.id);
               return (
                 <div
-                  key={m.id}
-                  className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                  key={`f-${item.id}`}
+                  className={`flex ${
+                    isMyFile ? "justify-end" : "justify-start"
+                  }`}
                 >
                   <div
                     className={`max-w-[70%] ${
-                      isMe
+                      isMyFile
                         ? "bg-blue-600 text-white rounded-l-xl rounded-tr-xl"
                         : "bg-gray-100 text-gray-900 rounded-r-xl rounded-tl-xl"
-                    } px-4 py-2`}
+                    } px-4 py-2 flex items-center gap-3`}
                   >
-                    <div className="whitespace-pre-wrap">{m.content}</div>
-                    <div
-                      className={`text-[10px] mt-1 ${
-                        isMe ? "text-blue-100" : "text-muted-foreground"
-                      }`}
-                    >
-                      {formatTime(m.createdAt ?? "")}
+                    <div className="flex items-center gap-3">
+                      <Paperclip
+                        className={`${
+                          isMyFile ? "text-white" : "text-gray-700"
+                        } w-5 h-5`}
+                      />
+                      <div>
+                        <a
+                          className={`${
+                            isMyFile
+                              ? "text-white underline"
+                              : "text-blue-600 underline"
+                          } text-sm`}
+                          href={item.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {item.fileName}
+                        </a>
+                        <div
+                          className={`${
+                            isMyFile ? "text-blue-100" : "text-muted-foreground"
+                          } text-[10px] mt-1`}
+                        >
+                          {new Date(item.createdAt).toLocaleString()}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -479,7 +586,16 @@ const ConversationDetails = () => {
       {/* Composer */}
       <div className="border-t p-4">
         <div className="flex items-center gap-3">
-          <button className="p-2  rounded-md hover:bg-gray-100">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={onFileChange}
+          />
+          <button
+            onClick={onSelectFileClick}
+            className="p-2  rounded-md hover:bg-gray-100"
+          >
             <Paperclip className="w-5 h-5" />
           </button>
           <Textarea

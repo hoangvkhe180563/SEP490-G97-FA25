@@ -146,21 +146,14 @@ const ForumMain = () => {
     };
   }, []);
   const fetchPosts = useCallback(() => {
-    const subjectId =
-      filters.selectedSubjects.length === 1
-        ? filters.selectedSubjects[0]
-        : undefined;
-    const flairId =
-      filters.selectedFlairs.length === 1
-        ? filters.selectedFlairs[0]
-        : undefined;
-
     if (activeTab === "all") {
       getPosts(
         schoolId,
-        filters.selectedSubjects,
-        filters.selectedFlairs,
-        filters.searchQuery,
+        filters.selectedSubjects.length > 0
+          ? filters.selectedSubjects
+          : undefined,
+        filters.selectedFlairs.length > 0 ? filters.selectedFlairs : undefined,
+        filters.searchQuery || undefined,
         filters.sortBy,
         1,
         100
@@ -168,9 +161,11 @@ const ForumMain = () => {
     } else {
       getMyPosts(
         schoolId,
-        subjectId,
-        flairId,
-        filters.searchQuery,
+        filters.selectedSubjects.length > 0
+          ? filters.selectedSubjects
+          : undefined,
+        filters.selectedFlairs.length > 0 ? filters.selectedFlairs : undefined,
+        filters.searchQuery || undefined,
         filters.sortBy,
         1,
         100
@@ -326,25 +321,7 @@ const ForumMain = () => {
 
   const displayPosts = activeTab === "all" ? posts : myPosts;
 
-  const filteredPosts = displayPosts.filter((post) => {
-    if (
-      filters.selectedSubjects.length > 0 &&
-      !filters.selectedSubjects.includes(post.subject_id)
-    ) {
-      return false;
-    }
-
-    if (
-      filters.selectedFlairs.length > 0 &&
-      !filters.selectedFlairs.includes(post.flair_id)
-    ) {
-      return false;
-    }
-
-    return true;
-  });
-
-  const sortedPosts = sortPosts(filteredPosts);
+  const sortedPosts = sortPosts(displayPosts);
 
   const handleOpenModal = (postId: number) => {
     const currentParams = new URLSearchParams(window.location.search);
@@ -370,7 +347,7 @@ const ForumMain = () => {
   const handleLoadMore = () => {
     setFilters((prev) => ({
       ...prev,
-      visiblePosts: Math.min(prev.visiblePosts + 5, filteredPosts.length),
+      visiblePosts: Math.min(prev.visiblePosts + 5, displayPosts.length),
     }));
   };
 
@@ -454,7 +431,7 @@ const ForumMain = () => {
               <ForumSearchBar
                 searchQuery={filters.searchQuery}
                 sortBy={filters.sortBy}
-                totalResults={filteredPosts.length}
+                totalResults={displayPosts.length}
                 onSearchChange={handleSearchChange}
                 onSortChange={handleSortChange}
               />
