@@ -1,13 +1,21 @@
-// ModeratorDashboard.tsx
 import React, { useEffect, useState } from "react";
 import { useForumDashboardStore } from "../stores/useForumDashboardStore";
-import { Button } from "@/common/components/ui/button";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/common/components/ui/tabs";
+import { Calendar } from "@/common/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/common/components/ui/popover";
+import { Button } from "@/common/components/ui/button";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { vi } from "date-fns/locale";
 import { PostStatsCard } from "../components/PostStatsCard";
 import { CommentStatsCard } from "../components/CommentStatsCard";
 import { ViolationStatsCard } from "../components/ViolationStatsCard";
@@ -19,53 +27,90 @@ import { OnlineUsersCard } from "../components/OnlineUsersCard";
 
 const ModeratorDashboard: React.FC = () => {
   const [schoolId] = useState<number>(1);
-  const { dateRange, setDateRange, fetchAllStats, isLoading, error } =
+  const { startDate, endDate, setDateRange, fetchAllStats, isLoading, error } =
     useForumDashboardStore();
 
-  useEffect(() => {
-    if (schoolId) {
-      fetchAllStats(schoolId, dateRange);
-    }
-  }, [schoolId, dateRange, fetchAllStats]);
+  const [localStartDate, setLocalStartDate] = useState<Date | undefined>(
+    startDate ||
+      (() => {
+        const date = new Date();
+        date.setDate(date.getDate() - 7);
+        return date;
+      })()
+  );
+  const [localEndDate, setLocalEndDate] = useState<Date | undefined>(
+    endDate || new Date()
+  );
 
-  const handleDateRangeChange = (days: number) => {
-    setDateRange(days);
-  };
+  useEffect(() => {
+    if (schoolId && localStartDate && localEndDate) {
+      setDateRange(localStartDate, localEndDate);
+      fetchAllStats(schoolId, localStartDate, localEndDate);
+    }
+    /* eslint-disable react-hooks/exhaustive-deps */
+  }, [schoolId, localStartDate, localEndDate]);
 
   return (
     <div className="p-4 max-h-screen overflow-y-auto bg-white">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">DashBoard</h1>
           <p className="text-gray-600 mt-1"></p>
         </div>
-      </div>
 
-      <div className="mb-6 flex gap-2">
-        <Button
-          variant={dateRange === 3 ? "default" : "outline"}
-          onClick={() => handleDateRangeChange(3)}
-        >
-          3 ngày
-        </Button>
-        <Button
-          variant={dateRange === 7 ? "default" : "outline"}
-          onClick={() => handleDateRangeChange(7)}
-        >
-          7 ngày
-        </Button>
-        <Button
-          variant={dateRange === 14 ? "default" : "outline"}
-          onClick={() => handleDateRangeChange(14)}
-        >
-          14 ngày
-        </Button>
-        <Button
-          variant={dateRange === 30 ? "default" : "outline"}
-          onClick={() => handleDateRangeChange(30)}
-        >
-          30 ngày
-        </Button>
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="justify-start text-left font-normal"
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {localStartDate ? (
+                  format(localStartDate, "dd/MM/yyyy", { locale: vi })
+                ) : (
+                  <span>Chọn ngày bắt đầu</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={localStartDate}
+                onSelect={(date) => setLocalStartDate(date)}
+                initialFocus
+                locale={vi}
+              />
+            </PopoverContent>
+          </Popover>
+
+          <span className="text-gray-500">-</span>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="justify-start text-left font-normal"
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {localEndDate ? (
+                  format(localEndDate, "dd/MM/yyyy", { locale: vi })
+                ) : (
+                  <span>Chọn ngày kết thúc</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={localEndDate}
+                onSelect={(date) => setLocalEndDate(date)}
+                initialFocus
+                locale={vi}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
       {isLoading && (
