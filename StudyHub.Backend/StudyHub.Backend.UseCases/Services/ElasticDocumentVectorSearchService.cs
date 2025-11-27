@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.Nodes;
 using Microsoft.Extensions.Configuration;
 using Nest;
@@ -103,7 +104,7 @@ namespace StudyHub.Backend.UseCases.Services
         }
 
         // Recommend documents (vector + simple filters)
-        public async Task<List<ElasticDocument>> RecommendDocumentsAsync(UserLearningProfile profile, int topK = 30)
+        public async Task<List<DocumentRecommendationResult>> RecommendDocumentsAsync(UserLearningProfile profile, int topK = 30)
         {
             var preferences = PreferenceUtils.CalculateDocumentSubjectPreferences(profile);
             var userText = _embeddingService.ConvertUserProfileToDocumentText(profile, preferences);
@@ -218,7 +219,25 @@ namespace StudyHub.Backend.UseCases.Services
                 }
             }
 
-            return await _elasticSearchDocumentRepository.RecommendDocumentsAsync(filters, shouldQueries, userVector, topK);
+            var searchResponse = await _elasticSearchDocumentRepository.RecommendDocumentsAsync(filters, shouldQueries, userVector, topK);
+            var results = searchResponse.Hits.Select(hit => new DocumentRecommendationResult
+            {
+                Id = hit.Source?.Id.ToString() ?? "",
+                Score = hit.Score ?? 0,
+                Title = hit.Source?.Name ?? "",
+                Thumbnail = hit.Source?.Thumbnail ?? "",
+                Grade = hit.Source?.Grade ?? 0,
+                Subject = hit.Source?.SubjectName ?? "",
+                DocumentLevel = hit.Source?.DocumentLevel ?? "",
+                DocumentLengthType = hit.Source?.DocumentLengthType ?? "",
+                Description = hit.Source?.Description ?? "",
+                UpdatedAt = hit.Source?.UpdatedAt ?? DateTime.Now,
+                DocumentCategoryName = hit.Source?.DocumentCategoryName ?? "",
+                DocumentCategoryDescription = hit.Source?.DocumentCategoryDescription ?? "",
+                DocumentUrl = hit.Source?.DocumentUrl ?? ""
+            }).Take(topK).ToList();
+
+            return results;
         }
 
         // Search documents with LLM profile (dense + BM25 hybrid)
@@ -257,15 +276,17 @@ namespace StudyHub.Backend.UseCases.Services
             var results = searchResponse.Hits.Select(hit => new DocumentRecommendationResult
             {
                 Id = hit.Source?.Id.ToString() ?? "",
-                Title = hit.Source?.Name ?? "",
                 Score = hit.Score ?? 0,
+                Title = hit.Source?.Name ?? "",
+                Thumbnail = hit.Source?.Thumbnail ?? "",
+                Grade = hit.Source?.Grade ?? 0,
                 Subject = hit.Source?.SubjectName ?? "",
+                DocumentLevel = hit.Source?.DocumentLevel ?? "",
+                DocumentLengthType = hit.Source?.DocumentLengthType ?? "",
+                Description = hit.Source?.Description ?? "",
+                UpdatedAt = hit.Source?.UpdatedAt ?? DateTime.Now,
                 DocumentCategoryName = hit.Source?.DocumentCategoryName ?? "",
                 DocumentCategoryDescription = hit.Source?.DocumentCategoryDescription ?? "",
-                DocumentLengthType = hit.Source?.DocumentLengthType ?? "",
-                DocumentLevel = hit.Source?.DocumentLevel ?? "",
-                Description = hit.Source?.Description ?? "",
-                Thumbnail = hit.Source?.Thumbnail ?? "",
                 DocumentUrl = hit.Source?.DocumentUrl ?? ""
             }).Take(topK).ToList();
 

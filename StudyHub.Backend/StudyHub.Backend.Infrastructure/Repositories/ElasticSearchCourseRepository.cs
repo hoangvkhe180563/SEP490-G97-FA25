@@ -146,7 +146,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return response.IsValid;
         }
 
-        public async Task<List<ElasticCourse>> RecommendCoursesAsync(
+        public async Task<ISearchResponse<ElasticCourse>> RecommendCoursesAsync(
             List<Func<QueryContainerDescriptor<ElasticCourse>, QueryContainer>> filters,
             List<Func<QueryContainerDescriptor<ElasticCourse>, QueryContainer>> shouldQueries,
             float[] userVector,
@@ -181,7 +181,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 )
             );
 
-            return searchResponse.Documents.ToList();
+            return searchResponse;
         }
 
         public async Task<ISearchResponse<ElasticCourse>> SearchCourseWithLLMProfileAsync(float[] denseVector,

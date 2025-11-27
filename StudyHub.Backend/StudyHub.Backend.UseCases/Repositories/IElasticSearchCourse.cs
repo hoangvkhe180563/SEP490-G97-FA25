@@ -1,3 +1,4 @@
+using Elasticsearch.Net;
 using Nest;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Domain.Entities.ElasticSearch;
@@ -12,7 +13,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         Task<bool> IndexCoursesBatchAsync(List<Course> courses, List<string> texts, float[][] vectors);
         Task<bool> UpdateCourseStatusAsync(int id, string status);
         Task<bool> DeleteCourseByIdAsync(int id);
-        Task<List<ElasticCourse>> RecommendCoursesAsync(
+        Task<ISearchResponse<ElasticCourse>> RecommendCoursesAsync(
             List<Func<QueryContainerDescriptor<ElasticCourse>, QueryContainer>> filters,
             List<Func<QueryContainerDescriptor<ElasticCourse>, QueryContainer>> shouldQueries,
             float[] userVector,

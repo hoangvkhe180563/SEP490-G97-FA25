@@ -7,7 +7,7 @@ using StudyHub.Backend.UseCases.Repositories.Exam;
 
 namespace StudyHub.Backend.UseCases.Services
 {
-    public class ProfileService : IProfileService
+    public class ProfileService
     {
         private readonly IEnrollmentRepository _enrollmentRepository;
         private readonly ICourseRepository _courseRepository;

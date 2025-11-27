@@ -14,9 +14,9 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly QwenLLMService _llmService;
         private readonly EmbeddingService _embeddingService;
         private readonly AuthService _authService;
-        private readonly IProfileService _profileService;
+        private readonly ProfileService _profileService;
 
-        public RecommendationController(ElasticCourseVectorSearchService elasticCourseVectorSearchService, ElasticDocumentVectorSearchService elasticDocumentVectorSearchService, QwenLLMService llmService, EmbeddingService embeddingService, AuthService authService, IProfileService profileService)
+        public RecommendationController(ElasticCourseVectorSearchService elasticCourseVectorSearchService, ElasticDocumentVectorSearchService elasticDocumentVectorSearchService, QwenLLMService llmService, EmbeddingService embeddingService, AuthService authService, ProfileService profileService)
         {
             _elasticCourseVectorSearchService = elasticCourseVectorSearchService;
             _elasticDocumentVectorSearchService = elasticDocumentVectorSearchService;
@@ -49,8 +49,43 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpPost("recommend")]
-        public async Task<IActionResult> Recommend([FromBody] RecommendationRequest request)
+        public async Task<IActionResult> Recommend()
         {
+            var request = new RecommendationRequest
+            {
+                Profile = new UserLearningProfile
+                {
+                    UserId = "user123",
+                    SchoolId = 1,
+                    CurrentGrades = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 },
+                    CurrentSubjectStudied = new List<string> { "Toán học", "Hoá học", "Ngữ văn", "Vật lý" },
+                    SubjectStrength = new Dictionary<string, float>
+                    {
+                        { "Toán học", 0.9f },
+                        { "Hoá học", 0.5f },
+                        { "Ngữ văn", 0.3f },
+                        { "Vật lý", 0.9f },
+                    },
+                    SubjectAccuracy = new Dictionary<string, float>
+                    {
+                        { "Toán học", 0.3f },
+                        { "Vật lý", 0.9f },
+                    },
+                    WorkSpeed = new Dictionary<string, float>
+                    {
+                        { "Toán học", 0.8f },
+                        { "Hoá học", 0.4f },
+                        { "Ngữ văn", 0.6f },
+                        { "Vật lý", 0.9f },
+                    },
+                    CourseWatchPercentage = new Dictionary<string, float>
+                    {
+                        { "Toán học", 0.95f },
+                        { "Vật lý", 0.4f },
+                    },
+                },
+                TopK = 30
+            };
             try
             {
                 var courseRecommendations = await _elasticCourseVectorSearchService.RecommendCoursesAsync(
@@ -68,26 +103,8 @@ namespace StudyHub.Backend.Api.Controllers
                     userId = request.Profile.UserId,
                     totalCourseRecommendations = courseRecommendations.Count,
                     totalDocumentRecommendations = documentRecommendations.Count,
-                    courses = courseRecommendations.Select(c => new
-                    {
-                        c.Id,
-                        c.Name,
-                        c.SubjectName,
-                        c.Difficulty,
-                        c.Length,
-                        c.Grade,
-                        c.Information
-                    }),
-                    documents = documentRecommendations.Select(d => new
-                    {
-                        d.Id,
-                        d.Name,
-                        d.SubjectName,
-                        d.DocumentLevel,
-                        d.DocumentLengthType,
-                        d.Grade,
-                        d.Description
-                    })
+                    courses = courseRecommendations,
+                    documents = documentRecommendations,
                 });
             }
             catch (Exception ex)

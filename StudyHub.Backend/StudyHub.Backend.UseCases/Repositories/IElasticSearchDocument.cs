@@ -14,7 +14,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         public Task<bool> UpdateDocumentStatusAsync(int id, bool status);
         public Task<bool> UpdateDocumentIsInClassAsync(int id, bool status);
         public Task<bool> UpdateDocumentUpdatedAtAsync(int id, DateTime updatedAt);
-        public Task<List<ElasticDocument>> RecommendDocumentsAsync(
+        public Task<ISearchResponse<ElasticDocument>> RecommendDocumentsAsync(
             List<Func<QueryContainerDescriptor<ElasticDocument>, QueryContainer>> filters,
             List<Func<QueryContainerDescriptor<ElasticDocument>, QueryContainer>> shouldQueries,
             float[] userVector,

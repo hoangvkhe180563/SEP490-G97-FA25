@@ -168,7 +168,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             await _client.Indices.RefreshAsync(INDEX_NAME_DOCS);
             return true;
         }
-        public async Task<List<ElasticDocument>> RecommendDocumentsAsync(
+        public async Task<ISearchResponse<ElasticDocument>> RecommendDocumentsAsync(
             List<Func<QueryContainerDescriptor<ElasticDocument>, QueryContainer>> filters,
             List<Func<QueryContainerDescriptor<ElasticDocument>, QueryContainer>> shouldQueries,
             float[] userVector,
@@ -202,7 +202,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     )
                 )
             );
-            return searchResponse.Documents.ToList();
+            return searchResponse;
         }
         public async Task<ISearchResponse<ElasticDocument>> SearchDocumentWithLLMProfileAsync(float[] denseVector,
             UserPreferenceProfile profile,

@@ -5,7 +5,7 @@ namespace StudyHub.Backend.Api.Dtos.RecommendDTOS
     public class RecommendLLMRequest
     {
         public string UserMessage { get; set; }
-        public UserPreferenceProfile Profile { get; set; }
+        public UserPreferenceProfile? Profile { get; set; }
         //public List<ChatMessage> ConversationHistory { get; set; } = new();
         public int? TopK { get; set; }
     }

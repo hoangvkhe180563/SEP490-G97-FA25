@@ -13,13 +13,15 @@ namespace StudyHub.Backend.UseCases.Services
         private readonly EmbeddingService _embeddingService;
         private readonly ICourseRepository courseRepository;
         private readonly AuthService _authService;
+        private readonly AppUserService _appUserService;
         private readonly IElasticSearchCourse _elasticSearchCourseRepository;
 
-        public ElasticCourseVectorSearchService(EmbeddingService embeddingService, ICourseRepository courseRepository, AuthService authService, IElasticSearchCourse elasticSearchCourseRepository)
+        public ElasticCourseVectorSearchService(EmbeddingService embeddingService, ICourseRepository courseRepository, AuthService authService, AppUserService appUserService, IElasticSearchCourse elasticSearchCourseRepository)
         {
             _embeddingService = embeddingService;
             this.courseRepository = courseRepository;
             _authService = authService;
+            _appUserService = appUserService;
             _elasticSearchCourseRepository = elasticSearchCourseRepository;
         }
 
@@ -90,7 +92,7 @@ namespace StudyHub.Backend.UseCases.Services
 
 
 
-        public async Task<List<ElasticCourse>> RecommendCoursesAsync(
+        public async Task<List<CourseRecommendationResult>> RecommendCoursesAsync(
             UserLearningProfile profile,
             int topK = 30)
         {
@@ -118,7 +120,7 @@ namespace StudyHub.Backend.UseCases.Services
                 )
             );
 
-            //// Filter Status
+            ////// Filter Status
             filters.Add(f => f
                 .Term(t => t
                     .Field(fd => fd.Status)
@@ -126,7 +128,7 @@ namespace StudyHub.Backend.UseCases.Services
                 )
             );
 
-            //// Filter SchoolId (null thì filter null)
+            ////// Filter SchoolId (null thì filter null)
             if (profile.SchoolId < 1)
             {
                 filters.Add(f => f
@@ -228,12 +230,34 @@ namespace StudyHub.Backend.UseCases.Services
                 }
             }
 
-            return await _elasticSearchCourseRepository.RecommendCoursesAsync(
+            var searchCourseResponse = await _elasticSearchCourseRepository.RecommendCoursesAsync(
                             filters,
                             shouldQueries,
                             userVector,
                             topK
             );
+
+            var results = searchCourseResponse.Hits
+                .Select(hit => new CourseRecommendationResult
+                {
+                    Id = hit.Source?.Id.ToString() ?? "",
+                    Score = hit.Score ?? 0,
+                    Title = hit.Source?.Name ?? "",
+                    Information = hit.Source?.Information ?? "",
+                    ImageUrl = hit.Source?.ImageUrl ?? "",
+                    Price = hit.Source?.Price ?? 0,
+                    StartAt = hit.Source?.StartAt ?? DateTime.MinValue,
+                    EndAt = hit.Source?.EndAt ?? DateTime.MinValue,
+                    CreatedByName = _appUserService.GetUserById(hit.Source?.CreatedById ?? Guid.Empty)?.Fullname ?? "",
+                    Subject = hit.Source?.SubjectName ?? "",
+                    Difficulty = hit.Source?.Difficulty ?? "",
+                    Length = hit.Source?.Length ?? "",
+                    Grade = hit.Source?.Grade ?? 0
+                })
+                .Take(topK)
+                .ToList();
+
+            return results;
         }
 
         public async Task<List<CourseRecommendationResult>> SearchCourseWithLLMProfileAsync(
@@ -300,12 +324,17 @@ namespace StudyHub.Backend.UseCases.Services
                 .Select(hit => new CourseRecommendationResult
                 {
                     Id = hit.Source?.Id.ToString() ?? "",
-                    Title = hit.Source?.Name ?? "",
                     Score = hit.Score ?? 0,
+                    Title = hit.Source?.Name ?? "",
+                    Information = hit.Source?.Information ?? "",
+                    ImageUrl = hit.Source?.ImageUrl ?? "",
+                    Price = hit.Source?.Price ?? 0,
+                    StartAt = hit.Source?.StartAt ?? DateTime.MinValue,
+                    EndAt = hit.Source?.EndAt ?? DateTime.MinValue,
+                    CreatedByName = _appUserService.GetUserById(hit.Source?.CreatedById ?? Guid.Empty)?.Fullname ?? "",
                     Subject = hit.Source?.SubjectName ?? "",
                     Difficulty = hit.Source?.Difficulty ?? "",
                     Length = hit.Source?.Length ?? "",
-                    Information = hit.Source?.Information ?? "",
                     Grade = hit.Source?.Grade ?? 0
                 })
                 .Take(topK)
