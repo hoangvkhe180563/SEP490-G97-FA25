@@ -26,7 +26,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Description = t.Description,
                 Status = t.Status,
                 TransactionCode = t.TransactionCode,
-                CreatedAt = t.CreatedAt == default ? System.DateTime.UtcNow : t.CreatedAt,
+                CreatedAt = t.CreatedAt == default ? System.DateTime.Now : t.CreatedAt,
                 ProcessedAt = t.ProcessedAt,
                 QrcodeUrl = t.QrcodeUrl,
                 AccountNumber = t.AccountNumber
@@ -251,7 +251,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             var e = _context.Transactions.FirstOrDefault(x => x.Id == id);
             if (e == null) return false;
             e.Status = status;
-            e.ProcessedAt = System.DateTime.UtcNow;
+            e.ProcessedAt = System.DateTime.Now;
             _context.Transactions.Update(e);
             _context.SaveChanges();
             return true;
