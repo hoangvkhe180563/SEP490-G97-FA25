@@ -11,12 +11,12 @@ namespace StudyHub.Backend.Api.Controllers
     {
         private readonly ElasticCourseVectorSearchService _elasticCourseVectorSearchService;
         private readonly ElasticDocumentVectorSearchService _elasticDocumentVectorSearchService;
-        private readonly QwenLLMService _llmService;
+        private readonly LLMService _llmService;
         private readonly EmbeddingService _embeddingService;
         private readonly AuthService _authService;
         private readonly ProfileService _profileService;
 
-        public RecommendationController(ElasticCourseVectorSearchService elasticCourseVectorSearchService, ElasticDocumentVectorSearchService elasticDocumentVectorSearchService, QwenLLMService llmService, EmbeddingService embeddingService, AuthService authService, ProfileService profileService)
+        public RecommendationController(ElasticCourseVectorSearchService elasticCourseVectorSearchService, ElasticDocumentVectorSearchService elasticDocumentVectorSearchService, LLMService llmService, EmbeddingService embeddingService, AuthService authService, ProfileService profileService)
         {
             _elasticCourseVectorSearchService = elasticCourseVectorSearchService;
             _elasticDocumentVectorSearchService = elasticDocumentVectorSearchService;

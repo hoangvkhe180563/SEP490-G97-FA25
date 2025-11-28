@@ -11,12 +11,12 @@ using StudyHub.Backend.UseCases.Dtos;
 
 namespace StudyHub.Backend.UseCases.Services
 {
-    public class QwenLLMService
+    public class LLMService
     {
         private readonly RestClient _client;
         private readonly IConfiguration configuration;
 
-        public QwenLLMService(IConfiguration configuration)
+        public LLMService(IConfiguration configuration)
         {
             this.configuration = configuration;
             _client = new RestClient("https://router.huggingface.co/v1/chat/completions");
@@ -76,7 +76,7 @@ namespace StudyHub.Backend.UseCases.Services
 
             return $@"Bạn là một AI assistant thân thiện, giúp học sinh hiểu tại sao các khóa học được đề xuất.
 
-                    NHIỆM VỤ: Giải thích tại sao các khóa học dưới đây phù hợp với nhu cầu của học sinh.
+                    NHIỆM VỤ: Giải thích tại sao các khóa học dưới đây phù hợp với nhu cầu của học sinh và chỉ trả lời bằng Tiếng Việt.
 
                     NGUYÊN TẮC:
                     - Giải thích ngắn gọn, dễ hiểu (2-3 câu mỗi khóa)
@@ -108,7 +108,7 @@ namespace StudyHub.Backend.UseCases.Services
 
             return $@"Bạn là một AI assistant thân thiện, giúp học sinh hiểu tại sao các tài liệu được đề xuất.
 
-                    NHIỆM VỤ: Giải thích tại sao các tài liệu dưới đây phù hợp với nhu cầu của học sinh.
+                    NHIỆM VỤ: Giải thích tại sao các tài liệu dưới đây phù hợp với nhu cầu của học sinh và chỉ trả lời bằng Tiếng Việt.
 
                     NGUYÊN TẮC:
                     - Giải thích ngắn gọn, dễ hiểu (2-3 câu mỗi tài liệu)
@@ -128,7 +128,7 @@ namespace StudyHub.Backend.UseCases.Services
 
         public async Task<UserPreferenceProfile> ExtractProfileAsync(string userMessage)
         {
-            var model = configuration["HuggingFace:LLMModel"] ?? "Qwen/Qwen3-4B-Instruct-2507";
+            var model = configuration["HuggingFace:LLMModel:Path"] + ":" + configuration["HuggingFace:LLMModel:InferenceProviderPath"] ?? "";
             var apiKey = configuration["HuggingFace:ApiToken"] ?? "";
 
             var prompt = GetProfileExtractionPrompt(userMessage);
@@ -146,10 +146,10 @@ namespace StudyHub.Backend.UseCases.Services
                         content = prompt
                     }
                 },
-                max_new_token = 500,
+                //max_new_token = 500,
                 temperature = 0.3,
                 top_p = 0.95,
-                return_full_text = false
+                //return_full_text = false
             });
 
             var response = await _client.ExecuteAsync(request);
@@ -191,7 +191,7 @@ namespace StudyHub.Backend.UseCases.Services
         List<CourseRecommendationResult> recommendations)
         {
 
-            var model = configuration["HuggingFace:LLMModel"] ?? "Qwen/Qwen3-4B-Instruct-2507";
+            var model = configuration["HuggingFace:LLMModel:Path"] + ":" + configuration["HuggingFace:LLMModel:InferenceProviderPath"] ?? "";
             var apiKey = configuration["HuggingFace:ApiToken"] ?? "";
 
             var prompt = GetCourseExplanationPrompt(profile, recommendations);
@@ -209,10 +209,10 @@ namespace StudyHub.Backend.UseCases.Services
                         content = prompt
                     }
                 },
-                max_new_tokens = 800,
+                //max_new_tokens = 800,
                 temperature = 0.7,
                 top_p = 0.95,
-                return_full_text = false
+                //return_full_text = false
             });
 
             var response = await _client.ExecuteAsync(request);
@@ -248,7 +248,7 @@ namespace StudyHub.Backend.UseCases.Services
        List<DocumentRecommendationResult> recommendations)
         {
 
-            var model = configuration["HuggingFace:LLMModel"] ?? "Qwen/Qwen3-4B-Instruct-2507";
+            var model = configuration["HuggingFace:LLMModel:Path"] + ":" + configuration["HuggingFace:LLMModel:InferenceProviderPath"] ?? "";
             var apiKey = configuration["HuggingFace:ApiToken"] ?? "";
 
             var prompt = GetDocumentExplanationPrompt(profile, recommendations);
@@ -266,10 +266,10 @@ namespace StudyHub.Backend.UseCases.Services
                         content = prompt
                     }
                 },
-                max_new_tokens = 800,
+                //max_new_tokens = 800,
                 temperature = 0.7,
                 top_p = 0.95,
-                return_full_text = false
+                //return_full_text = false
             });
 
             var response = await _client.ExecuteAsync(request);

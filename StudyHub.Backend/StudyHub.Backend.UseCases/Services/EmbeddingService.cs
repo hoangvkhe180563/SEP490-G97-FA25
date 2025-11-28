@@ -26,12 +26,12 @@ namespace StudyHub.Backend.UseCases.Services
         public async Task<float[]> GetEmbeddingAsync(string text)
         {
 
-            var model = configuration["HuggingFace:EmbeddingModel"] ?? "intfloat/multilingual-e5-large";
+            var model = configuration["HuggingFace:EmbeddingModel"] ?? "intfloat/multilingual-e5-large-instruct";
             var apiKey = configuration["HuggingFace:ApiToken"] ?? "";
 
-            var request = new RestRequest($"/models/{model}/pipeline/feature-extraction", Method.Post);
+            var request = new RestRequest($"models/{model}/pipeline/feature-extraction", Method.Post);
             request.AddHeader("Authorization", $"Bearer {apiKey}");
-            request.AddJsonBody(new { inputs = text, model, provider = "hf-inference" });
+            request.AddJsonBody(new { inputs = text });
 
             var response = await _client.ExecuteAsync(request);
 
@@ -44,24 +44,85 @@ namespace StudyHub.Backend.UseCases.Services
             return embeddings;
         }
 
-        public async Task<float[][]> GetEmbeddingsBatchAsync(List<string> texts)
+        public async Task<float[][]> GetEmbeddingsBatchAsync(List<string> texts, int? batchSize = 5)
         {
-            var model = configuration["HuggingFace:EmbeddingModel"] ?? "intfloat/multilingual-e5-large";
+            if (texts == null || texts.Count == 0)
+                return Array.Empty<float[]>();
+
+            var model = configuration["HuggingFace:EmbeddingModel"] ?? "intfloat/multilingual-e5-large-instruct";
             var apiKey = configuration["HuggingFace:ApiToken"] ?? "";
 
-            var request = new RestRequest($"/models/{model}/pipeline/feature-extraction", Method.Post);
-            request.AddHeader("Authorization", $"Bearer {apiKey}");
-            request.AddJsonBody(new { inputs = texts, model, provider = "hf-inference" });
+            // Tách thành batch 5
+            var batches = texts
+                .Select((text, index) => new { text, index })
+                .GroupBy(x => x.index / batchSize)
+                .Select(g => g.ToList())
+                .ToList();
 
-            var response = await _client.ExecuteAsync(request);
+            // Số luồng = số batch (hoặc bạn có thể giới hạn max)
+            int parallelCount = batches.Count;
 
-            if (!response.IsSuccessful)
+            var semaphore = new SemaphoreSlim(parallelCount);
+
+            var tasks = new List<Task<(int batchIndex, List<(int index, float[])> vectors)>>();
+
+            for (int batchIndex = 0; batchIndex < batches.Count; batchIndex++)
             {
-                throw new Exception($"Embedding API error: {response.Content}");
+                int bi = batchIndex;
+                var batch = batches[batchIndex];
+
+                tasks.Add(Task.Run(async () =>
+                {
+                    await semaphore.WaitAsync();
+
+                    try
+                    {
+                        // Lấy danh sách text trong batch
+                        var inputs = batch.Select(x => x.text).ToArray();
+
+                        var request = new RestRequest($"/models/{model}/pipeline/feature-extraction", Method.Post);
+                        request.AddHeader("Authorization", $"Bearer {apiKey}");
+                        request.AddHeader("Content-Type", "application/json");
+
+                        request.AddJsonBody(new
+                        {
+                            inputs = inputs
+                        });
+
+                        var response = await _client.ExecuteAsync(request);
+
+                        if (!response.IsSuccessful)
+                            throw new Exception($"Embedding API error: {response.StatusCode} - {response.Content}");
+
+                        var vectors = JsonSerializer.Deserialize<float[][]>(response.Content);
+
+                        // Trả về từng vector kèm đúng index của nó
+                        var results = new List<(int index, float[])>();
+
+                        for (int i = 0; i < batch.Count; i++)
+                        {
+                            results.Add((batch[i].index, vectors[i]));
+                        }
+
+                        return (bi, results);
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                }));
             }
 
-            var embeddings = JsonSerializer.Deserialize<float[][]>(response.Content);
-            return embeddings;
+            var batchResults = await Task.WhenAll(tasks);
+
+            // Gộp lại + sắp xếp đúng thứ tự input ban đầu
+            var finalVectors = batchResults
+                .SelectMany(br => br.vectors)
+                .OrderBy(x => x.index)
+                .Select(x => x.Item2)
+                .ToArray();
+
+            return finalVectors;
         }
 
         public string ConvertUserProfileToCourseText(UserLearningProfile profile, List<CourseSubjectPreference> preferences)
@@ -121,44 +182,26 @@ namespace StudyHub.Backend.UseCases.Services
         // Chuyển Course thành text cho embedding
         public string ConvertCourseToText(Course course)
         {
-            return $"Subject: {course.Subject.Name} | " +
-                   $"Level: {course.Difficulty.ToString().ToLower()} | " +
-                   $"Length: {course.Length.ToString().ToLower()} | " +
-                   $"Grade: {course.Grade} | " +
-                   $"Course: {course.Name} | " +
-                   $"Info: {course.Information}";
+            return $"Title: {course.Name} | " +
+                   $"Information: {course.Information}";
         }
 
         // Chuyển Document thành text cho embedding
         public string ConvertDocumentToText(Document document)
         {
-            var subject = document.Subject?.Name ?? string.Empty;
-            return $"Subject: {subject} | " +
-                   $"Level: {document.DocumentLevel.ToLower()} | " +
-                   $"Length: {document.DocumentLengthType.ToLower()} | " +
-                   $"Grade: {document.Grade} | " +
-                   $"Title: {document.Name} | " +
+            return $"Title: {document.Name} | " +
                    $"Description: {document.Description}";
         }
 
         public string ConvertEmbeddingCourseToText(Course course)
         {
-            return $"Subject: {course.Subject?.Name} | " +
-                   $"Level: {course.Difficulty.ToString().ToLower()} | " +
-                   $"Length: {course.Length.ToString().ToLower()} | " +
-                   $"Grade: {course.Grade} | " +
-                   $"Course: {course.Name} | " +
-                   $"Info: {course.Information}";
+            return $"Title: {course.Name} | " +
+                   $"Information: {course.Information}";
         }
 
         public string ConvertEmbeddingDocumentToText(Document doc)
         {
-            var subject = doc.Subject?.Name;
-            return $"Subject: {subject} | " +
-                   $"Level: {doc.DocumentLevel.ToLower()} | " +
-                   $"Length: {doc.DocumentLengthType.ToLower()} | " +
-                   $"Grade: {doc.Grade} | " +
-                   $"Title: {doc.Name} | " +
+            return $"Title: {doc.Name} | " +
                    $"Description: {doc.Description}";
         }
 
