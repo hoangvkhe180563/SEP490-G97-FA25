@@ -361,6 +361,7 @@ const EditCourse: React.FC = () => {
       open: true,
       title: "Xóa chương",
       message: "Bạn có chắc chắn muốn xóa chương này?",
+      showCancel: true,
       onConfirm: async () => {
         try {
           const res = deleteChapterStore ? await deleteChapterStore(id) : false;
@@ -420,6 +421,7 @@ const EditCourse: React.FC = () => {
       open: true,
       title: "Xóa bài giảng",
       message: "Bạn có chắc chắn muốn xóa bài giảng này?",
+      showCancel: true,
       onConfirm: async () => {
         if (!deleteLessonStore) {
           setDialog({

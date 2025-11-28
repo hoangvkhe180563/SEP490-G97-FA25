@@ -32,13 +32,13 @@ namespace StudyHub.Backend.UseCases.Services
 
             var entity = new QAConversationFile
             {
-                Id = System.Guid.NewGuid(),
+                Id = Guid.NewGuid(),
                 ConversationId = conversationId,
                 CreatedBy = current?.Id,
                 FileUrl = uploadedUrl,
                 FileName = file.FileName,
                 FileType = file.ContentType,
-                CreatedAt = System.DateTime.Now,
+                CreatedAt = DateTime.Now,
             };
 
             return _repo.Create(entity);

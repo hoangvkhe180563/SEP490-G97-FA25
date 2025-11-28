@@ -124,5 +124,6 @@ namespace StudyHub.Backend.UseCases.Services
             // Use repository to grade
             return _repo.GradeSubmission(score, submissionId, gradedBy, feedback);
         }
+        public int GetTotalUnreadNotifications(int classID, Guid userID, string type)=> _repo.GetTotalUnreadNotifications(classID, userID, type);
     }
 }

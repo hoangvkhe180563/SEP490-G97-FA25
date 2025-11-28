@@ -151,7 +151,7 @@ namespace StudyHub.Backend.Api.Mappers
             };
         }
 
-        public static SubmissionFileDto ToSubmissionDto(this NotificationSubmission sub, List<SubmissionFile> files)
+        public static SubmissionFileDto ToSubmissionDto(this NotificationSubmission sub, List<SubmissionFile> files, AppUser? user )
         {
             return new SubmissionFileDto
             {
@@ -164,6 +164,7 @@ namespace StudyHub.Backend.Api.Mappers
                 Score = sub.Score,
                 GradedAt = sub.GradedAt,
                 GradedBy = sub.GradedBy,
+                GradeByName = user!=null? user.Fullname : "Unknown",
                 Feedback = sub.Feedback,
                 SubmissionStatus = sub.SubmissionStatus
             };
