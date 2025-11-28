@@ -21,25 +21,16 @@ namespace StudyHub.Backend.Api.Controllers
     public class ClassController : ControllerBase
     {
         private readonly ClassService _service;
-        private readonly ClassNotificationService _notificationService;
         private readonly AppUserService _aUserService;
-        private readonly AppRoleService _aRoleService;
-        private readonly LocationService _locationService;
-        private readonly IConfiguration _config;
-        private readonly SmtpEmailService _emailService;
-        private readonly IHubContext<ClassNotificationHub> _hubContext;
+      
         private readonly ClassNotificationService _classNotificationService;
 
 
-        public ClassController(ClassService service, AppUserService aUserService, AppRoleService aRoleService, LocationService locationService, SmtpEmailService emailService, IConfiguration config, IHubContext<ClassNotificationHub> hubContext, ClassNotificationService classNotificationService)
+        public ClassController(ClassService service, AppUserService aUserService,  ClassNotificationService classNotificationService)
         {
             _service = service;
             _aUserService = aUserService;
-            _aRoleService = aRoleService;
-            _locationService = locationService;
-            _config = config;
-            _emailService = emailService;
-            _hubContext = hubContext;
+           
             _classNotificationService = classNotificationService;
         }
 

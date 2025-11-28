@@ -15,6 +15,7 @@ interface ForumState {
   posts: Post[];
   currentPost: Post | null;
   flairs: Flair[];
+  subjectIds?: number[];
   myPosts: Post[];
   moderatorPosts: ModeratorPost[];
   isLoading: boolean;
@@ -53,8 +54,8 @@ interface ForumState {
 
   getMyPosts: (
     schoolId: number,
-    subjectId?: number,
-    flairId?: number,
+    subjectIds?: number[],
+    flairIds?: number[],
     query?: string,
     sortBy?: string,
     pageNumber?: number,
@@ -359,9 +360,13 @@ export const useForumStore = create<ForumState>()(
             const params = new URLSearchParams();
             params.append("schoolId", schoolId.toString());
             if (subjectIds && subjectIds.length > 0)
-              params.append("subjectIds", subjectIds.join(","));
+              subjectIds.forEach((id) =>
+                params.append("SubjectIds", id.toString())
+              );
             if (flairIds && flairIds.length > 0)
-              params.append("flairIds", flairIds.join(","));
+              flairIds.forEach((id) =>
+                params.append("FlairIds", id.toString())
+              );
             if (query) params.append("query", query);
             if (sortBy) params.append("sortBy", sortBy);
             params.append("pageNumber", pageNumber.toString());
@@ -397,11 +402,10 @@ export const useForumStore = create<ForumState>()(
             set({ isLoading: false });
           }
         },
-
         getMyPosts: async (
           schoolId: number,
-          subjectId?: number,
-          flairId?: number,
+          subjectIds?: number[],
+          flairIds?: number[],
           query?: string,
           sortBy?: string,
           pageNumber: number = 1,
@@ -411,8 +415,14 @@ export const useForumStore = create<ForumState>()(
           try {
             const params = new URLSearchParams();
             params.append("schoolId", schoolId.toString());
-            if (subjectId) params.append("subjectId", subjectId.toString());
-            if (flairId) params.append("flairId", flairId.toString());
+            if (subjectIds && subjectIds.length > 0)
+              subjectIds.forEach((id) =>
+                params.append("SubjectIds", id.toString())
+              );
+            if (flairIds && flairIds.length > 0)
+              flairIds.forEach((id) =>
+                params.append("FlairIds", id.toString())
+              );
             if (query) params.append("query", query);
             if (sortBy) params.append("sortBy", sortBy);
             params.append("pageNumber", pageNumber.toString());
@@ -812,12 +822,12 @@ export const useForumStore = create<ForumState>()(
           subjectIds?: number[],
           flairIds?: number[],
           query?: string,
+          sortBy?: string,
           postStatus?: string,
           minViolationScore?: number,
           maxViolationScore?: number,
           createdFrom?: string,
           createdTo?: string,
-          sortBy?: string,
           pageNumber: number = 1,
           pageSize: number = 10
         ) => {
@@ -826,10 +836,15 @@ export const useForumStore = create<ForumState>()(
             const params = new URLSearchParams();
             params.append("schoolId", schoolId.toString());
             if (subjectIds && subjectIds.length > 0)
-              params.append("subjectIds", subjectIds.join(","));
+              subjectIds.forEach((id) =>
+                params.append("SubjectIds", id.toString())
+              );
             if (flairIds && flairIds.length > 0)
-              params.append("flairIds", flairIds.join(","));
+              flairIds.forEach((id) =>
+                params.append("FlairIds", id.toString())
+              );
             if (query) params.append("query", query);
+            if (sortBy) params.append("sortBy", sortBy);
             if (postStatus) params.append("postStatus", postStatus);
             if (minViolationScore !== undefined)
               params.append("minViolationScore", minViolationScore.toString());
@@ -837,7 +852,6 @@ export const useForumStore = create<ForumState>()(
               params.append("maxViolationScore", maxViolationScore.toString());
             if (createdFrom) params.append("createdFrom", createdFrom);
             if (createdTo) params.append("createdTo", createdTo);
-            if (sortBy) params.append("sortBy", sortBy);
             params.append("pageNumber", pageNumber.toString());
             params.append("pageSize", pageSize.toString());
 

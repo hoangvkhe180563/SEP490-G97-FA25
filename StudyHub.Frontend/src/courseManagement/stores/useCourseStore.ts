@@ -53,6 +53,7 @@ export const useCourseStore = create<CourseState>((set, get) => ({
         q: query.q,
         sort: query.sort,
         subjectId: query.subjectId,
+        publicOnly: query.publicOnly,
         schoolId: query.schoolId,
         grade: query.grade,
         minDuration: query.minDuration,

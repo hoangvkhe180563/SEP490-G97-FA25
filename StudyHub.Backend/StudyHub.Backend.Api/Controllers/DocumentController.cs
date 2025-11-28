@@ -401,7 +401,7 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("preview/{id:int}")]
         public async Task<IActionResult> PreviewDocument(int id)
         {
-            var document = _documentService.GetDocumentById(id);
+            var document =  _documentService.GetDocumentById(id);
             if (document == null)
                 return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
 

@@ -37,8 +37,16 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (query.SubjectId.HasValue)
                     q = q.Where(c => c.SubjectId == query.SubjectId.Value);
 
-                if (query.SchoolId > 0)
-                    q = q.Where(c => c.SchoolId == query.SchoolId);
+                if (query.PublicOnly.HasValue && query.PublicOnly.Value)
+                {
+                    // Only public courses (SchoolId == null)
+                    q = q.Where(c => c.SchoolId == null);
+                }
+                else if (query.SchoolId > 0)
+                {
+                    // Include both courses that belong to the given school AND public courses (SchoolId == null)
+                    q = q.Where(c => c.SchoolId == query.SchoolId || c.SchoolId == null);
+                }
 
                 if (query.Grade.HasValue)
                     q = q.Where(c => c.Grade == query.Grade.Value);
@@ -72,26 +80,26 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 }
 
                 var courses = q.AsEnumerable()
-                                .Where(c =>
-                                {
-                                    int totalDuration = c.Chapters
-                                        .SelectMany(ch => ch.Lessons)
-                                        .Where(l => !string.IsNullOrWhiteSpace(l.Duration))
-                                        .Sum(l => int.TryParse(l.Duration, out var mins) ? mins : 0);
-
-                                    if (query.minDuration == 0 && query.maxDuration == 0)
-                                        return true;
-
-                                    if (query.minDuration > 0 && totalDuration < query.minDuration)
-                                        return false;
-
-                                    if (query.maxDuration > 0 && totalDuration > query.maxDuration)
-                                        return false;
-
-                                    return true;
-                                })
-                                .ToList();
-
+                    .Where(c =>
+                    {
+                        int totalDuration = c.Chapters
+                            .SelectMany(ch => ch.Lessons)
+                            .Where(l => !string.IsNullOrWhiteSpace(l.Duration))
+                            .Sum(l => int.TryParse(l.Duration, out var mins) ? mins : 0);
+                    
+                        if (query.minDuration == 0 && query.maxDuration == 0)
+                            return true;
+                    
+                        if (query.minDuration > 0 && totalDuration < query.minDuration)
+                            return false;
+                    
+                        if (query.maxDuration > 0 && totalDuration > query.maxDuration)
+                            return false;
+                    
+                        return true;
+                    })
+                    .ToList();
+                    
 
                 courses = (query.Sort ?? string.Empty).ToLower() switch
                 {

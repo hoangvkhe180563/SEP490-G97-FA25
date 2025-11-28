@@ -38,30 +38,40 @@ const CourseList: React.FC = () => {
   const effectivePageSize = selectedPageSize ?? pageSize ?? 6;
 
   const load = (p: number = 1, opts: Record<string, any> = {}) => {
-    if (!authUser?.schoolId) return;
     const params: Record<string, any> = {
       page: p,
       pageSize: opts.pageSize ?? effectivePageSize,
       status: "Mở",
       isApproved: true,
-      schoolId: authUser?.schoolId,
       q,
       sort,
       ...filters,
       ...opts,
     };
+
+    // If the user belongs to a school, request courses for that school (backend also includes public courses).
+    // If the user has no school (public user), request public-only courses.
+    if (authUser?.schoolId) {
+      params.schoolId = authUser.schoolId;
+    } else {
+      params.publicOnly = true;
+    }
+
     fetchCourses(params);
   };
 
   useEffect(() => {
-    if (authUser?.schoolId)
-      fetchCourses({
-        page: 1,
-        pageSize: effectivePageSize,
-        status: "Mở",
-        isApproved: true,
-        schoolId: authUser?.schoolId,
-      });
+    const params: Record<string, any> = {
+      page: 1,
+      pageSize: effectivePageSize,
+      status: "Mở",
+      isApproved: true,
+    };
+
+    if (authUser?.schoolId) params.schoolId = authUser.schoolId;
+    else params.publicOnly = true;
+
+    fetchCourses(params);
   }, [fetchCourses, effectivePageSize, authUser?.schoolId]);
 
   useEffect(() => {

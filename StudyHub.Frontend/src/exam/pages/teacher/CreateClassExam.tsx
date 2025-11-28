@@ -294,8 +294,8 @@ const CreateExam = () => {
           />
         </div>
         <div className="flex items-center gap-3 py-3">
-          <Checkbox id="showAnswers" checked={isMultipleAttempts} onCheckedChange={(value: boolean) => setIsMultipleAttempts(value)} />
-          <Label htmlFor="showAnswers">Cho phép thi nhiều lần</Label>
+          <Checkbox id="multipleTimes" checked={isMultipleAttempts} onCheckedChange={(value: boolean) => setIsMultipleAttempts(value)} />
+          <Label htmlFor="multipleTimes">Cho phép thi nhiều lần</Label>
         </div>
 
         <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b py-3">Khi nộp bài</h2>

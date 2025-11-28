@@ -1,16 +1,6 @@
 import React, { useEffect, useState } from "react";
-import {
-  useParams,
-  useSearchParams,
-  useNavigate,
-} from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import type { ClassWork } from "@/classManagement/interfaces/class";
-import PostComposer from "@/classManagement/components/ui/postcomposer";
-import PostCard from "@/classManagement/components/ui/postcard";
-import MemberDetailModal from "@/classManagement/components/ui/memberdetailmodal";
-import AddMemberModal from "@/classManagement/components/ui/addmembermodal";
-import type { UserRole } from "@/classManagement/components/ui/classcard";
-
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { mapToCoarseRole } from "@/classManagement/utils/roleutil";
@@ -26,7 +16,6 @@ import { axiosInstance } from "@/lib/axios";
 import { Button } from "@/common/components/ui/button";
 import { Card } from "@/common/components/ui/card";
 import { Badge } from "@/common/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
 import {
   Tabs,
   TabsList,
@@ -41,52 +30,102 @@ import {
   BreadcrumbPage,
   BreadcrumbList,
 } from "@/common/components/ui/breadcrumb";
+
+import NotificationsTab from "@/classManagement/components/tabs/notificationTab";
+import ExerciseTab from "@/classManagement/components/tabs/exerciseTab";
+import EveryoneTab from "@/classManagement/components/tabs/everyoneTab";
 import ClassExams from "@/classManagement/components/ClassExams";
+import MemberRowSimple from "@/classManagement/components/ui/memberrowsimple";
 
-/* local type for links coming from PostComposer */
-type LinkPayload = { url: string; title?: string; thumbnail?: string };
+import { isPastDeadline } from "@/classManagement/utils/dateutil";
+import { useNotificationStore } from "@/classManagement/stores/useNotificationStore";
 
-const ClassInfoCard: React.FC<{
-  info: ClassInfo | null;
-  memberCount?: number;
-}> = ({ info, memberCount = 0 }) => {
-  if (!info) return null;
-  return (
-    <Card className="mb-4">
-      <div className="p-6">
-        <div className="text-sm font-semibold text-slate-600 mb-3">
-          THÔNG TIN LỚP HỌC
-        </div>
-        <div className="text-slate-800">
-          <div className="font-extrabold text-2xl mb-1">
-            {info.name ?? "Tên lớp"}
-          </div>
-          <div className="text-md text-slate-500 mb-4">
-            {info.description ?? ""}
-          </div>
-          <div className="mt-3 text-sm text-slate-700 flex items-center justify-between">
-            <div className="text-xs text-slate-400">Số thành viên</div>
-            <Badge className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg font-semibold text-lg">
-              {memberCount}
-            </Badge>
-          </div>
-        </div>
-      </div>
-    </Card>
+const DetailedClassTeacher: React.FC = () => {
+  const params = useParams<{ id?: string; role?: string }>();
+  const id = params.id ?? "";
+
+  const { user } = useAuthStore();
+  const coarseRole = mapToCoarseRole(user?.roles);
+  const role =
+    coarseRole === "student"
+      ? "student"
+      : coarseRole === "teacher"
+      ? "teacher"
+      : localStorage.getItem("currentUserRole") === "teacher"
+      ? "teacher"
+      : "student";
+
+  const {
+    getClassInfo,
+    getClassMembers,
+    getClassWorks,
+    currentClass,
+    getMemberCount,
+    getDocumentsByClassId,
+    isLoading,
+    createNotification,
+    getClassworkSubmissions,
+    getSubmissionCount,
+    getUnreadCount,
+  } = useClassStore();
+
+  const {
+    connect,
+    joinClass,
+    leaveClass,
+    addNewNotificationListener,
+    removeNewNotificationListener,
+  } = useNotificationStore();
+
+  const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(
+    null
   );
-};
+  const [openAddMember, setOpenAddMember] = useState(false);
 
-const DocumentPreviewCard: React.FC<{ doc: DocumentDto }> = ({ doc }) => {
+  const [documents, setDocuments] = useState<DocumentDto[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+
+  const [notifications, setNotifications] = useState<ClassNotification[]>([]);
+
+  const [classMemberCount, setClassMemberCount] = useState<number | null>(null);
+
+  const [submissionCounts, setSubmissionCounts] = useState<
+    Record<number, number | null>
+  >({});
+  const [memberCounts, setMemberCounts] = useState<
+    Record<number, number | null>
+  >({});
+
+  const [unreadNotificationsCount, setUnreadNotificationsCount] =
+    useState<number>(0);
+  const [unreadClassworkCount, setUnreadClassworkCount] = useState<number>(0);
+
+  const [activeTab, setActiveTab] = useState<string>("notifications");
+  const [searchParams] = useSearchParams();
+
+  const navigate = useNavigate();
+  const DocumentPreviewCard: React.FC<{ doc: DocumentDto; role: string }> = ({
+  doc,
+  role,
+}) => {
+  const navigate = useNavigate();
   const isImage = !!(
     doc.fileType && /jpg|jpeg|png|gif|bmp|webp/i.test(String(doc.fileType))
   );
   const isPdf = !!(doc.fileType && /pdf/i.test(String(doc.fileType)));
 
+  const detailPath = `/document/student/details/${doc.id}`;
+
   return (
     <a
-      href={doc.documentUrl}
-      target="_blank"
-      rel="noopener noreferrer"
+      href={detailPath}
+      onClick={(e) => {
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
+          return;
+        }
+        e.preventDefault();
+        navigate(detailPath);
+      }}
       className="block"
       title={doc.name}
     >
@@ -141,316 +180,179 @@ const DocumentPreviewCard: React.FC<{ doc: DocumentDto }> = ({ doc }) => {
   );
 };
 
-const DocumentsBox: React.FC<{
-  documents: DocumentDto[];
-  loading: boolean;
-  classId: string;
-}> = ({ documents, loading, classId }) => {
-  return (
-    <Card className="mt-4">
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="font-semibold text-lg">Tài liệu lớp</div>
-          <div className="text-sm text-slate-500">
-            {loading ? "Đang tải..." : `${documents.length} tài liệu`}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          {documents && documents.length > 0 ? (
-            documents.map((d) => <DocumentPreviewCard key={d.id} doc={d} />)
-          ) : (
-            <div className="col-span-2 text-sm text-slate-500">
-              Chưa có tài liệu.
-            </div>
-          )}
-        </div>
-        <div className="mt-3 flex justify-end">
-          <Button asChild variant="link" size="sm">
-            <a href={`/documents?classId=${classId}`}>Xem toàn bộ</a>
-          </Button>
-        </div>
-      </div>
-    </Card>
-  );
-};
+  // initialize activeTab from query param if present, otherwise default notifications
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t) setActiveTab(t);
+    else setActiveTab("notifications");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
-const MemberRowSimple: React.FC<{
-  m: ClassMemberDto;
-  onMail?: (p: ClassMemberDto) => void;
-  onSelect?: (p: ClassMemberDto) => void;
-  roleLabel?: string;
-}> = ({ m, onMail, onSelect, roleLabel }) => {
-  const initials = m.fullname
-    ? m.fullname.charAt(0).toUpperCase()
-    : String(m.userId).charAt(0).toUpperCase();
-  return (
-    <div
-      className="flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-slate-50 cursor-pointer"
-      onClick={() => onSelect && onSelect(m)}
-    >
-      <div className="flex items-center gap-3">
-        <Avatar>
-          <AvatarFallback>{initials}</AvatarFallback>
-        </Avatar>
-        <div>
-          <div className="font-medium text-slate-800">{m.fullname}</div>
-          {m.email && <div className="text-sm text-slate-500">{m.email}</div>}
-        </div>
-      </div>
-      <div className="flex items-center gap-3">
-        {roleLabel && (
-          <div className="text-xs px-2 py-1 bg-slate-100 rounded text-slate-600">
-            {roleLabel}
-          </div>
-        )}
-        <Button
-          variant="link"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-            onMail && onMail(m);
-          }}
-        >
-          Mail
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-const DetailedClassTeacher: React.FC = () => {
-  const params = useParams<{ id?: string; role?: string }>();
-  const id = params.id ?? "";
-
-  const { user } = useAuthStore();
-  const coarseRole = mapToCoarseRole(user?.roles);
-
-  let role: UserRole;
-  if (coarseRole === "student") role = "student";
-  else if (coarseRole === "teacher") role = "teacher";
-  else {
-    const stored = localStorage.getItem("currentUserRole");
-    role = stored === "teacher" ? "teacher" : "student";
-  }
-
-  const {
-    getClassInfo,
-    getClassMembers,
-    getClassWorks,
-    currentClass,
-    getMemberCount,
-    getDocumentsByClassId,
-    isLoading,
-    createNotification,
-    getClassworkSubmissions,
-    getSubmissionCount
-  } = useClassStore();
-
-  const [selectedMember, setSelectedMember] = useState<ClassMemberDto | null>(
-    null
-  );
-  const [openAddMember, setOpenAddMember] = useState(false);
-
-  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
-
-  const [submissionCounts, setSubmissionCounts] = useState<
-    Record<number, number | null>
-  >({});
-  const [memberCounts, setMemberCounts] = useState<
-    Record<number, number | null>
-  >({});
-
-  const [classMemberCount, setClassMemberCount] = useState<number | null>(null);
-
-  const [documents, setDocuments] = useState<DocumentDto[]>([]);
-  const [docsLoading, setDocsLoading] = useState(false);
-
-  const navigate = useNavigate();
-
+  // fetch class info
   useEffect(() => {
     if (id) {
       getClassInfo(Number(id));
     }
   }, [id, getClassInfo]);
 
+  // fetch member count
   useEffect(() => {
     if (!id) return;
     let mounted = true;
-    const fetchMemberCount = async () => {
+    (async () => {
       try {
-        if (!getMemberCount) return;
-        const count = await getMemberCount(Number(id));
-        if (mounted) setClassMemberCount(count);
-      } catch (err) {
+        const cnt = await getMemberCount(Number(id));
+        if (mounted) setClassMemberCount(cnt);
+      } catch {
         if (mounted) setClassMemberCount(null);
       }
-    };
-    fetchMemberCount();
+    })();
     return () => {
       mounted = false;
     };
   }, [id, getMemberCount]);
 
+  // fetch documents
   useEffect(() => {
     if (!id) return;
-    if (!getDocumentsByClassId) return;
+    const fetchFn = getDocumentsByClassId;
+    if (!fetchFn) return;
     let mounted = true;
-    const fetchDocs = async () => {
-      setDocsLoading(true);
+    (async () => {
       try {
-        const docs = await getDocumentsByClassId(Number(id));
+        setDocsLoading(true);
+        const docs = await fetchFn(Number(id));
         if (mounted) setDocuments(docs ?? []);
-      } catch (err) {
+      } catch {
         if (mounted) setDocuments([]);
       } finally {
         if (mounted) setDocsLoading(false);
       }
-    };
-    fetchDocs();
+    })();
     return () => {
       mounted = false;
     };
   }, [id, getDocumentsByClassId]);
 
-  const worksFromStore: ClassWork[] = currentClass?.data?.works ?? [];
-
-  useEffect(() => {
-    const students = currentClass?.data?.students ?? [];
-    if (students && students.length > 0 && worksFromStore.length > 0) {
-      const count = students.length;
-      setMemberCounts((prev) => {
-        const next = { ...prev };
-        worksFromStore.forEach((w) => {
-          if (next[w.id] === undefined || next[w.id] === null) {
-            next[w.id] = count;
-          }
-        });
-        return next;
-      });
-    }
-  }, [worksFromStore]);
-
-  const fetchCountsForWork = async (workId: number) => {
-    // member count
-    try {
-      const students = currentClass?.data?.students ?? [];
-      if (students && students.length > 0) {
-        setMemberCounts((prev) => ({ ...prev, [workId]: students.length }));
-      } else if (memberCounts[workId] === undefined) {
-        try {
-          if (getMemberCount) {
-            const count = await getMemberCount(workId);
-            setMemberCounts((prev) => ({ ...prev, [workId]: count }));
-          } else {
-            const res = await axiosInstance.get(
-              `/Class/classworks/membercount/${workId}`
-            );
-            const raw = res?.data ?? null;
-            let memCount: number | null = null;
-            if (raw !== null) {
-              if (typeof raw === "number") memCount = raw;
-              else if (typeof raw?.data === "number") memCount = raw.data;
-              else if (typeof raw?.count === "number") memCount = raw.count;
-            }
-            setMemberCounts((prev) => ({ ...prev, [workId]: memCount }));
-          }
-        } catch (err) {
-          setMemberCounts((prev) => ({ ...prev, [workId]: null }));
-        }
-      }
-    } catch (err) {
-      console.error("Unexpected member count error:", err);
-    }
-
-    // submission count: prefer store.getSubmissionCount if available; otherwise fallback to getClassworkSubmissions
-    try {
-      // only fetch if not cached
-      if (submissionCounts[workId] === undefined || submissionCounts[workId] === null) {
-        if (typeof getSubmissionCount === "function") {
-          const count = await getSubmissionCount(workId);
-          setSubmissionCounts((prev) => ({ ...prev, [workId]: count }));
-        } else {
-          const subs = await getClassworkSubmissions(workId);
-          if (!subs) {
-            setSubmissionCounts((prev) => ({ ...prev, [workId]: 0 }));
-          } else {
-            const unique = new Set<string>();
-            subs.forEach((s) => {
-              const uid = String(s.appUserId ?? (s as any).userId ?? "");
-              if (uid) unique.add(uid);
-            });
-            setSubmissionCounts((prev) => ({ ...prev, [workId]: unique.size }));
-          }
-        }
-      }
-    } catch (err) {
-      setSubmissionCounts((prev) => ({ ...prev, [workId]: null }));
-    }
-  };
-
-  const [activeTab, setActiveTab] = useState("notifications");
-  const [searchParams] = useSearchParams();
-
-  useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    if (tabParam) {
-      setActiveTab(tabParam);
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (!id) return;
-    if (activeTab === "everyone") {
-      const hasTeacher = !!currentClass?.data?.teacher;
-      const hasStudents = (currentClass?.data?.students ?? []).length > 0;
-      const hasParents = (currentClass?.data?.parents ?? []).length > 0;
-
-      if (!hasTeacher && !hasStudents && !hasParents) {
-        getClassMembers(Number(id));
-      }
-    }
-  }, [
-    activeTab,
-    id,
-    getClassMembers
-  ]);
-
-  const teacher: ClassMemberDto | null = currentClass?.data?.teacher ?? null;
-  const students: ClassMemberDto[] = currentClass?.data?.students ?? [];
-  const parents: ClassMemberDto[] = currentClass?.data?.parents ?? [];
-  const [notifications, setNotifications] = useState<ClassNotification[]>([]);
-
-  useEffect(() => {
-    if (activeTab === "exercise" && id) {
-      const hasWorks = (currentClass?.data?.works ?? []).length > 0;
-      if (!hasWorks) {
-        getClassWorks(Number(id));
-      }
-    }
-  }, [activeTab, id]);
-
+  // populate notifications initially from currentClass
   useEffect(() => {
     if (currentClass?.data?.notifications) {
       setNotifications(currentClass.data.notifications);
     }
-  }, []);
+  }, [currentClass?.data?.notifications]);
 
-  const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
+  // SignalR connect & join class group
+  useEffect(() => {
+    if (!id) return;
+    let mounted = true;
+    (async () => {
+      try {
+        await connect();
+        await joinClass(id);
+      } catch (err) {
+        console.warn("Notification hub connect/join failed", err);
+      }
+    })();
 
-  const totalMembers =
-    (teacher ? 1 : 0) + (students?.length ?? 0) + (parents?.length ?? 0);
+    return () => {
+      try {
+        leaveClass(id);
+      } catch {
+        /* empty */
+      }
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
-  const displayMemberCount = classMemberCount ?? totalMembers;
+  useEffect(() => {
+    if (!id) return;
+    const handler = (payload: any) => {
+      try {
+        const cid = String(payload?.classId ?? payload?.ClassId ?? "");
+        if (String(cid) === String(id) || Number(cid) === Number(id)) {
+          setNotifications((prev) => {
+            const exists = prev.some(
+              (p) => String(p.id) === String(payload?.id ?? payload?.Id ?? "")
+            );
+            if (exists) return prev;
+            return [payload as ClassNotification, ...(prev ?? [])];
+          });
+        }
+      } catch (err) {
+        console.error("new notification handler error", err);
+      }
+    };
 
+    addNewNotificationListener(handler);
+    return () => {
+      removeNewNotificationListener(handler);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  // fetch unread counts per-type when id or activeTab changes; keep badges up-to-date
+  useEffect(() => {
+    if (!id) return;
+    let mounted = true;
+    (async () => {
+      try {
+        console.log("loading unread counts for class tabs", id, user?.id);
+        const [notifCount, cwCount] = await Promise.all([
+          getUnreadCount(Number(id), "notification", user?.id).catch(() => 0),
+          getUnreadCount(Number(id), "classwork", user?.id).catch(() => 0),
+        ]);
+        if (!mounted) return;
+        setUnreadNotificationsCount(Number(notifCount ?? 0));
+        setUnreadClassworkCount(Number(cwCount ?? 0));
+      } catch (err) {
+        console.warn("failed to load unread counts for class tabs", err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [id, getUnreadCount, activeTab]);
+
+  // fetch members when user opens "everyone" tab and not already loaded
+  useEffect(() => {
+    if (!id) return;
+    if (activeTab !== "everyone") return;
+    // if currentClass already has members, skip; otherwise call getClassMembers
+    const hasTeacher = !!currentClass?.data?.teacher;
+    const hasStudents = (currentClass?.data?.students ?? []).length > 0;
+    const hasParents = (currentClass?.data?.parents ?? []).length > 0;
+
+    if (!hasTeacher && !hasStudents && !hasParents) {
+      getClassMembers(Number(id));
+    }
+  }, [
+    activeTab,
+    id,
+    currentClass?.data?.teacher,
+    currentClass?.data?.students,
+    currentClass?.data?.parents,
+    getClassMembers,
+  ]);
+
+  // fetch works when user opens "exercise" tab
+  useEffect(() => {
+    if (!id) return;
+    if (activeTab !== "exercise") return;
+    const hasWorks = (currentClass?.data?.works ?? []).length > 0;
+    if (!hasWorks) {
+      getClassWorks(Number(id));
+    }
+  }, [activeTab, id, currentClass?.data?.works, getClassWorks]);
+
+  // handlers
   const handlePost = async (
     content: string,
     files?: File[],
-    links?: LinkPayload[],
+    links?: any[],
     titleFromComposer?: string
   ) => {
     if (!id) return;
-
     const fallbackTitle =
       content && content.length > 40
         ? `${content.slice(0, 40)}...`
@@ -459,9 +361,7 @@ const DetailedClassTeacher: React.FC = () => {
       titleFromComposer && titleFromComposer.trim().length > 0
         ? titleFromComposer.trim()
         : fallbackTitle;
-
     const createdBy = user?.id ?? "";
-
     try {
       const payload = {
         classId: Number(id),
@@ -471,16 +371,14 @@ const DetailedClassTeacher: React.FC = () => {
         links,
         createdBy,
       };
-
       const created = await createNotification(payload);
-
       if (created) {
-        setNotifications((prev) => [created, ...prev]);
+        // optimistic append; server will broadcast NewNotificationFull as well
+        setNotifications((prev) => [created, ...(prev ?? [])]);
+        // refresh class info to keep server state in sync
         await getClassInfo(Number(id));
-      } else {
-        console.error("Tạo thông báo thất bại: createNotification trả về null");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("handlePost/createNotification error:", err);
     }
   };
@@ -499,6 +397,7 @@ const DetailedClassTeacher: React.FC = () => {
   const handleInvited = (res?: any) => {
     if (id) {
       getClassMembers(Number(id));
+      // refresh member count and documents as before
       axiosInstance
         .get(`/Class/membercount/${id}`)
         .then((res) => {
@@ -541,6 +440,12 @@ const DetailedClassTeacher: React.FC = () => {
       </div>
     );
   }
+
+  const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
+  const teacher: ClassMemberDto | null = currentClass?.data?.teacher ?? null;
+  const students: ClassMemberDto[] = currentClass?.data?.students ?? [];
+  const parents: ClassMemberDto[] = currentClass?.data?.parents ?? [];
+  const worksFromStore: ClassWork[] = currentClass?.data?.works ?? [];
 
   return (
     <div className="p-8 relative w-full h-full overflow-y-auto">
@@ -585,17 +490,34 @@ const DetailedClassTeacher: React.FC = () => {
         <div className="col-span-12 lg:col-span-8">
           <Tabs
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={(v) => setActiveTab(String(v))}
             className="w-full mt-4"
           >
             <div className="mb-4">
               <TabsList>
-                <TabsTrigger value="notifications" className="px-4 py-2 text-lg">
+                <TabsTrigger
+                  value="notifications"
+                  className="px-4 py-2 text-lg"
+                >
                   Thông báo
+                  {unreadNotificationsCount > 0 && (
+                    <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold text-white bg-red-600 rounded">
+                      {unreadNotificationsCount > 99
+                        ? "99+"
+                        : unreadNotificationsCount}
+                    </span>
+                  )}
                 </TabsTrigger>
+
                 <TabsTrigger value="exercise" className="px-4 py-2 text-lg">
                   Bài tập
+                  {unreadClassworkCount > 0 && (
+                    <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold text-white bg-red-600 rounded">
+                      {unreadClassworkCount > 99 ? "99+" : unreadClassworkCount}
+                    </span>
+                  )}
                 </TabsTrigger>
+
                 <TabsTrigger value="everyone" className="px-4 py-2 text-lg">
                   Mọi người
                 </TabsTrigger>
@@ -606,260 +528,144 @@ const DetailedClassTeacher: React.FC = () => {
             </div>
 
             <TabsContent value="notifications">
-              <div className="mb-4">
-                <PostComposer onPost={handlePost} avatarUrl={"/vite.svg"} />
-              </div>
-              <div className="mt-4 space-y-5">
-                {notifications.length > 0 ? (
-                  notifications.map((n) => (
-                    <PostCard
-                      key={n.id}
-                      post={{
-                        id: n.id,
-                        title: n.title,
-                        description: n.description,
-                        createdAt: n.createdAt,
-                        files: n.files ?? [],
-                        comments: n.comments ?? [],
-                      }}
-                    />
-                  ))
-                ) : (
-                  <div className="text-slate-500 text-base">
-                    Chưa có thông báo nào.
-                  </div>
-                )}
-              </div>
+              <NotificationsTab
+                classId={id}
+                notifications={notifications}
+                onPost={handlePost}
+                isTeacher={role === "teacher"}
+              />
             </TabsContent>
 
             <TabsContent value="exercise">
-              <div className="flex justify-end mb-4">
-                {role === "teacher" && (
-                  <Button
-                    onClick={() =>
-                      navigate(`/class/${role}/${id}/classwork/add`)
+              <ExerciseTab
+                works={worksFromStore}
+                role={role as "teacher" | "student"}
+                onOpenWork={(workId) => {
+                  if (role === "student")
+                    navigate(`/class/${role}/${id}/classwork/${workId}/detail`);
+                  else
+                    navigate(`/class/${role}/${id}/classwork/${workId}/submissions`);
+                }}
+                onAddWork={() => navigate(`/class/${role}/${id}/classwork/add`)}
+                fetchCountsForWork={async (wid) => {
+                  try {
+                    // example: refresh submission/member counts for a work
+                    if (typeof getSubmissionCount === "function") {
+                      const sc = await getSubmissionCount(wid);
+                      setSubmissionCounts((prev) => ({ ...prev, [wid]: sc }));
+                    } else {
+                      const subs = await getClassworkSubmissions(wid);
+                      const unique = new Set<string>();
+                      subs?.forEach((s) =>
+                        unique.add(
+                          String(
+                            (s as any).appUserId ?? (s as any).userId ?? ""
+                          )
+                        )
+                      );
+                      setSubmissionCounts((prev) => ({
+                        ...prev,
+                        [wid]: unique.size,
+                      }));
                     }
-                    className="text-base"
-                  >
-                    + Thêm bài tập
-                  </Button>
-                )}
-              </div>
-
-              <div className="mt-2">
-                {worksFromStore.length === 0 ? (
-                  <div className="text-slate-500 text-base">
-                    Chưa có bài tập nào.
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {worksFromStore.map((w) => (
-                      <div key={w.id}>
-                        <div
-                          className={`bg-white border rounded-xl p-5 cursor-pointer hover:bg-blue-50 flex justify-between items-start`}
-                          onClick={() => {
-                            if (role === "student") {
-                              navigate(
-                                `/class/${role}/${id}/classwork/${w.id}/detail`
-                              );
-                            } else {
-                              const next = openDropdownId === w.id ? null : w.id;
-                              setOpenDropdownId(next);
-                              if (next === w.id) {
-                                void fetchCountsForWork(w.id);
-                              }
-                            }
-                          }}
-                        >
-                          <div className="max-w-[70%]">
-                            <div className="text-lg font-semibold text-slate-900">
-                              {w.title}
-                            </div>
-                            <div className="text-base text-slate-600 mt-2">
-                              {w.description}
-                            </div>
-                          </div>
-                          <div className="text-right min-w-[140px]">
-                            <div className="text-xs text-slate-400">Hạn nộp</div>
-                            <div className="font-medium text-slate-800 mt-1">
-                              {w.deadline
-                                ? new Date(w.deadline).toLocaleString()
-                                : "Không xác định"}
-                            </div>
-                            {role === "teacher" && (
-                              <div className="mt-3">
-                                <Button
-                                  aria-label={`Sửa bài tập ${w.title}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(
-                                      `/class/${role}/${id}/classwork/${w.id}/edit`
-                                    );
-                                  }}
-                                  variant="secondary"
-                                  size="sm"
-                                >
-                                  ✏️ Sửa
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        {openDropdownId === w.id && (
-                          <Card className="mt-2">
-                            <div className="p-5">
-                              <div>
-                                <span className="font-semibold">Tiêu đề:</span>{" "}
-                                <span className="ml-2">{w.title}</span>
-                              </div>
-                              <div className="mt-3 flex items-center justify-between">
-                                <div>
-                                  <div className="text-xs text-slate-400">Hạn nộp</div>
-                                  <div className="font-medium">
-                                    {w.deadline ? new Date(w.deadline).toLocaleString() : "Không xác định"}
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-xs text-slate-400">Đã nộp / Tổng</div>
-                                  <div className="font-semibold text-slate-700">
-                                    {submissionCounts[w.id] ?? "—"} / {memberCounts[w.id] ?? "—"}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="mt-4 text-right">
-                                <Button onClick={() => navigate(`/class/${role}/${id}/classwork/${w.id}/submissions`)} size="sm">
-                                  Xem chi tiết
-                                </Button>
-                              </div>
-                            </div>
-                          </Card>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    // memberCounts fallback: try memberCounts from currentClass students length
+                    setMemberCounts((prev) => ({
+                      ...prev,
+                      [wid]:
+                        currentClass?.data?.students?.length ??
+                        prev[wid] ??
+                        null,
+                    }));
+                  } catch (e) {
+                    console.error("fetchCountsForWork failed", e);
+                  }
+                }}
+                submissionCounts={submissionCounts}
+                memberCounts={memberCounts}
+                navigateToEdit={(wid) =>
+                  navigate(`/class/${role}/${id}/classwork/${wid}/edit`)
+                }
+              />
             </TabsContent>
 
             <TabsContent value="everyone">
-              <div className="mb-3">
-                {role === "teacher" && (
-                  <Button onClick={handleOpenAdd} className="text-base">
-                    Thêm thành viên
-                  </Button>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                <Card>
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="font-semibold text-lg">Giáo viên</div>
-                      <div className="text-sm text-slate-500">
-                        {teacher ? 1 : 0}
-                      </div>
-                    </div>
-                    {teacher ? (
-                      <MemberRowSimple
-                        m={teacher}
-                        onMail={handleMail}
-                        onSelect={handleSelect}
-                        roleLabel="Giáo viên"
-                      />
-                    ) : (
-                      <div className="text-sm text-slate-500">
-                        Chưa có giáo viên được gán cho lớp này.
-                      </div>
-                    )}
-                  </div>
-                </Card>
-
-                <Card>
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="font-semibold text-lg">Học sinh</div>
-                      <div className="text-sm text-slate-500">
-                        {students.length}
-                      </div>
-                    </div>
-                    {students.length === 0 ? (
-                      <div className="text-sm text-slate-500">
-                        Chưa có học sinh.
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {students.map((s) => (
-                          <MemberRowSimple
-                            key={s.userId}
-                            m={s}
-                            onMail={handleMail}
-                            onSelect={handleSelect}
-                            roleLabel="Học sinh"
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </Card>
-
-                <Card>
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="font-semibold text-lg">Phụ huynh</div>
-                      <div className="text-sm text-slate-500">
-                        {parents.length}
-                      </div>
-                    </div>
-                    {parents.length === 0 ? (
-                      <div className="text-sm text-slate-500">
-                        Chưa có phụ huynh.
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {parents.map((p) => (
-                          <MemberRowSimple
-                            key={p.userId}
-                            m={p}
-                            onMail={handleMail}
-                            onSelect={handleSelect}
-                            roleLabel="Phụ huynh"
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              </div>
+              <EveryoneTab
+                teacher={teacher}
+                students={students}
+                parents={parents}
+                onMail={handleMail}
+                onSelect={handleSelect}
+                onAddMember={handleOpenAdd}
+                classId={currentClass.data.classInfo.id}
+              />
             </TabsContent>
+
             <TabsContent value="exam">
-              <ClassExams classId={id} isTeacher={user?.roles.some(role => role.includes("Teacher")) ?? false} />
+              <ClassExams classId={id} isTeacher={role === "teacher"} />
             </TabsContent>
           </Tabs>
         </div>
 
         <aside className="col-span-12 lg:col-span-4">
           <div className="sticky top-6 space-y-4">
-            <ClassInfoCard info={classInfo} memberCount={displayMemberCount} />
-            <DocumentsBox
-              documents={documents}
-              loading={docsLoading}
-              classId={id}
-            />
+            <Card className="mb-4">
+              <div className="p-6 flex items-start justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-slate-600 mb-3">
+                    THÔNG TIN LỚP HỌC
+                  </div>
+                  <div className="text-slate-800">
+                    <div className="font-extrabold text-2xl mb-1">
+                      {classInfo?.name ?? "Tên lớp"}
+                    </div>
+                    <div className="text-md text-slate-500 mb-4">
+                      {classInfo?.description ?? ""}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="px-6 pb-6 flex items-center justify-between">
+                <div className="text-xs text-slate-400">Số thành viên</div>
+                <Badge className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg font-semibold text-lg">
+                  {classMemberCount}
+                </Badge>
+              </div>
+            </Card>
+
+            <Card className="mt-4">
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="font-semibold text-lg">Tài liệu lớp</div>
+                  <div className="text-sm text-slate-500">
+                    {docsLoading
+                      ? "Đang tải..."
+                      : `${documents.length} tài liệu`}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {documents && documents.length > 0 ? (
+                    documents.map((d) => (
+                      <DocumentPreviewCard key={d.id} doc={d} role={role} />
+                    ))
+                  ) : (
+                    <div className="col-span-2 text-sm text-slate-500">
+                      Chưa có tài liệu.
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 flex justify-end">
+                  <Button asChild variant="link" size="sm">
+                    <a href={`/class/${id}/documents`}>Xem toàn bộ</a>
+                  </Button>
+                </div>
+              </div>
+            </Card>
           </div>
         </aside>
       </div>
 
-      <MemberDetailModal
-        open={!!selectedMember}
-        member={selectedMember}
-        onClose={handleCloseModal}
-      />
-      <AddMemberModal
-        open={openAddMember}
-        classId={id ? Number(id) : 0}
-        onClose={handleCloseAdd}
-        onInvited={handleInvited}
-      />
+      
     </div>
   );
 };
