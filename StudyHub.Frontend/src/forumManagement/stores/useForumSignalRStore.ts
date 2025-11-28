@@ -23,6 +23,8 @@ interface ForumSignalRState {
   onPostDeleted?: (postId: number) => void;
   onCommentUpdated?: (dto: any) => void;
   onUserTyping?: (payload: any) => void;
+  onPostPendingModeration?: (payload: any) => void;
+  onCommentPendingModeration?: (payload: any) => void;
 }
 
 export const useForumSignalRStore = create<ForumSignalRState>()(
@@ -75,7 +77,14 @@ export const useForumSignalRStore = create<ForumSignalRState>()(
             set({ isForumConnected: false, typingUsers: [] });
             delete (window as any).__forumConn;
           });
-
+          conn.on("PostPendingModeration", (payload: any) => {
+            const handler = get().onPostPendingModeration;
+            if (handler) handler(payload);
+          });
+          conn.on("CommentPendingModeration", (payload: any) => {
+            const handler = get().onCommentPendingModeration;
+            if (handler) handler(payload);
+          });
           conn.on("ReceiveNewPost", (dto: any) => {
             const handler = get().onReceiveNewPost;
             if (handler) handler(dto);

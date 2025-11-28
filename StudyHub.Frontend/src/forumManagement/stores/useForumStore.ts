@@ -113,6 +113,7 @@ const mapPost = (dto: any) => ({
   comment_count: dto.commentCount || dto.comment_count || 0,
   comments: [],
   image_urls: dto.attachments?.map((a: any) => a.fileUrl).join(",") || "",
+  status: dto.status,
 });
 
 const mapComment = (dto: any) => ({
@@ -129,6 +130,7 @@ const mapComment = (dto: any) => ({
   author_class: dto.creatorClass || "",
   replies: [],
   image_urls: dto.attachments?.map((a: any) => a.fileUrl).join(",") || "",
+  status: dto.status,
 });
 
 const isDuplicateComment = (comments: any[], targetId: number): boolean => {
@@ -160,6 +162,15 @@ export const useForumStore = create<ForumState>()(
 
       signalRStore.onReceiveNewPost = (dto: any) => {
         const mappedPost = mapPost(dto);
+
+        if (mappedPost.status === false || mappedPost.status === null) {
+          console.log(
+            "Post pending moderation, not adding to list:",
+            mappedPost.post_id
+          );
+          return;
+        }
+
         set((state) => {
           const exists = state.posts.some(
             (p) => p.post_id === mappedPost.post_id
@@ -171,6 +182,14 @@ export const useForumStore = create<ForumState>()(
 
       signalRStore.onReceiveNewComment = (dto: any) => {
         const mappedComment = mapComment(dto);
+
+        if (mappedComment.status === false || mappedComment.status === null) {
+          console.log(
+            "Comment pending moderation, not adding to list:",
+            mappedComment.comment_id
+          );
+          return;
+        }
 
         set((state) => {
           const updatedPosts = state.posts.map((p) => {
@@ -259,6 +278,22 @@ export const useForumStore = create<ForumState>()(
       signalRStore.onPostUpdated = (dto: any) => {
         const mappedPost = mapPost(dto);
 
+        if (mappedPost.status === false || mappedPost.status === null) {
+          console.log(
+            "Post updated but hidden, removing from list:",
+            mappedPost.post_id
+          );
+
+          set((state) => ({
+            posts: state.posts.filter((p) => p.post_id !== mappedPost.post_id),
+            currentPost:
+              state.currentPost?.post_id === mappedPost.post_id
+                ? null
+                : state.currentPost,
+          }));
+          return;
+        }
+
         set((state) => {
           const updatedPosts = state.posts.map((p) =>
             p.post_id === mappedPost.post_id ? { ...p, ...mappedPost } : p
@@ -286,6 +321,44 @@ export const useForumStore = create<ForumState>()(
 
       signalRStore.onCommentUpdated = (dto: any) => {
         const mappedComment = mapComment(dto);
+
+        if (mappedComment.status === false || mappedComment.status === null) {
+          console.log(
+            "Comment updated but hidden, removing from list:",
+            mappedComment.comment_id
+          );
+
+          set((state) => {
+            if (
+              !state.currentPost ||
+              state.currentPost.post_id !== mappedComment.post_id
+            ) {
+              return {};
+            }
+
+            const removeCommentFromTree = (comments: any[]): any[] => {
+              return comments.filter((c) => {
+                if (c.comment_id === mappedComment.comment_id) {
+                  return false;
+                }
+                if (c.replies && c.replies.length > 0) {
+                  c.replies = removeCommentFromTree(c.replies);
+                }
+                return true;
+              });
+            };
+
+            return {
+              currentPost: {
+                ...state.currentPost,
+                comments: removeCommentFromTree(
+                  state.currentPost.comments || []
+                ),
+              },
+            };
+          });
+          return;
+        }
 
         set((state) => {
           if (
@@ -315,7 +388,6 @@ export const useForumStore = create<ForumState>()(
           };
         });
       };
-
       return {
         posts: [],
         currentPost: null,

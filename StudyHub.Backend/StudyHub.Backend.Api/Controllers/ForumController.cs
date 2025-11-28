@@ -177,7 +177,19 @@ namespace StudyHub.Backend.Api.Controllers
                 _logger.LogInformation("User {UserId} created post {PostId}", currentUser.Id, createdPost.Id);
 
                 var postDto = createdPost.ToDetailDto(currentUser.Id, IsModerator());
-                await _forumHubContext.Clients.Group($"school-{dto.SchoolId}").SendAsync("ReceiveNewPost", postDto);
+
+                if (createdPost.Status == true)
+                {
+                    await _forumHubContext.Clients.Group($"school-{dto.SchoolId}").SendAsync("ReceiveNewPost", postDto);
+                }
+                else
+                {
+                    await _forumHubContext.Clients.User(currentUser.Id.ToString()).SendAsync("PostPendingModeration", new
+                    {
+                        postId = createdPost.Id,
+                        message = "Bài viết đang chờ kiểm duyệt hoặc đã bị ẩn"
+                    });
+                }
 
                 return CreatedAtAction(nameof(GetPostById), new { postId = createdPost.Id },
                     new { success = true, data = postDto });
@@ -223,8 +235,23 @@ namespace StudyHub.Backend.Api.Controllers
             var updatedPost = await _postService.UpdatePostWithAttachmentsAsync(existingPost, dto.NewAttachments, dto.DeletedAttachmentUrls);
 
             var postDto = updatedPost.ToDetailDto();
-            await _forumHubContext.Clients.Group($"school-{existingPost.SchoolId}").SendAsync("PostUpdated", postDto);
-            await _forumHubContext.Clients.Group($"post-{postId}").SendAsync("PostUpdated", postDto);
+
+            if (updatedPost.Status == true)
+            {
+                await _forumHubContext.Clients.Group($"school-{existingPost.SchoolId}").SendAsync("PostUpdated", postDto);
+                await _forumHubContext.Clients.Group($"post-{postId}").SendAsync("PostUpdated", postDto);
+            }
+            else
+            {
+                await _forumHubContext.Clients.User(currentUser.Id.ToString()).SendAsync("PostPendingModeration", new
+                {
+                    postId = postId,
+                    message = "Bài viết đang chờ kiểm duyệt sau khi chỉnh sửa"
+                });
+
+                await _forumHubContext.Clients.Group($"school-{existingPost.SchoolId}").SendAsync("PostDeleted", postId);
+                await _forumHubContext.Clients.Group($"post-{postId}").SendAsync("PostDeleted", postId);
+            }
 
             return Ok(new { success = true, data = postDto });
         }
@@ -381,6 +408,7 @@ namespace StudyHub.Backend.Api.Controllers
                 return StatusCode(500, new { success = false, message = $"Có lỗi xảy ra khi {status} {entityType}" });
             }
         }
+
         [HttpPost("comments/create")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreateComment([FromForm] CreateForumCommentDto dto)
@@ -433,21 +461,33 @@ namespace StudyHub.Backend.Api.Controllers
                     currentUser.Id, createdComment.CommentId, dto.PostId);
 
                 var commentDto = createdComment.ToListDto();
-                await _forumHubContext.Clients.Group($"post-{dto.PostId}").SendAsync("ReceiveNewComment", commentDto);
 
-                var updatedPost = await _postService.GetPostByIdAsync(dto.PostId);
-
-                await _forumHubContext.Clients.Group($"post-{dto.PostId}").SendAsync("UpdateCommentCount", new
+                if (createdComment.Status == true)
                 {
-                    postId = dto.PostId,
-                    commentCount = updatedPost?.CommentCount
-                });
+                    await _forumHubContext.Clients.Group($"post-{dto.PostId}").SendAsync("ReceiveNewComment", commentDto);
 
-                await _forumHubContext.Clients.Group($"school-{post.SchoolId}").SendAsync("UpdateCommentCount", new
+                    var updatedPost = await _postService.GetPostByIdAsync(dto.PostId);
+
+                    await _forumHubContext.Clients.Group($"post-{dto.PostId}").SendAsync("UpdateCommentCount", new
+                    {
+                        postId = dto.PostId,
+                        commentCount = updatedPost?.CommentCount
+                    });
+
+                    await _forumHubContext.Clients.Group($"school-{post.SchoolId}").SendAsync("UpdateCommentCount", new
+                    {
+                        postId = dto.PostId,
+                        commentCount = updatedPost?.CommentCount
+                    });
+                }
+                else
                 {
-                    postId = dto.PostId,
-                    commentCount = updatedPost?.CommentCount
-                });
+                    await _forumHubContext.Clients.User(currentUser.Id.ToString()).SendAsync("CommentPendingModeration", new
+                    {
+                        commentId = createdComment.CommentId,
+                        message = "Bình luận đang chờ kiểm duyệt hoặc đã bị ẩn"
+                    });
+                }
 
                 return Ok(new { success = true, data = commentDto });
             }
@@ -490,7 +530,21 @@ namespace StudyHub.Backend.Api.Controllers
             var updatedComment = await _commentService.UpdateCommentWithAttachmentsAsync(existingComment, dto.NewAttachments, dto.DeletedAttachmentUrls);
 
             var commentDto = updatedComment.ToListDto();
-            await _forumHubContext.Clients.Group($"post-{existingComment.PostId}").SendAsync("CommentUpdated", commentDto);
+
+            if (updatedComment.Status == true)
+            {
+                await _forumHubContext.Clients.Group($"post-{existingComment.PostId}").SendAsync("CommentUpdated", commentDto);
+            }
+            else
+            {
+                await _forumHubContext.Clients.User(currentUser.Id.ToString()).SendAsync("CommentPendingModeration", new
+                {
+                    commentId = commentId,
+                    message = "Bình luận đang chờ kiểm duyệt sau khi chỉnh sửa"
+                });
+
+                await _forumHubContext.Clients.Group($"post-{existingComment.PostId}").SendAsync("CommentDeleted", commentId);
+            }
 
             return Ok(new { success = true, data = commentDto });
         }
