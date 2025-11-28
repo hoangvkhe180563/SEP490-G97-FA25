@@ -35,5 +35,6 @@ namespace StudyHub.Backend.UseCases.Repositories
         int GetMemberCountByNotification(int notificationId);
         int GetMemberClassCount(int classID);
         bool GradeSubmission(decimal score, int notificationSubmissionId, Guid gradeBy, string feedback);
+        int GetTotalUnreadNotifications(int classID, Guid userID, string type);
     }
 }
