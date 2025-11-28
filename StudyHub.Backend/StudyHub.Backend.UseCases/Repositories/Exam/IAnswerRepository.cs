@@ -6,7 +6,6 @@ namespace StudyHub.Backend.UseCases.Repositories.Exam
     {
         string AddManyAnswers(List<ExamAnswer> answers);
         public List<ExamAnswer> GetAnswersByResultId(string resultId, bool showAnswers, bool showCorrectAnswers);
-        List<string> GetQuestionIdsByResult(string resultId);
         bool UpdateManyAnswers(string resultObjectId, List<ExamAnswer> answers);
     }
 }

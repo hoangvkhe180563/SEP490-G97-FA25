@@ -1,11 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using StudyHub.Backend.Domain.Entities;
-using StudyHub.Backend.Domain.Entities.Exam;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories.Exam;
-using System;
-using System.Diagnostics;
 
 namespace StudyHub.Backend.Infrastructure.Repositories.Exam
 {
@@ -119,33 +115,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
             return [];
         }
 
-        public List<Domain.Entities.Exam.Exam> GetAllClassExamsByTeacher(Guid teacherId)
-        {
-            try
-            {
-                var exams = _context.Exams.Include(e => e.ExamQuestions).Where(e => e.ClassId != null && e.CreatedBy == teacherId);
-                return exams.Select(e => new Domain.Entities.Exam.Exam
-                {
-                    Id = e.Id,
-                    Title = e.Title,
-                    Description = e.Description ?? "",
-                    Duration = e.Duration,
-                    OpenTime = e.OpenTime,
-                    CloseTime = e.CloseTime,
-                    ClassId = e.ClassId.GetValueOrDefault(),
-                    ShowAnswers = e.ShowAnswers.GetValueOrDefault(),
-                    ShowCorrectAnswers = e.ShowCorrectAnswers,
-                    TotalQuestions = e.NoRandomQuestions != null ? (int)e.NoRandomQuestions : e.ExamQuestions.Count,
-                    IsMultipleAttempts = e.IsMultipleAttempts
-                }).ToList();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("ExamRepository", "GetAllClassExamsByTeacher exception. Inner error: " + ex.Message).LogError();
-            }
-            return [];
-        }
-
         public string GetClassName(int classId)
         {
             try
@@ -236,19 +205,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
             return null;
         }
 
-        public string GetLessonName(int lessonId)
-        {
-            try
-            {
-                return _context.Lessons.First(l => l.Id == lessonId).Name;
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("ExamRepository", "GetLessonName exception. Inner error: " + ex.Message).LogError();
-            }
-            return string.Empty;
-        }
-
         public int GetExamIdByResultId(string resultId)
         {
             try
@@ -261,19 +217,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                 new InfrastructureException("ExamRepository", "GetNumberOfQuestionsByResult exception. Inner error: " + ex.Message).LogError();
             }
             return 0;
-        }
-
-        public bool? IsLessonExamExists(int lessonId)
-        {
-            try
-            {
-                return _context.Exams.Any(e => e.LessonId == lessonId);
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("ExamRepository", "IsLessonExamExists exception. Inner error: " + ex.Message).LogError();
-            }
-            return null;
         }
 
         public bool UpdateExam(Domain.Entities.Exam.Exam examEntity)
@@ -336,22 +279,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                 new InfrastructureException("ExamRepository", "UpdateExamQuestions exception. Inner error: " + ex.Message).LogError();
             }
             return false;
-        }
-
-        public int GetCourseIdByLessonId(int lessonId)
-        {
-            try
-            {
-                return _context.Lessons
-                    .Where(l => l.Id == lessonId)
-                    .Select(l => l.Chapter.CourseId)
-                    .FirstOrDefault();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("ExamRepository", "GetCourseIdByLessonId exception. Inner error: " + ex.Message).LogError();
-            }
-            return 0;
         }
     }
 }

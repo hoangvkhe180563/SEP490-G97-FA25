@@ -27,16 +27,6 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(_service.GetAllClassExamsByStudent(studentId));
         }
 
-        [HttpGet("class/by-teacher/{teacherId:guid}")]
-        public IActionResult GetAllClassExamsByTeacher(Guid teacherId)
-        {
-            if (teacherId == Guid.Empty)
-            {
-                return BadRequest();
-            }
-            return Ok(_service.GetAllClassExamsByTeacher(teacherId));
-        }
-
         [HttpGet("class/{classId:int}")]
         public IActionResult GetAllClassExamsByClassId(int classId)
         {
@@ -72,16 +62,6 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(_service.GetClassName(classId));
         }
 
-        [HttpGet("lessonName/{lessonId:int}")]
-        public IActionResult GetLessonNameById(int lessonId)
-        {
-            if (lessonId == 0)
-            {
-                return BadRequest();
-            }
-            return Ok(_service.GetLessonName(lessonId));
-        }
-
         [HttpGet("{examId:int}")]
         public IActionResult GetExamById(int examId, bool retrieveQuestions)
         {
@@ -96,18 +76,6 @@ namespace StudyHub.Backend.Api.Controllers
                 return NotFound();
             }
             return Ok(exam.ToDetailsDto());
-        }
-
-
-        [HttpGet("lesson/exists/{lessonId:int}")]
-        public IActionResult IsLessonExamExists(int lessonId)
-        {
-            bool? result = _service.IsLessonExamExists(lessonId);
-            if (result == null)
-            {
-                return NotFound();
-            }
-            return Ok(result);
         }
 
         [HttpPost]
@@ -159,13 +127,6 @@ namespace StudyHub.Backend.Api.Controllers
             List<Question> questionEntities = questions.Select(q => q.ToQuestionEntity()).ToList();
             List<string> questionObjectIds = _service.UpdateExamQuestions(examId, questionEntities);
             return Ok(questionObjectIds);
-        }
-
-        [HttpGet("return-lesson-course/{lessonId:int}")]
-        public IActionResult GetCourseIdByLessonId(int lessonId)
-        {
-            var courseId = _service.GetCourseIdByLessonId(lessonId);
-            return courseId == 0 ? NotFound() : Ok(courseId);
         }
 
         [HttpGet("generate-random/{examId:int}")]

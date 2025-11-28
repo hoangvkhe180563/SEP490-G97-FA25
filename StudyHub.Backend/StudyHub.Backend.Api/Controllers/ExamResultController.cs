@@ -44,18 +44,6 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(examResult);
         }
 
-        [HttpGet("{resultId}/questions")]
-        public IActionResult GetExamQuestionsByResult(string resultId)
-        {
-            if (resultId == string.Empty || resultId.Length != 24)
-            {
-                return BadRequest("Truyền sai id");
-            }
-
-            var questions = _service.GetExamQuestionsByResult(resultId);
-            return Ok(questions.Select(q => q.ToDetailDto()));
-        }
-
         [HttpGet("by-exam/{examId:int}/{studentId:guid}")]
         public IActionResult GetResultsByExamIdAndStudentId(int examId, Guid studentId)
         {
@@ -66,13 +54,6 @@ namespace StudyHub.Backend.Api.Controllers
 
             List<ExamResult> results = _service.GetResultsByExamIdAndStudentId(examId, studentId);
             return Ok(results);
-        }
-
-        [HttpGet("class/by-teacher/{teacherId:guid}")]
-        public IActionResult GetAllExamResultsByTeacherId(Guid teacherId)
-        {
-            Console.WriteLine("Getting questions...");
-            return Ok(_service.GetAllQuestions());
         }
 
         [HttpPost]

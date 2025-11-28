@@ -32,7 +32,7 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 new UseCaseException("QuestionService", "DeleteCommonQuestion failed. Question is null").LogError();
             }
-            bool result = _questionRepo.DeleteQuestion(questionObjectId);
+            bool result = _questionRepo.DeleteOneQuestion(questionObjectId);
             return result;
         }
 
@@ -240,7 +240,7 @@ namespace StudyHub.Backend.UseCases.Services
                                 Type = QuestionType.Matching,
                                 Terms = terms,
                                 Definitions = definitions,
-                                CorrectMatches = correctAnswers
+                                CorrectAnswer = correctAnswers
                             });
                         }
                         else

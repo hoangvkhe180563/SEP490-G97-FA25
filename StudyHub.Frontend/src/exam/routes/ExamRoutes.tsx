@@ -1,7 +1,6 @@
 import type { RouteObject } from "react-router-dom";
 import ExamRouteConfig from "../constants/ExamRouteConfig";
 import TakeExam from "../pages/student/TakeExam";
-import TeacherClassResults from "../pages/teacher/ListClassResults";
 import ViewResultDetail from "../pages/ViewResultDetail";
 import CreateClassExam from "../pages/teacher/CreateClassExam";
 import ViewExamHistory from "../pages/teacher/ViewExamHistory";
@@ -34,10 +33,6 @@ const examRoutes: RouteObject[] = [
   {
     path: ExamRouteConfig.TEACHER.EDIT_CLASS_EXAM,
     element: <UpdateExam />
-  },
-  {
-    path: ExamRouteConfig.TEACHER.CLASS.EXAM_RESULT_LIST,
-    element: <TeacherClassResults />
   },
   {
     path: ExamRouteConfig.QUESTION_MANAGER.QUESTION_LIST,

@@ -350,20 +350,6 @@ export class ExamService {
     return '';
   }
 
-  getLessonName = async (lessonId: number): Promise<string> => {
-    try {
-      const res = await axiosInstance.get("/exam/lessonName/" + lessonId);
-      if (res.status === 200) {
-        return res.data;
-      } else {
-        throw new Error(`Status: ${res.status}`);
-      }
-    } catch (error) {
-      console.error("Error getLessonName: ", error);
-    }
-    return '';
-  }
-
   getCourseIdByLessonId = async (lessonId: number): Promise<number> => {
     try {
       const res = await axiosInstance.get(`/exam/return-lesson-course/${lessonId}`);
