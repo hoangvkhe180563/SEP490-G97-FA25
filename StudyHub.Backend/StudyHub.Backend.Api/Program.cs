@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using OfficeOpenXml;
+using StudyHub.Backend.Api.BackgroundServices;
 using StudyHub.Backend.Api.Filters;
 using StudyHub.Backend.Api.Hubs;
 using StudyHub.Backend.Api.Middlewares;
@@ -74,6 +75,8 @@ builder.Services.AddSession(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
 });
 builder.Services.AddSignalR();
+builder.Services.AddHostedService(provider =>
+    provider.GetRequiredService<ImageModerationBackgroundService>());
 ExcelPackage.License.SetNonCommercialPersonal("StudyHub");
 var app = builder.Build();
 app.UseCors();

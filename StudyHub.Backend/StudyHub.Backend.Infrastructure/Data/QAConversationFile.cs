@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 
 namespace StudyHub.Backend.Infrastructure.Data;
 
@@ -19,6 +20,4 @@ public partial class QAConversationFile
     public DateTime CreatedAt { get; set; }
 
     public virtual QAConversation Conversation { get; set; } = null!;
-
-    public virtual AppUser? Creator { get; set; }
 }

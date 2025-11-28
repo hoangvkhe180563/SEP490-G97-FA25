@@ -4,6 +4,7 @@ using StudyHub.Backend.Domain.Entities;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Collections.Concurrent;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -11,7 +12,9 @@ namespace StudyHub.Backend.UseCases.Services
     {
         Task<ImageModerationResult> ModerateImageAsync(string imageUrl);
         Task<ImageModerationResult> ModerateImageFromStreamAsync(Stream imageStream);
+        Task<List<ImageModerationResult>> ModerateBatchFromStreamsAsync(List<Stream> imageStreams);
     }
+
     public class ImageDectectService : IImageModerationService
     {
         private readonly HttpClient _httpClient;
@@ -20,7 +23,9 @@ namespace StudyHub.Backend.UseCases.Services
         private readonly List<ModerationModel> _models;
         private const int MAX_RETRIES = 1;
         private const int RETRY_DELAY_MS = 1000;
-        private const int PARALLEL_LIMIT = 10;
+        private const int PARALLEL_LIMIT = 20;
+        private const int MODEL_TIMEOUT_SECONDS = 15;
+        private readonly ConcurrentDictionary<string, ImageModerationResult> _resultCache;
 
         public ImageDectectService(
             ILogger<ImageDectectService> logger,
@@ -28,6 +33,7 @@ namespace StudyHub.Backend.UseCases.Services
         {
             _logger = logger;
             _configuration = configuration;
+            _resultCache = new ConcurrentDictionary<string, ImageModerationResult>();
 
             var token = _configuration["HuggingFace:ApiToken"];
             if (string.IsNullOrWhiteSpace(token))
@@ -35,7 +41,7 @@ namespace StudyHub.Backend.UseCases.Services
 
             _httpClient = new HttpClient
             {
-                Timeout = TimeSpan.FromSeconds(15),
+                Timeout = TimeSpan.FromSeconds(60),
                 DefaultRequestVersion = HttpVersion.Version20,
                 DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrHigher
             };
@@ -43,24 +49,24 @@ namespace StudyHub.Backend.UseCases.Services
             _httpClient.DefaultRequestHeaders.ConnectionClose = false;
 
             _models = new List<ModerationModel>
+        {
+            new ModerationModel
             {
-                new ModerationModel
-                {
-                    Name = "NSFW Detector",
-                    ModelPath = "google/vit-base-patch16-224",
-                    Threshold = 0.3,
-                    ViolationLabels = new List<string> { "nsfw", "porn", "sexy", "hentai", "drawing" },
-                    ViolationType = "NSFW"
-                },
-                //new ModerationModel
-                //{
-                //    Name = "NSFW Classifier",
-                //    ModelPath = "microsoft/resnet-50",
-                //    Threshold = 0.65,
-                //    ViolationLabels = new List<string> { "porn", "sexy", "nude" },
-                //    ViolationType = "NSFW"
-                //}
-            };
+                Name = "NSFW Classifier",
+                ModelPath = "Falconsai/nsfw_image_detection",
+                Threshold = 0.3,
+                ViolationLabels = new List<string> { "nsfw", "porn", "sexy", "hentai" },
+                ViolationType = "NSFW"
+            },
+            new ModerationModel
+            {
+                Name = "NSFW Detector",
+                ModelPath = "google/vit-base-patch16-224",
+                Threshold = 0.3,
+                ViolationLabels = new List<string> { "nsfw", "porn", "sexy", "hentai", "drawing" },
+                ViolationType = "NSFW"
+            },
+        };
 
             var customModels = _configuration.GetSection("HuggingFace:Models").Get<List<ModerationModel>>();
             if (customModels != null && customModels.Any())
@@ -116,9 +122,99 @@ namespace StudyHub.Backend.UseCases.Services
             }
         }
 
+        public async Task<List<ImageModerationResult>> ModerateBatchFromStreamsAsync(List<Stream> imageStreams)
+        {
+            try
+            {
+                var imageBytesListTasks = imageStreams.Select(async stream =>
+                {
+                    using var memoryStream = new MemoryStream();
+                    await stream.CopyToAsync(memoryStream);
+                    return memoryStream.ToArray();
+                });
+
+                var imageBytesList = await Task.WhenAll(imageBytesListTasks);
+
+                _logger.LogInformation($"Batch moderating {imageBytesList.Length} images");
+
+                return await CheckAllModelsBatch(imageBytesList.ToList());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error batch moderating images from streams");
+                throw;
+            }
+        }
+
+        private async Task<List<ImageModerationResult>> CheckAllModelsBatch(List<byte[]> imageBytesList)
+        {
+            var results = new ImageModerationResult[imageBytesList.Count];
+            var foundViolations = new bool[imageBytesList.Count];
+
+            for (int i = 0; i < imageBytesList.Count; i++)
+            {
+                results[i] = new ImageModerationResult
+                {
+                    IsViolation = false,
+                    ViolationType = null,
+                    Likelihood = "0.0000",
+                    Details = "Passed",
+                    AllScores = new Dictionary<string, double>()
+                };
+            }
+
+            foreach (var model in _models)
+            {
+                var imagesToCheck = imageBytesList
+                    .Select((bytes, index) => new { bytes, index })
+                    .Where(x => !foundViolations[x.index])
+                    .ToList();
+
+                if (!imagesToCheck.Any()) break;
+
+                var modelTasks = imagesToCheck.Select(async imageData =>
+                {
+                    try
+                    {
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(MODEL_TIMEOUT_SECONDS));
+                        var result = await CheckWithModel(imageData.bytes, model, cts.Token);
+                        return new { result, imageData.index };
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        _logger.LogWarning($"Model {model.Name} timeout for image {imageData.index}");
+                        return new { result = (ImageModerationResult?)null, imageData.index };
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, $"Error checking image {imageData.index} with model {model.Name}");
+                        return new { result = (ImageModerationResult?)null, imageData.index };
+                    }
+                });
+
+                var modelResults = await Task.WhenAll(modelTasks);
+
+                foreach (var item in modelResults.Where(x => x.result != null))
+                {
+                    if (item.result!.IsViolation)
+                    {
+                        results[item.index] = item.result;
+                        foundViolations[item.index] = true;
+                        _logger.LogWarning($"Violation detected in image {item.index}: {item.result.ViolationType}");
+                    }
+                }
+            }
+
+            return results.ToList();
+        }
+
         private async Task<ImageModerationResult> CheckAllModels(byte[] imageBytes)
         {
-            var tasks = _models.Select(model => CheckWithModel(imageBytes, model)).ToList();
+            var tasks = _models.Select(async model =>
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(MODEL_TIMEOUT_SECONDS));
+                return await CheckWithModel(imageBytes, model, cts.Token);
+            }).ToList();
 
             while (tasks.Any())
             {
@@ -134,6 +230,10 @@ namespace StudyHub.Backend.UseCases.Services
                         _logger.LogWarning($"Violation detected: {result.ViolationType}");
                         return result;
                     }
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogWarning($"Model timeout, continuing...");
                 }
                 catch (Exception ex)
                 {
@@ -151,74 +251,97 @@ namespace StudyHub.Backend.UseCases.Services
             };
         }
 
-        private async Task<ImageModerationResult> CheckWithModel(byte[] imageBytes, ModerationModel model)
+        private async Task<ImageModerationResult> CheckWithModel(byte[] imageBytes, ModerationModel model, CancellationToken cancellationToken = default)
         {
-            var modelUrl = $"https://router.huggingface.co/hf-inference/models/{model.ModelPath}";
-
-            var content = new ByteArrayContent(imageBytes);
-            content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-
-            var response = await _httpClient.PostAsync(modelUrl, content);
-
-            if (!response.IsSuccessStatusCode)
+            try
             {
-                throw new InvalidOperationException($"Error from {model.Name}: {response.StatusCode}");
-            }
+                var modelUrl = $"https://router.huggingface.co/hf-inference/models/{model.ModelPath}";
 
-            var json = await response.Content.ReadAsStringAsync();
-            var data = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(json);
+                var content = new ByteArrayContent(imageBytes);
+                content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
-            if (data == null || data.Count == 0)
-            {
-                throw new InvalidOperationException($"API returned empty data");
-            }
+                var response = await _httpClient.PostAsync(modelUrl, content, cancellationToken);
 
-            double maxScore = 0;
-            bool foundViolation = false;
-
-            foreach (var item in data)
-            {
-                if (item.ContainsKey("label") && item.ContainsKey("score"))
+                if (!response.IsSuccessStatusCode)
                 {
-                    var label = item["label"].GetString()?.ToLower() ?? "";
-                    var score = item["score"].GetDouble();
-
-                    if (model.ViolationLabels.Contains(label) && score > model.Threshold)
+                    _logger.LogWarning($"Model {model.Name} returned {response.StatusCode}");
+                    return new ImageModerationResult
                     {
-                        foundViolation = true;
-                        if (score > maxScore) maxScore = score;
+                        IsViolation = false,
+                        ViolationType = null,
+                        Likelihood = "0.0000",
+                        Details = "Model unavailable",
+                        AllScores = new Dictionary<string, double>(),
+                        ModelPath = model.ModelPath
+                    };
+                }
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                var data = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(json);
+
+                if (data == null || data.Count == 0)
+                {
+                    return new ImageModerationResult
+                    {
+                        IsViolation = false,
+                        ViolationType = null,
+                        Likelihood = "0.0000",
+                        Details = "No data",
+                        AllScores = new Dictionary<string, double>(),
+                        ModelPath = model.ModelPath
+                    };
+                }
+
+                double maxScore = 0;
+                bool foundViolation = false;
+
+                foreach (var item in data)
+                {
+                    if (item.ContainsKey("label") && item.ContainsKey("score"))
+                    {
+                        var label = item["label"].GetString()?.ToLower() ?? "";
+                        var score = item["score"].GetDouble();
+
+                        if (model.ViolationLabels.Contains(label) && score > model.Threshold)
+                        {
+                            foundViolation = true;
+                            if (score > maxScore) maxScore = score;
+                        }
                     }
                 }
-            }
 
-            return new ImageModerationResult
+                return new ImageModerationResult
+                {
+                    IsViolation = foundViolation,
+                    ViolationType = foundViolation ? model.ViolationType : null,
+                    Likelihood = maxScore.ToString("0.00"),
+                    Details = foundViolation ? "Violation" : "Safe",
+                    AllScores = new Dictionary<string, double>(),
+                    ModelPath = model.ModelPath
+                };
+            }
+            catch (OperationCanceledException)
             {
-                IsViolation = foundViolation,
-                ViolationType = foundViolation ? model.ViolationType : null,
-                Likelihood = maxScore.ToString("0.00"),
-                Details = foundViolation ? "Violation" : "Safe",
-                AllScores = new Dictionary<string, double>(),
-                ModelPath = model.ModelPath
-            };
+                _logger.LogWarning($"Model {model.Name} timeout");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error in CheckWithModel for {model.Name}");
+                return new ImageModerationResult
+                {
+                    IsViolation = false,
+                    ViolationType = null,
+                    Likelihood = "0.0000",
+                    Details = $"Error: {ex.Message}",
+                    AllScores = new Dictionary<string, double>()
+                };
+            }
         }
 
         public async Task<List<ImageModerationResult>> ModerateBatchAsync(List<byte[]> imageBytesList)
         {
-            var semaphore = new SemaphoreSlim(PARALLEL_LIMIT);
-            var tasks = imageBytesList.Select(async imageBytes =>
-            {
-                await semaphore.WaitAsync();
-                try
-                {
-                    return await CheckAllModels(imageBytes);
-                }
-                finally
-                {
-                    semaphore.Release();
-                }
-            });
-
-            return (await Task.WhenAll(tasks)).ToList();
+            return await CheckAllModelsBatch(imageBytesList);
         }
     }
 }

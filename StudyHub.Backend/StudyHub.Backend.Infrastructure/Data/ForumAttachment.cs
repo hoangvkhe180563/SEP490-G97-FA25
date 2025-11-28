@@ -15,6 +15,8 @@ public partial class ForumAttachment
 
     public bool IsApproved { get; set; }
 
+    public bool? IsModerationPending { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public Guid CreatedBy { get; set; }

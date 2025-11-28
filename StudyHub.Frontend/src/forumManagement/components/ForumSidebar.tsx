@@ -71,7 +71,7 @@ export const ForumSidebar = ({
 
       const interval = setInterval(() => {
         fetchUserStatus();
-      }, 3000);
+      }, 30000);
 
       return () => clearInterval(interval);
     }

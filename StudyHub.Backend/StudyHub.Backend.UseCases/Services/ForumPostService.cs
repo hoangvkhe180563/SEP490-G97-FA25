@@ -84,7 +84,7 @@ namespace StudyHub.Backend.UseCases.Services
         }
         public async Task<ForumPost> CreatePostAsync(ForumPost post, List<IFormFile>? attachments = null)
         {
-            var violations = await _moderationRepo.CheckContentViolationAsync(post.Content, post.SchoolId);
+            var textViolationsTask = _moderationRepo.CheckContentViolationAsync(post.Content, post.SchoolId);
 
             ForumFlair? flair = null;
             if (post.FlairId.HasValue)
@@ -92,11 +92,7 @@ namespace StudyHub.Backend.UseCases.Services
                 flair = await _configRepo.GetFlairByIdAsync(post.FlairId.Value);
             }
 
-            bool hasTextViolations = violations.Any();
-            bool hasProtectedFlair = flair?.IsProtected ?? false;
-
             List<ForumAttachment> processedAttachments = new List<ForumAttachment>();
-            bool hasImageViolation = false;
 
             if (attachments != null && attachments.Any())
             {
@@ -105,31 +101,16 @@ namespace StudyHub.Backend.UseCases.Services
                 foreach (var file in attachments)
                 {
                     ValidateAttachmentFile(file);
+                }
 
+                var uploadResults = await _fileStorage.UploadFilesAsync(attachments.ToList(), FileConstants.ForumPostAttachmentUploadPath);
+
+                for (int i = 0; i < attachments.Count; i++)
+                {
+                    var file = attachments[i];
+                    var fileUrl = uploadResults[i];
                     var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
                     bool isImage = imageExtensions.Contains(extension);
-
-                    bool currentFileViolation = false;
-                    if (isImage)
-                    {
-                        try
-                        {
-                            var moderationResult = await _imageModerationService.ModerateImageFromStreamAsync(file.OpenReadStream());
-
-                            if (moderationResult.IsViolation)
-                            {
-                                hasImageViolation = true;
-                                currentFileViolation = true;
-                            }
-                        }
-                        catch (Exception)
-                        {
-                            throw new InvalidOperationException(
-                                "Không thể kiểm duyệt ảnh. Vui lòng thử lại sau.");
-                        }
-                    }
-
-                    var fileUrl = await _fileStorage.UploadFileAsync(file, FileConstants.ForumPostAttachmentUploadPath);
 
                     if (string.IsNullOrWhiteSpace(fileUrl))
                     {
@@ -141,10 +122,15 @@ namespace StudyHub.Backend.UseCases.Services
                         FileUrl = fileUrl,
                         CreatedBy = post.CreatedBy,
                         CreatedAt = DateTime.Now,
-                        IsApproved = !currentFileViolation
+                        IsApproved = true,
+                        IsModerationPending = isImage
                     });
                 }
             }
+
+            var violations = await textViolationsTask;
+            bool hasTextViolations = violations.Any();
+            bool hasProtectedFlair = flair?.IsProtected ?? false;
 
             if (hasTextViolations)
             {
@@ -154,12 +140,7 @@ namespace StudyHub.Backend.UseCases.Services
                 }
             }
 
-            if (hasImageViolation)
-            {
-                post.TotalViolationScore += 10;
-            }
-
-            if (hasTextViolations || hasImageViolation)
+            if (hasTextViolations)
             {
                 if (hasProtectedFlair)
                 {
@@ -173,11 +154,6 @@ namespace StudyHub.Backend.UseCases.Services
                     foreach (var violation in violations)
                     {
                         await _moderationRepo.AddViolationScoreAsync(post.CreatedBy, post.SchoolId, violation.ViolationScore);
-                    }
-
-                    if (hasImageViolation)
-                    {
-                        await _moderationRepo.AddViolationScoreAsync(post.CreatedBy, post.SchoolId, 10);
                     }
                 }
             }
@@ -206,26 +182,13 @@ namespace StudyHub.Backend.UseCases.Services
                 }
             }
 
-            if (hasImageViolation && !hasProtectedFlair)
-            {
-                await _moderationRepo.CreateViolationRecordAsync(new ViolationRecord
-                {
-                    UserId = post.CreatedBy,
-                    SchoolId = post.SchoolId,
-                    PostId = createdPost.Id,
-                    ViolationScore = 10,
-                    SourceType = "auto",
-                    CreatedAt = DateTime.Now
-                });
-            }
-
             foreach (var attachment in processedAttachments)
             {
                 attachment.PostId = createdPost.Id;
                 await _configRepo.CreateAttachmentAsync(attachment);
             }
 
-            if (!hasProtectedFlair && (hasTextViolations || hasImageViolation))
+            if (!hasProtectedFlair && hasTextViolations)
             {
                 var userStatus = await _moderationRepo.GetUserForumStatusAsync(post.CreatedBy, post.SchoolId);
                 if (userStatus != null && userStatus.TotalViolationScore <= 0)
