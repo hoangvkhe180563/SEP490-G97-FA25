@@ -5,7 +5,7 @@ import LectureNextUp from "@/courseManagement/components/LectureNextUp";
 import { Button } from "@/common/components/ui/button";
 import LectureFilters from "@/courseManagement/components/LectureFilters";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
-import type { LessonListDto } from "@/courseManagement/interfaces/types";
+import type { LessonExamStatus, LessonListDto } from "@/courseManagement/interfaces/types";
 import { useNavigate, useParams } from "react-router-dom";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import { Check, HelpCircle, NotebookPen, X } from "lucide-react";
@@ -144,12 +144,8 @@ const LecturePlayer: React.FC = () => {
 
   // nicer UI state for overlay
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionResult, setSubmissionResult] = useState<boolean | null>(
-    null
-  );
-  const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(
-    null
-  );
+  const [submissionResult, setSubmissionResult] = useState<boolean | null>(null);
+  const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [_localProgress, setLocalProgress] = useState<number>(0);
@@ -161,11 +157,10 @@ const LecturePlayer: React.FC = () => {
   const recordProgress = useEnrollmentStore((s: any) => s.recordProgress);
   const fetchProgresses = useEnrollmentStore((s: any) => s.fetchProgresses);
   const _enrollAction = useEnrollmentStore((s: any) => s.enroll);
-  const enrollment = useEnrollmentStore((s: any) =>
-    s.getEnrollmentForCourse(cid)
-  );
+  const enrollment = useEnrollmentStore((s: any) => s.getEnrollmentForCourse(cid));
   const enrollmentId = enrollment?.id ?? null;
   const [examDialogOpen, setExamDialogOpen] = useState<boolean>(false);
+  const [examStatus, setExamStatus] = useState<LessonExamStatus | null>(null);
 
   const localKey = React.useCallback(
     (lessonId: number) => `studyhub_local_progress_${lessonId}`,
@@ -281,6 +276,21 @@ const LecturePlayer: React.FC = () => {
     _enrollAction,
     enrollment?.id,
   ]);
+
+  useEffect(() => {
+    if (!lid || !authUser || selectedLesson?.type !== 'Exam') return;
+    const fetchExamStatus = async () => {
+      const status = await courseApi.checkExamStatus(lid, String(authUser?.id));
+      if (status === null) {
+        toast.error("Không thể lấy trạng thái bài kiểm tra!");
+        return;
+      }
+      setExamStatus(status);
+    }
+
+    fetchExamStatus();
+
+  }, [lid, selectedLesson, authUser])
 
   useEffect(() => {
     if (!lid) return;
@@ -792,7 +802,6 @@ const LecturePlayer: React.FC = () => {
   const handleStartExam = async () => {
     const exam = await courseApi.getExamByLessonId(lessonId);
     if (exam) {
-      console.log(exam.id);
       location.href = `/exam/student/take-exam/${exam.id}`;
     } else {
       toast.error("Không có bài kiểm tra!");
@@ -812,6 +821,17 @@ const LecturePlayer: React.FC = () => {
     }
 
     navigate(`/exam/results/${resultId}`);
+  }
+
+  const calculateExamEnableTime = () => {
+    const now = new Date();
+    if (!examStatus?.isDisabled) return 0;
+    const remainingTime = examStatus.latestTime.getTime() + (8 * 60 * 60 * 1000) - now.getTime();
+    const hours = Math.floor(remainingTime / (1000 * 60 * 60));
+    const minutes = Math.floor(
+      (remainingTime % (1000 * 60 * 60)) / (1000 * 60)
+    );
+    return `${hours} giờ ${minutes} phút`;
   }
 
   return (
@@ -997,9 +1017,8 @@ const LecturePlayer: React.FC = () => {
                   variant="outline"
                   className="mb-2"
                   onClick={() => setExamDialogOpen(true)}
-                  disabled={isLessonCompleted}
                 >
-                  {isLessonCompleted ? "Đã hoàn thành" : "Bắt đầu làm bài"}
+                  Bắt đầu làm bài
                 </Button>
                 <Button onClick={handleViewExamResult}>
                   <NotebookPen /> Xem kết quả
@@ -1159,12 +1178,12 @@ const LecturePlayer: React.FC = () => {
               Bắt đầu làm bài
             </AlertDialogTitle>
             <AlertDialogDescription className="text-center">
-              Bạn có muốn bắt đầu làm bài?
+              {examStatus?.isDisabled ? `Bạn đã làm bài 3 lần liên tiếp. Lần tiếp theo sẽ mở trong ${calculateExamEnableTime()}` : "Bạn có muốn bắt đầu làm bài?"}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mx-auto">
             <AlertDialogCancel>Hủy</AlertDialogCancel>
-            <AlertDialogAction onClick={handleStartExam}>OK</AlertDialogAction>
+            <AlertDialogAction disabled={examStatus?.isDisabled} onClick={handleStartExam}>OK</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

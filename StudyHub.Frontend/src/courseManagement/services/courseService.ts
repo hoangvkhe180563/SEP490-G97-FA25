@@ -7,6 +7,7 @@ import type {
   LessonListDto,
   LessonDto,
   Exam,
+  LessonExamStatus,
 } from "@/courseManagement/interfaces/types";
 import { formatISO } from "date-fns";
 
@@ -223,7 +224,7 @@ export const courseApi = {
         throw new Error("Student is null");
       }
 
-      const res = await axiosInstance.get(`/examResult/lesson-result-id/${studentId}/${lessonId}`);
+      const res = await axiosInstance.get(`/examResult/lesson/result-id/${studentId}/${lessonId}`);
       if (res.status === 200) {
         return res.data;
       } else {
@@ -233,6 +234,28 @@ export const courseApi = {
       console.error("Error getResultIdByLessonId: ", error);
     }
     return '';
+  },
+
+  async checkExamStatus(lessonId: number, studentId: string): Promise<LessonExamStatus | null> {
+    try {
+      if (!studentId) {
+        throw new Error("Student is null");
+      }
+
+      const res = await axiosInstance.get(`/examResult/lesson/status/${studentId}/${lessonId}`);
+      if (res.status === 200) {
+        const data = res.data;
+        return {
+          latestTime: new Date(data.latestTime),
+          isDisabled: data.isDisabled
+        }
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error checkExamStatus: ", error);
+    }
+    return null;
   },
 
   async createExam(examData: Exam): Promise<boolean> {

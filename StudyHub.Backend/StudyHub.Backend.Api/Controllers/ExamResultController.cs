@@ -141,15 +141,26 @@ namespace StudyHub.Backend.Api.Controllers
             return result ? Ok("Nộp bài thành công!") : Conflict("Nộp bài thất bại!");
         }
 
-        [HttpGet("lesson-result-id/{studentId:guid}/{lessonId:int}")]
+        [HttpGet("lesson/result-id/{studentId:guid}/{lessonId:int}")]
         public IActionResult GetResultIdByLessonId(int lessonId, Guid studentId)
         {
-            if (lessonId == 0)
+            if (lessonId == 0 || studentId == Guid.Empty)
             {
-                return BadRequest();
+                return BadRequest("Vui lòng nhập dữ liệu!");
             }
-            string result = _service.GetResultIdByLessonId(lessonId, studentId);
+            string result = _service.GetLatestResultIdByLessonId(lessonId, studentId);
             return string.IsNullOrWhiteSpace(result) ? NotFound() : Ok(result);
+        }
+
+        [HttpGet("lesson/status/{studentId:guid}/{lessonId:int}")]
+        public IActionResult CheckLessonStatus(int lessonId, Guid studentId)
+        {
+            if (lessonId == 0 || studentId == Guid.Empty)
+            {
+                return BadRequest("Vui lòng nhập dữ liệu!");
+            }
+            var result = _service.CheckLessonStatus(lessonId, studentId);
+            return result == null ? NotFound() : Ok(result);
         }
     }
 }

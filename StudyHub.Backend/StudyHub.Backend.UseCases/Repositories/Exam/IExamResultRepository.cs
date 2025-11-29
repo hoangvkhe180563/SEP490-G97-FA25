@@ -13,6 +13,5 @@ namespace StudyHub.Backend.UseCases.Repositories.Exam
         bool SubmitExam(ExamResult result);
         int GetEnrollmentId(string resultId, int lessonId);
         bool CreateProgress(int enrollmentId, int lessonId);
-        string GetResultIdByLessonId(int lessonId, Guid studentId);
     }
 }

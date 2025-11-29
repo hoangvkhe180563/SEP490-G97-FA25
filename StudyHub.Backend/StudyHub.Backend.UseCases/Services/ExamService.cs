@@ -371,9 +371,35 @@ namespace StudyHub.Backend.UseCases.Services
             return _examRepo.GetCourseIdByLessonId(lessonId);
         }
 
-        public string GetResultIdByLessonId(int lessonId, Guid studentId)
+        public string GetLatestResultIdByLessonId(int lessonId, Guid studentId)
         {
-            return _examResultRepo.GetResultIdByLessonId(lessonId, studentId);
+            var exam = _examRepo.GetLessonExam(lessonId);
+            if (exam == null) return string.Empty;
+
+            var results = _examResultRepo.GetExamResultsByExamId(exam.Id);
+            if (results.Count == 0) return string.Empty;
+
+            return results[0].Id;
+        }
+
+        public dynamic? CheckLessonStatus(int lessonId, Guid studentId)
+        {
+            var exam = _examRepo.GetLessonExam(lessonId);
+            if (exam == null) return null;
+
+            var results = _examResultRepo.GetExamResultsByExamId(exam.Id);
+            if (results.Count == 0) return null;
+            bool isMaxAttempts = results.Count % 3 == 0;
+
+            DateTime? latestTime = results.OrderByDescending(r => r.SubmissionTime).Select(r => r.SubmissionTime).FirstOrDefault();
+            if (latestTime == null) return null;
+            bool isInsideLockTime = latestTime.Value.AddHours(8) - DateTime.Now > TimeSpan.Zero;
+
+            return new
+            {
+                LatestTime = latestTime,
+                IsDisabled = isMaxAttempts && isInsideLockTime
+            };
         }
     }
 }

@@ -215,24 +215,5 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
             }
             return false;
         }
-
-        public string GetResultIdByLessonId(int lessonId, Guid studentId)
-        {
-            try
-            {
-                var exam = _context.Exams.FirstOrDefault(e => e.LessonId == lessonId);
-                if (exam == null) return string.Empty;
-
-                var result = _context.ExamResults.FirstOrDefault(er => er.ExamId == exam.Id && er.StudentId == studentId);
-                if (result == null) return string.Empty;
-
-                return result.ResultObjectId;
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("ExamResultRepository", "GetResultIdByLessonId exception. Inner error: " + ex.Message).LogError();
-            }
-            return string.Empty;
-        }
     }
 }
