@@ -12,5 +12,7 @@
         bool UpdateExam(Domain.Entities.Exam.Exam examEntity);
         bool UpdateExamQuestions(int examId, List<string> questionObjectIds);
         int GetExamIdByResultId(string resultId);
+
+        int GetCourseIdByLessonId(int lessonId);
     }
 }

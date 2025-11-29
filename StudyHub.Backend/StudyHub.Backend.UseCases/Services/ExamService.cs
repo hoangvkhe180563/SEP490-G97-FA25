@@ -136,11 +136,22 @@ namespace StudyHub.Backend.UseCases.Services
 
             var resultObjectId = result.Id;
 
-            bool showAnswers = isTeacher || exam.ShowAnswers;
-            bool showCorrectAnswers = isTeacher || exam.ShowCorrectAnswers;
+            bool showAnswers = isTeacher || exam.LessonId != 0 || exam.ShowAnswers;
+            bool showCorrectAnswers = isTeacher || exam.LessonId != 0 || exam.ShowCorrectAnswers;
             var answers = _answerRepo.GetAnswersByResultId(resultObjectId, showAnswers, showCorrectAnswers);
             result.Answers = answers;
             return result;
+        }
+
+        public List<Question> GetExamQuestionsByResult(string resultId)
+        {
+            var questionObjectIds = _answerRepo.GetQuestionIdsByResult(resultId);
+            if (questionObjectIds.Count == 0)
+            {
+                new UseCaseException("ExamService", "GetExamQuestionsByResult error: No question available in this exam paper!").LogError();
+            }
+
+            return _questionRepo.GetManyQuestionsById(questionObjectIds);
         }
 
         public List<ExamResult> GetResultsByExamIdAndStudentId(int examId, Guid studentId)
@@ -353,6 +364,16 @@ namespace StudyHub.Backend.UseCases.Services
                 return [];
             }
             return _questionRepo.GenerateRandomQuestions(exam.NoRandomQuestions.Value, exam.SubjectId.Value, exam.Grade.Value);
+        }
+
+        public int GetCourseIdByLessonId(int lessonId)
+        {
+            return _examRepo.GetCourseIdByLessonId(lessonId);
+        }
+
+        public string GetResultIdByLessonId(int lessonId, Guid studentId)
+        {
+            return _examResultRepo.GetResultIdByLessonId(lessonId, studentId);
         }
     }
 }

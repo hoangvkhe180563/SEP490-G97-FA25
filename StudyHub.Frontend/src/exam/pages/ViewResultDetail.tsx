@@ -167,7 +167,6 @@ const ViewResultDetail = () => {
       <div className="flex justify-between gap-4 mb-6">
         <div>
           <p className="text-lg text-gray-700"><strong>Học sinh:</strong> {result.studentName}</p>
-          {/* <p className="text-lg text-gray-700"><strong>Điểm số:</strong> {result.score}</p> */}
           <p className="text-lg text-gray-700"><strong>Ngày nộp:</strong> {result.submissionTime?.toLocaleString("vi-VN")}</p>
           <p className='text-lg text-gray-700'><strong>Số lần chuyển tab/thu nhỏ màn hình: <span className='text-red-500'>{result.cheatTimes}</span></strong></p>
         </div>
@@ -182,7 +181,7 @@ const ViewResultDetail = () => {
           <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Các câu hỏi và câu trả lời</h2>
 
           <div className="space-y-8">
-            {questions.map((question, index) => {
+            {(questions.length > 0) && questions.map((question, index) => {
               const studentAnswerEntry = result.answers.find(ans => ans.questionId === question.questionObjectId);
               const isCorrect = studentAnswerEntry?.isCorrect;
               const studentAnswer = studentAnswerEntry?.jsonAnswers;

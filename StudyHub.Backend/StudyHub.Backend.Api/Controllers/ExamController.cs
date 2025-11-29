@@ -129,6 +129,13 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(questionObjectIds);
         }
 
+        [HttpGet("return-lesson-course/{lessonId:int}")]
+        public IActionResult GetCourseIdByLessonId(int lessonId)
+        {
+            var courseId = _service.GetCourseIdByLessonId(lessonId);
+            return courseId == 0 ? NotFound() : Ok(courseId);
+        }
+
         [HttpGet("generate-random/{examId:int}")]
         public IActionResult GenerateRandomQuestions(int examId)
         {

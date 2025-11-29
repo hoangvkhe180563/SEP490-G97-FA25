@@ -44,6 +44,18 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(examResult);
         }
 
+        [HttpGet("{resultId}/questions")]
+        public IActionResult GetExamQuestionsByResult(string resultId)
+        {
+            if (resultId == string.Empty || resultId.Length != 24)
+            {
+                return BadRequest("Truyền sai id");
+            }
+
+            var questions = _service.GetExamQuestionsByResult(resultId);
+            return Ok(questions.Select(q => q.ToDetailDto()));
+        }
+
         [HttpGet("by-exam/{examId:int}/{studentId:guid}")]
         public IActionResult GetResultsByExamIdAndStudentId(int examId, Guid studentId)
         {
@@ -127,6 +139,17 @@ namespace StudyHub.Backend.Api.Controllers
             }
             bool result = _service.SubmitExamResult(resultId);
             return result ? Ok("Nộp bài thành công!") : Conflict("Nộp bài thất bại!");
+        }
+
+        [HttpGet("lesson-result-id/{studentId:guid}/{lessonId:int}")]
+        public IActionResult GetResultIdByLessonId(int lessonId, Guid studentId)
+        {
+            if (lessonId == 0)
+            {
+                return BadRequest();
+            }
+            string result = _service.GetResultIdByLessonId(lessonId, studentId);
+            return string.IsNullOrWhiteSpace(result) ? NotFound() : Ok(result);
         }
     }
 }

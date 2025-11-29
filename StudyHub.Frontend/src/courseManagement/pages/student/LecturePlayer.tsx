@@ -8,7 +8,7 @@ import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import type { LessonListDto } from "@/courseManagement/interfaces/types";
 import { useNavigate, useParams } from "react-router-dom";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
-import { Check, HelpCircle, X } from "lucide-react";
+import { Check, HelpCircle, NotebookPen, X } from "lucide-react";
 import {
   Popover,
   PopoverTrigger,
@@ -799,6 +799,21 @@ const LecturePlayer: React.FC = () => {
     }
   };
 
+  const handleViewExamResult = async () => {
+    if (!authUser) {
+      toast.error("Chưa đăng nhập vui lòng thử lại!");
+      return;
+    }
+
+    const resultId = await courseApi.getResultIdByLessonId(lessonId, authUser.id ?? '');
+    if (resultId == '') {
+      toast.error("Không lấy được dữ liệu bài làm!");
+      return;
+    }
+
+    navigate(`/exam/results/${resultId}`);
+  }
+
   return (
     <div className="w-full bg-gray-50 min-h-screen p-4 h-full overflow-y-auto scrollbar-hide">
       <div className="max-w-screen-xl mx-auto">
@@ -910,9 +925,8 @@ const LecturePlayer: React.FC = () => {
                     if (isEmbed || (!isMp4 && src.startsWith("http"))) {
                       const isYouTubeEmbed = /youtube|youtu\.be/.test(lower);
                       if (isYouTubeEmbed) {
-                        const elId = `yt-player-${
-                          selectedLesson?.id ?? "unknown"
-                        }`;
+                        const elId = `yt-player-${selectedLesson?.id ?? "unknown"
+                          }`;
                         return <div id={elId} className="w-full h-full" />;
                       }
 
@@ -978,14 +992,19 @@ const LecturePlayer: React.FC = () => {
                 </div>
               </div>
             ) : selectedLesson?.type === "Exam" ? (
-              <Button
-                variant="outline"
-                className="mb-2"
-                onClick={() => setExamDialogOpen(true)}
-                disabled={isLessonCompleted}
-              >
-                {isLessonCompleted ? "Đã hoàn thành" : "Bắt đầu làm bài"}
-              </Button>
+              <div className="space-x-3">
+                <Button
+                  variant="outline"
+                  className="mb-2"
+                  onClick={() => setExamDialogOpen(true)}
+                  disabled={isLessonCompleted}
+                >
+                  {isLessonCompleted ? "Đã hoàn thành" : "Bắt đầu làm bài"}
+                </Button>
+                <Button onClick={handleViewExamResult}>
+                  <NotebookPen /> Xem kết quả
+                </Button>
+              </div>
             ) : (
               <div className="bg-black w-full aspect-video rounded-lg mb-4 flex items-center justify-center text-white overflow-hidden shadow-lg">
                 <div className="text-white text-lg">
@@ -1018,8 +1037,8 @@ const LecturePlayer: React.FC = () => {
                           const bgCls = isCorrectOpt
                             ? "bg-green-50 border border-green-200"
                             : isChosenWrong
-                            ? "bg-red-50 border border-red-200"
-                            : "bg-gray-100 hover:bg-gray-200";
+                              ? "bg-red-50 border border-red-200"
+                              : "bg-gray-100 hover:bg-gray-200";
                           return (
                             <button
                               key={idx}
