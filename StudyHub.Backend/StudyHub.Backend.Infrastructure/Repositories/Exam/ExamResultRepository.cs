@@ -12,18 +12,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
         {
             _context = context;
         }
-        public List<string> GetExamResultObjectIds(int examId)
-        {
-            try
-            {
-                return _context.ExamResults.Where(q => q.ExamId == examId).Select(q => q.ResultObjectId).ToList();
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("ExamResultRepository", "GetExamResultObjectIds exception. Inner error: " + ex.Message).LogError();
-            }
-            return [];
-        }
 
         public Domain.Entities.Exam.ExamResult? GetExamResultById(string id)
         {

@@ -80,7 +80,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                             Type = QuestionType.Matching,
                             Terms = question.Terms,
                             Definitions = question.Definitions,
-                            CorrectMatches = correctMatches,
+                            CorrectAnswer = correctMatches,
                             SubjectId = question.SubjectId,
                             Grade = question.Grade
                         };
@@ -128,7 +128,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                         questionData.Terms = mq.Terms;
                         questionData.Definitions = mq.Definitions;
                         BsonDocument correctMatchesDoc = new BsonDocument();
-                        foreach (var kvp in mq.CorrectMatches)
+                        foreach (var kvp in mq.CorrectAnswer)
                         {
                             correctMatchesDoc[kvp.Key.ToString()] = kvp.Value;
                         }

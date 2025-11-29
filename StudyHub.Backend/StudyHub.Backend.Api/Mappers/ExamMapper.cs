@@ -101,7 +101,7 @@ namespace StudyHub.Backend.Api.Mappers
                                     Type = QuestionType.Matching,
                                     Terms = question.Terms,
                                     Definitions = question.Definitions,
-                                    CorrectMatches = correctMatches
+                                    CorrectAnswer = correctMatches
                                 });
                             }
                             break;
@@ -207,7 +207,7 @@ namespace StudyHub.Backend.Api.Mappers
                             {
                                 q.Terms = matching.Terms;
                                 q.Definitions = matching.Definitions;
-                                q.CorrectAnswer = matching.CorrectMatches;
+                                q.CorrectAnswer = matching.CorrectAnswer;
                             }
                         }
                         break;
