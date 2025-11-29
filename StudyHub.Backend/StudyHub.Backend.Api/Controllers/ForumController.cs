@@ -5,6 +5,7 @@
     using StudyHub.Backend.Api.Mappers;
     using StudyHub.Backend.UseCases.Services;
     using StudyHub.Backend.UseCases.Utils;
+using System;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -122,6 +123,10 @@ namespace StudyHub.Backend.Api.Controllers
                 bool isOwner = post.CreatedBy == currentUser.Id;
                 bool isModerator = IsModerator();
                 bool isApproved = post.Status == true;
+
+                // THÊM LOG NÀY
+                _logger.LogInformation("GetPostById - PostId: {PostId}, UserId: {UserId}, IsOwner: {IsOwner}, IsModerator: {IsModerator}, Roles: {Roles}",
+                    postId, currentUser.Id, isOwner, isModerator, string.Join(", ", currentUser.Roles?.Select(r => r.Name) ?? new List<string>()));
 
                 if (!isApproved && !isOwner && !isModerator)
                 {
@@ -374,6 +379,36 @@ namespace StudyHub.Backend.Api.Controllers
                             : await _moderationService.RejectReportAsync(entityId, currentUser.Id);
                         successMessage = status == "approve" ? "Đã chấp nhận tố cáo" : "Đã từ chối tố cáo";
                         notFoundMessage = "Không tìm thấy tố cáo";
+
+                        if (result && status == "approve")
+                        {
+                            var report = await _moderationService.GetViolationRecordByIdAsync(entityId);
+                            if (report != null)
+                            {
+                                if (report.PostId.HasValue)
+                                {
+                                    var post = await _postService.GetPostByIdAsync(report.PostId.Value);
+                                    if (post != null && post.TotalViolationScore >= 10 && post.IsHidden)
+                                    {
+                                        var postDto = post.ToListDto(null, false);
+                                        await _forumHubContext.Clients.Group($"school-{post.SchoolId}")
+                                            .SendAsync("PostUpdated", postDto);
+                                        await _forumHubContext.Clients.Group($"post-{report.PostId.Value}")
+                                            .SendAsync("PostUpdated", postDto);
+                                    }
+                                }
+                                else if (report.CommentId.HasValue)
+                                {
+                                    var comment = await _commentService.GetCommentByIdAsync(report.CommentId.Value);
+                                    if (comment != null && comment.TotalViolationScore >= 10 && comment.IsHidden)
+                                    {
+                                        var commentDto = comment.ToListDto(null, false);
+                                        await _forumHubContext.Clients.Group($"post-{comment.PostId}")
+                                            .SendAsync("CommentUpdated", commentDto);
+                                    }
+                                }
+                            }
+                        }
                         break;
 
                     case "attachments":
@@ -1722,13 +1757,22 @@ namespace StudyHub.Backend.Api.Controllers
 
         private bool IsModerator()
         {
-            var roleClaim = User.Claims.FirstOrDefault(c =>
-                c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role");
+            try
+            {
+                var currentUser = _authService.GetCurrentUser();
+                if (currentUser == null) return false;
 
-            if (roleClaim == null) return false;
+                var roles = _roleService.GetRolesByUser(currentUser.Id);
+                if (roles == null || !roles.Any()) return false;
 
-            var roles = roleClaim.Value.Split(',').Select(r => r.Trim());
-            return roles.Any(r => r == "Moderator" || r == "School Moderator");
+                return roles.Any(r =>
+                    string.Equals(r.Name, "Moderator", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(r.Name, "School Moderator", StringComparison.OrdinalIgnoreCase));
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

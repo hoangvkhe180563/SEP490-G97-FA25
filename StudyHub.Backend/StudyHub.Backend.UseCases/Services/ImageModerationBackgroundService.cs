@@ -232,8 +232,16 @@ namespace StudyHub.Backend.UseCases.Services
 
                     await postRepo.UpdatePostAsync(post);
                     Console.WriteLine($"Updated post {post.Id} in database");
-                    await signalRNotifier.NotifyPostUpdated(postId, post.SchoolId);
-                    Console.WriteLine($"Sent SignalR notification for post {postId}");
+
+                    await Task.Delay(500);
+
+                    var updatedPost = await postRepo.GetPostByIdAsync(postId);
+                    if (updatedPost != null)
+                    {
+                        await signalRNotifier.NotifyPostUpdated(postId, post.SchoolId);
+                        Console.WriteLine($"Sent SignalR notification for post {postId}");
+                    }
+
                     if (!isProtectedFlair)
                     {
                         var userStatus = await moderationRepo.GetUserForumStatusAsync(post.CreatedBy, post.SchoolId);

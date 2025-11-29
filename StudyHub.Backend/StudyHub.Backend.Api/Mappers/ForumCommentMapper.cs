@@ -14,7 +14,7 @@ namespace StudyHub.Backend.Api.Mappers
 
             bool isOwner = currentUserId.HasValue && comment.CreatedBy == currentUserId.Value;
             bool isAutoDetected = comment.IsHidden && comment.Status == false;
-            bool isManuallyHidden = comment.TotalViolationScore >= 10 && !comment.IsHidden && comment.Status == true;
+            bool isManuallyHidden = comment.TotalViolationScore >= 10 && comment.IsHidden && comment.Status == true;
             bool shouldMaskContent = isManuallyHidden && !isOwner && !isModerator;
 
             return new ForumCommentListDto
@@ -56,10 +56,16 @@ namespace StudyHub.Backend.Api.Mappers
 
         public static ForumCommentDetailDto ToDetailDto(this ForumComment comment, Guid? currentUserId = null, bool isModerator = false)
         {
+            var authorName = comment.Creator?.Username ?? "Unknown";
+            var authorInitials = comment.Creator?.Username?.Length >= 2
+                ? comment.Creator.Username.Substring(0, 2).ToUpper()
+                : "U";
+
             bool isOwner = currentUserId.HasValue && comment.CreatedBy == currentUserId.Value;
             bool isAutoDetected = comment.IsHidden && comment.Status == false;
-            bool isManuallyHidden = comment.TotalViolationScore >= 10 && !comment.IsHidden && comment.Status == true;
+            bool isManuallyHidden = comment.TotalViolationScore >= 10 && comment.IsHidden && comment.Status == true;
             bool shouldMaskContent = isManuallyHidden && !isOwner && !isModerator;
+
 
             return new ForumCommentDetailDto
             {

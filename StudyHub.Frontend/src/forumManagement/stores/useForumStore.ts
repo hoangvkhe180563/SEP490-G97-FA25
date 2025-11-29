@@ -256,24 +256,28 @@ export const useForumStore = create<ForumState>()(
       signalRStore.onPostUpdated = (dto: any) => {
         const mappedPost = mapPost(dto);
 
-        if (mappedPost.status !== true) {
-          console.log(
-            "Post updated but not approved, removing from list:",
-            mappedPost.post_id
+        set((state) => {
+          if (mappedPost.status !== true) {
+            console.log("Post hidden/rejected, removing:", mappedPost.post_id);
+            return {
+              posts: state.posts.filter(
+                (p) => p.post_id !== mappedPost.post_id
+              ),
+              myPosts: state.myPosts.filter(
+                (p) => p.post_id !== mappedPost.post_id
+              ),
+              currentPost:
+                state.currentPost?.post_id === mappedPost.post_id
+                  ? null
+                  : state.currentPost,
+            };
+          }
+
+          const updatedPosts = state.posts.map((p) =>
+            p.post_id === mappedPost.post_id ? { ...p, ...mappedPost } : p
           );
 
-          set((state) => ({
-            posts: state.posts.filter((p) => p.post_id !== mappedPost.post_id),
-            currentPost:
-              state.currentPost?.post_id === mappedPost.post_id
-                ? null
-                : state.currentPost,
-          }));
-          return;
-        }
-
-        set((state) => {
-          const updatedPosts = state.posts.map((p) =>
+          const updatedMyPosts = state.myPosts.map((p) =>
             p.post_id === mappedPost.post_id ? { ...p, ...mappedPost } : p
           );
 
@@ -284,27 +288,38 @@ export const useForumStore = create<ForumState>()(
 
           return {
             posts: updatedPosts,
+            myPosts: updatedMyPosts,
             currentPost: updatedCurrentPost,
           };
         });
       };
 
+      signalRStore.onPostDeleted = (postId: number) => {
+        console.log("Post deleted via SignalR:", postId);
+        set((state) => ({
+          posts: state.posts.filter((p) => p.post_id !== postId),
+          myPosts: state.myPosts.filter((p) => p.post_id !== postId),
+          currentPost:
+            state.currentPost?.post_id === postId ? null : state.currentPost,
+        }));
+      };
+
       signalRStore.onCommentUpdated = (dto: any) => {
         const mappedComment = mapComment(dto);
 
-        if (mappedComment.status !== true) {
-          console.log(
-            "Comment updated but not approved, removing from list:",
-            mappedComment.comment_id
-          );
+        set((state) => {
+          if (
+            !state.currentPost ||
+            state.currentPost.post_id !== mappedComment.post_id
+          ) {
+            return {};
+          }
 
-          set((state) => {
-            if (
-              !state.currentPost ||
-              state.currentPost.post_id !== mappedComment.post_id
-            ) {
-              return {};
-            }
+          if (mappedComment.status !== true) {
+            console.log(
+              "Comment hidden/rejected, removing:",
+              mappedComment.comment_id
+            );
 
             const removeCommentFromTree = (comments: any[]): any[] => {
               return comments.filter((c) => {
@@ -326,16 +341,6 @@ export const useForumStore = create<ForumState>()(
                 ),
               },
             };
-          });
-          return;
-        }
-
-        set((state) => {
-          if (
-            !state.currentPost ||
-            state.currentPost.post_id !== mappedComment.post_id
-          ) {
-            return {};
           }
 
           const updateCommentInTree = (comments: any[]): any[] => {
@@ -354,6 +359,33 @@ export const useForumStore = create<ForumState>()(
             currentPost: {
               ...state.currentPost,
               comments: updateCommentInTree(state.currentPost.comments || []),
+            },
+          };
+        });
+      };
+
+      signalRStore.onCommentDeleted = (commentId: number) => {
+        console.log("Comment deleted via SignalR:", commentId);
+
+        set((state) => {
+          if (!state.currentPost) return {};
+
+          const removeCommentFromTree = (comments: any[]): any[] => {
+            return comments.filter((c) => {
+              if (c.comment_id === commentId) {
+                return false;
+              }
+              if (c.replies && c.replies.length > 0) {
+                c.replies = removeCommentFromTree(c.replies);
+              }
+              return true;
+            });
+          };
+
+          return {
+            currentPost: {
+              ...state.currentPost,
+              comments: removeCommentFromTree(state.currentPost.comments || []),
             },
           };
         });

@@ -201,6 +201,12 @@ namespace StudyHub.Backend.UseCases.Services
             }
 
             var postWithDetails = await _postRepo.GetPostByIdAsync(createdPost.Id);
+
+            if (hasTextViolations && !hasProtectedFlair && postWithDetails != null)
+            {
+                await _signalRNotifier.NotifyPostUpdated(createdPost.Id, post.SchoolId);
+            }
+
             return postWithDetails ?? createdPost;
         }
 
