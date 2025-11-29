@@ -64,6 +64,35 @@ export const useMessageStore = create<MessageState>()(
             }
           });
 
+          // receive file broadcast from server (if backend emits it)
+          conn.on("ReceiveFile", (dto: any) => {
+            try {
+              const file = {
+                id: dto?.id ?? dto?.Id ?? String(Date.now()),
+                conversationId: String(
+                  dto?.conversationId ?? dto?.ConversationId ?? ""
+                ),
+                fileName: dto?.fileName ?? dto?.FileName ?? "",
+                fileUrl: dto?.fileUrl ?? dto?.FileUrl ?? "",
+                fileType: dto?.fileType ?? dto?.FileType ?? "",
+                createdAt: new Date(
+                  dto?.createdAt ?? dto?.CreatedAt ?? Date.now()
+                ).toISOString(),
+                createdBy: String(dto?.createdBy ?? dto?.CreatedBy ?? ""),
+              };
+              console.log("ReceiveFile", file);
+              set((state: any) => {
+                const exists = (state.files || []).some(
+                  (f: any) => String(f.id) === String(file.id)
+                );
+                if (exists) return {} as any;
+                return { files: [...(state.files || []), file] } as any;
+              });
+            } catch (err) {
+              console.error("ReceiveFile handler error", err);
+            }
+          });
+
           conn.on("UserTyping", (payload: any) => {
             // payload: { ConversationId, UserId, IsTyping }
             try {

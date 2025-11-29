@@ -30,7 +30,7 @@ const AddLecture: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialType = searchParams.get("type") || "video";
   const [type, setTypeState] = useState<string>(initialType);
-  const [useEmbed, setUseEmbed] = useState(false);
+  const [useEmbed] = useState(true);
   const [embedSrc, setEmbedSrc] = useState("");
   const courseIdFromQuery = searchParams.get("courseId");
   const chapterIdFromQuery = searchParams.get("chapterId");
@@ -48,7 +48,6 @@ const AddLecture: React.FC = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [readingContent, setReadingContent] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
   const [duration, setDuration] = useState("");
   const [postDate, setPostDate] = useState("");
   // Interactive questions metadata (local only until saved to backend)
@@ -182,19 +181,30 @@ const AddLecture: React.FC = () => {
     if (!title || !title.trim()) errors.push("Tiêu đề bài giảng là bắt buộc.");
 
     if (type === "video") {
-      if (!useEmbed) {
-        if (!videoUrl || !videoUrl.trim())
-          errors.push("Vui lòng cung cấp URL video hoặc chọn Embed.");
-        else {
+      // default to embed iframe for videos
+      if (!embedSrc || !embedSrc.trim())
+        errors.push("Vui lòng dán link nhúng (embed) hợp lệ.");
+      else {
+        // allow raw iframe tags or plain URLs
+        const trimmed = embedSrc.trim();
+        if (trimmed.startsWith("<iframe")) {
+          const m = trimmed.match(/src=["']([^"']+)["']/);
+          if (!m || !m[1])
+            errors.push("Embed iframe không có thuộc tính src hợp lệ.");
+          else {
+            try {
+              new URL(m[1]);
+            } catch (e) {
+              errors.push("URL trong iframe embed không hợp lệ.");
+            }
+          }
+        } else {
           try {
-            new URL(videoUrl);
+            new URL(trimmed);
           } catch (e) {
-            errors.push("URL video không hợp lệ.");
+            errors.push("Link embed không phải URL hợp lệ.");
           }
         }
-      } else {
-        if (!embedSrc || !embedSrc.trim())
-          errors.push("Vui lòng dán link nhúng (embed) hợp lệ.");
       }
     } else if (type === "reading") {
       // reading
@@ -252,6 +262,7 @@ const AddLecture: React.FC = () => {
           const expectedBlanks = (
             q.questionText.match(
               new RegExp(
+                // eslint-disable-next-line no-useless-escape
                 "[BLANK]".replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
                 "g"
               )
@@ -272,14 +283,28 @@ const AddLecture: React.FC = () => {
             );
           }
         } else if (q.type === EXAM_TYPE.MATCHING) {
-          if (!q.terms || q.terms.length === 0 || q.terms.some(term => !String(term).trim())) {
-            errors.push(`Vui lòng nhập đầy đủ các thuật ngữ cho câu hỏi ghép đôi "${q.questionText}".`);
+          if (
+            !q.terms ||
+            q.terms.length === 0 ||
+            q.terms.some((term) => !String(term).trim())
+          ) {
+            errors.push(
+              `Vui lòng nhập đầy đủ các thuật ngữ cho câu hỏi ghép đôi "${q.questionText}".`
+            );
           }
-          if (!q.definitions || q.definitions.length === 0 || q.definitions.some(def => !String(def).trim())) {
-            errors.push(`Vui lòng nhập đầy đủ các định nghĩa cho câu hỏi ghép đôi "${q.questionText}".`);
+          if (
+            !q.definitions ||
+            q.definitions.length === 0 ||
+            q.definitions.some((def) => !String(def).trim())
+          ) {
+            errors.push(
+              `Vui lòng nhập đầy đủ các định nghĩa cho câu hỏi ghép đôi "${q.questionText}".`
+            );
           }
           if (q.terms?.length !== q.definitions?.length) {
-            errors.push(`Số lượng thuật ngữ và định nghĩa phải bằng nhau cho câu hỏi "${q.questionText}".`);
+            errors.push(
+              `Số lượng thuật ngữ và định nghĩa phải bằng nhau cho câu hỏi "${q.questionText}".`
+            );
           }
         }
       }
@@ -706,7 +731,7 @@ const AddLecture: React.FC = () => {
         status: true,
         type:
           type === "video" ? "Video" : type === "reading" ? "Reading" : "Exam",
-        videoUrl: type === "video" ? (useEmbed ? embedSrc : videoUrl) : null,
+        videoUrl: type === "video" ? embedSrc : null,
         readingContent: type !== "video" ? readingContent : null,
         duration: duration || null,
         description: description || null,
@@ -929,8 +954,10 @@ const AddLecture: React.FC = () => {
                 </div>
               </div>
 
-              {/* Interactive questions editor */}
-              <div className="space-y-2 pt-4">
+              {/* Interactive questions editor (visible only for video type) */}
+              <div
+                className={`space-y-2 pt-4 ${type === "video" ? "" : "hidden"}`}
+              >
                 <div className="flex items-center justify-between">
                   <Label> Câu hỏi tương tác (Interactive questions)</Label>
                   <div className="text-sm text-gray-500">
@@ -1087,14 +1114,6 @@ const AddLecture: React.FC = () => {
                     Video URL <span className="text-red-500">*</span>
                   </Label>
                   <div className="flex items-center gap-2 text-sm">
-                    <input
-                      id="use-embed"
-                      type="checkbox"
-                      checked={useEmbed}
-                      onChange={(e) => setUseEmbed(e.target.checked)}
-                      className="w-4 h-4"
-                    />
-                    <label htmlFor="use-embed">Embed (iframe)</label>
                     <button
                       type="button"
                       onClick={() =>
@@ -1146,42 +1165,34 @@ const AddLecture: React.FC = () => {
                   </div>
                 </div>
 
-                {!useEmbed ? (
+                <div className="space-y-2">
                   <Input
-                    placeholder="https://example.com/video.mp4"
-                    value={videoUrl}
-                    onChange={(e) => setVideoUrl(e.target.value)}
+                    placeholder="Dán link embed YouTube (vd: https://www.youtube.com/embed/...)"
+                    value={embedSrc}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const match = val.match(/src="([^"]+)"/);
+                      setEmbedSrc(match ? match[1] : val);
+                    }}
                   />
-                ) : (
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Dán link embed YouTube (vd: https://www.youtube.com/embed/...)"
-                      value={embedSrc}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        const match = val.match(/src="([^"]+)"/);
-                        setEmbedSrc(match ? match[1] : val);
-                      }}
-                    />
-                    <div className="border rounded overflow-hidden">
-                      {embedSrc ? (
-                        <iframe
-                          title="embed-preview"
-                          src={embedSrc}
-                          className="w-full aspect-video rounded-md border border-gray-200"
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          referrerPolicy="strict-origin-when-cross-origin"
-                          allowFullScreen
-                        />
-                      ) : (
-                        <div className="p-3 text-sm text-gray-500">
-                          Nhập link embed (ví dụ YouTube embed URL) để xem trước
-                        </div>
-                      )}
-                    </div>
+                  <div className="border rounded overflow-hidden">
+                    {embedSrc ? (
+                      <iframe
+                        title="embed-preview"
+                        src={embedSrc}
+                        className="w-full aspect-video rounded-md border border-gray-200"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerPolicy="strict-origin-when-cross-origin"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <div className="p-3 text-sm text-gray-500">
+                        Nhập link embed (ví dụ YouTube embed URL) để xem trước
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
               <div
                 className={`space-y-2 ${

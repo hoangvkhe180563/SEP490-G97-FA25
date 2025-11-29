@@ -47,7 +47,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             try
             {
-                var entity = new Data.Progress { EnrollmentId = p.EnrollmentId, LessonId = p.LessonId, CompletionDate = p.CompletionDate == default ? DateTime.UtcNow : p.CompletionDate };
+                var entity = new Data.Progress { EnrollmentId = p.EnrollmentId, LessonId = p.LessonId, CompletionDate = p.CompletionDate == default ? DateTime.Now : p.CompletionDate };
                 _context.Progresses.Add(entity);
                 _context.SaveChanges();
                 p.Id = entity.Id;

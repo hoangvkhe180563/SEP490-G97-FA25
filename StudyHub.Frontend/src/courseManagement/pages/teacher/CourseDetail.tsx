@@ -103,7 +103,7 @@ const CourseDetail: React.FC = () => {
 
       {/* === Course Header === */}
       <div className="flex items-center justify-between bg-white border rounded p-4 mb-4">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 mr-4">
           {/* === Course Image === */}
           <div className="w-24 h-24 bg-gray-100 rounded overflow-hidden">
             {selectedCourse?.imageUrl ? (
