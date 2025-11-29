@@ -13,12 +13,13 @@ namespace StudyHub.Backend.Api.Mappers
                 : "U";
 
             bool isOwner = currentUserId.HasValue && post.CreatedBy == currentUserId.Value;
-            //bool isProtectedFlair = post.Flair?.IsProtected ?? false;
 
             bool isAutoDetected = post.IsHidden && post.Status == false;
-            bool isManuallyHidden = post.TotalViolationScore >= 10 && !post.IsHidden && post.Status == true;
+
+            bool isManuallyHidden = post.IsHidden && post.Status == true;
 
             bool shouldHideFromPublic = isAutoDetected && !isOwner && !isModerator;
+
             bool shouldMaskContent = isManuallyHidden && !isOwner && !isModerator;
 
             if (shouldHideFromPublic)
@@ -78,10 +79,9 @@ namespace StudyHub.Backend.Api.Mappers
         public static ForumPostDetailDto ToDetailDto(this ForumPost post, Guid? currentUserId = null, bool isModerator = false)
         {
             bool isOwner = currentUserId.HasValue && post.CreatedBy == currentUserId.Value;
-            //bool isProtectedFlair = post.Flair?.IsProtected ?? false;
 
             bool isAutoDetected = post.IsHidden && post.Status == false;
-            bool isManuallyHidden = post.TotalViolationScore >= 10 && !post.IsHidden && post.Status == true;
+            bool isManuallyHidden = post.IsHidden && post.Status == true;
 
             bool shouldMaskContent = isManuallyHidden && !isOwner && !isModerator;
 

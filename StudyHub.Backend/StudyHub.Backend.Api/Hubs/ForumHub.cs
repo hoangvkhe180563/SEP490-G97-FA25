@@ -76,7 +76,6 @@ namespace StudyHub.Backend.Api.Hubs
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"post-{postId}");
         }
-
         public async Task<object> CreatePost(int schoolId, short subjectId, int? flairId, string title, string content)
         {
             try
@@ -105,26 +104,13 @@ namespace StudyHub.Backend.Api.Hubs
                 };
 
                 var createdPost = await _postService.CreatePostAsync(post, null);
+
                 var postWithDetails = await _postService.GetPostByIdAsync(createdPost.Id);
+                var dto = postWithDetails?.ToListDto();
 
-                if (postWithDetails == null)
-                {
-                    return new { success = false, message = "Không thể tạo bài viết" };
-                }
-
-                var dto = postWithDetails.ToListDto();
-
-                if (postWithDetails.Status == true)
+                if (postWithDetails?.Status == true)
                 {
                     await Clients.Group($"school-{schoolId}").SendAsync("ReceiveNewPost", dto);
-                }
-                else
-                {
-                    await Clients.Caller.SendAsync("PostPendingModeration", new
-                    {
-                        postId = postWithDetails.Id,
-                        message = "Bài viết đang chờ kiểm duyệt"
-                    });
                 }
 
                 return new { success = true, data = dto };

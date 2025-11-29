@@ -11,7 +11,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace StudyHub.Backend.Api.BackgroundServices
+namespace StudyHub.Backend.UseCases.Services
 {
     public class ImageModerationBackgroundService : BackgroundService
     {
@@ -99,6 +99,7 @@ namespace StudyHub.Backend.Api.BackgroundServices
             var moderationRepo = postScope.ServiceProvider.GetRequiredService<IForumModerationRepository>();
             var postRepo = postScope.ServiceProvider.GetRequiredService<IForumPostRepository>();
             var fileStorage = postScope.ServiceProvider.GetRequiredService<ICloudinaryRepository>();
+            var signalRNotifier = postScope.ServiceProvider.GetRequiredService<ISignalRNotifier>();
 
             try
             {
@@ -231,7 +232,8 @@ namespace StudyHub.Backend.Api.BackgroundServices
 
                     await postRepo.UpdatePostAsync(post);
                     Console.WriteLine($"Updated post {post.Id} in database");
-
+                    await signalRNotifier.NotifyPostUpdated(postId, post.SchoolId);
+                    Console.WriteLine($"Sent SignalR notification for post {postId}");
                     if (!isProtectedFlair)
                     {
                         var userStatus = await moderationRepo.GetUserForumStatusAsync(post.CreatedBy, post.SchoolId);

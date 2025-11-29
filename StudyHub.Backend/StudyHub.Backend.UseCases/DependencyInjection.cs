@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using StudyHub.Backend.Api.BackgroundServices;
+//using StudyHub.Backend.Api.BackgroundServices;
 using StudyHub.Backend.Api.Services;
 using StudyHub.Backend.UseCases.Services;
 
@@ -48,7 +48,7 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<ForumPostService>();
             services.AddScoped<SubscriptionService>();
             services.AddScoped<QuestionService>();
-
+            services.AddScoped<ISignalRNotifier, NoOpSignalRNotifier>();
             services.AddHostedService<ImageModerationBackgroundService>();
 
             return services;

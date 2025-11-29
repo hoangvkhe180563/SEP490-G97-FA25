@@ -184,11 +184,7 @@ namespace StudyHub.Backend.Api.Controllers
                 }
                 else
                 {
-                    await _forumHubContext.Clients.User(currentUser.Id.ToString()).SendAsync("PostPendingModeration", new
-                    {
-                        postId = createdPost.Id,
-                        message = "Bài viết đang chờ kiểm duyệt hoặc đã bị ẩn"
-                    });
+                    _logger.LogInformation("Post {PostId} is pending moderation, not broadcasting to group", createdPost.Id);
                 }
 
                 return CreatedAtAction(nameof(GetPostById), new { postId = createdPost.Id },
@@ -482,6 +478,7 @@ namespace StudyHub.Backend.Api.Controllers
                 }
                 else
                 {
+                    _logger.LogInformation("Comment {CommentId} is pending moderation, not broadcasting to group", createdComment.CommentId);
                     await _forumHubContext.Clients.User(currentUser.Id.ToString()).SendAsync("CommentPendingModeration", new
                     {
                         commentId = createdComment.CommentId,
@@ -1525,29 +1522,46 @@ namespace StudyHub.Backend.Api.Controllers
 
                 bool result;
                 string entityName;
-                object? entity = null;
 
                 switch (contentType.ToLower())
                 {
                     case "posts":
                         result = await _postService.HidePostByModeratorAsync(contentId, currentUser.Id, dto.ViolationScore);
                         entityName = "bài viết";
-                        entity = await _postService.GetPostByIdAsync(contentId);
-                        if (result && entity != null)
+
+                        if (result)
                         {
-                            await _forumHubContext.Clients.Group($"school-{((dynamic)entity).SchoolId}")
-                                .SendAsync("PostHidden", contentId);
+                            var post = await _postService.GetPostByIdAsync(contentId);
+                            if (post != null)
+                            {
+                                var postDto = post.ToListDto(null, false);
+
+                                await _forumHubContext.Clients.Group($"school-{post.SchoolId}")
+                                    .SendAsync("PostUpdated", postDto);
+                                await _forumHubContext.Clients.Group($"post-{contentId}")
+                                    .SendAsync("PostUpdated", postDto);
+
+                                _logger.LogInformation("Sent PostUpdated SignalR for hidden post {PostId}", contentId);
+                            }
                         }
                         break;
 
                     case "comments":
                         result = await _commentService.HideCommentByModeratorAsync(contentId, currentUser.Id, dto.ViolationScore);
                         entityName = "bình luận";
-                        entity = await _commentService.GetCommentByIdAsync(contentId);
-                        if (result && entity != null)
+
+                        if (result)
                         {
-                            await _forumHubContext.Clients.Group($"post-{((dynamic)entity).PostId}")
-                                .SendAsync("CommentHidden", contentId);
+                            var comment = await _commentService.GetCommentByIdAsync(contentId);
+                            if (comment != null)
+                            {
+                                var commentDto = comment.ToListDto(null, false);
+
+                                await _forumHubContext.Clients.Group($"post-{comment.PostId}")
+                                    .SendAsync("CommentUpdated", commentDto);
+
+                                _logger.LogInformation("Sent CommentUpdated SignalR for hidden comment {CommentId}", contentId);
+                            }
                         }
                         break;
 
@@ -1559,9 +1573,6 @@ namespace StudyHub.Backend.Api.Controllers
                 {
                     return NotFound(new { success = false, message = $"Không tìm thấy {entityName}" });
                 }
-
-                _logger.LogInformation("Moderator {UserId} hid {ContentType} {ContentId}",
-                    currentUser.Id, contentType, contentId);
 
                 return Ok(new { success = true, message = $"Đã ẩn {entityName}" });
             }

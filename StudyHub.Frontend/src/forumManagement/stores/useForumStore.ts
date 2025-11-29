@@ -113,7 +113,7 @@ const mapPost = (dto: any) => ({
   comment_count: dto.commentCount || dto.comment_count || 0,
   comments: [],
   image_urls: dto.attachments?.map((a: any) => a.fileUrl).join(",") || "",
-  status: dto.status,
+  status: dto.status ?? true,
 });
 
 const mapComment = (dto: any) => ({
@@ -163,10 +163,12 @@ export const useForumStore = create<ForumState>()(
       signalRStore.onReceiveNewPost = (dto: any) => {
         const mappedPost = mapPost(dto);
 
-        if (mappedPost.status === false || mappedPost.status === null) {
+        if (dto.status !== true) {
           console.log(
-            "Post pending moderation, not adding to list:",
-            mappedPost.post_id
+            "Post not approved, skipping:",
+            mappedPost.post_id,
+            "status:",
+            dto.status
           );
           return;
         }
@@ -183,10 +185,12 @@ export const useForumStore = create<ForumState>()(
       signalRStore.onReceiveNewComment = (dto: any) => {
         const mappedComment = mapComment(dto);
 
-        if (mappedComment.status === false || mappedComment.status === null) {
+        if (mappedComment.status !== true) {
           console.log(
-            "Comment pending moderation, not adding to list:",
-            mappedComment.comment_id
+            "Comment not approved, skipping:",
+            mappedComment.comment_id,
+            "status:",
+            mappedComment.status
           );
           return;
         }
@@ -249,38 +253,12 @@ export const useForumStore = create<ForumState>()(
         });
       };
 
-      signalRStore.onCommentDeleted = (commentId: number) => {
-        set((state) => {
-          if (!state.currentPost) return {};
-
-          const newCommentCount = Math.max(
-            0,
-            state.currentPost.comment_count - 1
-          );
-
-          return {
-            currentPost: {
-              ...state.currentPost,
-              comments: state.currentPost.comments.filter(
-                (c) => c.comment_id !== commentId
-              ),
-              comment_count: newCommentCount,
-            },
-            posts: state.posts.map((p) =>
-              p.post_id === state.currentPost?.post_id
-                ? { ...p, comment_count: newCommentCount }
-                : p
-            ),
-          };
-        });
-      };
-
       signalRStore.onPostUpdated = (dto: any) => {
         const mappedPost = mapPost(dto);
 
-        if (mappedPost.status === false || mappedPost.status === null) {
+        if (mappedPost.status !== true) {
           console.log(
-            "Post updated but hidden, removing from list:",
+            "Post updated but not approved, removing from list:",
             mappedPost.post_id
           );
 
@@ -311,20 +289,12 @@ export const useForumStore = create<ForumState>()(
         });
       };
 
-      signalRStore.onPostDeleted = (postId: number) => {
-        set((state) => ({
-          posts: state.posts.filter((p) => p.post_id !== postId),
-          currentPost:
-            state.currentPost?.post_id === postId ? null : state.currentPost,
-        }));
-      };
-
       signalRStore.onCommentUpdated = (dto: any) => {
         const mappedComment = mapComment(dto);
 
-        if (mappedComment.status === false || mappedComment.status === null) {
+        if (mappedComment.status !== true) {
           console.log(
-            "Comment updated but hidden, removing from list:",
+            "Comment updated but not approved, removing from list:",
             mappedComment.comment_id
           );
 

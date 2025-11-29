@@ -13,19 +13,22 @@ namespace StudyHub.Backend.UseCases.Services
         private readonly IForumModerationRepository _moderationRepo;
         private readonly ICloudinaryRepository _fileStorage;
         private readonly IImageModerationService _imageModerationService;
+        private readonly ISignalRNotifier _signalRNotifier;
 
         public ForumPostService(
-            IForumPostRepository postRepo,
-            IForumConfigRepository configRepo,
-            IForumModerationRepository moderationRepo,
-            ICloudinaryRepository fileStorage,
-            IImageModerationService imageModerationService)
+             IForumPostRepository postRepo,
+        IForumConfigRepository configRepo,
+        IForumModerationRepository moderationRepo,
+        ICloudinaryRepository fileStorage,
+        IImageModerationService imageModerationService,
+        ISignalRNotifier signalRNotifier)
         {
-            _postRepo = postRepo;
-            _configRepo = configRepo;
-            _moderationRepo = moderationRepo;
-            _fileStorage = fileStorage;
-            _imageModerationService = imageModerationService;
+           _postRepo = postRepo;
+        _configRepo = configRepo;
+        _moderationRepo = moderationRepo;
+        _fileStorage = fileStorage;
+        _imageModerationService = imageModerationService;
+        _signalRNotifier = signalRNotifier;
         }
 
         public async Task<ForumPost?> GetPostByIdAsync(int postId)
@@ -317,7 +320,7 @@ namespace StudyHub.Backend.UseCases.Services
             post = await _postRepo.GetPostByIdAsync(postId);
 
             post.TotalViolationScore += violationScore;
-            post.IsHidden = false;
+            post.IsHidden = true;
             post.Status = true;
 
 
