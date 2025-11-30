@@ -43,7 +43,7 @@ namespace StudyHub.Backend.Api.Controllers
         // GET: /api/ClassNotification/class/{classId}
         [HttpGet("class/{classId}")]
         public IActionResult GetByClass(int classId)
-        {
+        {   
             var notifications = _service.GetNotifications(classId)
                 .Select(n => n.ToNotificationDto())
                 .ToList();
@@ -278,7 +278,10 @@ namespace StudyHub.Backend.Api.Controllers
                 // Persist base notification changes
                 var res = _service.EditNotification(noti);
                 if (res == null) return StatusCode(500, new { success = false, message = "Cập nhật thất bại" });
-
+                if(dto.Files != null ||dto.Links != null )
+                {
+                    _service.DeleteNotificationFile(id);
+                }
                 // Handle uploaded files (if any)
                 if (dto.Files != null && dto.Files.Any())
                 {

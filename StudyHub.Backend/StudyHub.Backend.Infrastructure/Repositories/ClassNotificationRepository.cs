@@ -165,7 +165,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             file.Id = ent.Id;
             return file;
         }
-
+        public bool DeleteNotificationFile(int  classNotificationId)
+        {
+            var files=_context.ClassNotificationFiles.Where(c=>c.NotificationId==classNotificationId);
+            if(!files.Any()) {return false;}
+            _context.ClassNotificationFiles.RemoveRange(files);
+            _context.SaveChanges();
+            return true;
+        }
         public List<ClassNotificationFile> GetFilesByNotification(int notificationId)
         {
             return _context.ClassNotificationFiles

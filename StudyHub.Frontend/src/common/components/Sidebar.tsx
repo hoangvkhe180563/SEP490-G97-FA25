@@ -9,7 +9,7 @@ import {
   LogOut,
   CircleUser,
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { ISidebarItem } from "../interfaces/IMainLayoutProps";
 import type { AppUser } from "@/auth/interfaces/app-user";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -35,6 +35,7 @@ export const Sidebar = (props: {
 }) => {
   const [showAppealModal, setShowAppealModal] = useState(false);
   const { createAppeal, isLoading } = useAppealStore();
+  const navigate = useNavigate();
   const logout = async () => {
     await axiosInstance.post("/auth/logout").then((res) => {
       if (res.status === 200) {
@@ -123,7 +124,7 @@ export const Sidebar = (props: {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-50 ml-3">
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/user/profile")}>
                   <CircleUser className="mr-2 h-4 w-4" /> Thông tin cá nhân
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowAppealModal(true)}>

@@ -205,6 +205,7 @@ const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Di
               {q.type === EXAM_TYPE.MULTI_CHOICE && <span className='font-bold'>Trắc nghiệm nhiều đáp án</span>}
               {q.type === EXAM_TYPE.TEXT_INPUT && <span className='font-bold'>Điền từ/Trả lời ngắn</span>}
               {q.type === EXAM_TYPE.FILL_IN_BLANK && <span className='font-bold'>Điền khuyết</span>}
+              {q.type === EXAM_TYPE.MATCHING && <span className='font-bold'>Ghép đôi</span>}
             </div>
 
             <div className="mb-4">

@@ -19,19 +19,9 @@ namespace StudyHub.Backend.UseCases.Services
             _answerRepo = answerRepo;
         }
 
-        public List<Question> GetAllQuestions()
-        {
-            return _questionRepo.GetAllQuestions();
-        }
-
         public List<Exam> GetAllClassExamsByStudent(Guid studentId)
         {
             return _examRepo.GetAllClassExamsByStudent(studentId);
-        }
-
-        public List<Exam> GetAllClassExamsByTeacher(Guid teacherId)
-        {
-            return _examRepo.GetAllClassExamsByTeacher(teacherId);
         }
 
         public List<Exam> GetAllClassExams(int classId)
@@ -56,11 +46,6 @@ namespace StudyHub.Backend.UseCases.Services
             return _examRepo.GetClassName(classId);
         }
 
-        public string GetLessonName(int lessonId)
-        {
-            return _examRepo.GetLessonName(lessonId);
-        }
-
         public Exam? GetExamById(int id, bool retrieveQuestions)
         {
             var exam = _examRepo.GetExamById(id);
@@ -75,11 +60,6 @@ namespace StudyHub.Backend.UseCases.Services
                 exam.Questions = questions;
             }
             return exam;
-        }
-
-        public bool? IsLessonExamExists(int lessonId)
-        {
-            return _examRepo.IsLessonExamExists(lessonId);
         }
 
         public bool CreateExam(Exam examEntity)
@@ -156,11 +136,22 @@ namespace StudyHub.Backend.UseCases.Services
 
             var resultObjectId = result.Id;
 
-            bool showAnswers = isTeacher || exam.ShowAnswers;
-            bool showCorrectAnswers = isTeacher || exam.ShowCorrectAnswers;
+            bool showAnswers = isTeacher || exam.LessonId != 0 || exam.ShowAnswers;
+            bool showCorrectAnswers = isTeacher || exam.LessonId != 0 || exam.ShowCorrectAnswers;
             var answers = _answerRepo.GetAnswersByResultId(resultObjectId, showAnswers, showCorrectAnswers);
             result.Answers = answers;
             return result;
+        }
+
+        public List<Question> GetExamQuestionsByResult(string resultId)
+        {
+            var questionObjectIds = _answerRepo.GetQuestionIdsByResult(resultId);
+            if (questionObjectIds.Count == 0)
+            {
+                new UseCaseException("ExamService", "GetExamQuestionsByResult error: No question available in this exam paper!").LogError();
+            }
+
+            return _questionRepo.GetManyQuestionsById(questionObjectIds);
         }
 
         public List<ExamResult> GetResultsByExamIdAndStudentId(int examId, Guid studentId)
@@ -288,13 +279,13 @@ namespace StudyHub.Backend.UseCases.Services
                             }
 
                             bool isCorrect = true;
-                            if (studentAnswer.Count != mq.CorrectMatches.Count)
+                            if (studentAnswer.Count != mq.CorrectAnswer.Count)
                             {
                                 isCorrect = false;
                             }
                             else
                             {
-                                foreach (var kvp in mq.CorrectMatches)
+                                foreach (var kvp in mq.CorrectAnswer)
                                 {
                                     if (!studentAnswer.ContainsKey(kvp.Key) || studentAnswer[kvp.Key] != kvp.Value)
                                     {
@@ -364,22 +355,6 @@ namespace StudyHub.Backend.UseCases.Services
             else return isResultSubmitted;
         }
 
-        public int GetCourseIdByLessonId(int lessonId)
-        {
-            return _examRepo.GetCourseIdByLessonId(lessonId);
-        }
-
-        public List<Question> GetExamQuestionsByResult(string resultId)
-        {
-            var questionObjectIds = _answerRepo.GetQuestionIdsByResult(resultId);
-            if (questionObjectIds.Count == 0)
-            {
-                new UseCaseException("ExamService", "GetExamQuestionsByResult error: No question available in this exam paper!").LogError();
-            }
-
-            return _questionRepo.GetManyQuestionsById(questionObjectIds);
-        }
-
         public List<Question> GenerateRandomQuestions(int examId)
         {
             var exam = _examRepo.GetExamById(examId);
@@ -389,6 +364,42 @@ namespace StudyHub.Backend.UseCases.Services
                 return [];
             }
             return _questionRepo.GenerateRandomQuestions(exam.NoRandomQuestions.Value, exam.SubjectId.Value, exam.Grade.Value);
+        }
+
+        public int GetCourseIdByLessonId(int lessonId)
+        {
+            return _examRepo.GetCourseIdByLessonId(lessonId);
+        }
+
+        public string GetLatestResultIdByLessonId(int lessonId, Guid studentId)
+        {
+            var exam = _examRepo.GetLessonExam(lessonId);
+            if (exam == null) return string.Empty;
+
+            var results = _examResultRepo.GetExamResultsByExamId(exam.Id);
+            if (results.Count == 0) return string.Empty;
+
+            return results[0].Id;
+        }
+
+        public dynamic? CheckLessonStatus(int lessonId, Guid studentId)
+        {
+            var exam = _examRepo.GetLessonExam(lessonId);
+            if (exam == null) return null;
+
+            var results = _examResultRepo.GetExamResultsByExamId(exam.Id);
+            if (results.Count == 0) return null;
+            bool isMaxAttempts = results.Count % 3 == 0;
+
+            DateTime? latestTime = results.OrderByDescending(r => r.SubmissionTime).Select(r => r.SubmissionTime).FirstOrDefault();
+            if (latestTime == null) return null;
+            bool isInsideLockTime = latestTime.Value.AddHours(8) - DateTime.Now > TimeSpan.Zero;
+
+            return new
+            {
+                LatestTime = latestTime,
+                IsDisabled = isMaxAttempts && isInsideLockTime
+            };
         }
     }
 }

@@ -498,7 +498,9 @@ export const useClassStore = create<ClassState>()(
 
           try {
             await get().getClassMembers(classId);
-          } catch { /* empty */ }
+          } catch {
+            /* empty */
+          }
 
           return { success, message, data };
         } catch (error) {
@@ -849,97 +851,49 @@ export const useClassStore = create<ClassState>()(
         try {
           const res = await axiosInstance.get(`/Class/${id}/detail`);
           const raw = res?.data ?? null;
-
-          if (!raw) {
-            console.warn("getClassInfo: no response data");
+          if (!raw || !raw.success) {
             set({ isLoading: false });
             return null;
           }
-
-          if (!raw.success) {
-            set({
-              currentClass: {
-                success: false,
-                message: raw.message ?? "Failed to load class info",
-                data: {
-                  classInfo: defaultClassInfo,
-                  teacher: null,
-                  students: [],
-                  parents: [],
-                  notifications: [],
-                },
-              },
-              isLoading: false,
-            });
-            return null;
-          }
-
           const data = raw.data;
 
-          // ---- START: normalized notifications mapping to ensure avatar fields exist ----
-          const notifications =
-            (data.notifications ?? []).map((n: any) => {
-              // Normalize top-level avatar from several possible fields
-              const topAvatar =
-                n.avatarUrl ??
-                n.avatar ??
-                n.authorAvatar ??
-                n.creatorAvatar ??
-                n.createdByAvatar ??
-                n.createdByImage ??
-                n.imageUrl ??
-                n.photoUrl ??
-                (n.createdByUser &&
-                  (n.createdByUser.avatarUrl ??
-                    n.createdByUser.avatar ??
-                    n.createdByUser.imageUrl)) ??
-                null;
+          // Normalize notifications so UI can rely on consistent keys:
+          const notifications = (data.notifications ?? []).map((n: any) => {
+            const topAvatar =
+              n.avatar ?? n.avatarUrl ?? n.imageUrl ?? n.photoUrl ?? null;
+            const createdBy = n.createdBy ?? n.appUserId ?? null;
+            const createdAt = n.createdAt
+              ? formatISO(new Date(n.createdAt))
+              : undefined;
+            const comments = (n.comments ?? []).map((c: any) => ({
+              id: c.id,
+              notificationId: c.notificationId ?? n.id,
+              userId: c.userId ?? c.appUserId ?? c.user_id ?? null,
+              userFullname: c.userFullname ?? c.fullname ?? c.name ?? "",
+              content: c.content ?? c.text ?? "",
+              createdAt: c.createdAt
+                ? formatISO(new Date(c.createdAt))
+                : undefined,
+              avatarUrl: c.imageUrl ?? c.avatar ?? c.avatarUrl ?? null,
+              raw: c,
+            }));
 
-              const files = n.files ?? n.attachments ?? n.documents ?? [];
-
-              const mappedComments =
-                (n.comments ?? []).map((c: any) => {
-                  const commentAvatar =
-                    c.avatarUrl ??
-                    c.avatar ??
-                    c.imageUrl ??
-                    c.photoUrl ??
-                    c.userImage ??
-                    c.createdByAvatar ??
-                    c.authorAvatar ??
-                    (c.user &&
-                      (c.user.avatarUrl ?? c.user.avatar ?? c.user.imageUrl)) ??
-                    null;
-
-                  return {
-                    id: c.id,
-                    notificationId: c.notificationId ?? c.notification_id ?? n.id,
-                    userId: c.userId ?? c.userId ?? c.userId ?? null,
-                    userFullname: c.userFullname ?? c.fullname ?? c.name ?? "",
-                    content: c.content ?? c.text ?? "",
-                    createdAt: formatISO(c.createdAt),
-                    avatarUrl: commentAvatar,
-                    raw: c,
-                  };
-                }) ?? [];
-
-              return {
-                id: n.id,
-                classId: n.classId ?? n.class_id ?? null,
-                title: n.title ?? n.name ?? "",
-                description: n.description ?? n.desc ?? "",
-                createdBy: n.createdBy ?? n.createdById ?? null,
-                createdAt: formatISO(n.createdAt),
-                files: files,
-                // normalized top-level avatar fields (consistent keys used by UI)
-                avatarUrl: topAvatar,
-                authorAvatar: topAvatar,
-                // include comments normalized
-                comments: mappedComments,
-                raw: n,
-              } as ClassNotification;
-            }) ?? [];
-          // ---- END: normalized notifications mapping ----
+            return {
+              id: n.id,
+              classId: n.classId ?? n.class_id ?? null,
+              title: n.title ?? n.name ?? "",
+              description: n.description ?? n.desc ?? n.instructionsHtml ?? "",
+              createdBy,
+              createdAt,
+              files: n.files ?? n.attachments ?? [],
+              // UI expects avatar fields like avatarUrl/authorName — provide them
+              avatarUrl: topAvatar,
+              avatarImage: topAvatar, // keep both forms used elsewhere
+              authorName: n.arthur ?? n.authorName ?? n.createdByName ?? "",
+              comments,
+              raw: n,
+            } as ClassNotification;
+          });
 
           set((state) => {
             const cur = state.currentClass ?? defaultCurrentClass;
@@ -957,7 +911,7 @@ export const useClassStore = create<ClassState>()(
                     description: data.description,
                     createdAt: formatISO(data.createdAt),
                   },
-                  notifications: notifications,
+                  notifications,
                 },
               },
             };
@@ -976,7 +930,7 @@ export const useClassStore = create<ClassState>()(
               teacher: get().currentClass.data.teacher ?? null,
               students: get().currentClass.data.students ?? [],
               parents: get().currentClass.data.parents ?? [],
-              notifications: notifications,
+              notifications,
             },
           };
 

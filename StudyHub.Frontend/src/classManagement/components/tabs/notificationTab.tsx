@@ -49,6 +49,10 @@ const NotificationsTab: React.FC<Props> = ({ classId, notifications, onPost, isT
                 title: n.title,
                 description: n.description,
                 createdAt: n.createdAt,
+                avatarImage: n.avatarImage,
+                authorName: n.authorName,
+                classId: n.classId,
+                createdBy: n.createdBy,
                 files: n.files ?? [],
                 comments: n.comments ?? [],
               }}

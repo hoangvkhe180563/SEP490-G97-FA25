@@ -4,12 +4,14 @@ using StudyHub.Backend.Api.Dtos.ClassDTOS;
 using StudyHub.Backend.Api.Dtos.ClassworkDTOS;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Dtos;
+using StudyHub.Backend.UseCases.Services;
 using System.Linq;
 
 namespace StudyHub.Backend.Api.Mappers
 {
     public static class ClassMapper
-    {
+    {   
+       
         public static ClassListDto ToListClassDto(this Class c, AppUser? t) => new ClassListDto
         {
             Id = c.Id,
@@ -93,6 +95,7 @@ namespace StudyHub.Backend.Api.Mappers
                 Title = noti.Title,
                 Description = noti.Description,
                 CreatedBy = noti.AppUserId,
+                AppUserId = noti.AppUserId,
                 CreatedAt = noti.CreatedAt,
                 Type = noti.Type,
                 Deadline = noti.Deadline,
@@ -119,6 +122,7 @@ namespace StudyHub.Backend.Api.Mappers
                 Files = files ?? new List<FileDto>(),
                 Comments = comments ?? new List<CommentDto>(),
                 Arthur = user?.Fullname,
+                AppUserId=user.Id,
                 Avatar = user?.Avatar,
                 Type = entity.Type,
                 Deadline = entity.Deadline,

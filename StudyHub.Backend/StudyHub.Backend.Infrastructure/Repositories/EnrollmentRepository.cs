@@ -63,7 +63,7 @@ namespace Infrastructure.Repositories
                 {
                     AppUserId = en.AppUserId,
                     CourseId = en.CourseId,
-                    EnrollmentDate = en.EnrollmentDate == default ? DateTime.UtcNow : en.EnrollmentDate
+                    EnrollmentDate = en.EnrollmentDate == default ? DateTime.Now : en.EnrollmentDate
                 };
                 _context.Enrollments.Add(entity);
                 _context.SaveChanges();

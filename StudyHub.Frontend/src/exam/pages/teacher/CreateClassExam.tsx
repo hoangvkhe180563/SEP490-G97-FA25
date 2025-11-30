@@ -21,8 +21,6 @@ const CreateExam = () => {
   const [searchParams] = useSearchParams();
   const [classId, setClassId] = useState<number>(0);
   const [className, setClassName] = useState<string>('');
-  const [lessonId, setLessonId] = useState<number>(0);
-  const [lessonName, setLessonName] = useState<string>('');
   const navigate = useNavigate();
   const [examTitle, setExamTitle] = useState('');
   const [examDescription, setExamDescription] = useState('');
@@ -50,17 +48,12 @@ const CreateExam = () => {
     }
     const fetchData = async () => {
       const classIdQuery = Number(searchParams.get("classId"));
-      const lessonIdQuery = Number(searchParams.get("lessonId"));
-      if (lessonIdQuery) {
-        setLessonId(lessonIdQuery);
-        const lessonName = await examService.getLessonName(lessonIdQuery);
-        setLessonName(lessonName);
-      } else if (classIdQuery) {
+      if (classIdQuery) {
         setClassId(classIdQuery);
         const className = await examService.getClassName(classIdQuery);
         setClassName(className);
       } else {
-        toast.error("Chưa có id của lớp hoặc bài học để tạo bài kiểm tra!");
+        toast.error("Chưa có id của lớp để tạo bài kiểm tra!");
         navigate("/");
       }
     }
@@ -182,7 +175,6 @@ const CreateExam = () => {
       showCorrectAnswers: showCorrectAnswers,
       isMultipleAttempts: isMultipleAttempts,
       classId: classId,
-      lessonId: lessonId,
       openTime: new Date(openTime),
       closeTime: closeTime ? new Date(closeTime) : undefined
     };
@@ -219,7 +211,6 @@ const CreateExam = () => {
       </Link>
 
       {classId !== 0 && <h1 className="text-4xl font-bold mb-6 text-gray-800">Tạo bài kiểm tra mới cho lớp {className}</h1>}
-      {lessonId !== 0 && <h1 className="text-4xl font-bold mb-6 text-gray-800">Tạo bài kiểm tra mới cho bài học {lessonName}</h1>}
 
       <form onSubmit={handleSubmit}>
         <div className="mb-6">
@@ -294,8 +285,8 @@ const CreateExam = () => {
           />
         </div>
         <div className="flex items-center gap-3 py-3">
-          <Checkbox id="showAnswers" checked={isMultipleAttempts} onCheckedChange={(value: boolean) => setIsMultipleAttempts(value)} />
-          <Label htmlFor="showAnswers">Cho phép thi nhiều lần</Label>
+          <Checkbox id="multipleTimes" checked={isMultipleAttempts} onCheckedChange={(value: boolean) => setIsMultipleAttempts(value)} />
+          <Label htmlFor="multipleTimes">Cho phép thi nhiều lần</Label>
         </div>
 
         <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b py-3">Khi nộp bài</h2>
