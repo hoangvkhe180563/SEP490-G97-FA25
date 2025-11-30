@@ -8,7 +8,7 @@ import { Button } from "@/common/components/ui/button";
 import { Textarea } from "@/common/components/ui/textarea";
 import { ScrollArea } from "@/common/components/ui/scroll-area";
 import { Badge } from "@/common/components/ui/badge";
-import { Paperclip, Send } from "lucide-react";
+import { Paperclip, Send, Loader2 } from "lucide-react";
 import { useConversationStore } from "@/qaManagement/stores/useConversationStore";
 import { useMessageStore } from "@/qaManagement/stores/useMessageStore";
 import type { Message } from "@/qaManagement/interfaces/message";
@@ -38,6 +38,7 @@ const ConversationDetails: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingIds, setDownloadingIds] = useState<string[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
@@ -275,6 +276,39 @@ const ConversationDetails: React.FC = () => {
     }, 3000);
   };
 
+  const handleDownload = async (
+    url?: string,
+    filename?: string,
+    id?: string
+  ) => {
+    if (!url) return;
+    const key = id ?? url;
+    if (downloadingIds.includes(key)) return;
+    setDownloadingIds((s) => [...s, key]);
+    try {
+      const res = await fetch(url, { mode: "cors" });
+      if (!res.ok) throw new Error("Network response was not ok");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename || "file";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("download failed", err);
+      try {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } catch (e) {
+        // ignore
+      }
+    } finally {
+      setDownloadingIds((s) => s.filter((x) => x !== key));
+    }
+  };
+
   return (
     <div className="flex flex-col h-full ">
       <header className="flex items-center gap-4 p-4 border-b">
@@ -458,18 +492,29 @@ const ConversationDetails: React.FC = () => {
                           } w-5 h-5`}
                         />
                         <div>
-                          <a
+                          <button
+                            onClick={() =>
+                              handleDownload(
+                                item.fileUrl,
+                                item.fileName,
+                                item.id
+                              )
+                            }
                             className={`${
-                              isMyFile
-                                ? "text-white underline"
-                                : "text-blue-600 underline"
-                            } text-sm`}
-                            href={item.fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
+                              isMyFile ? "text-white" : "text-blue-600"
+                            } text-sm underline text-left flex items-center gap-2`}
                           >
-                            {item.fileName}
-                          </a>
+                            <span className="truncate">{item.fileName}</span>
+                            {(downloadingIds || []).includes(
+                              item.id ?? item.fileUrl
+                            ) && (
+                              <Loader2
+                                className={`${
+                                  isMyFile ? "text-white" : "text-gray-600"
+                                } w-4 h-4 animate-spin`}
+                              />
+                            )}
+                          </button>
                           <div
                             className={`${
                               isMyFile

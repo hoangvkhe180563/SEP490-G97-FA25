@@ -92,6 +92,7 @@ const AppRouter = () => {
         /* ignore */
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); //bảo sao bị call 2 lần => x2 call api
 
   useEffect(() => {

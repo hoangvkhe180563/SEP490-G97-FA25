@@ -232,28 +232,43 @@ const WalletTopUp: React.FC = () => {
     <>
       <AppDialog dialog={dialog as any} setDialog={(d: any) => setDialog(d)} />
 
-      <div className="h-full bg-gradient-to-br from-sky-100 via-blue-50 to-white overflow-y-auto ">
+      <div className="h-full bg-gradient-to-br from-sky-100 via-blue-50 to-white overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="w-full mx-auto max-w-5xl bg-white rounded-3xl shadow-[0_0_40px_-10px_rgba(56,189,248,0.4)] border border-sky-100 p-10"
+          className="w-full mx-auto max-w-5xl bg-white rounded-3xl shadow-[0_0_40px_-10px_rgba(56,189,248,0.35)] border border-sky-100 p-10"
         >
-          {/* Header */}
-          <div className="flex items-center gap-4 mb-6">
-            <CreditCard className="text-sky-600 w-8 h-8 drop-shadow-sm" />
-            <h2 className="text-4xl font-bold text-gray-800">
-              Nạp tiền vào ví học tập
-            </h2>
-          </div>
-          <p className="text-gray-600 text-lg mb-8">
-            Chọn số tiền bạn muốn nạp và quét mã QR để thanh toán nhanh chóng,
-            an toàn.
-          </p>
+          <div className="flex items-start justify-between mb-6 gap-6">
+            <div>
+              <div className="flex items-center gap-4">
+                <CreditCard className="text-sky-600 w-8 h-8 drop-shadow-sm" />
+                <h2 className="text-4xl font-extrabold text-gray-900">
+                  Nạp tiền vào ví học tập
+                </h2>
+              </div>
+              <p className="text-gray-600 text-lg mt-3">
+                Chọn số tiền bạn muốn nạp và quét mã QR để thanh toán nhanh
+                chóng, an toàn.
+              </p>
+            </div>
 
-          {/* Form */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            <div className="md:col-span-2">
+            <div className="text-right">
+              <div className="text-sm text-gray-500">Số dư hiện tại</div>
+              <div className="text-2xl font-semibold text-primary">
+                {(authUser?.wallet ?? 0).toLocaleString("vi-VN")} đ
+              </div>
+            </div>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              generateQr();
+            }}
+            className="grid grid-cols-12 gap-8 mb-8 items-start"
+          >
+            <div className="col-span-12 lg:col-span-8">
               <Label className="text-base font-semibold text-gray-700">
                 Số tiền (VND)
               </Label>
@@ -262,7 +277,7 @@ const WalletTopUp: React.FC = () => {
                 min={1000}
                 value={amount || ""}
                 onChange={(e) => handleAmountChange(e.target.value)}
-                className="w-full border-2 border-sky-100 rounded-2xl px-5 py-4 mt-2 text-lg focus:outline-none focus:ring-4 focus:ring-sky-300"
+                className="w-full border-2 border-sky-100 rounded-2xl px-5 py-4 mt-3 text-2xl font-semibold focus:outline-none focus:ring-4 focus:ring-sky-300"
               />
 
               {amountText && (
@@ -273,9 +288,9 @@ const WalletTopUp: React.FC = () => {
 
               <motion.div layout className="flex flex-wrap gap-3 mt-4">
                 {suggestedAmounts.map((v) => (
-                  <Button
+                  <button
                     key={v}
-                    variant={v === amount ? "default" : "outline"}
+                    type="button"
                     onClick={() => {
                       setAmount(v);
                       setAmountText(numberToWords(v));
@@ -283,102 +298,136 @@ const WalletTopUp: React.FC = () => {
                     className={`rounded-xl text-base px-5 py-3 transition-all ${
                       v === amount
                         ? "bg-sky-600 text-white shadow-lg scale-105"
-                        : "hover:bg-sky-50"
+                        : "border border-sky-100 hover:bg-sky-50"
                     }`}
                   >
                     {formatVnd(v)}
-                  </Button>
+                  </button>
                 ))}
               </motion.div>
-            </div>
 
-            <div className="bg-gradient-to-br from-sky-50 to-white rounded-2xl p-6 border border-sky-100 shadow-inner">
-              <Label className="text-base font-semibold text-gray-700">
-                Tài khoản nhận
-              </Label>
-              <div className="mt-3 text-lg">
-                <div className="font-semibold text-gray-800">
-                  {accountName ?? "—"}
+              <div className="mt-6">
+                <Label className="text-base font-semibold text-gray-700">
+                  Ghi chú
+                </Label>
+                <div className="mt-3 text-sm text-gray-600">
+                  Nội dung chuyển khoản (hệ thống dùng để nhận diện giao dịch)
                 </div>
-                <div className="text-gray-500">{accountNumber ?? "—"}</div>
               </div>
+
+              <div className="mt-6 flex items-center gap-4">
+                <Button
+                  type="button"
+                  onClick={generateQr}
+                  className="bg-sky-600 text-white text-lg px-6 py-3 rounded-xl shadow hover:shadow-lg transition"
+                >
+                  ⚡ Tạo mã QR
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate(-1)}
+                  className="text-lg"
+                >
+                  <ArrowLeft className="mr-2 w-5 h-5" /> Quay lại
+                </Button>
+              </div>
+
+              {/* (QR preview moved to full-width centered block below) */}
             </div>
-          </div>
 
-          {/* Action */}
-          <div className="flex gap-4 mb-10">
-            <Button
-              onClick={generateQr}
-              className="bg-sky-600 text-white text-lg px-6 py-3 rounded-xl shadow hover:shadow-lg transition"
-            >
-              ⚡ Tạo mã QR
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => navigate(-1)}
-              className="text-lg"
-            >
-              <ArrowLeft className="mr-2 w-5 h-5" /> Quay lại
-            </Button>
-          </div>
+            <aside className="col-span-12 lg:col-span-4">
+              <div className="sticky top-8 space-y-6">
+                <div className="p-5 bg-gray-50 rounded-lg border border-gray-100">
+                  <div className="text-sm text-gray-500">
+                    Số tiền bạn sẽ nạp
+                  </div>
+                  <div className="mt-2 text-3xl font-bold text-gray-900">
+                    {amount ? amount.toLocaleString("vi-VN") + " đ" : "0 đ"}
+                  </div>
+                  {amountText && (
+                    <div className="mt-2 text-sm text-gray-700 italic">
+                      {amountText}
+                    </div>
+                  )}
+                </div>
 
-          {/* QR */}
+                <div className="p-5 bg-white rounded-lg border border-gray-100 shadow-sm">
+                  <div className="text-sm text-gray-500">Tài khoản nhận</div>
+                  <div className="mt-2 font-medium text-gray-900">
+                    {accountName ?? "—"}
+                  </div>
+                  <div className="text-gray-500 mt-1">
+                    {accountNumber ?? "—"}
+                  </div>
+                  <div className="mt-4 flex gap-3">
+                    <Button
+                      onClick={() => accountNumber && copyText(accountNumber)}
+                      className="text-sm px-4 py-2"
+                    >
+                      Sao chép STK
+                    </Button>
+                    <Button
+                      onClick={() => accountName && copyText(accountName)}
+                      variant="outline"
+                      className="text-sm px-4 py-2"
+                    >
+                      Sao chép tên
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </form>
+
           <AnimatePresence>
             {qrUrl && (
               <motion.div
-                initial={{ opacity: 0, y: 40 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center"
+                exit={{ opacity: 0, y: 10 }}
+                className="max-w-3xl mx-auto mt-6 bg-white border border-gray-100 rounded-3xl shadow-lg p-6 text-center"
               >
-                <div className="bg-white border border-sky-100 rounded-3xl shadow-xl p-6 text-center">
-                  <div className="text-base text-gray-500 mb-3">
-                    Quét mã để thanh toán
+                <div className="text-base text-gray-600 mb-3">
+                  Quét mã để thanh toán
+                </div>
+                <img
+                  src={qrUrl}
+                  alt="QR"
+                  className="mx-auto w-72 h-72 object-contain rounded-2xl border border-gray-100"
+                />
+
+                <div className="mt-5">
+                  <div className="text-sm text-gray-600 mb-2">
+                    Nội dung chuyển khoản
                   </div>
-                  <img
-                    src={qrUrl}
-                    alt="QR"
-                    className="w-72 h-72 mx-auto object-contain rounded-2xl border border-gray-100"
-                  />
-                  <div className="mt-5 flex justify-center gap-3">
-                    <Button
-                      onClick={() => copyImage(qrUrl!)}
-                      className="bg-sky-600 text-white text-base px-5 py-2 rounded-xl"
-                    >
-                      <ImageIcon className="w-5 h-5 mr-1" /> Copy ảnh
-                    </Button>
+                  <div className="font-mono bg-gray-50 border border-gray-200 p-3 rounded-xl mt-1 break-words text-sky-700 font-semibold text-base">
+                    {transferNote}
                   </div>
                 </div>
 
-                <div className="bg-gray-50 border border-gray-100 rounded-3xl p-6 shadow-inner">
-                  <div className="text-base text-gray-600 mb-2">
-                    Nội dung chuyển khoản
-                  </div>
-                  <div className="font-mono bg-white border border-gray-200 p-4 rounded-xl mt-2 break-words text-sky-700 font-semibold text-lg tracking-wide">
-                    {transferNote}
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <Button
-                      onClick={() => transferNote && copyText(transferNote)}
-                      className="bg-sky-600 text-white text-base px-5 py-2 rounded-xl"
-                    >
-                      <Copy className="w-5 h-5 mr-1" /> Copy nội dung
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() =>
-                        navigator.clipboard?.writeText(String(amount))
-                      }
-                      className="text-base px-5 py-2 rounded-xl"
-                    >
-                      Copy số tiền
-                    </Button>
-                  </div>
-                  <div className="text-sm text-gray-500 mt-5 leading-relaxed">
-                    💡 Sau khi chuyển khoản, hệ thống sẽ tự động nhận diện và
-                    cộng tiền vào ví trong vài phút. Bạn có thể tiếp tục học
-                    ngay sau khi nạp xong.
-                  </div>
+                <div className="mt-5 flex justify-center gap-3">
+                  <Button
+                    onClick={() => copyImage(qrUrl)}
+                    className="bg-sky-600 text-white text-base px-5 py-2 rounded-xl"
+                  >
+                    <ImageIcon className="w-5 h-5 mr-1" /> Copy ảnh
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => transferNote && copyText(transferNote)}
+                    className="text-base px-5 py-2 rounded-xl"
+                  >
+                    <Copy className="w-5 h-5 mr-1" /> Copy nội dung
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() =>
+                      navigator.clipboard?.writeText(String(amount))
+                    }
+                    className="text-base px-5 py-2 rounded-xl"
+                  >
+                    Copy số tiền
+                  </Button>
                 </div>
               </motion.div>
             )}

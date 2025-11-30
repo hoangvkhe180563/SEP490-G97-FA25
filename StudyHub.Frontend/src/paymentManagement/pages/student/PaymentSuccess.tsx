@@ -20,6 +20,9 @@ const PaymentSuccess: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const price = search.get("price") ? Number(search.get("price")) : undefined;
+  const walletUsed = search.get("walletUsed")
+    ? Number(search.get("walletUsed"))
+    : undefined;
 
   const isSubscription = search.get("subscription") === "1";
   const months = search.get("months")
@@ -66,11 +69,13 @@ const PaymentSuccess: React.FC = () => {
         // 3️⃣ Trường hợp đăng ký gói subscription
         if (isSubscription) {
           try {
-            const req = {
+            const req: any = {
               packageName,
               months: months ?? 1,
               price: price ?? 0,
             };
+            // include walletUsed if present so backend can deduct wallet amount
+            if (walletUsed && walletUsed > 0) req.walletUsed = walletUsed;
             const resp = await subscribe(req as any);
             if (!resp) {
               throw new Error(

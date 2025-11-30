@@ -1,8 +1,8 @@
 // src/forumManagement/routes/ForumRoutes.tsx
 import ForumRouteConfig from "@/forumManagement/constants/ForumRouteConfig";
-import ForumMain from "@/forumManagement/pages/ForumMain";
-import PostDetail from "@/forumManagement/pages/PostDetail";
+
 import { Outlet, type RouteObject } from "react-router-dom";
+import RequireRole from "@/common/components/RequireRole";
 import AppealManagement from "../pages/AppealManagement";
 import PostManagement from "../pages/PostManagement";
 import ViolationAccounts from "../pages/ViolationAccounts";
@@ -11,6 +11,8 @@ import ViolationRecords from "../pages/ViolationRecords";
 import { ForumLayout } from "../components/ForumLayout";
 import ForumRuleManagement from "../pages/ForumRuleManagement";
 import ModeratorDashboard from "../pages/ModeratorDashboard";
+import ForumMain from "../pages/forummain";
+import PostDetail from "../pages/postdetail";
 
 const managerRoutes = [
   {
@@ -89,27 +91,40 @@ const forumRoutes: RouteObject[] = [
   {
     path: ForumRouteConfig.MANAGER.INDEX,
     element: (
-      <ForumLayout>
-        <Outlet />
-      </ForumLayout>
+      <RequireRole allowedRoles={["Moderator", "School Admin"]}>
+        <ForumLayout>
+          <Outlet />
+        </ForumLayout>
+      </RequireRole>
     ),
     children: managerRoutes,
   },
   {
     path: ForumRouteConfig.TEACHER.INDEX,
     element: (
-      <ForumLayout>
-        <Outlet />
-      </ForumLayout>
+      <RequireRole
+        allowedRoles={[
+          "Subject Teacher",
+          "Head of Department Teacher",
+          "Q&A Teacher",
+          "Homeroom Teacher",
+        ]}
+      >
+        <ForumLayout>
+          <Outlet />
+        </ForumLayout>
+      </RequireRole>
     ),
     children: teacherRoutes,
   },
   {
     path: ForumRouteConfig.STUDENT.INDEX,
     element: (
-      <ForumLayout>
-        <Outlet />
-      </ForumLayout>
+      <RequireRole allowedRoles={["School Student", "External Student"]}>
+        <ForumLayout>
+          <Outlet />
+        </ForumLayout>
+      </RequireRole>
     ),
     children: studentRoutes,
   },
