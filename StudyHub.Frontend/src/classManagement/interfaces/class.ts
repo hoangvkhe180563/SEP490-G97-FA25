@@ -6,6 +6,7 @@ export interface ClassListDto {
   id: number;
   name: string;
   instructorName: string;
+  grade: number;
   description?: string;
 }
 
@@ -13,6 +14,7 @@ export type ClassInfo = {
   id: number;
   name: string;
   description: string;
+  grade: number;
   createdAt: string;
 };
 
@@ -181,9 +183,9 @@ export interface ClassState {
   meta?: Meta | null;
 
   getClasses: (query: string, memberUserId?: string) => Promise<GetClassesResponse | null>;
-  addClass: (payload: { title: string; description?: string; createdBy: string }) => Promise<any | null>;
+  addClass: (payload: { title: string; description?: string; createdBy: string ; grade:number|undefined}) => Promise<any | null>;
   getAllSubjects: () => Promise<Subject[]>;
-  updateClass: (payload: { id: number; title: string; description?: string; updateBy?: string }) => Promise<any | null>;
+  updateClass: (payload: { id: number; title: string; description?: string; updateBy?: string, grade?:number|undefined }) => Promise<any | null>;
 
 
   getClassInfo: (id: number) => Promise<ClassDetailResponse | null>;

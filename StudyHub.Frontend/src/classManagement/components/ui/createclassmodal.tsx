@@ -21,10 +21,12 @@ import { X } from "lucide-react";
 export const CreateClassModal: React.FC<{
   open: boolean;
   onClose: () => void;
-  onCreate: (payload: { title: string; description?: string; createdBy?: string }) => Promise<void>;
+  onCreate: (payload: { title: string; description?: string; createdBy?: string; grade?: number | null }) => Promise<void>;
 }> = ({ open, onClose, onCreate }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [grade, setGrade] = useState<number | "" | null>("");
+
   const [submitting, setSubmitting] = useState(false);
 
   const { subjects, getAllSubjects } = useClassStore();
@@ -44,6 +46,7 @@ export const CreateClassModal: React.FC<{
     if (!open) {
       setTitle("");
       setDescription("");
+      setGrade("");
       setSubmitting(false);
       setSuccessMsg(null);
     }
@@ -60,6 +63,7 @@ export const CreateClassModal: React.FC<{
       await onCreate({
         title: title.trim(),
         description: description.trim() || undefined,
+        grade: grade === "" ? null : Number(grade),
       });
 
       // show success toast, then close modal shortly after
@@ -86,9 +90,7 @@ export const CreateClassModal: React.FC<{
               <DialogTitle>Tạo lớp học</DialogTitle>
               {/* single close control */}
               <DialogClose asChild>
-                <button aria-label="Close" className="p-1 rounded hover:bg-slate-100">
-                  <X className="w-4 h-4" />
-                </button>
+                
               </DialogClose>
             </div>
             <DialogDescription className="text-sm text-slate-500">
@@ -117,6 +119,28 @@ export const CreateClassModal: React.FC<{
                 placeholder="Nhập mô tả lớp học (nếu có)"
                 className="mt-1 h-28"
                 aria-label="Mô tả lớp học"
+              />
+            </div>
+
+            <div>
+              <Label className="text-sm">Khối (grade)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={12}
+                value={grade === null ? "" : grade}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "") setGrade("");
+                  else {
+                    const n = Number(v);
+                    if (Number.isNaN(n)) setGrade("");
+                    else setGrade(n);
+                  }
+                }}
+                placeholder="Ví dụ: 6"
+                className="mt-1"
+                aria-label="Khối"
               />
             </div>
           </div>
