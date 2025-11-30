@@ -22,6 +22,7 @@ const defaultClassInfo: ClassInfo = {
   id: 0,
   name: "",
   description: "",
+  grade: 1,
   createdAt: formatISO(new Date()),
 };
 const defaultCurrentClass: ClassDetailResponse = {
@@ -107,6 +108,7 @@ export const useClassStore = create<ClassState>()(
             instructorName:
               c.instructorName ?? c.instructor_name ?? c.instructor ?? "",
             description: c.description,
+            grade: c.grade ?? 1,
             subjectId:
               c.subjectId ??
               c.subject_id ??
@@ -136,6 +138,7 @@ export const useClassStore = create<ClassState>()(
       addClass: async (payload: {
         title: string;
         description?: string;
+        grade: number;
         createdBy?: string;
       }) => {
         set({ isLoading: true, success: false, message: "" });
@@ -150,6 +153,7 @@ export const useClassStore = create<ClassState>()(
           const body = {
             name: payload.title,
             description: payload.description ?? "",
+            grade: payload.grade,
             createdBy: createdBy,
           };
 
@@ -174,6 +178,7 @@ export const useClassStore = create<ClassState>()(
                   createdObj.instructorName ?? createdObj.instructor ?? "",
                 description:
                   createdObj.description ?? payload.description ?? "",
+                  grade: createdObj.grade ?? payload.grade,
               }
             : null;
 
@@ -218,6 +223,7 @@ export const useClassStore = create<ClassState>()(
         id: number;
         title: string;
         description?: string;
+        grade: number;
         updatedBy?: string;
       }) => {
         set({ isLoading: true, success: false, message: "" });
@@ -229,6 +235,7 @@ export const useClassStore = create<ClassState>()(
             // backend expects GUID for updatedBy; prefer caller-provided value
             updatedBy:
               payload.updatedBy ?? "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            grade: payload.grade,
           };
 
           // Try both route variants in case axiosInstance.baseURL already contains /api
@@ -290,6 +297,7 @@ export const useClassStore = create<ClassState>()(
             subjectName:
               updatedObj.subjectName ?? updatedObj.subject_name ?? null,
             description: updatedObj.description ?? payload.description ?? "",
+            grade: updatedObj.grade ?? payload.grade,
             instructorName:
               updatedObj.instructorName ?? updatedObj.instructor ?? "",
             ...updatedObj,
@@ -883,6 +891,7 @@ export const useClassStore = create<ClassState>()(
               classId: n.classId ?? n.class_id ?? null,
               title: n.title ?? n.name ?? "",
               description: n.description ?? n.desc ?? n.instructionsHtml ?? "",
+              
               createdBy,
               createdAt,
               files: n.files ?? n.attachments ?? [],
@@ -909,6 +918,7 @@ export const useClassStore = create<ClassState>()(
                     name: data.name,
                     subjectId: data.subjectId,
                     description: data.description,
+                    grade: data.grade,
                     createdAt: formatISO(data.createdAt),
                   },
                   notifications,
@@ -926,6 +936,7 @@ export const useClassStore = create<ClassState>()(
                 name: data.name,
                 description: data.description,
                 createdAt: formatISO(data.createdAt),
+                grade: data.grade,
               },
               teacher: get().currentClass.data.teacher ?? null,
               students: get().currentClass.data.students ?? [],

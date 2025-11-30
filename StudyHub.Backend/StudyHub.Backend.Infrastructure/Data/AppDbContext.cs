@@ -373,6 +373,7 @@ public partial class AppDbContext : DbContext
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.Grade).HasColumnType("tinyint(4)");
             entity.Property(e => e.Name).HasMaxLength(200);
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
         });

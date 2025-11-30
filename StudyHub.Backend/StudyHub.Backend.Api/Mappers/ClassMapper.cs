@@ -18,6 +18,7 @@ namespace StudyHub.Backend.Api.Mappers
             Name = c.Name,
             InstructorName = t?.Fullname ?? "Không rõ",
             Description = c.Description,
+            Grade = c.Grade,
         };
 
         public static Class ToEntity(this CreateClassDto dto)
@@ -26,6 +27,7 @@ namespace StudyHub.Backend.Api.Mappers
             {
                 Name = dto.Name,
                 Description = dto.Description,
+                Grade = dto.Grade,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = dto.CreatedBy
             };
@@ -36,6 +38,7 @@ namespace StudyHub.Backend.Api.Mappers
             {
                 Name = dto.Name,
                 Description = dto.Description,
+                Grade = dto.Grade,
                 UpdatedAt = DateTime.UtcNow
             };
         }
@@ -44,6 +47,7 @@ namespace StudyHub.Backend.Api.Mappers
             Id = c.Id,
             Name = c.Name,
             Description = c.Description,
+            Grade = c.Grade,
             CreatedAt = c.CreatedAt,
             CreatedBy = c.CreatedBy,
             UpdatedAt = c.UpdatedAt,
