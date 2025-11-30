@@ -12,7 +12,6 @@ public class    ClassNotification:IAuditTrail
 
     public string? Description { get; set; }
 
-    public Guid AppUserId { get; set; }
 
     public DateTime? Deadline { get; set; }
 

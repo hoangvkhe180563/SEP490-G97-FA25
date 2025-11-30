@@ -9,7 +9,7 @@ public partial class ClassNotificationComment
 
     public int NotificationId { get; set; }
 
-    public Guid AppUserId { get; set; }
+    public Guid CreatedBy { get; set; }
 
     public string Content { get; set; } = null!;
 

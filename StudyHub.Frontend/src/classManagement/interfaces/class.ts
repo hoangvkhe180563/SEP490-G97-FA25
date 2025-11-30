@@ -49,6 +49,8 @@ export type ClassNotification = {
   description: string;
   createdBy: string;
   createdAt: string;
+  avatarImage?: string | null;
+  authorName?: string | null;
   files: ClassNotificationFile[];
   comments: PostComment[]; // có thể mở rộng sau
 };
