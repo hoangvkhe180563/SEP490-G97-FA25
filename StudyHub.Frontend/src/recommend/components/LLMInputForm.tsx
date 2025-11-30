@@ -45,11 +45,15 @@ const LLMInputForm: React.FC = () => {
       const store = useRecommendStore.getState();
       // fetchRecommendLLM now returns the result to avoid a read-after-write race
       const result = await store.fetchRecommendLLM(message);
-      console.log("LLM result", result);
       if (result) {
         // persist the LLM response as JSON string (so backend stores full payload)
         const responseText = JSON.stringify(result);
-        await store.updateLlmHistoryResponse(historyId, responseText);
+        await store.updateLlmHistoryResponse(
+          historyId,
+          responseText,
+          result.totalPromptTokens,
+          result.totalResponseTokens
+        );
       }
     } catch (err) {
       // error handling left to store (error state)

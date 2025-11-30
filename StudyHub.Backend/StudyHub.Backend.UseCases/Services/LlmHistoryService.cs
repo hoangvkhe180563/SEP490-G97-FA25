@@ -26,6 +26,9 @@ namespace StudyHub.Backend.UseCases.Services
                 UserId = current.Id,
                 InputText = inputText,
                 Llmresponse = null,
+                Status = "Đang mở",
+                InputTokens = null,
+                OutputTokens = null,
                 CreatedAt = DateTime.Now
             };
             _repo.Create(entry);
@@ -42,6 +45,42 @@ namespace StudyHub.Backend.UseCases.Services
             if (existing.UserId != current.Id) throw new UnauthorizedAccessException("Không có quyền cập nhật mục này");
 
             _repo.UpdateResponse(id, response);
+        }
+
+        public void UpdateTokens(int id, int? inputTokens, int? outputTokens)
+        {
+            var current = _authService.GetCurrentUser();
+            if (current == null) throw new InvalidOperationException("Không tìm thấy người dùng hiện tại");
+
+            var existing = _repo.GetById(id);
+            if (existing == null) throw new InvalidOperationException("Không tìm thấy lịch sử");
+            if (existing.UserId != current.Id) throw new UnauthorizedAccessException("Không có quyền cập nhật mục này");
+
+            _repo.UpdateTokens(id, inputTokens, outputTokens);
+        }
+
+        public void UpdateStatus(int id, string status)
+        {
+            var current = _authService.GetCurrentUser();
+            if (current == null) throw new InvalidOperationException("Không tìm thấy người dùng hiện tại");
+
+            var existing = _repo.GetById(id);
+            if (existing == null) throw new InvalidOperationException("Không tìm thấy lịch sử");
+            if (existing.UserId != current.Id) throw new UnauthorizedAccessException("Không có quyền cập nhật mục này");
+
+            _repo.UpdateStatus(id, status);
+        }
+
+        public void Delete(int id)
+        {
+            var current = _authService.GetCurrentUser();
+            if (current == null) throw new InvalidOperationException("Không tìm thấy người dùng hiện tại");
+
+            var existing = _repo.GetById(id);
+            if (existing == null) throw new InvalidOperationException("Không tìm thấy lịch sử");
+            if (existing.UserId != current.Id) throw new UnauthorizedAccessException("Không có quyền xóa mục này");
+
+            _repo.Delete(id);
         }
 
         public LlmHistory? GetByIdForCurrentUser(int id)

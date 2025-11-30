@@ -22,6 +22,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 UserId = d.UserId,
                 InputText = d.InputText,
                 Llmresponse = d.Llmresponse,
+                Status = d.Status,
+                InputTokens = d.InputTokens,
+                OutputTokens = d.OutputTokens,
                 CreatedAt = d.CreatedAt
             };
         }
@@ -34,6 +37,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 UserId = d.UserId,
                 InputText = d.InputText,
                 Llmresponse = d.Llmresponse,
+                Status = d.Status,
+                InputTokens = d.InputTokens,
+                OutputTokens = d.OutputTokens,
                 CreatedAt = d.CreatedAt
             };
         }
@@ -61,9 +67,43 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             _context.SaveChanges();
         }
 
+        public void UpdateTokens(int id, int? inputTokens, int? outputTokens)
+        {
+            var d = _context.LlmHistories.FirstOrDefault(x => x.Id == id);
+            if (d == null) return;
+            if (inputTokens.HasValue) d.InputTokens = inputTokens.Value;
+            if (outputTokens.HasValue) d.OutputTokens = outputTokens.Value;
+            _context.LlmHistories.Update(d);
+            _context.SaveChanges();
+        }
+
+        public void UpdateStatus(int id, string status)
+        {
+            var d = _context.LlmHistories.FirstOrDefault(x => x.Id == id);
+            if (d == null) return;
+            d.Status = status;
+            _context.LlmHistories.Update(d);
+            _context.SaveChanges();
+        }
+
+        public void Delete(int id)
+        {
+            var d = _context.LlmHistories.FirstOrDefault(x => x.Id == id);
+            if (d == null) return;
+            _context.LlmHistories.Remove(d);
+            _context.SaveChanges();
+        }
+
         public List<DomainEnt.LlmHistory> ListByUser(Guid userId)
         {
-            return _context.LlmHistories.Where(x => x.UserId == userId).OrderByDescending(x => x.CreatedAt).Select(x => ToDomain(x)).ToList();
+            // Exclude soft-deleted entries (Status == "Đã xoá") from user list
+            // Prioritize pinned items (Status == "Đã ghim") first, then order by CreatedAt desc
+            return _context.LlmHistories
+                .Where(x => x.UserId == userId && x.Status != "Đã xoá")
+                .OrderByDescending(x => x.Status == "Đã ghim")
+                .ThenByDescending(x => x.CreatedAt)
+                .Select(x => ToDomain(x))
+                .ToList();
         }
     }
 }

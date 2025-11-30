@@ -61,4 +61,6 @@ export interface LLMRecommendationResponse {
   documentExplanation?: string;
   courseTotalResults?: number;
   documentTotalResults?: number;
+  totalPromptTokens?: number;
+  totalResponseTokens?: number;
 }

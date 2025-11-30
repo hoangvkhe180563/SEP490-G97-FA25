@@ -39,6 +39,7 @@ namespace StudyHub.Backend.Api.Controllers
             try
             {
                 _service.UpdateResponse(id, req.Response);
+                _service.UpdateTokens(id, req.TotalPromptTokens, req.TotalResponseTokens);
                 return Ok(new { Success = true, Message = "Cập nhật response thành công.", Data = (object?)null });
             }
             catch (System.UnauthorizedAccessException)
@@ -123,11 +124,59 @@ namespace StudyHub.Backend.Api.Controllers
                         Id = i.Id,
                         InputText = i.InputText,
                         CreatedAt = i.CreatedAt,
+                        Status = i.Status,
+                        InputTokens = i.InputTokens,
+                        OutputTokens = i.OutputTokens,
                         //Recommendation = parsed
                     };
                 }).ToList();
 
                 return Ok(new { Success = true, Message = "Lấy danh sách lịch sử thành công.", Data = dtos });
+            }
+            catch (System.Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = ex.Message, Data = (object?)null });
+            }
+        }
+
+        [HttpPut("{id}/status")]
+        public IActionResult UpdateStatus(int id, [FromBody] UpdateLlmHistoryStatusRequest req)
+        {
+            if (req == null) return BadRequest(new { Success = false, Message = "Request body is required.", Data = (object?)null });
+            try
+            {
+                // Validate allowed statuses to avoid arbitrary values
+                var allowed = new[] { "Đang mở", "Đã ghim", "Đã xoá" };
+                if (string.IsNullOrWhiteSpace(req.Status) || !allowed.Contains(req.Status))
+                {
+                    return BadRequest(new { Success = false, Message = "Trạng thái không hợp lệ.", Data = (object?)null });
+                }
+
+                _service.UpdateStatus(id, req.Status);
+                return Ok(new { Success = true, Message = "Cập nhật status thành công.", Data = (object?)null });
+            }
+            catch (System.UnauthorizedAccessException)
+            {
+                return Unauthorized(new { Success = false, Message = "Không có quyền", Data = (object?)null });
+            }
+            catch (System.Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = ex.Message, Data = (object?)null });
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public IActionResult Delete(int id)
+        {
+            try
+            {
+                // Perform soft-delete by setting status = "Đã xoá"
+                _service.UpdateStatus(id, "Đã xoá");
+                return Ok(new { Success = true, Message = "Xóa mềm lịch sử thành công.", Data = (object?)null });
+            }
+            catch (System.UnauthorizedAccessException)
+            {
+                return Unauthorized(new { Success = false, Message = "Không có quyền", Data = (object?)null });
             }
             catch (System.Exception ex)
             {

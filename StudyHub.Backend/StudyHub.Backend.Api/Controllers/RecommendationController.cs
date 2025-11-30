@@ -120,10 +120,13 @@ namespace StudyHub.Backend.Api.Controllers
             {
 
                 // Step 1: Extract profile từ user message
+                int totalPromptTokens = 0;
+                int totalResponseTokens = 0;
+
                 var profile = new UserPreferenceProfile();
                 if (request.UserMessage != null)
                 {
-                    profile = await _llmService.ExtractProfileAsync(request.UserMessage);
+                    (profile, totalPromptTokens, totalResponseTokens) = await _llmService.ExtractProfileAsync(request.UserMessage);
                 }
                 else if (request.Profile != null)
                 {
@@ -151,16 +154,22 @@ namespace StudyHub.Backend.Api.Controllers
                 // Step 5: Generate explanation cho top 5
                 if (courseRecommendations.Count > 0)
                 {
-                    courseExplaination = await _llmService.GenerateCourseExplanationAsync(
+                    var (content, promptTokens, completionTokens) = await _llmService.GenerateCourseExplanationWithUsageAsync(
                         profile,
                         courseRecommendations.Take(5).ToList());
+                    courseExplaination = content;
+                    totalPromptTokens += promptTokens;
+                    totalResponseTokens += completionTokens;
                 }
                 // Step 6: Generate explanation cho top 5 document 
                 if (documentRecomendations.Count > 0)
                 {
-                    documentExplaination = await _llmService.GenerateDocumentExplanationAsync(
-                    profile,
-                    documentRecomendations.Take(5).ToList());
+                    var (content, promptTokens, completionTokens) = await _llmService.GenerateDocumentExplanationWithUsageAsync(
+                        profile,
+                        documentRecomendations.Take(5).ToList());
+                    documentExplaination = content;
+                    totalPromptTokens += promptTokens;
+                    totalResponseTokens += completionTokens;
                 }
                 return Ok(new LLMRecommendationResponse
                 {
@@ -170,7 +179,9 @@ namespace StudyHub.Backend.Api.Controllers
                     CourseExplanation = courseExplaination,
                     DocumentExplanation = documentExplaination,
                     CourseTotalResults = courseRecommendations.Count,
-                    DocumentTotalResults = documentRecomendations.Count
+                    DocumentTotalResults = documentRecomendations.Count,
+                    TotalPromptTokens = totalPromptTokens,
+                    TotalResponseTokens = totalResponseTokens
                 });
             }
             catch (Exception ex)

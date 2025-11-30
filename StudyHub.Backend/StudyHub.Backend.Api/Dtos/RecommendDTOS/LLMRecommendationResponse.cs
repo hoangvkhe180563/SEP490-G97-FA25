@@ -12,5 +12,7 @@ namespace StudyHub.Backend.Api.Dtos.RecommendDTOS
         public string? DocumentExplanation { get; set; }
         public int CourseTotalResults { get; set; }
         public int DocumentTotalResults { get; set; }
+        public int TotalPromptTokens { get; set; }
+        public int TotalResponseTokens { get; set; }
     }
 }

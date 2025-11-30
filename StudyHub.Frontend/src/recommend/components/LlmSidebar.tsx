@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useRecommendStore from "../stores/useRecommendStore";
-import { Plus, Star, Trash2, MoreVertical, MessageSquare } from "lucide-react";
+import {
+  Plus,
+  Star,
+  Trash2,
+  MoreVertical,
+  MessageSquare,
+  StarOff,
+} from "lucide-react";
 import {
   Card,
   CardContent,
@@ -31,26 +38,38 @@ const LlmSidebar: React.FC = () => {
   const [items, setItems] = useState<any[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
+  const [actionLoadingIds, setActionLoadingIds] = useState<number[]>([]);
 
   const load = async () => {
     try {
       setLoading(true);
       const res = await listLlmHistories();
-      // normalize fields from backend (Id/InputText/CreatedAt or id/inputText/createdAt)
       const list = Array.isArray(res) ? res : [];
       const norm = list.map((x: any) => ({
         id: x.Id ?? x.id,
         inputText: x.InputText ?? x.inputText ?? "",
         createdAt: x.CreatedAt ?? x.createdAt,
-        starred: x.starred ?? false,
+        status: x.Status ?? x.status ?? "Đang mở",
         raw: x,
       }));
-      setItems(norm);
+      setItems(sortItems(norm));
     } catch (e) {
       // ignore - store handles errors
     } finally {
       setLoading(false);
     }
+  };
+
+  const sortItems = (arr: any[]) => {
+    return arr.slice().sort((a, b) => {
+      const aPinned = a.status === "Đã ghim";
+      const bPinned = b.status === "Đã ghim";
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return tb - ta;
+    });
   };
 
   useEffect(() => {
@@ -79,7 +98,6 @@ const LlmSidebar: React.FC = () => {
               aria-label="Đề xuất mới"
               title="Tạo đề xuất mới"
               onClick={() => {
-                // navigate to input page and clear any stored recommendation
                 (useRecommendStore as any).setState({
                   llmRecommendation: null,
                 });
@@ -123,15 +141,23 @@ const LlmSidebar: React.FC = () => {
                 className="flex items-center justify-between gap-2 p-2 hover:bg-slate-50 rounded-md cursor-pointer"
                 onClick={() => navigate(`/recommend/llm/${it.id}`)}
               >
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">
-                    {truncate(it.inputText, 36)}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">
+                      {truncate(it.inputText, 36)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {it.createdAt
+                        ? new Date(it.createdAt).toLocaleString()
+                        : ""}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {it.createdAt
-                      ? new Date(it.createdAt).toLocaleString()
-                      : ""}
-                  </div>
+                  {actionLoadingIds.includes(it.id) && (
+                    <span
+                      title="Đang xử lý"
+                      className="ml-2 mr-2 inline-block w-2 h-2 rounded-full bg-indigo-500 animate-pulse"
+                    />
+                  )}
                 </div>
 
                 <div className="flex items-center ml-2">
@@ -144,39 +170,121 @@ const LlmSidebar: React.FC = () => {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                       <DropdownMenuItem
+                        disabled={actionLoadingIds.includes(it.id)}
                         onClick={async (e: any) => {
                           e.stopPropagation();
+                          setActionLoadingIds((s) => [...s, it.id]);
                           try {
-                            await toggleStar(it.id, !it.starred);
+                            const newStatus =
+                              it.status === "Đã ghim" ? "Đang mở" : "Đã ghim";
                             setItems((prev) =>
-                              prev.map((x) =>
-                                x.id === it.id
-                                  ? { ...x, starred: !x.starred }
-                                  : x
+                              sortItems(
+                                prev.map((x) =>
+                                  x.id === it.id
+                                    ? { ...x, status: newStatus }
+                                    : x
+                                )
                               )
                             );
+                            const res = await toggleStar(
+                              it.id,
+                              newStatus === "Đã ghim"
+                            );
+                            if (res && res.id === it.id && res.status)
+                              setItems((prev) =>
+                                sortItems(
+                                  prev.map((x) =>
+                                    x.id === it.id
+                                      ? { ...x, status: res.status }
+                                      : x
+                                  )
+                                )
+                              );
                           } catch (err) {
-                            // store sets error
+                            try {
+                              const list = await listLlmHistories();
+                              const found = Array.isArray(list)
+                                ? list.find(
+                                    (x: any) => (x.Id ?? x.id) === it.id
+                                  )
+                                : null;
+                              if (found) {
+                                const status =
+                                  found.Status ?? found.status ?? "Đang mở";
+                                setItems((prev) =>
+                                  sortItems(
+                                    prev.map((x) =>
+                                      x.id === it.id ? { ...x, status } : x
+                                    )
+                                  )
+                                );
+                              }
+                            } catch (err2) {
+                              // ignore
+                            }
+                          } finally {
+                            setActionLoadingIds((s) =>
+                              s.filter((i) => i !== it.id)
+                            );
                           }
                         }}
                       >
-                        <Star className="mr-2 h-4 w-4" />
-                        {it.starred ? "Bỏ ghim" : "Ghim"}
+                        {it.status === "Đã ghim" ? (
+                          <>
+                            <StarOff className="mr-2 h-4 w-4 text-yellow-500" />
+                            Bỏ ghim
+                          </>
+                        ) : (
+                          <>
+                            <Star className="mr-2 h-4 w-4 text-yellow-500" />
+                            Ghim
+                          </>
+                        )}
                       </DropdownMenuItem>
+
                       <DropdownMenuItem
+                        disabled={actionLoadingIds.includes(it.id)}
                         onClick={async (e: any) => {
                           e.stopPropagation();
+                          setActionLoadingIds((s) => [...s, it.id]);
                           try {
-                            await deleteLlmHistory(it.id);
                             setItems((prev) =>
                               prev.filter((x) => x.id !== it.id)
                             );
+                            await deleteLlmHistory(it.id);
                           } catch (err) {
-                            // store sets error
+                            try {
+                              const list = await listLlmHistories();
+                              const found = Array.isArray(list)
+                                ? list.find(
+                                    (x: any) => (x.Id ?? x.id) === it.id
+                                  )
+                                : null;
+                              if (found) {
+                                const restored = {
+                                  id: found.Id ?? found.id,
+                                  inputText:
+                                    found.InputText ?? found.inputText ?? "",
+                                  createdAt: found.CreatedAt ?? found.createdAt,
+                                  status:
+                                    found.Status ?? found.status ?? "Đang mở",
+                                  raw: found,
+                                };
+                                setItems((prev) =>
+                                  sortItems([restored, ...prev])
+                                );
+                              }
+                            } catch (err2) {
+                              // ignore
+                            }
+                          } finally {
+                            setActionLoadingIds((s) =>
+                              s.filter((i) => i !== it.id)
+                            );
                           }
                         }}
                       >
-                        <Trash2 className="mr-2 h-4 w-4" />
+                        <Trash2 className="mr-2 h-4 w-4 text-red-500" />
                         Xóa
                       </DropdownMenuItem>
                     </DropdownMenuContent>

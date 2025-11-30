@@ -126,10 +126,10 @@ namespace StudyHub.Backend.UseCases.Services
                     HÃY GIẢI THÍCH (format: đoạn văn dễ đọc, có đánh số thứ tự):";
         }
 
-        public async Task<UserPreferenceProfile> ExtractProfileAsync(string userMessage)
+        public async Task<(UserPreferenceProfile profile, int totalPromptTokens, int totalCompletionTokens)> ExtractProfileAsync(string userMessage)
         {
-            var model = configuration["HuggingFace:LLMModel:Path"] + ":" + configuration["HuggingFace:LLMModel:InferenceProviderPath"] ?? "";
-            var apiKey = configuration["HuggingFace:ApiToken"] ?? "";
+            var model = (configuration["HuggingFace:LLMModel:Path"] ?? "") + ":" + (configuration["HuggingFace:LLMModel:InferenceProviderPath"] ?? "");
+            var apiKey = configuration["HuggingFace:ApiToken"] ?? string.Empty;
 
             var prompt = GetProfileExtractionPrompt(userMessage);
 
@@ -165,40 +165,66 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 throw new Exception("LLM API returned empty response.");
             }
-            var doc = JsonDocument.Parse(resultJson);
-            var choices = doc.RootElement.GetProperty("choices");
-            if (choices.GetArrayLength() > 0)
+            try
             {
-                var message = choices[0].GetProperty("message");
-                if (message.TryGetProperty("content", out var contentProp))
-                {
-                    var raw = contentProp.GetString() ?? "";
-                    raw = raw.Trim();
-                    var profile = JsonSerializer.Deserialize<UserPreferenceProfile>(raw, new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    });
+                using var doc = JsonDocument.Parse(resultJson);
+                var root = doc.RootElement;
 
-                    return profile ?? new UserPreferenceProfile();
+                if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
+                {
+                    var first = choices[0];
+                    if (first.TryGetProperty("message", out var message) && message.TryGetProperty("content", out var contentProp))
+                    {
+                        var raw = contentProp.GetString() ?? string.Empty;
+                        raw = raw.Trim();
+                        UserPreferenceProfile? profile = null;
+                        try
+                        {
+                            profile = JsonSerializer.Deserialize<UserPreferenceProfile>(raw, new JsonSerializerOptions
+                            {
+                                PropertyNameCaseInsensitive = true
+                            });
+                        }
+                        catch
+                        {
+                            profile = null;
+                        }
+
+                        int promptTokens = 0;
+                        int completionTokens = 0;
+                        if (root.TryGetProperty("usage", out var usage))
+                        {
+                            if (usage.TryGetProperty("prompt_tokens", out var promptTok) && promptTok.ValueKind == JsonValueKind.Number)
+                                promptTokens = promptTok.GetInt32();
+                            if (usage.TryGetProperty("completion_tokens", out var compTok) && compTok.ValueKind == JsonValueKind.Number)
+                                completionTokens = compTok.GetInt32();
+                        }
+
+                        return (profile ?? new UserPreferenceProfile(), promptTokens, completionTokens);
+                    }
                 }
             }
+            catch
+            {
+                // Ignore parse errors and fall through to default
+            }
 
-            return new UserPreferenceProfile();
+            return (new UserPreferenceProfile(), 0, 0);
         }
 
-        public async Task<string> GenerateCourseExplanationAsync(
-        UserPreferenceProfile profile,
-        List<CourseRecommendationResult> recommendations)
+        // New: return both content and token usage
+        public async Task<(string content, int promptTokens, int completionTokens)> GenerateCourseExplanationWithUsageAsync(
+            UserPreferenceProfile profile,
+            List<CourseRecommendationResult> recommendations)
         {
-
-            var model = configuration["HuggingFace:LLMModel:Path"] + ":" + configuration["HuggingFace:LLMModel:InferenceProviderPath"] ?? "";
-            var apiKey = configuration["HuggingFace:ApiToken"] ?? "";
+            var model = (configuration["HuggingFace:LLMModel:Path"] ?? "") + ":" + (configuration["HuggingFace:LLMModel:InferenceProviderPath"] ?? "");
+            var apiKey = configuration["HuggingFace:ApiToken"] ?? string.Empty;
 
             var prompt = GetCourseExplanationPrompt(profile, recommendations);
 
             var request = new RestRequest();
             request.Method = Method.Post;
-            request.AddHeader("Authorization", $"Bearer {apiKey}");
+            if (!string.IsNullOrEmpty(apiKey)) request.AddHeader("Authorization", $"Bearer {apiKey}");
             request.AddJsonBody(new
             {
                 model,
@@ -209,10 +235,8 @@ namespace StudyHub.Backend.UseCases.Services
                         content = prompt
                     }
                 },
-                //max_new_tokens = 800,
                 temperature = 0.7,
                 top_p = 0.95,
-                //return_full_text = false
             });
 
             var response = await _client.ExecuteAsync(request);
@@ -221,41 +245,66 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 throw new Exception($"LLM API error: {response.Content}");
             }
+
             var resultJson = response.Content;
+            if (string.IsNullOrEmpty(resultJson)) throw new Exception("LLM API returned empty response.");
 
-            if (string.IsNullOrEmpty(resultJson))
+            try
             {
-                throw new Exception("LLM API returned empty response.");
-            }
-            var doc = JsonDocument.Parse(resultJson);
-            var choices = doc.RootElement.GetProperty("choices");
-            if (choices.GetArrayLength() > 0)
-            {
-                var message = choices[0].GetProperty("message");
-                if (message.TryGetProperty("content", out var contentProp))
+                using var doc = JsonDocument.Parse(resultJson);
+                var root = doc.RootElement;
+
+                string content = string.Empty;
+                int promptTokens = 0;
+                int completionTokens = 0;
+
+                if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
                 {
-                    var raw = contentProp.GetString() ?? "";
-                    raw = raw.Trim();
-                    return raw;
+                    var first = choices[0];
+                    if (first.TryGetProperty("message", out var message) && message.TryGetProperty("content", out var contentProp))
+                    {
+                        content = contentProp.GetString() ?? string.Empty;
+                        content = content.Trim();
+                    }
                 }
-            }
 
-            return "";
+                if (root.TryGetProperty("usage", out var usage))
+                {
+                    if (usage.TryGetProperty("prompt_tokens", out var promptTok) && promptTok.ValueKind == JsonValueKind.Number)
+                        promptTokens = promptTok.GetInt32();
+                    if (usage.TryGetProperty("completion_tokens", out var compTok) && compTok.ValueKind == JsonValueKind.Number)
+                        completionTokens = compTok.GetInt32();
+                }
+
+                return (content, promptTokens, completionTokens);
+            }
+            catch
+            {
+                return (string.Empty, 0, 0);
+            }
         }
 
-        public async Task<string> GenerateDocumentExplanationAsync(
-       UserPreferenceProfile profile,
-       List<DocumentRecommendationResult> recommendations)
+        // Backwards-compatible wrapper that returns only the content
+        public async Task<string> GenerateCourseExplanationAsync(
+            UserPreferenceProfile profile,
+            List<CourseRecommendationResult> recommendations)
         {
+            var res = await GenerateCourseExplanationWithUsageAsync(profile, recommendations);
+            return res.content;
+        }
 
-            var model = configuration["HuggingFace:LLMModel:Path"] + ":" + configuration["HuggingFace:LLMModel:InferenceProviderPath"] ?? "";
-            var apiKey = configuration["HuggingFace:ApiToken"] ?? "";
+        public async Task<(string content, int promptTokens, int completionTokens)> GenerateDocumentExplanationWithUsageAsync(
+            UserPreferenceProfile profile,
+            List<DocumentRecommendationResult> recommendations)
+        {
+            var model = (configuration["HuggingFace:LLMModel:Path"] ?? "") + ":" + (configuration["HuggingFace:LLMModel:InferenceProviderPath"] ?? "");
+            var apiKey = configuration["HuggingFace:ApiToken"] ?? string.Empty;
 
             var prompt = GetDocumentExplanationPrompt(profile, recommendations);
 
             var request = new RestRequest();
             request.Method = Method.Post;
-            request.AddHeader("Authorization", $"Bearer {apiKey}");
+            if (!string.IsNullOrEmpty(apiKey)) request.AddHeader("Authorization", $"Bearer {apiKey}");
             request.AddJsonBody(new
             {
                 model,
@@ -266,10 +315,8 @@ namespace StudyHub.Backend.UseCases.Services
                         content = prompt
                     }
                 },
-                //max_new_tokens = 800,
                 temperature = 0.7,
                 top_p = 0.95,
-                //return_full_text = false
             });
 
             var response = await _client.ExecuteAsync(request);
@@ -278,26 +325,52 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 throw new Exception($"LLM API error: {response.Content}");
             }
+
             var resultJson = response.Content;
+            if (string.IsNullOrEmpty(resultJson)) throw new Exception("LLM API returned empty response.");
 
-            if (string.IsNullOrEmpty(resultJson))
+            try
             {
-                throw new Exception("LLM API returned empty response.");
-            }
-            var doc = JsonDocument.Parse(resultJson);
-            var choices = doc.RootElement.GetProperty("choices");
-            if (choices.GetArrayLength() > 0)
-            {
-                var message = choices[0].GetProperty("message");
-                if (message.TryGetProperty("content", out var contentProp))
+                using var doc = JsonDocument.Parse(resultJson);
+                var root = doc.RootElement;
+
+                string content = string.Empty;
+                int promptTokens = 0;
+                int completionTokens = 0;
+
+                if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
                 {
-                    var raw = contentProp.GetString() ?? "";
-                    raw = raw.Trim();
-                    return raw;
+                    var first = choices[0];
+                    if (first.TryGetProperty("message", out var message) && message.TryGetProperty("content", out var contentProp))
+                    {
+                        content = contentProp.GetString() ?? string.Empty;
+                        content = content.Trim();
+                    }
                 }
-            }
 
-            return "";
+                if (root.TryGetProperty("usage", out var usage))
+                {
+                    if (usage.TryGetProperty("prompt_tokens", out var promptTok) && promptTok.ValueKind == JsonValueKind.Number)
+                        promptTokens = promptTok.GetInt32();
+                    if (usage.TryGetProperty("completion_tokens", out var compTok) && compTok.ValueKind == JsonValueKind.Number)
+                        completionTokens = compTok.GetInt32();
+                }
+
+                return (content, promptTokens, completionTokens);
+            }
+            catch
+            {
+                return (string.Empty, 0, 0);
+            }
+        }
+
+        // Backwards-compatible wrapper that returns only the content
+        public async Task<string> GenerateDocumentExplanationAsync(
+            UserPreferenceProfile profile,
+            List<DocumentRecommendationResult> recommendations)
+        {
+            var res = await GenerateDocumentExplanationWithUsageAsync(profile, recommendations);
+            return res.content;
         }
     }
 }

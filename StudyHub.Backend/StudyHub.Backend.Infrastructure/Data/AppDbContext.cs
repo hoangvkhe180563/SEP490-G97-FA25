@@ -1076,6 +1076,9 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Llmresponse)
                 .HasColumnType("json")
                 .HasColumnName("LLMResponse");
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'Đang mở'")
+                .HasColumnType("enum('Đã ghim','Đã xoá','Đang mở')");
 
             entity.HasOne(d => d.User).WithMany(p => p.LlmHistories)
                 .HasForeignKey(d => d.UserId)

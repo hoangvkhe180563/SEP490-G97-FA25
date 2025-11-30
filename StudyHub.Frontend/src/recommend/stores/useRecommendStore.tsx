@@ -19,7 +19,12 @@ type RecommendState = {
     topK?: number
   ) => Promise<LLMRecommendationResponse | null>;
   createLlmHistory: (inputText?: string) => Promise<any>;
-  updateLlmHistoryResponse: (id: number, responseText: string) => Promise<void>;
+  updateLlmHistoryResponse: (
+    id: number,
+    responseText: string,
+    totalPromptTokens?: number,
+    totalResponseTokens?: number
+  ) => Promise<void>;
   getLlmHistoryById: (id: number) => Promise<any | null>;
   listLlmHistories: () => Promise<any[]>;
   deleteLlmHistory: (id: number) => Promise<void>;
@@ -103,20 +108,30 @@ export const useRecommendStore = create<RecommendState>((set: any) => ({
       throw err;
     }
   },
-  // toggle star locally for now (no backend endpoint implemented)
+  // toggle pin (ghim) and return authoritative status so UI can update single item
   toggleStarLlmHistory: async (id: number, starred: boolean) => {
     try {
-      // no-op placeholder: UI can optimistically update if desired
-      return { id, starred };
+      // Persist pin/unpin to backend using status endpoint
+      const status = starred ? "Đã ghim" : "Đang mở";
+      await axiosInstance.put(`/llmhistory/${id}/status`, { Status: status });
+      // Return authoritative minimal info so caller can update item locally without reloading the whole list
+      return { id, status };
     } catch (err: any) {
       set({ error: axiosMessageErrorHandler(err) });
       throw err;
     }
   },
-  updateLlmHistoryResponse: async (id: number, responseText: string) => {
+  updateLlmHistoryResponse: async (
+    id: number,
+    responseText: string,
+    totalPromptTokens?: number,
+    totalResponseTokens?: number
+  ) => {
     try {
       await axiosInstance.put(`/llmhistory/${id}/response`, {
         Response: responseText,
+        TotalPromptTokens: totalPromptTokens,
+        TotalResponseTokens: totalResponseTokens,
       });
     } catch (err: any) {
       set({ error: axiosMessageErrorHandler(err) });
