@@ -89,7 +89,7 @@ export const ForumSidebar = ({
       : [];
 
   const handlePostClick = (postId: number) => {
-    navigate(`/forum/student/forums/details/${postId}`);
+    navigate(`/forum/forums/details/${postId}`);
   };
 
   return (
