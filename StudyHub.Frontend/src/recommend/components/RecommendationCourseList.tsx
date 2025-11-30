@@ -333,9 +333,10 @@ const CourseCard: React.FC<{ course: CourseRecommendation }> = ({ course }) => {
 const RecommendationCourseList: React.FC<{
   courses?: CourseRecommendation[];
   improveSubjects?: string[]; // subjects suggested by LLM to improve
-}> = ({ courses = [], improveSubjects = [] }) => {
+  size?: "small" | "large";
+}> = ({ courses = [], improveSubjects = [], size = "large" }) => {
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 mb-6">
       <section>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
           <div>
@@ -358,12 +359,21 @@ const RecommendationCourseList: React.FC<{
             </div>
           )}
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {courses.map((c) => (
-            <CourseCard key={String(c.id)} course={c} />
-          ))}
-        </div>
+        {courses.length > 0 ? (
+          <div
+            className={`grid grid-cols-1 gap-6 ${
+              size === "small" ? "sm:grid-cols-2" : "sm:grid-cols-3"
+            }`}
+          >
+            {courses.map((c) => (
+              <CourseCard key={String(c.id)} course={c} />
+            ))}
+          </div>
+        ) : (
+          <div className="p-6 text-center text-slate-500 dark:text-slate-300">
+            Không tìm thấy khoá học phù hợp với bạn.
+          </div>
+        )}
       </section>
     </div>
   );

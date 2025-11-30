@@ -65,6 +65,7 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<IPaymentInfoRepository, PaymentInfoRepository>();
             services.AddScoped<ITransactionRepository, TransactionRepository>();
             services.AddScoped<IQuestionManagerRepository, QuestionManagerRepository>();
+            services.AddScoped<ILlmHistoryRepository, LlmHistoryRepository>();
 
             return services;
         }

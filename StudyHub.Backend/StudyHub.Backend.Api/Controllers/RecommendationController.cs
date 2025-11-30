@@ -146,17 +146,22 @@ namespace StudyHub.Backend.Api.Controllers
                     denseVector,
                     profile,
                     request.TopK ?? 30);
-
+                var courseExplaination = string.Empty;
+                var documentExplaination = string.Empty;
                 // Step 5: Generate explanation cho top 5
-                var courseExplaination = await _llmService.GenerateCourseExplanationAsync(
-                    profile,
-                    courseRecommendations.Take(5).ToList());
-
+                if (courseRecommendations.Count > 0)
+                {
+                    courseExplaination = await _llmService.GenerateCourseExplanationAsync(
+                        profile,
+                        courseRecommendations.Take(5).ToList());
+                }
                 // Step 6: Generate explanation cho top 5 document 
-                var documentExplaination = await _llmService.GenerateDocumentExplanationAsync(
+                if (documentRecomendations.Count > 0)
+                {
+                    documentExplaination = await _llmService.GenerateDocumentExplanationAsync(
                     profile,
                     documentRecomendations.Take(5).ToList());
-
+                }
                 return Ok(new LLMRecommendationResponse
                 {
                     Profile = profile,

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import useRecommendStore from "../stores/useRecommendStore";
 import DOMPurify from "dompurify";
@@ -19,11 +19,42 @@ const ResultsPage: React.FC = () => {
 
   const llmRecommendation = useRecommendStore((s: any) => s.llmRecommendation);
   const llmLoading = useRecommendStore((s: any) => s.llmLoading);
+  // const updateLlmHistoryResponse = useRecommendStore(
+  //   (s: any) => s.updateLlmHistoryResponse
+  // );
+  const getLlmHistoryById = useRecommendStore((s: any) => s.getLlmHistoryById);
+
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   useEffect(() => {
     if (mode === "profile") {
       void fetchRecommend();
+      return; // early return for profile mode
     }
+
+    // when in LLM mode with historyId, try to load the stored recommendation
+    (async () => {
+      if (mode !== "llm") return;
+      const historyId = params.get("historyId");
+      if (!historyId) return;
+      try {
+        setLoadingHistory(true);
+        const rec = await getLlmHistoryById(Number(historyId));
+        if (rec) {
+          // set recommendation into zustand store so UI renders uniformly
+          try {
+            (useRecommendStore as any).setState({ llmRecommendation: rec });
+          } catch {
+            (useRecommendStore as any).getState().llmRecommendation = rec;
+          }
+        }
+      } catch (e) {
+        // ignore, store handles errors
+      } finally {
+        setLoadingHistory(false);
+      }
+    })();
+    // eslint-disable-next-line
   }, [mode, fetchRecommend]);
 
   if (error)
@@ -71,7 +102,7 @@ const ResultsPage: React.FC = () => {
     );
   }
 
-  if (llmLoading)
+  if (llmLoading || loadingHistory)
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <LoadingSpinner label="AI đang phân tích văn bản của bạn..." />
@@ -98,6 +129,7 @@ const ResultsPage: React.FC = () => {
               <Sparkles className="text-indigo-500" /> Đề xuất AI
             </div>
           </div>
+          {/* LLM chat history is not editable on this page; the stored recommendation (if any) is shown below. */}
           {llmRecommendation.courseExplanation && (
             <div className="mb-6 p-6 bg-white dark:bg-slate-800 rounded-xl shadow-sm">
               <h2 className="font-semibold mb-2">Lý giải tổng quan</h2>

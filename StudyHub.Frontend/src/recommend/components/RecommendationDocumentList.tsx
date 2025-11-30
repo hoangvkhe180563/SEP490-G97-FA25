@@ -223,7 +223,8 @@ const DocumentCard: React.FC<{ doc: DocumentRecommendation }> = ({ doc }) => {
 const RecommendationDocumentList: React.FC<{
   documents?: DocumentRecommendation[];
   improveSubjects?: string[];
-}> = ({ documents = [], improveSubjects = [] }) => {
+  size?: "small" | "large";
+}> = ({ documents = [], improveSubjects = [], size = "large" }) => {
   return (
     <div className="space-y-8">
       <section>
@@ -248,12 +249,21 @@ const RecommendationDocumentList: React.FC<{
             </div>
           )}
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {documents.map((d) => (
-            <DocumentCard key={String(d.id)} doc={d} />
-          ))}
-        </div>
+        {documents.length > 0 ? (
+          <div
+            className={`grid grid-cols-1 sm:grid-cols-2 gap-6 ${
+              size === "small" ? "sm:grid-cols-2" : "sm:grid-cols-3"
+            }`}
+          >
+            {documents.map((d) => (
+              <DocumentCard key={String(d.id)} doc={d} />
+            ))}
+          </div>
+        ) : (
+          <div className="p-6 text-center text-slate-500 dark:text-slate-300">
+            Không tìm thấy tài liệu phù hợp với bạn.
+          </div>
+        )}
       </section>
     </div>
   );
