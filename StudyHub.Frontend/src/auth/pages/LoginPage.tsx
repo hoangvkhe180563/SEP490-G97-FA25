@@ -84,7 +84,7 @@ export default function LoginPage() {
       await login("", identifier, data.password, (user) => {
         if (user) {
           if (user.schoolId !== null) {
-            navigate(`/ui/${user?.schoolId}/landing`);
+            navigate(`/ui/school-landing`);
             return;
           }
         }
@@ -94,7 +94,7 @@ export default function LoginPage() {
       await login(identifier, "", data.password, (user) => {
         if (user) {
           if (user.schoolId !== null) {
-            navigate(`/ui/${user?.schoolId}/landing`);
+            navigate(`/ui/school-landing`);
             return;
           }
         }

@@ -1,8 +1,8 @@
 const UiManagementRouteConfig = {
   LANDING_PAGE: {
     INDEX: "landing",
-    SCHOOL: ":schoolId/landing",
-    EDIT: ":schoolId/landing/edit"
+    SCHOOL: "school-landing",
+    EDIT: "school-landing/edit"
   }
 }
 
