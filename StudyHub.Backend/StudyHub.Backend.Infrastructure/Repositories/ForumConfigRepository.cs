@@ -302,6 +302,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     CommentId = attachment.CommentId,
                     FileUrl = attachment.FileUrl,
                     IsApproved = attachment.IsApproved,
+                    IsModerationPending = attachment.IsModerationPending ?? false,
                     CreatedAt = attachment.CreatedAt,
                     CreatedBy = attachment.CreatedBy ?? Guid.Empty
                 };
@@ -318,7 +319,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 throw;
             }
         }
-
         public async Task<bool> SoftDeleteAttachmentAsync(int attachmentId)
         {
             try
@@ -377,7 +377,54 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 return false;
             }
         }
+        public async Task<List<ForumAttachment>> GetPendingModerationAttachmentsAsync(int limit)
+        {
+            try
+            {
+                var attachments = await _context.ForumAttachments
+                    .Where(a => a.DeletedAt == null && a.IsModerationPending == true)
+                    .OrderBy(a => a.CreatedAt)
+                    .Take(limit)
+                    .ToListAsync();
 
+                Console.WriteLine($"[GetPendingModerationAttachmentsAsync] Found {attachments.Count} attachments");
+
+                return attachments.Select(a => new ForumAttachment
+                {
+                    Id = a.Id,
+                    PostId = a.PostId,
+                    CommentId = a.CommentId,
+                    FileUrl = a.FileUrl,
+                    IsApproved = a.IsApproved,
+                    IsModerationPending = a.IsModerationPending ?? false,
+                    CreatedBy = a.CreatedBy,
+                    CreatedAt = a.CreatedAt
+                }).ToList();
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ForumConfigRepository", "GetPendingModerationAttachmentsAsync failed: " + ex.Message).LogError();
+                return new List<ForumAttachment>();
+            }
+        }
+
+        public async Task UpdateAttachmentModerationStatusAsync(int attachmentId, bool isModerated, bool hasViolation)
+        {
+            try
+            {
+                var attachment = await _context.ForumAttachments.FindAsync(attachmentId);
+                if (attachment != null)
+                {
+                    attachment.IsModerationPending = isModerated ? false : true;
+                    attachment.IsApproved = !hasViolation;
+                    await _context.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("ForumConfigRepository", "UpdateAttachmentModerationStatusAsync failed: " + ex.Message).LogError();
+            }
+        }
         private static ForumFlair MapFlairToEntity(Data.ForumFlair f)
         {
             return new ForumFlair

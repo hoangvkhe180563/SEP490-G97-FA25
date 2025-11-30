@@ -18,6 +18,7 @@ export interface Post {
   comment_count: number;
   comments: Comment[];
   image_urls: string;
+  status?: boolean | null;
 }
 
 export interface Subject {

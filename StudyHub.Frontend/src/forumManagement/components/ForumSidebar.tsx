@@ -71,7 +71,7 @@ export const ForumSidebar = ({
 
       const interval = setInterval(() => {
         fetchUserStatus();
-      }, 3000);
+      }, 30000);
 
       return () => clearInterval(interval);
     }
@@ -89,7 +89,7 @@ export const ForumSidebar = ({
       : [];
 
   const handlePostClick = (postId: number) => {
-    navigate(`/forum/student/forums/details/${postId}`);
+    navigate(`/forum/forums/details/${postId}`);
   };
 
   return (
