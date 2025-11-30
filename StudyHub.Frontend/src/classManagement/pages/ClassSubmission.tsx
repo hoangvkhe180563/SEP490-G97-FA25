@@ -619,7 +619,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
     return (
       <Card
         onClick={() => pickMember(member)}
-        className={`relative flex  justify-between cursor-pointer px-4 py-3 transition-colors ${        isSelected ? "bg-slate-100 shadow-sm" : "hover:bg-slate-50"      }`}
+        className={`relative flex  justify-between cursor-pointer w-full h-full overflow-y-auto px-4 py-3 transition-colors ${        isSelected ? "bg-slate-100 shadow-sm" : "hover:bg-slate-50"      }`}
       >
         {/* LEFT: avatar + name (force left alignment) */}
         <div className="flex items-center gap-4 min-w-0">

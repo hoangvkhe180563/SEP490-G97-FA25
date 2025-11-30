@@ -31,6 +31,7 @@ import {
   BreadcrumbList,
 } from "@/common/components/ui/breadcrumb";
 
+// NOTE: import path fixed to match the notifications component filename/exports
 import NotificationsTab from "@/classManagement/components/tabs/notificationTab";
 import ExerciseTab from "@/classManagement/components/tabs/exerciseTab";
 import EveryoneTab from "@/classManagement/components/tabs/everyoneTab";
@@ -105,80 +106,80 @@ const DetailedClassTeacher: React.FC = () => {
 
   const navigate = useNavigate();
   const DocumentPreviewCard: React.FC<{ doc: DocumentDto; role: string }> = ({
-  doc,
-  role,
-}) => {
-  const navigate = useNavigate();
-  const isImage = !!(
-    doc.fileType && /jpg|jpeg|png|gif|bmp|webp/i.test(String(doc.fileType))
-  );
-  const isPdf = !!(doc.fileType && /pdf/i.test(String(doc.fileType)));
+    doc,
+    role,
+  }) => {
+    const navigate = useNavigate();
+    const isImage = !!(
+      doc.fileType && /jpg|jpeg|png|gif|bmp|webp/i.test(String(doc.fileType))
+    );
+    const isPdf = !!(doc.fileType && /pdf/i.test(String(doc.fileType)));
 
-  const detailPath = `/document/student/details/${doc.id}`;
+    const detailPath = `/document/student/details/${doc.id}`;
 
-  return (
-    <a
-      href={detailPath}
-      onClick={(e) => {
-        if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
-          return;
-        }
-        e.preventDefault();
-        navigate(detailPath);
-      }}
-      className="block"
-      title={doc.name}
-    >
-      <Card className="p-3 hover:shadow-md transition">
-        <div className="w-full h-36 flex flex-col items-center justify-start gap-3">
-          <div className="w-full h-24 bg-gray-100 flex items-center justify-center overflow-hidden rounded-lg">
-            {isImage ? (
-              <img
-                src={doc.documentUrl}
-                alt={doc.name}
-                className="w-full h-full object-cover rounded"
-              />
-            ) : isPdf ? (
-              <div className="text-sm text-slate-600 text-center px-2">
-                <svg
-                  className="mx-auto mb-1"
-                  width="44"
-                  height="44"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                >
-                  <path
-                    d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M13 2v6h6"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <div className="text-sm font-medium">PDF</div>
-              </div>
-            ) : (
-              <div className="text-sm text-slate-600 text-center px-2">
-                <div className="mb-1 text-2xl">📄</div>
-                <div className="text-sm">Tài liệu</div>
-              </div>
-            )}
+    return (
+      <a
+        href={detailPath}
+        onClick={(e) => {
+          if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
+            return;
+          }
+          e.preventDefault();
+          navigate(detailPath);
+        }}
+        className="block"
+        title={doc.name}
+      >
+        <Card className="p-3 hover:shadow-md transition">
+          <div className="w-full h-36 flex flex-col items-center justify-start gap-3">
+            <div className="w-full h-24 bg-gray-100 flex items-center justify-center overflow-hidden rounded-lg">
+              {isImage ? (
+                <img
+                  src={doc.documentUrl}
+                  alt={doc.name}
+                  className="w-full h-full object-cover rounded"
+                />
+              ) : isPdf ? (
+                <div className="text-sm text-slate-600 text-center px-2">
+                  <svg
+                    className="mx-auto mb-1"
+                    width="44"
+                    height="44"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M13 2v6h6"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <div className="text-sm font-medium">PDF</div>
+                </div>
+              ) : (
+                <div className="text-sm text-slate-600 text-center px-2">
+                  <div className="mb-1 text-2xl">📄</div>
+                  <div className="text-sm">Tài liệu</div>
+                </div>
+              )}
+            </div>
+            <div className="text-sm text-slate-700 text-center line-clamp-2 px-1 font-medium">
+              {doc.name}
+            </div>
+            <div className="text-xs text-slate-400">{doc.uploaderName ?? ""}</div>
           </div>
-          <div className="text-sm text-slate-700 text-center line-clamp-2 px-1 font-medium">
-            {doc.name}
-          </div>
-          <div className="text-xs text-slate-400">{doc.uploaderName ?? ""}</div>
-        </div>
-      </Card>
-    </a>
-  );
-};
+        </Card>
+      </a>
+    );
+  };
 
   // initialize activeTab from query param if present, otherwise default notifications
   useEffect(() => {
@@ -664,8 +665,6 @@ const DetailedClassTeacher: React.FC = () => {
           </div>
         </aside>
       </div>
-
-      
     </div>
   );
 };

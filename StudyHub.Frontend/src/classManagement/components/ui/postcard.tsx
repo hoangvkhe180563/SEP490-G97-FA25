@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+/* eslint-disable @typescript-eslint/no-unused-expressions */
+import React, { useState, useEffect } from "react";
 import DOMPurify from "dompurify";
 import CommentComposer from "@/classManagement/components/ui/commentcomposer";
 import useClassStore from "@/classManagement/stores/useClassStore";
@@ -47,6 +48,13 @@ export type Post = {
   createdAt?: string;
   files?: PostFile[];
   comments?: PostComment[];
+  // allow optional avatar fields or creator info if provided by backend
+  avatarUrl?: string;
+  authorAvatar?: string;
+  creatorAvatar?: string;
+  createdByAvatar?: string;
+  authorName?: string;
+  createdByName?: string;
 };
 
 // ===== Helpers =====
@@ -191,8 +199,6 @@ const renderContent = (html?: string) => {
   return <>{nodes}</>;
 };
 
-
-
 // ====== Component ======
 const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const [showComments, setShowComments] = useState(false);
@@ -211,6 +217,37 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const currentUserId = user?.id ?? "unknown-user";
   const currentUserFullname = user?.fullname ?? "Bạn";
 
+  // Resolve avatar for the post author using multiple possible fields and fallbacks
+  const resolvePostAvatar = (): string => {
+    const p = post as any;
+    // direct fields from post
+    if (p.avatarUrl) return p.avatarUrl;
+    if (p.authorAvatar) return p.authorAvatar;
+    if (p.creatorAvatar) return p.creatorAvatar;
+    if (p.createdByAvatar) return p.createdByAvatar;
+    // comments may include avatar for the creator
+    if (post.comments && post.comments.length > 0) {
+      const match = post.comments.find((c) => String(c.userId) === String(post.createdBy) && c.avatarUrl);
+      if (match && match.avatarUrl) return match.avatarUrl;
+    }
+    // if current user is the creator, prefer current user's avatar
+    if (user && String(user.id) === String(post.createdBy)) {
+      // try user.avatar or user.avatarUrl
+      return (user as any).avatarUrl ?? (user as any).avatar ;
+    }
+    // finally fallback to generic placeholder
+    return "https://antimatter.vn/wp-content/uploads/2022/11/anh-avatar-trang-fb-mac-dinh.jpg";
+  };
+
+  // Helper to render avatar fallback text (initials)
+  const avatarFallbackText = () => {
+    const name = (post as any).authorName ?? (post as any).createdByName ?? post.title ?? "";
+    if (!name) return "U";
+    const parts = String(name).trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+
   const handleSendComment = async (htmlContent: string) => {
     const tempId = `temp-${Date.now()}`;
     const optimistic: PostComment = {
@@ -219,7 +256,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       userId: currentUserId,
       userFullname: currentUserFullname,
       content: htmlContent,
-      avatarUrl: user?.avatar ?? "/vite.svg",
+      avatarUrl: (user as any)?.avatarUrl ?? (user as any)?.avatar ?? "/vite.svg",
       // keep optimistic timestamp in ISO, display logic will convert to localized full time
       createdAt: formatISO(new Date()),
     };
@@ -286,18 +323,20 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     }
   };
 
+  const authorAvatar = resolvePostAvatar();
+
   return (
     <Card className="p-4">
       <div className="flex items-start gap-4">
         <Avatar>
-          <AvatarImage src={post.createdBy ? "/vite.svg" : "/vite.svg"} alt="avatar" />
-          <AvatarFallback>U</AvatarFallback>
+          <AvatarImage src={authorAvatar} alt="avatar" />
+          <AvatarFallback>{avatarFallbackText()}</AvatarFallback>
         </Avatar>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium text-gray-800" />
+              <div className="font-medium text-gray-800">{(post as any).authorName ?? (post as any).createdByName ?? ""}</div>
               <div className="text-xs text-gray-400">{formatTimestamp(post.createdAt)}</div>
             </div>
 
@@ -354,7 +393,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
           </div>
 
           <div className="mt-4">
-            <CommentComposer onSend={handleSendComment} avatarUrl={user?.avatar ?? "/vite.svg"} />
+            <CommentComposer onSend={handleSendComment} avatarUrl={(user as any)?.avatarUrl ?? (user as any)?.avatar ?? "/vite.svg"} />
           </div>
 
           {showComments && localComments.length > 0 && (
@@ -362,7 +401,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
               {localComments.map((c) => (
                 <div key={c.id} className="flex gap-3 items-start">
                   <Avatar>
-                    <AvatarImage src={c.avatarUrl ?? "/vite.svg"} alt="avatar" />
+                    <AvatarImage src={c.avatarUrl ?? (user as any)?.avatarUrl ?? (user as any)?.avatar ?? "/vite.svg"} alt="avatar" />
                     <AvatarFallback>{(c.userFullname || "U").charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div className="text-sm">

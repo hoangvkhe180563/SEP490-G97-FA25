@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 import { formatISO, parseISO } from "date-fns";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
@@ -660,7 +661,7 @@ export const useClassStore = create<ClassState>()(
               break;
             } catch (err: any) {
               lastError = err;
-              // If 404 try next endpoint; for other errors break to surface server response
+              // If 404 try next endpoint; for other errors break and surface server response
               if (err?.response?.status === 404) continue;
               if (err?.response) break;
             }
@@ -875,26 +876,70 @@ export const useClassStore = create<ClassState>()(
 
           const data = raw.data;
 
+          // ---- START: normalized notifications mapping to ensure avatar fields exist ----
           const notifications =
-            (data.notifications ?? []).map((n: any) => ({
-              id: n.id,
-              classId: n.classId,
-              title: n.title,
-              description: n.description,
-              createdBy: n.createdBy,
-              createdAt: formatISO(n.createdAt),
-              files: n.files ?? [],
-              comments:
-                (n.comments ?? []).map((c: any) => ({
-                  id: c.id,
-                  notificationId: c.notificationId,
-                  userId: c.userId,
-                  content: c.content,
-                  createdAt: formatISO(c.createdAt),
-                  userFullname: c.userFullname,
-                  imageUrl: c.imageUrl ?? null,
-                })) ?? [],
-            })) ?? [];
+            (data.notifications ?? []).map((n: any) => {
+              // Normalize top-level avatar from several possible fields
+              const topAvatar =
+                n.avatarUrl ??
+                n.avatar ??
+                n.authorAvatar ??
+                n.creatorAvatar ??
+                n.createdByAvatar ??
+                n.createdByImage ??
+                n.imageUrl ??
+                n.photoUrl ??
+                (n.createdByUser &&
+                  (n.createdByUser.avatarUrl ??
+                    n.createdByUser.avatar ??
+                    n.createdByUser.imageUrl)) ??
+                null;
+
+              const files = n.files ?? n.attachments ?? n.documents ?? [];
+
+              const mappedComments =
+                (n.comments ?? []).map((c: any) => {
+                  const commentAvatar =
+                    c.avatarUrl ??
+                    c.avatar ??
+                    c.imageUrl ??
+                    c.photoUrl ??
+                    c.userImage ??
+                    c.createdByAvatar ??
+                    c.authorAvatar ??
+                    (c.user &&
+                      (c.user.avatarUrl ?? c.user.avatar ?? c.user.imageUrl)) ??
+                    null;
+
+                  return {
+                    id: c.id,
+                    notificationId: c.notificationId ?? c.notification_id ?? n.id,
+                    userId: c.userId ?? c.userId ?? c.userId ?? null,
+                    userFullname: c.userFullname ?? c.fullname ?? c.name ?? "",
+                    content: c.content ?? c.text ?? "",
+                    createdAt: formatISO(c.createdAt),
+                    avatarUrl: commentAvatar,
+                    raw: c,
+                  };
+                }) ?? [];
+
+              return {
+                id: n.id,
+                classId: n.classId ?? n.class_id ?? null,
+                title: n.title ?? n.name ?? "",
+                description: n.description ?? n.desc ?? "",
+                createdBy: n.createdBy ?? n.createdById ?? null,
+                createdAt: formatISO(n.createdAt),
+                files: files,
+                // normalized top-level avatar fields (consistent keys used by UI)
+                avatarUrl: topAvatar,
+                authorAvatar: topAvatar,
+                // include comments normalized
+                comments: mappedComments,
+                raw: n,
+              } as ClassNotification;
+            }) ?? [];
+          // ---- END: normalized notifications mapping ----
 
           set((state) => {
             const cur = state.currentClass ?? defaultCurrentClass;
@@ -1098,7 +1143,7 @@ export const useClassStore = create<ClassState>()(
             userId: created.userId ?? created.createdBy ?? body.createdBy,
             userFullname: created.userFullname ?? "Bạn",
             content: created.content ?? payload.content,
-            avatarUrl: created.avatarUrl ?? null,
+            avatarUrl: created.avatarUrl ?? created.imageUrl ?? null,
             createdAt: formatISO(
               created.createdAt ?? created.createdAt ?? formatISO(new Date())
             ),
@@ -2100,7 +2145,7 @@ export const useClassStore = create<ClassState>()(
                 userId: c.userId ?? c.createdBy ?? null,
                 userFullname: c.userFullname ?? "Bạn",
                 content: c.content ?? "",
-                avatarUrl: c.avatarUrl ?? null,
+                avatarUrl: c.avatarUrl ?? c.imageUrl ?? null,
                 createdAt: formatISO(c.createdAt) ?? formatISO(new Date()),
               })) ?? [],
           };
@@ -2267,6 +2312,7 @@ export const useClassStore = create<ClassState>()(
           set({ isLoading: false });
         }
       },
+
       getClassExams: async (classId: string): Promise<Exam[]> => {
         try {
           const res = await axiosInstance.get("/exam/class/" + classId);

@@ -16,6 +16,9 @@ import { Label } from "@/common/components/ui/label";
 import { Switch } from "@/common/components/ui/switch";
 import { formatISO } from "date-fns";
 
+// shadcn Alert (adjust import path to your project's actual location if different)
+import { Alert, AlertDescription, AlertTitle } from "@/common/components/ui/alert";
+
 type LinkItem = { title: string; url: string };
 
 // FilePreview supports both newly selected files (file present) and existing remote files (existing=true)
@@ -68,6 +71,52 @@ const AddEditClassworkForm: React.FC = () => {
   const [linkUrl, setLinkUrl] = useState("");
 
   const [loading, setLoading] = useState(false);
+
+  // shadcn-style alert state (used instead of window.alert)
+  const [alert, setAlert] = useState<{
+    title?: string;
+    message: string;
+    variant?: "destructive" | "default" | "info";
+    link?: { text: string; url: string } | null;
+  } | null>(null);
+  const alertTimeoutRef = useRef<number | null>(null);
+
+  const showAlert = (message: string, title?: string, variant: "destructive" | "default" | "info" = "destructive", durationMs = 6000, link?: { text: string; url: string }) => {
+    if (alertTimeoutRef.current) {
+      window.clearTimeout(alertTimeoutRef.current);
+      alertTimeoutRef.current = null;
+    }
+    setAlert({ title, message, variant, link: link ?? null });
+    if (durationMs > 0) {
+      alertTimeoutRef.current = window.setTimeout(() => {
+        setAlert(null);
+        alertTimeoutRef.current = null;
+      }, durationMs);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (alertTimeoutRef.current) {
+        window.clearTimeout(alertTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Per-field error messages
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const setFieldError = (field: string, message: string) => {
+    setErrors((s) => ({ ...s, [field]: message }));
+  };
+  const clearFieldError = (field: string) => {
+    setErrors((s) => {
+      if (!s[field]) return s;
+      const next = { ...s };
+      delete next[field];
+      return next;
+    });
+  };
 
   // only teachers allowed to access this page (check auth-derived role)
   useEffect(() => {
@@ -128,7 +177,7 @@ const AddEditClassworkForm: React.FC = () => {
         const existingPreviews: FilePreview[] = (existingFiles || []).map((f: any) => {
           const url = f.fileUrl ?? f.url ?? f.file_url ?? f.urlPath ?? null;
           const name = f.fileName ?? f.name ?? f.file_name ?? "file";
-          const type = detectFileType(name);
+          const type = detectFileType(url ?? name);
           return {
             id: `existing-${f.id ?? Math.random().toString(36).slice(2,8)}`,
             url: url ?? undefined,
@@ -138,8 +187,14 @@ const AddEditClassworkForm: React.FC = () => {
             fileName: name,
           } as FilePreview;
         });
+
         if (existingPreviews.length > 0) {
-          setFilePreviews((prev) => [...existingPreviews, ...prev]);
+          // prevent duplicates if effect runs multiple times
+          setFilePreviews((prev) => {
+            const existingIds = new Set(prev.filter(p => p.existing && p.fileId !== undefined).map(p => String(p.fileId)));
+            const newOnes = existingPreviews.filter(ep => !existingIds.has(String(ep.fileId)));
+            return [...prev, ...newOnes];
+          });
         }
       }
     }
@@ -183,22 +238,37 @@ const AddEditClassworkForm: React.FC = () => {
     e?.preventDefault();
     setLoading(true);
 
+    // clear previous errors
+    setErrors({});
+
     try {
       // basic validation
+      let hasError = false;
       if (!title || title.trim().length === 0) {
-        alert("Tiêu đề không được để trống");
-        setLoading(false);
-        return;
+        setFieldError("title", "Tiêu đề không được để trống");
+        hasError = true;
       }
       if (!id || Number(id) <= 0) {
-        alert("ClassId không hợp lệ");
+        // critical - show top alert
+        showAlert("ClassId không hợp lệ", "Lỗi", "destructive");
         setLoading(false);
         return;
       }
 
+      if (maxScore !== "" && typeof maxScore === "number" && maxScore < 0) {
+        setFieldError("maxScore", "Điểm tối đa phải lớn hơn hoặc bằng 0");
+        hasError = true;
+      }
+
       const createdBy = user?.id ?? (localStorage.getItem("currentUserId") ?? "");
       if (!createdBy) {
-        alert("Thiếu thông tin người dùng");
+        showAlert("Thiếu thông tin người dùng", "Lỗi", "destructive");
+        setLoading(false);
+        return;
+      }
+
+      if (hasError) {
+        //showAlert("Có lỗi trong biểu mẫu. Vui lòng kiểm tra các trường bên dưới.", "Lỗi", "destructive");
         setLoading(false);
         return;
       }
@@ -224,7 +294,7 @@ const AddEditClassworkForm: React.FC = () => {
 
         const edited = await editClasswork(payload);
         if (!edited) {
-          alert("Không thể cập nhật bài tập");
+          showAlert("Không thể cập nhật bài tập", "Lỗi", "destructive");
           setLoading(false);
           return;
         }
@@ -265,7 +335,7 @@ const AddEditClassworkForm: React.FC = () => {
       const raw = res?.data ?? null;
       if (!raw || raw.success === false) {
         const msg = raw?.message ?? "Tạo thông báo thất bại";
-        alert(msg);
+        showAlert(msg, "Lỗi", "destructive");
         setLoading(false);
         return;
       }
@@ -276,7 +346,7 @@ const AddEditClassworkForm: React.FC = () => {
     } catch (err: any) {
       console.error("Save error", err);
       const msg = err?.response?.data?.message ?? err?.message ?? "Lỗi khi lưu bài tập";
-      alert(msg);
+      showAlert(msg, "Lỗi", "destructive");
     } finally {
       setLoading(false);
     }
@@ -284,13 +354,34 @@ const AddEditClassworkForm: React.FC = () => {
 
   // --- File selection like notification: click or drag-and-drop, thumbnails, remove ---
   const handleFiles = (files: File[]) => {
-    const next: FilePreview[] = files.map((f) => {
-      const tp = detectFileType(f);
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      const url = tp === "image" ? URL.createObjectURL(f) : undefined;
-      return { id, file: f, url, type: tp };
+    if (!files || files.length === 0) return;
+
+    setFilePreviews((prev) => {
+      // Create signatures for existing previews to avoid duplicates
+      const existingSignatures = new Set<string>(
+        prev.map((p) =>
+          p.existing
+            ? `existing:${p.fileId ?? p.fileName ?? p.url ?? p.id}`
+            : `new:${p.file?.name ?? ""}:${p.file?.size ?? ""}`
+        )
+      );
+
+      const nextPreviews: FilePreview[] = files.reduce<FilePreview[]>((acc, f) => {
+        const sig = `new:${f.name}:${f.size}`;
+        if (existingSignatures.has(sig)) {
+          // skip duplicate
+          return acc;
+        }
+        existingSignatures.add(sig);
+        const tp = detectFileType(f);
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        const url = tp === "image" ? URL.createObjectURL(f) : undefined;
+        acc.push({ id, file: f, url, type: tp });
+        return acc;
+      }, []);
+
+      return [...prev, ...nextPreviews];
     });
-    setFilePreviews((prev) => [...prev, ...next]);
   };
 
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -347,8 +438,12 @@ const AddEditClassworkForm: React.FC = () => {
   };
 
   const addLink = () => {
+    // clear previous link error
+    clearFieldError("linkUrl");
+
     if (!linkUrl || !validateUrl(linkUrl)) {
-      alert("URL không hợp lệ (cần bắt đầu bằng http:// hoặc https://)");
+      setFieldError("linkUrl", "URL không hợp lệ (cần bắt đầu bằng http:// hoặc https://)");
+      //showAlert("URL không hợp lệ. Vui lòng kiểm tra trường liên kết.", "Lỗi", "destructive");
       return;
     }
     setLinks((prev) => [...prev, { title: linkTitle || linkUrl, url: linkUrl }]);
@@ -362,30 +457,76 @@ const AddEditClassworkForm: React.FC = () => {
 
   const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
 
+  // Helper to compute input className with error highlight
+  const inputClass = (base = "", field?: string) => {
+    const err = field ? errors[field] : undefined;
+    return `${base} ${err ? "border-red-500 ring-1 ring-red-200" : ""}`.trim();
+  };
+
   return (
-    <div className="p-8">
+    <div className="p-8 w-full h-full overflow-y-auto">
       {/* Top bar */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
+      <div className="flex items-start justify-between mb-8">
+        <div className="flex items-center gap-4 w-full">
           <Button variant="ghost" onClick={() => navigate(-1)} className="p-2">
             ←
           </Button>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white">
-              📝
+          <div className="flex items-start gap-3 w-full">
+            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white shrink-0">
+              
+                <img
+                  src="https://png.pngtree.com/png-clipart/20190916/original/pngtree-book-icon-material-png-image_4587953.jpg"
+                  alt="class"
+                  className="w-10 h-10 rounded-full object-cover"
+                  onError={(e) => {
+                    const el = e.currentTarget;
+                    el.onerror = null;
+                    el.src = "";
+                  }}
+                />
+
             </div>
-            <div>
-              <div className="text-lg font-semibold">Bài tập</div>
-              <div className="text-sm text-slate-500">
-                {isEdit ? "Chỉnh sửa bài tập" : "Tạo bài tập mới"}
+
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-lg font-semibold">Bài tập</div>
+                  <div className="text-sm text-slate-500">
+                    {isEdit ? "Chỉnh sửa bài tập" : "Tạo bài tập mới"}
+                  </div>
+                </div>
+                <div>
+                  <Button onClick={() => handleSave()} disabled={loading}>
+                    {loading ? "Đang lưu..." : "Lưu"}
+                  </Button>
+                </div>
               </div>
+
+              {/* Alert placed under the title as requested, includes optional link */}
+              {alert && (
+                <div className="mt-3">
+                  <Alert>
+                    {alert.title && <AlertTitle>{alert.title}</AlertTitle>}
+                    <AlertDescription>
+                      <div className="flex items-center gap-2">
+                        <span>{alert.message}</span>
+                        {alert.link && (
+                          <a
+                            href={alert.link.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 underline ml-2"
+                          >
+                            {alert.link.text}
+                          </a>
+                        )}
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-        <div>
-          <Button onClick={() => handleSave()} disabled={loading}>
-            {loading ? "Đang lưu..." : "Lưu"}
-          </Button>
         </div>
       </div>
 
@@ -400,10 +541,16 @@ const AddEditClassworkForm: React.FC = () => {
               </Label>
               <Input
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  if (errors.title) clearFieldError("title");
+                }}
                 placeholder="Tiêu đề"
-                className="mt-2"
+                className={inputClass("mt-2", "title")}
+                aria-invalid={!!errors.title}
+                aria-describedby={errors.title ? "err-title" : undefined}
               />
+              {errors.title && <div id="err-title" className="text-red-600 text-sm mt-1">{errors.title}</div>}
             </div>
 
             <div className="mb-4">
@@ -489,7 +636,7 @@ const AddEditClassworkForm: React.FC = () => {
               {/* Links */}
               <div className="mt-4">
                 <Label>Thêm liên kết</Label>
-                <div className="grid grid-cols-12 gap-2 items-end mt-2">
+                <div className="grid grid-cols-12 gap-2 items-start mt-2">
                   <div className="col-span-5">
                     <Input
                       placeholder="Tiêu đề (tùy chọn)"
@@ -501,8 +648,15 @@ const AddEditClassworkForm: React.FC = () => {
                     <Input
                       placeholder="https://example.com"
                       value={linkUrl}
-                      onChange={(e) => setLinkUrl(e.target.value)}
+                      onChange={(e) => {
+                        setLinkUrl(e.target.value);
+                        if (errors.linkUrl) clearFieldError("linkUrl");
+                      }}
+                      className={inputClass("", "linkUrl")}
+                      aria-invalid={!!errors.linkUrl}
+                      aria-describedby={errors.linkUrl ? "err-linkUrl" : undefined}
                     />
+                    {errors.linkUrl && <div id="err-linkUrl" className="text-red-600 text-sm mt-1">{errors.linkUrl}</div>}
                   </div>
                   <div className="col-span-1">
                     <Button size="sm" onClick={addLink}>
@@ -556,11 +710,15 @@ const AddEditClassworkForm: React.FC = () => {
                 onChange={(e) => {
                   const v = e.target.value;
                   setMaxScore(v === "" ? "" : Number(v));
+                  if (errors.maxScore) clearFieldError("maxScore");
                 }}
                 placeholder="Ví dụ: 100"
                 min={0}
-                className="mt-2"
+                className={inputClass("mt-2", "maxScore")}
+                aria-invalid={!!errors.maxScore}
+                aria-describedby={errors.maxScore ? "err-maxScore" : undefined}
               />
+              {errors.maxScore && <div id="err-maxScore" className="text-red-600 text-sm mt-1">{errors.maxScore}</div>}
             </div>
 
             <div>
@@ -571,9 +729,7 @@ const AddEditClassworkForm: React.FC = () => {
                 className="w-full border rounded px-3 py-2 mt-2"
               >
                 <option value="points">Points</option>
-                <option value="percentage">Percentage</option>
-                <option value="pass_fail">Pass / Fail</option>
-                <option value="letter">Letter</option>
+               
               </select>
             </div>
 
