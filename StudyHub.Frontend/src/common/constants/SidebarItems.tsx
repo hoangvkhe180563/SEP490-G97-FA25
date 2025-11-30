@@ -6,6 +6,7 @@ import {
   MessageCircleQuestionMark,
   MessageSquare,
   NotebookPen,
+  School,
   Users,
 } from "lucide-react";
 import type { ISidebarItem } from "../interfaces/IMainLayoutProps";
@@ -168,4 +169,9 @@ export const schoolAdminSidebarItems: ISidebarItem[] = [
     text: "Quản lý người dùng",
     link: "/user/manager/accounts",
   },
+  {
+    icon: <School size={20}/>,
+    text: "Quản lý giao diện",
+    link: "/ui/landing-pages"
+  }
 ];

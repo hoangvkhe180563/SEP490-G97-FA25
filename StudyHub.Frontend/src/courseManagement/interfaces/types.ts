@@ -167,3 +167,8 @@ export interface Exam {
   openTime: Date;
   closeTime?: Date;
 }
+
+export interface LessonExamStatus {
+  latestTime: Date,
+  isDisabled: boolean
+}

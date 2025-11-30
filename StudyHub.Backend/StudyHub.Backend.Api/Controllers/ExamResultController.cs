@@ -68,13 +68,6 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(results);
         }
 
-        [HttpGet("class/by-teacher/{teacherId:guid}")]
-        public IActionResult GetAllExamResultsByTeacherId(Guid teacherId)
-        {
-            Console.WriteLine("Getting questions...");
-            return Ok(_service.GetAllQuestions());
-        }
-
         [HttpPost]
         public IActionResult CreateExamResult([FromBody] ExamResultCreateDto resultDto)
         {
@@ -146,6 +139,28 @@ namespace StudyHub.Backend.Api.Controllers
             }
             bool result = _service.SubmitExamResult(resultId);
             return result ? Ok("Nộp bài thành công!") : Conflict("Nộp bài thất bại!");
+        }
+
+        [HttpGet("lesson/result-id/{studentId:guid}/{lessonId:int}")]
+        public IActionResult GetResultIdByLessonId(int lessonId, Guid studentId)
+        {
+            if (lessonId == 0 || studentId == Guid.Empty)
+            {
+                return BadRequest("Vui lòng nhập dữ liệu!");
+            }
+            string result = _service.GetLatestResultIdByLessonId(lessonId, studentId);
+            return string.IsNullOrWhiteSpace(result) ? NotFound() : Ok(result);
+        }
+
+        [HttpGet("lesson/status/{studentId:guid}/{lessonId:int}")]
+        public IActionResult CheckLessonStatus(int lessonId, Guid studentId)
+        {
+            if (lessonId == 0 || studentId == Guid.Empty)
+            {
+                return BadRequest("Vui lòng nhập dữ liệu!");
+            }
+            var result = _service.CheckLessonStatus(lessonId, studentId);
+            return result == null ? NotFound() : Ok(result);
         }
     }
 }

@@ -74,8 +74,8 @@ const CourseDetail: React.FC = () => {
   // Only the course owner (creator) may edit the course. Use auth user id.
   const isOwner = Boolean(
     authUser?.id &&
-      selectedCourse?.createdBy &&
-      String(authUser.id) === String(selectedCourse.createdBy)
+    selectedCourse?.createdBy &&
+    String(authUser.id) === String(selectedCourse.createdBy)
   );
 
   const categoryLabel = (id?: number | null) => {
@@ -105,26 +105,24 @@ const CourseDetail: React.FC = () => {
       <div className="flex items-center justify-between bg-white border rounded p-4 mb-4">
         <div className="flex items-center gap-4 mr-4">
           {/* === Course Image === */}
-          <div className="w-24 h-24 bg-gray-100 rounded overflow-hidden">
-            {selectedCourse?.imageUrl ? (
-              <img
-                src={selectedCourse.imageUrl}
-                alt="Course image"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
-                Không có hình ảnh
-              </div>
-            )}
-          </div>
+          {selectedCourse?.imageUrl ? (
+            <img
+              src={selectedCourse.imageUrl}
+              alt="Course image"
+              className="w-24 h-24 mr-4 object-cover float-left rounded-md"
+            />
+          ) : (
+            <div className="w-24 h-24 mr-4 flex items-center float-left justify-center text-center text-sm rounded-md text-gray-500 bg-gray-200">
+              Không có hình ảnh
+            </div>
+          )}
 
           {/* === Course Info === */}
           <div>
             <div className="text-lg font-medium">
               {selectedCourse?.name ?? "Course"}
             </div>
-            <div className="text-sm text-[#737373] mt-1">
+            <div className="text-sm text-[#737373] mt-1 line-clamp-3">
               {selectedCourse?.information ?? ""}
             </div>
           </div>
