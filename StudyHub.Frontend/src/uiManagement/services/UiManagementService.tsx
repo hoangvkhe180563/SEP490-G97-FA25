@@ -3,7 +3,6 @@ import type { ILandingPageService } from "../interfaces/ILandingPageService";
 import type { IDocumentItem } from "../interfaces/IDocumentItem";
 import type { ICourseItem } from "../interfaces/ICourseItem";
 import type { ILandingPageUpdateService } from "../interfaces/ILandingPageUpdateService";
-import type { ILandingPageListItem } from "../interfaces/ILandingPageListItem";
 
 export class UiManagementService {
   async getLandingPageGeneral(): Promise<ILandingPageService> {
@@ -100,14 +99,5 @@ export class UiManagementService {
     );
 
     return response.status === 200 ? "" : response.data;
-  }
-
-  async getLandingPageList(): Promise<ILandingPageListItem[]> {
-    const response = await axiosInstance.get("/LandingPage/list");
-    if (response.status === 200) {
-      return response.data;
-    } else {
-      return [];
-    }
   }
 }

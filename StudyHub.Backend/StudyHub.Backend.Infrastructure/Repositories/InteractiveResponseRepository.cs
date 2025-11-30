@@ -25,7 +25,7 @@ public class InteractiveResponseRepository : IInteractiveResponseRepository
                 AnswerText = response.AnswerText,
                 SelectedIndex = response.SelectedIndex,
                 IsCorrect = response.IsCorrect,
-                CreatedAt = response.CreatedAt == default ? DateTime.UtcNow : response.CreatedAt
+                CreatedAt = response.CreatedAt == default ? DateTime.Now : response.CreatedAt
             };
             _context.InteractiveResponses.Add(ent);
             _context.SaveChanges();

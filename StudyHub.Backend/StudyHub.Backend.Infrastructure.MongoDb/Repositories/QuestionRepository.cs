@@ -15,29 +15,6 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
             _questionCollection = mongoDbContext.GetCollection<Question>("questions");
         }
 
-        public List<Domain.Entities.Exam.Question> GetAllQuestions()
-        {
-            try
-            {
-                var questions = _questionCollection.Find(new BsonDocument()).ToList();
-
-                List<Domain.Entities.Exam.Question> mappedQuestions = [];
-
-                foreach (var question in questions)
-                {
-                    Domain.Entities.Exam.Question questionEntity = question.ToQuestionEntity();
-                    mappedQuestions.Add(questionEntity);
-                }
-
-                return mappedQuestions;
-            }
-            catch (Exception ex)
-            {
-                new MongoDbException("QuestionRepository", "GetAllQuestions failed. Inner error: " + ex.Message).LogError();
-            }
-            return [];
-        }
-
         public Domain.Entities.Exam.Question? GetQuestionById(string id)
         {
             if (string.IsNullOrWhiteSpace(id))
@@ -61,23 +38,6 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
                 new MongoDbException("QuestionRepository", "GetQuestionById failed. Inner error: " + ex.Message).LogError();
             }
             return null;
-        }
-
-        public string AddOneQuestion(Domain.Entities.Exam.Question question)
-        {
-            try
-            {
-                var newQuestion = question.ToQuestionData();
-
-                _questionCollection.InsertOne(newQuestion);
-
-                return newQuestion.Id.ToString();
-            }
-            catch (Exception ex)
-            {
-                new MongoDbException("QuestionRepository", "AddOneQuestion failed. Inner error: " + ex.Message).LogError();
-            }
-            return string.Empty;
         }
 
         public List<string> AddManyQuestions(List<Domain.Entities.Exam.Question> questions)
@@ -186,7 +146,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
             return false;
         }
 
-        public bool DeleteQuestion(string id)
+        public bool DeleteOneQuestion(string id)
         {
             if (string.IsNullOrWhiteSpace(id))
             {

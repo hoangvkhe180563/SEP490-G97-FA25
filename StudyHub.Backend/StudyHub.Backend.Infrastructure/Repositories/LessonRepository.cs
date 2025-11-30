@@ -278,7 +278,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     LessonId = comment.LessonId,
                     AppUserId = comment.AppUserId,
                     Content = comment.Content,
-                    CreatedAt = comment.CreatedAt == default ? DateTime.UtcNow : comment.CreatedAt
+                    CreatedAt = comment.CreatedAt == default ? DateTime.Now : comment.CreatedAt
                 };
 
                 _context.LessonComments.Add(entity);
@@ -302,7 +302,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 var entity = _context.LessonComments.FirstOrDefault(c => c.Id == id && c.DeletedAt == null);
                 if (entity == null) return false;
                 if (entity.AppUserId != userId) return false;
-                entity.DeletedAt = DateTime.UtcNow;
+                entity.DeletedAt = DateTime.Now;
                 _context.SaveChanges();
                 return true;
             }
@@ -323,7 +323,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (entity.AppUserId != comment.AppUserId) return comment;
 
                 entity.Content = comment.Content;
-                entity.UpdatedAt = DateTime.UtcNow;
+                entity.UpdatedAt = DateTime.Now;
                 _context.SaveChanges();
 
                 comment.UpdatedAt = entity.UpdatedAt;
