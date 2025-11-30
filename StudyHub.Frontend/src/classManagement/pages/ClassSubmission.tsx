@@ -30,7 +30,9 @@ const ClassworkSubmissionsPage: React.FC = () => {
   const workId = Number(params.classworkId ?? 0);
 
   // use react-router's useLocation to read navigation state safely
-  const location = useLocation() as unknown as { state?: { maxScore?: number } };
+  const location = useLocation() as unknown as {
+    state?: { maxScore?: number };
+  };
   const navigate = useNavigate();
 
   const {
@@ -266,7 +268,12 @@ const ClassworkSubmissionsPage: React.FC = () => {
       const works = currentClass?.data?.works ?? [];
       const w = works.find((x: any) => Number(x.id) === Number(workId));
       if (!w) return null;
-      const candidates = [w.maxScore, (w as any).max_points, (w as any).total, (w as any).max];
+      const candidates = [
+        w.maxScore,
+        (w as any).max_points,
+        (w as any).total,
+        (w as any).max,
+      ];
       for (const c of candidates) {
         const n = Number(c);
         if (Number.isFinite(n) && n > 0) return n;
@@ -278,14 +285,28 @@ const ClassworkSubmissionsPage: React.FC = () => {
   })();
 
   const maxAllowedForThisWork =
-    detailMaxScore !== null && Number.isFinite(Number(detailMaxScore)) && detailMaxScore > 0
+    detailMaxScore !== null &&
+    Number.isFinite(Number(detailMaxScore)) &&
+    detailMaxScore > 0
       ? Number(detailMaxScore)
-      : workMaxScore !== null && Number.isFinite(Number(workMaxScore)) && workMaxScore > 0
+      : workMaxScore !== null &&
+        Number.isFinite(Number(workMaxScore)) &&
+        workMaxScore > 0
       ? Number(workMaxScore)
       : globalMaxScore;
 
-  const scoreColorClass = (score: number | null | undefined, max = globalMaxScore) => {
-    if (score === null || score === undefined || !Number.isFinite(Number(score)) || !Number.isFinite(Number(max)) || Number(max) <= 0) return "text-slate-500";
+  const scoreColorClass = (
+    score: number | null | undefined,
+    max = globalMaxScore
+  ) => {
+    if (
+      score === null ||
+      score === undefined ||
+      !Number.isFinite(Number(score)) ||
+      !Number.isFinite(Number(max)) ||
+      Number(max) <= 0
+    )
+      return "text-slate-500";
     const p = Math.max(0, Math.min(100, (Number(score) / Number(max)) * 100));
     if (p >= 90) return "text-emerald-600";
     if (p >= 75) return "text-lime-600";
@@ -435,11 +456,11 @@ const ClassworkSubmissionsPage: React.FC = () => {
     const optimisticSubmission: ClassworkSubmission = {
       ...(selectedSubmission ?? ({} as ClassworkSubmission)),
       id: submissionId || (selectedSubmission?.id ?? 0),
-      appUserId:
-        selectedSubmission?.appUserId ?? selectedMember?.userId ?? "",
+      appUserId: selectedSubmission?.appUserId ?? selectedMember?.userId ?? "",
       score: numeric,
       files:
-        (selectedSubmission?.files ?? (selectedSubmission as any)?.submissionFiles) ??
+        selectedSubmission?.files ??
+        (selectedSubmission as any)?.submissionFiles ??
         [],
       classworkId: notificationId,
     };
@@ -447,7 +468,9 @@ const ClassworkSubmissionsPage: React.FC = () => {
     try {
       setSubmissions((prev) => {
         const copy = prev ? [...prev] : [];
-        const idxById = copy.findIndex((s) => s.id === optimisticSubmission.id && optimisticSubmission.id);
+        const idxById = copy.findIndex(
+          (s) => s.id === optimisticSubmission.id && optimisticSubmission.id
+        );
         let idx = idxById;
         if (idxById === -1) {
           idx = copy.findIndex(
@@ -465,7 +488,10 @@ const ClassworkSubmissionsPage: React.FC = () => {
       });
 
       setSelectedSubmission((prev) =>
-        prev && (prev.id === optimisticSubmission.id || normalizeUserId(prev.appUserId) === normalizeUserId(optimisticSubmission.appUserId))
+        prev &&
+        (prev.id === optimisticSubmission.id ||
+          normalizeUserId(prev.appUserId) ===
+            normalizeUserId(optimisticSubmission.appUserId))
           ? { ...prev, score: numeric }
           : optimisticSubmission
       );
@@ -515,11 +541,15 @@ const ClassworkSubmissionsPage: React.FC = () => {
         (finalSubmission as any).teacherFeedback ??
         (finalSubmission as any).feedbackText ??
         null;
-      setGradeFeedback(typeof serverFb === "string" ? serverFb : String(serverFb ?? ""));
+      setGradeFeedback(
+        typeof serverFb === "string" ? serverFb : String(serverFb ?? "")
+      );
 
       setSubmissions((prev) => {
         const copy = prev ? [...prev] : [];
-        const idxById = copy.findIndex((s) => s.id === finalSubmission.id && finalSubmission.id);
+        const idxById = copy.findIndex(
+          (s) => s.id === finalSubmission.id && finalSubmission.id
+        );
         let idx = idxById;
         if (idxById === -1) {
           idx = copy.findIndex(
@@ -551,10 +581,17 @@ const ClassworkSubmissionsPage: React.FC = () => {
             refreshed.files ?? (refreshed as any).submissionFiles ?? [];
           setSelectedSubmission(refreshed);
           // also update grade value & feedback from refreshed
-          const refreshedScore = refreshed.score ?? (refreshed as any).raw?.score ?? null;
-          if (refreshedScore !== undefined && refreshedScore !== null && String(refreshedScore).trim() !== "") {
+          const refreshedScore =
+            refreshed.score ?? (refreshed as any).raw?.score ?? null;
+          if (
+            refreshedScore !== undefined &&
+            refreshedScore !== null &&
+            String(refreshedScore).trim() !== ""
+          ) {
             const n = Number(refreshedScore);
-            setGradeValue(Number.isFinite(n) ? n : (String(refreshedScore) as any));
+            setGradeValue(
+              Number.isFinite(n) ? n : (String(refreshedScore) as any)
+            );
           }
           const refreshedFb =
             (refreshed as any).feedback ??
@@ -563,10 +600,16 @@ const ClassworkSubmissionsPage: React.FC = () => {
             (refreshed as any).teacherFeedback ??
             (refreshed as any).feedbackText ??
             "";
-          setGradeFeedback(typeof refreshedFb === "string" ? refreshedFb : String(refreshedFb ?? ""));
+          setGradeFeedback(
+            typeof refreshedFb === "string"
+              ? refreshedFb
+              : String(refreshedFb ?? "")
+          );
           setSubmissions((prev) => {
             const copy = prev ? [...prev] : [];
-            const idxById = copy.findIndex((s) => s.id === refreshed.id && refreshed.id);
+            const idxById = copy.findIndex(
+              (s) => s.id === refreshed.id && refreshed.id
+            );
             let idx = idxById;
             if (idxById === -1) {
               idx = copy.findIndex(
@@ -613,13 +656,20 @@ const ClassworkSubmissionsPage: React.FC = () => {
       ? member.fullname.charAt(0).toUpperCase()
       : String(member.userId).charAt(0).toUpperCase();
 
-    const scoreVal = submission ? Number(submission.score ?? (submission as any).raw?.score ?? null) : null;
-    const colorClass = scoreColorClass(Number.isFinite(Number(scoreVal)) ? scoreVal : null, maxAllowedForThisWork);
+    const scoreVal = submission
+      ? Number(submission.score ?? (submission as any).raw?.score ?? null)
+      : null;
+    const colorClass = scoreColorClass(
+      Number.isFinite(Number(scoreVal)) ? scoreVal : null,
+      maxAllowedForThisWork
+    );
 
     return (
       <Card
         onClick={() => pickMember(member)}
-        className={`relative flex  justify-between cursor-pointer px-4 py-3 transition-colors ${        isSelected ? "bg-slate-100 shadow-sm" : "hover:bg-slate-50"      }`}
+        className={`relative flex  justify-between cursor-pointer w-full h-full overflow-y-auto px-4 py-3 transition-colors ${
+          isSelected ? "bg-slate-100 shadow-sm" : "hover:bg-slate-50"
+        }`}
       >
         {/* LEFT: avatar + name (force left alignment) */}
         <div className="flex items-center gap-4 min-w-0">
@@ -631,9 +681,13 @@ const ClassworkSubmissionsPage: React.FC = () => {
 
           <div className="flex-1 min-w-0">
             <div className="text-left">
-              <div className="font-medium text-base leading-[1.1] truncate">{member.fullname ?? member.userId}</div>
+              <div className="font-medium text-base leading-[1.1] truncate">
+                {member.fullname ?? member.userId}
+              </div>
               {member.email && (
-                <div className="text-sm text-slate-500 mt-1 truncate">{member.email}</div>
+                <div className="text-sm text-slate-500 mt-1 truncate">
+                  {member.email}
+                </div>
               )}
             </div>
           </div>
@@ -642,8 +696,12 @@ const ClassworkSubmissionsPage: React.FC = () => {
         {/* RIGHT: score inline */}
         <div className="flex items-center gap-3 ml-4 whitespace-nowrap">
           <div className="text-xs text-slate-400">Điểm</div>
-          <div className={`font-semibold text-lg ${colorClass}`}>{scoreText}</div>
-          <div className="text-sm text-slate-400">/ {maxAllowedForThisWork}</div>
+          <div className={`font-semibold text-lg ${colorClass}`}>
+            {scoreText}
+          </div>
+          <div className="text-sm text-slate-400">
+            / {maxAllowedForThisWork}
+          </div>
         </div>
       </Card>
     );
@@ -705,16 +763,23 @@ const ClassworkSubmissionsPage: React.FC = () => {
           <div className="mb-4">
             <div className="flex items-center justify-start gap-3 px-3 py-2 bg-slate-50 rounded-md">
               <div className="font-semibold">Chưa nộp</div>
-              <div className="text-sm text-slate-500">({groups.notSubmitted.length})</div>
+              <div className="text-sm text-slate-500">
+                ({groups.notSubmitted.length})
+              </div>
             </div>
           </div>
 
           <div className="space-y-2">
             {visibleNotSubmitted.length === 0 ? (
-              <div className="px-4 py-6 text-sm text-slate-500 rounded-md bg-white"> {showNotSubmitted ? "Không có ai." : "Đã ẩn"}</div>
+              <div className="px-4 py-6 text-sm text-slate-500 rounded-md bg-white">
+                {" "}
+                {showNotSubmitted ? "Không có ai." : "Đã ẩn"}
+              </div>
             ) : (
               visibleNotSubmitted.map((m) => {
-                const s = submissionMap.get(normalizeUserId(m.userId ?? m.id ?? "")) ?? null;
+                const s =
+                  submissionMap.get(normalizeUserId(m.userId ?? m.id ?? "")) ??
+                  null;
                 return <MemberRow key={m.userId} member={m} submission={s} />;
               })
             )}
@@ -725,19 +790,25 @@ const ClassworkSubmissionsPage: React.FC = () => {
           <div className="mb-4">
             <div className="flex items-center justify-start gap-3 px-3 py-2 bg-slate-50 rounded-md">
               <div className="font-semibold">Đã nộp (chưa chấm)</div>
-              <div className="text-sm text-slate-500">({groups.submittedNotGraded.length})</div>
+              <div className="text-sm text-slate-500">
+                ({groups.submittedNotGraded.length})
+              </div>
             </div>
           </div>
 
           <div className="space-y-2">
             {visibleSubmittedNotGraded.length === 0 ? (
-              <div className="px-4 py-6 text-sm text-slate-500 rounded-md bg-white">{showSubmittedNotGraded ? "Không có ai." : "Đã ẩn"}</div>
+              <div className="px-4 py-6 text-sm text-slate-500 rounded-md bg-white">
+                {showSubmittedNotGraded ? "Không có ai." : "Đã ẩn"}
+              </div>
             ) : (
               visibleSubmittedNotGraded.map((m) => {
-                const s = submissionMap.get(normalizeUserId(m.userId ?? m.id ?? "")) ?? null;
+                const s =
+                  submissionMap.get(normalizeUserId(m.userId ?? m.id ?? "")) ??
+                  null;
                 return <MemberRow key={m.userId} member={m} submission={s} />;
               })
-            )} 
+            )}
           </div>
 
           <Separator className="my-6" />
@@ -745,16 +816,22 @@ const ClassworkSubmissionsPage: React.FC = () => {
           <div className="mb-4">
             <div className="flex items-center justify-start gap-3 px-3 py-2 bg-slate-50 rounded-md">
               <div className="font-semibold">Đã chấm</div>
-              <div className="text-sm text-slate-500">({groups.graded.length})</div>
+              <div className="text-sm text-slate-500">
+                ({groups.graded.length})
+              </div>
             </div>
           </div>
 
           <div className="space-y-2 pb-6">
             {visibleGraded.length === 0 ? (
-              <div className="px-4 py-6 text-sm text-slate-500 rounded-md bg-white">{showGraded ? "Chưa có ai được chấm." : "Đã ẩn"}</div>
+              <div className="px-4 py-6 text-sm text-slate-500 rounded-md bg-white">
+                {showGraded ? "Chưa có ai được chấm." : "Đã ẩn"}
+              </div>
             ) : (
               visibleGraded.map((m) => {
-                const s = submissionMap.get(normalizeUserId(m.userId ?? m.id ?? "")) ?? null;
+                const s =
+                  submissionMap.get(normalizeUserId(m.userId ?? m.id ?? "")) ??
+                  null;
                 return <MemberRow key={m.userId} member={m} submission={s} />;
               })
             )}
@@ -768,11 +845,17 @@ const ClassworkSubmissionsPage: React.FC = () => {
       >
         <div className="flex items-center justify-between px-8 py-6 border-b">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate(`/class/${role}/${classId}`)} aria-label="Quay về lớp">
+            <Button
+              variant="ghost"
+              onClick={() => navigate(`/class/${role}/${classId}?tab=exercise`)}
+              className="p-2"
+            >
               ←
             </Button>
             <div>
-              <div className="text-2xl md:text-3xl font-semibold">{selectedMember ? selectedMember.fullname : "Chọn học viên"}</div>
+              <div className="text-2xl md:text-3xl font-semibold">
+                {selectedMember ? selectedMember.fullname : "Chọn học viên"}
+              </div>
               <div className="text-sm text-slate-500 mt-1">
                 {selectedSubmission ? (
                   <span>
@@ -793,11 +876,24 @@ const ClassworkSubmissionsPage: React.FC = () => {
           <div className="text-right">
             <div className="text-sm text-slate-500">Điểm</div>
             {(() => {
-              const s = selectedSubmission ? Number(selectedSubmission.score ?? (selectedSubmission as any).raw?.score ?? null) : null;
-              const cls = scoreColorClass(Number.isFinite(Number(s)) ? s : null, maxAllowedForThisWork);
+              const s = selectedSubmission
+                ? Number(
+                    selectedSubmission.score ??
+                      (selectedSubmission as any).raw?.score ??
+                      null
+                  )
+                : null;
+              const cls = scoreColorClass(
+                Number.isFinite(Number(s)) ? s : null,
+                maxAllowedForThisWork
+              );
               return (
-                <div className={`mt-2 inline-flex items-center justify-center w-32 h-14 rounded-lg bg-slate-100 text-2xl font-semibold ${cls}`}>
-                  {selectedSubmission ? getScoreText(selectedSubmission) ?? "—" : "—"}
+                <div
+                  className={`mt-2 inline-flex items-center justify-center w-32 h-14 rounded-lg bg-slate-100 text-2xl font-semibold ${cls}`}
+                >
+                  {selectedSubmission
+                    ? getScoreText(selectedSubmission) ?? "—"
+                    : "—"}
                 </div>
               );
             })()}
@@ -810,41 +906,74 @@ const ClassworkSubmissionsPage: React.FC = () => {
           ) : selectedSubmission ? (
             <div className="max-w-4xl mx-auto space-y-6">
               {(selectedSubmission.files ?? []).length === 0 ? (
-                <div className="text-sm text-slate-500">Không có tệp đính kèm.</div>
+                <div className="text-sm text-slate-500">
+                  Không có tệp đính kèm.
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {(selectedSubmission.files ?? []).map((f: ClassworkSubmissionFile) => {
-                    const ext = (f.fileName ?? "").split(".").pop()?.toLowerCase() ?? "";
-                    const isImage = ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext);
-                    return (
-                      <Card key={f.id} className="flex flex-col md:flex-row items-center gap-4 p-5">
-                        <div className="flex-1">
-                          <a href={f.fileUrl} target="_blank" rel="noreferrer" className="text-lg font-medium text-sky-600 hover:underline">
-                            {f.fileName}
-                          </a>
-                          <div className="text-sm text-slate-500 mt-2">{isImage ? "Hình ảnh" : "Tệp đính kèm"}</div>
-                        </div>
-                        <div className="w-40 h-28 flex items-center justify-center rounded overflow-hidden bg-slate-50">
-                          {isImage ? (
-                            <img src={f.fileUrl} alt={f.fileName} className="max-h-full max-w-full object-contain" />
-                          ) : (
-                            <div className="text-4xl text-slate-400">📎</div>
-                          )}
-                        </div>
-                      </Card>
-                    );
-                  })}
+                  {(selectedSubmission.files ?? []).map(
+                    (f: ClassworkSubmissionFile) => {
+                      const ext =
+                        (f.fileName ?? "").split(".").pop()?.toLowerCase() ??
+                        "";
+                      const isImage = [
+                        "png",
+                        "jpg",
+                        "jpeg",
+                        "gif",
+                        "webp",
+                        "svg",
+                      ].includes(ext);
+                      return (
+                        <Card
+                          key={f.id}
+                          className="flex flex-col md:flex-row items-center gap-4 p-5"
+                        >
+                          <div className="flex-1">
+                            <a
+                              href={f.fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-lg font-medium text-sky-600 hover:underline"
+                            >
+                              {f.fileName}
+                            </a>
+                            <div className="text-sm text-slate-500 mt-2">
+                              {isImage ? "Hình ảnh" : "Tệp đính kèm"}
+                            </div>
+                          </div>
+                          <div className="w-40 h-28 flex items-center justify-center rounded overflow-hidden bg-slate-50">
+                            {isImage ? (
+                              <img
+                                src={f.fileUrl}
+                                alt={f.fileName}
+                                className="max-h-full max-w-full object-contain"
+                              />
+                            ) : (
+                              <div className="text-4xl text-slate-400">📎</div>
+                            )}
+                          </div>
+                        </Card>
+                      );
+                    }
+                  )}
                 </div>
               )}
 
               {isTeacher && (
                 <Card className="p-6 bg-slate-50">
-                  <div className="mb-3 text-base font-medium text-slate-700">Chấm điểm</div>
+                  <div className="mb-3 text-base font-medium text-slate-700">
+                    Chấm điểm
+                  </div>
                   <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-4">
                     <Input
                       type="number"
                       value={gradeValue}
-                      onChange={(e) => setGradeValue(e.target.value === "" ? "" : Number(e.target.value))}
+                      onChange={(e) =>
+                        setGradeValue(
+                          e.target.value === "" ? "" : Number(e.target.value)
+                        )
+                      }
                       placeholder="Điểm"
                       className="w-36 py-3 text-lg"
                       min={0}
@@ -858,12 +987,26 @@ const ClassworkSubmissionsPage: React.FC = () => {
                     />
                   </div>
                   <div className="flex items-center gap-4">
-                    <Button onClick={handleGradeSubmit} className="px-6 py-3 text-base">Lưu điểm</Button>
-                    <Button variant="outline" onClick={() => { setGradeValue(""); setGradeFeedback(""); }} className="px-5 py-3">
+                    <Button
+                      onClick={handleGradeSubmit}
+                      className="px-6 py-3 text-base"
+                    >
+                      Lưu điểm
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setGradeValue("");
+                        setGradeFeedback("");
+                      }}
+                      className="px-5 py-3"
+                    >
                       Hủy
                     </Button>
                   </div>
-                  <div className="text-xs text-slate-400 mt-2">Tối đa: {maxAllowedForThisWork}</div>
+                  <div className="text-xs text-slate-400 mt-2">
+                    Tối đa: {maxAllowedForThisWork}
+                  </div>
                 </Card>
               )}
             </div>

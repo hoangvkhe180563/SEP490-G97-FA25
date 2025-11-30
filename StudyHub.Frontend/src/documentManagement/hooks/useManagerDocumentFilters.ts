@@ -122,28 +122,6 @@ export const useManagerDocumentFilters = () => {
 
   const fetchDocuments = useCallback(async () => {
     try {
-      let isApproved: boolean | undefined | null = undefined;
-      let statusParam: boolean | undefined = true;
-      let isRequested: boolean | undefined | null = undefined;
-
-      if (filters.statusFilter === "approved") {
-        isApproved = true;
-        statusParam = true;
-        isRequested = null;
-      } else if (filters.statusFilter === "rejected") {
-        isApproved = false;
-        statusParam = true;
-        isRequested = null;
-      } else if (filters.statusFilter === "editRequest") {
-        isRequested = true;
-        isApproved = true;
-        statusParam = true;
-      } else if (filters.statusFilter === "pending") {
-        isApproved = null;
-        statusParam = true;
-        isRequested = null;
-      }
-
       const gradeParam =
         filters.selectedGrades.length === 1
           ? filters.selectedGrades[0]
@@ -164,11 +142,11 @@ export const useManagerDocumentFilters = () => {
           gradeParam,
           subjectParam,
           undefined,
-          isApproved, // Bỏ dấu ngoặc và toán tử =
-          statusParam,
-          isRequested, // Bỏ dấu ngoặc và toán tử =
+          undefined,
+          true,
+          undefined,
           currentPage,
-          pageSize
+          1000
         );
       } else {
         if (!managerSchoolId) return;
@@ -179,11 +157,11 @@ export const useManagerDocumentFilters = () => {
           gradeParam,
           subjectParam,
           undefined,
-          isApproved,
-          statusParam,
-          isRequested, // Bỏ dấu ngoặc và toán tử =
+          undefined,
+          true,
+          undefined,
           currentPage,
-          pageSize
+          1000
         );
       }
     } catch (err) {
@@ -191,9 +169,10 @@ export const useManagerDocumentFilters = () => {
     }
   }, [
     currentPage,
-    pageSize,
     searchQuery,
-    filters,
+    filters.selectedGrades,
+    filters.selectedSubjects,
+    filters.selectedCategories,
     isPublicManager,
     managerSchoolId,
     fetchManagerPublicDocuments,
@@ -221,6 +200,16 @@ export const useManagerDocumentFilters = () => {
   });
 
   const filteredDocuments = sortedDocuments.filter((doc) => {
+    if (filters.statusFilter === "approved") {
+      if (doc.isApproved !== true || doc.isRequested === true) return false;
+    } else if (filters.statusFilter === "rejected") {
+      if (doc.isApproved !== false) return false;
+    } else if (filters.statusFilter === "pending") {
+      if (doc.isApproved !== null || doc.isRequested === true) return false;
+    } else if (filters.statusFilter === "editRequest") {
+      if (doc.isRequested !== true) return false;
+    }
+
     if (filters.selectedGrades.length > 0) {
       if (!filters.selectedGrades.includes(Number(doc.grade))) {
         return false;

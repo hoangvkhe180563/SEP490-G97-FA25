@@ -74,7 +74,7 @@ const DocumentSubjectChart: React.FC<DocumentSubjectChartProps> = ({
             <XAxis type="number" />
             <YAxis dataKey="subject" type="category" width={100} />
             <Tooltip />
-            <Bar dataKey="count" fill="#0ea5e9" />
+            <Bar dataKey="count" fill="#0ea5e9" name="Số lượng" />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

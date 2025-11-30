@@ -39,7 +39,7 @@ namespace StudyHub.Backend.UseCases.Services
 
         public ClassNotificationFile CreateNotificationFile(ClassNotificationFile file) => _repo.CreateNotificationFile(file);
         public List<ClassNotificationFile> GetFilesByNotification(int notificationId) => _repo.GetFilesByNotification(notificationId);
-
+        public bool DeleteNotificationFile(int classNotificationId)=> _repo.DeleteNotificationFile(classNotificationId);
         // Submissions lifecycle: submit files for an assignment notification
         public async Task<(int SubmissionId, List<SubmissionFile> Files, bool IsResubmit)?> SubmitNotificationWithFilesAsync(int notificationId, string? appUserId, List<IFormFile>? files)
         {

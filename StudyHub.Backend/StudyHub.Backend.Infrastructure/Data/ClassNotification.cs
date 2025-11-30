@@ -21,7 +21,7 @@ public partial class ClassNotification
 
     public DateTime? DeletedAt { get; set; }
 
-    public Guid AppUserId { get; set; }
+    public Guid CreatedBy { get; set; }
 
     public DateTime? Deadline { get; set; }
 

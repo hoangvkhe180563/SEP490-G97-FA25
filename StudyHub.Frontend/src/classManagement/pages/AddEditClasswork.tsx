@@ -16,17 +16,22 @@ import { Label } from "@/common/components/ui/label";
 import { Switch } from "@/common/components/ui/switch";
 import { formatISO } from "date-fns";
 
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/common/components/ui/alert";
+
 type LinkItem = { title: string; url: string };
 
-// FilePreview supports both newly selected files (file present) and existing remote files (existing=true)
 type FilePreview = {
   id: string;
   file?: File;
-  url?: string; // object URL for images or remote URL
+  url?: string;
   type: "image" | "pdf" | "other";
   existing?: boolean;
-  fileId?: number | string; // id from server when existing
-  fileName?: string; // for existing entries
+  fileId?: number | string;
+  fileName?: string;
 };
 
 const AddEditClassworkForm: React.FC = () => {
@@ -47,7 +52,6 @@ const AddEditClassworkForm: React.FC = () => {
   } = useClassStore();
   const navigate = useNavigate();
 
-  // form fields
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [instructionsHtml, setInstructionsHtml] = useState("");
@@ -56,12 +60,12 @@ const AddEditClassworkForm: React.FC = () => {
   const [gradeType, setGradeType] = useState<string>("points");
   const [allowSubmission, setAllowSubmission] = useState<boolean>(true);
 
-  // attachments
   const [filePreviews, setFilePreviews] = useState<FilePreview[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // to track which existing remote file ids user removed in the UI (server-side deletion optional)
-  const [removedExistingFileIds, setRemovedExistingFileIds] = useState<(number | string)[]>([]);
+  const [removedExistingFileIds, setRemovedExistingFileIds] = useState<
+    (number | string)[]
+  >([]);
 
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [linkTitle, setLinkTitle] = useState("");
@@ -69,14 +73,60 @@ const AddEditClassworkForm: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
 
-  // only teachers allowed to access this page (check auth-derived role)
+  const [alert, setAlert] = useState<{
+    title?: string;
+    message: string;
+    variant?: "destructive" | "default" | "info";
+    link?: { text: string; url: string } | null;
+  } | null>(null);
+  const alertTimeoutRef = useRef<number | null>(null);
+
+  const showAlert = (
+    message: string,
+    title?: string,
+    variant: "destructive" | "default" | "info" = "destructive",
+    durationMs = 6000,
+    link?: { text: string; url: string }
+  ) => {
+    if (alertTimeoutRef.current) {
+      window.clearTimeout(alertTimeoutRef.current);
+      alertTimeoutRef.current = null;
+    }
+    setAlert({ title, message, variant, link: link ?? null });
+    if (durationMs > 0) {
+      alertTimeoutRef.current = window.setTimeout(() => {
+        setAlert(null);
+        alertTimeoutRef.current = null;
+      }, durationMs);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (alertTimeoutRef.current) {
+        window.clearTimeout(alertTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const setFieldError = (field: string, message: string) =>
+    setErrors((s) => ({ ...s, [field]: message }));
+  const clearFieldError = (field: string) =>
+    setErrors((s) => {
+      if (!s[field]) return s;
+      const next = { ...s };
+      delete next[field];
+      return next;
+    });
+
   useEffect(() => {
     if (role !== "teacher") {
       navigate(`/class/${role}/${id}`);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, id, navigate]);
 
-  // helper: detect type from File or filename/url
   const detectFileType = (fileOrName: File | string | undefined): FilePreview["type"] => {
     if (!fileOrName) return "other";
     const t = typeof fileOrName === "string" ? "" : fileOrName.type ?? "";
@@ -87,60 +137,98 @@ const AddEditClassworkForm: React.FC = () => {
       return "other";
     } else {
       if (/image\/(jpeg|png|webp|gif|bmp|svg)/i.test(t)) return "image";
-      if (/pdf/i.test(t) || (fileOrName.name && fileOrName.name.toLowerCase().endsWith(".pdf"))) return "pdf";
+      if (/pdf/i.test(t) || (fileOrName.name && fileOrName.name.toLowerCase().endsWith(".pdf")))
+        return "pdf";
       return "other";
     }
   };
 
-  // when editing, prefill fields from store.currentClass.works if present, including existing files/links
+  const deriveUrlFromFile = (f: any): string | undefined => {
+    if (!f) return undefined;
+    const candidates = [
+      f.fileUrl,
+      f.documentUrl,
+      f.downloadUrl,
+      f.url,
+      f.urlPath,
+      f.file_url,
+      f.path,
+      f.publicUrl,
+      f.signedUrl,
+      f.previewUrl,
+      f.thumbnail,
+      f.thumb,
+      f.imageUrl,
+    ];
+    for (const c of candidates) {
+      if (c === undefined || c === null) continue;
+      const s = String(c).trim();
+      if (s.length > 0) return s;
+    }
+    return undefined;
+  };
+
+  // prefill when editing
   useEffect(() => {
     if (isEdit && params.classworkId && currentClass?.data?.works) {
       const cw = currentClass.data.works.find(
         (w) => String(w.id) === String(params.classworkId)
       );
-      if (cw) {
-        setTitle(cw.title ?? "");
-        setDescription(cw.description ?? "");
-        setInstructionsHtml((cw as any).instructionsHtml ?? cw.description ?? "");
-        if (cw.deadline) {
-          const d = new Date(cw.deadline);
-          const tzOffset = d.getTimezoneOffset() * 60000;
-          const localISO = formatISO(new Date(d.getTime() - tzOffset)).slice(0, -1);
-          setDeadline(localISO.slice(0, 16));
-        } else {
-          setDeadline("");
-        }
-        setMaxScore((cw as any).maxScore ?? (cw as any).max_score ?? "");
-        setGradeType((cw as any).gradeType ?? "points");
-        setAllowSubmission((cw as any).allowSubmission ?? true);
+      if (!cw) return;
 
-        // Prefill links if present on cw
-        const existingLinks: any[] =
-          (cw.links ?? (cw as any).linkDtos ?? (cw as any).linkDto ?? (cw as any).raw?.links ?? (cw as any).raw?.linkDtos) || [];
-        const normLinks = existingLinks.map((l: any) => ({
+      setTitle(cw.title ?? "");
+      setDescription(cw.description ?? "");
+      setInstructionsHtml((cw as any).instructionsHtml ?? cw.description ?? "");
+      if (cw.deadline) {
+        const d = new Date(cw.deadline);
+        const tzOffset = d.getTimezoneOffset() * 60000;
+        const localISO = formatISO(new Date(d.getTime() - tzOffset)).slice(0, -1);
+        setDeadline(localISO.slice(0, 16));
+      } else {
+        setDeadline("");
+      }
+      setMaxScore((cw as any).maxScore ?? (cw as any).max_score ?? "");
+      setGradeType((cw as any).gradeType ?? "points");
+      setAllowSubmission((cw as any).allowSubmission ?? true);
+
+      const existingLinks: any[] =
+        (cw.links ??
+          (cw as any).linkDtos ??
+          (cw as any).linkDto ??
+          (cw as any).raw?.links ??
+          (cw as any).raw?.linkDtos) ||
+        [];
+      const normLinks = existingLinks
+        .map((l: any) => ({
           title: l.title ?? l.name ?? l.fileName ?? l.url ?? "",
           url: l.url ?? l.link ?? l.fileUrl ?? "",
-        })).filter((x: LinkItem) => !!x.url);
-        setLinks(normLinks);
+        }))
+        .filter((x: LinkItem) => !!x.url);
+      setLinks(normLinks);
 
-        // Prefill existing files if available (cw.files or cw.raw.files)
-        const existingFiles = (cw.files ?? (cw as any).raw?.files ?? (cw as any).submissionFiles ?? []) as any[];
-        const existingPreviews: FilePreview[] = (existingFiles || []).map((f: any) => {
-          const url = f.fileUrl ?? f.url ?? f.file_url ?? f.urlPath ?? null;
-          const name = f.fileName ?? f.name ?? f.file_name ?? "file";
-          const type = detectFileType(name);
-          return {
-            id: `existing-${f.id ?? Math.random().toString(36).slice(2,8)}`,
-            url: url ?? undefined,
-            type,
-            existing: true,
-            fileId: f.id,
-            fileName: name,
-          } as FilePreview;
+      const existingFiles = (cw.files ?? (cw as any).raw?.files ?? (cw as any).submissionFiles ?? []) as any[];
+      const safeExistingFiles = Array.isArray(existingFiles) ? existingFiles.filter((f) => f != null) : [];
+
+      const existingPreviews: FilePreview[] = safeExistingFiles.map((f: any, idx: number) => {
+        const url = deriveUrlFromFile(f);
+        const name = f?.fileName ?? f?.name ?? f?.file_name ?? f?.title ?? `file-${f?.id ?? idx}`;
+        const type = detectFileType(url ?? name);
+        return {
+          id: `existing-${f?.id ?? Math.random().toString(36).slice(2, 8)}`,
+          url: url ?? undefined,
+          type,
+          existing: true,
+          fileId: f?.id,
+          fileName: String(name ?? "file"),
+        } as FilePreview;
+      });
+
+      if (existingPreviews.length > 0) {
+        setFilePreviews((prev) => {
+          const existingIds = new Set(prev.filter((p) => p.existing && p.fileId !== undefined).map((p) => String(p.fileId)));
+          const newOnes = existingPreviews.filter((ep) => !existingIds.has(String(ep.fileId)));
+          return [...prev, ...newOnes];
         });
-        if (existingPreviews.length > 0) {
-          setFilePreviews((prev) => [...existingPreviews, ...prev]);
-        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -150,19 +238,22 @@ const AddEditClassworkForm: React.FC = () => {
     if (id) getClassInfo(Number(id));
   }, [id, getClassInfo]);
 
-  // cleanup object URLs on unmount
   useEffect(() => {
     return () => {
       filePreviews.forEach((p) => {
-        if (p.url && !p.existing) URL.revokeObjectURL(p.url);
+        if (p.url && !p.existing) {
+          try {
+            URL.revokeObjectURL(p.url);
+          } catch {
+            //
+          }
+        }
       });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [filePreviews]);
 
   const handleCancel = () => navigate(`/class/${role}/${id}?tab=exercise`);
 
-  // Helper to post FormData to /ClassNotification (create)
   const postCreateNotification = async (fd: FormData) => {
     const endpoints = ["/ClassNotification", "/api/ClassNotification"];
     let lastError: any = null;
@@ -179,32 +270,96 @@ const AddEditClassworkForm: React.FC = () => {
     throw lastError ?? new Error("Failed to call create notification endpoint");
   };
 
+  // Helper: attempt to download existing preview URLs and convert to File objects
+  const convertExistingPreviewsToFiles = async (): Promise<void> => {
+    if (!filePreviews || filePreviews.length === 0) return;
+    // Map and try to fetch only those existing previews that have a url but no file
+    const needsFetch = filePreviews.filter((p) => p.existing && p.url && !p.file);
+    if (needsFetch.length === 0) return;
+
+    // fetch in parallel but limit errors per-item
+    const updated = await Promise.all(
+      filePreviews.map(async (p) => {
+        if (!(p.existing && p.url && !p.file)) return p;
+        try {
+          // try to fetch via axiosInstance to carry auth headers if configured
+          const res = await axiosInstance.get(p.url, { responseType: "blob" });
+          const blob = res.data as Blob;
+          // derive filename (prefers fileName if present)
+          const nameFromUrl = p.url.split("/").pop()?.split("?")[0];
+          const name = p.fileName ?? nameFromUrl ?? `file-${Date.now()}`;
+          const file = new File([blob], name, { type: blob.type || "application/octet-stream" });
+          // mark as not-existing so it will be treated as upload OR keep existing true but we rely on p.file presence
+          return { ...p, file, existing: false };
+        } catch (err) {
+          // If fetch fails, keep it as-is so server can handle via keptExistingFileIds
+          console.warn("Failed to fetch existing file preview for re-upload:", p.url, err);
+          return p;
+        }
+      })
+    );
+
+    setFilePreviews(updated);
+  };
+
   const handleSave = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setLoading(true);
+    setErrors({});
 
     try {
-      // basic validation
+      let hasError = false;
       if (!title || title.trim().length === 0) {
-        alert("Tiêu đề không được để trống");
-        setLoading(false);
-        return;
+        setFieldError("title", "Tiêu đề không được để trống");
+        hasError = true;
       }
       if (!id || Number(id) <= 0) {
-        alert("ClassId không hợp lệ");
+        showAlert("ClassId không hợp lệ", "Lỗi", "destructive");
         setLoading(false);
         return;
       }
+      if (maxScore !== "" && typeof maxScore === "number" && maxScore < 0) {
+        setFieldError("maxScore", "Điểm tối đa phải lớn hơn hoặc bằng 0");
+        hasError = true;
+      }
+      if (deadline && deadline.trim() !== "") {
+        const selected = new Date(deadline);
+        const now = new Date();
+        if (isNaN(selected.getTime()) || selected.getTime() <= now.getTime()) {
+          setFieldError("deadline", "Hạn nộp phải lớn hơn thời điểm hiện tại");
+          hasError = true;
+        }
+      }
 
-      const createdBy = user?.id ?? (localStorage.getItem("currentUserId") ?? "");
+      const createdBy = user?.id ?? localStorage.getItem("currentUserId") ?? "";
       if (!createdBy) {
-        alert("Thiếu thông tin người dùng");
+        showAlert("Thiếu thông tin người dùng", "Lỗi", "destructive");
+        setLoading(false);
+        return;
+      }
+      if (hasError) {
         setLoading(false);
         return;
       }
 
-      // If editing -> use store.editClasswork which expects a payload with files array (Files only new files)
       if (isEdit && params.classworkId) {
+        // Convert existing previews with only URLs into File objects where possible,
+        // so they can be re-used as uploaded files.
+        await convertExistingPreviewsToFiles();
+
+        // Approach A: send new File objects + keptExistingFileIds to server
+        console.debug("Submitting edit — filePreviews:", filePreviews);
+
+        // Now treat any preview that has a File object as a "new upload".
+        const newFiles = filePreviews.filter((p) => p.file).map((p) => p.file!) as File[];
+
+        // keptExistingFileIds are those existing previews that we didn't convert to File (i.e., still existing and have fileId)
+        const keptExistingFileIds = filePreviews
+          .filter((p) => p.existing && p.fileId != null && !p.file)
+          .map((p) => p.fileId);
+
+        console.debug("newFiles:", newFiles.map(f => f.name), "keptExistingFileIds:", keptExistingFileIds, "removedExistingFileIds:", removedExistingFileIds);
+
         const payload: any = {
           id: Number(params.classworkId),
           classId: Number(id),
@@ -215,16 +370,16 @@ const AddEditClassworkForm: React.FC = () => {
           gradeType: gradeType ?? null,
           allowSubmission: !!allowSubmission,
           instructionsHtml: instructionsHtml ?? null,
-          // Include only newly selected files (existing remote files are already on server)
-          files: filePreviews.filter((p) => !p.existing && p.file).map((p) => p.file) as File[] | undefined,
+          files: newFiles.length > 0 ? newFiles : undefined,
+          keptExistingFileIds: keptExistingFileIds.length > 0 ? keptExistingFileIds : undefined,
           links: links.length > 0 ? links : undefined,
-          // include removedExistingFileIds so server may remove them if supported
           removedFileIds: removedExistingFileIds.length > 0 ? removedExistingFileIds : undefined,
         };
 
+        console.debug("Edit payload prepared:", payload);
         const edited = await editClasswork(payload);
         if (!edited) {
-          alert("Không thể cập nhật bài tập");
+          showAlert("Không thể cập nhật bài tập", "Lỗi", "destructive");
           setLoading(false);
           return;
         }
@@ -236,7 +391,7 @@ const AddEditClassworkForm: React.FC = () => {
         return;
       }
 
-      // Create new classwork -> actually create a ClassNotification with Type = "classwork"
+      // CREATE new classwork
       const fd = new FormData();
       fd.append("ClassId", String(Number(id)));
       fd.append("Type", "classwork");
@@ -249,23 +404,20 @@ const AddEditClassworkForm: React.FC = () => {
       fd.append("AllowSubmission", String(allowSubmission));
       if (instructionsHtml) fd.append("InstructionsHtml", instructionsHtml);
 
-      // append files from filePreviews but only newly selected files (existing ones are remote)
       if (filePreviews.length > 0) {
-        filePreviews.forEach((p) => {
+        for (const p of filePreviews) {
+          // For create we're already only using p.file (newly chosen). Keep same behavior.
           if (!p.existing && p.file) fd.append("Files", p.file, p.file.name);
-        });
+        }
       }
 
-      // append links as LinksJson
-      if (links.length > 0) {
-        fd.append("LinksJson", JSON.stringify(links));
-      }
+      if (links.length > 0) fd.append("LinksJson", JSON.stringify(links));
 
       const res = await postCreateNotification(fd);
       const raw = res?.data ?? null;
       if (!raw || raw.success === false) {
         const msg = raw?.message ?? "Tạo thông báo thất bại";
-        alert(msg);
+        showAlert(msg, "Lỗi", "destructive");
         setLoading(false);
         return;
       }
@@ -276,116 +428,150 @@ const AddEditClassworkForm: React.FC = () => {
     } catch (err: any) {
       console.error("Save error", err);
       const msg = err?.response?.data?.message ?? err?.message ?? "Lỗi khi lưu bài tập";
-      alert(msg);
+      showAlert(msg, "Lỗi", "destructive");
     } finally {
       setLoading(false);
     }
   };
 
-  // --- File selection like notification: click or drag-and-drop, thumbnails, remove ---
+  // file selection and preview
   const handleFiles = (files: File[]) => {
-    const next: FilePreview[] = files.map((f) => {
-      const tp = detectFileType(f);
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      const url = tp === "image" ? URL.createObjectURL(f) : undefined;
-      return { id, file: f, url, type: tp };
+    if (!files || files.length === 0) return;
+    setFilePreviews((prev) => {
+      // If there are any existing previews from DB, mark them as removed so server can delete them
+      const existingIdsToRemove = prev.filter((p) => p.existing && p.fileId != null).map((p) => p.fileId as number | string);
+      if (existingIdsToRemove.length > 0) {
+        setRemovedExistingFileIds((s) => [...s, ...existingIdsToRemove]);
+      }
+      // Revoke object URLs of previous non-existing previews to avoid leaks
+      prev.forEach((p) => {
+        if (!p.existing && p.url) {
+          try { URL.revokeObjectURL(p.url); } catch { /* empty */ }
+        }
+      });
+
+      // Replace all previews with the newly selected files (dedupe by name+size)
+      const newSignatures = new Set<string>();
+      const next = files.reduce<FilePreview[]>((acc, f) => {
+        const sig = `${f.name}:${f.size}`;
+        if (newSignatures.has(sig)) return acc;
+        newSignatures.add(sig);
+        const tp = detectFileType(f);
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        const url = URL.createObjectURL(f);
+        acc.push({ id, file: f, url, type: tp });
+        return acc;
+      }, []);
+      return next;
     });
-    setFilePreviews((prev) => [...prev, ...next]);
   };
 
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files ? Array.from(e.target.files) : [];
-    if (selected.length > 0) {
-      handleFiles(selected);
-    }
-    // Reset input so same file can be re-selected later
+    if (selected.length > 0) handleFiles(selected);
     e.currentTarget.value = "";
   };
 
-  const openFileDialog = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
-
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const dtFiles = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
-    if (dtFiles.length > 0) handleFiles(dtFiles);
-  };
-
-  const onDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
+  const openFileDialog = () => { if (fileInputRef.current) fileInputRef.current.click(); };
+  const onDrop = (e: React.DragEvent) => { e.preventDefault(); const dtFiles = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : []; if (dtFiles.length > 0) handleFiles(dtFiles); };
+  const onDragOver = (e: React.DragEvent) => { e.preventDefault(); };
 
   const removeFile = (id: string) => {
     setFilePreviews((prev) => {
       const toRemove = prev.find((p) => p.id === id);
       if (!toRemove) return prev;
       if (toRemove.existing) {
-        // mark existing server-side file id for removal (server must support this)
-        if (toRemove.fileId !== undefined) {
-          setRemovedExistingFileIds((s) => [...s, toRemove.fileId as number | string]);
-        }
+        if (toRemove.fileId !== undefined) setRemovedExistingFileIds((s) => [...s, toRemove.fileId as number | string]);
         return prev.filter((p) => p.id !== id);
       } else {
-        // revoke object URL for newly added file
-        if (toRemove.url) URL.revokeObjectURL(toRemove.url);
+        // eslint-disable-next-line no-empty
+        if (toRemove.url) try { URL.revokeObjectURL(toRemove.url); } catch {}
         return prev.filter((p) => p.id !== id);
       }
     });
   };
 
-  // Links handlers
   const validateUrl = (url: string) => {
-    try {
-      const u = new URL(url);
-      return u.protocol === "http:" || u.protocol === "https:";
-    } catch {
-      return false;
-    }
+    try { const u = new URL(url); return u.protocol === "http:" || u.protocol === "https:"; } catch { return false; }
   };
 
   const addLink = () => {
-    if (!linkUrl || !validateUrl(linkUrl)) {
-      alert("URL không hợp lệ (cần bắt đầu bằng http:// hoặc https://)");
-      return;
-    }
+    clearFieldError("linkUrl");
+    if (!linkUrl || !validateUrl(linkUrl)) { setFieldError("linkUrl", "URL không hợp lệ (cần bắt đầu bằng http:// hoặc https://)"); return; }
     setLinks((prev) => [...prev, { title: linkTitle || linkUrl, url: linkUrl }]);
-    setLinkTitle("");
-    setLinkUrl("");
+    setLinkTitle(""); setLinkUrl("");
   };
 
-  const removeLink = (index: number) => {
-    setLinks((prev) => prev.filter((_, i) => i !== index));
-  };
+  const removeLink = (index: number) => setLinks((prev) => prev.filter((_, i) => i !== index));
 
   const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
+  const inputClass = (base = "", field?: string) => { const err = field ? errors[field] : undefined; return `${base} ${err ? "border-red-500 ring-1 ring-red-200" : ""}`.trim(); };
 
   return (
-    <div className="p-8">
+    <div className="p-8 w-full h-full overflow-y-auto">
       {/* Top bar */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="p-2">
+      <div className="flex items-start justify-between mb-8">
+        <div className="flex items-center gap-4 w-full">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(`/class/${role}/${id}?tab=exercise`)}
+            className="p-2"
+          >
             ←
           </Button>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white">
-              📝
+          <div className="flex items-start gap-3 w-full">
+            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white shrink-0">
+              <img
+                src="https://png.pngtree.com/png-clipart/20190916/original/pngtree-book-icon-material-png-image_4587953.jpg"
+                alt="class"
+                className="w-10 h-10 rounded-full object-cover"
+                onError={(e) => {
+                  const el = e.currentTarget;
+                  el.onerror = null;
+                  el.src = "";
+                }}
+              />
             </div>
-            <div>
-              <div className="text-lg font-semibold">Bài tập</div>
-              <div className="text-sm text-slate-500">
-                {isEdit ? "Chỉnh sửa bài tập" : "Tạo bài tập mới"}
+
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-lg font-semibold">Bài tập</div>
+                  <div className="text-sm text-slate-500">
+                    {isEdit ? "Chỉnh sửa bài tập" : "Tạo bài tập mới"}
+                  </div>
+                </div>
+                <div>
+                  <Button onClick={() => handleSave()} disabled={loading}>
+                    {loading ? "Đang lưu..." : "Lưu"}
+                  </Button>
+                </div>
               </div>
+
+              {alert && (
+                <div className="mt-3">
+                  <Alert>
+                    {alert.title && <AlertTitle>{alert.title}</AlertTitle>}
+                    <AlertDescription>
+                      <div className="flex items-center gap-2">
+                        <span>{alert.message}</span>
+                        {alert.link && (
+                          <a
+                            href={alert.link.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 underline ml-2"
+                          >
+                            {alert.link.text}
+                          </a>
+                        )}
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-        <div>
-          <Button onClick={() => handleSave()} disabled={loading}>
-            {loading ? "Đang lưu..." : "Lưu"}
-          </Button>
         </div>
       </div>
 
@@ -400,10 +586,20 @@ const AddEditClassworkForm: React.FC = () => {
               </Label>
               <Input
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  if (errors.title) clearFieldError("title");
+                }}
                 placeholder="Tiêu đề"
-                className="mt-2"
+                className={inputClass("mt-2", "title")}
+                aria-invalid={!!errors.title}
+                aria-describedby={errors.title ? "err-title" : undefined}
               />
+              {errors.title && (
+                <div id="err-title" className="text-red-600 text-sm mt-1">
+                  {errors.title}
+                </div>
+              )}
             </div>
 
             <div className="mb-4">
@@ -419,7 +615,7 @@ const AddEditClassworkForm: React.FC = () => {
             <div className="rounded-lg border p-5">
               <div className="text-md font-semibold mb-4">Đính kèm</div>
 
-              {/* File upload area (like notification) */}
+              {/* File upload area */}
               <div
                 onDrop={onDrop}
                 onDragOver={onDragOver}
@@ -447,10 +643,17 @@ const AddEditClassworkForm: React.FC = () => {
                 {filePreviews.length > 0 && (
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     {filePreviews.map((p) => (
-                      <div key={p.id} className="bg-white border rounded p-2 flex items-start gap-2">
+                      <div
+                        key={p.id}
+                        className="bg-white border rounded p-2 flex items-start gap-2"
+                      >
                         <div className="w-16 h-16 flex items-center justify-center bg-slate-100 rounded overflow-hidden shrink-0">
                           {p.type === "image" && p.url ? (
-                            <img src={p.url} alt={p.fileName ?? p.file?.name} className="w-full h-full object-cover" />
+                            <img
+                              src={p.url}
+                              alt={p.fileName ?? p.file?.name ?? "file"}
+                              className="w-full h-full object-cover"
+                            />
                           ) : p.type === "pdf" ? (
                             <div className="text-slate-600 text-lg">📄 PDF</div>
                           ) : (
@@ -458,13 +661,15 @@ const AddEditClassworkForm: React.FC = () => {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">{p.existing ? (p.fileName ?? "file") : p.file?.name}</div>
+                          <div className="font-medium text-sm truncate">
+                            {p.existing ? p.fileName ?? "file" : p.file?.name ?? "file"}
+                          </div>
                           <div className="text-xs text-slate-400 mt-1">
-                            {p.existing ? "" : p.file ? `${(p.file.size / 1024).toFixed(0)} KB` : ""}
+                            {!p.existing && p.file ? `${(p.file.size / 1024).toFixed(0)} KB` : ""}
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                          {p.url ? (
+                          {p.url && (
                             <a
                               href={p.url}
                               target="_blank"
@@ -473,12 +678,14 @@ const AddEditClassworkForm: React.FC = () => {
                             >
                               Xem
                             </a>
-                          ) : (
-                            <div className="text-xs text-slate-400">—</div>
                           )}
-                          <Button size="sm" variant="ghost" onClick={() => removeFile(p.id)}>
+                          <button
+                            type="button"
+                            onClick={() => removeFile(p.id)}
+                            className="text-sm text-red-600 hover:underline"
+                          >
                             Xóa
-                          </Button>
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -489,7 +696,7 @@ const AddEditClassworkForm: React.FC = () => {
               {/* Links */}
               <div className="mt-4">
                 <Label>Thêm liên kết</Label>
-                <div className="grid grid-cols-12 gap-2 items-end mt-2">
+                <div className="grid grid-cols-12 gap-2 items-start mt-2">
                   <div className="col-span-5">
                     <Input
                       placeholder="Tiêu đề (tùy chọn)"
@@ -501,8 +708,19 @@ const AddEditClassworkForm: React.FC = () => {
                     <Input
                       placeholder="https://example.com"
                       value={linkUrl}
-                      onChange={(e) => setLinkUrl(e.target.value)}
+                      onChange={(e) => {
+                        setLinkUrl(e.target.value);
+                        if (errors.linkUrl) clearFieldError("linkUrl");
+                      }}
+                      className={inputClass("", "linkUrl")}
+                      aria-invalid={!!errors.linkUrl}
+                      aria-describedby={errors.linkUrl ? "err-linkUrl" : undefined}
                     />
+                    {errors.linkUrl && (
+                      <div id="err-linkUrl" className="text-red-600 text-sm mt-1">
+                        {errors.linkUrl}
+                      </div>
+                    )}
                   </div>
                   <div className="col-span-1">
                     <Button size="sm" onClick={addLink}>
@@ -534,18 +752,25 @@ const AddEditClassworkForm: React.FC = () => {
         </div>
 
         <aside className="col-span-12 lg:col-span-4">
-          {/* Sidebar: assignment-specific fields */}
           <Card className="p-5 space-y-4">
             <div>
-              <Label>
-                Hạn nộp
-              </Label>
+              <Label>Hạn nộp</Label>
               <Input
                 type="datetime-local"
                 value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className="mt-2"
+                onChange={(e) => {
+                  setDeadline(e.target.value);
+                  if (errors.deadline) clearFieldError("deadline");
+                }}
+                className={inputClass("mt-2", "deadline")}
+                aria-invalid={!!errors.deadline}
+                aria-describedby={errors.deadline ? "err-deadline" : undefined}
               />
+              {errors.deadline && (
+                <div id="err-deadline" className="text-red-600 text-sm mt-1">
+                  {errors.deadline}
+                </div>
+              )}
             </div>
 
             <div>
@@ -556,11 +781,19 @@ const AddEditClassworkForm: React.FC = () => {
                 onChange={(e) => {
                   const v = e.target.value;
                   setMaxScore(v === "" ? "" : Number(v));
+                  if (errors.maxScore) clearFieldError("maxScore");
                 }}
                 placeholder="Ví dụ: 100"
                 min={0}
-                className="mt-2"
+                className={inputClass("mt-2", "maxScore")}
+                aria-invalid={!!errors.maxScore}
+                aria-describedby={errors.maxScore ? "err-maxScore" : undefined}
               />
+              {errors.maxScore && (
+                <div id="err-maxScore" className="text-red-600 text-sm mt-1">
+                  {errors.maxScore}
+                </div>
+              )}
             </div>
 
             <div>
@@ -571,28 +804,17 @@ const AddEditClassworkForm: React.FC = () => {
                 className="w-full border rounded px-3 py-2 mt-2"
               >
                 <option value="points">Points</option>
-                <option value="percentage">Percentage</option>
-                <option value="pass_fail">Pass / Fail</option>
-                <option value="letter">Letter</option>
               </select>
             </div>
 
             <div className="flex items-center justify-between">
               <Label>Cho phép nộp bài</Label>
-              <Switch
-                checked={allowSubmission}
-                onCheckedChange={(v) => setAllowSubmission(!!v)}
-              />
+              <Switch checked={allowSubmission} onCheckedChange={(v) => setAllowSubmission(!!v)} />
             </div>
 
             <div>
               <Label>Hướng dẫn chi tiết (HTML)</Label>
-              <Textarea
-                value={instructionsHtml}
-                onChange={(e) => setInstructionsHtml(e.target.value)}
-                placeholder="Hướng dẫn chi tiết (HTML hoặc plain text)"
-                className="mt-2 min-h-[120px]"
-              />
+              <Textarea value={instructionsHtml} onChange={(e) => setInstructionsHtml(e.target.value)} placeholder="Hướng dẫn chi tiết (HTML hoặc plain text)" className="mt-2 min-h-[120px]" />
             </div>
           </Card>
         </aside>

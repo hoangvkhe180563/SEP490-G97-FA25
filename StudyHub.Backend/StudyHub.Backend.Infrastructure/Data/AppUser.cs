@@ -97,8 +97,6 @@ public partial class AppUser
 
     public virtual ICollection<QAMessage> QAMessages { get; set; } = new List<QAMessage>();
 
-    public virtual ICollection<QAConversationFile> QAConversationFiles { get; set; } = new List<QAConversationFile>();
-
     public virtual ICollection<RulePattern> RulePatterns { get; set; } = new List<RulePattern>();
 
     public virtual ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();

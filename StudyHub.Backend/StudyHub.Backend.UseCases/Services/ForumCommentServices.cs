@@ -56,44 +56,65 @@ namespace StudyHub.Backend.UseCases.Services
 
         public async Task<ForumComment> CreateCommentAsync(ForumComment comment, List<IFormFile>? attachments = null)
         {
-            var violations = await _moderationRepo.CheckContentViolationAsync(comment.Content, comment.SchoolId);
+            var textViolationsTask = _moderationRepo.CheckContentViolationAsync(comment.Content, comment.SchoolId);
 
-            bool hasTextViolations = violations.Any();
             bool hasImageViolation = false;
-
             List<ForumAttachment> processedAttachments = new List<ForumAttachment>();
 
             if (attachments != null && attachments.Any())
             {
                 var imageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp" };
 
+                var imageFiles = attachments
+                    .Where(f => imageExtensions.Contains(Path.GetExtension(f.FileName).ToLowerInvariant()))
+                    .ToList();
+
                 foreach (var file in attachments)
                 {
                     ValidateAttachmentFile(file);
+                }
 
+                Task<List<ImageModerationResult>>? moderationTask = null;
+                if (imageFiles.Any())
+                {
+                    var imageStreams = imageFiles.Select(f => f.OpenReadStream()).ToList();
+                    moderationTask = _imageModerationService.ModerateBatchFromStreamsAsync(imageStreams);
+                }
+
+                var uploadTask = _fileStorage.UploadFilesAsync(attachments.ToList(), FileConstants.ForumPostAttachmentUploadPath);
+
+                var uploadResults = await uploadTask;
+
+                List<ImageModerationResult>? moderationResults = null;
+                if (moderationTask != null)
+                {
+                    try
+                    {
+                        moderationResults = await moderationTask;
+                        hasImageViolation = moderationResults.Any(r => r.IsViolation);
+                    }
+                    catch (Exception)
+                    {
+                        throw new InvalidOperationException("Không thể kiểm duyệt ảnh. Vui lòng thử lại sau.");
+                    }
+                }
+
+                for (int i = 0; i < attachments.Count; i++)
+                {
+                    var file = attachments[i];
+                    var fileUrl = uploadResults[i];
                     var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
                     bool isImage = imageExtensions.Contains(extension);
-
                     bool currentFileViolation = false;
-                    if (isImage)
+
+                    if (isImage && moderationResults != null)
                     {
-                        try
+                        var imageIndex = imageFiles.IndexOf(file);
+                        if (imageIndex >= 0 && moderationResults[imageIndex].IsViolation)
                         {
-                            var moderationResult = await _imageModerationService.ModerateImageFromStreamAsync(file.OpenReadStream());
-                            if (moderationResult.IsViolation)
-                            {
-                                hasImageViolation = true;
-                                currentFileViolation = true;
-                            }
-                        }
-                        catch (Exception)
-                        {
-                            throw new InvalidOperationException(
-                                "Không thể kiểm duyệt ảnh. Vui lòng thử lại sau.");
+                            currentFileViolation = true;
                         }
                     }
-
-                    var fileUrl = await _fileStorage.UploadFileAsync(file, FileConstants.ForumPostAttachmentUploadPath);
 
                     if (string.IsNullOrWhiteSpace(fileUrl))
                     {
@@ -109,6 +130,9 @@ namespace StudyHub.Backend.UseCases.Services
                     });
                 }
             }
+
+            var violations = await textViolationsTask;
+            bool hasTextViolations = violations.Any();
 
             if (hasTextViolations)
             {

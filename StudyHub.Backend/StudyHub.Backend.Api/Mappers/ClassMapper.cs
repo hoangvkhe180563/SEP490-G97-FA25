@@ -4,18 +4,21 @@ using StudyHub.Backend.Api.Dtos.ClassDTOS;
 using StudyHub.Backend.Api.Dtos.ClassworkDTOS;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Dtos;
+using StudyHub.Backend.UseCases.Services;
 using System.Linq;
 
 namespace StudyHub.Backend.Api.Mappers
 {
     public static class ClassMapper
-    {
+    {   
+       
         public static ClassListDto ToListClassDto(this Class c, AppUser? t) => new ClassListDto
         {
             Id = c.Id,
             Name = c.Name,
             InstructorName = t?.Fullname ?? "Không rõ",
             Description = c.Description,
+            Grade = c.Grade,
         };
 
         public static Class ToEntity(this CreateClassDto dto)
@@ -24,6 +27,7 @@ namespace StudyHub.Backend.Api.Mappers
             {
                 Name = dto.Name,
                 Description = dto.Description,
+                Grade = dto.Grade,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = dto.CreatedBy
             };
@@ -34,6 +38,7 @@ namespace StudyHub.Backend.Api.Mappers
             {
                 Name = dto.Name,
                 Description = dto.Description,
+                Grade = dto.Grade,
                 UpdatedAt = DateTime.UtcNow
             };
         }
@@ -42,6 +47,7 @@ namespace StudyHub.Backend.Api.Mappers
             Id = c.Id,
             Name = c.Name,
             Description = c.Description,
+            Grade = c.Grade,
             CreatedAt = c.CreatedAt,
             CreatedBy = c.CreatedBy,
             UpdatedAt = c.UpdatedAt,
@@ -92,7 +98,8 @@ namespace StudyHub.Backend.Api.Mappers
                 ClassId = noti.ClassId,
                 Title = noti.Title,
                 Description = noti.Description,
-                CreatedBy = noti.AppUserId,
+                CreatedBy = noti.CreatedBy,
+                AppUserId = noti.CreatedBy,
                 CreatedAt = noti.CreatedAt,
                 Type = noti.Type,
                 Deadline = noti.Deadline,
@@ -114,11 +121,12 @@ namespace StudyHub.Backend.Api.Mappers
                 ClassId = entity.ClassId,
                 Title = entity.Title,
                 Description = entity.Description,
-                CreatedBy = entity.AppUserId,
+                CreatedBy = entity.CreatedBy,
                 CreatedAt = entity.CreatedAt,
                 Files = files ?? new List<FileDto>(),
                 Comments = comments ?? new List<CommentDto>(),
                 Arthur = user?.Fullname,
+                AppUserId=user.Id,
                 Avatar = user?.Avatar,
                 Type = entity.Type,
                 Deadline = entity.Deadline,
@@ -143,7 +151,7 @@ namespace StudyHub.Backend.Api.Mappers
             {
                 Id = comment.Id,
                 NotificationId = comment.NotificationId,
-                UserId = comment.AppUserId,
+                UserId = comment.CreatedBy,
                 Content = comment.Content,
                 CreatedAt = comment.CreatedAt,
                 UserFullname = user?.Fullname ?? "Unknown",

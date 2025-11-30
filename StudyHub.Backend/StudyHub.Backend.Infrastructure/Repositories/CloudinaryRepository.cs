@@ -78,7 +78,24 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 return false;
             }
         }
+        public async Task<List<string>> UploadFilesAsync(List<IFormFile> files, string folderName)
+        {
+            var semaphore = new SemaphoreSlim(10);
+            var tasks = files.Select(async file =>
+            {
+                await semaphore.WaitAsync();
+                try
+                {
+                    return await UploadFileAsync(file, folderName);
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
 
+            return (await Task.WhenAll(tasks)).ToList();
+        }
         public async Task<string> UploadFileAsync(IFormFile file, string folderName)
         {
             if (file == null || file.Length == 0) return string.Empty;
