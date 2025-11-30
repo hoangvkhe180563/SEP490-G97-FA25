@@ -35,6 +35,11 @@ namespace StudyHub.Backend.UseCases.Services
             return landingPages;
         }
 
+        public string GetSchoolAddress(int schoolId)
+        {
+            return _repo.GetSchoolAddress(schoolId);
+        }
+
         public LandingPage? GetSchoolLandingPage(int schoolId)
         {
             var landingPage = _repo.GetLandingPage(schoolId);

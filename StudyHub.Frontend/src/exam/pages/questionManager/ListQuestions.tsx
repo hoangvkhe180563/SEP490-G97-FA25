@@ -17,7 +17,7 @@ import {
 } from "@/common/components/ui/dialog";
 import { Button } from "@/common/components/ui/button";
 import { Badge } from "@/common/components/ui/badge";
-import { Eye, Pencil, Trash2, ChevronLeft, ChevronRight, Search, Filter, Repeat, Plus } from "lucide-react";
+import { Eye, Pencil, Trash2, Search, Filter, Repeat, Plus } from "lucide-react";
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/common/components/ui/alert-dialog";
 import { Input } from "@/common/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select";
@@ -32,6 +32,7 @@ import toast from "react-hot-toast";
 import { BLANK_PLACEHOLDER, EXAM_TYPE } from "@/exam/constants/Constants";
 import { useLoading } from "@/common/hooks/useLoading";
 import { getQuestionType } from "@/exam/utils/QuestionUtils";
+import { Paging } from "@/common/components/Paging";
 
 const TypeBadge = ({ type }: { type: number }) => {
   const styles: Record<number, string> = {
@@ -428,7 +429,7 @@ export default function ListQuestions() {
                 {questions.map((question) => (
                   <TableRow key={question.questionObjectId}>
                     <TableCell className="font-medium">
-                      <div className="truncate max-w-[350px]" title={question.questionText}>
+                      <div className="truncate max-w-[550px]" title={question.questionText}>
                         {question.questionText}
                       </div>
                     </TableCell>
@@ -476,52 +477,14 @@ export default function ListQuestions() {
               </TableBody>
             </Table>
 
-            <div className="flex items-center justify-end space-x-2 mt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === 1}
-                onClick={() => {
-                  const newPage = page - 1;
-                  setPage(newPage);
-                  handleFilter(newPage);
-                }}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" /> Trước
-              </Button>
-
-              {
-                Array.from({ length: totalPages }, (_, index) => (
-                  <Button
-                    key={`page-${index}`}
-                    variant="outline"
-                    size="sm"
-                    className={(index + 1) === page ? 'bg-gray-400 select-none' : ''}
-                    onClick={() => {
-                      const newPage = index + 1;
-                      if (newPage !== page) {
-                        setPage(newPage);
-                        handleFilter(newPage);
-                      }
-                    }}
-                  >
-                    {index + 1}
-                  </Button>
-                ))
-              }
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === totalPages}
-                onClick={() => {
-                  const newPage = page + 1;
-                  setPage(newPage);
-                  handleFilter(newPage);
-                }}
-              >
-                Tiếp <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
+            <Paging
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={(newPage) => {
+                setPage(newPage);
+                handleFilter(newPage);
+              }}
+            />
           </div>
         )}
 
