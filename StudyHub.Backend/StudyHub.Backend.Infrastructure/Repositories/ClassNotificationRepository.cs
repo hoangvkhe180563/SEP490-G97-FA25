@@ -33,7 +33,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     CreatedAt = n.CreatedAt,
                     UpdatedAt = n.UpdatedAt,
                     DeletedAt = n.DeletedAt,
-                    AppUserId = n.AppUserId,
+                    CreatedBy = n.CreatedBy,
                     Deadline = n.Deadline,
                     MaxScore = n.MaxScore,
                     AllowSubmission = n.AllowSubmission,
@@ -51,7 +51,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Title = notification.Title,
                 Description = notification.Description,
                 CreatedAt = DateTime.Now,
-                AppUserId = notification.AppUserId,
+                CreatedBy = notification.CreatedBy,
                 Deadline = notification.Deadline,
                 MaxScore = notification.MaxScore,
                 AllowSubmission = notification.AllowSubmission,
@@ -95,7 +95,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 CreatedAt = n.CreatedAt,
                 UpdatedAt = n.UpdatedAt,
                 DeletedAt = n.DeletedAt,
-                AppUserId = n.AppUserId,
+                CreatedBy = n.CreatedBy,
                 Deadline = n.Deadline,
                 MaxScore = n.MaxScore,
                 AllowSubmission = n.AllowSubmission,
@@ -123,7 +123,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             var ent = new Data.ClassNotificationComment
             {
                 NotificationId = comment.NotificationId,
-                AppUserId = comment.AppUserId,
+                CreatedBy = comment.CreatedBy,
                 Content = comment.Content,
                 CreatedAt = DateTime.UtcNow
             };
@@ -142,7 +142,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     Id = c.Id,
                     NotificationId = c.NotificationId,
-                    AppUserId = c.AppUserId,
+                    CreatedBy = c.CreatedBy,
                     Content = c.Content,
                     CreatedAt = c.CreatedAt,
                     UpdatedAt = c.UpdatedAt,

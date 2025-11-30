@@ -95,11 +95,11 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<QAConversation> QAConversations { get; set; }
 
+    public virtual DbSet<QAConversationFile> QAConversationFiles { get; set; }
+
     public virtual DbSet<QAConversationRead> QAConversationReads { get; set; }
 
     public virtual DbSet<QAMessage> QAMessages { get; set; }
-
-    public virtual DbSet<QAConversationFile> QAConversationFiles { get; set; }
 
     public virtual DbSet<QATopic> QATopics { get; set; }
 
@@ -544,6 +544,7 @@ public partial class AppDbContext : DbContext
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.DocumentCategoryId).HasColumnType("tinyint(4)");
             entity.Property(e => e.DocumentLengthType).HasColumnType("enum('Short','Medium','Long')");
             entity.Property(e => e.DocumentLevel).HasColumnType("enum('Hard','Easy','Medium')");
             entity.Property(e => e.Grade).HasColumnType("tinyint(4)");
@@ -640,16 +641,21 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.SubjectId, "SubjectId");
 
+            entity.Property(e => e.Id).HasColumnType("int(11)");
+            entity.Property(e => e.ClassId).HasColumnType("int(11)");
             entity.Property(e => e.CloseTime).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.Duration).HasColumnType("int(10) unsigned");
+            entity.Property(e => e.Grade).HasColumnType("tinyint(4)");
             entity.Property(e => e.LessonId).HasColumnType("int(11)");
+            entity.Property(e => e.NoRandomQuestions).HasColumnType("tinyint(4)");
             entity.Property(e => e.OpenTime)
                 .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.ShowAnswers)
                 .IsRequired()
                 .HasDefaultValueSql("'1'");
+            entity.Property(e => e.SubjectId).HasColumnType("smallint(6)");
             entity.Property(e => e.Title).HasMaxLength(500);
 
             entity.HasOne(d => d.Class).WithMany(p => p.Exams)
@@ -762,6 +768,9 @@ public partial class AppDbContext : DbContext
                 .HasDefaultValueSql("current_timestamp()")
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
+            entity.Property(e => e.IsModerationPending)
+                .IsRequired()
+                .HasDefaultValueSql("'1'");
             entity.Property(e => e.PostId).HasColumnType("int(11)");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
@@ -1275,6 +1284,27 @@ public partial class AppDbContext : DbContext
                 .HasConstraintName("q&_a_conversation_ibfk_3");
         });
 
+        modelBuilder.Entity<QAConversationFile>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("q&_a_conversation_file");
+
+            entity.HasIndex(e => e.ConversationId, "ConversationId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("current_timestamp()")
+                .HasColumnType("datetime");
+            entity.Property(e => e.FileName).HasMaxLength(200);
+            entity.Property(e => e.FileType).HasMaxLength(100);
+            entity.Property(e => e.FileUrl).HasMaxLength(1000);
+
+            entity.HasOne(d => d.Conversation).WithMany(p => p.QAConversationFiles)
+                .HasForeignKey(d => d.ConversationId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("q&_a_conversation_file_ibfk_1");
+        });
+
         modelBuilder.Entity<QAConversationRead>(entity =>
         {
             entity.HasKey(e => new { e.ConversationId, e.UserId })
@@ -1314,32 +1344,6 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Sender).WithMany(p => p.QAMessages)
                 .HasForeignKey(d => d.SenderId)
                 .HasConstraintName("q&_a_message_ibfk_2");
-        });
-
-        modelBuilder.Entity<QAConversationFile>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("q&_a_conversation_file");
-
-            entity.HasIndex(e => e.ConversationId, "ConversationId");
-
-            entity.HasIndex(e => e.CreatedBy, "CreatedBy");
-
-            entity.Property(e => e.FileName).HasMaxLength(200);
-            entity.Property(e => e.FileType).HasMaxLength(100);
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnType("datetime");
-
-            entity.HasOne(d => d.Conversation).WithMany(p => p.QAConversationFiles)
-                .HasForeignKey(d => d.ConversationId)
-                .HasConstraintName("q&_a_conversation_file_ibfk_1");
-
-            entity.HasOne(d => d.Creator).WithMany(p => p.QAConversationFiles)
-                .HasForeignKey(d => d.CreatedBy)
-                .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("q&_a_conversation_file_ibfk_2");
         });
 
         modelBuilder.Entity<QATopic>(entity =>

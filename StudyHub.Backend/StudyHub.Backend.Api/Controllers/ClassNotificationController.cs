@@ -70,7 +70,7 @@ namespace StudyHub.Backend.Api.Controllers
                     Title = dto.Title.Trim(),
                     Description = dto.Description?.Trim() ?? "",
                     CreatedAt = DateTime.Now,
-                    AppUserId = dto.CreatedBy,
+                    CreatedBy = dto.CreatedBy,
                     Deadline = dto.Deadline,
                     MaxScore = dto.MaxScore,
                     GradeType = dto.GradeType,
@@ -137,7 +137,7 @@ namespace StudyHub.Backend.Api.Controllers
                 }
 
                 var files = _service.GetFilesByNotification(createdNoti.Id);
-                var response = createdNoti.ToNotificationDto(_aUserService.GetUserById(createdNoti.AppUserId), files.Select(f => f.ToFileDto()).ToList(), null);
+                var response = createdNoti.ToNotificationDto(_aUserService.GetUserById(createdNoti.CreatedBy), files.Select(f => f.ToFileDto()).ToList(), null);
                 try
                 {
                     await _hubContext.Clients.Group($"class_{createdNoti.ClassId}")
@@ -175,7 +175,7 @@ namespace StudyHub.Backend.Api.Controllers
             var comments = _service.GetCommentsByNotificationId(notificationId)
                 .Select(c =>
                 {
-                    var user = _aUserService.GetUserById(c.AppUserId);
+                    var user = _aUserService.GetUserById(c.CreatedBy);
                     return c.ToCommentDto(user);
                 })
                 .ToList();
@@ -193,19 +193,19 @@ namespace StudyHub.Backend.Api.Controllers
                 NotificationId = notificationId,
                 Content = dto.Content.Trim(),
                 CreatedAt = DateTime.UtcNow,
-                AppUserId = dto.CreatedBy
+                CreatedBy = dto.CreatedBy
             };
 
             var created = _service.CreateComment(commentEntity);
             if (created == null) return StatusCode(500, new { success = false, message = "Unable to create comment." });
 
-            var user = _aUserService.GetUserById(created.AppUserId);
+            var user = _aUserService.GetUserById(created.CreatedBy);
             var response = new
             {
                 id = created.Id,
                 notificationId = created.NotificationId,
                 content = created.Content,
-                createdBy = created.AppUserId,
+                createdBy = created.CreatedBy,
                 createdAt = created.CreatedAt,
                 userFullname = user?.Fullname ?? "",
                 avatarUrl = user?.Avatar ?? ""
@@ -338,7 +338,7 @@ namespace StudyHub.Backend.Api.Controllers
 
                 // Re-read files for response
                 var files = _service.GetFilesByNotification(res.Id);
-                var response = res.ToNotificationDto(_aUserService.GetUserById(res.AppUserId), files.Select(f => f.ToFileDto()).ToList(), null);
+                var response = res.ToNotificationDto(_aUserService.GetUserById(res.CreatedBy), files.Select(f => f.ToFileDto()).ToList(), null);
 
                 // Notify clients about the update (best-effort)
                 try
