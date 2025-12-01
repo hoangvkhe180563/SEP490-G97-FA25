@@ -1,6 +1,5 @@
-import { Button } from '@/common/components/ui/button';
-import { ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
 import * as React from 'react';
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from './ui/pagination';
 
 interface PaginationProps {
   currentPage: number;
@@ -110,51 +109,47 @@ export const Paging: React.FC<PaginationProps> = ({
   };
 
   return (
-    <nav className="flex items-center justify-end space-x-2 py-4">
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={handlePrevious}
-        disabled={isFirstPage}
-        className="h-10 w-10"
-      >
-        <ChevronLeft className='size-6'/>
-      </Button>
-
-      {paginationRange.map((page, index) => {
-        if (page === DOTS) {
-          return (
-            <div key={index} className="flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10">
-              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-            </div>
-          );
-        }
-
-        const pageNumber = page as number;
-        const isActive = pageNumber === currentPage;
-
-        return (
-          <Button
-            key={index}
-            variant={isActive ? 'default' : 'outline'}
-            size="icon"
-            onClick={() => handlePageClick(pageNumber)}
-            className={`h-10 w-10 text-lg font-normal ${isActive ? 'pointer-events-none' : ''}`}
+    <Pagination className="flex items-center justify-end space-x-2 py-4">
+      <PaginationContent>
+        <PaginationItem>
+          <PaginationPrevious
+            onClick={handlePrevious}
+            className={isFirstPage ? 'opacity-50' : ''}
           >
-            {pageNumber}
-          </Button>
-        );
-      })}
+          </PaginationPrevious>
+        </PaginationItem>
 
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={handleNext}
-        disabled={isLastPage}
-        className="h-10 w-10"
-      >
-        <ChevronRight className='size-6' />
-      </Button>
-    </nav>
+        {paginationRange.map((page, index) => {
+          if (page === DOTS) {
+            return (
+              <PaginationItem key={index}>
+                <PaginationEllipsis />
+              </PaginationItem>
+            );
+          }
+
+          const pageNumber = page as number;
+          const isActive = pageNumber === currentPage;
+
+          return (
+            <PaginationItem key={index}>
+              <PaginationLink
+                onClick={() => handlePageClick(pageNumber)}
+                isActive={isActive}>
+                {pageNumber}
+              </PaginationLink>
+            </PaginationItem>
+          );
+        })}
+
+        <PaginationItem>
+          <PaginationNext
+            onClick={handleNext}
+            className={isLastPage ? 'opacity-50' : ''}
+          >
+          </PaginationNext>
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
   );
 };

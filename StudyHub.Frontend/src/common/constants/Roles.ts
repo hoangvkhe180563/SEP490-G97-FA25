@@ -7,7 +7,7 @@ export const ROLES = {
   QNA_TEACHER: 'Q&A Teacher',
   DOCUMENT_MANAGER: 'Document Manager',
   QUESTION_MANAGER: 'Question Manager',
-  FINANCIAL_MANAGER: 'Financial',
+  FINANCIAL_MANAGER: 'Financial Manager',
   UI_MANAGER: 'UI Manager',
   MODERATOR: 'Moderator',
   SCHOOL_ADMIN: 'School Admin',

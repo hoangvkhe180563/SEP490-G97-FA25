@@ -200,7 +200,7 @@ const CreateExam = () => {
   };
 
   return (
-    <div className="h-full overflow-y-auto p-6">
+    <div className="h-full overflow-y-auto p-6 scrollbar-hide">
       <Link to={`/class/teacher/${classId}`}>
         <Button variant='outline' className='flex items-center'>
           <ArrowLeft />

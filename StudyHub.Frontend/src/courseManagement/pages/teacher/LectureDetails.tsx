@@ -234,116 +234,119 @@ const LectureDetails: React.FC = () => {
             </div>
           ) : currentLesson?.type === 'Exam' ? (
             <div style={{ aspectRatio: "16/9" }} className="space-y-3">
-              {(lessonExamQuestions.length > 0) && lessonExamQuestions.map((question, index) => {
-                const correctAnswer = question.correctAnswer;
+              {
+                lessonExamQuestions.length === 0 ? (
+                  <div>Câu hỏi trong bài kiểm tra này được tạo ngẫu nhiên.</div>
+                ) : lessonExamQuestions.map((question, index) => {
+                  const correctAnswer = question.correctAnswer;
 
-                return (
-                  <div
-                    key={question.questionObjectId}
-                    className={`p-6 rounded-lg shadow-sm border border-gray-300 bg-gray-50`}
-                  >
-                    <p className="text-xl font-semibold mb-3 text-gray-800">
-                      Câu {index + 1}: {question.type !== EXAM_TYPE.FILL_IN_BLANK && question.questionText}
-                    </p>
+                  return (
+                    <div
+                      key={question.questionObjectId}
+                      className={`p-6 rounded-lg shadow-sm border border-gray-300 bg-gray-50`}
+                    >
+                      <p className="text-xl font-semibold mb-3 text-gray-800">
+                        Câu {index + 1}: {question.type !== EXAM_TYPE.FILL_IN_BLANK && question.questionText}
+                      </p>
 
-                    <div className="space-y-3 text-gray-700">
-                      {question.type === EXAM_TYPE.SINGLE_CHOICE && (
-                        <div className="space-y-2">
-                          {question.options.map((option, optIndex) => (
-                            <label key={optIndex} className="flex items-center space-x-2 text-gray-700">
-                              <input
-                                type="radio"
-                                name={`result-question-${question.questionObjectId}`}
-                                value={option}
-                                checked={optIndex === correctAnswer}
-                                readOnly
-                                disabled
-                                className="form-radio text-blue-600"
-                              />
-                              <span>{option}</span>
-                            </label>
-                          ))
-                          }
-                        </div>
-                      )}
-
-                      {question.type === EXAM_TYPE.MULTI_CHOICE && (
-                        <div className="space-y-2">
-                          {question.options.map((option, optIndex) => {
-                            return (
+                      <div className="space-y-3 text-gray-700">
+                        {question.type === EXAM_TYPE.SINGLE_CHOICE && (
+                          <div className="space-y-2">
+                            {question.options.map((option, optIndex) => (
                               <label key={optIndex} className="flex items-center space-x-2 text-gray-700">
                                 <input
-                                  type="checkbox"
+                                  type="radio"
                                   name={`result-question-${question.questionObjectId}`}
                                   value={option}
-                                  checked={correctAnswer.includes(optIndex)}
+                                  checked={optIndex === correctAnswer}
                                   readOnly
                                   disabled
-                                  className="form-checkbox text-blue-600 rounded"
+                                  className="form-radio text-blue-600"
                                 />
                                 <span>{option}</span>
                               </label>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {question.type === EXAM_TYPE.TEXT_INPUT && (
-                        <div>
-                          <input
-                            type="text"
-                            className="w-full border border-gray-300 rounded-lg p-2 mt-1 bg-gray-100"
-                            value={correctAnswer}
-                            readOnly
-                            disabled
-                          />
-                        </div>
-                      )}
-
-                      {question.type === EXAM_TYPE.FILL_IN_BLANK && renderFillBlankQuestionText(question)}
-
-                      {question.type === EXAM_TYPE.MATCHING && (
-                        <div className="mt-4">
-                          <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                              <h4 className="font-semibold text-gray-700 mb-2">Thuật ngữ</h4>
-                              {(question.terms || []).map((term, termIndex) => (
-                                <div key={termIndex} className="p-2 bg-gray-50 border border-gray-200 rounded mb-2">
-                                  {termIndex + 1}. {term}
-                                </div>
-                              ))}
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-700 mb-2">Định nghĩa</h4>
-                              {(question.definitions || []).map((definition, defIndex) => (
-                                <div key={defIndex} className="p-2 bg-gray-50 border border-gray-200 rounded mb-2">
-                                  {String.fromCharCode(65 + defIndex)}. {definition}
-                                </div>
-                              ))}
-                            </div>
+                            ))
+                            }
                           </div>
+                        )}
+
+                        {question.type === EXAM_TYPE.MULTI_CHOICE && (
+                          <div className="space-y-2">
+                            {question.options.map((option, optIndex) => {
+                              return (
+                                <label key={optIndex} className="flex items-center space-x-2 text-gray-700">
+                                  <input
+                                    type="checkbox"
+                                    name={`result-question-${question.questionObjectId}`}
+                                    value={option}
+                                    checked={correctAnswer.includes(optIndex)}
+                                    readOnly
+                                    disabled
+                                    className="form-checkbox text-blue-600 rounded"
+                                  />
+                                  <span>{option}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {question.type === EXAM_TYPE.TEXT_INPUT && (
                           <div>
-                            <h4 className="font-semibold text-gray-700 mb-2">Các cặp ghép đúng</h4>
-                            {(() => {
-                              return (question.terms || []).map((term, termIndex) => {
-                                return (
-                                  <div key={termIndex} className={`flex items-center mb-2 p-2 rounded bg-gray-100`}>
-                                    <span className="w-1/3 font-medium">{termIndex + 1}. {term}</span>
-                                    <span className="text-gray-500 mx-2">→</span>
-                                    <span className="flex-1">
-                                      {question.definitions && question.definitions[question.correctAnswer[termIndex]]}
-                                    </span>
-                                  </div>
-                                );
-                              });
-                            })()}
+                            <input
+                              type="text"
+                              className="w-full border border-gray-300 rounded-lg p-2 mt-1 bg-gray-100"
+                              value={correctAnswer}
+                              readOnly
+                              disabled
+                            />
                           </div>
-                        </div>
-                      )}
+                        )}
+
+                        {question.type === EXAM_TYPE.FILL_IN_BLANK && renderFillBlankQuestionText(question)}
+
+                        {question.type === EXAM_TYPE.MATCHING && (
+                          <div className="mt-4">
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <h4 className="font-semibold text-gray-700 mb-2">Thuật ngữ</h4>
+                                {(question.terms || []).map((term, termIndex) => (
+                                  <div key={termIndex} className="p-2 bg-gray-50 border border-gray-200 rounded mb-2">
+                                    {termIndex + 1}. {term}
+                                  </div>
+                                ))}
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-gray-700 mb-2">Định nghĩa</h4>
+                                {(question.definitions || []).map((definition, defIndex) => (
+                                  <div key={defIndex} className="p-2 bg-gray-50 border border-gray-200 rounded mb-2">
+                                    {String.fromCharCode(65 + defIndex)}. {definition}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-700 mb-2">Các cặp ghép đúng</h4>
+                              {(() => {
+                                return (question.terms || []).map((term, termIndex) => {
+                                  return (
+                                    <div key={termIndex} className={`flex items-center mb-2 p-2 rounded bg-gray-100`}>
+                                      <span className="w-1/3 font-medium">{termIndex + 1}. {term}</span>
+                                      <span className="text-gray-500 mx-2">→</span>
+                                      <span className="flex-1">
+                                        {question.definitions && question.definitions[question.correctAnswer[termIndex]]}
+                                      </span>
+                                    </div>
+                                  );
+                                });
+                              })()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           ) : (
             <div className="bg-black rounded-lg overflow-hidden flex justify-center items-center" style={{ aspectRatio: "16/9" }}>
