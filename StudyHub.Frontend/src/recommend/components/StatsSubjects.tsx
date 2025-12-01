@@ -428,13 +428,21 @@ const StatsSubjects: React.FC<Props> = () => {
                     <div className="grid grid-cols-3 gap-4 items-center">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-slate-100 rounded overflow-hidden flex-shrink-0">
-                          {(c.imageUrl ?? c.ImageUrl) ? (
-                            <img src={(c.imageUrl ?? c.ImageUrl) as string} alt={(c.title ?? c.Title ?? c.id ?? c.Id) as string} className="w-full h-full object-cover" />
+                          {c.imageUrl ?? c.ImageUrl ? (
+                            <img
+                              src={(c.imageUrl ?? c.ImageUrl) as string}
+                              alt={
+                                (c.title ?? c.Title ?? c.id ?? c.Id) as string
+                              }
+                              className="w-full h-full object-cover"
+                            />
                           ) : (
                             <div className="w-full h-full bg-slate-100" />
                           )}
                         </div>
-                        <div className="text-sm">{c.title ?? c.Title ?? c.id ?? c.Id}</div>
+                        <div className="text-sm">
+                          {c.title ?? c.Title ?? c.id ?? c.Id}
+                        </div>
                       </div>
                       <div className="text-sm">
                         {c.subject ?? c.Subject ?? "-"}
@@ -597,13 +605,21 @@ const StatsSubjects: React.FC<Props> = () => {
                     <div className="grid grid-cols-3 gap-4 items-center">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-slate-100 rounded overflow-hidden flex-shrink-0">
-                          {(d.thumbnail ?? d.Thumbnail) ? (
-                            <img src={(d.thumbnail ?? d.Thumbnail) as string} alt={(d.title ?? d.Title ?? d.id ?? d.Id) as string} className="w-full h-full object-cover" />
+                          {d.thumbnail ?? d.Thumbnail ? (
+                            <img
+                              src={(d.thumbnail ?? d.Thumbnail) as string}
+                              alt={
+                                (d.title ?? d.Title ?? d.id ?? d.Id) as string
+                              }
+                              className="w-full h-full object-cover"
+                            />
                           ) : (
                             <div className="w-full h-full bg-slate-100" />
                           )}
                         </div>
-                        <div className="text-sm">{d.title ?? d.Title ?? d.id ?? d.Id}</div>
+                        <div className="text-sm">
+                          {d.title ?? d.Title ?? d.id ?? d.Id}
+                        </div>
                       </div>
                       <div className="text-sm">
                         {d.subject ?? d.Subject ?? "-"}
