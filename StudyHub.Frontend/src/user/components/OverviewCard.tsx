@@ -129,7 +129,7 @@ const OverviewCard: React.FC = () => {
   useEffect(() => {
     // Set default end datetimes and fetch initial overview, but do not auto-fill
     // the "start" date inputs — users must pick start dates explicitly.
-    fetchOverview(period, range).catch(() => {});
+    fetchOverview(period, range).catch(() => { });
     // store initial values after mount so reset can restore them
     initialRef.current = {
       retentionStart,
@@ -158,11 +158,11 @@ const OverviewCard: React.FC = () => {
 
   const pieData = Array.isArray(rawRoles)
     ? rawRoles.map((r: any) => ({
-        name:
-          (r && (r.role || r.roleName || r.name || r.key)) ??
-          String(r?.id ?? ""),
-        value: Number(r?.count ?? r?.value ?? 0),
-      }))
+      name:
+        (r && (r.role || r.roleName || r.name || r.key)) ??
+        String(r?.id ?? ""),
+      value: Number(r?.count ?? r?.value ?? 0),
+    }))
     : [];
 
   const tooltipFormatter = (value: any, name?: string) => {
@@ -191,109 +191,111 @@ const OverviewCard: React.FC = () => {
           <div className="h-40 bg-gray-100" />
         ) : (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-              <div className="flex flex-col gap-4 w-full max-w-xs">
-                <Card className="rounded-lg shadow-md border-l-4 border-indigo-500">
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="bg-indigo-50 text-indigo-600 rounded-md p-2">
-                      <Users size={18} />
-                    </div>
-                    <div>
-                      <div className="text-sm text-slate-500">
-                        Tổng số tài khoản
+            <div className="flex justify-between items-center">
+              <div className="flex gap-5">
+                <div className="flex flex-col gap-4 w-80">
+                  <Card className="rounded-lg shadow-md border-l-4 p-0 border-indigo-500">
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="bg-indigo-50 text-indigo-600 rounded-md p-2">
+                        <Users size={18} />
                       </div>
-                      <div className="text-3xl font-bold mt-2">
-                        {overview?.totalUsers ?? "—"}
+                      <div>
+                        <div className="text-sm text-slate-500">
+                          Tổng số tài khoản
+                        </div>
+                        <div className="text-3xl font-bold mt-2">
+                          {overview?.totalUsers ?? "—"}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
 
-                <Card className="rounded-lg shadow-md border-l-4 border-teal-400">
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="bg-teal-50 text-teal-600 rounded-md p-2">
-                      <UserCheck size={18} />
-                    </div>
-                    <div>
-                      <div className="text-sm text-slate-500">
-                        Tài khoản kích hoạt
+                  <Card className="rounded-lg shadow-md border-l-4 p-0 border-teal-400">
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="bg-teal-50 text-teal-600 rounded-md p-2">
+                        <UserCheck size={18} />
                       </div>
-                      <div className="text-3xl font-bold mt-2">
-                        {overview?.activeCount ?? "—"}
+                      <div>
+                        <div className="text-sm text-slate-500">
+                          Tài khoản kích hoạt
+                        </div>
+                        <div className="text-3xl font-bold mt-2">
+                          {overview?.activeCount ?? "—"}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
 
-                <Card className="rounded-lg shadow-md border-l-4 border-rose-400">
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="bg-rose-50 text-rose-600 rounded-md p-2">
-                      <UserMinus size={18} />
-                    </div>
-                    <div>
-                      <div className="text-sm text-slate-500">
-                        Tài khoản vô hiệu hóa
+                  <Card className="rounded-lg shadow-md border-l-4 p-0 border-rose-400">
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="bg-rose-50 text-rose-600 rounded-md p-2">
+                        <UserMinus size={18} />
                       </div>
-                      <div className="text-3xl font-bold mt-2">
-                        {overview?.inactiveCount ?? "—"}
+                      <div>
+                        <div className="text-sm text-slate-500">
+                          Tài khoản vô hiệu hóa
+                        </div>
+                        <div className="text-3xl font-bold mt-2">
+                          {overview?.inactiveCount ?? "—"}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                    </CardContent>
+                  </Card>
+                </div>
 
-              <div className="flex flex-col gap-4 w-full max-w-xs">
-                <Card className="rounded-lg shadow-md border-l-4 border-amber-400">
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="bg-amber-50 text-amber-600 rounded-md p-2">
-                      <Lock size={18} />
-                    </div>
-                    <div>
-                      <div className="text-sm text-slate-500">
-                        Tỷ lệ tài khoản bị khóa
+                <div className="flex flex-col gap-4 w-80">
+                  <Card className="rounded-lg shadow-md border-l-4 p-0 border-amber-400">
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="bg-amber-50 text-amber-600 rounded-md p-2">
+                        <Lock size={18} />
                       </div>
-                      <div className="text-3xl font-bold mt-2">
-                        {overview?.inactiveRate ?? "—"}%
+                      <div>
+                        <div className="text-sm text-slate-500">
+                          Tỷ lệ tài khoản bị khóa
+                        </div>
+                        <div className="text-3xl font-bold mt-2">
+                          {overview?.inactiveRate ?? "—"}%
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
 
-                <Card className="rounded-lg shadow-md border-l-4 border-violet-500">
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="bg-violet-50 text-violet-600 rounded-md p-2">
-                      <Repeat size={18} />
-                    </div>
-                    <div>
-                      <div className="text-sm text-slate-500">
-                        Tỷ lệ đăng nhập lại (Retention)
+                  <Card className="rounded-lg shadow-md border-l-4 p-0 border-violet-500">
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="bg-violet-50 text-violet-600 rounded-md p-2">
+                        <Repeat size={18} />
                       </div>
-                      <div className="text-3xl font-bold mt-2">
-                        {overview?.retentionRate ?? "—"}%
+                      <div>
+                        <div className="text-sm text-slate-500">
+                          Tỷ lệ đăng nhập lại (Retention)
+                        </div>
+                        <div className="text-3xl font-bold mt-2">
+                          {overview?.retentionRate?.toFixed(2) ?? "—"}%
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
 
-                <Card className="rounded-lg shadow-md border-l-4 border-sky-400">
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="bg-sky-50 text-sky-600 rounded-md p-2">
-                      <Clock size={18} />
-                    </div>
-                    <div>
-                      <div className="text-sm text-slate-500">
-                        Tần suất đăng nhập trung bình
+                  <Card className="rounded-lg shadow-md border-l-4 p-0 border-sky-400">
+                    <CardContent className="p-4 flex items-center gap-3">
+                      <div className="bg-sky-50 text-sky-600 rounded-md p-2">
+                        <Clock size={18} />
                       </div>
-                      <div className="text-3xl font-bold mt-2">
-                        {typeof overview?.averageLoginFrequency === "number"
-                          ? (overview.averageLoginFrequency as number).toFixed(
+                      <div>
+                        <div className="text-sm text-slate-500">
+                          Tần suất đăng nhập trung bình
+                        </div>
+                        <div className="text-3xl font-bold mt-2">
+                          {typeof overview?.averageLoginFrequency === "number"
+                            ? (overview.averageLoginFrequency as number).toFixed(
                               2
                             )
-                          : "—"}
+                            : "—"}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
               <div className="flex justify-center md:justify-start">
                 <div className="w-full max-w-md p-2">
@@ -641,8 +643,8 @@ const OverviewCard: React.FC = () => {
                     {typeof overview?.averageLogin?.averagePerUser === "number"
                       ? overview.averageLogin.averagePerUser.toFixed(2)
                       : overview?.averageLoginFrequency
-                      ? (overview.averageLoginFrequency as number).toFixed(2)
-                      : "—"}
+                        ? (overview.averageLoginFrequency as number).toFixed(2)
+                        : "—"}
                   </span>
                 </div>
                 <div className="text-xs text-slate-500 mb-2">

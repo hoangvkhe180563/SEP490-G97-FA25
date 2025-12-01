@@ -131,7 +131,7 @@ const ViewResultDetail = () => {
   };
 
   return (
-    <div className="w-full h-full overflow-y-auto p-6">
+    <div className="w-full h-full overflow-y-auto p-6 scrollbar-hide">
       <Button variant='outline' className='flex items-center' onClick={() => {
         if (user?.roles.some(role => role.includes("Student"))) {
           if (exam.classId) {
