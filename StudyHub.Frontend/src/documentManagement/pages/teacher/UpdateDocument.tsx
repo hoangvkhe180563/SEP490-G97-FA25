@@ -312,9 +312,7 @@ export default function UpdateDocument() {
             accessType = "school";
           }
 
-          const canEdit = !(
-            docData.isApproved === true && docData.status === true
-          );
+          const canEdit = docData.isInClass || docData.isApproved === false;
           setIsReadOnly(!canEdit);
 
           form.reset({
@@ -475,6 +473,7 @@ export default function UpdateDocument() {
         </Button>
         {document?.isApproved === true &&
           document?.status === true &&
+          !document?.isInClass &&
           document?.isRequested !== true && (
             <Button
               type="button"
@@ -495,24 +494,68 @@ export default function UpdateDocument() {
               Yêu cầu chỉnh sửa
             </Button>
           )}
+
+        {document?.isApproved === null && document?.status === true && (
+          <Button
+            type="button"
+            className="mb-4 bg-gray-600 hover:bg-gray-700 w-full"
+            onClick={async () => {
+              if (!id) return;
+              if (!confirm("Bạn có chắc chắn muốn hủy chờ duyệt?")) return;
+              const { rejectDocument } = useDocumentStore.getState();
+              const success = await rejectDocument(parseInt(id));
+              if (success) {
+                showToast("success", "Đã hủy chờ duyệt, tài liệu trở về nháp");
+                setTimeout(() => window.location.reload(), 1000);
+              } else {
+                showToast("error", "Hủy chờ duyệt thất bại");
+              }
+            }}
+          >
+            <X className="w-4 h-4 mr-2" />
+            Hủy chờ duyệt
+          </Button>
+        )}
+
         {document?.isRequested && (
-          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <div className="flex items-start gap-3">
-              <Loader2 className="w-5 h-5 text-yellow-600 animate-spin flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-yellow-900 text-sm">
-                  Yêu cầu chỉnh sửa đang chờ xét duyệt
-                </h3>
-                <p className="text-sm text-yellow-700 mt-1">
-                  Bạn đã gửi yêu cầu chỉnh sửa vào lúc{" "}
-                  {document.editRequestedAt
-                    ? new Date(document.editRequestedAt).toLocaleString("vi-VN")
-                    : "Không rõ"}
-                  . Vui lòng chờ quản lý xét duyệt.
-                </p>
-              </div>
-            </div>
-          </div>
+          <Button
+            type="button"
+            className="mb-4 bg-gray-600 hover:bg-gray-700 w-full"
+            onClick={async () => {
+              if (!id) return;
+              const { cancelEditRequest } = useDocumentStore.getState();
+              const success = await cancelEditRequest(parseInt(id));
+              if (success) {
+                showToast("success", "Đã hủy yêu cầu chỉnh sửa");
+                setTimeout(() => window.location.reload(), 1000);
+              } else {
+                showToast("error", "Hủy yêu cầu thất bại");
+              }
+            }}
+          >
+            <X className="w-4 h-4 mr-2" />
+            Hủy yêu cầu chỉnh sửa
+          </Button>
+        )}
+        {document?.isApproved === false && document?.status === true && (
+          <Button
+            type="button"
+            className="mb-4 bg-green-600 hover:bg-green-700 w-full"
+            onClick={async () => {
+              if (!id) return;
+              const { submitForApproval } = useDocumentStore.getState();
+              const success = await submitForApproval(parseInt(id));
+              if (success) {
+                showToast("success", "Đã gửi phê duyệt");
+                setTimeout(() => window.location.reload(), 1000);
+              } else {
+                showToast("error", "Gửi phê duyệt thất bại");
+              }
+            }}
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            Gửi phê duyệt
+          </Button>
         )}
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-2">
           <div className="lg:col-span-4">
@@ -906,6 +949,7 @@ export default function UpdateDocument() {
                             {...field}
                             placeholder="Nhập mô tả tài liệu"
                             className="resize-none h-24"
+                            disabled={isReadOnly}
                             onKeyDown={(e) => {
                               if (
                                 e.key === " " &&
@@ -1064,7 +1108,7 @@ export default function UpdateDocument() {
                     {document?.isApproved
                       ? "Đã phê duyệt"
                       : document?.isApproved === false
-                      ? "Đã từ chối"
+                      ? "Nháp"
                       : "Chờ phê duyệt"}
                   </Badge>
                 </div>

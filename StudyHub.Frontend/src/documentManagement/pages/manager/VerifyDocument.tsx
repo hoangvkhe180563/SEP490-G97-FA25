@@ -344,7 +344,7 @@ const ManagerDocumentApprovalList = () => {
     const statusTitles = {
       pending: "Danh sách tài liệu chờ phê duyệt",
       approved: "Danh sách tài liệu đã phê duyệt",
-      rejected: "Danh sách tài liệu bị từ chối",
+      // rejected: "Danh sách tài liệu bị từ chối",
       editRequest: "Danh sách tài liệu chờ duyệt chỉnh sửa",
     };
     return (
@@ -417,31 +417,27 @@ const ManagerDocumentApprovalList = () => {
                 />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3 space-y-2.5">
-                {["pending", "approved", "rejected", "editRequest"].map(
-                  (status) => (
-                    <div key={status} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={status}
-                        checked={filters.statusFilter === status}
-                        onCheckedChange={() =>
-                          updateFilters({ statusFilter: status })
-                        }
-                      />
-                      <Label
-                        htmlFor={status}
-                        className="text-sm cursor-pointer font-normal"
-                      >
-                        {status === "pending"
-                          ? "Chờ phê duyệt"
-                          : status === "approved"
-                          ? "Đã phê duyệt"
-                          : status === "rejected"
-                          ? "Bị từ chối"
-                          : "Chờ duyệt chỉnh sửa"}
-                      </Label>
-                    </div>
-                  )
-                )}
+                {["pending", "approved", "editRequest"].map((status) => (
+                  <div key={status} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={status}
+                      checked={filters.statusFilter === status}
+                      onCheckedChange={() =>
+                        updateFilters({ statusFilter: status })
+                      }
+                    />
+                    <Label
+                      htmlFor={status}
+                      className="text-sm cursor-pointer font-normal"
+                    >
+                      {status === "pending"
+                        ? "Chờ phê duyệt"
+                        : status === "approved"
+                        ? "Đã phê duyệt"
+                        : "Chờ duyệt chỉnh sửa"}
+                    </Label>
+                  </div>
+                ))}
               </CollapsibleContent>
             </Collapsible>
           </div>
