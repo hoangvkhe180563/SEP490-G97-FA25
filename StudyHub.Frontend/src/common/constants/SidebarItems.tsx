@@ -277,13 +277,8 @@ export const schoolAdminSidebarItems: ISidebarItem[] = [
       {
         icon: <LayoutDashboard size={20} />,
         text: "Thống kê đề xuất",
-        link: "/exam/manager",
+        link: "/recommend/manager",
       },
     ],
-  },
-  {
-    icon: <MessageSquare size={20} />,
-    text: "Đề xuất",
-    link: "/recommend/manager",
   },
 ];
