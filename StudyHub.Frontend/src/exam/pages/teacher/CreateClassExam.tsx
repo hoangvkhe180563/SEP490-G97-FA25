@@ -73,6 +73,12 @@ const CreateExam = () => {
       return;
     }
 
+    if (parseInt(examDuration) <= 0) {
+      toast.error("Thời gian làm bài phải > 0!");
+      setLoading(false);
+      return;
+    }
+
     if (closeTime && closeTime < openTime) {
       toast.error("Ngày bắt đầu phải trước ngày kết thúc!");
       setLoading(false);

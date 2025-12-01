@@ -112,7 +112,7 @@ export class QuestionService {
   }
 
   deleteCommonQuestion = async (questionObjectId: string): Promise<boolean> => {
-    if (questionObjectId.length <= 24) {
+    if (questionObjectId.length < 24) {
       return false;
     }
     try {

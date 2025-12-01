@@ -160,8 +160,11 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
             }
             try
             {
-                var result = _questionCollection.DeleteOne(q => q.Id == objectId);
-                return result.DeletedCount > 0;
+                var update = Builders<Question>.Update
+                    .Set(q => q.Status, false);
+                
+                var result = _questionCollection.UpdateOne(q => q.Id == objectId, update);
+                return result.ModifiedCount > 0;
             }
             catch (Exception ex)
             {
@@ -209,7 +212,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
             try
             {
                 int pageSize = 10;
-                var questions = _questionCollection.Find(q => q.SubjectId == subjectId).ToList();
+                var questions = _questionCollection.Find(q => q.SubjectId == subjectId && q.Status == true).ToList();
                 List<Domain.Entities.Exam.Question> mappedQuestions = [];
                 foreach (var question in questions)
                 {
@@ -241,7 +244,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
         {
             try
             {
-                var questions = _questionCollection.Find(q => q.SubjectId == subjectId).ToList();
+                var questions = _questionCollection.Find(q => q.SubjectId == subjectId && q.Status == true).ToList();
                 if (!string.IsNullOrWhiteSpace(questionText))
                 {
                     questions = questions.Where(q => q.QuestionText.Contains(questionText, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -267,7 +270,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
         {
             try
             {
-                var questions = _questionCollection.Find(q => q.SubjectId == subjectId && q.Grade == grade).ToList();
+                var questions = _questionCollection.Find(q => q.SubjectId == subjectId && q.Grade == grade && q.Status == true).ToList();
                 var random = new Random();
                 var randomQuestions = questions.OrderBy(x => random.Next()).Take(noRandomQuestions).ToList();
                 List<Domain.Entities.Exam.Question> mappedQuestions = [];

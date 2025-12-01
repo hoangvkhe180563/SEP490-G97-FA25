@@ -22,9 +22,9 @@ const examRoutes: RouteObject[] = [
   {
     path: ExamRouteConfig.STUDENT.TAKE_EXAM,
     element: (
-      <RequireRole allowedRoles={["School Student", "External Student"]}>
+      // <RequireRole allowedRoles={["School Student", "External Student"]}>
         <TakeExam />
-      </RequireRole>
+      // </RequireRole> TẠO 2 LẦN EXAM RỒI ĐẤY HAIZZZ
     ),
   },
   {
