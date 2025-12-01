@@ -46,5 +46,46 @@ namespace StudyHub.Backend.UseCases.Services
         {
             return _repo.GetMAU(start, end, page, pageSize);
         }
+
+        // LLM statistics wrappers
+        public List<StudentQuestionStatsDto> GetLlmQuestionsByStudent(DateTime? start, DateTime? end, int top = 100)
+        {
+            return _repo.GetLlmQuestionsByStudent(start, end, top);
+        }
+
+        public List<DateCountDto> GetLlmQuestionsTimeSeries(string period, DateTime start, DateTime end)
+        {
+            return _repo.GetLlmQuestionsTimeSeries(period, start, end);
+        }
+
+        public List<HourCountDto> GetLlmPeakHours(DateTime? start, DateTime? end, int top = 5)
+        {
+            return _repo.GetLlmPeakHoursForLlm(start, end, top);
+        }
+
+        public List<SubjectCountDto> GetTopSubjects(DateTime? start, DateTime? end, int top = 10)
+        {
+            return _repo.GetTopSubjects(start, end, top);
+        }
+
+        public TokenSummaryDto GetTokenSummary(DateTime? start, DateTime? end)
+        {
+            return _repo.GetTokenSummary(start, end);
+        }
+
+        public List<DateTokenDto> GetTokenByMonth(DateTime? start, DateTime? end)
+        {
+            return _repo.GetTokenByPeriod("month", start, end);
+        }
+
+        public List<DateTokenDto> GetTokenByPeriod(string period, DateTime? start, DateTime? end)
+        {
+            return _repo.GetTokenByPeriod(period, start, end);
+        }
+
+        public List<UserTokenDto> GetTopTokenUsers(DateTime? start, DateTime? end, int top = 10)
+        {
+            return _repo.GetTopTokenUsers(start, end, top);
+        }
     }
 }

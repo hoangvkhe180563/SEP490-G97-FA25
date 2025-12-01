@@ -116,5 +116,106 @@ namespace StudyHub.Backend.Api.Controllers
                 return StatusCode(500, new { Success = false, Message = "Lấy realtime stats thất bại", Error = ex.Message });
             }
         }
+
+        // Group 5 - LLM history statistics
+        [HttpGet("Llm/QuestionsByStudent")]
+        public IActionResult LlmQuestionsByStudent([FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null, [FromQuery] int top = 100)
+        {
+            try
+            {
+                var res = _service.GetLlmQuestionsByStudent(start, end, top);
+                return Ok(new { Success = true, Data = res });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lấy thống kê câu hỏi theo học sinh thất bại", Error = ex.Message });
+            }
+        }
+
+        [HttpGet("Llm/QuestionsTimeSeries")]
+        public IActionResult LlmQuestionsTimeSeries([FromQuery] string period = "day", [FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null)
+        {
+            try
+            {
+                var s = start ?? DateTime.Now.AddDays(-30);
+                var e = end ?? DateTime.Now;
+                var res = _service.GetLlmQuestionsTimeSeries(period, s, e);
+                return Ok(new { Success = true, Data = res });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lấy chuỗi thời gian câu hỏi LLM thất bại", Error = ex.Message });
+            }
+        }
+
+        [HttpGet("Llm/PeakHours")]
+        public IActionResult LlmPeakHours([FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null, [FromQuery] int top = 5)
+        {
+            try
+            {
+                var res = _service.GetLlmPeakHours(start, end, top);
+                return Ok(new { Success = true, Data = res });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lấy giờ cao điểm LLM thất bại", Error = ex.Message });
+            }
+        }
+
+        [HttpGet("Llm/TopSubjects")]
+        public IActionResult LlmTopSubjects([FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null, [FromQuery] int top = 10)
+        {
+            try
+            {
+                var res = _service.GetTopSubjects(start, end, top);
+                return Ok(new { Success = true, Data = res });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lấy môn học được hỏi nhiều nhất thất bại", Error = ex.Message });
+            }
+        }
+
+        [HttpGet("Llm/TokenSummary")]
+        public IActionResult LlmTokenSummary([FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null)
+        {
+            try
+            {
+                var res = _service.GetTokenSummary(start, end);
+                return Ok(new { Success = true, Data = res });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lấy thống kê token thất bại", Error = ex.Message });
+            }
+        }
+
+        [HttpGet("Llm/TokenByPeriod")]
+        public IActionResult LlmTokenByPeriod([FromQuery] string period = "month", [FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null)
+        {
+            try
+            {
+                var res = _service.GetTokenByPeriod(period, start, end);
+                return Ok(new { Success = true, Data = res });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lấy token theo khoảng thời gian (day/week/month) thất bại", Error = ex.Message });
+            }
+        }
+
+        [HttpGet("Llm/TopTokenUsers")]
+        public IActionResult LlmTopTokenUsers([FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null, [FromQuery] int top = 10)
+        {
+            try
+            {
+                var res = _service.GetTopTokenUsers(start, end, top);
+                return Ok(new { Success = true, Data = res });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lấy người dùng tốn token nhất thất bại", Error = ex.Message });
+            }
+        }
     }
 }

@@ -31,6 +31,11 @@ export const studentSidebarItems: ISidebarItem[] = [
     text: "Hỏi đáp",
     link: "/qa/student/conversations",
   },
+  {
+    icon: <MessageSquare size={20} />,
+    text: "Đề xuất",
+    link: "/recommend",
+  },
 ];
 
 export const schoolStudentSidebarItems: ISidebarItem[] = [
@@ -112,7 +117,7 @@ export const questionManagerSidebarItems: ISidebarItem[] = [
     icon: <FileQuestion size={20} />,
     text: "Ngân hàng câu hỏi",
     link: "/exam/manager/questions",
-  }
+  },
 ];
 
 export const financialManagerSidebarItems: ISidebarItem[] = [];
