@@ -691,14 +691,14 @@ const ManagerDocumentApprovalList = () => {
                       {doc.documentLengthType === "Short"
                         ? "Ngắn"
                         : doc.documentLengthType === "Medium"
-                        ? "TB"
+                        ? "Trung Bình"
                         : "Dài"}
                     </TableCell>
                     <TableCell className="text-center text-xs">
                       {doc.documentLevel === "Easy"
                         ? "Dễ"
                         : doc.documentLevel === "Medium"
-                        ? "TB"
+                        ? "Trung Bình"
                         : "Khó"}
                     </TableCell>
                     <TableCell className="text-center text-xs">
