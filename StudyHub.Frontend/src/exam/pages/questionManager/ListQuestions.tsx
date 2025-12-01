@@ -17,7 +17,7 @@ import {
 } from "@/common/components/ui/dialog";
 import { Button } from "@/common/components/ui/button";
 import { Badge } from "@/common/components/ui/badge";
-import { Eye, Pencil, Trash2, ChevronLeft, ChevronRight, Search, Filter, Repeat, Plus } from "lucide-react";
+import { Eye, Pencil, Trash2, Search, Filter, Repeat, Plus, X } from "lucide-react";
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/common/components/ui/alert-dialog";
 import { Input } from "@/common/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select";
@@ -32,6 +32,7 @@ import toast from "react-hot-toast";
 import { BLANK_PLACEHOLDER, EXAM_TYPE } from "@/exam/constants/Constants";
 import { useLoading } from "@/common/hooks/useLoading";
 import { getQuestionType } from "@/exam/utils/QuestionUtils";
+import { Paging } from "@/common/components/Paging";
 
 const TypeBadge = ({ type }: { type: number }) => {
   const styles: Record<number, string> = {
@@ -45,6 +46,14 @@ const TypeBadge = ({ type }: { type: number }) => {
   return <Badge className={styles[type]}>{getQuestionType(type)}</Badge>;
 };
 
+// Add helper to count BLANK_PLACEHOLDER occurrences in a given text
+const getBlankCount = (text: string) => {
+  if (!text) return 0;
+  const escaped = BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const matches = text.match(new RegExp(escaped, 'g')) || [];
+  return matches.length;
+};
+
 const renderFillBlankQuestionText = (question: Question) => {
   if (question.type !== EXAM_TYPE.FILL_IN_BLANK) {
     return '';
@@ -52,7 +61,7 @@ const renderFillBlankQuestionText = (question: Question) => {
 
   let parts = question.questionText.split(BLANK_PLACEHOLDER);
   const displayedContent: JSX.Element[] = [];
-  const blankCount = (question.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+  const blankCount = getBlankCount(question.questionText);
 
   parts.forEach((part: string, index: number) => {
     displayedContent.push(<span key={`part-${index}`}>{part}</span>);
@@ -61,7 +70,7 @@ const renderFillBlankQuestionText = (question: Question) => {
       displayedContent.push(
         <span
           key={`blank-${index}`}
-          className={`font-semibold inline-block px-2 py-1 mx-1 rounded-md`}
+          className={`font-semibold inline-block px-2 py-2 bg-gray-200 mx-1 my-0 rounded-md`}
         >
           {ans}
         </span>
@@ -261,6 +270,49 @@ export default function ListQuestions() {
     setEditingQuestion({ ...editingQuestion, options: newOptions });
   };
 
+  // Add new handler to append an empty option to the current editing question
+  const handleAddOption = () => {
+    if (!editingQuestion) return;
+    const opts = editingQuestion.options ? [...editingQuestion.options] : [];
+    opts.push('');
+    // Ensure multi-choice correctAnswer is an array (leave single-choice correctAnswer unchanged)
+    const correct = editingQuestion.type === EXAM_TYPE.MULTI_CHOICE
+      ? (Array.isArray(editingQuestion.correctAnswer) ? [...editingQuestion.correctAnswer] : [])
+      : editingQuestion.correctAnswer;
+    setEditingQuestion({ ...editingQuestion, options: opts, correctAnswer: correct as any });
+  };
+
+  // Implement removal of an option and adjust correctAnswer indices accordingly
+  const handleRemoveOption = (index: number) => {
+    if (!editingQuestion) return;
+    const opts = [...(editingQuestion.options || [])];
+    if (index < 0 || index >= opts.length) return;
+    opts.splice(index, 1);
+
+    let updatedCorrect: any = editingQuestion.correctAnswer;
+
+    if (editingQuestion.type === EXAM_TYPE.SINGLE_CHOICE) {
+      const curr = typeof editingQuestion.correctAnswer === 'number' ? editingQuestion.correctAnswer : -1;
+      if (curr === index) {
+        // If the removed option was selected, choose the first option if exists
+        updatedCorrect = opts.length > 0 ? 0 : 0;
+      } else if (curr > index) {
+        updatedCorrect = curr - 1;
+      } else {
+        updatedCorrect = curr;
+      }
+    } else if (editingQuestion.type === EXAM_TYPE.MULTI_CHOICE) {
+      const curr = Array.isArray(editingQuestion.correctAnswer) ? [...editingQuestion.correctAnswer] as number[] : [];
+      // Remove any occurrence of the removed index, then decrement indices greater than removed index
+      const filtered = curr
+        .filter(i => i !== index)
+        .map(i => (i > index ? i - 1 : i));
+      updatedCorrect = filtered;
+    }
+
+    setEditingQuestion({ ...editingQuestion, options: opts, correctAnswer: updatedCorrect });
+  }
+
   const handleToggleCorrectAnswer = (index: number) => {
     if (!editingQuestion) return;
     if (editingQuestion.type === EXAM_TYPE.SINGLE_CHOICE) {
@@ -304,6 +356,68 @@ export default function ListQuestions() {
   const handleUpdateQuestion = async () => {
     if (!editingQuestion) return;
     setLoading(true);
+
+    if (!editingQuestion.questionText.trim()) {
+      toast.error("Vui lòng nhập nội dung cho tất cả các câu hỏi.");
+      setLoading(false);
+      return;
+    }
+    if (editingQuestion.type === EXAM_TYPE.SINGLE_CHOICE || editingQuestion.type === EXAM_TYPE.MULTI_CHOICE) {
+      if (editingQuestion.options.some(opt => !String(opt).trim())) {
+        toast.error(`Vui lòng nhập nội dung cho tất cả các lựa chọn hoặc xóa lựa chọn trống cho câu hỏi "${editingQuestion.questionText}".`);
+        setLoading(false);
+        return;
+      }
+    }
+
+    if (editingQuestion.type === EXAM_TYPE.SINGLE_CHOICE) {
+      if (!String(editingQuestion.correctAnswer).trim()) {
+        toast.error(`Vui lòng chọn đáp án đúng cho câu hỏi "${editingQuestion.questionText}".`);
+        setLoading(false);
+        return;
+      }
+    } else if (editingQuestion.type === EXAM_TYPE.MULTI_CHOICE) {
+      if (!Array.isArray(editingQuestion.correctAnswer) || editingQuestion.correctAnswer.length === 0 || editingQuestion.correctAnswer.some(ans => !String(ans).trim())) {
+        toast.error(`Vui lòng chọn ít nhất một đáp án đúng cho câu hỏi "${editingQuestion.questionText}".`);
+        setLoading(false);
+        return;
+      }
+    } else if (editingQuestion.type === EXAM_TYPE.TEXT_INPUT) {
+      if (!String(editingQuestion.correctAnswer).trim()) {
+        toast.error(`Vui lòng nhập đáp án đúng cho câu hỏi "${editingQuestion.questionText}".`);
+        setLoading(false);
+        return;
+      }
+    } else if (editingQuestion.type === EXAM_TYPE.FILL_IN_BLANK) {
+      const expectedBlanks = getBlankCount(editingQuestion.questionText);
+      if (expectedBlanks === 0) {
+        toast.error(`Câu hỏi điền khuyết "${editingQuestion.questionText}" phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
+        setLoading(false);
+        return;
+      }
+      if (!Array.isArray(editingQuestion.correctAnswer) || editingQuestion.correctAnswer.length !== expectedBlanks || editingQuestion.correctAnswer.some(ans => !String(ans).trim())) {
+        toast.error(`Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${editingQuestion.questionText}".`);
+        setLoading(false);
+        return;
+      }
+    } else if (editingQuestion.type === EXAM_TYPE.MATCHING) {
+      if (!editingQuestion.terms || editingQuestion.terms.length === 0 || editingQuestion.terms.some(term => !String(term).trim())) {
+        toast.error(`Vui lòng nhập đầy đủ các thuật ngữ cho câu hỏi ghép đôi "${editingQuestion.questionText}".`);
+        setLoading(false);
+        return;
+      }
+      if (!editingQuestion.definitions || editingQuestion.definitions.length === 0 || editingQuestion.definitions.some(def => !String(def).trim())) {
+        toast.error(`Vui lòng nhập đầy đủ các định nghĩa cho câu hỏi ghép đôi "${editingQuestion.questionText}".`);
+        setLoading(false);
+        return;
+      }
+      if (editingQuestion.terms.length !== editingQuestion.definitions.length) {
+        toast.error(`Số lượng thuật ngữ và định nghĩa phải bằng nhau cho câu hỏi "${editingQuestion.questionText}".`);
+        setLoading(false);
+        return;
+      }
+    }
+
     const isUpdated = await questionService.updateCommonQuestion(editingQuestion);
     if (!isUpdated) {
       toast.error("Cập nhật câu hỏi thất bại!");
@@ -314,6 +428,27 @@ export default function ListQuestions() {
       setEditingQuestion(null);
     }
     setLoading(false);
+  };
+
+  // Add handler to update question text and sync blanks -> answers for FILL_IN_BLANK
+  const handleChangeQuestionText = (text: string) => {
+    if (!editingQuestion) return;
+    if (editingQuestion.type === EXAM_TYPE.FILL_IN_BLANK) {
+      const expected = getBlankCount(text);
+      const currentAnswers = Array.isArray(editingQuestion.correctAnswer) ? [...editingQuestion.correctAnswer] as string[] : [];
+      let adjustedAnswers = [...currentAnswers];
+
+      if (adjustedAnswers.length < expected) {
+        while (adjustedAnswers.length < expected) adjustedAnswers.push('');
+      } else if (adjustedAnswers.length > expected) {
+        adjustedAnswers = adjustedAnswers.slice(0, expected);
+      }
+
+      setEditingQuestion({ ...editingQuestion, questionText: text, correctAnswer: adjustedAnswers });
+      return;
+    }
+
+    setEditingQuestion({ ...editingQuestion, questionText: text });
   };
 
   return (
@@ -428,7 +563,7 @@ export default function ListQuestions() {
                 {questions.map((question) => (
                   <TableRow key={question.questionObjectId}>
                     <TableCell className="font-medium">
-                      <div className="truncate max-w-[350px]" title={question.questionText}>
+                      <div className="truncate max-w-[550px]" title={question.questionText}>
                         {question.questionText}
                       </div>
                     </TableCell>
@@ -476,52 +611,14 @@ export default function ListQuestions() {
               </TableBody>
             </Table>
 
-            <div className="flex items-center justify-end space-x-2 mt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === 1}
-                onClick={() => {
-                  const newPage = page - 1;
-                  setPage(newPage);
-                  handleFilter(newPage);
-                }}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" /> Trước
-              </Button>
-
-              {
-                Array.from({ length: totalPages }, (_, index) => (
-                  <Button
-                    key={`page-${index}`}
-                    variant="outline"
-                    size="sm"
-                    className={(index + 1) === page ? 'bg-gray-400 select-none' : ''}
-                    onClick={() => {
-                      const newPage = index + 1;
-                      if (newPage !== page) {
-                        setPage(newPage);
-                        handleFilter(newPage);
-                      }
-                    }}
-                  >
-                    {index + 1}
-                  </Button>
-                ))
-              }
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === totalPages}
-                onClick={() => {
-                  const newPage = page + 1;
-                  setPage(newPage);
-                  handleFilter(newPage);
-                }}
-              >
-                Tiếp <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
+            <Paging
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={(newPage) => {
+                setPage(newPage);
+                handleFilter(newPage);
+              }}
+            />
           </div>
         )}
 
@@ -572,7 +669,7 @@ export default function ListQuestions() {
                   <Input
                     id="edit-question-text"
                     value={editingQuestion.questionText}
-                    onChange={(e) => setEditingQuestion({ ...editingQuestion, questionText: e.target.value })}
+                    onChange={(e) => handleChangeQuestionText(e.target.value)}
                   />
                 </div>
 
@@ -591,8 +688,12 @@ export default function ListQuestions() {
                           value={opt}
                           onChange={(e) => handleChangeOption(index, e.target.value)}
                         />
+                        <Button variant="ghost" onClick={() => handleRemoveOption(index)}>
+                          <X className="stroke-red-500"/>
+                        </Button>
                       </div>
                     ))}
+                    <Button onClick={handleAddOption}>Thêm lựa chọn</Button>
                   </div>
                 )}
 
@@ -613,9 +714,13 @@ export default function ListQuestions() {
                             value={opt}
                             onChange={(e) => handleChangeOption(index, e.target.value)}
                           />
+                          <Button variant="ghost" onClick={() => handleRemoveOption(index)}>
+                            <X className="stroke-red-500" />
+                          </Button>
                         </div>
                       );
                     })}
+                    <Button onClick={handleAddOption}>Thêm lựa chọn</Button>
                   </div>
                 )}
 
@@ -634,7 +739,7 @@ export default function ListQuestions() {
                     <Label>Đáp án các chỗ trống</Label>
                     {Array.isArray(editingQuestion.correctAnswer) && (editingQuestion.correctAnswer as string[]).map((ans, index) => (
                       <div key={index} className="flex items-center gap-2">
-                        <span className="w-16">Ô trống {index + 1}</span>
+                        <span className="w-22">Ô trống {index + 1}</span>
                         <Input
                           value={ans}
                           onChange={(e) => handleChangeBlankAnswer(index, e.target.value)}

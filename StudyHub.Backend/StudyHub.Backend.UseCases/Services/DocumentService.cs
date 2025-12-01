@@ -1,7 +1,10 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using StudyHub.Backend.Domain.Entities;
+using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Utils;
+using static Grpc.Core.Metadata;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -9,11 +12,13 @@ namespace StudyHub.Backend.UseCases.Services
     {
         private readonly IDocumentRepository _repo;
         private readonly ICloudinaryRepository _fileStorage;
+        private readonly ElasticDocumentVectorSearchService elasticDocumentVectorSearchService;
 
-        public DocumentService(IDocumentRepository repo, ICloudinaryRepository fileStorage)
+        public DocumentService(IDocumentRepository repo, ICloudinaryRepository fileStorage, ElasticDocumentVectorSearchService elasticDocumentVectorSearchService)
         {
             _repo = repo;
             _fileStorage = fileStorage;
+            this.elasticDocumentVectorSearchService = elasticDocumentVectorSearchService;
         }
 
         public Document? GetDocumentById(int id) => _repo.GetDocumentById(id);
@@ -81,7 +86,38 @@ namespace StudyHub.Backend.UseCases.Services
             document.CreatedAt = DateTime.Now;
             document.Status = true;
 
-            return _repo.CreateDocument(document);
+            var created = _repo.CreateDocument(document);
+            var elasticDoc = new UpsertElasticDocumentRequest
+            {
+                Id = created.Id,
+                Name = created.Name,
+                Description = created.Description,
+                DocumentUrl = created.DocumentUrl,
+                Thumbnail = created.Thumbnail,
+                SchoolId = created.SchoolId,
+                Subject = new Subject
+                {
+                    Name = created.Subject?.Name ?? String.Empty,
+                },
+                DocumentLengthType = created.DocumentLengthType,
+                DocumentLevel = created.DocumentLevel,
+                DocumentCategory = new DocumentCategory
+                {
+                    Name = created.DocumentCategory?.Name ?? String.Empty,
+                    Description = created.DocumentCategory?.Description ?? String.Empty
+                },
+                Grade = created.Grade,
+                IsInClass = created.IsInClass,
+                Status = created.Status,
+                CreatedAt = created.CreatedAt,
+                UpdatedAt = created.UpdatedAt
+            };
+            var isValid = await elasticDocumentVectorSearchService.IndexDocumentAsync(elasticDoc);
+            if (!isValid)
+            {
+                throw new InvalidOperationException("Failed to index document in search index.");
+            }
+            return created;
         }
 
         public async Task<Document> UpdateDocumentAsync(Document document, IFormFile? documentFile = null, IFormFile? thumbnailFile = null)
@@ -133,22 +169,57 @@ namespace StudyHub.Backend.UseCases.Services
             document.Status = existingDocument.Status ?? true;
             document.UpdatedAt = DateTime.Now;
 
-            return _repo.UpdateDocument(document);
+            var updated = _repo.UpdateDocument(document);
+
+            var elasticDoc = new UpsertElasticDocumentRequest
+            {
+                Id = updated.Id,
+                Name = updated.Name,
+                Description = updated.Description,
+                DocumentUrl = updated.DocumentUrl,
+                Thumbnail = updated.Thumbnail,
+                SchoolId = updated.SchoolId,
+                Subject = new Subject
+                {
+                    Name = updated.Subject?.Name ?? String.Empty,
+                },
+                DocumentLengthType = updated.DocumentLengthType,
+                DocumentLevel = updated.DocumentLevel,
+                DocumentCategory = new DocumentCategory
+                {
+                    Name = updated.DocumentCategory?.Name ?? String.Empty,
+                    Description = updated.DocumentCategory?.Description ?? String.Empty
+                },
+                Grade = updated.Grade,
+                IsInClass = updated.IsInClass,
+                Status = updated.Status,
+                CreatedAt = updated.CreatedAt,
+                UpdatedAt = updated.UpdatedAt
+            };
+
+            var isValid = await elasticDocumentVectorSearchService.IndexDocumentAsync(elasticDoc);
+            if (!isValid)
+            {
+                throw new InvalidOperationException("Failed to update document in search index.");
+            }
+            return updated;
         }
 
-        public bool DeleteDocument(int id)
+        public async Task<bool> DeleteDocument(int id)
         {
             var document = _repo.GetDocumentById(id);
             if (document == null) return false;
 
             DeleteExistingFile(document.DocumentUrl);
             if (!string.IsNullOrEmpty(document.Thumbnail))
-                _fileStorage.DeleteFileAsync(document.Thumbnail);
+                await _fileStorage.DeleteFileAsync(document.Thumbnail);
+
+            await elasticDocumentVectorSearchService.DeleteDocumentByIdAsync(id);
 
             return _repo.DeleteDocument(id);
         }
 
-        public bool SoftDeleteDocument(int id, Guid deletedBy)
+        public async Task<bool> SoftDeleteDocument(int id, Guid deletedBy)
         {
             var document = _repo.GetDocumentById(id);
             if (document == null) return false;
@@ -157,11 +228,16 @@ namespace StudyHub.Backend.UseCases.Services
             document.UpdatedBy = deletedBy;
             document.Status = false;
 
+            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentStatusAsync(id, false);
+            if (!isValid)
+            {
+                throw new InvalidOperationException("Failed to update document status in search index.");
+            }
             _repo.UpdateDocument(document);
             return true;
         }
 
-        public Document ApproveDocument(int id, Guid approvedBy)
+        public async Task<Document> ApproveDocument(int id, Guid approvedBy)
         {
             var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");
             if (document.IsInClass) throw new InvalidOperationException("Class documents do not require approval");
@@ -169,11 +245,15 @@ namespace StudyHub.Backend.UseCases.Services
             document.IsApproved = true;
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = approvedBy;
-
+            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+            if (!isValid)
+            {
+                throw new InvalidOperationException("Failed to update document updated at in search index.");
+            }
             return _repo.UpdateDocument(document);
         }
 
-        public Document RejectDocument(int id, Guid rejectedBy)
+        public async Task<Document> RejectDocument(int id, Guid rejectedBy)
         {
             var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");
             if (document.IsInClass) throw new InvalidOperationException("Class documents do not require approval");
@@ -181,24 +261,39 @@ namespace StudyHub.Backend.UseCases.Services
             document.IsApproved = false;
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = rejectedBy;
-
+            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+            if (!isValid)
+            {
+                throw new InvalidOperationException("Failed to update document updated at in search index.");
+            }
             return _repo.UpdateDocument(document);
         }
 
-        public Document RevokeApproval(int id, Guid updatedBy)
+        public async Task<Document> RevokeApproval(int id, Guid updatedBy)
         {
             var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");
             if (document.IsInClass) throw new InvalidOperationException("Class documents do not have approval status");
             if (document.IsApproved != true) throw new InvalidOperationException("Only approved documents can be revoked");
 
+            document.Status = true;
             document.IsApproved = null;
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = updatedBy;
 
+            var isStatusValid = await elasticDocumentVectorSearchService.UpdateDocumentStatusAsync(id, true);
+            if (!isStatusValid)
+            {
+                throw new InvalidOperationException("Failed to update document status in search index.");
+            }
+            var isUpdatedAtValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+            if (!isUpdatedAtValid)
+            {
+                throw new InvalidOperationException("Failed to update document updated at in search index.");
+            }
             return _repo.UpdateDocument(document);
         }
 
-        public Document ToggleFeatured(int id, Guid updatedBy)
+        public async Task<Document> ToggleFeatured(int id, Guid updatedBy)
         {
             var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");
 
@@ -206,6 +301,11 @@ namespace StudyHub.Backend.UseCases.Services
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = updatedBy;
 
+            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+            if (!isValid)
+            {
+                throw new InvalidOperationException("Failed to update document updated at in search index.");
+            }
             return _repo.UpdateDocument(document);
         }
 
@@ -298,7 +398,7 @@ namespace StudyHub.Backend.UseCases.Services
 
             return _repo.UpdateDocument(document);
         }
-        public Document ApproveEditRequest(int id, Guid approvedBy)
+        public async Task<Document> ApproveEditRequest(int id, Guid approvedBy)
         {
             var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");
             if (document.IsRequested != true) throw new InvalidOperationException("No pending edit request");
@@ -308,12 +408,17 @@ namespace StudyHub.Backend.UseCases.Services
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = approvedBy;
 
+            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+            if (!isValid)
+            {
+                throw new InvalidOperationException("Failed to update document updated at in search index.");
+            }
             return _repo.UpdateDocument(document);
         }
         public (List<Document> documents, int totalCount) GetEditRequestDocuments(
     bool? isRequested = null, int pageNumber = 1, int pageSize = 10)
     => _repo.GetEditRequestDocuments(isRequested, pageNumber, pageSize);
-        public Document RejectEditRequest(int id, Guid rejectedBy)
+        public async Task<Document> RejectEditRequest(int id, Guid rejectedBy)
         {
             var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");
             if (document.IsRequested != true) throw new InvalidOperationException("No pending edit request");
@@ -322,6 +427,11 @@ namespace StudyHub.Backend.UseCases.Services
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = rejectedBy;
 
+            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+            if (!isValid)
+            {
+                throw new InvalidOperationException("Failed to update document updated at in search index.");
+            }
             return _repo.UpdateDocument(document);
         }
         private string GetContentType(string filePath)

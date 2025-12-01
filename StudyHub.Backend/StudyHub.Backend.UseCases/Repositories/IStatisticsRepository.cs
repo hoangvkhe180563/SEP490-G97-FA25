@@ -12,5 +12,22 @@ namespace StudyHub.Backend.UseCases.Repositories
         List<HourCountDto> GetPeakHours(DateTime? start, DateTime? end, int top = 5);
         PagedResultDto<DateCountDto> GetDAU(DateTime start, DateTime end, int page = 1, int pageSize = 100);
         PagedResultDto<DateCountDto> GetMAU(DateTime start, DateTime end, int page = 1, int pageSize = 100);
+
+        // LLM history based statistics
+        List<StudentQuestionStatsDto> GetLlmQuestionsByStudent(DateTime? start, DateTime? end, int top = 100);
+        List<DateCountDto> GetLlmQuestionsTimeSeries(string period, DateTime start, DateTime end);
+        List<HourCountDto> GetLlmPeakHoursForLlm(DateTime? start, DateTime? end, int top = 5);
+        List<SubjectCountDto> GetTopSubjects(DateTime? start, DateTime? end, int top = 10);
+
+        // Top recommended items (courses/documents) parsed from stored LLM responses
+        List<RecommendedItemCountDto> GetTopRecommendedCourses(DateTime? start, DateTime? end, int top = 10);
+        List<RecommendedItemCountDto> GetTopRecommendedDocuments(DateTime? start, DateTime? end, int top = 10);
+
+        TokenSummaryDto GetTokenSummary(DateTime? start, DateTime? end);
+        // Token breakdown by period: "day" | "week" | "month"
+        List<DateTokenDto> GetTokenByPeriod(string period, DateTime? start, DateTime? end);
+        // Backwards-compatible helper
+        List<DateTokenDto> GetTokenByMonth(DateTime? start, DateTime? end);
+        List<UserTokenDto> GetTopTokenUsers(DateTime? start, DateTime? end, int top = 10);
     }
 }

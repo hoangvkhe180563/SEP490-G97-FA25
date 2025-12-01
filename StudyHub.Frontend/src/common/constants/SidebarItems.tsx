@@ -2,7 +2,9 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   BookOpen,
+  Eye,
   FileQuestion,
+  Home,
   LayoutDashboard,
   LibraryBig,
   MessageCircleQuestionMark,
@@ -11,13 +13,14 @@ import {
   Receipt,
   School,
   ScrollText,
+  Settings,
   Users,
 } from "lucide-react";
 import type { ISidebarItem } from "../interfaces/IMainLayoutProps";
 
 export const studentSidebarItems: ISidebarItem[] = [
   {
-    icon: <LayoutDashboard size={20} />,
+    icon: <Home size={20} />,
     text: "Trang chủ",
     link: "/",
   },
@@ -35,6 +38,11 @@ export const studentSidebarItems: ISidebarItem[] = [
     icon: <MessageCircleQuestionMark size={20} />,
     text: "Hỏi đáp",
     link: "/qa/student/conversations",
+  },
+  {
+    icon: <MessageSquare size={20} />,
+    text: "Đề xuất",
+    link: "/recommend/student",
   },
   {
     icon: <Receipt size={20} />,
@@ -75,9 +83,9 @@ export const schoolStudentSidebarItems: ISidebarItem[] = [
 
 export const teacherSidebarItems: ISidebarItem[] = [
   {
-    icon: <LayoutDashboard size={20} />,
+    icon: <Home size={20} />,
     text: "Trang chủ",
-    link: "/",
+    link: "/ui/school-landing",
   },
   {
     icon: <LibraryBig size={20} />,
@@ -172,7 +180,25 @@ export const financialManagerSidebarItems: ISidebarItem[] = [
   },
 ];
 
-export const uiManagerSidebarItems: ISidebarItem[] = [];
+export const uiManagerSidebarItems: ISidebarItem[] = [
+  {
+    icon: <Home size={20} />,
+    text: "Trang chủ",
+    link: "",
+    children: [
+      {
+        icon: <Eye size={20} />,
+        text: "Xem trang chủ",
+        link: "/ui/school-landing",
+      },
+      {
+        icon: <Settings size={20} />,
+        text: "Cấu hình trang chủ",
+        link: "/ui/school-landing/edit",
+      }
+    ]
+  },
+];
 
 export const moderatorSidebarItems: ISidebarItem[] = [
   {
@@ -272,7 +298,7 @@ export const schoolAdminSidebarItems: ISidebarItem[] = [
       {
         icon: <LayoutDashboard size={20} />,
         text: "Thống kê đề xuất",
-        link: "/exam/manager",
+        link: "/recommend/manager",
       },
     ],
   },

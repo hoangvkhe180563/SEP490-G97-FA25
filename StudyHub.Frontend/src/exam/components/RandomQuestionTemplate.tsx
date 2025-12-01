@@ -11,7 +11,8 @@ interface RandomQuestionTemplateProps {
   selectedGrade: number,
   setSelectedGrade: React.Dispatch<React.SetStateAction<number>>,
   selectedRandomQuestions: string,
-  setSelectedRandomQuestions: React.Dispatch<React.SetStateAction<string>>
+  setSelectedRandomQuestions: React.Dispatch<React.SetStateAction<string>>,
+  isLesson?: boolean
 }
 
 const RandomQuestionTemplate = (props: RandomQuestionTemplateProps) => {
@@ -41,6 +42,7 @@ const RandomQuestionTemplate = (props: RandomQuestionTemplateProps) => {
         <div className="flex items-center gap-3 flex-1">
           <Label>Môn học <span className="text-red-500">*</span></Label>
           <Select
+            // disabled={props.isLesson}
             value={props.selectedSubjectId ? props.selectedSubjectId.toString() : ""}
             onValueChange={(val) => props.setSelectedSubjectId(Number(val))}
           >
@@ -60,6 +62,7 @@ const RandomQuestionTemplate = (props: RandomQuestionTemplateProps) => {
         <div className="flex items-center gap-3 flex-1">
           <Label>Lớp <span className="text-red-500">*</span></Label>
           <Select
+            // disabled={props.isLesson}
             value={props.selectedGrade ? props.selectedGrade.toString() : ""}
             onValueChange={(val) => props.setSelectedGrade(Number(val))}
           >
@@ -84,7 +87,7 @@ const RandomQuestionTemplate = (props: RandomQuestionTemplateProps) => {
         ) : (
           <div className="flex gap-3 items-center">
             <Label htmlFor="randomQuestions">Số câu hỏi cần lấy ngẫu nhiên: </Label>
-            <Input id="randomQuestions" className="w-16" type="number" value={props.selectedRandomQuestions} onChange={(e) => props.setSelectedRandomQuestions(e.target.value)} max={totalQuestions} min={totalQuestions === 0 ? 0 : 1} />
+            <Input id="randomQuestions" className="w-16" type="number" value={props.selectedRandomQuestions} onChange={(e) => props.setSelectedRandomQuestions(e.target.value)} max={totalQuestions} min={totalQuestions === 0 ? 0 : 1} disabled={totalQuestions === 0}/>
             <span>/ {totalQuestions}</span>
           </div>
         )

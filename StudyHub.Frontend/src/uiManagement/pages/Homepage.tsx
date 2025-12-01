@@ -16,7 +16,7 @@ const Homepage = () => {
 
   useEffect(() => {
     if (user && user.schoolId !== null) {
-      navigate(`/ui/${user.schoolId}/landing`);
+      navigate(`/ui/school-landing`);
       return;
     }
 
@@ -43,7 +43,7 @@ const Homepage = () => {
     }
 
     fetchData().catch(console.error);
-  }, [])
+  }, [user])
 
   return <div className="w-full h-full overflow-y-auto">
     <Banner logo={data?.logoImage} image={data?.bannerImage} schoolId={0} />

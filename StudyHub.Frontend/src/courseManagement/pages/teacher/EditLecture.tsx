@@ -28,6 +28,7 @@ import courseApi from "@/courseManagement/services/courseService";
 // Checkbox removed; embed is default
 import { formatISO } from "date-fns";
 import QuestionTemplate from "@/exam/components/QuestionTemplate";
+import RandomQuestionTemplate from "@/exam/components/RandomQuestionTemplate";
 
 const EditLecture: React.FC = () => {
   const navigate = useNavigate();
@@ -57,6 +58,9 @@ const EditLecture: React.FC = () => {
   const [description, setDescription] = useState("");
   const [postDate, setPostDate] = useState("");
   const [isPreview, setIsPreview] = useState(false);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number>(0);
+  const [selectedGrade, setSelectedGrade] = useState<number>(0);
+  const [randomQuestions, setRandomQuestions] = useState<string>('');
 
   // Interactive questions metadata (local only until saved to backend)
   const [interactiveQuestions, setInteractiveQuestions] = useState<
@@ -264,13 +268,13 @@ const EditLecture: React.FC = () => {
                   q.type === "text" || q.type === "mc"
                     ? q.type
                     : q.type && String(q.type).toLowerCase().includes("text")
-                    ? "text"
-                    : "mc",
+                      ? "text"
+                      : "mc",
                 options: Array.isArray(q.options)
                   ? q.options
                   : q.options
-                  ? JSON.parse(JSON.stringify(q.options))
-                  : undefined,
+                    ? JSON.parse(JSON.stringify(q.options))
+                    : undefined,
                 correctIndex:
                   typeof q.correctIndex === "number" ? q.correctIndex : null,
                 correctAnswer: q.correctAnswer ?? null,
@@ -305,13 +309,13 @@ const EditLecture: React.FC = () => {
                     q.type === "text" || q.type === "mc"
                       ? q.type
                       : q.type && String(q.type).toLowerCase().includes("text")
-                      ? "text"
-                      : "mc",
+                        ? "text"
+                        : "mc",
                   options: Array.isArray(q.options)
                     ? q.options
                     : q.options
-                    ? JSON.parse(JSON.stringify(q.options))
-                    : undefined,
+                      ? JSON.parse(JSON.stringify(q.options))
+                      : undefined,
                   correctIndex:
                     typeof q.correctIndex === "number" ? q.correctIndex : null,
                   correctAnswer: q.correctAnswer ?? null,
@@ -481,12 +485,12 @@ const EditLecture: React.FC = () => {
       try {
         setTimeLabel(
           initial.timeLabel ??
-            ((): any => {
-              const s = Number(initial.timeSec) || 0;
-              const m = Math.floor(s / 60);
-              const sec = Math.floor(s % 60);
-              return `${m}:${sec.toString().padStart(2, "0")}`;
-            })()
+          ((): any => {
+            const s = Number(initial.timeSec) || 0;
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return `${m}:${sec.toString().padStart(2, "0")}`;
+          })()
         );
         setQuestionText(initial.question ?? "");
         setQtype(initial.type ?? "mc");
@@ -572,9 +576,8 @@ const EditLecture: React.FC = () => {
 
     return (
       <div
-        className={`border rounded p-3 bg-white ${
-          type === "video" ? "" : "hidden"
-        } `}
+        className={`border rounded p-3 bg-white ${type === "video" ? "" : "hidden"
+          } `}
       >
         <div className="grid grid-cols-12 gap-2 items-start">
           <div className="col-span-2">
@@ -749,10 +752,13 @@ const EditLecture: React.FC = () => {
         fieldErrors.duration =
           "Với loại bài giảng kiểm tra thì thời gian là bắt buộc!";
 
-      if (questions.length === 0)
+      if (questions.length === 0) {
         aggErrors.push(
           "Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi."
         );
+      } else if (!Number(randomQuestions)) {
+        aggErrors.push("Vui lòng điền số câu hỏi cần tạo!");
+      }
 
       for (const q of questions) {
         if (!q.questionText.trim()) {
@@ -971,14 +977,14 @@ const EditLecture: React.FC = () => {
         interactiveQuestions:
           interactiveQuestions && interactiveQuestions.length
             ? interactiveQuestions.map((q) => ({
-                timeSec: q.timeSec,
-                question: q.question,
-                type: q.type,
-                options: q.options ?? null,
-                correctIndex:
-                  typeof q.correctIndex === "number" ? q.correctIndex : null,
-                correctAnswer: q.correctAnswer ?? null,
-              }))
+              timeSec: q.timeSec,
+              question: q.question,
+              type: q.type,
+              options: q.options ?? null,
+              correctIndex:
+                typeof q.correctIndex === "number" ? q.correctIndex : null,
+              correctAnswer: q.correctAnswer ?? null,
+            }))
             : null,
       };
 
@@ -1002,6 +1008,12 @@ const EditLecture: React.FC = () => {
         showCorrectAnswers: true,
         openTime: new Date(postDate),
       };
+
+      if (questions.length === 0) {
+        examToUpdate.noRandomQuestions = Number(randomQuestions) ?? 0;
+        examToUpdate.subjectId = selectedSubjectId;
+        examToUpdate.grade = selectedGrade;
+      }
 
       const isExamUpdated =
         type === "exam" ? await courseApi.updateExam(examToUpdate) : true;
@@ -1057,8 +1069,8 @@ const EditLecture: React.FC = () => {
               {type === "video"
                 ? "Video"
                 : type === "reading"
-                ? "Tài liệu đọc"
-                : "Bài kiểm tra"}
+                  ? "Tài liệu đọc"
+                  : "Bài kiểm tra"}
               )
             </h1>
             <p className="text-sm text-[#525252]">
@@ -1517,11 +1529,10 @@ const EditLecture: React.FC = () => {
                           <div className="text-xs text-gray-500">
                             {q.type === "mc"
                               ? `MC — ${q.options?.length ?? 0} lựa chọn`
-                              : `Text${
-                                  q.correctAnswer
-                                    ? ` — đáp án: ${q.correctAnswer}`
-                                    : ""
-                                }`}
+                              : `Text${q.correctAnswer
+                                ? ` — đáp án: ${q.correctAnswer}`
+                                : ""
+                              }`}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1618,23 +1629,14 @@ const EditLecture: React.FC = () => {
             <Label>
               Câu hỏi <span className="text-red-500">*</span>
             </Label>
-            <QuestionTemplate
-              questions={questions}
-              setQuestions={(qs: any) => {
-                setQuestions(qs);
-                setErrors((prev) => {
-                  if (!prev || !prev.questions) return prev;
-                  const c = { ...prev };
-                  delete c.questions;
-                  return c;
-                });
-              }}
-            />
-            {errors.questions && (
-              <div className="text-sm text-rose-600 mt-1">
-                {errors.questions}
-              </div>
-            )}
+
+            {
+              questions.length > 0 ? (
+                <QuestionTemplate questions={questions} setQuestions={setQuestions} />
+              ) : (
+                <RandomQuestionTemplate isLesson selectedSubjectId={selectedSubjectId} setSelectedSubjectId={setSelectedSubjectId} selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} selectedRandomQuestions={randomQuestions} setSelectedRandomQuestions={setRandomQuestions} />
+              )
+            }
           </div>
         </div>
       </div>

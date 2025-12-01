@@ -166,6 +166,9 @@ export interface Exam {
   lessonId?: number;
   openTime: Date;
   closeTime?: Date;
+  noRandomQuestions?: number;
+  subjectId?: number;
+  grade?: number;
 }
 
 export interface LessonExamStatus {

@@ -246,7 +246,9 @@ const LectureDetails: React.FC = () => {
             </div>
           ) : currentLesson?.type === "Exam" ? (
             <div style={{ aspectRatio: "16/9" }} className="space-y-3">
-              {lessonExamQuestions.length > 0 &&
+              {lessonExamQuestions.length === 0 ? (
+                <div>Câu hỏi trong bài kiểm tra này được tạo ngẫu nhiên.</div>
+              ) : (
                 lessonExamQuestions.map((question, index) => {
                   const correctAnswer = question.correctAnswer;
 
@@ -393,7 +395,8 @@ const LectureDetails: React.FC = () => {
                       </div>
                     </div>
                   );
-                })}
+                })
+              )}
             </div>
           ) : (
             <div

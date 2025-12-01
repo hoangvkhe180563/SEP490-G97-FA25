@@ -161,6 +161,7 @@ const LecturePlayer: React.FC = () => {
   const enrollmentId = enrollment?.id ?? null;
   const [examDialogOpen, setExamDialogOpen] = useState<boolean>(false);
   const [examStatus, setExamStatus] = useState<LessonExamStatus | null>(null);
+  const [examResultId, setExamResultId] = useState<string>('');
 
   const localKey = React.useCallback(
     (lessonId: number) => `studyhub_local_progress_${lessonId}`,
@@ -286,6 +287,9 @@ const LecturePlayer: React.FC = () => {
         return;
       }
       setExamStatus(status);
+
+      const resultId = await courseApi.getResultIdByLessonId(lessonId, authUser.id ?? '');
+      setExamResultId(resultId);
     }
 
     fetchExamStatus();
@@ -814,13 +818,12 @@ const LecturePlayer: React.FC = () => {
       return;
     }
 
-    const resultId = await courseApi.getResultIdByLessonId(lessonId, authUser.id ?? '');
-    if (resultId == '') {
+    if (examResultId == '') {
       toast.error("Không lấy được dữ liệu bài làm!");
       return;
     }
 
-    navigate(`/exam/results/${resultId}`);
+    navigate(`/exam/results/${examResultId}`);
   }
 
   const calculateExamEnableTime = () => {
@@ -1020,7 +1023,7 @@ const LecturePlayer: React.FC = () => {
                 >
                   Bắt đầu làm bài
                 </Button>
-                <Button onClick={handleViewExamResult}>
+                <Button disabled={examResultId === ''} onClick={handleViewExamResult}>
                   <NotebookPen /> Xem kết quả
                 </Button>
               </div>

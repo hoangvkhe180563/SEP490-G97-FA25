@@ -28,6 +28,8 @@ import type { Exam, Question } from "@/courseManagement/interfaces/types";
 import { EXAM_TYPE } from "@/courseManagement/constants/ExamType";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import QuestionTemplate from "@/exam/components/QuestionTemplate";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/common/components/ui/tabs";
+import RandomQuestionTemplate from "@/exam/components/RandomQuestionTemplate";
 
 const AddLecture: React.FC = () => {
   const { user } = useAuthStore();
@@ -74,6 +76,10 @@ const AddLecture: React.FC = () => {
   const [resourceUrl, setResourceUrl] = useState<string | null>(null);
   const [resourceId, setResourceId] = useState<number | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [selectedTab, setSelectedTab] = useState<string>('new-questions');
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number>(0);
+  const [selectedGrade, setSelectedGrade] = useState<number>(0);
+  const [randomQuestions, setRandomQuestions] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
   const [dialog, setDialog] = useState<DialogProps>({
@@ -233,10 +239,12 @@ const AddLecture: React.FC = () => {
           "Với loại bài giảng kiểm tra thì thời gian là bắt buộc!";
       }
 
-      if (questions.length === 0) {
+      if (selectedTab === 'new-questions' && questions.length === 0) {
         aggErrors.push(
           "Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi."
         );
+      } else if (!Number(randomQuestions)) {
+        aggErrors.push("Vui lòng điền số câu hỏi cần tạo!");
       }
 
       for (const q of questions) {
@@ -762,14 +770,14 @@ const AddLecture: React.FC = () => {
         interactiveQuestions:
           interactiveQuestions && interactiveQuestions.length
             ? interactiveQuestions.map((q) => ({
-                timeSec: q.timeSec,
-                question: q.question,
-                type: q.type,
-                options: q.options ?? null,
-                correctIndex:
-                  typeof q.correctIndex === "number" ? q.correctIndex : null,
-                correctAnswer: q.correctAnswer ?? null,
-              }))
+              timeSec: q.timeSec,
+              question: q.question,
+              type: q.type,
+              options: q.options ?? null,
+              correctIndex:
+                typeof q.correctIndex === "number" ? q.correctIndex : null,
+              correctAnswer: q.correctAnswer ?? null,
+            }))
             : null,
       };
 
@@ -802,6 +810,12 @@ const AddLecture: React.FC = () => {
         lessonId: created.id,
         openTime: postDate ? new Date(postDate) : new Date(),
       };
+
+      if (selectedTab === 'bank-questions') {
+        newExam.noRandomQuestions = Number(randomQuestions) ?? 0;
+        newExam.subjectId = selectedSubjectId;
+        newExam.grade = selectedGrade;
+      }
 
       const isExamCreated =
         type === "exam" ? await courseApi.createExam(newExam) : true;
@@ -987,9 +1001,8 @@ const AddLecture: React.FC = () => {
                   <Label>
                     Thời gian (phút){" "}
                     <span
-                      className={`text-red-500 ${
-                        type === "exam" ? "" : "hidden"
-                      }`}
+                      className={`text-red-500 ${type === "exam" ? "" : "hidden"
+                        }`}
                     >
                       *
                     </span>
@@ -1078,11 +1091,10 @@ const AddLecture: React.FC = () => {
                           <div className="text-xs text-gray-500">
                             {q.type === "mc"
                               ? `MC — ${q.options?.length ?? 0} lựa chọn`
-                              : `Text${
-                                  q.correctAnswer
-                                    ? ` — đáp án: ${q.correctAnswer}`
-                                    : ""
-                                }`}
+                              : `Text${q.correctAnswer
+                                ? ` — đáp án: ${q.correctAnswer}`
+                                : ""
+                              }`}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1368,9 +1380,8 @@ const AddLecture: React.FC = () => {
                 </div>
               </div>
               <div
-                className={`space-y-2 ${
-                  type === "reading" ? "block" : "hidden"
-                }`}
+                className={`space-y-2 ${type === "reading" ? "block" : "hidden"
+                  }`}
               >
                 <Label>
                   Nội dung đọc <span className="text-red-500">*</span>
@@ -1395,23 +1406,19 @@ const AddLecture: React.FC = () => {
                 <Label>
                   Câu hỏi <span className="text-red-500">*</span>
                 </Label>
-                <QuestionTemplate
-                  questions={questions}
-                  setQuestions={(qs: any) => {
-                    setQuestions(qs);
-                    setErrors((prev) => {
-                      if (!prev || !prev.questions) return prev;
-                      const c = { ...prev };
-                      delete c.questions;
-                      return c;
-                    });
-                  }}
-                />
-                {errors.questions && (
-                  <div className="text-sm text-rose-600 mt-1">
-                    {errors.questions}
-                  </div>
-                )}
+
+                <Tabs defaultValue='new-questions' value={selectedTab} onValueChange={setSelectedTab}>
+                  <TabsList className='mx-auto bg-stone-300'>
+                    <TabsTrigger value='new-questions' className='p-2'>Câu hỏi tự nhập</TabsTrigger>
+                    <TabsTrigger value='bank-questions' className='p-2'>Câu hỏi từ ngân hàng</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value='new-questions'>
+                    <QuestionTemplate questions={questions} setQuestions={setQuestions} />
+                  </TabsContent>
+                  <TabsContent value='bank-questions'>
+                    <RandomQuestionTemplate isLesson selectedSubjectId={selectedSubjectId} setSelectedSubjectId={setSelectedSubjectId} selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} selectedRandomQuestions={randomQuestions} setSelectedRandomQuestions={setRandomQuestions} />
+                  </TabsContent>
+                </Tabs>
               </div>
             </div>
           </div>

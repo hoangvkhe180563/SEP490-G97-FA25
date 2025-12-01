@@ -5,7 +5,7 @@ import MultipleFilesCommand from '../components/MultipleFilesCommand';
 import type { IDocumentItem } from '../interfaces/IDocumentItem'
 import { UiManagementService } from '../services/UiManagementService';
 import type { ICourseItem } from '../interfaces/ICourseItem';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Input } from '@/common/components/ui/input';
 import type { ILandingPageUpdateService } from '../interfaces/ILandingPageUpdateService';
 import { Textarea } from '@/common/components/ui/textarea';
@@ -30,7 +30,6 @@ const LandingPageEdit = () => {
   const [selectedLogo, setSelectedLogo] = useState<IBanner | null>(null);
   const [selectedImages, setSelectedImages] = useState<ILogo[]>([]);
   const imgInputRef = useRef<HTMLInputElement>(null);
-  const { schoolId } = useParams();
   const { setLoading } = useLoading();
   const [allDocuments, setAllDocuments] = useState<IDocumentItem[]>([]);
   const [featuredDocuments, setFeaturedDocuments] = useState<number[]>([]);
@@ -49,7 +48,7 @@ const LandingPageEdit = () => {
   const [imagesError, setImagesError] = useState<string>('');
   const [documentsError, setDocumentsError] = useState<string>('');
   const [coursesError, setCoursesError] = useState<string>('');
-
+  const [schoolId, setSchoolId] = useState<number>(0);
   const uiManagementService = new UiManagementService();
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -59,9 +58,12 @@ const LandingPageEdit = () => {
       if (!user) {
         return;
       }
+      const schoolId = user.schoolId;
       if (!schoolId || !user.roles.some(r => [ROLES.UI_MANAGER, ROLES.SCHOOL_ADMIN].includes(r))) {
+        toast.error("Bạn không có quyền truy cập!");
         navigate("/");
       }
+      setSchoolId(schoolId);
       setLoading(true);
       const schoolIdInt = Number(schoolId);
       const documentData = await uiManagementService.getAllDocuments(schoolIdInt);
@@ -224,12 +226,12 @@ const LandingPageEdit = () => {
       alert(result);
     } else {
       toast.success("Cập nhật trang giới thiệu thành công!");
-      navigate(`/ui/${schoolId}/landing`);
+      navigate(`/ui/school-landing`);
     }
   };
 
   const handleCancel = () => {
-    location.href = `/ui/${schoolId}/landing`
+    location.href = `/ui/school-landing`
   };
 
   return (
