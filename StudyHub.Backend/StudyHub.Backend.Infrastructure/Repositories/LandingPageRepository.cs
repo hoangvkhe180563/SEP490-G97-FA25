@@ -16,8 +16,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         private Domain.Entities.LandingPage DEFAULT_LANDING_PAGE = new Domain.Entities.LandingPage
         {
             SchoolId = 0,
-            BannerUrl = "/src/uiManagement/assets/banner-image.png",
-            SchoolLogoUrl = "/src/common/assets/StudyHubLogo.png",
+            BannerUrl = "/banner-image.png",
+            SchoolLogoUrl = "/StudyHubLogo.png",
             Description = "StudyHub là một trang web phục vụ học tập và ôn luyện cho học sinh, giúp học sinh định hướng được phương pháp học tập cho bản thân.",
             FeaturedCourses = [],
             FeaturedDocuments = [],
@@ -172,9 +172,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (schoolId == 0)
                 {
                     return [
-                        "/src/common/assets/StudyHubLogo.png",
-                        "/src/common/assets/StudyHubLogo.png",
-                        "/src/common/assets/StudyHubLogo.png"
+                        "/StudyHubLogo.png",
+                        "/StudyHubLogo.png",
+                        "/StudyHubLogo.png"
                     ];
                 }
                 else
@@ -186,9 +186,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 new InfrastructureException("LandingPageRepository", "GetLandingPageImages failed. Inner error: " + ex.Message).LogError();
                 return [
-                    "/src/common/assets/StudyHubLogo.png",
-                    "/src/common/assets/StudyHubLogo.png",
-                    "/src/common/assets/StudyHubLogo.png"
+                    "/StudyHubLogo.png",
+                    "/StudyHubLogo.png",
+                    "/StudyHubLogo.png"
                 ];
             }
         }
