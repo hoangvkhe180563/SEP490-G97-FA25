@@ -436,6 +436,7 @@ axiosInstance.interceptors.response.use(
       await refreshTokenPromise;
 
       // Refresh thành công -> retry request với token mới
+      console.log("Retrying original request after token refresh");
       return axiosInstance(originalRequest);
     } catch (refreshError) {
       // Refresh thất bại -> logout

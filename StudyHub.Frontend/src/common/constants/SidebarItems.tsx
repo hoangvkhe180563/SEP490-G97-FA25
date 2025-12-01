@@ -37,6 +37,11 @@ export const studentSidebarItems: ISidebarItem[] = [
     link: "/qa/student/conversations",
   },
   {
+    icon: <MessageSquare size={20} />,
+    text: "Đề xuất",
+    link: "/recommend/student",
+  },
+  {
     icon: <Receipt size={20} />,
     text: "Giao dịch",
     link: "",
@@ -272,7 +277,7 @@ export const schoolAdminSidebarItems: ISidebarItem[] = [
       {
         icon: <LayoutDashboard size={20} />,
         text: "Thống kê đề xuất",
-        link: "/exam/manager",
+        link: "/recommend/manager",
       },
     ],
   },
