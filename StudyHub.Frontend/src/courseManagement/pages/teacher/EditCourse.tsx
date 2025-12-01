@@ -52,6 +52,7 @@ const EditCourse: React.FC = () => {
     title: "",
     message: "",
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const selectedCourse = useCourseStore(
     (s) => s.selectedCourse as CourseListDto
@@ -81,9 +82,9 @@ const EditCourse: React.FC = () => {
   const [status, setStatus] = useState<string>("");
   const [isFeatured, setIsFeatured] = useState<boolean>(false);
   const [difficulty, setDifficulty] = useState<
-    "Beginner" | "Intermediate" | "Advanced"
-  >("Beginner");
-  const [length, setLength] = useState<"Short" | "Medium" | "Long">("Short");
+    "" | "Beginner" | "Intermediate" | "Advanced"
+  >("");
+  const [length, setLength] = useState<"" | "Short" | "Medium" | "Long">("");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
   const [saving, setSaving] = useState(false);
@@ -190,17 +191,20 @@ const EditCourse: React.FC = () => {
 
   // Validation for fields before save
   const validateForm = () => {
-    const errors: string[] = [];
+    const fieldErrors: Record<string, string> = {};
+    const aggErrors: string[] = [];
 
-    if (!name || !name.trim()) errors.push("Tiêu đề khóa học là bắt buộc.");
+    if (!name || !name.trim())
+      fieldErrors.name = "Tiêu đề khóa học là bắt buộc.";
     if (!information || !information.trim())
-      errors.push("Mô tả ngắn là bắt buộc.");
+      fieldErrors.information = "Mô tả ngắn là bắt buộc.";
 
     if (price === undefined || Number.isNaN(price) || Number(price) < 0)
-      errors.push("Giá khóa học phải là số hợp lệ và lớn hơn hoặc bằng 0.");
+      fieldErrors.price =
+        "Giá khóa học phải là số hợp lệ và lớn hơn hoặc bằng 0.";
 
     if (subjectId === "" || subjectId === undefined || Number(subjectId) <= 0)
-      errors.push("Vui lòng chọn chủ đề cho khóa học.");
+      fieldErrors.subjectId = "Vui lòng chọn chủ đề cho khóa học.";
 
     if (
       gradeId === "" ||
@@ -208,10 +212,15 @@ const EditCourse: React.FC = () => {
       Number(gradeId) < 1 ||
       Number(gradeId) > 12
     )
-      errors.push("Vui lòng chọn khối lớp hợp lệ (1-12).");
+      fieldErrors.gradeId = "Vui lòng chọn khối lớp hợp lệ (1-12).";
 
     if (!status || (typeof status === "string" && status.trim() === ""))
-      errors.push("Vui lòng chọn trạng thái khóa học.");
+      fieldErrors.status = "Vui lòng chọn trạng thái khóa học.";
+
+    if (!difficulty || !String(difficulty).trim())
+      fieldErrors.difficulty = "Vui lòng chọn độ khó.";
+    if (!length || !String(length).trim())
+      fieldErrors.length = "Vui lòng chọn độ dài.";
 
     // validate course dates
     const hasStart = Boolean(startAt);
@@ -220,48 +229,50 @@ const EditCourse: React.FC = () => {
     let endDate: Date | null = null;
     if (hasStart) {
       startDate = new Date(startAt);
-      if (isNaN(startDate.getTime())) errors.push("Ngày bắt đầu không hợp lệ.");
+      if (isNaN(startDate.getTime()))
+        fieldErrors.startAt = "Ngày bắt đầu không hợp lệ.";
     }
     if (hasEnd) {
       endDate = new Date(endAt);
-      if (isNaN(endDate.getTime())) errors.push("Ngày kết thúc không hợp lệ.");
+      if (isNaN(endDate.getTime()))
+        fieldErrors.endAt = "Ngày kết thúc không hợp lệ.";
     }
     if (startDate && endDate && startDate > endDate)
-      errors.push("Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc.");
+      fieldErrors.endAt = "Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc.";
 
-    // Ensure there is at least one chapter with at least one lesson
+    // Chapter related validations remain aggregated (show as popup)
     if (!chaptersLocal || chaptersLocal.length === 0)
-      errors.push("Khóa học nên có ít nhất 1 chương.");
+      aggErrors.push("Khóa học nên có ít nhất 1 chương.");
     else {
       const hasLesson = chaptersLocal.some((c) => (c.lessons || []).length > 0);
-      if (!hasLesson) errors.push("Ít nhất một chương phải chứa một bài học.");
+      if (!hasLesson)
+        aggErrors.push("Ít nhất một chương phải chứa một bài học.");
     }
 
-    // Per-chapter and per-lesson validation
+    // Per-chapter and per-lesson aggregated checks
     if (Array.isArray(chaptersLocal)) {
       chaptersLocal.forEach((ch, chIndex) => {
         const title = (ch as any).name ?? "";
         if (!title || !String(title).trim()) {
-          errors.push(`Phần ${chIndex + 1}: Tiêu đề phần là bắt buộc.`);
+          aggErrors.push(`Phần ${chIndex + 1}: Tiêu đề phần là bắt buộc.`);
         }
 
-        // postDate may be a Date or a parsable string
         const pdRaw: any = (ch as any).postDate ?? null;
         if (pdRaw) {
           const pd = pdRaw instanceof Date ? pdRaw : new Date(pdRaw);
           if (isNaN(pd.getTime())) {
-            errors.push(
+            aggErrors.push(
               `Phần ${title || chIndex + 1}: Ngày đăng không hợp lệ.`
             );
           } else {
             if (startDate && pd < startDate)
-              errors.push(
+              aggErrors.push(
                 `Phần ${
                   title || chIndex + 1
                 }: Ngày đăng phải lớn hơn hoặc bằng ngày bắt đầu khóa học.`
               );
             if (endDate && pd > endDate)
-              errors.push(
+              aggErrors.push(
                 `Phần ${
                   title || chIndex + 1
                 }: Ngày đăng phải nhỏ hơn hoặc bằng ngày kết thúc khóa học.`
@@ -269,12 +280,11 @@ const EditCourse: React.FC = () => {
           }
         }
 
-        // lessons basic checks
         const lessons = (ch as any).lessons ?? [];
         if (Array.isArray(lessons)) {
           lessons.forEach((ls: any, li: number) => {
             if (!ls || !ls.name || !String(ls.name).trim()) {
-              errors.push(
+              aggErrors.push(
                 `Phần ${title || chIndex + 1} - Bài ${
                   li + 1
                 }: Tiêu đề bài học là bắt buộc.`
@@ -285,14 +295,61 @@ const EditCourse: React.FC = () => {
       });
     }
 
-    // Optional: thumbnail size check (if user selected a file but not uploaded yet)
+    // Also populate field-level errors for chapters/lessons so they render inline
+    if (Array.isArray(chaptersLocal)) {
+      chaptersLocal.forEach((ch, chIndex) => {
+        const title = (ch as any).name ?? "";
+        if (!title || !String(title).trim()) {
+          fieldErrors[`chapter-${chIndex}-title`] = `Phần ${
+            chIndex + 1
+          }: Tiêu đề phần là bắt buộc.`;
+        }
+
+        const pdRaw: any = (ch as any).postDate ?? null;
+        if (pdRaw) {
+          const pd = pdRaw instanceof Date ? pdRaw : new Date(pdRaw);
+          if (isNaN(pd.getTime())) {
+            fieldErrors[`chapter-${chIndex}-postDate`] = `Phần ${
+              title || chIndex + 1
+            }: Ngày đăng không hợp lệ.`;
+          } else {
+            if (startDate && pd < startDate)
+              fieldErrors[`chapter-${chIndex}-postDate`] = `Phần ${
+                title || chIndex + 1
+              }: Ngày đăng phải lớn hơn hoặc bằng ngày bắt đầu khóa học.`;
+            if (endDate && pd > endDate)
+              fieldErrors[`chapter-${chIndex}-postDate`] = `Phần ${
+                title || chIndex + 1
+              }: Ngày đăng phải nhỏ hơn hoặc bằng ngày kết thúc khóa học.`;
+          }
+        }
+
+        const lessons = (ch as any).lessons ?? [];
+        if (!Array.isArray(lessons) || lessons.length === 0) {
+          fieldErrors[`chapter-${chIndex}-lessons`] = `Phần ${
+            title || chIndex + 1
+          }: Cần ít nhất 1 bài học.`;
+        } else {
+          lessons.forEach((ls: any, li: number) => {
+            if (!ls || !ls.name || !String(ls.name).trim()) {
+              fieldErrors[`chapter-${chIndex}-lesson-${li}-title`] = `Phần ${
+                title || chIndex + 1
+              } - Bài ${li + 1}: Tiêu đề bài học là bắt buộc.`;
+            }
+          });
+        }
+      });
+    }
+
     if (thumbnailFile) {
       const maxBytes = 5 * 1024 * 1024; // 5MB
       if (thumbnailFile.size > maxBytes)
-        errors.push("Ảnh thu nhỏ vượt quá 5MB. Vui lòng chọn file nhỏ hơn.");
+        fieldErrors.thumbnailFile =
+          "Ảnh thu nhỏ vượt quá 5MB. Vui lòng chọn file nhỏ hơn.";
     }
 
-    return errors;
+    setErrors(fieldErrors);
+    return { fieldErrors, aggErrors };
   };
 
   useEffect(() => {
@@ -340,7 +397,7 @@ const EditCourse: React.FC = () => {
     const temp: any = {
       id: tempId,
       courseId,
-      name: "Phần mới",
+      name: "",
       numberOfLessons: 0,
       description: "",
       duration: "",
@@ -354,6 +411,14 @@ const EditCourse: React.FC = () => {
     setModalChapter(temp);
     setModalChapterMode("edit");
     setIsChapterModalOpen(true);
+    // clear any chapter-related inline errors when adding a new chapter
+    setErrors((s) => {
+      const copy = { ...s };
+      Object.keys(copy).forEach((k) => {
+        if (k.startsWith("chapter-")) delete (copy as any)[k];
+      });
+      return copy;
+    });
   };
 
   const handleDeleteChapter = (id: number) => {
@@ -476,6 +541,14 @@ const EditCourse: React.FC = () => {
     const found = chaptersLocal.find((c) => c.id === chapterId);
     if (found) {
       setModalChapter(found);
+      // clear chapter-related errors when opening modal for this chapter
+      setErrors((s) => {
+        const copy = { ...s };
+        Object.keys(copy).forEach((k) => {
+          if (k.startsWith("chapter-")) delete (copy as any)[k];
+        });
+        return copy;
+      });
       setIsChapterModalOpen(true);
       return;
     }
@@ -509,48 +582,47 @@ const EditCourse: React.FC = () => {
         title: "Thất bại",
         message: "Cập nhật không khả dụng",
       });
-    // Validate modal chapter postDate against course start/end (if provided)
-    try {
-      const pdRaw: any = (modalChapter as any).postDate ?? null;
-      if (pdRaw) {
-        const pd = pdRaw instanceof Date ? pdRaw : new Date(pdRaw);
-        if (isNaN(pd.getTime())) {
-          setDialog({
-            open: true,
-            title: "Lỗi",
-            message: "Ngày đăng phần không hợp lệ.",
-          });
-          return;
-        }
+    // Validate modal chapter required fields (title, postDate) and date against course start/end
+    const modalIndex = chaptersLocal.findIndex((c) => c.id === modalChapter.id);
+    // ensure we have an index for error keys; if not found, use 0 as fallback
+    const errorIndex = modalIndex >= 0 ? modalIndex : 0;
 
+    // Collect modal field errors so we can show all at once
+    const modalFieldErrors: Record<string, string> = {};
+    if (!modalChapter.name || !String(modalChapter.name).trim()) {
+      modalFieldErrors[`chapter-${errorIndex}-title`] =
+        "Tiêu đề phần là bắt buộc.";
+    }
+    const pdRawAny: any = (modalChapter as any).postDate ?? null;
+    if (!pdRawAny) {
+      modalFieldErrors[`chapter-${errorIndex}-postDate`] =
+        "Ngày đăng là bắt buộc.";
+    } else {
+      const pd = pdRawAny instanceof Date ? pdRawAny : new Date(pdRawAny);
+      if (isNaN(pd.getTime())) {
+        modalFieldErrors[`chapter-${errorIndex}-postDate`] =
+          "Ngày đăng phần không hợp lệ.";
+      } else {
         if (startAt) {
           const s = new Date(startAt);
           if (!isNaN(s.getTime()) && pd < s) {
-            setDialog({
-              open: true,
-              title: "Lỗi ngày",
-              message:
-                "Ngày đăng phần phải lớn hơn hoặc bằng ngày bắt đầu khóa học.",
-            });
-            return;
+            modalFieldErrors[`chapter-${errorIndex}-postDate`] =
+              "Ngày đăng phần phải lớn hơn hoặc bằng ngày bắt đầu khóa học.";
           }
         }
-
         if (endAt) {
           const e = new Date(endAt);
           if (!isNaN(e.getTime()) && pd > e) {
-            setDialog({
-              open: true,
-              title: "Lỗi ngày",
-              message:
-                "Ngày đăng phần phải nhỏ hơn hoặc bằng ngày kết thúc khóa học.",
-            });
-            return;
+            modalFieldErrors[`chapter-${errorIndex}-postDate`] =
+              "Ngày đăng phần phải nhỏ hơn hoặc bằng ngày kết thúc khóa học.";
           }
         }
       }
-    } catch (err) {
-      console.warn("Chapter date validation failed", err);
+    }
+
+    if (Object.keys(modalFieldErrors).length > 0) {
+      setErrors((s) => ({ ...s, ...modalFieldErrors }));
+      return;
     }
 
     setChapterModalSaving(true);
@@ -673,14 +745,19 @@ const EditCourse: React.FC = () => {
             <Button
               onClick={async () => {
                 // validate before attempting save
-                const errors = validateForm();
-                if (errors.length) {
+                const { fieldErrors, aggErrors } = validateForm();
+                if (Object.keys(fieldErrors).length > 0) {
+                  // field-level inline errors — scroll to top and stop
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  return;
+                }
+                if (aggErrors.length) {
                   setDialog({
                     open: true,
                     title: "Thiếu hoặc sai thông tin",
-                    message: errors.map((err, index) => (
+                    message: aggErrors.map((err, index) => (
                       <React.Fragment key={`err-${index}`}>
-                        {err} {index < errors.length - 1 && <br />}
+                        {err} {index < aggErrors.length - 1 && <br />}
                       </React.Fragment>
                     )),
                   });
@@ -718,8 +795,11 @@ const EditCourse: React.FC = () => {
                     information,
                     imageUrl:
                       thumbnailPreview ?? selectedCourse?.imageUrl ?? null,
-                    difficulty,
-                    length,
+                    difficulty: difficulty as
+                      | "Beginner"
+                      | "Intermediate"
+                      | "Advanced",
+                    length: length as "Short" | "Medium" | "Long",
                     price: price ?? 0,
                     schoolId: authUser?.schoolId ?? null,
                     subjectId:
@@ -778,38 +858,82 @@ const EditCourse: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
+                  {errors.thumbnailFile && (
+                    <div className="text-sm text-red-600 mt-2">
+                      {errors.thumbnailFile}
+                    </div>
+                  )}
                   {/* Title */}
                   <div className="space-y-2">
-                    <Label>Tiêu đề khóa học</Label>
+                    <Label>
+                      Tiêu đề khóa học <span className="text-red-600">*</span>
+                    </Label>
                     <Input
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      onChange={(e) => {
+                        setName(e.target.value);
+                        if (errors.name) setErrors((s) => ({ ...s, name: "" }));
+                      }}
                       placeholder="Nhập tiêu đề khóa học"
+                      className={
+                        errors.name ? "border-red-500 ring-1 ring-red-500" : ""
+                      }
                     />
+                    {errors.name && (
+                      <div className="text-sm text-red-600 mt-1">
+                        {errors.name}
+                      </div>
+                    )}
                   </div>
 
                   {/* Description */}
                   <div className="space-y-2">
-                    <Label>Mô tả ngắn</Label>
+                    <Label>
+                      Mô tả ngắn <span className="text-red-600">*</span>
+                    </Label>
                     <Textarea
                       value={information}
-                      onChange={(e) => setInformation(e.target.value)}
+                      onChange={(e) => {
+                        setInformation(e.target.value);
+                        if (errors.information)
+                          setErrors((s) => ({ ...s, information: "" }));
+                      }}
                       rows={4}
                       placeholder="Nhập mô tả ngắn..."
+                      className={
+                        errors.information
+                          ? "border-red-500 ring-1 ring-red-500"
+                          : ""
+                      }
                     />
+                    {errors.information && (
+                      <div className="text-sm text-red-600 mt-1">
+                        {errors.information}
+                      </div>
+                    )}
                   </div>
 
                   {/* Subject & Grade */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label>Chủ đề</Label>
+                      <Label>
+                        Chủ đề <span className="text-red-600">*</span>
+                      </Label>
                       <Select
                         value={String(subjectId)}
-                        onValueChange={(v) =>
-                          setSubjectId(v === "" ? "" : Number(v))
-                        }
+                        onValueChange={(v) => {
+                          setSubjectId(v === "" ? "" : Number(v));
+                          if (errors.subjectId)
+                            setErrors((s) => ({ ...s, subjectId: "" }));
+                        }}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger
+                          className={`w-full ${
+                            errors.subjectId
+                              ? "border-red-500 ring-1 ring-red-500"
+                              : ""
+                          }`}
+                        >
                           <SelectValue placeholder="Chọn chủ đề" />
                         </SelectTrigger>
                         <SelectContent>
@@ -823,17 +947,32 @@ const EditCourse: React.FC = () => {
                           ))}
                         </SelectContent>
                       </Select>
+                      {errors.subjectId && (
+                        <div className="text-sm text-red-600 mt-1">
+                          {errors.subjectId}
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Khối lớp</Label>
+                      <Label>
+                        Khối lớp <span className="text-red-600">*</span>
+                      </Label>
                       <Select
                         value={String(gradeId)}
-                        onValueChange={(v) =>
-                          setGradeId(v === "" ? "" : Number(v))
-                        }
+                        onValueChange={(v) => {
+                          setGradeId(v === "" ? "" : Number(v));
+                          if (errors.gradeId)
+                            setErrors((s) => ({ ...s, gradeId: "" }));
+                        }}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger
+                          className={`w-full ${
+                            errors.gradeId
+                              ? "border-red-500 ring-1 ring-red-500"
+                              : ""
+                          }`}
+                        >
                           <SelectValue placeholder="Chọn khối lớp" />
                         </SelectTrigger>
                         <SelectContent>
@@ -844,31 +983,62 @@ const EditCourse: React.FC = () => {
                           ))}
                         </SelectContent>
                       </Select>
+                      {errors.gradeId && (
+                        <div className="text-sm text-red-600 mt-1">
+                          {errors.gradeId}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">
-                        Ngày bắt đầu
+                        Ngày bắt đầu <span className="text-red-600">*</span>
                       </Label>
                       <Input
                         type="date"
                         value={startAt}
-                        onChange={(e) => setStartAt(e.target.value)}
-                        className="w-full"
+                        onChange={(e) => {
+                          setStartAt(e.target.value);
+                          if (errors.startAt)
+                            setErrors((s) => ({ ...s, startAt: "" }));
+                        }}
+                        className={`w-full ${
+                          errors.startAt
+                            ? "border-red-500 ring-1 ring-red-500"
+                            : ""
+                        }`}
                       />
+                      {errors.startAt && (
+                        <div className="text-sm text-red-600 mt-1">
+                          {errors.startAt}
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">
-                        Ngày kết thúc
+                        Ngày kết thúc <span className="text-red-600">*</span>
                       </Label>
                       <Input
                         type="date"
                         value={endAt}
-                        onChange={(e) => setEndAt(e.target.value)}
-                        className="w-full"
+                        onChange={(e) => {
+                          setEndAt(e.target.value);
+                          if (errors.endAt)
+                            setErrors((s) => ({ ...s, endAt: "" }));
+                        }}
+                        className={`w-full ${
+                          errors.endAt
+                            ? "border-red-500 ring-1 ring-red-500"
+                            : ""
+                        }`}
                       />
+                      {errors.endAt && (
+                        <div className="text-sm text-red-600 mt-1">
+                          {errors.endAt}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -879,7 +1049,9 @@ const EditCourse: React.FC = () => {
               <CardHeader>
                 <div className="flex items-center justify-between w-full">
                   <div>
-                    <CardTitle>Nội dung khóa học</CardTitle>
+                    <CardTitle>
+                      Nội dung khóa học <span className="text-red-600">*</span>
+                    </CardTitle>
                   </div>
                   <div>
                     <Button
@@ -906,9 +1078,19 @@ const EditCourse: React.FC = () => {
                             <p className="text-base w-full text-[#171717] font-semibold border-b pb-1 mb-1 focus:outline-none">
                               {ch.name}
                             </p>
+                            {errors[`chapter-${chIndex}-title`] && (
+                              <div className="text-sm text-red-600 mt-1">
+                                {errors[`chapter-${chIndex}-title`]}
+                              </div>
+                            )}
                             <p className="text-sm w-full text-gray-400 pb-1 focus:outline-none">
                               {ch.description}
                             </p>
+                            {errors[`chapter-${chIndex}-postDate`] && (
+                              <div className="text-sm text-red-600 mt-1">
+                                {errors[`chapter-${chIndex}-postDate`]}
+                              </div>
+                            )}
                           </div>
 
                           {/* Action Buttons */}
@@ -962,6 +1144,17 @@ const EditCourse: React.FC = () => {
                                 <p className="text-sm text-[#404040] bg-transparent w-full hover:text-[#2563EB] transition-colors">
                                   {l.name}
                                 </p>
+                                {errors[
+                                  `chapter-${chIndex}-lesson-${idx}-title`
+                                ] && (
+                                  <div className="text-xs text-red-600 ml-6">
+                                    {
+                                      errors[
+                                        `chapter-${chIndex}-lesson-${idx}-title`
+                                      ]
+                                    }
+                                  </div>
+                                )}
                               </div>
 
                               {/* === Right: Action buttons === */}
@@ -1034,7 +1227,10 @@ const EditCourse: React.FC = () => {
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Hình thu nhỏ khóa học</CardTitle>
+                  <CardTitle>
+                    Hình thu nhỏ khóa học{" "}
+                    <span className="text-red-600">*</span>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-5">
@@ -1165,21 +1361,49 @@ const EditCourse: React.FC = () => {
                 <CardContent>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Giá khóa học</Label>
+                      <Label>
+                        Giá khóa học <span className="text-red-600">*</span>
+                      </Label>
                       <Input
                         type="number"
                         value={price || ""}
-                        onChange={(e) => setPrice(Number(e.target.value))}
+                        onChange={(e) => {
+                          setPrice(Number(e.target.value));
+                          if (errors.price)
+                            setErrors((s) => ({ ...s, price: "" }));
+                        }}
                         placeholder="0"
+                        className={
+                          errors.price
+                            ? "border-red-500 ring-1 ring-red-500"
+                            : ""
+                        }
                       />
+                      {errors.price && (
+                        <div className="text-sm text-red-600 mt-1">
+                          {errors.price}
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-2">
-                      <Label>Độ khó</Label>
+                      <Label>
+                        Độ khó <span className="text-red-600">*</span>
+                      </Label>
                       <Select
                         value={difficulty}
-                        onValueChange={(v) => setDifficulty(v as any)}
+                        onValueChange={(v) => {
+                          setDifficulty(v as any);
+                          if (errors.difficulty)
+                            setErrors((s) => ({ ...s, difficulty: "" }));
+                        }}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger
+                          className={`w-full ${
+                            errors.difficulty
+                              ? "border-red-500 ring-1 ring-red-500"
+                              : ""
+                          }`}
+                        >
                           <SelectValue placeholder="Chọn độ khó" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1190,15 +1414,32 @@ const EditCourse: React.FC = () => {
                           <SelectItem value="Advanced">Nâng cao</SelectItem>
                         </SelectContent>
                       </Select>
+                      {errors.difficulty && (
+                        <div className="text-sm text-red-600 mt-1">
+                          {errors.difficulty}
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Độ dài</Label>
+                      <Label>
+                        Độ dài <span className="text-red-600">*</span>
+                      </Label>
                       <Select
                         value={length}
-                        onValueChange={(v) => setLength(v as any)}
+                        onValueChange={(v) => {
+                          setLength(v as any);
+                          if (errors.length)
+                            setErrors((s) => ({ ...s, length: "" }));
+                        }}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger
+                          className={`w-full ${
+                            errors.length
+                              ? "border-red-500 ring-1 ring-red-500"
+                              : ""
+                          }`}
+                        >
                           <SelectValue placeholder="Chọn độ dài" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1207,6 +1448,11 @@ const EditCourse: React.FC = () => {
                           <SelectItem value="Long">Dài</SelectItem>
                         </SelectContent>
                       </Select>
+                      {errors.length && (
+                        <div className="text-sm text-red-600 mt-1">
+                          {errors.length}
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-4">
                       {status === "Đóng" ? (
@@ -1215,12 +1461,24 @@ const EditCourse: React.FC = () => {
                         </p>
                       ) : (
                         <>
-                          <Label>Trạng thái</Label>
+                          <Label>
+                            Trạng thái <span className="text-red-600">*</span>
+                          </Label>
                           <Select
                             value={status}
-                            onValueChange={(v) => setStatus(v)}
+                            onValueChange={(v) => {
+                              setStatus(v);
+                              if (errors.status)
+                                setErrors((s) => ({ ...s, status: "" }));
+                            }}
                           >
-                            <SelectTrigger className="w-full">
+                            <SelectTrigger
+                              className={`w-full ${
+                                errors.status
+                                  ? "border-red-500 ring-1 ring-red-500"
+                                  : ""
+                              }`}
+                            >
                               <SelectValue placeholder="Chọn trạng thái" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1228,6 +1486,11 @@ const EditCourse: React.FC = () => {
                               <SelectItem value="Nháp">Nháp</SelectItem>
                             </SelectContent>
                           </Select>
+                          {errors.status && (
+                            <div className="text-sm text-red-600 mt-1">
+                              {errors.status}
+                            </div>
+                          )}
                         </>
                       )}
 
@@ -1286,14 +1549,45 @@ const EditCourse: React.FC = () => {
 
             <div className="space-y-4">
               <div className="space-y-4">
-                <Label>Tiêu đề phần</Label>
+                <Label>
+                  Tiêu đề phần <span className="text-red-600">*</span>
+                </Label>
                 <Input
                   value={modalChapter.name}
-                  onChange={(e) =>
-                    setModalChapter({ ...modalChapter, name: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setModalChapter({ ...modalChapter, name: e.target.value });
+                    const modalIndex = chaptersLocal.findIndex(
+                      (c) => c.id === modalChapter.id
+                    );
+                    if (modalIndex >= 0) {
+                      const key = `chapter-${modalIndex}-title`;
+                      if (errors[key]) setErrors((s) => ({ ...s, [key]: "" }));
+                    }
+                  }}
                   disabled={modalChapterMode === "view"}
+                  className={(() => {
+                    const modalIndex = chaptersLocal.findIndex(
+                      (c) => c.id === modalChapter.id
+                    );
+                    const key =
+                      modalIndex >= 0 ? `chapter-${modalIndex}-title` : null;
+                    return key && errors[key]
+                      ? "border-red-500 ring-1 ring-red-500"
+                      : "";
+                  })()}
                 />
+                {(() => {
+                  const modalIndex = chaptersLocal.findIndex(
+                    (c) => c.id === modalChapter.id
+                  );
+                  const key =
+                    modalIndex >= 0 ? `chapter-${modalIndex}-title` : null;
+                  return key && errors[key] ? (
+                    <div className="text-sm text-red-600 mt-1">
+                      {errors[key]}
+                    </div>
+                  ) : null;
+                })()}
               </div>
 
               <div className="grid grid-cols-1 gap-3">
@@ -1319,7 +1613,9 @@ const EditCourse: React.FC = () => {
                     </div>
                   </div>
                   <div className="space-y-4">
-                    <Label>Ngày đăng</Label>
+                    <Label>
+                      Ngày đăng <span className="text-red-600">*</span>
+                    </Label>
                     <Input
                       type="date"
                       value={
@@ -1329,16 +1625,50 @@ const EditCourse: React.FC = () => {
                             ).slice(0, 10)
                           : ""
                       }
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setModalChapter({
                           ...modalChapter,
                           postDate: e.target.value
                             ? new Date(e.target.value)
                             : null,
-                        })
-                      }
+                        });
+                        const modalIndex = chaptersLocal.findIndex(
+                          (c) => c.id === modalChapter.id
+                        );
+                        if (modalIndex >= 0) {
+                          const key = `chapter-${modalIndex}-postDate`;
+                          if (errors[key])
+                            setErrors((s) => ({ ...s, [key]: "" }));
+                        }
+                      }}
                       disabled={modalChapterMode === "view"}
+                      className={(() => {
+                        const modalIndex = chaptersLocal.findIndex(
+                          (c) => c.id === modalChapter.id
+                        );
+                        const key =
+                          modalIndex >= 0
+                            ? `chapter-${modalIndex}-postDate`
+                            : null;
+                        return key && errors[key]
+                          ? "border-red-500 ring-1 ring-red-500"
+                          : "";
+                      })()}
                     />
+                    {(() => {
+                      const modalIndex = chaptersLocal.findIndex(
+                        (c) => c.id === modalChapter.id
+                      );
+                      const key =
+                        modalIndex >= 0
+                          ? `chapter-${modalIndex}-postDate`
+                          : null;
+                      return key && errors[key] ? (
+                        <div className="text-sm text-red-600 mt-1">
+                          {errors[key]}
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1351,7 +1681,23 @@ const EditCourse: React.FC = () => {
                       key={`${String(ls.id ?? "new")}-modal-${idx}`}
                       className="flex items-center justify-between bg-[#FAFAFA] rounded p-2"
                     >
-                      <div>{ls.name}</div>
+                      <div>
+                        {ls.name}
+                        {(() => {
+                          const modalIndex = chaptersLocal.findIndex(
+                            (c) => c.id === modalChapter.id
+                          );
+                          const key =
+                            modalIndex >= 0
+                              ? `chapter-${modalIndex}-lesson-${idx}-title`
+                              : null;
+                          return key && errors[key] ? (
+                            <div className="text-xs text-red-600">
+                              {errors[key]}
+                            </div>
+                          ) : null;
+                        })()}
+                      </div>
                       <div className="flex gap-2">
                         <Button
                           variant="link"

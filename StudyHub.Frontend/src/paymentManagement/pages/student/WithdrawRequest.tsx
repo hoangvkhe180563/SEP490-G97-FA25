@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Input } from "@/common/components/ui/input";
 import { Label } from "@/common/components/ui/label";
 import { Button } from "@/common/components/ui/button";
@@ -188,95 +188,65 @@ const WithdrawRequest: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-2xl mx-auto p-8 bg-white rounded-2xl shadow-lg border border-gray-100"
+        className="h-full overflow-y-auto scrollbar-hide  max-w-5xl mx-auto p-10 bg-white rounded-2xl shadow-xl border border-gray-100"
       >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-3xl font-bold text-gray-800">Yêu cầu rút tiền</h2>
-          <div className="text-sm text-gray-500">
-            Số dư hiện tại:
-            <strong className="text-primary">
-              {auth?.wallet?.toLocaleString("vi-VN") ?? 0}
-            </strong>
-            đ
+        <div className="flex items-start justify-between mb-8 gap-6">
+          <div>
+            <h2 className="text-4xl font-extrabold text-gray-900">
+              Yêu cầu rút tiền
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Gửi yêu cầu rút tiền an toàn — tiền sẽ được chuyển về tài khoản
+              bạn cung cấp.
+            </p>
+          </div>
+
+          <div className="text-right">
+            <div className="text-sm text-gray-500">Số dư hiện tại</div>
+            <div className="text-2xl font-semibold text-primary">
+              {(auth?.wallet ?? 0).toLocaleString("vi-VN")} đ
+            </div>
           </div>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-6">
-          {/* Số tiền */}
-          <div>
-            <Label className="text-base font-medium">Số tiền (VNĐ)</Label>
-            <Input
-              type="number"
-              placeholder="Nhập số tiền muốn rút (vd: 20 hoặc 500000)"
-              value={amount}
-              onChange={(e) => handleAmountChange(e.target.value)}
-              className="mt-2 h-11 text-lg"
-            />
+        <form
+          onSubmit={onSubmit}
+          className="grid grid-cols-12 gap-8 items-start"
+        >
+          <div className="col-span-12 lg:col-span-8 space-y-6">
+            <div>
+              <Label className="text-base font-medium">Số tiền (VNĐ)</Label>
+              <Input
+                type="number"
+                placeholder="Nhập số tiền muốn rút (ví dụ: 200000)"
+                value={amount}
+                onChange={(e) => handleAmountChange(e.target.value)}
+                className="mt-3 h-14 text-2xl font-semibold tracking-tight"
+              />
 
-            {/* Gợi ý động */}
-            <AnimatePresence>
-              {suggestedAmounts.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 5 }}
-                  className="flex flex-wrap gap-2 mt-3"
-                >
-                  {suggestedAmounts.map((s, i) => (
-                    <Button
-                      key={i}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="rounded-full px-4 text-sm hover:bg-primary/10"
-                      onClick={() => handleAmountChange(String(s))}
-                    >
-                      {s.toLocaleString("vi-VN")} đ
-                    </Button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
+              <div className="flex flex-wrap gap-3 mt-4">
+                {suggestedAmounts.map((s, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className="px-4 py-2 rounded-full border border-gray-200 text-sm hover:bg-gray-50"
+                    onClick={() => handleAmountChange(String(s))}
+                  >
+                    {s.toLocaleString("vi-VN")} đ
+                  </button>
+                ))}
+              </div>
 
-            {/* Hiển thị số tiền bằng chữ */}
-            <AnimatePresence>
               {amountText && (
-                <motion.div
-                  key="amtText"
-                  initial={{ opacity: 0, y: -5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -5 }}
-                  className="mt-2 text-sm text-primary font-medium italic"
-                >
+                <div className="mt-3 text-sm text-gray-700 italic">
                   {amountText.charAt(0).toUpperCase() + amountText.slice(1)}
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
-          </div>
+            </div>
 
-          {/* Tài khoản nhận */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
+            <div>
               <Label className="text-base font-medium">Tài khoản nhận</Label>
-              <div className="flex items-center gap-3">
-                {method === "manual" && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-muted-foreground hover:text-primary p-0"
-                      >
-                        <HelpCircle className="w-5 h-5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      Format: <span className="font-mono">STK_NganHang</span>
-                      (VD: <span className="font-mono">0123456789_VCB</span>)
-                    </TooltipContent>
-                  </Tooltip>
-                )}
+              <div className="flex items-center gap-3 mt-3">
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
@@ -295,108 +265,166 @@ const WithdrawRequest: React.FC = () => {
                     Tải ảnh QR
                   </Button>
                 </div>
+                <div className="ml-auto flex items-center gap-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-primary p-0"
+                        aria-label="Hướng dẫn định dạng tài khoản"
+                      >
+                        <HelpCircle className="w-5 h-5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      Format: <span className="font-mono">STK_NganHang</span>
+                      <div className="mt-1">
+                        Ví dụ: <span className="font-mono">0123456789_VCB</span>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
-            </div>
-            {method === "manual" && (
-              <Input
-                placeholder="STK_NganHang (VD: 0123456789_Vietcombank)"
-                value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value)}
-                className="h-11 text-base"
-              />
-            )}
-            {method === "upload" && (
+
               <div className="mt-3">
-                <Label className="text-sm">Ảnh QR</Label>
-                <div className="flex items-center gap-3 mt-2">
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={onFileChange}
+                {method === "manual" && (
+                  <Input
+                    placeholder="0123456789_Vietcombank"
+                    value={accountNumber}
+                    onChange={(e) => setAccountNumber(e.target.value)}
+                    className="h-11 text-base"
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileRef.current?.click()}
-                    disabled={uploading}
-                  >
-                    <UploadCloud className="w-4 h-4 mr-1" />
-                    {uploading ? "Đang tải..." : "Chọn ảnh"}
-                  </Button>
-                  {uploadPreview && (
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={uploadPreview}
-                        alt="preview"
-                        className="h-16 w-16 object-cover rounded-md border shadow-sm"
+                )}
+
+                {method === "upload" && (
+                  <div>
+                    <div className="flex items-center gap-3 mt-2">
+                      <input
+                        ref={fileRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={onFileChange}
                       />
                       <Button
                         type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearUpload}
-                        className="text-sm text-destructive flex items-center gap-1 p-0"
+                        variant="outline"
+                        onClick={() => fileRef.current?.click()}
+                        disabled={uploading}
                       >
-                        <X className="w-4 h-4" /> Xóa
+                        <UploadCloud className="w-4 h-4 mr-1" />
+                        {uploading ? "Đang tải..." : "Chọn ảnh"}
                       </Button>
+                      {uploadPreview && (
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={uploadPreview}
+                            alt="preview"
+                            className="h-20 w-20 object-cover rounded-md border shadow-sm"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearUpload}
+                            className="text-sm text-destructive flex items-center gap-1 p-0"
+                          >
+                            <X className="w-4 h-4" /> Xóa
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Ảnh tối đa 5MB. Ảnh này sẽ được gửi kèm yêu cầu rút tiền.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-base font-medium">Ghi chú</Label>
+              <Textarea
+                placeholder="Lý do rút hoặc ghi chú thêm..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="mt-3 min-h-[120px]"
+              />
+            </div>
+
+            <div className="flex items-center gap-4 pt-1">
+              <Button
+                type="submit"
+                className="px-8 py-3 text-base"
+                disabled={uploading}
+              >
+                Gửi yêu cầu
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setAmount(0);
+                  setAmountText("");
+                  setAccountNumber("");
+                  setDescription("Rút tiền về tài khoản");
+                  clearUpload();
+                  setResult(null);
+                }}
+              >
+                Xóa
+              </Button>
+            </div>
+          </div>
+
+          <aside className="col-span-12 lg:col-span-4">
+            <div className="sticky top-8 space-y-6">
+              <div className="p-5 bg-gray-50 rounded-lg border border-gray-100">
+                <div className="text-sm text-gray-500">Số tiền bạn sẽ nhận</div>
+                <div className="mt-2 text-3xl font-bold text-gray-900">
+                  {amount ? amount.toLocaleString("vi-VN") + " đ" : "0 đ"}
+                </div>
+                {amountText && (
+                  <div className="mt-2 text-sm text-gray-700 italic">
+                    {amountText.charAt(0).toUpperCase() + amountText.slice(1)}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-5 bg-white rounded-lg border border-gray-100 shadow-sm">
+                <div className="text-sm text-gray-500">Tài khoản nhận</div>
+                <div className="mt-2 font-medium text-gray-900">
+                  {accountNumber || "Chưa cung cấp"}
+                </div>
+                <div className="mt-3">
+                  {uploadedUrl ? (
+                    <img
+                      src={uploadedUrl}
+                      alt="uploaded"
+                      className="w-full rounded-md object-cover border"
+                    />
+                  ) : uploadPreview ? (
+                    <img
+                      src={uploadPreview}
+                      alt="preview"
+                      className="w-full rounded-md object-cover border"
+                    />
+                  ) : (
+                    <div className="text-xs text-gray-400">
+                      Không có ảnh chứng từ
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Ảnh tối đa 5MB. Ảnh này sẽ được gửi kèm yêu cầu rút tiền.
-                </p>
               </div>
-            )}
-          </div>
 
-          {/* Ghi chú */}
-          <div>
-            <Label className="text-base font-medium">Ghi chú</Label>
-            <Textarea
-              placeholder="Lý do rút hoặc ghi chú thêm..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="mt-2 min-h-[100px]"
-            />
-          </div>
-
-          {/* Nút hành động */}
-          <div className="flex items-center gap-4 pt-3">
-            <Button
-              type="submit"
-              className="px-6 py-2 text-base"
-              disabled={uploading}
-            >
-              Gửi yêu cầu
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setAmount(0);
-                setAmountText("");
-                setAccountNumber("");
-                setDescription("Rút tiền về tài khoản");
-                clearUpload();
-                setResult(null);
-              }}
-            >
-              Xóa
-            </Button>
-          </div>
+              {result && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800">
+                  {result}
+                </div>
+              )}
+            </div>
+          </aside>
         </form>
-
-        {result && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-6 rounded-lg bg-muted p-3 text-sm border text-gray-700"
-          >
-            {result}
-          </motion.div>
-        )}
       </motion.div>
     </>
   );

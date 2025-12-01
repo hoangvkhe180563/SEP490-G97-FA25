@@ -7,6 +7,7 @@
         public string Name { get; set; }
 
         public string SubjectName { get; set; }
+        public sbyte Grade { get; set; }
 
         public string InstructorName { get; set; }
         public string Description { get; set; }

@@ -82,6 +82,7 @@ const AddLecture: React.FC = () => {
     title: "",
     message: "",
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const createLesson = useLectureStore((s: any) => s.createLesson);
 
   const { quill, quillRef } = useQuill({
@@ -104,6 +105,12 @@ const AddLecture: React.FC = () => {
     if (!quill) return;
     quill.on("text-change", () => {
       setReadingContent(quill.root.innerHTML);
+      setErrors((prev) => {
+        if (!prev || !prev.readingContent) return prev;
+        const c = { ...prev };
+        delete c.readingContent;
+        return c;
+      });
     });
   }, [quill]);
 
@@ -181,64 +188,70 @@ const AddLecture: React.FC = () => {
 
   // Validate lecture fields before create
   const validateLectureForm = () => {
-    const errors: string[] = [];
+    const fieldErrors: Record<string, string> = {};
+    const aggErrors: string[] = [];
 
-    if (!selectedChapterId) errors.push("Vui lòng chọn chương cho bài giảng.");
-    if (!title || !title.trim()) errors.push("Tiêu đề bài giảng là bắt buộc.");
+    if (!selectedChapterId)
+      fieldErrors.chapter = "Vui lòng chọn chương cho bài giảng.";
+    if (!title || !title.trim())
+      fieldErrors.title = "Tiêu đề bài giảng là bắt buộc.";
 
     if (type === "video") {
       // default to embed iframe for videos
       if (!embedSrc || !embedSrc.trim())
-        errors.push("Vui lòng dán link nhúng (embed) hợp lệ.");
+        fieldErrors.embedSrc = "Vui lòng dán link nhúng (embed) hợp lệ.";
       else {
         // allow raw iframe tags or plain URLs
         const trimmed = embedSrc.trim();
         if (trimmed.startsWith("<iframe")) {
           const m = trimmed.match(/src=["']([^"']+)["']/);
           if (!m || !m[1])
-            errors.push("Embed iframe không có thuộc tính src hợp lệ.");
+            fieldErrors.embedSrc =
+              "Embed iframe không có thuộc tính src hợp lệ.";
           else {
             try {
               new URL(m[1]);
             } catch (e) {
-              errors.push("URL trong iframe embed không hợp lệ.");
+              fieldErrors.embedSrc = "URL trong iframe embed không hợp lệ.";
             }
           }
         } else {
           try {
             new URL(trimmed);
           } catch (e) {
-            errors.push("Link embed không phải URL hợp lệ.");
+            fieldErrors.embedSrc = "Link embed không phải URL hợp lệ.";
           }
         }
       }
     } else if (type === "reading") {
       // reading
       const cleaned = (readingContent || "").replace(/<(.|\n)*?>/g, "").trim();
-      if (!cleaned) errors.push("Nội dung đọc không được bỏ trống.");
+      if (!cleaned)
+        fieldErrors.readingContent = "Nội dung đọc không được bỏ trống.";
     } else {
       if (!duration) {
-        errors.push("Với loại bài giảng kiểm tra thì thời gian là bắt buộc!");
+        fieldErrors.duration =
+          "Với loại bài giảng kiểm tra thì thời gian là bắt buộc!";
       }
 
       if (selectedTab === 'new-questions' && questions.length === 0) {
-        errors.push(
+        aggErrors.push(
           "Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi."
         );
       } else if (!Number(randomQuestions)) {
-        errors.push("Vui lòng điền số câu hỏi cần tạo!");
+        aggErrors.push("Vui lòng điền số câu hỏi cần tạo!");
       }
 
       for (const q of questions) {
         if (!q.questionText.trim()) {
-          errors.push("Vui lòng nhập nội dung cho tất cả các câu hỏi.");
+          aggErrors.push("Vui lòng nhập nội dung cho tất cả các câu hỏi.");
         }
         if (
           q.type === EXAM_TYPE.SINGLE_CHOICE ||
           q.type === EXAM_TYPE.MULTI_CHOICE
         ) {
           if (q.options.some((opt) => !String(opt).trim())) {
-            errors.push(
+            aggErrors.push(
               `Vui lòng nhập nội dung cho tất cả các lựa chọn hoặc xóa lựa chọn trống cho câu hỏi "${q.questionText}".`
             );
           }
@@ -246,7 +259,7 @@ const AddLecture: React.FC = () => {
 
         if (q.type === EXAM_TYPE.SINGLE_CHOICE) {
           if (!String(q.correctAnswer).trim()) {
-            errors.push(
+            aggErrors.push(
               `Vui lòng chọn đáp án đúng cho câu hỏi "${q.questionText}".`
             );
           }
@@ -256,13 +269,13 @@ const AddLecture: React.FC = () => {
             q.correctAnswer.length === 0 ||
             q.correctAnswer.some((ans) => !String(ans).trim())
           ) {
-            errors.push(
+            aggErrors.push(
               `Vui lòng chọn ít nhất một đáp án đúng cho câu hỏi "${q.questionText}".`
             );
           }
         } else if (q.type === EXAM_TYPE.TEXT_INPUT) {
           if (!String(q.correctAnswer).trim()) {
-            errors.push(
+            aggErrors.push(
               `Vui lòng nhập đáp án đúng cho câu hỏi "${q.questionText}".`
             );
           }
@@ -277,7 +290,7 @@ const AddLecture: React.FC = () => {
             ) || []
           ).length;
           if (expectedBlanks === 0) {
-            errors.push(
+            aggErrors.push(
               `Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '[BLANK]'.`
             );
           }
@@ -286,7 +299,7 @@ const AddLecture: React.FC = () => {
             q.correctAnswer.length !== expectedBlanks ||
             q.correctAnswer.some((ans) => !String(ans).trim())
           ) {
-            errors.push(
+            aggErrors.push(
               `Vui lòng nhập đầy đủ ${expectedBlanks} đáp án đúng cho câu hỏi điền khuyết "${q.questionText}".`
             );
           }
@@ -296,7 +309,7 @@ const AddLecture: React.FC = () => {
             q.terms.length === 0 ||
             q.terms.some((term) => !String(term).trim())
           ) {
-            errors.push(
+            aggErrors.push(
               `Vui lòng nhập đầy đủ các thuật ngữ cho câu hỏi ghép đôi "${q.questionText}".`
             );
           }
@@ -305,12 +318,12 @@ const AddLecture: React.FC = () => {
             q.definitions.length === 0 ||
             q.definitions.some((def) => !String(def).trim())
           ) {
-            errors.push(
+            aggErrors.push(
               `Vui lòng nhập đầy đủ các định nghĩa cho câu hỏi ghép đôi "${q.questionText}".`
             );
           }
           if (q.terms?.length !== q.definitions?.length) {
-            errors.push(
+            aggErrors.push(
               `Số lượng thuật ngữ và định nghĩa phải bằng nhau cho câu hỏi "${q.questionText}".`
             );
           }
@@ -319,14 +332,14 @@ const AddLecture: React.FC = () => {
     }
 
     if (duration && Number.isNaN(Number(duration))) {
-      errors.push("Thời lượng phải là một số hợp lệ (phút).");
+      fieldErrors.duration = "Thời lượng phải là một số hợp lệ (phút).";
     } else if (duration && Number(duration) <= 0) {
-      errors.push("Thời lượng phải là số dương (lớn hơn 0).");
+      fieldErrors.duration = "Thời lượng phải là số dương (lớn hơn 0).";
     }
 
     // Post date validity
     if (postDate && isNaN(new Date(postDate).getTime())) {
-      errors.push("Ngày đăng không hợp lệ.");
+      fieldErrors.postDate = "Ngày đăng không hợp lệ.";
     }
 
     // If chapter has a postDate, the lecture postDate (if provided) cannot be earlier
@@ -335,9 +348,8 @@ const AddLecture: React.FC = () => {
       const chd = new Date(chapterPostDate);
       if (!isNaN(lec.getTime()) && !isNaN(chd.getTime())) {
         if (lec.getTime() < chd.getTime()) {
-          errors.push(
-            "Ngày đăng bài giảng không thể nhỏ hơn ngày bắt đầu của chương."
-          );
+          fieldErrors.postDate =
+            "Ngày đăng bài giảng không thể nhỏ hơn ngày bắt đầu của chương.";
         }
       }
     }
@@ -348,9 +360,8 @@ const AddLecture: React.FC = () => {
       const ced = new Date(courseEndDate);
       if (!isNaN(lec.getTime()) && !isNaN(ced.getTime())) {
         if (lec.getTime() > ced.getTime()) {
-          errors.push(
-            "Ngày đăng bài giảng phải nhỏ hơn hoặc bằng ngày kết thúc khóa học."
-          );
+          fieldErrors.postDate =
+            "Ngày đăng bài giảng phải nhỏ hơn hoặc bằng ngày kết thúc khóa học.";
         }
       }
     }
@@ -363,19 +374,20 @@ const AddLecture: React.FC = () => {
         if (trimmed.startsWith("<iframe")) {
           const m = trimmed.match(/src=["']([^"']+)["']/);
           if (!m || !m[1])
-            errors.push("Embed iframe không có thuộc tính src hợp lệ.");
+            fieldErrors.embedSrc =
+              "Embed iframe không có thuộc tính src hợp lệ.";
           else {
             try {
               new URL(m[1]);
             } catch (e) {
-              errors.push("URL trong iframe embed không hợp lệ.");
+              fieldErrors.embedSrc = "URL trong iframe embed không hợp lệ.";
             }
           }
         } else {
           try {
             new URL(trimmed);
           } catch (e) {
-            errors.push("Link embed không phải URL hợp lệ.");
+            fieldErrors.embedSrc = "Link embed không phải URL hợp lệ.";
           }
         }
       }
@@ -385,7 +397,8 @@ const AddLecture: React.FC = () => {
     if (resourceFile) {
       const maxBytes = 50 * 1024 * 1024; // 50MB
       if (resourceFile.size > maxBytes)
-        errors.push("Tài nguyên quá lớn. Kích thước tối đa 50MB.");
+        fieldErrors.resourceFile =
+          "Tài nguyên quá lớn. Kích thước tối đa 50MB.";
     }
 
     // Title uniqueness within chapter (case-insensitive)
@@ -397,9 +410,8 @@ const AddLecture: React.FC = () => {
         return String(name).trim().toLowerCase() === tnorm;
       });
       if (dup)
-        errors.push(
-          "Tiêu đề bài giảng trùng với một bài giảng đã tồn tại trong chương."
-        );
+        fieldErrors.title =
+          "Tiêu đề bài giảng trùng với một bài giảng đã tồn tại trong chương.";
     }
 
     // Resource file name duplication check against existing lesson resources
@@ -426,9 +438,8 @@ const AddLecture: React.FC = () => {
         })
         .filter(Boolean) as string[];
       if (existingNames.some((n) => n === fname)) {
-        errors.push(
-          "Tệp tải lên có tên trùng với tệp đã tồn tại trong chương. Vui lòng đổi tên file trước khi tải lên."
-        );
+        fieldErrors.resourceFile =
+          "Tệp tải lên có tên trùng với tệp đã tồn tại trong chương. Vui lòng đổi tên file trước khi tải lên.";
       }
     }
 
@@ -442,20 +453,20 @@ const AddLecture: React.FC = () => {
           !isFinite(q.timeSec) ||
           q.timeSec < 0
         ) {
-          errors.push("Một câu hỏi tương tác có thời gian không hợp lệ.");
+          fieldErrors.interactiveQuestions =
+            "Một câu hỏi tương tác có thời gian không hợp lệ.";
           break;
         }
         if (seen.has(q.timeSec)) {
-          errors.push(
-            "Có hai câu hỏi cùng thời điểm. Vui lòng đảm bảo mỗi thời điểm chỉ có một câu hỏi."
-          );
+          fieldErrors.interactiveQuestions =
+            "Có hai câu hỏi cùng thời điểm. Vui lòng đảm bảo mỗi thời điểm chỉ có một câu hỏi.";
           break;
         }
         seen.add(q.timeSec);
       }
     }
 
-    return errors;
+    return { fieldErrors, aggErrors };
   };
 
   // helper: parse mm:ss or seconds to seconds
@@ -717,14 +728,18 @@ const AddLecture: React.FC = () => {
 
   // Hàm tạo lecture
   const handleCreate = async () => {
-    const errors = validateLectureForm();
-    if (errors.length) {
+    const { fieldErrors, aggErrors } = validateLectureForm();
+    if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+      setErrors(fieldErrors);
+      return;
+    }
+    if (aggErrors && aggErrors.length > 0) {
       setDialog({
         open: true,
         title: "Thiếu hoặc sai thông tin",
-        message: errors.map((err, index) => (
+        message: aggErrors.map((err, index) => (
           <React.Fragment key={`err-${index}`}>
-            {err} {index < errors.length - 1 && <br />}
+            {err} {index < aggErrors.length - 1 && <br />}
           </React.Fragment>
         )),
       });
@@ -881,9 +896,23 @@ const AddLecture: React.FC = () => {
                 {chapters.length ? (
                   <Select
                     value={selectedChapterId ?? undefined}
-                    onValueChange={(v) => setSelectedChapterId(v)}
+                    onValueChange={(v) => {
+                      setSelectedChapterId(v);
+                      setErrors((prev) => {
+                        if (!prev || !prev.chapter) return prev;
+                        const c = { ...prev };
+                        delete c.chapter;
+                        return c;
+                      });
+                    }}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger
+                      className={`w-full ${
+                        errors.chapter
+                          ? "border-red-500 ring-1 ring-red-500"
+                          : ""
+                      }`}
+                    >
                       <SelectValue placeholder="Chọn một chương" />
                     </SelectTrigger>
                     <SelectContent>
@@ -898,6 +927,11 @@ const AddLecture: React.FC = () => {
                   <p className="text-sm text-muted-foreground">
                     Không tìm thấy chương nào. Vui lòng tạo chương trước.
                   </p>
+                )}
+                {errors.chapter && (
+                  <div className="text-sm text-rose-600 mt-1">
+                    {errors.chapter}
+                  </div>
                 )}
               </div>
 
@@ -925,9 +959,25 @@ const AddLecture: React.FC = () => {
                 </Label>
                 <Input
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    setErrors((prev) => {
+                      if (!prev || !prev.title) return prev;
+                      const c = { ...prev };
+                      delete c.title;
+                      return c;
+                    });
+                  }}
                   placeholder="Nhập tên bài giảng"
+                  className={
+                    errors.title ? "border-red-500 ring-1 ring-red-500" : ""
+                  }
                 />
+                {errors.title && (
+                  <div className="text-sm text-rose-600 mt-1">
+                    {errors.title}
+                  </div>
+                )}
               </div>
 
               {/* Description */}
@@ -954,16 +1004,52 @@ const AddLecture: React.FC = () => {
                   </Label>
                   <Input
                     value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
+                    onChange={(e) => {
+                      setDuration(e.target.value);
+                      setErrors((prev) => {
+                        if (!prev || !prev.duration) return prev;
+                        const c = { ...prev };
+                        delete c.duration;
+                        return c;
+                      });
+                    }}
+                    className={
+                      errors.duration
+                        ? "border-red-500 ring-1 ring-red-500"
+                        : ""
+                    }
                   />
+                  {errors.duration && (
+                    <div className="text-sm text-rose-600 mt-1">
+                      {errors.duration}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Ngày đăng</Label>
                   <Input
                     type="date"
                     value={postDate}
-                    onChange={(e) => setPostDate(e.target.value)}
+                    onChange={(e) => {
+                      setPostDate(e.target.value);
+                      setErrors((prev) => {
+                        if (!prev || !prev.postDate) return prev;
+                        const c = { ...prev };
+                        delete c.postDate;
+                        return c;
+                      });
+                    }}
+                    className={
+                      errors.postDate
+                        ? "border-red-500 ring-1 ring-red-500"
+                        : ""
+                    }
                   />
+                  {errors.postDate && (
+                    <div className="text-sm text-rose-600 mt-1">
+                      {errors.postDate}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1014,6 +1100,13 @@ const AddLecture: React.FC = () => {
                               setInteractiveQuestions((prev) =>
                                 prev.filter((x) => x.id !== q.id)
                               );
+                              setErrors((prev) => {
+                                if (!prev || !prev.interactiveQuestions)
+                                  return prev;
+                                const c = { ...prev };
+                                delete c.interactiveQuestions;
+                                return c;
+                              });
                             }}
                           >
                             Xóa
@@ -1022,12 +1115,27 @@ const AddLecture: React.FC = () => {
                       </div>
                     ))
                   )}
+                  {errors.interactiveQuestions && (
+                    <div className="text-sm text-rose-600 mt-1">
+                      {errors.interactiveQuestions}
+                    </div>
+                  )}
                 </div>
 
                 {/* add new question form (simple inline) */}
                 <InteractiveQuestionEditor
                   onAdd={(newQ) => {
-                    setInteractiveQuestions((prev) => [...prev, newQ]);
+                    setInteractiveQuestions((prev) => {
+                      const next = [...prev, newQ];
+                      setErrors((prevErrs) => {
+                        if (!prevErrs || !prevErrs.interactiveQuestions)
+                          return prevErrs;
+                        const c = { ...prevErrs };
+                        delete c.interactiveQuestions;
+                        return c;
+                      });
+                      return next;
+                    });
                   }}
                 />
               </div>
@@ -1047,8 +1155,15 @@ const AddLecture: React.FC = () => {
                           accept="*"
                           onChange={(e) => {
                             const f = e.target.files && e.target.files[0];
-                            if (f) setResourceFile(f);
-                            else setResourceFile(null);
+                            if (f) {
+                              setResourceFile(f);
+                              setErrors((prev) => {
+                                if (!prev || !prev.resourceFile) return prev;
+                                const c = { ...prev };
+                                delete c.resourceFile;
+                                return c;
+                              });
+                            } else setResourceFile(null);
                           }}
                           className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                         />
@@ -1183,10 +1298,28 @@ const AddLecture: React.FC = () => {
                     value={embedSrc}
                     onChange={(e) => {
                       const val = e.target.value;
-                      const match = val.match(/src="([^"]+)"/);
-                      setEmbedSrc(match ? match[1] : val);
+                      // eslint-disable-next-line no-useless-escape
+                      const match = val.match(/src=\"([^\"]+)\"/);
+                      const raw = match ? match[1] : val;
+                      setEmbedSrc(raw);
+                      setErrors((prev) => {
+                        if (!prev || !prev.embedSrc) return prev;
+                        const c = { ...prev };
+                        delete c.embedSrc;
+                        return c;
+                      });
                     }}
+                    className={
+                      errors.embedSrc
+                        ? "border-red-500 ring-1 ring-red-500"
+                        : ""
+                    }
                   />
+                  {errors.embedSrc && (
+                    <div className="text-sm text-rose-600 mt-1">
+                      {errors.embedSrc}
+                    </div>
+                  )}
                   <div className="border rounded overflow-hidden">
                     {embedSrc ? (
                       <iframe
@@ -1215,8 +1348,17 @@ const AddLecture: React.FC = () => {
                 </Label>
                 <div
                   ref={quillRef}
-                  className="bg-white rounded-md min-h-[250px] p-2"
+                  className={`bg-white rounded-md min-h-[250px] p-2 ${
+                    errors.readingContent
+                      ? "border border-red-500 ring-1 ring-red-500"
+                      : ""
+                  }`}
                 />
+                {errors.readingContent && (
+                  <div className="text-sm text-rose-600 mt-1">
+                    {errors.readingContent}
+                  </div>
+                )}
               </div>
               <div
                 className={`space-y-2 ${type === "exam" ? "block" : "hidden"}`}

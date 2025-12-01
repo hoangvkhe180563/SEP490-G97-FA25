@@ -5,6 +5,7 @@
     using StudyHub.Backend.Api.Mappers;
     using StudyHub.Backend.UseCases.Services;
     using StudyHub.Backend.UseCases.Utils;
+using System;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -123,6 +124,10 @@ namespace StudyHub.Backend.Api.Controllers
                 bool isModerator = IsModerator();
                 bool isApproved = post.Status == true;
 
+                // THÊM LOG NÀY
+                _logger.LogInformation("GetPostById - PostId: {PostId}, UserId: {UserId}, IsOwner: {IsOwner}, IsModerator: {IsModerator}, Roles: {Roles}",
+                    postId, currentUser.Id, isOwner, isModerator, string.Join(", ", currentUser.Roles?.Select(r => r.Name) ?? new List<string>()));
+
                 if (!isApproved && !isOwner && !isModerator)
                 {
                     _logger.LogWarning("User {UserId} attempted to access pending/hidden post {PostId} without permission",
@@ -177,7 +182,15 @@ namespace StudyHub.Backend.Api.Controllers
                 _logger.LogInformation("User {UserId} created post {PostId}", currentUser.Id, createdPost.Id);
 
                 var postDto = createdPost.ToDetailDto(currentUser.Id, IsModerator());
-                await _forumHubContext.Clients.Group($"school-{dto.SchoolId}").SendAsync("ReceiveNewPost", postDto);
+
+                if (createdPost.Status == true)
+                {
+                    await _forumHubContext.Clients.Group($"school-{dto.SchoolId}").SendAsync("ReceiveNewPost", postDto);
+                }
+                else
+                {
+                    _logger.LogInformation("Post {PostId} is pending moderation, not broadcasting to group", createdPost.Id);
+                }
 
                 return CreatedAtAction(nameof(GetPostById), new { postId = createdPost.Id },
                     new { success = true, data = postDto });
@@ -223,8 +236,23 @@ namespace StudyHub.Backend.Api.Controllers
             var updatedPost = await _postService.UpdatePostWithAttachmentsAsync(existingPost, dto.NewAttachments, dto.DeletedAttachmentUrls);
 
             var postDto = updatedPost.ToDetailDto();
-            await _forumHubContext.Clients.Group($"school-{existingPost.SchoolId}").SendAsync("PostUpdated", postDto);
-            await _forumHubContext.Clients.Group($"post-{postId}").SendAsync("PostUpdated", postDto);
+
+            if (updatedPost.Status == true)
+            {
+                await _forumHubContext.Clients.Group($"school-{existingPost.SchoolId}").SendAsync("PostUpdated", postDto);
+                await _forumHubContext.Clients.Group($"post-{postId}").SendAsync("PostUpdated", postDto);
+            }
+            else
+            {
+                await _forumHubContext.Clients.User(currentUser.Id.ToString()).SendAsync("PostPendingModeration", new
+                {
+                    postId = postId,
+                    message = "Bài viết đang chờ kiểm duyệt sau khi chỉnh sửa"
+                });
+
+                await _forumHubContext.Clients.Group($"school-{existingPost.SchoolId}").SendAsync("PostDeleted", postId);
+                await _forumHubContext.Clients.Group($"post-{postId}").SendAsync("PostDeleted", postId);
+            }
 
             return Ok(new { success = true, data = postDto });
         }
@@ -351,6 +379,36 @@ namespace StudyHub.Backend.Api.Controllers
                             : await _moderationService.RejectReportAsync(entityId, currentUser.Id);
                         successMessage = status == "approve" ? "Đã chấp nhận tố cáo" : "Đã từ chối tố cáo";
                         notFoundMessage = "Không tìm thấy tố cáo";
+
+                        if (result && status == "approve")
+                        {
+                            var report = await _moderationService.GetViolationRecordByIdAsync(entityId);
+                            if (report != null)
+                            {
+                                if (report.PostId.HasValue)
+                                {
+                                    var post = await _postService.GetPostByIdAsync(report.PostId.Value);
+                                    if (post != null && post.TotalViolationScore >= 10 && post.IsHidden)
+                                    {
+                                        var postDto = post.ToListDto(null, false);
+                                        await _forumHubContext.Clients.Group($"school-{post.SchoolId}")
+                                            .SendAsync("PostUpdated", postDto);
+                                        await _forumHubContext.Clients.Group($"post-{report.PostId.Value}")
+                                            .SendAsync("PostUpdated", postDto);
+                                    }
+                                }
+                                else if (report.CommentId.HasValue)
+                                {
+                                    var comment = await _commentService.GetCommentByIdAsync(report.CommentId.Value);
+                                    if (comment != null && comment.TotalViolationScore >= 10 && comment.IsHidden)
+                                    {
+                                        var commentDto = comment.ToListDto(null, false);
+                                        await _forumHubContext.Clients.Group($"post-{comment.PostId}")
+                                            .SendAsync("CommentUpdated", commentDto);
+                                    }
+                                }
+                            }
+                        }
                         break;
 
                     case "attachments":
@@ -381,6 +439,7 @@ namespace StudyHub.Backend.Api.Controllers
                 return StatusCode(500, new { success = false, message = $"Có lỗi xảy ra khi {status} {entityType}" });
             }
         }
+
         [HttpPost("comments/create")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreateComment([FromForm] CreateForumCommentDto dto)
@@ -433,21 +492,34 @@ namespace StudyHub.Backend.Api.Controllers
                     currentUser.Id, createdComment.CommentId, dto.PostId);
 
                 var commentDto = createdComment.ToListDto();
-                await _forumHubContext.Clients.Group($"post-{dto.PostId}").SendAsync("ReceiveNewComment", commentDto);
 
-                var updatedPost = await _postService.GetPostByIdAsync(dto.PostId);
-
-                await _forumHubContext.Clients.Group($"post-{dto.PostId}").SendAsync("UpdateCommentCount", new
+                if (createdComment.Status == true)
                 {
-                    postId = dto.PostId,
-                    commentCount = updatedPost?.CommentCount
-                });
+                    await _forumHubContext.Clients.Group($"post-{dto.PostId}").SendAsync("ReceiveNewComment", commentDto);
 
-                await _forumHubContext.Clients.Group($"school-{post.SchoolId}").SendAsync("UpdateCommentCount", new
+                    var updatedPost = await _postService.GetPostByIdAsync(dto.PostId);
+
+                    await _forumHubContext.Clients.Group($"post-{dto.PostId}").SendAsync("UpdateCommentCount", new
+                    {
+                        postId = dto.PostId,
+                        commentCount = updatedPost?.CommentCount
+                    });
+
+                    await _forumHubContext.Clients.Group($"school-{post.SchoolId}").SendAsync("UpdateCommentCount", new
+                    {
+                        postId = dto.PostId,
+                        commentCount = updatedPost?.CommentCount
+                    });
+                }
+                else
                 {
-                    postId = dto.PostId,
-                    commentCount = updatedPost?.CommentCount
-                });
+                    _logger.LogInformation("Comment {CommentId} is pending moderation, not broadcasting to group", createdComment.CommentId);
+                    await _forumHubContext.Clients.User(currentUser.Id.ToString()).SendAsync("CommentPendingModeration", new
+                    {
+                        commentId = createdComment.CommentId,
+                        message = "Bình luận đang chờ kiểm duyệt hoặc đã bị ẩn"
+                    });
+                }
 
                 return Ok(new { success = true, data = commentDto });
             }
@@ -490,7 +562,21 @@ namespace StudyHub.Backend.Api.Controllers
             var updatedComment = await _commentService.UpdateCommentWithAttachmentsAsync(existingComment, dto.NewAttachments, dto.DeletedAttachmentUrls);
 
             var commentDto = updatedComment.ToListDto();
-            await _forumHubContext.Clients.Group($"post-{existingComment.PostId}").SendAsync("CommentUpdated", commentDto);
+
+            if (updatedComment.Status == true)
+            {
+                await _forumHubContext.Clients.Group($"post-{existingComment.PostId}").SendAsync("CommentUpdated", commentDto);
+            }
+            else
+            {
+                await _forumHubContext.Clients.User(currentUser.Id.ToString()).SendAsync("CommentPendingModeration", new
+                {
+                    commentId = commentId,
+                    message = "Bình luận đang chờ kiểm duyệt sau khi chỉnh sửa"
+                });
+
+                await _forumHubContext.Clients.Group($"post-{existingComment.PostId}").SendAsync("CommentDeleted", commentId);
+            }
 
             return Ok(new { success = true, data = commentDto });
         }
@@ -1471,29 +1557,46 @@ namespace StudyHub.Backend.Api.Controllers
 
                 bool result;
                 string entityName;
-                object? entity = null;
 
                 switch (contentType.ToLower())
                 {
                     case "posts":
                         result = await _postService.HidePostByModeratorAsync(contentId, currentUser.Id, dto.ViolationScore);
                         entityName = "bài viết";
-                        entity = await _postService.GetPostByIdAsync(contentId);
-                        if (result && entity != null)
+
+                        if (result)
                         {
-                            await _forumHubContext.Clients.Group($"school-{((dynamic)entity).SchoolId}")
-                                .SendAsync("PostHidden", contentId);
+                            var post = await _postService.GetPostByIdAsync(contentId);
+                            if (post != null)
+                            {
+                                var postDto = post.ToListDto(null, false);
+
+                                await _forumHubContext.Clients.Group($"school-{post.SchoolId}")
+                                    .SendAsync("PostUpdated", postDto);
+                                await _forumHubContext.Clients.Group($"post-{contentId}")
+                                    .SendAsync("PostUpdated", postDto);
+
+                                _logger.LogInformation("Sent PostUpdated SignalR for hidden post {PostId}", contentId);
+                            }
                         }
                         break;
 
                     case "comments":
                         result = await _commentService.HideCommentByModeratorAsync(contentId, currentUser.Id, dto.ViolationScore);
                         entityName = "bình luận";
-                        entity = await _commentService.GetCommentByIdAsync(contentId);
-                        if (result && entity != null)
+
+                        if (result)
                         {
-                            await _forumHubContext.Clients.Group($"post-{((dynamic)entity).PostId}")
-                                .SendAsync("CommentHidden", contentId);
+                            var comment = await _commentService.GetCommentByIdAsync(contentId);
+                            if (comment != null)
+                            {
+                                var commentDto = comment.ToListDto(null, false);
+
+                                await _forumHubContext.Clients.Group($"post-{comment.PostId}")
+                                    .SendAsync("CommentUpdated", commentDto);
+
+                                _logger.LogInformation("Sent CommentUpdated SignalR for hidden comment {CommentId}", contentId);
+                            }
                         }
                         break;
 
@@ -1505,9 +1608,6 @@ namespace StudyHub.Backend.Api.Controllers
                 {
                     return NotFound(new { success = false, message = $"Không tìm thấy {entityName}" });
                 }
-
-                _logger.LogInformation("Moderator {UserId} hid {ContentType} {ContentId}",
-                    currentUser.Id, contentType, contentId);
 
                 return Ok(new { success = true, message = $"Đã ẩn {entityName}" });
             }
@@ -1657,13 +1757,22 @@ namespace StudyHub.Backend.Api.Controllers
 
         private bool IsModerator()
         {
-            var roleClaim = User.Claims.FirstOrDefault(c =>
-                c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role");
+            try
+            {
+                var currentUser = _authService.GetCurrentUser();
+                if (currentUser == null) return false;
 
-            if (roleClaim == null) return false;
+                var roles = _roleService.GetRolesByUser(currentUser.Id);
+                if (roles == null || !roles.Any()) return false;
 
-            var roles = roleClaim.Value.Split(',').Select(r => r.Trim());
-            return roles.Any(r => r == "Moderator" || r == "School Moderator");
+                return roles.Any(r =>
+                    string.Equals(r.Name, "Moderator", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(r.Name, "School Moderator", StringComparison.OrdinalIgnoreCase));
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

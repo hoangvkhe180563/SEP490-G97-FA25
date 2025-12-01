@@ -188,7 +188,7 @@ export const useViolationStore = create<ViolationState>((set, get) => ({
   approveReport: async (reportId: number) => {
     try {
       const response = await axiosInstance.post(
-        `/Forum/report/${reportId}/approve`
+        `/Forum/reports/${reportId}/approve`
       );
 
       if (response.data?.success) {

@@ -370,7 +370,11 @@ const LectureDetails: React.FC = () => {
           )}
 
           {/* Interactive questions list */}
-          <Card className="mt-4">
+          <Card
+            className={`mt-4 ${
+              currentLesson?.type === "Video" ? "" : "hidden"
+            }`}
+          >
             <CardHeader>
               <CardTitle>Câu hỏi tương tác</CardTitle>
             </CardHeader>

@@ -93,6 +93,7 @@ const ConversationDetails = () => {
   const [isSending, setIsSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingIds, setDownloadingIds] = useState<string[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -404,6 +405,41 @@ const ConversationDetails = () => {
     }, 3000);
   };
 
+  const handleDownload = async (
+    url?: string,
+    filename?: string,
+    id?: string
+  ) => {
+    if (!url) return;
+    const key = id ?? url;
+    if (downloadingIds.includes(key)) return;
+    setDownloadingIds((s) => [...s, key]);
+    try {
+      // Try to fetch the file and force download (works around cross-origin open behavior)
+      const res = await fetch(url, { mode: "cors" });
+      if (!res.ok) throw new Error("Network response was not ok");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename || "file";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      // Fallback: open in new tab if fetch/download fails (CORS or other issues)
+      console.error("download failed", err);
+      try {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } catch (e) {
+        // ignore
+      }
+    } finally {
+      setDownloadingIds((s) => s.filter((x) => x !== key));
+    }
+  };
+
   return (
     <div className="flex flex-col h-full ">
       {/* Header */}
@@ -564,18 +600,29 @@ const ConversationDetails = () => {
                       <div>
                         <div className="flex items-center gap-2">
                           {item.fileUrl ? (
-                            <a
+                            <button
+                              onClick={() =>
+                                handleDownload(
+                                  item.fileUrl,
+                                  item.fileName,
+                                  item.id
+                                )
+                              }
                               className={`${
-                                isMyFile
-                                  ? "text-white underline"
-                                  : "text-blue-600 underline"
-                              } text-sm`}
-                              href={item.fileUrl}
-                              target="_blank"
-                              rel="noreferrer"
+                                isMyFile ? "text-white" : "text-blue-600"
+                              } text-sm underline text-left flex items-center gap-2`}
                             >
-                              {item.fileName}
-                            </a>
+                              <span className="truncate">{item.fileName}</span>
+                              {(downloadingIds || []).includes(
+                                item.id ?? item.fileUrl
+                              ) && (
+                                <Loader2
+                                  className={`${
+                                    isMyFile ? "text-white" : "text-gray-600"
+                                  } w-4 h-4 animate-spin`}
+                                />
+                              )}
+                            </button>
                           ) : (
                             <span
                               className={`${

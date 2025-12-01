@@ -20,6 +20,7 @@ import { usePaymentStore } from "@/paymentManagement/stores/usePaymentStore";
 import { useConversationStore } from "@/qaManagement/stores/useConversationStore";
 import { useMessageStore } from "@/qaManagement/stores/useMessageStore";
 import NotFound from "@/common/pages/NotFound";
+import recommendationRoutes from "@/recommend/routes/RecommendationRoutes";
 
 const AppRouter = () => {
   const { user, checkAuth } = useAuthStore();
@@ -92,6 +93,7 @@ const AppRouter = () => {
         /* ignore */
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); //bảo sao bị call 2 lần => x2 call api
 
   useEffect(() => {
@@ -160,6 +162,11 @@ const AppRouter = () => {
       path: RouteConfig.EXAM,
       element: <RegisteredLayout user={user} />,
       children: examRoutes,
+    },
+    {
+      path: RouteConfig.RECOMMENDATION,
+      element: <RegisteredLayout user={user} />,
+      children: recommendationRoutes,
     },
     {
       path: "*",

@@ -10,6 +10,7 @@ import CourseDetailStudent from "@/courseManagement/pages/student/CourseDetail";
 import LecturePlayer from "@/courseManagement/pages/student/LecturePlayer";
 import CourseRouteConfig from "@/courseManagement/constants/CourseRouteConfig";
 import { Outlet, type RouteObject } from "react-router-dom";
+import RequireRole from "@/common/components/RequireRole";
 import ApproveCourses from "../pages/teacher/ApproveCourses";
 
 // --- TEACHER ROUTES (Đường dẫn con cho /teacher) ---
@@ -88,14 +89,30 @@ const courseRoutes: RouteObject[] = [
   // Cấu hình routes cho Giáo viên (Base path: /teacher)
   {
     path: CourseRouteConfig.TEACHER.INDEX,
-    element: <Outlet />,
+    element: (
+      <RequireRole
+        allowedRoles={[
+          "Subject Teacher",
+          "Head of Department Teacher",
+          "Q&A Teacher",
+          "Homeroom Teacher",
+          "School Admin",
+        ]}
+      >
+        <Outlet />
+      </RequireRole>
+    ),
     children: teacherCourseRoutes,
   },
 
   // Cấu hình routes cho Học sinh (Base path: /)
   {
     path: CourseRouteConfig.STUDENT.INDEX,
-    element: <Outlet />,
+    element: (
+      <RequireRole allowedRoles={["External Student", "School Student"]}>
+        <Outlet />
+      </RequireRole>
+    ),
     children: studentCourseRoutes,
   },
 ];

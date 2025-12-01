@@ -238,7 +238,10 @@ namespace StudyHub.Backend.UseCases.Services
         {
             return await _moderationRepo.CreateViolationRecordAsync(record);
         }
-
+        public async Task<ViolationRecord?> GetReportByIdAsync(int reportId)
+        {
+            return await _moderationRepo.GetReportByIdAsync(reportId);
+        }
         public async Task<bool> SoftDeleteViolationRecordAsync(int recordId)
         {
             return await _moderationRepo.SoftDeleteViolationRecordAsync(recordId);

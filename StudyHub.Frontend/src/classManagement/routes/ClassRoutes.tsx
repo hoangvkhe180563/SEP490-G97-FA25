@@ -2,7 +2,7 @@ import ClassList from "@/classManagement/pages/ClassList";
 import DetailedClassTeacher from "@/classManagement/pages/teacher/DetailedClassTeacher";
 import ClassRouteConfig from "@/classManagement/constants/ClassRouteConfig";
 import { Outlet, type RouteObject } from "react-router-dom";
-import { Edit } from "lucide-react";
+import RequireRole from "@/common/components/RequireRole";
 import AddEditClassworkForm from "../pages/AddEditClasswork";
 import ClassworkDetail from "../pages/ClassworkDetail";
 import ConfirmInvite from "../pages/ConfirmInvite";
@@ -13,79 +13,91 @@ import ClassDocumentsPage from "@/classManagement/pages/ClassDocument";
 const teacherClassRoutes = [
   {
     index: true,
-    element: <ClassList />
+    element: <ClassList />,
   },
   {
     path: ClassRouteConfig.TEACHER.CLASS_DETAIL,
-    element: <DetailedClassTeacher />
+    element: <DetailedClassTeacher />,
   },
   {
     path: ClassRouteConfig.TEACHER.ADD_CLASSWORK,
-    element:<AddEditClassworkForm />
+    element: <AddEditClassworkForm />,
   },
   {
     path: ClassRouteConfig.TEACHER.EDIT_CLASSWORK,
-    element:<AddEditClassworkForm />
+    element: <AddEditClassworkForm />,
   },
   {
     path: ClassRouteConfig.TEACHER.CLASSWORK_DETAIL,
-    element:<ClassworkDetail />
+    element: <ClassworkDetail />,
   },
   {
     path: ClassRouteConfig.TEACHER.CONFIRM_INVITE,
-    element:<ConfirmInvite/>
+    element: <ConfirmInvite />,
   },
   {
     path: ClassRouteConfig.TEACHER.SUBMISSION_PAGE,
-    element:<ClassworkSubmissionsPage/>
+    element: <ClassworkSubmissionsPage />,
   },
-   {
+  {
     path: ClassRouteConfig.TEACHER.CLASS_DOCUMENTS,
-    element:<ClassDocumentsPage/>,
-  }
+    element: <ClassDocumentsPage />,
+  },
 ];
 
 const studentClassRoutes = [
   {
     index: true,
-    element: <ClassList />
+    element: <ClassList />,
   },
   {
     path: ClassRouteConfig.STUDENT.CLASS_DETAIL,
-    element: <DetailedClassTeacher />
+    element: <DetailedClassTeacher />,
   },
   {
     path: ClassRouteConfig.STUDENT.CLASSWORK_DETAIL,
-    element:<ClassworkDetail />
+    element: <ClassworkDetail />,
   },
   {
     path: ClassRouteConfig.TEACHER.CONFIRM_INVITE,
-    element:<ConfirmInvite/>
+    element: <ConfirmInvite />,
   },
-   {
+  {
     path: ClassRouteConfig.TEACHER.CLASS_DOCUMENTS,
-    element:<ClassDocumentsPage/>,
-  }
-  
+    element: <ClassDocumentsPage />,
+  },
 ];
 
 const classRoutes: RouteObject[] = [
   {
     path: ClassRouteConfig.TEACHER.INDEX,
-    element: <Outlet />,
-    children: teacherClassRoutes
+    element: (
+      <RequireRole
+        allowedRoles={[
+          "Homeroom Teacher",
+          "Subject Teacher",
+          "Head of Department Teacher",
+          "Q&A Teacher",
+        ]}
+      >
+        <Outlet />
+      </RequireRole>
+    ),
+    children: teacherClassRoutes,
   },
   {
     path: ClassRouteConfig.STUDENT.INDEX,
-    element: <Outlet />,
-    children: studentClassRoutes
-  }
-  ,
+    element: (
+      <RequireRole allowedRoles={["School Student", "External Student"]}>
+        <Outlet />
+      </RequireRole>
+    ),
+    children: studentClassRoutes,
+  },
   {
-    path:"",
-    "element":<ClassRedirect/>,
-
-  }
+    path: "",
+    element: <ClassRedirect />,
+  },
 ];
 
 export default classRoutes;

@@ -45,6 +45,8 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public long? FileSize { get; set; }
         public bool IsApproved { get; set; }
         public DateTime CreatedAt { get; set; }
+        public bool? IsModerationPending { get; set; }
+
         public Guid CreatedBy { get; set; }
         public string? CreatorName { get; set; }
         public string? CreatorFullname { get; set; }
@@ -58,6 +60,8 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
     {
         public int? PostId { get; set; }
         public int? CommentId { get; set; }
+        public bool? IsModerationPending { get; set; }
+
         public string? Url { get; set; }
         public bool? IsApproved { get; set; }
 
@@ -71,6 +75,8 @@ namespace StudyHub.Backend.Api.Dtos.ForumDTOs
         public int? CommentId { get; set; }
         public bool? IsApproved { get; set; }
         public Guid? CreatedBy { get; set; }
+        public bool? IsModerationPending { get; set; }
+
         public DateTime? CreatedFrom { get; set; }
         public DateTime? CreatedTo { get; set; }
         public bool IncludeDeleted { get; set; } = false;

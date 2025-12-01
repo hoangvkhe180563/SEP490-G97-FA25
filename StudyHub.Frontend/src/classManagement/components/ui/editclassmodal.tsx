@@ -22,17 +22,19 @@ export type EditClassPayload = {
   id: number | string;
   title: string;
   description?: string;
+  grade?: number | null;
 };
 
 type Props = {
   open: boolean;
-  classItem?: { id: number; title: string; description?: string };
+  classItem?: { id: number; title: string; description?: string; grade?: number | null };
   onClose: () => void;
 };
 
 export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [grade, setGrade] = useState<number | "" | null>("");
 
   const { subjects, getAllSubjects, updateClass } = useClassStore();
   const { user } = useAuthStore();
@@ -52,10 +54,12 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
     if (open && classItem) {
       setTitle(classItem.title ?? "");
       setDescription(classItem.description ?? "");
+      setGrade(classItem.grade ?? "");
     }
     if (!open) {
       setTitle("");
       setDescription("");
+      setGrade("");
     }
   }, [open, classItem]);
 
@@ -72,6 +76,7 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
         title: title.trim(),
         description: description.trim(),
         updateBy: currentUserId,
+        grade: grade === "" ? undefined : Number(grade),
       });
 
       // show success toast and then close modal after short delay
@@ -93,9 +98,7 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
             <div className="flex items-center justify-between">
               <DialogTitle>Chỉnh sửa lớp học</DialogTitle>
               <DialogClose asChild>
-                <button aria-label="Close" className="p-1 rounded hover:bg-slate-100">
-                  <X className="w-4 h-4" />
-                </button>
+               
               </DialogClose>
             </div>
             <DialogDescription className="text-sm text-slate-500">
@@ -124,6 +127,28 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
                 placeholder="Nhập mô tả lớp học (nếu có)"
                 className="mt-1 h-28"
                 aria-label="Mô tả lớp học"
+              />
+            </div>
+
+            <div>
+              <Label className="text-sm">Khối (grade)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={12}
+                value={grade === null ? "" : grade}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "") setGrade("");
+                  else {
+                    const n = Number(v);
+                    if (Number.isNaN(n)) setGrade("");
+                    else setGrade(n);
+                  }
+                }}
+                placeholder="Ví dụ: 6"
+                className="mt-1"
+                aria-label="Khối"
               />
             </div>
           </div>

@@ -391,7 +391,7 @@ axiosInstance.interceptors.response.use(
 
     // Early returns
     if (!error.response) return Promise.reject(error);
-    if (error.response.status !== 401) return Promise.reject(error);
+    // if (error.response.status !== 401) return Promise.reject(error);
     if (originalRequest._retry) return Promise.reject(error);
 
     const urlLower = originalRequest?.url?.toString().toLowerCase() ?? "";
@@ -436,6 +436,7 @@ axiosInstance.interceptors.response.use(
       await refreshTokenPromise;
 
       // Refresh thành công -> retry request với token mới
+      console.log("Retrying original request after token refresh");
       return axiosInstance(originalRequest);
     } catch (refreshError) {
       // Refresh thất bại -> logout
