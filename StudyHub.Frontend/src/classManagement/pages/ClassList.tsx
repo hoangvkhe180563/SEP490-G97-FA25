@@ -44,7 +44,6 @@ const ClassList: React.FC = () => {
     getAllSubjects,
     subjects,
     // useClassStore.getUnreadCount just-in-time below
-    getUnreadCount,
   } = useClassStore();
 
   const { user } = useAuthStore();
@@ -55,6 +54,8 @@ const ClassList: React.FC = () => {
   // UI state
   const [query, setQuery] = useState("");
   const [subject, setSubject] = useState("all");
+  // NEW: filter by grade (null = all)
+  const [gradeFilter, setGradeFilter] = useState<number | null>(null);
 
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -63,8 +64,7 @@ const ClassList: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
 
-  // unread map local: classId -> count
-  const [unreadMap, setUnreadMap] = useState<Record<number, number>>({});
+  
 
   // derive coarse role from stored user roles (if available), otherwise fallback to path heuristic
   const userRoleFromPath: UserRole = useMemo(() => {
@@ -79,6 +79,8 @@ const ClassList: React.FC = () => {
     const params = new URLSearchParams();
     if (query.trim()) params.append("query", query.trim());
     if (subject && subject !== "all") params.append("subject", subject);
+    // append grade filter if set (backend may or may not honor it)
+    if (gradeFilter !== null) params.append("grade", String(gradeFilter));
     params.append("page", currentPage.toString());
     params.append("limit", pageSize.toString());
     return params.toString();
@@ -90,10 +92,10 @@ const ClassList: React.FC = () => {
     const memberIdToPass = currentUserId ? currentUserId : undefined;
     getClasses(q, memberIdToPass);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, subject, currentPage, pageSize, getClasses, userRole, currentUserId]);
+  }, [query, subject, gradeFilter, currentPage, pageSize, getClasses, userRole, currentUserId]);
 
   // Map API classes for UI
-  const classItems: ClassItem[] = useMemo(
+  const classItemsAll: ClassItem[] = useMemo(
     () =>
       apiClasses.map((c) => ({
         ...c,
@@ -103,6 +105,24 @@ const ClassList: React.FC = () => {
       })),
     [apiClasses]
   );
+
+  // derive the list of grades that actually exist in the loaded list
+  const availableGrades = useMemo(() => {
+    const s = new Set<number>();
+    for (const c of apiClasses) {
+      const g = (c as any).grade;
+      if (g !== undefined && g !== null && !Number.isNaN(Number(g))) {
+        s.add(Number(g));
+      }
+    }
+    return Array.from(s).sort((a, b) => a - b);
+  }, [apiClasses]);
+
+  // If backend doesn't support grade filtering, apply client-side filter for UI responsiveness.
+  const classItems = useMemo(() => {
+    if (gradeFilter === null) return classItemsAll;
+    return classItemsAll.filter((c) => c.grade === gradeFilter);
+  }, [classItemsAll, gradeFilter]);
 
   const total = meta?.total ?? 0;
   const totalPages = meta?.totalPages ?? 1;
@@ -138,34 +158,9 @@ const ClassList: React.FC = () => {
     }
   };
 
-  // Fetch unread counts for visible classItems (only counts, no mutation)
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const ids = classItems.map((c) => Number(c.id)).filter(Boolean);
-        if (ids.length === 0) {
-          if (mounted) setUnreadMap({});
-          return;
-        }
-        // Parallel fetch but limit concurrency if desired. Keep simple here.
-        const promises = ids.map((cid) => getUnreadCount(Number(cid), "notification").catch(() => 0));
-        const results = await Promise.all(promises);
-        const map: Record<number, number> = {};
-        ids.forEach((cid, idx) => {
-          map[cid] = Number(results[idx] ?? 0);
-        });
-        if (mounted) setUnreadMap(map);
-      } catch (err) {
-        console.warn("failed to load unread counts for classes", err);
-      }
-    })();
-    return () => { mounted = false; };
-  }, [classItems, getUnreadCount]);
-
   const handleCreate = async (payload: { title: string; description?: string; grade?: number | null }) => {
     // pass createdBy from auth store
-    const created = await addClass({ ...payload, createdBy: currentUserId ,grade: payload.grade ?? undefined });
+    const created = await addClass({ ...payload, createdBy: currentUserId, grade: payload.grade ?? undefined });
     if (created) {
       setShowCreate(false);
       setCurrentPage(1);
@@ -182,8 +177,6 @@ const ClassList: React.FC = () => {
   };
 
   const closeCreate = () => {
-    const q = buildQuery();
-    getClasses(q, currentUserId);
     setShowCreate(false);
   };
 
@@ -192,6 +185,8 @@ const ClassList: React.FC = () => {
     getClasses(q, currentUserId);
     setShowEdit(false);
   };
+
+  
 
   return (
     <div className="p-8">
@@ -208,7 +203,38 @@ const ClassList: React.FC = () => {
             className="text-lg"
           />
 
-          
+          {/* Grade filter select: only show grades that exist in the current loaded list */}
+          <div className="ml-2">
+            <Select
+              value={gradeFilter === null ? "all" : String(gradeFilter)}
+              onValueChange={(val) => {
+                if (val === "all") {
+                  setGradeFilter(null);
+                } else {
+                  const n = Number(val);
+                  setGradeFilter(Number.isFinite(n) ? n : null);
+                }
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Lọc theo khối" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả khối</SelectItem>
+                {availableGrades.length === 0 ? (
+                  // If no grades available show a disabled placeholder
+                  <SelectItem value="all">Không có khối</SelectItem>
+                ) : (
+                  availableGrades.map((g) => (
+                    <SelectItem key={g} value={String(g)}>
+                      Khối {g}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="mt-3 sm:mt-0 ml-auto">
@@ -260,8 +286,6 @@ const ClassList: React.FC = () => {
                   userRole={userRole}
                   onView={handleView}
                   onMenu={handleMenu}
-                  unread={Number(unreadMap[Number(c.id)] ?? 0)} // pass unread count
-                  // pass raw grade as well in case ClassCard supports it
                   grade={c.grade ?? null}
                 />
               </div>

@@ -31,7 +31,6 @@ import {
   BreadcrumbList,
 } from "@/common/components/ui/breadcrumb";
 
-// NOTE: import path fixed to match the notifications component filename/exports
 import NotificationsTab from "@/classManagement/components/tabs/notificationTab";
 import ExerciseTab from "@/classManagement/components/tabs/exerciseTab";
 import EveryoneTab from "@/classManagement/components/tabs/everyoneTab";
@@ -62,12 +61,12 @@ const DetailedClassTeacher: React.FC = () => {
     getClassWorks,
     currentClass,
     getMemberCount,
+    getMemberClassCount,
     getDocumentsByClassId,
     isLoading,
     createNotification,
     getClassworkSubmissions,
     getSubmissionCount,
-    getUnreadCount,
   } = useClassStore();
 
   const {
@@ -105,6 +104,7 @@ const DetailedClassTeacher: React.FC = () => {
   const [searchParams] = useSearchParams();
 
   const navigate = useNavigate();
+
   const DocumentPreviewCard: React.FC<{ doc: DocumentDto; role: string }> = ({
     doc,
     role,
@@ -202,7 +202,7 @@ const DetailedClassTeacher: React.FC = () => {
     let mounted = true;
     (async () => {
       try {
-        const cnt = await getMemberCount(Number(id));
+        const cnt = await getMemberClassCount(Number(id));
         if (mounted) setClassMemberCount(cnt);
       } catch {
         if (mounted) setClassMemberCount(null);
@@ -292,35 +292,15 @@ const DetailedClassTeacher: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // fetch unread counts per-type when id or activeTab changes; keep badges up-to-date
-  useEffect(() => {
-    if (!id) return;
-    let mounted = true;
-    (async () => {
-      try {
-        console.log("loading unread counts for class tabs", id, user?.id);
-        const [notifCount, cwCount] = await Promise.all([
-          getUnreadCount(Number(id), "notification", user?.id).catch(() => 0),
-          getUnreadCount(Number(id), "classwork", user?.id).catch(() => 0),
-        ]);
-        if (!mounted) return;
-        setUnreadNotificationsCount(Number(notifCount ?? 0));
-        setUnreadClassworkCount(Number(cwCount ?? 0));
-      } catch (err) {
-        console.warn("failed to load unread counts for class tabs", err);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [id, getUnreadCount, activeTab]);
+  
+
 
   // fetch members when user opens "everyone" tab and not already loaded
   useEffect(() => {
     if (!id) return;
     if (activeTab !== "everyone") return;
     // if currentClass already has members, skip; otherwise call getClassMembers
-    const hasTeacher = !!currentClass?.data?.teacher;
+    const hasTeacher = (currentClass?.data?.teachers ?? []).length > 0;
     const hasStudents = (currentClass?.data?.students ?? []).length > 0;
     const hasParents = (currentClass?.data?.parents ?? []).length > 0;
 
@@ -330,7 +310,7 @@ const DetailedClassTeacher: React.FC = () => {
   }, [
     activeTab,
     id,
-    currentClass?.data?.teacher,
+    currentClass?.data?.teachers,
     currentClass?.data?.students,
     currentClass?.data?.parents,
     getClassMembers,
@@ -349,8 +329,8 @@ const DetailedClassTeacher: React.FC = () => {
   // handlers
   const handlePost = async (
     content: string,
-    files?: File[],
-    links?: any[],
+    files?: File[] | undefined,
+    links?: any[] | undefined,
     titleFromComposer?: string
   ) => {
     if (!id) return;
@@ -374,6 +354,18 @@ const DetailedClassTeacher: React.FC = () => {
       };
       const created = await createNotification(payload);
       if (created) {
+        // patch missing author/avatar fields on server response with current user fallback
+        const currentUserAvatar =
+          (user as any)?.avatarUrl ?? (user as any)?.avatar ?? (user as any)?.imageUrl ?? null;
+        const currentUserName = (user as any)?.fullname ?? (user as any)?.name ?? null;
+
+        if (!(created as any).avatarImage && currentUserAvatar) {
+          (created as any).avatarImage = currentUserAvatar;
+        }
+        if (!(created as any).authorName && currentUserName) {
+          (created as any).authorName = currentUserName;
+        }
+
         // optimistic append; server will broadcast NewNotificationFull as well
         setNotifications((prev) => [created, ...(prev ?? [])]);
         // refresh class info to keep server state in sync
@@ -443,7 +435,7 @@ const DetailedClassTeacher: React.FC = () => {
   }
 
   const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
-  const teacher: ClassMemberDto | null = currentClass?.data?.teacher ?? null;
+  const teacher: ClassMemberDto[] = currentClass?.data?.teachers ?? null;
   const students: ClassMemberDto[] = currentClass?.data?.students ?? [];
   const parents: ClassMemberDto[] = currentClass?.data?.parents ?? [];
   const worksFromStore: ClassWork[] = currentClass?.data?.works ?? [];
@@ -501,22 +493,12 @@ const DetailedClassTeacher: React.FC = () => {
                   className="px-4 py-2 text-lg"
                 >
                   Thông báo
-                  {unreadNotificationsCount > 0 && (
-                    <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold text-white bg-red-600 rounded">
-                      {unreadNotificationsCount > 99
-                        ? "99+"
-                        : unreadNotificationsCount}
-                    </span>
-                  )}
+                 
                 </TabsTrigger>
 
                 <TabsTrigger value="exercise" className="px-4 py-2 text-lg">
                   Bài tập
-                  {unreadClassworkCount > 0 && (
-                    <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold text-white bg-red-600 rounded">
-                      {unreadClassworkCount > 99 ? "99+" : unreadClassworkCount}
-                    </span>
-                  )}
+                  
                 </TabsTrigger>
 
                 <TabsTrigger value="everyone" className="px-4 py-2 text-lg">
@@ -550,7 +532,6 @@ const DetailedClassTeacher: React.FC = () => {
                 onAddWork={() => navigate(`/class/${role}/${id}/classwork/add`)}
                 fetchCountsForWork={async (wid) => {
                   try {
-                    // example: refresh submission/member counts for a work
                     if (typeof getSubmissionCount === "function") {
                       const sc = await getSubmissionCount(wid);
                       setSubmissionCounts((prev) => ({ ...prev, [wid]: sc }));
@@ -569,7 +550,7 @@ const DetailedClassTeacher: React.FC = () => {
                         [wid]: unique.size,
                       }));
                     }
-                    // memberCounts fallback: try memberCounts from currentClass students length
+
                     setMemberCounts((prev) => ({
                       ...prev,
                       [wid]:
@@ -591,7 +572,7 @@ const DetailedClassTeacher: React.FC = () => {
 
             <TabsContent value="everyone">
               <EveryoneTab
-                teacher={teacher}
+                teachers={teacher}
                 students={students}
                 parents={parents}
                 onMail={handleMail}
@@ -653,12 +634,6 @@ const DetailedClassTeacher: React.FC = () => {
                       Chưa có tài liệu.
                     </div>
                   )}
-                </div>
-
-                <div className="mt-3 flex justify-end">
-                  <Button asChild variant="link" size="sm">
-                    <a href={`/class/${id}/documents`}>Xem toàn bộ</a>
-                  </Button>
                 </div>
               </div>
             </Card>

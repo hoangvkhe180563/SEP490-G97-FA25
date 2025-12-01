@@ -392,7 +392,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public int GetMemberClassCount(int classID)
         {
-            return _context.AppUserClasses.Where(a => a.ClassId == classID).GroupBy(a => a.UserId).Count();
+            return _context.AppUserClasses.Where(a => a.ClassId == classID&& a.Status.Equals("joined")).Count();
         }
     }
 }

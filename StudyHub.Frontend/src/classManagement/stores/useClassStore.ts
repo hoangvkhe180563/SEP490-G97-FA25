@@ -30,7 +30,7 @@ const defaultCurrentClass: ClassDetailResponse = {
   message: "",
   data: {
     classInfo: defaultClassInfo,
-    teacher: null,
+    teachers: [],
     students: [],
     parents: [],
     notifications: [],
@@ -178,7 +178,7 @@ export const useClassStore = create<ClassState>()(
                   createdObj.instructorName ?? createdObj.instructor ?? "",
                 description:
                   createdObj.description ?? payload.description ?? "",
-                  grade: createdObj.grade ?? payload.grade,
+                grade: createdObj.grade ?? payload.grade,
               }
             : null;
 
@@ -407,7 +407,7 @@ export const useClassStore = create<ClassState>()(
             (memberRoles ?? []).some((r) => pattern.test(String(r)));
 
           const teacherMember =
-            members.find((mm) => hasRole(mm.roles, /teacher/i)) ?? null;
+            members.filter((mm) => hasRole(mm.roles, /teacher/i)) ?? null;
           const parentMembers = members.filter((mm) =>
             hasRole(mm.roles, /parent/i)
           );
@@ -424,7 +424,7 @@ export const useClassStore = create<ClassState>()(
                 ...cur,
                 data: {
                   ...cur.data,
-                  teacher: teacherMember,
+                  teachers: teacherMember,
                   students: studentMembers,
                   parents: parentMembers,
                 },
@@ -891,7 +891,7 @@ export const useClassStore = create<ClassState>()(
               classId: n.classId ?? n.class_id ?? null,
               title: n.title ?? n.name ?? "",
               description: n.description ?? n.desc ?? n.instructionsHtml ?? "",
-              
+
               createdBy,
               createdAt,
               files: n.files ?? n.attachments ?? [],
@@ -938,7 +938,7 @@ export const useClassStore = create<ClassState>()(
                 createdAt: formatISO(data.createdAt),
                 grade: data.grade,
               },
-              teacher: get().currentClass.data.teacher ?? null,
+              teachers: get().currentClass.data.teachers ?? null,
               students: get().currentClass.data.students ?? [],
               parents: get().currentClass.data.parents ?? [],
               notifications,
@@ -975,7 +975,27 @@ export const useClassStore = create<ClassState>()(
           set({ isLoading: false });
         }
       },
-
+      getMemberClassCount: async (classId: number): Promise<number | null> => {
+        try {
+          if (!classId) return null;
+          const res = await axiosInstance.get(
+            `/Classwork/classmembercount/${classId}`
+          );
+          const raw = res?.data ?? null;
+          let count: number | null = null;
+          if (raw !== null) {
+            if (typeof raw === "number") count = raw;
+            else if (typeof raw?.data === "number") count = raw.data;
+            else if (typeof raw?.count === "number") count = raw.count;
+          }
+          return count;
+        } catch (err) {
+          console.error("getMemberCount error:", err);
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },  
       getDocumentsByClassId: async (
         classId: number
       ): Promise<DocumentDto[] | null> => {
@@ -1081,7 +1101,6 @@ export const useClassStore = create<ClassState>()(
       },
 
       addComment: async (payload) => {
-        set({ isLoading: true, success: false, message: "" });
         try {
           const body = {
             content: payload.content ?? "",
@@ -1093,11 +1112,7 @@ export const useClassStore = create<ClassState>()(
           const raw = res?.data ?? null;
 
           if (!raw || raw.success === false) {
-            set({
-              isLoading: false,
-              success: false,
-              message: raw?.message ?? "Failed to add comment",
-            });
+            // don't set store flags; return null and let caller handle UI
             return null;
           }
 
@@ -1109,48 +1124,13 @@ export const useClassStore = create<ClassState>()(
             userFullname: created.userFullname ?? "Bạn",
             content: created.content ?? payload.content,
             avatarUrl: created.avatarUrl ?? created.imageUrl ?? null,
-            createdAt: formatISO(
-              created.createdAt ?? created.createdAt ?? formatISO(new Date())
-            ),
+            createdAt: formatISO(created.createdAt ?? new Date()),
           };
-
-          set((state) => {
-            const cur = state.currentClass ?? defaultCurrentClass;
-            const updatedNotifications = (cur.data?.notifications ?? []).map(
-              (n) => {
-                if (String(n.id) === String(payload.notificationId)) {
-                  const comments = (n.comments ?? []).concat([mapped]);
-                  return { ...n, comments };
-                }
-                return n;
-              }
-            );
-
-            return {
-              currentClass: {
-                ...cur,
-                data: {
-                  ...cur.data,
-                  notifications: updatedNotifications,
-                },
-                success: true,
-              },
-              success: true,
-              message: raw.message ?? "Comment added",
-            };
-          });
 
           return mapped;
         } catch (err) {
           console.error("addComment error:", err);
-          set({
-            isLoading: false,
-            success: false,
-            message: "Failed to add comment",
-          });
           return null;
-        } finally {
-          set({ isLoading: false });
         }
       },
 

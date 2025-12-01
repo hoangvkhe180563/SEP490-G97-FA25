@@ -108,6 +108,69 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
     }
   };
 
+  // Generate .xlsx template using SheetJS (xlsx). This uses dynamic import so the bundle
+  // doesn't fail if the dependency isn't installed. If you don't have 'xlsx' installed,
+  // run: npm install xlsx
+  const downloadExcelTemplate = async () => {
+    // headers and example rows
+    const headers = ["Email", "Full Name", "Student ID", "Grade", "Section", "Role"];
+    const examples = [
+      ["hoangvk@example.com", "Vũ Khánh Hoàng", "S001", "9", "A", "Student"],
+      ["hainv@example.com", "Nguyễn Văn Hải", "S002", "9", "A", "Student"],
+    ];
+
+    try {
+      const XLSX = await import(/* webpackChunkName: "xlsx" */ "xlsx");
+      const aoa = [headers, ...examples];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws["!cols"] = [
+        { wch: 30 }, // Email
+        { wch: 24 }, // Full Name
+        { wch: 12 }, // Student ID
+        { wch: 8 }, // Grade
+        { wch: 8 }, // Section
+        { wch: 12 }, // Role
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Members");
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "members-template.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (err) {
+      console.warn("Failed to generate .xlsx using SheetJS, falling back to CSV. Error:", err);
+      // fallback: generate CSV if xlsx isn't available
+      const lines: string[] = [];
+      lines.push(headers.join(","));
+      for (const row of examples) {
+        const escaped = row.map((v) => {
+          if (v == null) return "";
+          const s = String(v);
+          if (s.includes('"')) return `"${s.replaceAll('"', '""')}"`;
+          if (s.includes(",") || s.includes("\n")) return `"${s}"`;
+          return s;
+        });
+        lines.push(escaped.join(","));
+      }
+      const csvContent = "\uFEFF" + lines.join("\r\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "members-template.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -118,7 +181,7 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
             <div>
               <DialogTitle>Import & Mời thành viên</DialogTitle>
               <DialogDescription className="text-sm text-slate-500">
-                Upload file Excel (.xlsx hoặc .xls) chứa danh sách email. Hệ thống sẽ xử lý file và gửi lời mời tự động.
+                Upload file Excel (.xlsx) chứa danh sách email. Hệ thống sẽ xử lý file và gửi lời mời tự động.
                 File nên có cột "Email", "Full Name", "Student ID", "Grade", "Section", "Role".
               </DialogDescription>
             </div>
@@ -129,7 +192,7 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
 
         <div className="px-4 pb-4">
           <div>
-            <label className="text-sm text-slate-600 block mb-2">Chọn file Excel</label>
+            <label className="text-sm text-slate-600 block mb-2">Chọn file Excel (.xlsx)</label>
             <div className="flex items-center gap-3">
               <input
                 ref={fileInputRef}
@@ -145,6 +208,10 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
                   Chọn file
                 </Button>
               </label>
+
+              <Button variant="ghost" onClick={downloadExcelTemplate} className="ml-2" disabled={isProcessing}>
+                Tải mẫu (.xlsx)
+              </Button>
 
               <div className="text-sm text-slate-500"> hoặc kéo thả file vào đây (tính năng kéo thả có thể được hỗ trợ sau)</div>
             </div>

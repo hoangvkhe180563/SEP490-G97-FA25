@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
@@ -20,7 +20,19 @@ import { Badge } from "@/common/components/ui/badge";
 import { formatISO } from "date-fns";
 
 const AvatarIcon: React.FC = () => (
-  <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl shadow">📝</div>
+  // removed blue background so the image doesn't have a blue ring
+  <div className="w-16 h-16 rounded-full flex items-center justify-center shadow">
+    <img
+      src="https://png.pngtree.com/png-clipart/20190916/original/pngtree-book-icon-material-png-image_4587953.jpg"
+      alt="class"
+      className="w-10 h-10 rounded-full object-cover"
+      onError={(e) => {
+        const el = e.currentTarget;
+        el.onerror = null;
+        el.src = "";
+      }}
+    />
+  </div>
 );
 
 const Icon: React.FC<{ name: "drive" | "link" | "file" | string }> = ({ name }) => {
@@ -183,6 +195,18 @@ const ClassworkDetail: React.FC = () => {
     }
   }, [currentClass?.data?.works, classworkIdResolved]);
 
+  // derive the teacher for this classwork: match createdBy -> teacher.userId; fallback to first teacher or currentClass.data.teacher
+  const teacherForClasswork = useMemo(() => {
+    const teachers = currentClass?.data?.teachers ?? [];
+    const createdBy = (classwork as any)?.createdBy ?? (classwork as any)?.createdById ?? (classwork as any)?.created_by ?? null;
+    if (createdBy) {
+      const found = teachers.find((t: any) => String(t.userId) === String(createdBy));
+      if (found) return found as any;
+    }
+    if (teachers.length > 0) return teachers[0] as any;
+    return (currentClass?.data?.teachers as any) ?? null;
+  }, [currentClass?.data?.teachers, classwork, currentClass?.data?.teachers]);
+
   // When classwork is set, fetch detail if attachments/submissions missing
   useEffect(() => {
     if (!classwork || !classwork.id) {
@@ -194,8 +218,6 @@ const ClassworkDetail: React.FC = () => {
       (classwork.files && classwork.files.length > 0) ||
       (classwork.links && classwork.links.length > 0);
 
-    // If the classwork already has files/links, we don't need to call detail
-    // but still fetch submissions below (existing logic does that).
     if (hasAttachments) {
       setCwDetail(null);
       return;
@@ -208,9 +230,7 @@ const ClassworkDetail: React.FC = () => {
         if (!mounted) return;
         if (detail) {
           setCwDetail({ data: detail.data ?? detail.raw ?? {}, submissions: detail.submissions ?? [], files: detail.files ?? [] });
-          // if server returned submissions in detail, prefer them (overwrite current submissions)
           if (Array.isArray(detail.submissions) && detail.submissions.length > 0) {
-            // normalize minimal submission shape (reuse existing getClassworkSubmissions shape)
             const normalized: ClassworkSubmission[] = detail.submissions.map((s: any) => ({
               id: s.id,
               classworkId: s.classworkId ?? s.notificationId ?? classwork.id,
@@ -263,9 +283,7 @@ const ClassworkDetail: React.FC = () => {
 
     (async () => {
       try {
-        // if cwDetail already provided submissions, keep them (detail effect sets setSubmissions)
         const all = await getClassworkSubmissions(Number(classwork.id));
-        // only overwrite if we don't already have submissions from detail
         if (!cwDetail?.submissions || cwDetail.submissions.length === 0) {
           setSubmissions(all ?? []);
         }
@@ -291,7 +309,6 @@ const ClassworkDetail: React.FC = () => {
       }
     })();
 
-    // load comments: try to find matching notification in currentClass.notifications
     const noti: ClassNotification | undefined = (currentClass?.data?.notifications ?? []).find((n) => Number(n.id) === Number(classwork.id));
     if (noti) {
       const normalized = (noti.comments ?? []).map((c: any) => ({
@@ -448,11 +465,11 @@ const ClassworkDetail: React.FC = () => {
   // derive teacher feedback and grader info for the current user's submission
   const teacherFeedback =
     userSubmission?.feedback ??
-    (userSubmission as any)?.feedback ??
-    (userSubmission as any)?.graderFeedback ??
-    (userSubmission as any)?.teacherFeedback ??
-    (userSubmission as any)?.feedbackText ??
-    "";
+  (userSubmission as any)?.feedback ??
+  (userSubmission as any)?.graderFeedback ??
+  (userSubmission as any)?.teacherFeedback ??
+  (userSubmission as any)?.feedbackText ??
+  "";
   const gradedBy =
     (userSubmission as any)?.gradeByName ??
     (userSubmission as any)?.gradeByName ??
@@ -475,7 +492,7 @@ const ClassworkDetail: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold">{classwork.title}</h1>
             <div className="text-base text-slate-500 mt-1">
-              <span>{currentClass?.data?.teacher?.fullname ?? "Giáo viên"} • {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+              <span>{teacherForClasswork?.fullname ?? "Giáo viên"} • {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
             </div>
             <div className="mt-3 text-base text-slate-700">{classwork.maxScore ?? 100} điểm</div>
           </div>
@@ -612,7 +629,7 @@ const ClassworkDetail: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    ))}      
                   </div>
                   <div className="text-sm text-slate-400">Bạn có thể nộp lại nếu muốn thêm tệp.</div>
                 </>
@@ -687,14 +704,14 @@ const ClassworkDetail: React.FC = () => {
             </div>
           </Card>
 
-          {/* Show teacher's feedback for the current user's submission */}
+          {/* Show teacher's feedback for the current user's submission */} 
           <Card className="p-5">
             <div className="text-sm text-slate-700">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12">
                   <Avatar className="w-12 h-12">
                     <AvatarFallback className="text-lg">
-                      {gradedBy ? String(gradedBy).charAt(0).toUpperCase() : (currentClass?.data?.teacher?.fullname ? currentClass.data.teacher.fullname.charAt(0).toUpperCase() : "G")}
+                      {gradedBy ? String(gradedBy).charAt(0).toUpperCase() : (teacherForClasswork?.fullname ? teacherForClasswork.fullname.charAt(0).toUpperCase() : "G")}
                     </AvatarFallback>
                   </Avatar>
                 </div>
