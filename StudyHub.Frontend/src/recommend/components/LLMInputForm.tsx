@@ -39,7 +39,7 @@ const LLMInputForm: React.FC = () => {
         created?.Id ?? created?.id ?? created?.data?.Id ?? created?.data?.id;
 
       // navigate to dedicated LLM result page using path param
-      nav(`/recommend/llm/${historyId}`);
+      nav(`/recommend/student/llm/${historyId}`);
 
       // call recommend LLM and after it completes update history response
       const store = useRecommendStore.getState();

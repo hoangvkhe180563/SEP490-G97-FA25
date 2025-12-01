@@ -19,6 +19,10 @@ namespace StudyHub.Backend.UseCases.Repositories
         List<HourCountDto> GetLlmPeakHoursForLlm(DateTime? start, DateTime? end, int top = 5);
         List<SubjectCountDto> GetTopSubjects(DateTime? start, DateTime? end, int top = 10);
 
+        // Top recommended items (courses/documents) parsed from stored LLM responses
+        List<RecommendedItemCountDto> GetTopRecommendedCourses(DateTime? start, DateTime? end, int top = 10);
+        List<RecommendedItemCountDto> GetTopRecommendedDocuments(DateTime? start, DateTime? end, int top = 10);
+
         TokenSummaryDto GetTokenSummary(DateTime? start, DateTime? end);
         // Token breakdown by period: "day" | "week" | "month"
         List<DateTokenDto> GetTokenByPeriod(string period, DateTime? start, DateTime? end);

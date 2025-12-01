@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Repositories;
+using StudyHub.Backend.Domain.Entities;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
@@ -481,6 +482,114 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 .ToList();
 
             return groups;
+        }
+
+        public List<RecommendedItemCountDto> GetTopRecommendedCourses(DateTime? start, DateTime? end, int top = 10)
+        {
+            var q = _context.LlmHistories.AsQueryable();
+            if (start.HasValue) q = q.Where(h => h.CreatedAt >= start.Value);
+            if (end.HasValue) q = q.Where(h => h.CreatedAt <= end.Value);
+            q = q.Where(h => h.Llmresponse != null);
+
+            var counts = new Dictionary<string, (string title, int count, string subject, string imageUrl)>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var row in q)
+            {
+                try
+                {
+                    var raw = row.Llmresponse!;
+                    using var doc = System.Text.Json.JsonDocument.Parse(raw);
+                    var root = doc.RootElement;
+
+                    // Try common property name casing (camelCase or PascalCase)
+                    if (!root.TryGetProperty("courseRecommendations", out var arr) && !root.TryGetProperty("CourseRecommendations", out arr))
+                    {
+                        continue;
+                    }
+
+                    if (arr.ValueKind != System.Text.Json.JsonValueKind.Array) continue;
+
+                    foreach (var el in arr.EnumerateArray())
+                    {
+                        string id = string.Empty;
+                        string title = string.Empty;
+                        string subject = string.Empty;
+                        string imageUrl = string.Empty;
+                        if (el.TryGetProperty("id", out var idEl) || el.TryGetProperty("Id", out idEl)) id = idEl.GetString() ?? "";
+                        if (el.TryGetProperty("title", out var tEl) || el.TryGetProperty("Title", out tEl)) title = tEl.GetString() ?? "";
+                        if (el.TryGetProperty("subject", out var sEl) || el.TryGetProperty("Subject", out sEl)) subject = sEl.GetString() ?? "";
+                        // Try common image property names
+                        if (el.TryGetProperty("imageUrl", out var imgEl) || el.TryGetProperty("ImageUrl", out imgEl) || el.TryGetProperty("image", out imgEl) || el.TryGetProperty("Image", out imgEl))
+                        {
+                            imageUrl = imgEl.GetString() ?? string.Empty;
+                        }
+                        if (string.IsNullOrWhiteSpace(id)) continue;
+                        if (!counts.ContainsKey(id)) counts[id] = (title, 0, subject, imageUrl);
+                        var prev = counts[id];
+                        // prefer existing imageUrl if present, otherwise keep new one
+                        var chosenImage = !string.IsNullOrWhiteSpace(prev.imageUrl) ? prev.imageUrl : imageUrl;
+                        counts[id] = (prev.title ?? title, prev.count + 1, prev.subject ?? subject, chosenImage);
+                    }
+                }
+                catch { /* ignore parse errors */ }
+            }
+
+            return counts.OrderByDescending(kv => kv.Value.count).Take(top)
+                .Select(kv => new RecommendedItemCountDto { Id = kv.Key, Title = kv.Value.title ?? kv.Key, Subject = kv.Value.subject ?? kv.Key, ImageUrl = string.IsNullOrWhiteSpace(kv.Value.imageUrl) ? null : kv.Value.imageUrl, Count = kv.Value.count })
+                .ToList();
+        }
+
+        public List<RecommendedItemCountDto> GetTopRecommendedDocuments(DateTime? start, DateTime? end, int top = 10)
+        {
+            var q = _context.LlmHistories.AsQueryable();
+            if (start.HasValue) q = q.Where(h => h.CreatedAt >= start.Value);
+            if (end.HasValue) q = q.Where(h => h.CreatedAt <= end.Value);
+            q = q.Where(h => h.Llmresponse != null);
+
+            var counts = new Dictionary<string, (string title, int count, string subject, string thumbnail)>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var row in q)
+            {
+                try
+                {
+                    var raw = row.Llmresponse!;
+                    using var doc = System.Text.Json.JsonDocument.Parse(raw);
+                    var root = doc.RootElement;
+
+                    if (!root.TryGetProperty("documentRecommendations", out var arr) && !root.TryGetProperty("DocumentRecommendations", out arr))
+                    {
+                        continue;
+                    }
+
+                    if (arr.ValueKind != System.Text.Json.JsonValueKind.Array) continue;
+
+                    foreach (var el in arr.EnumerateArray())
+                    {
+                        string id = string.Empty;
+                        string title = string.Empty;
+                        string subject = string.Empty;
+                        string thumbnail = string.Empty;
+                        if (el.TryGetProperty("id", out var idEl) || el.TryGetProperty("Id", out idEl)) id = idEl.GetString() ?? "";
+                        if (el.TryGetProperty("title", out var tEl) || el.TryGetProperty("Title", out tEl)) title = tEl.GetString() ?? "";
+                        if (el.TryGetProperty("subject", out var sEl) || el.TryGetProperty("Subject", out sEl)) subject = sEl.GetString() ?? "";
+                        // Try common thumbnail property names
+                        if (el.TryGetProperty("thumbnail", out var thEl) || el.TryGetProperty("thumbnailUrl", out thEl) || el.TryGetProperty("Thumbnail", out thEl) || el.TryGetProperty("ThumbnailUrl", out thEl))
+                        {
+                            thumbnail = thEl.GetString() ?? string.Empty;
+                        }
+                        if (string.IsNullOrWhiteSpace(id)) continue;
+                        if (!counts.ContainsKey(id)) counts[id] = (title, 0, subject, thumbnail);
+                        var prev = counts[id];
+                        var chosenThumb = !string.IsNullOrWhiteSpace(prev.thumbnail) ? prev.thumbnail : thumbnail;
+                        counts[id] = (prev.title ?? title, prev.count + 1, prev.subject ?? subject, chosenThumb);
+                    }
+                }
+                catch { /* ignore parse errors */ }
+            }
+
+            return counts.OrderByDescending(kv => kv.Value.count).Take(top)
+                .Select(kv => new RecommendedItemCountDto { Id = kv.Key, Title = kv.Value.title ?? kv.Key, Subject = kv.Value.subject ?? kv.Key, Thumbnail = string.IsNullOrWhiteSpace(kv.Value.thumbnail) ? null : kv.Value.thumbnail, Count = kv.Value.count })
+                .ToList();
         }
     }
 }

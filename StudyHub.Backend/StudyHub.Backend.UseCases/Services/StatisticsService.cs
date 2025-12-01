@@ -68,6 +68,16 @@ namespace StudyHub.Backend.UseCases.Services
             return _repo.GetTopSubjects(start, end, top);
         }
 
+        public List<RecommendedItemCountDto> GetTopRecommendedCourses(DateTime? start, DateTime? end, int top = 10)
+        {
+            return _repo.GetTopRecommendedCourses(start, end, top);
+        }
+
+        public List<RecommendedItemCountDto> GetTopRecommendedDocuments(DateTime? start, DateTime? end, int top = 10)
+        {
+            return _repo.GetTopRecommendedDocuments(start, end, top);
+        }
+
         public TokenSummaryDto GetTokenSummary(DateTime? start, DateTime? end)
         {
             return _repo.GetTokenSummary(start, end);

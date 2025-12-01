@@ -176,6 +176,34 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
+        [HttpGet("Llm/TopRecommendedCourses")]
+        public IActionResult LlmTopRecommendedCourses([FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null, [FromQuery] int top = 10)
+        {
+            try
+            {
+                var res = _service.GetTopRecommendedCourses(start, end, top);
+                return Ok(new { Success = true, Data = res });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lấy khóa học được đề xuất nhiều nhất thất bại", Error = ex.Message });
+            }
+        }
+
+        [HttpGet("Llm/TopRecommendedDocuments")]
+        public IActionResult LlmTopRecommendedDocuments([FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null, [FromQuery] int top = 10)
+        {
+            try
+            {
+                var res = _service.GetTopRecommendedDocuments(start, end, top);
+                return Ok(new { Success = true, Data = res });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lấy tài liệu được đề xuất nhiều nhất thất bại", Error = ex.Message });
+            }
+        }
+
         [HttpGet("Llm/TokenSummary")]
         public IActionResult LlmTokenSummary([FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null)
         {

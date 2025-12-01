@@ -4,6 +4,7 @@ import LLMInputPage from "../pages/llm-input";
 import ResultsPage from "../pages/results";
 import LlmResultPage from "../pages/llm-result";
 import RecommendationRouteConfig from "../constants/RecomendationRouteConfig";
+import RecommendStatistics from "../pages/statistics";
 
 const studentRoutes = [
   {
@@ -25,11 +26,23 @@ const studentRoutes = [
   },
 ];
 
+const managerRoutes = [
+  {
+    index: true,
+    element: <RecommendStatistics />,
+  },
+];
+
 const recommendationRoutes = [
   {
     path: RecommendationRouteConfig.STUDENT.INDEX,
     element: <Outlet />,
     children: studentRoutes,
+  },
+  {
+    path: RecommendationRouteConfig.MANAGER.INDEX,
+    element: <Outlet />,
+    children: managerRoutes,
   },
 ];
 

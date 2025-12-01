@@ -101,7 +101,7 @@ const LlmSidebar: React.FC = () => {
                 (useRecommendStore as any).setState({
                   llmRecommendation: null,
                 });
-                navigate("/recommend/llm");
+                navigate("/recommend/student/llm");
               }}
               className="size-8 inline-flex items-center justify-center rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
             >
@@ -139,7 +139,7 @@ const LlmSidebar: React.FC = () => {
               <li
                 key={it.id}
                 className="flex items-center justify-between gap-2 p-2 hover:bg-slate-50 rounded-md cursor-pointer"
-                onClick={() => navigate(`/recommend/llm/${it.id}`)}
+                onClick={() => navigate(`/recommend/student/llm/${it.id}`)}
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <div className="flex-1 min-w-0">

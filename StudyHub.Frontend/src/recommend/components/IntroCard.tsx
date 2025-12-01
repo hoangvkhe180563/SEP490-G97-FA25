@@ -67,7 +67,7 @@ const IntroCard: React.FC = () => {
               className="p-5 border-slate-300/40 dark:border-slate-700/40 
                          hover:shadow-md hover:bg-white/60 dark:hover:bg-slate-800/40
                          transition cursor-pointer rounded-xl backdrop-blur-sm"
-              onClick={() => nav("/recommend/results?mode=profile")}
+              onClick={() => nav("/recommend/student/results?mode=profile")}
             >
               <div className="flex items-start gap-4">
                 <div className="p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900/40">
@@ -93,7 +93,7 @@ const IntroCard: React.FC = () => {
               className="p-5 border-slate-300/40 dark:border-slate-700/40
                          hover:shadow-md hover:bg-white/60 dark:hover:bg-slate-800/40
                          transition cursor-pointer rounded-xl backdrop-blur-sm"
-              onClick={() => nav("/recommend/llm")}
+              onClick={() => nav("/recommend/student/llm")}
             >
               <div className="flex items-start gap-4">
                 <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800">

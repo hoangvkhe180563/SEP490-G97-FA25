@@ -64,3 +64,43 @@ export interface LLMRecommendationResponse {
   totalPromptTokens?: number;
   totalResponseTokens?: number;
 }
+
+// --- Statistics DTOs ---
+export interface StudentQuestionStatsDto {
+  userId: string;
+  fullName?: string;
+  totalQuestions: number;
+}
+
+export interface DateCountDto {
+  period: string; // yyyy-MM-dd or yyyy-W{week} or yyyy-MM
+  count: number;
+}
+
+export interface HourCountDto {
+  hour: number;
+  count: number;
+}
+
+export interface SubjectCountDto {
+  subject: string;
+  count: number;
+}
+
+export interface TokenSummaryDto {
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalTokens: number;
+  averageTokensPerQuestion: number;
+}
+
+export interface DateTokenDto {
+  period: string; // yyyy-MM-dd or yyyy-W{week} or yyyy-MM
+  tokens: number;
+}
+
+export interface UserTokenDto {
+  userId: string;
+  fullName?: string;
+  totalTokens: number;
+}

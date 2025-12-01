@@ -34,7 +34,7 @@ export const studentSidebarItems: ISidebarItem[] = [
   {
     icon: <MessageSquare size={20} />,
     text: "Đề xuất",
-    link: "/recommend",
+    link: "/recommend/student",
   },
 ];
 
@@ -172,5 +172,10 @@ export const schoolAdminSidebarItems: ISidebarItem[] = [
     icon: <BookOpen size={20} />,
     text: "Quản lý người dùng",
     link: "/user/manager/accounts",
+  },
+  {
+    icon: <MessageSquare size={20} />,
+    text: "Đề xuất",
+    link: "/recommend/manager",
   },
 ];
