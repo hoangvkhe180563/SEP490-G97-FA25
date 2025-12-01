@@ -152,6 +152,7 @@ const CourseCard: React.FC<{ course: CourseRecommendation }> = ({ course }) => {
                         price: String(priceNum),
                         name: String(course.title ?? course.name ?? ""),
                         userId: String(authUser.id),
+                        schoolId: String((course as any).schoolId ?? ""),
                       });
                       navigate(
                         `/payment/student/checkout?${params.toString()}`
@@ -182,6 +183,7 @@ const CourseCard: React.FC<{ course: CourseRecommendation }> = ({ course }) => {
                     price: String(remaining),
                     name: String(course.title ?? course.name ?? ""),
                     userId: String(authUser.id),
+                    schoolId: String((course as any).schoolId ?? ""),
                   });
                   navigate(`/payment/student/checkout?${params.toString()}`);
                 } catch (err) {
@@ -191,6 +193,7 @@ const CourseCard: React.FC<{ course: CourseRecommendation }> = ({ course }) => {
                     price: String(remaining),
                     name: String(course.title ?? course.name ?? ""),
                     userId: String(authUser.id),
+                    schoolId: String((course as any).schoolId ?? ""),
                   });
                   navigate(`/payment/student/checkout?${params.toString()}`);
                 }
