@@ -62,7 +62,7 @@ const ViewExamDetail = () => {
   if (!exam) return <p className="container mx-auto mt-8 p-4 text-gray-600">Không tìm thấy bài kiểm tra.</p>;
 
   return (
-    <div className="w-full h-full overflow-y-auto p-6">
+    <div className="w-full h-full overflow-y-auto p-6 scrollbar-hide">
       <Button variant='outline' className='flex items-center' onClick={() => history.back()}>
         <ArrowLeft />
         <span>Quay lại</span>

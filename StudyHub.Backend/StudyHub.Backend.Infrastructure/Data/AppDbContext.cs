@@ -85,6 +85,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<LessonVideo> LessonVideos { get; set; }
 
+    public virtual DbSet<LlmHistory> LlmHistories { get; set; }
+
     public virtual DbSet<NotificationSubmission> NotificationSubmissions { get; set; }
 
     public virtual DbSet<PaymentInfo> PaymentInfos { get; set; }
@@ -360,6 +362,7 @@ public partial class AppDbContext : DbContext
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.Grade).HasColumnType("tinyint(4)");
             entity.Property(e => e.Name).HasMaxLength(200);
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
         });
@@ -1070,6 +1073,30 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Lesson).WithOne(p => p.LessonVideo)
                 .HasForeignKey<LessonVideo>(d => d.LessonId)
                 .HasConstraintName("lesson_video_ibfk_1");
+        });
+
+        modelBuilder.Entity<LlmHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("llm_history");
+
+            entity.HasIndex(e => e.UserId, "UserId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Llmresponse)
+                .HasColumnType("json")
+                .HasColumnName("LLMResponse");
+            entity.Property(e => e.Status)
+                .HasDefaultValueSql("'Đang mở'")
+                .HasColumnType("enum('Đã ghim','Đã xoá','Đang mở')");
+
+            entity.HasOne(d => d.User).WithMany(p => p.LlmHistories)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("llm_history_ibfk_1");
         });
 
         modelBuilder.Entity<NotificationSubmission>(entity =>

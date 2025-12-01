@@ -357,5 +357,30 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
             return [];
         }
+
+        public string GetSchoolAddress(int schoolId)
+        {
+            try
+            {
+                var school = _context.Schools.FirstOrDefault(s => s.Id == schoolId);
+                if (school == null) throw new Exception("School is null");
+
+                int communeId = school.CommuneId;
+
+                Data.Commune commune = _context.Communes.First(c => c.Id == communeId);
+                string communeName = commune.Name;
+                Data.Province province = _context.Provinces.First(p => p.Id == commune.ProvinceId);
+                string provinceName = province.Name;
+                Data.City city = _context.Cities.First(c => c.Id == province.CityId);
+                string cityName = city.Name;
+
+                return $"{school.Address}, Phường {communeName}, Quận {provinceName}, Thành phố {cityName}";
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("LandingPageRepository", "GetSchoolAddress failed. Inner error: " + ex.Message).LogError();
+            }
+            return string.Empty;
+        }
     }
 }

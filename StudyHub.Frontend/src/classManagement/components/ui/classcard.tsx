@@ -8,6 +8,7 @@ export type ClassCardProps = {
   title: string;
   teacher: string;
   subject?: string;
+  grade: number;
   userRole: UserRole;
   unread?: number; // NEW: unread count for this class
   onView: (id: string | number, role: UserRole) => void;
@@ -29,6 +30,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({
   title,
   teacher,
   subject,
+  grade,
   userRole,
   unread = 0,
   onView,

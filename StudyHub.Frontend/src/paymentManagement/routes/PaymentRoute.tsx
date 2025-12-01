@@ -1,5 +1,6 @@
 import { Outlet, type RouteObject } from "react-router-dom";
-import CourseRouteConfig from "../constants/PaymentRouteConfig";
+import RequireRole from "@/common/components/RequireRole";
+import PaymentRouteConfig from "../constants/PaymentRouteConfig";
 import TransactionList from "../pages/manager/TransactionList";
 import RevenueReport from "../pages/manager/RevenueReport";
 import PaymentCheckout from "../pages/student/PaymentCheckout";
@@ -16,11 +17,11 @@ const financialManagerRoutes: RouteObject[] = [
     element: <div>Dashboard</div>,
   },
   {
-    path: CourseRouteConfig.FINANCIAL_MANAGER.TRANSACTION,
+    path: PaymentRouteConfig.FINANCIAL_MANAGER.TRANSACTION,
     element: <TransactionList />,
   },
   {
-    path: CourseRouteConfig.FINANCIAL_MANAGER.REVENUE,
+    path: PaymentRouteConfig.FINANCIAL_MANAGER.REVENUE,
     element: <RevenueReport />,
   },
 ];
@@ -32,37 +33,37 @@ const studentCourseRoutes: RouteObject[] = [
 
   {
     // subscription page for QA packages
-    path: CourseRouteConfig.STUDENT.SUBSCRIPTION,
+    path: PaymentRouteConfig.STUDENT.SUBSCRIPTION,
     element: <SubscriptionPage />,
   },
   {
     // payments checkout
-    path: CourseRouteConfig.STUDENT.PAYMENT_CHECKOUT,
+    path: PaymentRouteConfig.STUDENT.PAYMENT_CHECKOUT,
     element: <PaymentCheckout />,
   },
   {
     // wallet top-up
-    path: CourseRouteConfig.STUDENT.WALLET_TOPUP,
+    path: PaymentRouteConfig.STUDENT.WALLET_TOPUP,
     element: <WalletTopUp />,
   },
   {
     // wallet withdrawal
-    path: CourseRouteConfig.STUDENT.WALLET_WITHDRAWAL,
+    path: PaymentRouteConfig.STUDENT.WALLET_WITHDRAWAL,
     element: <WithdrawRequest />,
   },
   {
     // path="payment-success" element={<PaymentSuccess />}
-    path: CourseRouteConfig.STUDENT.PAYMENT_SUCCESS,
+    path: PaymentRouteConfig.STUDENT.PAYMENT_SUCCESS,
     element: <PaymentSuccess />,
   },
   {
     // payment failed page
-    path: CourseRouteConfig.STUDENT.PAYMENT_FAILED,
+    path: PaymentRouteConfig.STUDENT.PAYMENT_FAILED,
     element: <PaymentFailed />,
   },
   {
     // student transaction history
-    path: CourseRouteConfig.STUDENT.TRANSACTION_HISTORY,
+    path: PaymentRouteConfig.STUDENT.TRANSACTION_HISTORY,
     element: <TransactionHistory />,
   },
 ];
@@ -71,14 +72,22 @@ const studentCourseRoutes: RouteObject[] = [
 const paymentRoutes: RouteObject[] = [
   // Cấu hình routes cho Học sinh (Base path: /)
   {
-    path: CourseRouteConfig.STUDENT.INDEX,
-    element: <Outlet />,
+    path: PaymentRouteConfig.STUDENT.INDEX,
+    element: (
+      <RequireRole allowedRoles={["School Student", "External Student"]}>
+        <Outlet />
+      </RequireRole>
+    ),
     children: studentCourseRoutes,
   },
   // Cấu hình routes cho Quản lý tài chính (Base path: /financial)
   {
-    path: CourseRouteConfig.FINANCIAL_MANAGER.INDEX,
-    element: <Outlet />,
+    path: PaymentRouteConfig.FINANCIAL_MANAGER.INDEX,
+    element: (
+      <RequireRole allowedRoles={["Financial Manager", "School Admin"]}>
+        <Outlet />
+      </RequireRole>
+    ),
     children: financialManagerRoutes,
   },
 ];

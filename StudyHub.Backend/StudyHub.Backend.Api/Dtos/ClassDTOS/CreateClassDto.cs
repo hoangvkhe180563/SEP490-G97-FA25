@@ -3,7 +3,8 @@
     public class CreateClassDto
     {
         public string Name { get; set; } = null!;
-        public string? Description { get; set; }
+        public string? Description { get; set; }    
+        public sbyte Grade { get; set; }
         public Guid CreatedBy { get; set; }
     }
 }

@@ -9,6 +9,7 @@ import DocumentDetails from "@/documentManagement/pages/student/DocumentDetails"
 import StudentDocumentInfo from "@/documentManagement/pages/DocumentInfo";
 import DocumentList from "@/documentManagement/pages/DocumentList";
 import { Outlet, type RouteObject } from "react-router-dom";
+import RequireRole from "@/common/components/RequireRole";
 import DocumentDashboard from "../pages/manager/DocumentDashboard";
 
 const managerRoutes = [
@@ -87,17 +88,36 @@ const studentRoutes = [
 const documentRoutes: RouteObject[] = [
   {
     path: DocumentRouteConfig.MANAGER.INDEX,
-    element: <Outlet />,
+    element: (
+      <RequireRole allowedRoles={["School Admin", "Document Manager"]}>
+        <Outlet />
+      </RequireRole>
+    ),
     children: managerRoutes,
   },
   {
     path: DocumentRouteConfig.TEACHER.INDEX,
-    element: <Outlet />,
+    element: (
+      <RequireRole
+        allowedRoles={[
+          "Subject Teacher",
+          "Head of Department Teacher",
+          "Q&A Teacher",
+          "Homeroom Teacher",
+        ]}
+      >
+        <Outlet />
+      </RequireRole>
+    ),
     children: teacherRoutes,
   },
   {
     path: DocumentRouteConfig.STUDENT.INDEX,
-    element: <Outlet />,
+    element: (
+      <RequireRole allowedRoles={["School Student", "External Student"]}>
+        <Outlet />
+      </RequireRole>
+    ),
     children: studentRoutes,
   },
   {

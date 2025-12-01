@@ -91,6 +91,8 @@ public partial class AppUser
 
     public virtual ICollection<LessonComment> LessonComments { get; set; } = new List<LessonComment>();
 
+    public virtual ICollection<LlmHistory> LlmHistories { get; set; } = new List<LlmHistory>();
+
     public virtual ICollection<QAConversation> QAConversationStudents { get; set; } = new List<QAConversation>();
 
     public virtual ICollection<QAConversation> QAConversationTeachers { get; set; } = new List<QAConversation>();
