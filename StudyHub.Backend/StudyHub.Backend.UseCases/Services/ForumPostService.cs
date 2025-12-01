@@ -95,6 +95,7 @@ namespace StudyHub.Backend.UseCases.Services
                 flair = await _configRepo.GetFlairByIdAsync(post.FlairId.Value);
             }
 
+            bool hasProtectedFlair = flair?.IsProtected ?? false;
             List<ForumAttachment> processedAttachments = new List<ForumAttachment>();
 
             if (attachments != null && attachments.Any())
@@ -126,14 +127,13 @@ namespace StudyHub.Backend.UseCases.Services
                         CreatedBy = post.CreatedBy,
                         CreatedAt = DateTime.Now,
                         IsApproved = true,
-                        IsModerationPending = isImage
+                        IsModerationPending = hasProtectedFlair ? false : isImage
                     });
                 }
             }
 
             var violations = await textViolationsTask;
             bool hasTextViolations = violations.Any();
-            bool hasProtectedFlair = flair?.IsProtected ?? false;
 
             if (hasTextViolations)
             {

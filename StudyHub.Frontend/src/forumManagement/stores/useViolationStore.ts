@@ -72,7 +72,11 @@ interface ViolationState {
   rejectReport: (reportId: number) => Promise<boolean>;
   fetchUserStatuses: () => Promise<void>;
   setUserFilters: (filters: Partial<UserStatusFilters>) => void;
-  muteUser: (userId: string, schoolId: number) => Promise<boolean>;
+  muteUser: (
+    userId: string,
+    schoolId: number,
+    days?: number
+  ) => Promise<boolean>;
   unmuteUser: (userId: string, schoolId: number) => Promise<boolean>;
   reset: () => void;
 }
@@ -227,10 +231,10 @@ export const useViolationStore = create<ViolationState>((set, get) => ({
     }
   },
 
-  muteUser: async (userId: string, schoolId: number) => {
+  muteUser: async (userId: string, schoolId: number, days: number = 7) => {
     try {
       const response = await axiosInstance.post(
-        `/Forum/moderator/mute-user/${userId}/mute?schoolId=${schoolId}`
+        `/Forum/mute-user/${userId}?schoolId=${schoolId}&days=${days}`
       );
 
       if (response.data?.success) {
@@ -251,7 +255,7 @@ export const useViolationStore = create<ViolationState>((set, get) => ({
   unmuteUser: async (userId: string, schoolId: number) => {
     try {
       const response = await axiosInstance.post(
-        `/Forum/moderator/mute-user/${userId}/unmute?schoolId=${schoolId}`
+        `/Forum/unmute-user/${userId}/?schoolId=${schoolId}`
       );
 
       if (response.data?.success) {
