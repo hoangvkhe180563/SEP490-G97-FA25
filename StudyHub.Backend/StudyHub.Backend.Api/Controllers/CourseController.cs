@@ -3,6 +3,7 @@ using StudyHub.Backend.UseCases.Services;
 using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.Api.Dtos.CourseDTOS;
 using StudyHub.Backend.UseCases.Dtos;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace StudyHub.Backend.Api.Controllers;
 
@@ -12,11 +13,13 @@ public class CourseController : ControllerBase
 {
     private readonly CourseService _service;
     private readonly CloudFileStorageService _fileStorage;
+    private readonly ElasticCourseVectorSearchService _elasticsearchService;
 
-    public CourseController(CourseService service, CloudFileStorageService fileStorage)
+    public CourseController(CourseService service, CloudFileStorageService fileStorage, ElasticCourseVectorSearchService elasticsearchService)
     {
         _service = service;
         _fileStorage = fileStorage;
+        _elasticsearchService = elasticsearchService;
     }
 
     // ===================== GET ALL =====================
@@ -84,19 +87,20 @@ public class CourseController : ControllerBase
 
     // ===================== CREATE =====================
     [HttpPost]
-    public IActionResult Create([FromBody] CourseDto dto)
+    public async Task<IActionResult> Create([FromBody] CourseDto dto)
     {
         if (dto == null)
             return BadRequest("Course data is required.");
 
         var entity = dto.ToEntity();
-        var created = _service.CreateCourse(entity);
+        var created = await _service.CreateCourse(entity);
+
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created.ToListDto());
     }
 
     // ===================== UPDATE =====================
     [HttpPut("{id}")]
-    public IActionResult Update(int id, [FromBody] CourseDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] CourseDto dto)
     {
         if (dto == null)
             return BadRequest("Course data is required.");
@@ -120,7 +124,7 @@ public class CourseController : ControllerBase
         // Difficulty & Length
         existing.Difficulty = System.Enum.TryParse<StudyHub.Backend.Domain.Entities.CourseDifficulty>(dto.Difficulty, true, out var _d) ? _d : existing.Difficulty;
         existing.Length = System.Enum.TryParse<StudyHub.Backend.Domain.Entities.CourseLength>(dto.Length, true, out var _l) ? _l : existing.Length;
-        existing.UpdatedAt = DateTime.UtcNow;
+        existing.UpdatedAt = DateTime.Now;
         existing.UpdatedBy = dto.UpdatedBy;
         existing.IsApproved = dto.IsApproved;
 
@@ -130,15 +134,16 @@ public class CourseController : ControllerBase
             existing.Chapters = dto.Chapters.Select(ch => ch.ToEntity()).ToList();
         }
 
-        var updated = _service.UpdateCourse(existing);
+        var updated = await _service.UpdateCourse(existing);
+
         return Ok(updated.ToDto());
     }
 
     // ===================== DELETE =====================
     [HttpDelete("{id}")]
-    public IActionResult Delete(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        var ok = _service.DeleteCourse(id);
+        var ok = await _service.DeleteCourse(id);
         if (!ok)
             return NotFound();
 

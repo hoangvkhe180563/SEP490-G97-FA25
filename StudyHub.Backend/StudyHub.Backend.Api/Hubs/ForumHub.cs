@@ -76,7 +76,6 @@ namespace StudyHub.Backend.Api.Hubs
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"post-{postId}");
         }
-
         public async Task<object> CreatePost(int schoolId, short subjectId, int? flairId, string title, string content)
         {
             try
@@ -109,7 +108,10 @@ namespace StudyHub.Backend.Api.Hubs
                 var postWithDetails = await _postService.GetPostByIdAsync(createdPost.Id);
                 var dto = postWithDetails?.ToListDto();
 
-                await Clients.Group($"school-{schoolId}").SendAsync("ReceiveNewPost", dto);
+                if (postWithDetails?.Status == true)
+                {
+                    await Clients.Group($"school-{schoolId}").SendAsync("ReceiveNewPost", dto);
+                }
 
                 return new { success = true, data = dto };
             }
@@ -117,7 +119,7 @@ namespace StudyHub.Backend.Api.Hubs
             {
                 return new { success = false, message = ex.Message };
             }
-            catch (Exception )
+            catch (Exception)
             {
                 return new { success = false, message = "Có lỗi xảy ra khi tạo bài viết" };
             }
@@ -161,26 +163,40 @@ namespace StudyHub.Backend.Api.Hubs
                 };
 
                 var createdComment = await _commentService.CreateCommentAsync(comment, null);
-
                 var commentWithDetails = await _commentService.GetCommentByIdAsync(createdComment.CommentId);
-                var dto = commentWithDetails?.ToListDto();
 
-                await Clients.Group($"post-{postId}").SendAsync("ReceiveNewComment", dto);
-                await Clients.Group($"school-{post.SchoolId}").SendAsync("ReceiveNewComment", dto);
-
-                var updatedPost = await _postService.GetPostByIdAsync(postId);
-                var postDto = updatedPost?.ToListDto();
-
-                await Clients.Group($"post-{postId}").SendAsync("UpdateCommentCount", new
+                if (commentWithDetails == null)
                 {
-                    postId = postId,
-                    commentCount = updatedPost?.CommentCount
-                });
-                await Clients.Group($"school-{post.SchoolId}").SendAsync("UpdateCommentCount", new
+                    return new { success = false, message = "Không thể tạo bình luận" };
+                }
+
+                var dto = commentWithDetails.ToListDto();
+
+                if (commentWithDetails.Status == true)
                 {
-                    postId = postId,
-                    commentCount = updatedPost?.CommentCount
-                });
+                    await Clients.Group($"post-{postId}").SendAsync("ReceiveNewComment", dto);
+                    await Clients.Group($"school-{post.SchoolId}").SendAsync("ReceiveNewComment", dto);
+
+                    var updatedPost = await _postService.GetPostByIdAsync(postId);
+                    await Clients.Group($"post-{postId}").SendAsync("UpdateCommentCount", new
+                    {
+                        postId = postId,
+                        commentCount = updatedPost?.CommentCount
+                    });
+                    await Clients.Group($"school-{post.SchoolId}").SendAsync("UpdateCommentCount", new
+                    {
+                        postId = postId,
+                        commentCount = updatedPost?.CommentCount
+                    });
+                }
+                else
+                {
+                    await Clients.Caller.SendAsync("CommentPendingModeration", new
+                    {
+                        commentId = commentWithDetails.CommentId,
+                        message = "Bình luận đang chờ kiểm duyệt"
+                    });
+                }
 
                 return new { success = true, data = dto };
             }
@@ -188,7 +204,7 @@ namespace StudyHub.Backend.Api.Hubs
             {
                 return new { success = false, message = ex.Message };
             }
-            catch (Exception )
+            catch (Exception)
             {
                 return new { success = false, message = "Có lỗi xảy ra khi tạo bình luận" };
             }
@@ -225,8 +241,22 @@ namespace StudyHub.Backend.Api.Hubs
             var updatedPost = await _postService.UpdatePostWithAttachmentsAsync(post, null, deletedAttachmentUrls);
             var dto = updatedPost.ToDetailDto();
 
-            await Clients.Group($"school-{post.SchoolId}").SendAsync("PostUpdated", dto);
-            await Clients.Group($"post-{postId}").SendAsync("PostUpdated", dto);
+            if (updatedPost.Status == true)
+            {
+                await Clients.Group($"school-{post.SchoolId}").SendAsync("PostUpdated", dto);
+                await Clients.Group($"post-{postId}").SendAsync("PostUpdated", dto);
+            }
+            else
+            {
+                await Clients.Caller.SendAsync("PostPendingModeration", new
+                {
+                    postId = postId,
+                    message = "Bài viết đang chờ kiểm duyệt sau khi chỉnh sửa"
+                });
+
+                await Clients.Group($"school-{post.SchoolId}").SendAsync("PostDeleted", postId);
+                await Clients.Group($"post-{postId}").SendAsync("PostDeleted", postId);
+            }
         }
 
         public async Task UpdateComment(int commentId, string content, List<string>? deletedAttachmentUrls)
@@ -244,7 +274,20 @@ namespace StudyHub.Backend.Api.Hubs
             var updatedComment = await _commentService.UpdateCommentWithAttachmentsAsync(comment, null, deletedAttachmentUrls);
             var dto = updatedComment.ToListDto();
 
-            await Clients.Group($"post-{comment.PostId}").SendAsync("CommentUpdated", dto);
+            if (updatedComment.Status == true)
+            {
+                await Clients.Group($"post-{comment.PostId}").SendAsync("CommentUpdated", dto);
+            }
+            else
+            {
+                await Clients.Caller.SendAsync("CommentPendingModeration", new
+                {
+                    commentId = commentId,
+                    message = "Bình luận đang chờ kiểm duyệt sau khi chỉnh sửa"
+                });
+
+                await Clients.Group($"post-{comment.PostId}").SendAsync("CommentDeleted", commentId);
+            }
         }
 
         public async Task DeletePost(int postId)

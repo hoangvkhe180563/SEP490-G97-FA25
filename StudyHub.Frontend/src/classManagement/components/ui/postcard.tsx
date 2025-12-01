@@ -1,5 +1,3 @@
-/* updated: toggle comments visibility when comment button is clicked (toggle + scroll on open)
-   added: view & download actions for attached files (programmatic download with fetch + fallback) */
 import React, { useState, useEffect } from "react";
 import DOMPurify from "dompurify";
 import CommentComposer from "@/classManagement/components/ui/commentcomposer";

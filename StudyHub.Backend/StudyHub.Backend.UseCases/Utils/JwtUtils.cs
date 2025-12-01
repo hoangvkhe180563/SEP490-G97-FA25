@@ -51,7 +51,7 @@ namespace StudyHub.Backend.UseCases.Utils
                 claims.Add(new Claim(ClaimTypes.Role, role));
             }
 
-            var expires = DateTime.UtcNow.AddMinutes(expiresMinutes);
+            var expires = DateTime.Now.AddMinutes(expiresMinutes);
 
             var token = new JwtSecurityToken(
                 issuer: issuer,
@@ -104,7 +104,7 @@ namespace StudyHub.Backend.UseCases.Utils
                 new Claim("purpose", "email_verification")
             };
 
-            var expires = DateTime.UtcNow.AddHours(expiresHours);
+            var expires = DateTime.Now.AddHours(expiresHours);
 
             var token = new JwtSecurityToken(
                 issuer: issuer,

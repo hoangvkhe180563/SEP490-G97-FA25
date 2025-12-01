@@ -186,7 +186,7 @@ const ApproveCourses: React.FC = () => {
 
   // 📦 Render
   return (
-    <div className="p-8 w-full mx-auto">
+    <div className="p-8 w-full mx-auto h-full overflow-y-auto scrollbar-hide">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
         <h1 className="text-3xl font-semibold tracking-tight text-gray-800">

@@ -32,7 +32,7 @@ import {
   Plus,
   Eye,
   ChevronDown,
-  Badge,
+  // Badge,
   Loader2,
 } from "lucide-react";
 import { useOwnedDocuments } from "@/documentManagement/hooks/useOwnedDocuments";
@@ -815,7 +815,7 @@ function DocumentDetail({
                       </span>
                     </>
                   ) : (
-                    <Badge
+                    <text
                       className={
                         document.isApproved === true
                           ? "bg-green-100 text-green-700 text-xs"
@@ -828,7 +828,7 @@ function DocumentDetail({
                         document.isApproved,
                         document.isRequested
                       )}
-                    </Badge>
+                    </text>
                   )}
                 </div>
               </div>

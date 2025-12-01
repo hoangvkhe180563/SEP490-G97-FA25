@@ -199,57 +199,58 @@ namespace StudyHub.Backend.UseCases.Services
             int corrects = 0;
             for (int i = 0; i < questions.Count; i++)
             {
+                ExamAnswer answer = answers.First(a => a.QuestionId == questions[i].Id);
                 switch (questions[i].Type)
                 {
                     case QuestionType.SingleChoice:
                         {
                             SingleChoiceQuestion? scq = questions[i] as SingleChoiceQuestion;
-                            int studentAnswer = int.Parse(answers[i].JsonAnswers);
+                            int studentAnswer = int.Parse(answer.JsonAnswers);
                             if (studentAnswer == scq.CorrectAnswer)
                             {
                                 corrects++;
-                                answers[i].IsCorrect = true;
+                                answer.IsCorrect = true;
                             }
                             else
                             {
-                                answers[i].IsCorrect = false;
+                                answer.IsCorrect = false;
                             }
                         }
                         break;
                     case QuestionType.MultipleChoice:
                         {
                             MultipleChoiceQuestion? mcq = questions[i] as MultipleChoiceQuestion;
-                            List<int> studentAnswer = JsonSerializer.Deserialize<List<int>>(answers[i].JsonAnswers) ?? [];
+                            List<int> studentAnswer = JsonSerializer.Deserialize<List<int>>(answer.JsonAnswers) ?? [];
                             if (studentAnswer.Count != 0 && studentAnswer.Count == mcq.CorrectAnswer.Count && studentAnswer.All(mcq.CorrectAnswer.Contains))
                             {
                                 corrects++;
-                                answers[i].IsCorrect = true;
+                                answer.IsCorrect = true;
                             }
                             else
                             {
-                                answers[i].IsCorrect = false;
+                                answer.IsCorrect = false;
                             }
                         }
                         break;
                     case QuestionType.TextInput:
                         {
                             TextInputQuestion? tiq = questions[i] as TextInputQuestion;
-                            string studentAnswer = answers[i].JsonAnswers;
+                            string studentAnswer = answer.JsonAnswers;
                             if (studentAnswer.ToLower().Trim() == tiq.CorrectAnswer.ToLower().Trim())
                             {
                                 corrects++;
-                                answers[i].IsCorrect = true;
+                                answer.IsCorrect = true;
                             }
                             else
                             {
-                                answers[i].IsCorrect = false;
+                                answer.IsCorrect = false;
                             }
                         }
                         break;
                     case QuestionType.FillBlank:
                         {
                             FillBlankQuestion? fbq = questions[i] as FillBlankQuestion;
-                            List<string> studentAnswer = JsonSerializer.Deserialize<List<string>>(answers[i].JsonAnswers) ?? [];
+                            List<string> studentAnswer = JsonSerializer.Deserialize<List<string>>(answer.JsonAnswers) ?? [];
 
                             fbq.CorrectAnswer = fbq.CorrectAnswer.Select(ans => ans.ToLower().Trim()).ToList();
                             studentAnswer = studentAnswer.Select(ans => ans.ToLower().Trim()).ToList();
@@ -257,18 +258,18 @@ namespace StudyHub.Backend.UseCases.Services
                             if (studentAnswer.Count != 0 && studentAnswer.Count == fbq.CorrectAnswer.Count && studentAnswer.All(fbq.CorrectAnswer.Contains))
                             {
                                 corrects++;
-                                answers[i].IsCorrect = true;
+                                answer.IsCorrect = true;
                             }
                             else
                             {
-                                answers[i].IsCorrect = false;
+                                answer.IsCorrect = false;
                             }
                         }
                         break;
                     case QuestionType.Matching:
                         {
                             MatchingQuestion? mq = questions[i] as MatchingQuestion;
-                            Dictionary<string, int> tempAnswer = JsonSerializer.Deserialize<Dictionary<string, int>>(answers[i].JsonAnswers) ?? new Dictionary<string, int>();
+                            Dictionary<string, int> tempAnswer = JsonSerializer.Deserialize<Dictionary<string, int>>(answer.JsonAnswers) ?? new Dictionary<string, int>();
                             Dictionary<int, int> studentAnswer = new Dictionary<int, int>();
                             foreach (var kvp in tempAnswer)
                             {
@@ -298,11 +299,11 @@ namespace StudyHub.Backend.UseCases.Services
                             if (isCorrect)
                             {
                                 corrects++;
-                                answers[i].IsCorrect = true;
+                                answer.IsCorrect = true;
                             }
                             else
                             {
-                                answers[i].IsCorrect = false;
+                                answer.IsCorrect = false;
                             }
                         }
                         break;
@@ -379,7 +380,7 @@ namespace StudyHub.Backend.UseCases.Services
             var results = _examResultRepo.GetExamResultsByExamId(exam.Id);
             if (results.Count == 0) return string.Empty;
 
-            return results[0].Id;
+            return results[results.Count - 1].Id;
         }
 
         public dynamic? CheckLessonStatus(int lessonId, Guid studentId)
@@ -388,7 +389,11 @@ namespace StudyHub.Backend.UseCases.Services
             if (exam == null) return null;
 
             var results = _examResultRepo.GetExamResultsByExamId(exam.Id);
-            if (results.Count == 0) return null;
+            if (results.Count == 0) return new
+            {
+                LatestTime = DateTime.Now,
+                IsDisabled = false
+            };
             bool isMaxAttempts = results.Count % 3 == 0;
 
             DateTime? latestTime = results.OrderByDescending(r => r.SubmissionTime).Select(r => r.SubmissionTime).FirstOrDefault();

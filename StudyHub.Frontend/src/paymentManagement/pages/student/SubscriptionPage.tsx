@@ -29,18 +29,35 @@ const SubscriptionPage: React.FC = () => {
       navigate("/login");
       return;
     }
-
     const total = pricePerMonth * Math.max(1, months);
     try {
       const walletBalance = Number(authUser?.wallet ?? 0);
       const walletToUse = useWallet ? Math.min(walletBalance, total) : 0;
       const remaining = Math.max(0, total - walletToUse);
 
+      // If wallet covers full amount -> go directly to success flow (price=0) and indicate walletUsed
+      const tn = `SUB${authUser?.id ?? ""}-${Date.now().toString().slice(-6)}`;
+      if (walletToUse >= total) {
+        const params = new URLSearchParams({
+          price: String(0),
+          packageName: `${packageName} (${months} tháng)`,
+          subscription: "1",
+          months: String(months),
+          txRef: tn,
+          walletUsed: String(total),
+        });
+        // PaymentSuccess will call subscribe() with price=0 and walletUsed so backend can deduct wallet
+        navigate(`/payment/student/payment-success?${params.toString()}`);
+        return;
+      }
+
+      // Otherwise, use wallet partially and navigate to checkout for remaining amount
       const params = new URLSearchParams({
         price: String(remaining),
         packageName: `${packageName} (${months} tháng)`,
         subscription: "1",
         months: String(months),
+        walletUsed: String(walletToUse),
         schoolId: String(authUser?.schoolId ?? "0"),
       });
 

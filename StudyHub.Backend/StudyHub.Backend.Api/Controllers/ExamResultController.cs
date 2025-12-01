@@ -149,7 +149,7 @@ namespace StudyHub.Backend.Api.Controllers
                 return BadRequest("Vui lòng nhập dữ liệu!");
             }
             string result = _service.GetLatestResultIdByLessonId(lessonId, studentId);
-            return string.IsNullOrWhiteSpace(result) ? NotFound() : Ok(result);
+            return Ok(result);
         }
 
         [HttpGet("lesson/status/{studentId:guid}/{lessonId:int}")]

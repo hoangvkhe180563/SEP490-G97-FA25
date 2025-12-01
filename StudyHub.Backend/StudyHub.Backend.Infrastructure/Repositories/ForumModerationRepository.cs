@@ -696,7 +696,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                         if (post.TotalViolationScore >= 10 && post.Status == true)
                         {
-                            post.IsHidden = false;
+                            post.IsHidden = true;
 
                             var attachments = await _context.ForumAttachments
                                 .Where(a => a.PostId == entity.PostId.Value && a.IsApproved == true && a.DeletedAt == null)
@@ -718,7 +718,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                         if (comment.TotalViolationScore >= 10 && comment.Status == true)
                         {
-                            comment.IsHidden = false;
+                            comment.IsHidden = true;
 
                             var attachments = await _context.ForumAttachments
                                 .Where(a => a.CommentId == entity.CommentId.Value && a.IsApproved == true && a.DeletedAt == null)
@@ -1239,6 +1239,38 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 } : null
             };
         }
+        public async Task<ViolationRecord?> GetReportByIdAsync(int reportId)
+        {
+            try
+            {
+                var record = await _context.ViolationRecords
+                    .Include(r => r.Post)
+                    .Include(r => r.Comment)
+                    .Include(r => r.MatchedRule)
+                    .FirstOrDefaultAsync(r => r.Id == reportId && r.SourceType == "report");
+
+                if (record == null) return null;
+
+                return new ViolationRecord
+                {
+                    Id = record.Id,
+                    PostId = record.PostId,
+                    CommentId = record.CommentId,
+                    ViolationScore = record.ViolationScore,
+                    SourceType = record.SourceType,
+                    MatchedRuleId = record.MatchedRuleId,
+                    //MatchedRule = record.MatchedRule != null ? new ForumRule
+                    //{
+                    //    Id = record.MatchedRule.Id,
+                    //    ViolationScore = record.MatchedRule.ViolationScore
+                    //} : null
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
         public async Task<(List<UserForumStatus> statuses, int totalCount)> GetUserForumStatusesAsync(
       int schoolId,
       string? query = null,
@@ -1263,19 +1295,16 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         s.UserId.ToString().Contains(query));
                 }
 
-                // FIX: Kiểm tra IsMute đúng cách
                 if (isMuted.HasValue)
                 {
                     if (isMuted.Value)
                     {
-                        // Lấy users đang bị mute VÀ chưa hết hạn mute
                         dbQuery = dbQuery.Where(s =>
                             s.IsMute == true &&
                             (s.MuteUntil == null || s.MuteUntil > DateTime.UtcNow));
                     }
                     else
                     {
-                        // Lấy users KHÔNG bị mute HOẶC đã hết hạn mute
                         dbQuery = dbQuery.Where(s =>
                             s.IsMute == false ||
                             s.IsMute == null ||

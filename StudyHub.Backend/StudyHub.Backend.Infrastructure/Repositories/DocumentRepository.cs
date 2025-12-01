@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using StudyHub.Backend.Domain.Entities;
+using StudyHub.Backend.Domain.Entities.ElasticSearch;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories;
 using System.Linq;
@@ -39,6 +40,38 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 new InfrastructureException("DocumentRepository", "GetDocumentById failed: " + ex.Message).LogError();
                 return null;
+            }
+        }
+
+        public List<Document> GetDocuments()
+        {
+            try
+            {
+                var documents = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Include(d => d.Classes)
+                    .Where(d => d.DeletedAt == null)
+                    .OrderByDescending(d => d.CreatedAt)
+                    .ToList();
+                var creatorIds = documents.Select(d => d.CreatedBy).Distinct().ToList();
+                var users = _context.AppUsers.Where(u => creatorIds.Contains(u.Id))
+                    .Select(u => new { u.Id, u.Username, u.Fullname }).ToList();
+                var result = documents.Select(d =>
+                {
+                    var doc = MapToEntity(d);
+                    var user = users.FirstOrDefault(u => u.Id == d.CreatedBy);
+                    if (user != null)
+                        doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
+                    return doc;
+                }).ToList();
+                return result;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetDocuments failed: " + ex.Message).LogError();
+                return new List<Document>();
             }
         }
 
@@ -431,6 +464,26 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 transaction.Commit();
                 doc.Id = entity.Id;
+
+                var subject = _context.Subjects.Where(s => s.Id == entity.SubjectId).FirstOrDefault();
+                var documentCategory = _context.DocumentCategories.Where(dc => dc.Id == entity.DocumentCategoryId).FirstOrDefault();
+
+                if (subject == null || documentCategory == null)
+                {
+                    return doc;
+                }
+
+                doc.Subject = new Subject
+                {
+                    Id = subject.Id,
+                    Name = subject.Name
+                };
+                doc.DocumentCategory = new DocumentCategory
+                {
+                    Id = documentCategory.Id,
+                    Name = documentCategory.Name,
+                    Description = documentCategory.Description
+                };
                 return doc;
             }
             catch (DbUpdateException ex)
@@ -481,6 +534,26 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 }
 
                 _context.SaveChanges();
+
+                var subject = _context.Subjects.Where(s => s.Id == entity.SubjectId).FirstOrDefault();
+                var documentCategory = _context.DocumentCategories.Where(dc => dc.Id == entity.DocumentCategoryId).FirstOrDefault();
+
+                if (subject == null || documentCategory == null)
+                {
+                    return doc;
+                }
+
+                doc.Subject = new Subject
+                {
+                    Id = subject.Id,
+                    Name = subject.Name
+                };
+                doc.DocumentCategory = new DocumentCategory
+                {
+                    Id = documentCategory.Id,
+                    Name = documentCategory.Name,
+                    Description = documentCategory.Description
+                };
                 return doc;
             }
             catch (Exception ex)

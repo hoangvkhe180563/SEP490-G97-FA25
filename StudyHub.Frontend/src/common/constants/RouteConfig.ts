@@ -9,7 +9,8 @@ const RouteConfig = {
   PAYMENT_MANAGEMENT: "/payment",
   FORUM_MANAGEMENT: "/forum",
   QA_MANAGEMENT: "/qa",
-  EXAM: "/exam"
+  EXAM: "/exam",
+  RECOMMENDATION: "/recommend",
 };
 
 export default RouteConfig;

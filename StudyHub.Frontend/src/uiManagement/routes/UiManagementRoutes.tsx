@@ -3,20 +3,25 @@ import UiManagementRouteConfig from "../constants/UiManagementRouteConfig";
 import LandingPageEdit from "../pages/LandingPageEdit";
 import Homepage from "../pages/Homepage";
 import SchoolHomepage from "../pages/SchoolHomepage";
+import RequireRole from "@/common/components/RequireRole";
 
 const uiManagementRoutes: RouteObject[] = [
   {
     path: UiManagementRouteConfig.LANDING_PAGE.INDEX,
-    element: <Homepage />
+    element: <Homepage />,
   },
   {
     path: UiManagementRouteConfig.LANDING_PAGE.SCHOOL,
-    element: <SchoolHomepage />
+    element: <SchoolHomepage />,
   },
   {
     path: UiManagementRouteConfig.LANDING_PAGE.EDIT,
-    element: <LandingPageEdit />
-  }
+    element: (
+      <RequireRole allowedRoles={["School Admin", "UI Manager"]}>
+        <LandingPageEdit />
+      </RequireRole>
+    ),
+  },
 ];
 
 export default uiManagementRoutes;

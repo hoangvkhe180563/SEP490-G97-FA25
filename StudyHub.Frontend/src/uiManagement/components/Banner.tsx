@@ -12,7 +12,7 @@ const Banner = (props: IBannerProps) => {
       </div>
       <div className='absolute left-3/4 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center'>
         <img className='w-[500px] h-[200px] mb-3' src={props.logo} />
-        {props.schoolId !== 0 && user?.roles.includes(ROLES.UI_MANAGER) && <button className='bg-sky-300 text-black flex gap-3 px-2 py-2 rounded-md items-center cursor-pointer' onClick={() => location.href = `/ui/${props.schoolId}/landing/edit`}><Settings /> Cấu hình giao diện</button>}
+        {props.schoolId !== 0 && user?.roles.includes(ROLES.UI_MANAGER) && <button className='bg-sky-300 text-black flex gap-3 px-2 py-2 rounded-md items-center cursor-pointer' onClick={() => location.href = `/ui/school-landing/edit`}><Settings /> Cấu hình giao diện</button>}
       </div>
     </div>
   )

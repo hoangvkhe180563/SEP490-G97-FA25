@@ -244,7 +244,7 @@ export const courseApi = {
       if (res.status === 200) {
         return res.data;
       } else {
-        throw new Error(`Status: ${res.status}`);
+        return '';
       }
     } catch (error) {
       console.error("Error getResultIdByLessonId: ", error);

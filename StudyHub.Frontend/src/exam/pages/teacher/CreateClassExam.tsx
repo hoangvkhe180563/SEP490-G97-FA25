@@ -60,9 +60,7 @@ const CreateExam = () => {
     fetchData().catch(console.error);
   }, [user])
 
-  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
-    e.preventDefault();
-
+  const handleSubmit = async () => {
     if (!user) {
       toast.error("Chưa đăng nhập vui lòng thử lại!");
       return;
@@ -170,7 +168,7 @@ const CreateExam = () => {
             id: index + 1, ...rest
           }
         })
-      : [],
+        : [],
       showAnswers: showAnswers,
       showCorrectAnswers: showCorrectAnswers,
       isMultipleAttempts: isMultipleAttempts,
@@ -202,7 +200,7 @@ const CreateExam = () => {
   };
 
   return (
-    <div className="h-full overflow-y-auto p-6">
+    <div className="h-full overflow-y-auto p-6 scrollbar-hide">
       <Link to={`/class/teacher/${classId}`}>
         <Button variant='outline' className='flex items-center'>
           <ArrowLeft />
@@ -212,122 +210,120 @@ const CreateExam = () => {
 
       {classId !== 0 && <h1 className="text-4xl font-bold mb-6 text-gray-800">Tạo bài kiểm tra mới cho lớp {className}</h1>}
 
-      <form onSubmit={handleSubmit}>
-        <div className="mb-6">
-          <label htmlFor="examTitle" className="text-gray-700 text-lg font-bold mb-2">
-            Tiêu đề bài kiểm tra <span className='text-red-500'>*</span>
+      <div className="mb-6">
+        <label htmlFor="examTitle" className="text-gray-700 text-lg font-bold mb-2">
+          Tiêu đề bài kiểm tra <span className='text-red-500'>*</span>
+        </label>
+        <input
+          type="text"
+          id="examTitle"
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+          value={examTitle}
+          onChange={(e) => setExamTitle(e.target.value)}
+          required
+        />
+      </div>
+
+      <div className="mb-3">
+        <label htmlFor="examDescription" className="text-gray-700 text-lg font-bold mb-2">
+          Mô tả <span className='text-red-500'>*</span>
+        </label>
+        <textarea
+          id="examDescription"
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800 h-24"
+          value={examDescription}
+          onChange={(e) => setExamDescription(e.target.value)}
+          required
+        ></textarea>
+      </div>
+
+      <div className="mb-6 flex space-x-3">
+        <div className='w-1/2 space-x-3 flex items-center'>
+          <label htmlFor="openTime" className="text-gray-700 text-lg font-bold">
+            Thời gian mở bài thi <span className='text-red-500'>*</span>:
           </label>
           <input
-            type="text"
-            id="examTitle"
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800"
-            value={examTitle}
-            onChange={(e) => setExamTitle(e.target.value)}
+            type="datetime-local"
+            id="openTime"
+            className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+            value={openTime}
+            onChange={(e) => {
+              setOpenTime(e.target.value)
+            }}
             required
           />
         </div>
-
-        <div className="mb-3">
-          <label htmlFor="examDescription" className="text-gray-700 text-lg font-bold mb-2">
-            Mô tả <span className='text-red-500'>*</span>
-          </label>
-          <textarea
-            id="examDescription"
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800 h-24"
-            value={examDescription}
-            onChange={(e) => setExamDescription(e.target.value)}
-            required
-          ></textarea>
-        </div>
-
-        <div className="mb-6 flex space-x-3">
-          <div className='w-1/2 space-x-3 flex items-center'>
-            <label htmlFor="openTime" className="text-gray-700 text-lg font-bold">
-              Thời gian mở bài thi <span className='text-red-500'>*</span>:
-            </label>
-            <input
-              type="datetime-local"
-              id="openTime"
-              className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800"
-              value={openTime}
-              onChange={(e) => {
-                setOpenTime(e.target.value)
-              }}
-              required
-            />
-          </div>
-          <div className='w-1/2 space-x-3 flex items-center'>
-            <label htmlFor="closeTime" className="text-gray-700 text-lg font-bold">
-              Thời gian đóng bài thi:
-            </label>
-            <input
-              type="datetime-local"
-              id="closeTime"
-              className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800"
-              value={closeTime}
-              onChange={(e) => setCloseTime(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <label htmlFor="examDuration" className="block text-gray-700 text-lg font-bold mb-2">
-            Thời lượng (phút) <span className='text-red-500'>*</span>
+        <div className='w-1/2 space-x-3 flex items-center'>
+          <label htmlFor="closeTime" className="text-gray-700 text-lg font-bold">
+            Thời gian đóng bài thi:
           </label>
           <input
-            type="number"
-            id="examDuration"
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800"
-            value={examDuration}
-            onChange={(e) => setExamDuration(e.target.value)}
-            min="1"
-            required
+            type="datetime-local"
+            id="closeTime"
+            className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+            value={closeTime}
+            onChange={(e) => setCloseTime(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-3 py-3">
-          <Checkbox id="multipleTimes" checked={isMultipleAttempts} onCheckedChange={(value: boolean) => setIsMultipleAttempts(value)} />
-          <Label htmlFor="multipleTimes">Cho phép thi nhiều lần</Label>
-        </div>
+      </div>
 
-        <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b py-3">Khi nộp bài</h2>
-        <div className="flex items-center gap-3 py-3">
-          <Checkbox id="showAnswers" checked={showAnswers} onCheckedChange={(value: boolean) => {
-            setShowAnswers(value);
-            if (value === false) {
-              setShowCorrectAnswers(false);
-            }
-          }} />
-          <Label htmlFor="showAnswers">Hiện các câu hỏi và câu trả lời</Label>
-        </div>
-        <div className="flex items-center gap-3 py-3">
-          <Checkbox id="showCorrectAnswers" checked={showCorrectAnswers} onCheckedChange={(value: boolean) => setShowCorrectAnswers(value)} disabled={!showAnswers} />
-          <Label htmlFor="showCorrectAnswers">Hiện đáp án đúng/sai</Label>
-        </div>
+      <div className="mb-6">
+        <label htmlFor="examDuration" className="block text-gray-700 text-lg font-bold mb-2">
+          Thời lượng (phút) <span className='text-red-500'>*</span>
+        </label>
+        <input
+          type="number"
+          id="examDuration"
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+          value={examDuration}
+          onChange={(e) => setExamDuration(e.target.value)}
+          min="1"
+          required
+        />
+      </div>
+      <div className="flex items-center gap-3 py-3">
+        <Checkbox id="multipleTimes" checked={isMultipleAttempts} onCheckedChange={(value: boolean) => setIsMultipleAttempts(value)} />
+        <Label htmlFor="multipleTimes">Cho phép thi nhiều lần</Label>
+      </div>
 
-        <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Câu hỏi <span className='text-red-500'>*</span></h2>
+      <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b py-3">Khi nộp bài</h2>
+      <div className="flex items-center gap-3 py-3">
+        <Checkbox id="showAnswers" checked={showAnswers} onCheckedChange={(value: boolean) => {
+          setShowAnswers(value);
+          if (value === false) {
+            setShowCorrectAnswers(false);
+          }
+        }} />
+        <Label htmlFor="showAnswers">Hiện các câu hỏi và câu trả lời</Label>
+      </div>
+      <div className="flex items-center gap-3 py-3">
+        <Checkbox id="showCorrectAnswers" checked={showCorrectAnswers} onCheckedChange={(value: boolean) => setShowCorrectAnswers(value)} disabled={!showAnswers} />
+        <Label htmlFor="showCorrectAnswers">Hiện đáp án đúng/sai</Label>
+      </div>
 
-        <Tabs defaultValue='new-questions' value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className='mx-auto bg-stone-300'>
-            <TabsTrigger value='new-questions' className='p-2'>Câu hỏi tự nhập</TabsTrigger>
-            <TabsTrigger value='bank-questions' className='p-2'>Câu hỏi từ ngân hàng</TabsTrigger>
-          </TabsList>
-          <TabsContent value='new-questions'>
-            <QuestionTemplate questions={questions} setQuestions={setQuestions} />
-          </TabsContent>
-          <TabsContent value='bank-questions'>
-            <RandomQuestionTemplate selectedSubjectId={selectedSubjectId} setSelectedSubjectId={setSelectedSubjectId} selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} selectedRandomQuestions={randomQuestions} setSelectedRandomQuestions={setRandomQuestions} />
-          </TabsContent>
-        </Tabs>
+      <h2 className="text-3xl font-bold mb-5 text-gray-800 border-b pb-3">Câu hỏi <span className='text-red-500'>*</span></h2>
 
-        <div className="mt-10 text-center">
-          <Button
-            type="submit"
-            className="px-8 py-7 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xl font-bold"
-          >
-            Lưu bài kiểm tra
-          </Button>
-        </div>
-      </form>
+      <Tabs defaultValue='new-questions' value={selectedTab} onValueChange={setSelectedTab}>
+        <TabsList className='mx-auto bg-stone-300'>
+          <TabsTrigger value='new-questions' className='p-2'>Câu hỏi tự nhập</TabsTrigger>
+          <TabsTrigger value='bank-questions' className='p-2'>Câu hỏi từ ngân hàng</TabsTrigger>
+        </TabsList>
+        <TabsContent value='new-questions'>
+          <QuestionTemplate questions={questions} setQuestions={setQuestions} />
+        </TabsContent>
+        <TabsContent value='bank-questions'>
+          <RandomQuestionTemplate selectedSubjectId={selectedSubjectId} setSelectedSubjectId={setSelectedSubjectId} selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} selectedRandomQuestions={randomQuestions} setSelectedRandomQuestions={setRandomQuestions} />
+        </TabsContent>
+      </Tabs>
+
+      <div className="mt-10 text-center">
+        <Button
+          onClick={handleSubmit}
+          className="px-8 py-7 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xl font-bold"
+        >
+          Lưu bài kiểm tra
+        </Button>
+      </div>
     </div>
   );
 };

@@ -100,4 +100,18 @@ export class UiManagementService {
 
     return response.status === 200 ? "" : response.data;
   }
+
+  async getSchoolAddress(schoolId: number): Promise<string> {
+    try {
+      const res = await axiosInstance.get(`/LandingPage/${schoolId}/address`);
+      if (res.status === 200) {
+        return res.data;
+      } else {
+        throw new Error("Status: " + res.status);
+      }
+    } catch (error) {
+      console.error("Error getSchoolAddress: ", error);
+    }
+    return '';
+  }
 }

@@ -24,8 +24,8 @@ import {
   ArrowLeft,
   MessageSquare,
   Send,
-  Share2,
-  Bookmark,
+  // Share2,
+  // Bookmark,
   MoreVertical,
   Flag,
   Edit,
@@ -1583,14 +1583,6 @@ const PostDetail = () => {
                       <Button variant="ghost" size="sm" className="gap-2">
                         <MessageSquare className="w-4 h-4" />
                         {post.comment_count}
-                      </Button>
-                      <Button variant="ghost" size="sm" className="gap-2">
-                        <Share2 className="w-4 h-4" />
-                        Chia sẻ
-                      </Button>
-                      <Button variant="ghost" size="sm" className="gap-2">
-                        <Bookmark className="w-4 h-4" />
-                        Lưu
                       </Button>
                     </div>
                   )}
