@@ -56,7 +56,7 @@ const DocumentAccessTypeChart: React.FC<DocumentAccessTypeChartProps> = ({
   }
 
   const chartData = [
-    { name: "Nổi bật (Featured)", value: stats.featuredDocuments },
+    { name: "Nổi bật", value: stats.featuredDocuments },
     { name: "Thường", value: stats.totalDocuments - stats.featuredDocuments },
   ];
 

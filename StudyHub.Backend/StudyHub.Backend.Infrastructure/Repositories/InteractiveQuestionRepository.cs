@@ -57,7 +57,7 @@ public class InteractiveQuestionRepository : IInteractiveQuestionRepository
                     Options = q.OptionsJson,
                     CorrectIndex = q.CorrectIndex,
                     CorrectAnswer = q.CorrectAnswer,
-                    CreatedAt = q.CreatedAt == default ? DateTime.UtcNow : q.CreatedAt
+                    CreatedAt = q.CreatedAt == default ? DateTime.Now : q.CreatedAt
                 };
                 _context.InteractiveQuestions.Add(ent);
                 _context.SaveChanges();
@@ -99,7 +99,7 @@ public class InteractiveQuestionRepository : IInteractiveQuestionRepository
                     Options = q.OptionsJson,
                     CorrectIndex = q.CorrectIndex,
                     CorrectAnswer = q.CorrectAnswer,
-                    CreatedAt = q.CreatedAt == default ? DateTime.UtcNow : q.CreatedAt
+                    CreatedAt = q.CreatedAt == default ? DateTime.Now : q.CreatedAt
                 };
                 _context.InteractiveQuestions.Add(ent);
                 _context.SaveChanges();

@@ -1,4 +1,4 @@
-const CourseRouteConfig = {
+const PaymentRouteConfig = {
   FINANCIAL_MANAGER: {
     INDEX: "financial",
     TRANSACTION: "transaction",
@@ -15,4 +15,4 @@ const CourseRouteConfig = {
     WALLET_WITHDRAWAL: "wallet/withdrawal",
   },
 };
-export default CourseRouteConfig;
+export default PaymentRouteConfig;

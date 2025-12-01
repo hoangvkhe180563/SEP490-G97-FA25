@@ -90,7 +90,7 @@ namespace StudyHub.Backend.Api.Mappers
                                 Type = QuestionType.Matching,
                                 Terms = question.Terms,
                                 Definitions = question.Definitions,
-                                CorrectMatches = correctMatches,
+                                CorrectAnswer = correctMatches,
                                 Grade = question.Grade,
                                 SubjectId = question.SubjectId
                             };
@@ -187,7 +187,7 @@ namespace StudyHub.Backend.Api.Mappers
                                 Type = QuestionType.Matching,
                                 Terms = questionDto.Terms,
                                 Definitions = questionDto.Definitions,
-                                CorrectMatches = correctMatches,
+                                CorrectAnswer = correctMatches,
                                 Grade = questionDto.Grade,
                                 SubjectId = questionDto.SubjectId
                             };
@@ -250,7 +250,7 @@ namespace StudyHub.Backend.Api.Mappers
                         {
                             dto.Terms = matching.Terms;
                             dto.Definitions = matching.Definitions;
-                            dto.CorrectAnswer = matching.CorrectMatches;
+                            dto.CorrectAnswer = matching.CorrectAnswer;
                         }
                     }
                     break;

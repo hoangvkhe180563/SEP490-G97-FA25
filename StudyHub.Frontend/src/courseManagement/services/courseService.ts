@@ -7,6 +7,8 @@ import type {
   LessonListDto,
   LessonDto,
   Exam,
+  LessonExamStatus,
+  Question,
 } from "@/courseManagement/interfaces/types";
 import { formatISO } from "date-fns";
 
@@ -127,8 +129,8 @@ export const courseApi = {
       options: Array.isArray(q.options)
         ? q.options
         : q.options
-        ? JSON.parse(q.options)
-        : undefined,
+          ? JSON.parse(q.options)
+          : undefined,
       correctIndex: typeof q.correctIndex === "number" ? q.correctIndex : null,
       correctAnswer: q.correctAnswer ?? null,
     }));
@@ -192,30 +194,85 @@ export const courseApi = {
   },
 
   async getExamByLessonId(lessonId: number): Promise<Exam | null> {
-      try {
-        const res = await axiosInstance.get(`/exam/lesson/${lessonId}`);
-        if (res.status === 200) {
-          const data = res.data;
-          return {
-            id: data.id,
-            title: data.title,
-            description: data.description,
-            openTime: new Date(data.openTime),
-            lessonId: data.lessonId === 0 ? undefined : data.lessonId,
-            duration: data.duration,
-            createdBy: data.createdBy,
-            showAnswers: data.showAnswers,
-            showCorrectAnswers: data.showCorrectAnswers,
-            questions: data.questions
-          };
-        } else {
-          throw new Error(`Status: ${res.status}`);
-        }
-      } catch (error) {
-        console.error("Error getExamById: ", error);
+    try {
+      const res = await axiosInstance.get(`/exam/lesson/${lessonId}`);
+      if (res.status === 200) {
+        const data = res.data;
+        return {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          openTime: new Date(data.openTime),
+          lessonId: data.lessonId === 0 ? undefined : data.lessonId,
+          duration: data.duration,
+          createdBy: data.createdBy,
+          showAnswers: data.showAnswers,
+          showCorrectAnswers: data.showCorrectAnswers,
+          questions: data.questions
+        };
+      } else {
+        throw new Error(`Status: ${res.status}`);
       }
-      return null;
-    },
+    } catch (error) {
+      console.error("Error getExamByLessonId: ", error);
+    }
+    return null;
+  },
+
+  async getLessonExamQuestions(examId: number): Promise<Question[]> {
+    try {
+      const res = await axiosInstance.get(`/exam/${examId}?retrieveQuestions=true`);
+      if (res.status === 200) {
+        const data = res.data;
+        return data.questions;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error getExamByLessonId: ", error);
+    }
+    return [];
+  },
+
+  async getResultIdByLessonId(lessonId: number, studentId: string): Promise<string> {
+    try {
+      if (!studentId) {
+        throw new Error("Student is null");
+      }
+
+      const res = await axiosInstance.get(`/examResult/lesson/result-id/${studentId}/${lessonId}`);
+      if (res.status === 200) {
+        return res.data;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error getResultIdByLessonId: ", error);
+    }
+    return '';
+  },
+
+  async checkExamStatus(lessonId: number, studentId: string): Promise<LessonExamStatus | null> {
+    try {
+      if (!studentId) {
+        throw new Error("Student is null");
+      }
+
+      const res = await axiosInstance.get(`/examResult/lesson/status/${studentId}/${lessonId}`);
+      if (res.status === 200) {
+        const data = res.data;
+        return {
+          latestTime: new Date(data.latestTime),
+          isDisabled: data.isDisabled
+        }
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error checkExamStatus: ", error);
+    }
+    return null;
+  },
 
   async createExam(examData: Exam): Promise<boolean> {
     const payload = {

@@ -8,7 +8,7 @@ import { Button } from "@/common/components/ui/button";
 import { Textarea } from "@/common/components/ui/textarea";
 import { ScrollArea } from "@/common/components/ui/scroll-area";
 import { Badge } from "@/common/components/ui/badge";
-import { Paperclip, Send } from "lucide-react";
+import { Paperclip, Send, Loader2 } from "lucide-react";
 import { useConversationStore } from "@/qaManagement/stores/useConversationStore";
 import { useMessageStore } from "@/qaManagement/stores/useMessageStore";
 import type { Message } from "@/qaManagement/interfaces/message";
@@ -29,6 +29,16 @@ const ConversationDetails = () => {
   const [conversation, setConversation] =
     useState<Partial<Conversation> | null>(null);
   const storeFiles = useMessageStore((s) => s.files || []);
+  // local optimistic upload entries (show loading in UI while uploading)
+  const [uploadingFiles, setUploadingFiles] = useState<
+    Array<{
+      id: string;
+      fileName: string;
+      createdAt: string;
+      createdBy: string;
+      status: "uploading" | "error";
+    }>
+  >([]);
 
   // reactive presence list so UI updates when presence changes
   const onlineUsers = useUserOnlineStore((s) => s.onlineUsers);
@@ -83,6 +93,7 @@ const ConversationDetails = () => {
   const [isSending, setIsSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingIds, setDownloadingIds] = useState<string[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -103,8 +114,9 @@ const ConversationDetails = () => {
   }, []);
 
   useEffect(() => {
+    // scroll when timeline changes (messages, files, or optimistic uploads)
     scrollToBottom();
-  }, [messages, scrollToBottom]);
+  }, [messages, storeFiles, uploadingFiles, scrollToBottom]);
 
   // react to store messages changes
   useEffect(() => {
@@ -118,7 +130,7 @@ const ConversationDetails = () => {
     setMessages(mapped);
   }, [storeMessages]);
 
-  // combined timeline: messages + files, sorted by createdAt
+  // combined timeline: messages + files + local uploadingFiles, sorted by createdAt
   const timeline = React.useMemo(() => {
     const fileItems = (storeFiles || []).map((f: any) => ({
       type: "file",
@@ -128,6 +140,21 @@ const ConversationDetails = () => {
       fileType: f.fileType ?? f.FileType,
       createdAt: new Date(f.createdAt ?? f.CreatedAt).toISOString(),
       createdBy: String(f.createdBy ?? f.CreatedBy ?? ""),
+      // persisted files are not temporary
+      isTemp: false,
+    }));
+
+    const uploadingItems = (uploadingFiles || []).map((u: any) => ({
+      type: "file",
+      id: u.id,
+      fileName: u.fileName,
+      fileUrl: u.fileUrl ?? undefined,
+      fileType: u.fileType ?? undefined,
+      createdAt: u.createdAt,
+      createdBy: String(u.createdBy ?? ""),
+      // mark as temporary optimistic entry and include status
+      isTemp: true,
+      status: u.status,
     }));
 
     const msgItems = (messages || []).map((m: any) => ({
@@ -138,13 +165,13 @@ const ConversationDetails = () => {
       createdAt: new Date(m.createdAt ?? m.CreatedAt).toISOString(),
     }));
 
-    const combined = [...msgItems, ...fileItems];
+    const combined = [...msgItems, ...fileItems, ...uploadingItems];
     combined.sort(
       (a: any, b: any) =>
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
     return combined;
-  }, [messages, storeFiles]);
+  }, [messages, storeFiles, uploadingFiles]);
 
   useEffect(() => {
     // load messages for conversation if id provided
@@ -282,10 +309,29 @@ const ConversationDetails = () => {
     if (!f || !conversationId) return;
     try {
       // optimistic: show uploading state in UI (optional)
+      const tmpId = `tmpfile-${Date.now()}`;
+      const tmpCreated = new Date().toISOString();
+      setUploadingFiles((s) => [
+        ...s,
+        {
+          id: tmpId,
+          fileName: f.name,
+          createdAt: tmpCreated,
+          createdBy: String(user?.id ?? ""),
+          status: "uploading",
+        },
+      ]);
+
       await useMessageStore.getState().uploadFile?.(conversationId, f);
+      // on success, remove optimistic entry (server files will be fetched by store)
+      setUploadingFiles((s) => s.filter((x) => x.id !== tmpId));
       // refresh messages/files already handled by store upload
     } catch (err) {
       console.error("upload failed", err);
+      // mark any pending tmp entries as error (best effort)
+      setUploadingFiles((s) =>
+        s.map((x) => (x.status === "uploading" ? { ...x, status: "error" } : x))
+      );
     } finally {
       // clear input so same file can be selected again
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -357,6 +403,41 @@ const ConversationDetails = () => {
         console.warn("sendTyping stop failed", err);
       }
     }, 3000);
+  };
+
+  const handleDownload = async (
+    url?: string,
+    filename?: string,
+    id?: string
+  ) => {
+    if (!url) return;
+    const key = id ?? url;
+    if (downloadingIds.includes(key)) return;
+    setDownloadingIds((s) => [...s, key]);
+    try {
+      // Try to fetch the file and force download (works around cross-origin open behavior)
+      const res = await fetch(url, { mode: "cors" });
+      if (!res.ok) throw new Error("Network response was not ok");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename || "file";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      // Fallback: open in new tab if fetch/download fails (CORS or other issues)
+      console.error("download failed", err);
+      try {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } catch (e) {
+        // ignore
+      }
+    } finally {
+      setDownloadingIds((s) => s.filter((x) => x !== key));
+    }
   };
 
   return (
@@ -517,18 +598,56 @@ const ConversationDetails = () => {
                         } w-5 h-5`}
                       />
                       <div>
-                        <a
-                          className={`${
-                            isMyFile
-                              ? "text-white underline"
-                              : "text-blue-600 underline"
-                          } text-sm`}
-                          href={item.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {item.fileName}
-                        </a>
+                        <div className="flex items-center gap-2">
+                          {item.fileUrl ? (
+                            <button
+                              onClick={() =>
+                                handleDownload(
+                                  item.fileUrl,
+                                  item.fileName,
+                                  item.id
+                                )
+                              }
+                              className={`${
+                                isMyFile ? "text-white" : "text-blue-600"
+                              } text-sm underline text-left flex items-center gap-2`}
+                            >
+                              <span className="truncate">{item.fileName}</span>
+                              {(downloadingIds || []).includes(
+                                item.id ?? item.fileUrl
+                              ) && (
+                                <Loader2
+                                  className={`${
+                                    isMyFile ? "text-white" : "text-gray-600"
+                                  } w-4 h-4 animate-spin`}
+                                />
+                              )}
+                            </button>
+                          ) : (
+                            <span
+                              className={`${
+                                isMyFile ? "text-white" : "text-gray-900"
+                              } text-sm`}
+                            >
+                              {item.fileName}
+                            </span>
+                          )}
+
+                          {/* optimistic upload indicator */}
+                          {item.status === "uploading" && (
+                            <Loader2
+                              className={`${
+                                isMyFile ? "text-white" : "text-gray-600"
+                              } w-4 h-4 animate-spin`}
+                            />
+                          )}
+                          {item.status === "error" && (
+                            <span className="text-[11px] text-red-500">
+                              Tải lên thất bại
+                            </span>
+                          )}
+                        </div>
+
                         <div
                           className={`${
                             isMyFile ? "text-blue-100" : "text-muted-foreground"

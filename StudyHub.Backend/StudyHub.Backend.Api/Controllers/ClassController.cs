@@ -115,9 +115,9 @@ namespace StudyHub.Backend.Api.Controllers
                     var comments = _classNotificationService.GetCommentsByNotificationId(n.Id);
 
                     return n.ToNotificationDto(
-                        _aUserService.GetUserById(n.AppUserId),
+                        _aUserService.GetUserById(n.CreatedBy),
                         files.Select(f => f.ToFileDto()).ToList(),
-                        comments.Select(c => c.ToCommentDto(_aUserService.GetUserById(c.AppUserId))).ToList()
+                        comments.Select(c => c.ToCommentDto(_aUserService.GetUserById(c.CreatedBy))).ToList()
                     );
                 })
                 .ToList();

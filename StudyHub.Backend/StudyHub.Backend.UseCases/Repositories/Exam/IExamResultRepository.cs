@@ -4,7 +4,6 @@ namespace StudyHub.Backend.UseCases.Repositories.Exam
 {
     public interface IExamResultRepository
     {
-        List<string> GetExamResultObjectIds(int examId);
         ExamResult? GetExamResultById(string id);
         List<ExamResult> GetExamResultsByExamId(int examId);
         List<ExamResult> GetResultsByExamIdAndStudentId(int examId, Guid studentId);

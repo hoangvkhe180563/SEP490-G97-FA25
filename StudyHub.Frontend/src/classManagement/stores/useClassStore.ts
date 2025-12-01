@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 import { formatISO, parseISO } from "date-fns";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
@@ -21,6 +22,7 @@ const defaultClassInfo: ClassInfo = {
   id: 0,
   name: "",
   description: "",
+  grade: 1,
   createdAt: formatISO(new Date()),
 };
 const defaultCurrentClass: ClassDetailResponse = {
@@ -106,6 +108,7 @@ export const useClassStore = create<ClassState>()(
             instructorName:
               c.instructorName ?? c.instructor_name ?? c.instructor ?? "",
             description: c.description,
+            grade: c.grade ?? 1,
             subjectId:
               c.subjectId ??
               c.subject_id ??
@@ -135,6 +138,7 @@ export const useClassStore = create<ClassState>()(
       addClass: async (payload: {
         title: string;
         description?: string;
+        grade: number;
         createdBy?: string;
       }) => {
         set({ isLoading: true, success: false, message: "" });
@@ -149,6 +153,7 @@ export const useClassStore = create<ClassState>()(
           const body = {
             name: payload.title,
             description: payload.description ?? "",
+            grade: payload.grade,
             createdBy: createdBy,
           };
 
@@ -173,6 +178,7 @@ export const useClassStore = create<ClassState>()(
                   createdObj.instructorName ?? createdObj.instructor ?? "",
                 description:
                   createdObj.description ?? payload.description ?? "",
+                  grade: createdObj.grade ?? payload.grade,
               }
             : null;
 
@@ -217,6 +223,7 @@ export const useClassStore = create<ClassState>()(
         id: number;
         title: string;
         description?: string;
+        grade: number;
         updatedBy?: string;
       }) => {
         set({ isLoading: true, success: false, message: "" });
@@ -228,6 +235,7 @@ export const useClassStore = create<ClassState>()(
             // backend expects GUID for updatedBy; prefer caller-provided value
             updatedBy:
               payload.updatedBy ?? "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            grade: payload.grade,
           };
 
           // Try both route variants in case axiosInstance.baseURL already contains /api
@@ -289,6 +297,7 @@ export const useClassStore = create<ClassState>()(
             subjectName:
               updatedObj.subjectName ?? updatedObj.subject_name ?? null,
             description: updatedObj.description ?? payload.description ?? "",
+            grade: updatedObj.grade ?? payload.grade,
             instructorName:
               updatedObj.instructorName ?? updatedObj.instructor ?? "",
             ...updatedObj,
@@ -497,7 +506,9 @@ export const useClassStore = create<ClassState>()(
 
           try {
             await get().getClassMembers(classId);
-          } catch { /* empty */ }
+          } catch {
+            /* empty */
+          }
 
           return { success, message, data };
         } catch (error) {
@@ -660,7 +671,7 @@ export const useClassStore = create<ClassState>()(
               break;
             } catch (err: any) {
               lastError = err;
-              // If 404 try next endpoint; for other errors break to surface server response
+              // If 404 try next endpoint; for other errors break and surface server response
               if (err?.response?.status === 404) continue;
               if (err?.response) break;
             }
@@ -848,53 +859,50 @@ export const useClassStore = create<ClassState>()(
         try {
           const res = await axiosInstance.get(`/Class/${id}/detail`);
           const raw = res?.data ?? null;
-
-          if (!raw) {
-            console.warn("getClassInfo: no response data");
+          if (!raw || !raw.success) {
             set({ isLoading: false });
             return null;
           }
-
-          if (!raw.success) {
-            set({
-              currentClass: {
-                success: false,
-                message: raw.message ?? "Failed to load class info",
-                data: {
-                  classInfo: defaultClassInfo,
-                  teacher: null,
-                  students: [],
-                  parents: [],
-                  notifications: [],
-                },
-              },
-              isLoading: false,
-            });
-            return null;
-          }
-
           const data = raw.data;
 
-          const notifications =
-            (data.notifications ?? []).map((n: any) => ({
+          // Normalize notifications so UI can rely on consistent keys:
+          const notifications = (data.notifications ?? []).map((n: any) => {
+            const topAvatar =
+              n.avatar ?? n.avatarUrl ?? n.imageUrl ?? n.photoUrl ?? null;
+            const createdBy = n.createdBy ?? n.appUserId ?? null;
+            const createdAt = n.createdAt
+              ? formatISO(new Date(n.createdAt))
+              : undefined;
+            const comments = (n.comments ?? []).map((c: any) => ({
+              id: c.id,
+              notificationId: c.notificationId ?? n.id,
+              userId: c.userId ?? c.appUserId ?? c.user_id ?? null,
+              userFullname: c.userFullname ?? c.fullname ?? c.name ?? "",
+              content: c.content ?? c.text ?? "",
+              createdAt: c.createdAt
+                ? formatISO(new Date(c.createdAt))
+                : undefined,
+              avatarUrl: c.imageUrl ?? c.avatar ?? c.avatarUrl ?? null,
+              raw: c,
+            }));
+
+            return {
               id: n.id,
-              classId: n.classId,
-              title: n.title,
-              description: n.description,
-              createdBy: n.createdBy,
-              createdAt: formatISO(n.createdAt),
-              files: n.files ?? [],
-              comments:
-                (n.comments ?? []).map((c: any) => ({
-                  id: c.id,
-                  notificationId: c.notificationId,
-                  userId: c.userId,
-                  content: c.content,
-                  createdAt: formatISO(c.createdAt),
-                  userFullname: c.userFullname,
-                  imageUrl: c.imageUrl ?? null,
-                })) ?? [],
-            })) ?? [];
+              classId: n.classId ?? n.class_id ?? null,
+              title: n.title ?? n.name ?? "",
+              description: n.description ?? n.desc ?? n.instructionsHtml ?? "",
+              
+              createdBy,
+              createdAt,
+              files: n.files ?? n.attachments ?? [],
+              // UI expects avatar fields like avatarUrl/authorName — provide them
+              avatarUrl: topAvatar,
+              avatarImage: topAvatar, // keep both forms used elsewhere
+              authorName: n.arthur ?? n.authorName ?? n.createdByName ?? "",
+              comments,
+              raw: n,
+            } as ClassNotification;
+          });
 
           set((state) => {
             const cur = state.currentClass ?? defaultCurrentClass;
@@ -910,9 +918,10 @@ export const useClassStore = create<ClassState>()(
                     name: data.name,
                     subjectId: data.subjectId,
                     description: data.description,
+                    grade: data.grade,
                     createdAt: formatISO(data.createdAt),
                   },
-                  notifications: notifications,
+                  notifications,
                 },
               },
             };
@@ -927,11 +936,12 @@ export const useClassStore = create<ClassState>()(
                 name: data.name,
                 description: data.description,
                 createdAt: formatISO(data.createdAt),
+                grade: data.grade,
               },
               teacher: get().currentClass.data.teacher ?? null,
               students: get().currentClass.data.students ?? [],
               parents: get().currentClass.data.parents ?? [],
-              notifications: notifications,
+              notifications,
             },
           };
 
@@ -1098,7 +1108,7 @@ export const useClassStore = create<ClassState>()(
             userId: created.userId ?? created.createdBy ?? body.createdBy,
             userFullname: created.userFullname ?? "Bạn",
             content: created.content ?? payload.content,
-            avatarUrl: created.avatarUrl ?? null,
+            avatarUrl: created.avatarUrl ?? created.imageUrl ?? null,
             createdAt: formatISO(
               created.createdAt ?? created.createdAt ?? formatISO(new Date())
             ),
@@ -2100,7 +2110,7 @@ export const useClassStore = create<ClassState>()(
                 userId: c.userId ?? c.createdBy ?? null,
                 userFullname: c.userFullname ?? "Bạn",
                 content: c.content ?? "",
-                avatarUrl: c.avatarUrl ?? null,
+                avatarUrl: c.avatarUrl ?? c.imageUrl ?? null,
                 createdAt: formatISO(c.createdAt) ?? formatISO(new Date()),
               })) ?? [],
           };
@@ -2267,6 +2277,7 @@ export const useClassStore = create<ClassState>()(
           set({ isLoading: false });
         }
       },
+
       getClassExams: async (classId: string): Promise<Exam[]> => {
         try {
           const res = await axiosInstance.get("/exam/class/" + classId);

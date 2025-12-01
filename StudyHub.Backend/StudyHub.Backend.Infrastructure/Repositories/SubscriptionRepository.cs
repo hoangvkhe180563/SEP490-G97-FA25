@@ -22,7 +22,7 @@ public class SubscriptionRepository : ISubscriptionRepository
             StartAt = subscription.StartAt,
             EndAt = subscription.EndAt,
             IsActive = subscription.IsActive,
-            CreatedAt = subscription.CreatedAt == default ? DateTime.UtcNow : subscription.CreatedAt
+            CreatedAt = subscription.CreatedAt == default ? DateTime.Now : subscription.CreatedAt
         };
          _context.Subscriptions.Add(ent);
         _context.SaveChanges();
@@ -33,7 +33,7 @@ public class SubscriptionRepository : ISubscriptionRepository
 
     public Domain.Entities.Subscription? GetActiveByUser(Guid appUserId)
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var ent = _context.Subscriptions
             .Where(s => s.AppUserId == appUserId && s.IsActive.HasValue && s.StartAt <= now && s.EndAt >= now)
             .OrderByDescending(s => s.StartAt)

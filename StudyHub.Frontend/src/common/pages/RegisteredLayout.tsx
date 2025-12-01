@@ -6,13 +6,24 @@ import {
 import { Outlet } from "react-router-dom";
 import type { AppUser } from "@/auth/interfaces/app-user";
 import { useEffect, useState } from "react";
-import { studentSidebarItems, schoolStudentSidebarItems, teacherSidebarItems, headOfDepartmentTeacherSidebarItems as headTeacherSidebarItems, qAndATeacherSidebarItems, documentManagerSidebarItems, financialManagerSidebarItems, questionManagerSidebarItems, moderatorSidebarItems, schoolAdminSidebarItems } from "../constants/SidebarItems";
+import {
+  studentSidebarItems,
+  schoolStudentSidebarItems,
+  teacherSidebarItems,
+  headOfDepartmentTeacherSidebarItems as headTeacherSidebarItems,
+  qAndATeacherSidebarItems,
+  documentManagerSidebarItems,
+  financialManagerSidebarItems,
+  questionManagerSidebarItems,
+  moderatorSidebarItems,
+  schoolAdminSidebarItems,
+} from "../constants/SidebarItems";
 import { ROLES } from "../constants/Roles";
 import type { ISidebarItem } from "../interfaces/IMainLayoutProps";
 import { LayoutDashboard, Settings } from "lucide-react";
 
 interface IRegisteredLayoutProps {
-  user: AppUser | null
+  user: AppUser | null;
 }
 
 const RegisteredLayout = (props: IRegisteredLayoutProps) => {
@@ -25,13 +36,13 @@ const RegisteredLayout = (props: IRegisteredLayoutProps) => {
 
     const allSidebarItems = [];
 
-    if (props.user.roles.some(role => role.includes("Student"))) {
+    if (props.user.roles.some((role) => role.includes("Student"))) {
       allSidebarItems.push(...studentSidebarItems);
-    } else if (props.user.roles.some(role => role.includes("Teacher"))) {
+    } else if (props.user.roles.some((role) => role.includes("Teacher"))) {
       allSidebarItems.push(...teacherSidebarItems);
     }
 
-    props.user.roles.forEach(role => {
+    props.user.roles.forEach((role) => {
       if (role === ROLES.SCHOOL_STUDENT) {
         allSidebarItems.push(...schoolStudentSidebarItems);
       }
@@ -49,27 +60,29 @@ const RegisteredLayout = (props: IRegisteredLayoutProps) => {
       }
       if (role === ROLES.UI_MANAGER) {
         const schoolId = props.user?.schoolId;
-        const uiSidebarItems = [{
-          icon: <LayoutDashboard size={20} />,
-          text: "Trang chủ",
-          link: "/",
-          children: [
-            {
-              icon: <LayoutDashboard size={20} />,
-              text: "Xem giao diện",
-              link: `/ui/${schoolId}/landing`
-            },
-            {
-              icon: <Settings size={20} />,
-              text: "Sửa giao diện",
-              link: `/ui/${schoolId}/landing/edit`
-            }
-          ]
-        }]
+        const uiSidebarItems = [
+          {
+            icon: <LayoutDashboard size={20} />,
+            text: "Quản lí giao diện",
+            link: "",
+            children: [
+              {
+                icon: <LayoutDashboard size={20} />,
+                text: "Xem giao diện",
+                link: `/ui/${schoolId}/landing`,
+              },
+              {
+                icon: <Settings size={20} />,
+                text: "Sửa giao diện",
+                link: `/ui/${schoolId}/landing/edit`,
+              },
+            ],
+          },
+        ];
         allSidebarItems.push(...uiSidebarItems);
       }
       if (role === ROLES.QUESTION_MANAGER) {
-        allSidebarItems.push(...questionManagerSidebarItems)
+        allSidebarItems.push(...questionManagerSidebarItems);
       }
       if (role === ROLES.MODERATOR) {
         allSidebarItems.push(...moderatorSidebarItems);
@@ -80,34 +93,32 @@ const RegisteredLayout = (props: IRegisteredLayoutProps) => {
     });
 
     setSidebarItems(allSidebarItems);
-  }, [props.user])
+  }, [props.user]);
 
   return (
     <div className="h-screen flex">
-      {
-        sidebarItems.length > 0 && props.user && (
-          <Sidebar user={props.user}>
-            {sidebarItems.map((sidebarItem, index) =>
-              sidebarItem.children ? (
-                <SidebarCollapsibleItem
-                  key={`item-${index}`}
-                  icon={sidebarItem.icon}
-                  text={sidebarItem.text}
-                  link={sidebarItem.link}
-                  children={sidebarItem.children}
-                />
-              ) : (
-                <SidebarItem
-                  link={sidebarItem.link}
-                  key={`item-${index}`}
-                  icon={sidebarItem.icon}
-                  text={sidebarItem.text}
-                />
-              )
-            )}
-          </Sidebar>
-        )
-      }
+      {sidebarItems.length > 0 && props.user && (
+        <Sidebar user={props.user}>
+          {sidebarItems.map((sidebarItem, index) =>
+            sidebarItem.children ? (
+              <SidebarCollapsibleItem
+                key={`item-${index}`}
+                icon={sidebarItem.icon}
+                text={sidebarItem.text}
+                link={sidebarItem.link}
+                children={sidebarItem.children}
+              />
+            ) : (
+              <SidebarItem
+                link={sidebarItem.link}
+                key={`item-${index}`}
+                icon={sidebarItem.icon}
+                text={sidebarItem.text}
+              />
+            )
+          )}
+        </Sidebar>
+      )}
       <main className="flex-1 bg-gray-50">
         <Outlet />
       </main>

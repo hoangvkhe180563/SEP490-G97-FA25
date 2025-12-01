@@ -924,7 +924,7 @@ export default function UpdateDocument() {
                   {document && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium">
-                        Tập tài liệu mới (thay thế){" "}
+                        Tài liệu ban đầu
                         <span className="text-red-500">*</span>
                       </label>
                       <Card className="p-4">

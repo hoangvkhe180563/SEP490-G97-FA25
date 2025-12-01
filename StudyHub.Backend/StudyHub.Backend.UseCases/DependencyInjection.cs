@@ -1,12 +1,16 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+//using StudyHub.Backend.Api.BackgroundServices;
 using StudyHub.Backend.Api.Services;
 using StudyHub.Backend.UseCases.Services;
+
 namespace StudyHub.Backend.UseCases
 {
     public static class DependencyInjection
     {
         public static IServiceCollection AddUseCasesDependency(this IServiceCollection services)
         {
+            services.AddScoped<IImageModerationService, ImageDectectService>();
+
             services.AddScoped<AppUserService>();
             services.AddScoped<AppRoleService>();
             services.AddScoped<AuthService>();
@@ -16,7 +20,6 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<LessonResourceService>();
             services.AddScoped<DocumentService>();
             services.AddScoped<CloudFileStorageService>();
-            //services.AddScoped<LocalFileStorageService>();
             services.AddScoped<SubjectService>();
             services.AddScoped<DocumentCategoryService>();
             services.AddScoped<LocationService>();
@@ -53,6 +56,8 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<ProfileService>();
             services.AddScoped<SubscriptionService>();
             services.AddScoped<QuestionService>();
+            services.AddScoped<ISignalRNotifier, NoOpSignalRNotifier>();
+            services.AddHostedService<ImageModerationBackgroundService>();
 
             return services;
         }

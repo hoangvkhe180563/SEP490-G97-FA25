@@ -8,7 +8,7 @@ import { Button } from "@/common/components/ui/button";
 import { Textarea } from "@/common/components/ui/textarea";
 import { ScrollArea } from "@/common/components/ui/scroll-area";
 import { Badge } from "@/common/components/ui/badge";
-import { Paperclip, Send } from "lucide-react";
+import { Paperclip, Send, Loader2 } from "lucide-react";
 import { useConversationStore } from "@/qaManagement/stores/useConversationStore";
 import { useMessageStore } from "@/qaManagement/stores/useMessageStore";
 import type { Message } from "@/qaManagement/interfaces/message";
@@ -38,11 +38,13 @@ const ConversationDetails: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingIds, setDownloadingIds] = useState<string[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
   // subscribe to store messages & typing
   const storeMessages = useMessageStore((s) => s.messages);
+  const storeFiles = useMessageStore((s) => s.files || []);
   const storeTypingUsers = useMessageStore((s) => s.typingUsers || []);
   const isTyping = Boolean(
     storeTypingUsers.find(
@@ -57,8 +59,9 @@ const ConversationDetails: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // scroll when messages or files change so attachments appear at bottom automatically
     scrollToBottom();
-  }, [messages, scrollToBottom]);
+  }, [messages, storeFiles, scrollToBottom]);
 
   // react to store messages changes
   useEffect(() => {
@@ -117,6 +120,14 @@ const ConversationDetails: React.FC = () => {
         await useMessageStore
           .getState()
           .getMessagesByConversationId(conversationId);
+        // load files for this conversation so teacher can see uploaded attachments
+        try {
+          await useMessageStore
+            .getState()
+            .getFilesByConversationId?.(conversationId || "");
+        } catch (err) {
+          // ignore
+        }
         const msgs = useMessageStore.getState().messages || [];
         if (mounted) {
           const mapped = msgs.map((d: any) => ({
@@ -265,6 +276,39 @@ const ConversationDetails: React.FC = () => {
     }, 3000);
   };
 
+  const handleDownload = async (
+    url?: string,
+    filename?: string,
+    id?: string
+  ) => {
+    if (!url) return;
+    const key = id ?? url;
+    if (downloadingIds.includes(key)) return;
+    setDownloadingIds((s) => [...s, key]);
+    try {
+      const res = await fetch(url, { mode: "cors" });
+      if (!res.ok) throw new Error("Network response was not ok");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename || "file";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("download failed", err);
+      try {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } catch (e) {
+        // ignore
+      }
+    } finally {
+      setDownloadingIds((s) => s.filter((x) => x !== key));
+    }
+  };
+
   return (
     <div className="flex flex-col h-full ">
       <header className="flex items-center gap-4 p-4 border-b">
@@ -367,32 +411,126 @@ const ConversationDetails: React.FC = () => {
               </div>
             )}
             {error && <div className="text-sm text-red-600">{error}</div>}
-            {messages.map((m) => {
-              const isMe = m.senderId === user?.id;
-              return (
-                <div
-                  key={m.id}
-                  className={`flex ${isMe ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[70%] ${
-                      isMe
-                        ? "bg-blue-600 text-white rounded-l-xl rounded-tr-xl"
-                        : "bg-gray-100 text-gray-900 rounded-r-xl rounded-tl-xl"
-                    } px-4 py-2`}
-                  >
-                    <div className="whitespace-pre-wrap">{m.content}</div>
+            {/* combine messages + files */}
+            {(() => {
+              const fileItems = (storeFiles || []).map((f: any) => ({
+                type: "file",
+                id: f.id ?? f.Id,
+                fileName: f.fileName ?? f.FileName,
+                fileUrl: f.fileUrl ?? f.FileUrl,
+                fileType: f.fileType ?? f.FileType,
+                createdAt: new Date(f.createdAt ?? f.CreatedAt).toISOString(),
+                createdBy: String(f.createdBy ?? f.CreatedBy ?? ""),
+              }));
+
+              const msgItems = (messages || []).map((m: any) => ({
+                type: "message",
+                id: m.id,
+                senderId: String(m.senderId ?? ""),
+                content: m.content ?? m.Content ?? "",
+                createdAt: new Date(m.createdAt ?? m.CreatedAt).toISOString(),
+              }));
+
+              const combined = [...msgItems, ...fileItems];
+              combined.sort(
+                (a: any, b: any) =>
+                  new Date(a.createdAt).getTime() -
+                  new Date(b.createdAt).getTime()
+              );
+              return combined.map((item: any) => {
+                if (item.type === "message") {
+                  const isMe = item.senderId === user?.id;
+                  return (
                     <div
-                      className={`text-[10px] mt-1 ${
-                        isMe ? "text-blue-100" : "text-muted-foreground"
+                      key={`m-${item.id}`}
+                      className={`flex ${
+                        isMe ? "justify-end" : "justify-start"
                       }`}
                     >
-                      {formatTime(m.createdAt ?? "")}
+                      <div
+                        className={`max-w-[70%] ${
+                          isMe
+                            ? "bg-blue-600 text-white rounded-l-xl rounded-tr-xl"
+                            : "bg-gray-100 text-gray-900 rounded-r-xl rounded-tl-xl"
+                        } px-4 py-2`}
+                      >
+                        <div className="whitespace-pre-wrap">
+                          {item.content}
+                        </div>
+                        <div
+                          className={`text-[10px] mt-1 ${
+                            isMe ? "text-blue-100" : "text-muted-foreground"
+                          }`}
+                        >
+                          {formatTime(item.createdAt ?? "")}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // file item
+                const isMyFile = String(item.createdBy) === String(user?.id);
+                return (
+                  <div
+                    key={`f-${item.id}`}
+                    className={`flex ${
+                      isMyFile ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    <div
+                      className={`max-w-[70%] ${
+                        isMyFile
+                          ? "bg-blue-600 text-white rounded-l-xl rounded-tr-xl"
+                          : "bg-gray-100 text-gray-900 rounded-r-xl rounded-tl-xl"
+                      } px-4 py-2 flex items-center gap-3`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Paperclip
+                          className={`${
+                            isMyFile ? "text-white" : "text-gray-700"
+                          } w-5 h-5`}
+                        />
+                        <div>
+                          <button
+                            onClick={() =>
+                              handleDownload(
+                                item.fileUrl,
+                                item.fileName,
+                                item.id
+                              )
+                            }
+                            className={`${
+                              isMyFile ? "text-white" : "text-blue-600"
+                            } text-sm underline text-left flex items-center gap-2`}
+                          >
+                            <span className="truncate">{item.fileName}</span>
+                            {(downloadingIds || []).includes(
+                              item.id ?? item.fileUrl
+                            ) && (
+                              <Loader2
+                                className={`${
+                                  isMyFile ? "text-white" : "text-gray-600"
+                                } w-4 h-4 animate-spin`}
+                              />
+                            )}
+                          </button>
+                          <div
+                            className={`${
+                              isMyFile
+                                ? "text-blue-100"
+                                : "text-muted-foreground"
+                            } text-[10px] mt-1`}
+                          >
+                            {new Date(item.createdAt).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
             {isTyping && (
               <div className="flex justify-start">
                 <div className="max-w-[70%] bg-gray-200 text-gray-700 rounded-r-xl rounded-tl-xl px-4 py-2 text-sm flex items-center">

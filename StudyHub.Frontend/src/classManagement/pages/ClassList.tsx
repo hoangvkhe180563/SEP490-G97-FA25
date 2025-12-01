@@ -27,6 +27,7 @@ type ClassItem = ClassListDto & {
   title: string;
   teacher: string;
   description?: string;
+  grade?: number | null;
 };
 
 const ClassList: React.FC = () => {
@@ -98,6 +99,7 @@ const ClassList: React.FC = () => {
         ...c,
         title: c.name,
         teacher: c.instructorName,
+        grade: (c as any).grade ?? null,
       })),
     [apiClasses]
   );
@@ -161,9 +163,9 @@ const ClassList: React.FC = () => {
     return () => { mounted = false; };
   }, [classItems, getUnreadCount]);
 
-  const handleCreate = async (payload: { title: string; description?: string }) => {
+  const handleCreate = async (payload: { title: string; description?: string; grade?: number | null }) => {
     // pass createdBy from auth store
-    const created = await addClass({ ...payload, createdBy: currentUserId });
+    const created = await addClass({ ...payload, createdBy: currentUserId ,grade: payload.grade ?? undefined });
     if (created) {
       setShowCreate(false);
       setCurrentPage(1);
@@ -253,12 +255,14 @@ const ClassList: React.FC = () => {
               <div key={c.id} className="transform hover:scale-[1.01] transition">
                 <ClassCard
                   id={c.id}
-                  title={c.title}
+                  title={c.grade ? `${c.title} • Khối ${c.grade}` : c.title}
                   teacher={c.teacher}
                   userRole={userRole}
                   onView={handleView}
                   onMenu={handleMenu}
                   unread={Number(unreadMap[Number(c.id)] ?? 0)} // pass unread count
+                  // pass raw grade as well in case ClassCard supports it
+                  grade={c.grade ?? null}
                 />
               </div>
             ))}

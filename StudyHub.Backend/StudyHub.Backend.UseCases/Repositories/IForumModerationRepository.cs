@@ -113,5 +113,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         Task<ForumAppeal> CreateAppealAsync(ForumAppeal appeal);
         Task<bool> ApproveAppealAsync(int appealId, Guid moderatorId);
         Task<bool> RejectAppealAsync(int appealId, Guid moderatorId);
+        Task<ViolationRecord?> GetReportByIdAsync(int reportId);
+
     }
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, type JSX } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
@@ -19,6 +19,10 @@ import {
 import { ArrowLeft, File } from "lucide-react";
 import type { AppUser } from "@/auth/interfaces/app-user";
 import type { CourseListDto } from "@/courseManagement/types/api";
+import type { Question } from "@/courseManagement/interfaces/types";
+import courseApi from "@/courseManagement/services/courseService";
+import toast from "react-hot-toast";
+import { EXAM_TYPE } from "@/courseManagement/constants/ExamType";
 
 const LectureDetails: React.FC = () => {
   const navigate = useNavigate();
@@ -43,6 +47,7 @@ const LectureDetails: React.FC = () => {
   );
   const getLessonResource = useCourseStore((s) => s.getLessonResource);
   const fetchCourseById = useCourseStore((s) => s.fetchCourseById);
+  const [lessonExamQuestions, setLessonExamQuestions] = useState<Question[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -106,6 +111,16 @@ const LectureDetails: React.FC = () => {
     fetchInteractiveQuestions,
   ]);
 
+  const fetchQuestions = async () => {
+    const exam = await courseApi.getExamByLessonId(lessonId);
+    if (!exam) {
+      toast.error("Không tải được bài kiểm tra!");
+      return;
+    }
+    const questions = await courseApi.getLessonExamQuestions(exam.id);
+    setLessonExamQuestions(questions);
+  }
+
   const { currentLesson, currentChapter } = useMemo(() => {
     const course = selectedCourse;
     if (!course) return { currentLesson: null, currentChapter: null };
@@ -116,6 +131,39 @@ const LectureDetails: React.FC = () => {
     }
     return { currentLesson: null, currentChapter: null };
   }, [selectedCourse, lessonId]);
+
+  useEffect(() => {
+    if (currentLesson === null || !lessonId) return;
+    if (currentLesson.type === 'Exam') {
+      fetchQuestions();
+    }
+  }, [currentLesson, lessonId])
+
+  const renderFillBlankQuestionText = (question: Question) => {
+    const BLANK_PLACEHOLDER = "[BLANK]";
+    if (question.type !== EXAM_TYPE.FILL_IN_BLANK) {
+      return '';
+    }
+
+    let parts = question.questionText.split(BLANK_PLACEHOLDER);
+    const displayedContent: JSX.Element[] = [];
+    const blankCount = (question.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+
+    parts.forEach((part: string, index: number) => {
+      displayedContent.push(<span key={`part-${index}`}>{part}</span>);
+      if (index < blankCount) {
+        displayedContent.push(
+          <span
+            key={`blank-${index}`}
+            className={`font-semibold inline-block px-2 py-1 mx-1 rounded-md bg-gray-200 text-gray-800`}
+          >
+            {question.correctAnswer[index]}
+          </span>
+        );
+      }
+    });
+    return <>{displayedContent}</>;
+  };
 
   const categoryLabel = (id?: number | null) => {
     if (id === undefined || id === null) return "-";
@@ -156,23 +204,25 @@ const LectureDetails: React.FC = () => {
         </div>
       </div>
 
-      {/* === Main Layout === */}
       <div className="grid grid-cols-12 gap-6">
-        {/* === MAIN CONTENT === */}
         <div className="col-span-12 lg:col-span-8">
-          <div
-            className="bg-black rounded-lg overflow-hidden flex justify-center items-center"
-            style={{ aspectRatio: "16/9" }}
-          >
-            {currentLesson?.type === "Video" && currentLesson.videoUrl ? (
+          {currentLesson?.type === "Video" && currentLesson.videoUrl ? (
+            <div
+              className="bg-black rounded-lg overflow-hidden flex justify-center items-center"
+              style={{ aspectRatio: "16/9" }}
+            >
               <iframe
                 src={currentLesson.videoUrl}
                 title={currentLesson.name}
                 className="w-full h-full"
                 allowFullScreen
               />
-            ) : currentLesson?.type === "Reading" &&
-              currentLesson.readingContent ? (
+            </div>
+          ) : currentLesson?.type === "Reading" && currentLesson.readingContent ? (
+            <div
+              className="bg-black rounded-lg overflow-hidden flex justify-center items-center"
+              style={{ aspectRatio: "16/9" }}
+            >
               <div className="bg-[#fafafa] w-full h-full overflow-y-auto p-8">
                 <div
                   className="bg-white shadow-lg rounded-lg p-6 prose prose-slate max-w-none"
@@ -181,12 +231,127 @@ const LectureDetails: React.FC = () => {
                   }}
                 />
               </div>
-            ) : (
+            </div>
+          ) : currentLesson?.type === 'Exam' ? (
+            <div style={{ aspectRatio: "16/9" }} className="space-y-3">
+              {(lessonExamQuestions.length > 0) && lessonExamQuestions.map((question, index) => {
+                const correctAnswer = question.correctAnswer;
+
+                return (
+                  <div
+                    key={question.questionObjectId}
+                    className={`p-6 rounded-lg shadow-sm border border-gray-300 bg-gray-50`}
+                  >
+                    <p className="text-xl font-semibold mb-3 text-gray-800">
+                      Câu {index + 1}: {question.type !== EXAM_TYPE.FILL_IN_BLANK && question.questionText}
+                    </p>
+
+                    <div className="space-y-3 text-gray-700">
+                      {question.type === EXAM_TYPE.SINGLE_CHOICE && (
+                        <div className="space-y-2">
+                          {question.options.map((option, optIndex) => (
+                            <label key={optIndex} className="flex items-center space-x-2 text-gray-700">
+                              <input
+                                type="radio"
+                                name={`result-question-${question.questionObjectId}`}
+                                value={option}
+                                checked={optIndex === correctAnswer}
+                                readOnly
+                                disabled
+                                className="form-radio text-blue-600"
+                              />
+                              <span>{option}</span>
+                            </label>
+                          ))
+                          }
+                        </div>
+                      )}
+
+                      {question.type === EXAM_TYPE.MULTI_CHOICE && (
+                        <div className="space-y-2">
+                          {question.options.map((option, optIndex) => {
+                            return (
+                              <label key={optIndex} className="flex items-center space-x-2 text-gray-700">
+                                <input
+                                  type="checkbox"
+                                  name={`result-question-${question.questionObjectId}`}
+                                  value={option}
+                                  checked={correctAnswer.includes(optIndex)}
+                                  readOnly
+                                  disabled
+                                  className="form-checkbox text-blue-600 rounded"
+                                />
+                                <span>{option}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {question.type === EXAM_TYPE.TEXT_INPUT && (
+                        <div>
+                          <input
+                            type="text"
+                            className="w-full border border-gray-300 rounded-lg p-2 mt-1 bg-gray-100"
+                            value={correctAnswer}
+                            readOnly
+                            disabled
+                          />
+                        </div>
+                      )}
+
+                      {question.type === EXAM_TYPE.FILL_IN_BLANK && renderFillBlankQuestionText(question)}
+
+                      {question.type === EXAM_TYPE.MATCHING && (
+                        <div className="mt-4">
+                          <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                              <h4 className="font-semibold text-gray-700 mb-2">Thuật ngữ</h4>
+                              {(question.terms || []).map((term, termIndex) => (
+                                <div key={termIndex} className="p-2 bg-gray-50 border border-gray-200 rounded mb-2">
+                                  {termIndex + 1}. {term}
+                                </div>
+                              ))}
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-700 mb-2">Định nghĩa</h4>
+                              {(question.definitions || []).map((definition, defIndex) => (
+                                <div key={defIndex} className="p-2 bg-gray-50 border border-gray-200 rounded mb-2">
+                                  {String.fromCharCode(65 + defIndex)}. {definition}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-gray-700 mb-2">Các cặp ghép đúng</h4>
+                            {(() => {
+                              return (question.terms || []).map((term, termIndex) => {
+                                return (
+                                  <div key={termIndex} className={`flex items-center mb-2 p-2 rounded bg-gray-100`}>
+                                    <span className="w-1/3 font-medium">{termIndex + 1}. {term}</span>
+                                    <span className="text-gray-500 mx-2">→</span>
+                                    <span className="flex-1">
+                                      {question.definitions && question.definitions[question.correctAnswer[termIndex]]}
+                                    </span>
+                                  </div>
+                                );
+                              });
+                            })()}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="bg-black rounded-lg overflow-hidden flex justify-center items-center" style={{ aspectRatio: "16/9" }}>
               <div className="text-white text-lg">
                 Không có nội dung cho bài học này.
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {currentLesson?.description && (
             <Card className="mt-6">
@@ -202,7 +367,11 @@ const LectureDetails: React.FC = () => {
           )}
 
           {/* Interactive questions list */}
-          <Card className="mt-4">
+          <Card
+            className={`mt-4 ${
+              currentLesson?.type === "Video" ? "" : "hidden"
+            }`}
+          >
             <CardHeader>
               <CardTitle>Câu hỏi tương tác</CardTitle>
             </CardHeader>
@@ -226,11 +395,10 @@ const LectureDetails: React.FC = () => {
                               {q.options.map((opt: any, idx: number) => (
                                 <div
                                   key={idx}
-                                  className={`text-sm p-2 rounded ${
-                                    idx === (q.correctIndex ?? -1)
-                                      ? "bg-green-50 border border-green-200"
-                                      : "bg-gray-50"
-                                  }`}
+                                  className={`text-sm p-2 rounded ${idx === (q.correctIndex ?? -1)
+                                    ? "bg-green-50 border border-green-200"
+                                    : "bg-gray-50"
+                                    }`}
                                 >
                                   {opt}
                                 </div>
@@ -283,11 +451,10 @@ const LectureDetails: React.FC = () => {
                             <li key={l.id}>
                               <Button
                                 variant="ghost"
-                                className={`w-full justify-start py-1 ${
-                                  l.id === lessonId
-                                    ? "font-semibold text-blue-600"
-                                    : "hover:text-blue-600"
-                                }`}
+                                className={`w-full justify-start py-1 ${l.id === lessonId
+                                  ? "font-semibold text-blue-600"
+                                  : "hover:text-blue-600"
+                                  }`}
                                 onClick={() =>
                                   navigate(`/course/teacher/lecture/${l.id}`)
                                 }
@@ -426,7 +593,7 @@ const LectureDetails: React.FC = () => {
           </Card>
         </aside>
       </div>
-    </div>
+    </div >
   );
 };
 

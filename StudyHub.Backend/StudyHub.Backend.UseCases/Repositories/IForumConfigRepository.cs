@@ -36,5 +36,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         Task<bool> SoftDeleteAttachmentAsync(int attachmentId);
         Task<bool> ApproveAttachmentAsync(int attachmentId, Guid approvedBy);
         Task<bool> RejectAttachmentAsync(int attachmentId);
+        Task<List<ForumAttachment>> GetPendingModerationAttachmentsAsync(int limit);
+        Task UpdateAttachmentModerationStatusAsync(int attachmentId, bool isModerated, bool hasViolation);
     }
 }

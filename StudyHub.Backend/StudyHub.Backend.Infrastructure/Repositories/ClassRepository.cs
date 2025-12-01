@@ -29,6 +29,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Name = classEntity.Name,
                     Description = classEntity.Description,
                     CreatedBy = classEntity.CreatedBy,
+                    Grade = classEntity.Grade,
                 };
                 var addedclass=_context.Classes.Add(classentity);
                 _context.SaveChanges();
@@ -64,6 +65,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Id = c.Id,
                     Name = c.Name,
                     Description = c.Description,
+                    Grade = c.Grade,
                     CreatedAt = c.CreatedAt,
                     CreatedBy = c.CreatedBy,
                     UpdatedAt = c.UpdatedAt,
@@ -77,6 +79,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Id = c.Id,
                 Name = c.Name,
                 Description = c.Description,
+                Grade = c.Grade,
                 CreatedAt = c.CreatedAt,
                 CreatedBy = c.CreatedBy,
                 UpdatedAt = c.UpdatedAt,
@@ -140,6 +143,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Id = id,
                 Name = clas.Name,
                 Description = clas.Description,
+                Grade = clas.Grade,
                 CreatedAt = clas.CreatedAt,
                 CreatedBy = clas.CreatedBy,
                 UpdatedAt = clas.UpdatedAt,
@@ -158,6 +162,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             var clas = _context.Classes.FirstOrDefault(c => c.Id == classEntity.Id);
             clas.Name = classEntity.Name;
             clas.Description = classEntity.Description;
+            clas.Grade = classEntity.Grade;
             clas.UpdatedAt = classEntity.UpdatedAt;
             clas.UpdatedBy = classEntity.UpdatedBy;
 
@@ -175,6 +180,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Id = c.Id,
                 Name = c.Name,
                 Description = c.Description,
+                Grade = c.Grade,
                 CreatedAt = c.CreatedAt,
                 CreatedBy = c.CreatedBy,
                 UpdatedAt = c.UpdatedAt,
@@ -191,6 +197,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Id = c.Class.Id,
                     Name = c.Class.Name,
                     Description = c.Class.Description,
+                    Grade = c.Class.Grade,
                     CreatedAt = c.Class.CreatedAt,
                     CreatedBy = c.Class.CreatedBy,
                     UpdatedAt = c.Class.UpdatedAt,
@@ -218,6 +225,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         Id = c.Id,
                         Name = c.Name,
                         Description = c.Description,
+                        Grade = c.Grade,
                         CreatedBy = c.CreatedBy,
                         CreatedAt = c.CreatedAt,
                         UpdatedAt = c.UpdatedAt,
