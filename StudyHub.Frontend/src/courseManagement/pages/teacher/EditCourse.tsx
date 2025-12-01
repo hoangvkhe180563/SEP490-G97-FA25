@@ -29,7 +29,13 @@ import {
   Edit2,
   Pencil,
   Loader2,
+  HelpCircle,
 } from "lucide-react";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/common/components/ui/popover";
 import { documentService } from "@/documentManagement/services/documentService";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
@@ -787,9 +793,6 @@ const EditCourse: React.FC = () => {
                     })),
                   }));
 
-                  // if course was previously a draft and is now opened, reset approval
-                  const willOpenFromDraft =
-                    selectedCourse?.status === "Nháp" && status === "Mở";
                   const dto: any = {
                     name,
                     information,
@@ -817,9 +820,10 @@ const EditCourse: React.FC = () => {
                     endAt: endAt ? formatISO(new Date(endAt)) : null,
                     updatedAt: formatISO(new Date()),
                     updatedBy: authUser?.id,
-                    isApproved: willOpenFromDraft
-                      ? false
-                      : selectedCourse?.isApproved,
+                    isApproved:
+                      selectedCourse?.status === "Nháp" && status === "Mở"
+                        ? false
+                        : selectedCourse?.isApproved,
                   };
 
                   await updateCourse(courseId, dto);
@@ -1227,10 +1231,44 @@ const EditCourse: React.FC = () => {
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>
-                    Hình thu nhỏ khóa học{" "}
-                    <span className="text-red-600">*</span>
-                  </CardTitle>
+                  <div className="flex items-center justify-between w-full">
+                    <CardTitle>
+                      Hình thu nhỏ khóa học{" "}
+                      <span className="text-red-600">*</span>
+                    </CardTitle>
+
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Hướng dẫn tải ảnh"
+                          className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-gray-700"
+                        >
+                          <HelpCircle className="w-4 h-4" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-[300px] p-3">
+                        <div className="text-sm text-gray-700">
+                          <div className="font-medium mb-2">
+                            Hướng dẫn tải ảnh
+                          </div>
+                          <ol className="list-decimal pl-5 space-y-1">
+                            <li>
+                              Nhấn nút "Chọn ảnh" và chọn file từ máy tính.
+                            </li>
+                            <li>
+                              Sau khi đã chọn ảnh, nhấn nút "Tải lên" để gửi ảnh
+                              lên server.
+                            </li>
+                            <li>
+                              Chờ thông báo popup "Lưu ảnh thành công" trước khi
+                              tiếp tục các thao tác khác.
+                            </li>
+                          </ol>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-5">
@@ -1272,7 +1310,7 @@ const EditCourse: React.FC = () => {
                     </div>
 
                     {/* Khu vực chọn và tải lên ảnh */}
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between  gap-3">
                       {/* Hidden file input triggered by a shadcn Button */}
                       <input
                         ref={fileInputRef}
@@ -1482,7 +1520,7 @@ const EditCourse: React.FC = () => {
                               <SelectValue placeholder="Chọn trạng thái" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Mở">Đang mở</SelectItem>
+                              <SelectItem value="Mở">Mở (Đợi duyệt)</SelectItem>
                               <SelectItem value="Nháp">Nháp</SelectItem>
                             </SelectContent>
                           </Select>

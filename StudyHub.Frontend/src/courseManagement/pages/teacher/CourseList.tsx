@@ -42,7 +42,6 @@ const CourseList: React.FC = () => {
         fetchCourses({
           page: p,
           pageSize: pageSize || 10,
-          isApproved: true,
           schoolId: authUser?.schoolId,
         });
     }
@@ -81,7 +80,6 @@ const CourseList: React.FC = () => {
           fetchCourses({
             page: 1,
             pageSize: pageSize || 10,
-            isApproved: true,
             schoolId: authUser?.schoolId,
           });
       } catch (err) {
@@ -130,11 +128,11 @@ const CourseList: React.FC = () => {
                 Khóa học
               </TableHead>
               <TableHead className="px-3 py-2 min-w-[120px]">
-                Giảng viên
+                Giáo viên
               </TableHead>
               <TableHead className="px-3 py-2 min-w-[100px]">Chủ đề</TableHead>
               <TableHead className="px-3 py-2 min-w-[80px]">Khối lớp</TableHead>
-              <TableHead className="px-3 py-2 min-w-[90px]">
+              <TableHead className="px-3 py-2 min-w-[100px]">
                 Trạng thái
               </TableHead>
               <TableHead className="px-3 py-2 min-w-[100px]">

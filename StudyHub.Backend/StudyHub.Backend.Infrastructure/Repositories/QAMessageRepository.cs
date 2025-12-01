@@ -60,7 +60,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Content = m.Content,
                 IsFromAi = m.IsFromAi,
                 IsPaid = m.IsPaid,
-                CreatedAt = m.CreatedAt == default ? DateTime.UtcNow : m.CreatedAt,
+                CreatedAt = m.CreatedAt == default ? DateTime.Now : m.CreatedAt,
             };
         }
 

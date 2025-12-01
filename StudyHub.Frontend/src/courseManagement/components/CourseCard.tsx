@@ -123,7 +123,6 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
           {course.information ?? "Không có mô tả"}
         </p>
 
-        {/* Giảng viên + ngày + giá */}
         <div className="flex flex-col gap-2 pl-12 relative">
           {/* Avatar nhỏ */}
           <div className="absolute left-0 top-0 w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-semibold text-sm">
@@ -133,9 +132,8 @@ const CourseCard: React.FC<{ course: Course; categoryLabel?: string }> = ({
               .slice(0, 2)
               .join("") || "G"}
           </div>
-          {/* Thông tin giảng viên */}
           <div>
-            <div className="text-xs text-gray-500">Giảng viên</div>
+            <div className="text-xs text-gray-500">Giáo viên</div>
             <div className="text-sm font-medium text-gray-900 truncate">
               {(course as any).createdBy ?? "Giáo viên"}
             </div>

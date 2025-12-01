@@ -91,7 +91,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Description = topic.Description,
                     SubjectId = topic.SubjectId,
                     IsActive = topic.IsActive ?? true,
-                    CreatedAt = topic.CreatedAt == default ? DateTime.UtcNow : topic.CreatedAt,
+                    CreatedAt = topic.CreatedAt == default ? DateTime.Now : topic.CreatedAt,
                 };
                 _context.QATopics.Add(entity);
                 _context.SaveChanges();
