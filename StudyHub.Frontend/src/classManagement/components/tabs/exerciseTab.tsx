@@ -155,8 +155,8 @@ async function downloadUrl(fileUrl?: string, suggestedName?: string): Promise<vo
 }
 
 const AttachmentRow: React.FC<{ file: any }> = ({ file }) => {
-  const url = file?.fileUrl ?? "";
-  const name = file?.fileName ?? url;
+  const url = file;
+  const name = file;
   const ext = (name || url).split(".").pop()?.toLowerCase() ?? "";
   const image = isImageExt(url || name);
   const pdf = isPdfExt(url || name);

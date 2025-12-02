@@ -39,7 +39,6 @@ const defaultCurrentClass: ClassDetailResponse = {
 
 export type LinkPayload = { url: string; title?: string; thumbnail?: string };
 
-
 export const useClassStore = create<ClassState>()(
   devtools(
     (set, get) => ({
@@ -91,14 +90,11 @@ export const useClassStore = create<ClassState>()(
           ).map((c: any) => ({
             id: c.id,
             name: c.name,
-            subjectName:
-              c.subjectName ?? "",
-            instructorName:
-              c.instructorName  ?? "",
+            subjectName: c.subjectName ?? "",
+            instructorName: c.instructorName ?? "",
             description: c.description,
             grade: c.grade ?? 1,
-            subjectId:
-              c.subjectId ,
+            subjectId: c.subjectId,
           }));
 
           set({
@@ -131,8 +127,7 @@ export const useClassStore = create<ClassState>()(
         try {
           const url = "/Class";
 
-          const createdBy =
-            payload.createdBy ;
+          const createdBy = payload.createdBy;
 
           const body = {
             name: payload.title,
@@ -212,8 +207,7 @@ export const useClassStore = create<ClassState>()(
           const body: Record<string, any> = {
             name: payload.title,
             description: payload.description ?? "",
-            updatedBy:
-              payload.updatedBy,
+            updatedBy: payload.updatedBy,
             grade: payload.grade,
           };
 
@@ -266,9 +260,8 @@ export const useClassStore = create<ClassState>()(
           const mapped = {
             id: updatedObj.id ?? payload.id,
             name: updatedObj.name ?? payload.title,
-            subjectId: updatedObj.subjectId ,
-            subjectName:
-              updatedObj.subjectName,
+            subjectId: updatedObj.subjectId,
+            subjectName: updatedObj.subjectName,
             description: updatedObj.description ?? payload.description ?? "",
             grade: updatedObj.grade ?? payload.grade,
             instructorName:
@@ -353,11 +346,9 @@ export const useClassStore = create<ClassState>()(
                 }
                 return undefined;
               })(),
-              schoolId:
-                m.schoolId ,
-              schoolName:
-                m.schoolName ,
-              address: m.address ,
+              schoolId: m.schoolId,
+              schoolName: m.schoolName,
+              address: m.address,
               communes: m.communes,
               communeId: m.communeId,
               phoneNumber: m.phoneNumber,
@@ -511,9 +502,8 @@ export const useClassStore = create<ClassState>()(
             role: role ?? "Student",
           };
 
-         
           const endpoints = [
-            `/ClassMember/invite?classId=${encodeURIComponent(classId)}`
+            `/ClassMember/invite?classId=${encodeURIComponent(classId)}`,
           ];
 
           let res: any = null;
@@ -554,7 +544,6 @@ export const useClassStore = create<ClassState>()(
 
           const raw = res?.data ?? null;
 
-         
           if (raw && raw.success === false) {
             set({
               isLoading: false,
@@ -695,9 +684,7 @@ export const useClassStore = create<ClassState>()(
         set({ isLoading: true });
         try {
           // Prefer the Classwork/class endpoint shown in your API docs/screenshot.
-          const endpoints = [
-            `/Classwork/class/${classId}`
-          ];
+          const endpoints = [`/Classwork/class/${classId}`];
 
           let res: any = null;
           let raw: any = null;
@@ -738,16 +725,13 @@ export const useClassStore = create<ClassState>()(
           const works: ClassWork[] = (Array.isArray(arr) ? arr : []).map(
             (w: any) => {
               // normalize files from many possible shapes on each work item
-              const filesRaw =
-                (w as any).files??[];
+              const filesRaw = (w as any).files ?? [];
 
               const files = Array.isArray(filesRaw)
                 ? filesRaw.map((f: any, idx: number) => ({
-                    id: f.id ,
-                    fileName:
-                      f.fileName ,
-                    fileUrl:
-                      f.fileUrl,
+                    id: f.id,
+                    fileName: f.fileName,
+                    fileUrl: f.fileUrl,
                     thumbnail: f.thumbnail,
                     fileType: (f.fileType ?? f.contentType ?? "")
                       .toString()
@@ -757,11 +741,11 @@ export const useClassStore = create<ClassState>()(
                 : [];
 
               return {
-                id: w.id ,
-                classId: w.classId ,
+                id: w.id,
+                classId: w.classId,
                 title: w.title,
-                description: w.description ,
-                deadline: w.deadline ,
+                description: w.description,
+                deadline: w.deadline,
                 maxScore: w.maxScore,
                 allowSubmission:
                   w.allowSubmission ??
@@ -817,8 +801,7 @@ export const useClassStore = create<ClassState>()(
 
           // Normalize notifications so UI can rely on consistent keys:
           const notifications = (data.notifications ?? []).map((n: any) => {
-            const topAvatar =
-              n.avatar ;
+            const topAvatar = n.avatar;
             const createdBy = n.createdBy;
             const createdAt = n.createdAt
               ? formatISO(new Date(n.createdAt))
@@ -839,12 +822,12 @@ export const useClassStore = create<ClassState>()(
             return {
               id: n.id,
               classId: n.classId,
-              title: n.title ,
+              title: n.title,
               description: n.description,
 
               createdBy,
               createdAt,
-              files: n.files ,
+              files: n.files,
               avatarUrl: topAvatar,
               avatarImage: topAvatar, // keep both forms used elsewhere
               authorName: n.arthur,
@@ -995,7 +978,7 @@ export const useClassStore = create<ClassState>()(
 
               return {
                 id: d.id,
-                name: d.name ,
+                name: d.name,
                 documentUrl: d.documentUrl,
                 thumbnail,
                 description: d.description ?? null,
@@ -1062,11 +1045,11 @@ export const useClassStore = create<ClassState>()(
           const created = raw.data ?? raw;
           const mapped = {
             id: created.id ?? Date.now(),
-            notificationId: created.notificationId ,
+            notificationId: created.notificationId,
             userId: created.userId,
             userFullname: created.userFullname ?? "Bạn",
-            content: created.content ,
-            avatarUrl: created.avatarUrl ,
+            content: created.content,
+            avatarUrl: created.avatarUrl,
             createdAt: formatISO(created.createdAt ?? new Date()),
           };
 
@@ -1077,37 +1060,240 @@ export const useClassStore = create<ClassState>()(
         }
       },
 
-      createClasswork: async (payload: {
-        classId: number;
-        title: string;
-        description?: string;
-        deadline?: string;
-      }) => {
+      createClasswork: async (payload: any) => {
         set({ isLoading: true, message: "" });
+
         try {
-          const body = {
-            classId: payload.classId,
-            title: payload.title,
-            description: payload.description ?? "",
-            deadline: payload.deadline ?? null,
-          };
-          const res = await axiosInstance.post(`/Classwork`, body);
-          const raw = res?.data ?? null;
-          if (!raw || raw.success === false) {
-            set({
-              isLoading: false,
-              success: false,
-              message: raw?.message ?? "Tạo bài tập thất bại",
-            });
-            return null;
+          // If caller already passed a FormData, post it directly to /Classwork
+          if (typeof FormData !== "undefined" && payload instanceof FormData) {
+            try {
+              console.debug(
+                "createClasswork: posting provided FormData to /Classwork"
+              );
+              const res = await axiosInstance.post("/api/ClassNotification", payload);
+              const raw = res?.data ?? null;
+              if (!raw || raw.success === false) {
+                set({
+                  isLoading: false,
+                  success: false,
+                  message: raw?.message ?? "Tạo bài tập thất bại",
+                });
+                return null;
+              }
+              set({
+                isLoading: false,
+                success: true,
+                message: raw.message ?? "Tạo bài tập thành công",
+              });
+              return raw.data ?? raw;
+            } catch (err) {
+              // fallback try alternate candidate
+              try {
+                const res2 = await axiosInstance.post("/ClassNotification", payload);
+                const raw2 = res2?.data ?? null;
+                if (!raw2 || raw2.success === false) {
+                  set({
+                    isLoading: false,
+                    success: false,
+                    message: raw2?.message ?? "Tạo bài tập thất bại",
+                  });
+                  return null;
+                }
+                set({
+                  isLoading: false,
+                  success: true,
+                  message: raw2.message ?? "Tạo bài tập thành công",
+                });
+                return raw2.data ?? raw2;
+              } catch (err2) {
+                console.error(
+                  "createClasswork FormData post failed for both candidates",
+                  err2
+                );
+                set({
+                  isLoading: false,
+                  success: false,
+                  message: "Tạo bài tập thất bại",
+                });
+                return null;
+              }
+            }
           }
+
+          // Build FormData similarly to editClasswork for consistency
+          const form = new FormData();
+
+          // Basic fields
+          if (payload.classId !== undefined && payload.classId !== null) {
+            form.append("ClassId", String(payload.classId));
+          }
+          // Type default to "classwork" unless provided
+          form.append("Type", payload.type ?? "classwork");
+          form.append("Title", payload.title ?? "");
+          if (payload.description !== undefined)
+            form.append("Description", payload.description ?? "");
+          if (payload.createdBy !== undefined)
+            form.append("CreatedBy", String(payload.createdBy));
+          if (payload.deadline !== undefined && payload.deadline !== null) {
+            try {
+              const d = new Date(payload.deadline);
+              form.append(
+                "Deadline",
+                !isNaN(d.getTime()) ? d.toISOString() : String(payload.deadline)
+              );
+            } catch {
+              form.append("Deadline", String(payload.deadline));
+            }
+          }
+          if (payload.maxScore !== undefined && payload.maxScore !== null)
+            form.append("MaxScore", String(payload.maxScore));
+          if (payload.gradeType !== undefined && payload.gradeType !== null)
+            form.append("GradeType", payload.gradeType);
+          if (
+            payload.allowSubmission !== undefined &&
+            payload.allowSubmission !== null
+          )
+            form.append(
+              "AllowSubmission",
+              payload.allowSubmission ? "true" : "false"
+            );
+          if (
+            payload.instructionsHtml !== undefined &&
+            payload.instructionsHtml !== null
+          )
+            form.append("InstructionsHtml", payload.instructionsHtml);
+
+          // Links as JSON
+          if (
+            payload.links &&
+            Array.isArray(payload.links) &&
+            payload.links.length > 0
+          ) {
+            try {
+              form.append("LinksJson", JSON.stringify(payload.links));
+            } catch {
+              // ignore
+            }
+          }
+
+          // Files (new uploads)
+          if (
+            payload.files &&
+            Array.isArray(payload.files) &&
+            payload.files.length > 0
+          ) {
+            for (const f of payload.files) {
+              if (!f) continue;
+              form.append("Files", f, f.name);
+            }
+          }
+
+         
+          const keptIds = Array.isArray(payload.keptExistingFileIds)
+            ? payload.keptExistingFileIds
+            : Array.isArray(payload.keptFileIds)
+            ? payload.keptFileIds
+            : null;
+          if (Array.isArray(keptIds) && keptIds.length > 0) {
+            for (const fid of keptIds) {
+              form.append("KeptFileIds", String(fid));
+            }
+          }
+
+          // Debug print FormData entries (safe)
+          try {
+            for (const pair of (form as any).entries()) {
+              const [k, v] = pair as [string, any];
+              if (v instanceof File) {
+                console.debug(
+                  "createClasswork FormData:",
+                  k,
+                  "=> File:",
+                  v.name,
+                  v.size,
+                  v.type
+                );
+              } else {
+                console.debug("createClasswork FormData:", k, "=>", v);
+              }
+            }
+          } catch (dbgErr) {
+            console.debug(
+              "Failed to iterate createClasswork FormData for debug",
+              dbgErr
+            );
+          }
+
+          // Try POST to candidate endpoints (POST /api/Classwork, then /Classwork)
+          const candidates = ["/api/ClassNotification", "/ClassNotification"];
+          let lastError: any = null;
+          for (const url of candidates) {
+            try {
+              const res = await axiosInstance.post(url, form);
+              const raw = res?.data ?? null;
+              if (!raw || raw.success === false) {
+                set({
+                  isLoading: false,
+                  success: false,
+                  message: raw?.message ?? "Tạo bài tập thất bại",
+                });
+                return null;
+              }
+              set({
+                isLoading: false,
+                success: true,
+                message: raw.message ?? "Tạo bài tập thành công",
+              });
+              return raw.data ?? raw;
+            } catch (err: any) {
+              lastError = err;
+              const status = err?.response?.status;
+              console.warn(
+                `createClasswork attempt to ${url} failed:`,
+                status,
+                err?.response?.data ?? err?.message
+              );
+              if (status === 404) continue; // try next candidate
+              // for other errors, surface response if available
+              if (err?.response?.data) {
+                console.error("Server response data:", err.response.data);
+              } else {
+                console.error("Error message:", err.message);
+              }
+              set({
+                isLoading: false,
+                success: false,
+                message: "Tạo bài tập thất bại",
+              });
+              return null;
+            }
+          }
+
+          // All candidates failed
+          console.error(
+            "createClasswork: all URL candidates failed",
+            lastError
+          );
+          if (lastError?.response?.data)
+            console.error("Last server response:", lastError.response.data);
           set({
             isLoading: false,
-            success: true,
-            message: raw.message ?? "Tạo bài tập thành công",
+            success: false,
+            message: "Tạo bài tập thất bại (route not found)",
           });
-          return raw.data ?? raw;
-        } catch (err) {
+          return null;
+        } catch (err: any) {
+          console.error("createClasswork error:", err);
+          const resp = err?.response;
+          if (resp?.data) {
+            const msg =
+              resp.data?.title ??
+              (resp.data?.errors
+                ? Object.values(resp.data.errors).flat().join("; ")
+                : "Tạo bài tập thất bại");
+            set({ isLoading: false, success: false, message: String(msg) });
+            return null;
+          }
           set({
             isLoading: false,
             success: false,
@@ -1152,8 +1338,7 @@ export const useClassStore = create<ClassState>()(
                   const getRes = await axiosInstance.get(rurl);
                   const raw = getRes?.data ?? null;
                   // Try to find files array in common places (data.files, files, data.data.files)
-                  const filesCandidate =
-                    raw?.files ;
+                  const filesCandidate = raw?.files;
                   if (
                     Array.isArray(filesCandidate) &&
                     filesCandidate.length > 0
@@ -1161,7 +1346,7 @@ export const useClassStore = create<ClassState>()(
                     const ids = filesCandidate
                       .map((f: any) => {
                         if (f == null) return null;
-                        return f.id ;
+                        return f.id;
                       })
                       .filter((x: any) => x != null)
                       .map((x: any) => Number(x));
@@ -1170,8 +1355,7 @@ export const useClassStore = create<ClassState>()(
                   }
                   // some APIs return { data: { ...notificationDto... } }
                   const notificationDto = raw?.data ?? raw;
-                  const candidateFiles =
-                    notificationDto?.files ;
+                  const candidateFiles = notificationDto?.files;
                   if (
                     Array.isArray(candidateFiles) &&
                     candidateFiles.length > 0
@@ -1451,9 +1635,7 @@ export const useClassStore = create<ClassState>()(
       ): Promise<ClassworkSubmission[] | null> => {
         set({ isLoading: true });
         try {
-          const endpoints = [
-            `/Classwork/${classworkId}/submissions`,
-          ];
+          const endpoints = [`/Classwork/${classworkId}/submissions`];
           let res: any = null;
           let raw: any = null;
           for (const ep of endpoints) {
@@ -1470,22 +1652,19 @@ export const useClassStore = create<ClassState>()(
             return null;
           }
 
-          const arr =
-            raw.data;
+          const arr = raw.data;
           const subs: ClassworkSubmission[] = (
             Array.isArray(arr) ? arr : []
           ).map((s: any) => ({
             id: s.id,
-            classworkId: s.classworkId ,
+            classworkId: s.classworkId,
             appUserId: s.appUserId,
-            firstSubmissionTime:
-              s.firstSubmissionTime ,
-            latestSubmissionTime:
-              s.latestSubmissionTime,
+            firstSubmissionTime: s.firstSubmissionTime,
+            latestSubmissionTime: s.latestSubmissionTime,
             files: (s.files ?? s.submissionFiles ?? []).map((f: any) => ({
               id: f.id,
               fileName: f.fileName,
-              fileUrl: f.fileUrl ,
+              fileUrl: f.fileUrl,
             })),
             score: s.score,
             submissionStatus: s.submissionStatus,
@@ -1511,9 +1690,7 @@ export const useClassStore = create<ClassState>()(
             return null;
           }
 
-          const endpoints = [
-            `/Classwork/${id}/detail`,
-          ];
+          const endpoints = [`/Classwork/${id}/detail`];
 
           let res: any = null;
           let raw: any = null;
@@ -1534,17 +1711,14 @@ export const useClassStore = create<ClassState>()(
 
           // normalize known shapes
           const data = raw.data ?? raw ?? {};
-          const submissions =
-            raw.submissions ;
-          const filesRaw =
-            raw.files ;
+          const submissions = raw.submissions;
+          const filesRaw = raw.files;
 
           const files = Array.isArray(filesRaw)
             ? filesRaw.map((f: any, idx: number) => ({
-                id: f.id ,
-                fileName: f.fileName ,
-                fileUrl:
-                  f.fileUrl ,
+                id: f.id,
+                fileName: f.fileName,
+                fileUrl: f.fileUrl,
                 thumbnail: f.thumbnail,
                 isExternal: !!(f.isExternal ?? (f.url && !f.fileName)),
                 raw: f,
@@ -1582,9 +1756,9 @@ export const useClassStore = create<ClassState>()(
             if (!found) {
               works.push({
                 id,
-                title: data?.title ,
-                description: data?.description ,
-                deadline: data?.deadline ,
+                title: data?.title,
+                description: data?.description,
+                deadline: data?.deadline,
                 files,
                 raw: data,
               });
@@ -1611,7 +1785,6 @@ export const useClassStore = create<ClassState>()(
         }
       },
 
-
       getSubmissionByUserAndClasswork: async (
         classworkId: number,
         appUserId: string
@@ -1625,7 +1798,7 @@ export const useClassStore = create<ClassState>()(
           const endpoints = [
             `/Classwork/submission?classworkID=${encodeURIComponent(
               classworkId
-            )}&userid=${encodeURIComponent(appUserId)}`
+            )}&userid=${encodeURIComponent(appUserId)}`,
           ];
 
           let res: any = null;
@@ -1653,31 +1826,24 @@ export const useClassStore = create<ClassState>()(
             fileUrl: f.fileUrl ?? f.file_url ?? f.url,
           }));
 
-          const candidateClassworkId =
-            d.classworkId ;
+          const candidateClassworkId = d.classworkId;
 
           // Normalize graded/feedback fields (support multiple possible names)
-          const feedback =
-            d.feedback;
+          const feedback = d.feedback;
 
-          const gradedAt =
-            d.gradedAt;
+          const gradedAt = d.gradedAt;
 
-          const gradedBy =
-            d.gradedBy;
+          const gradedBy = d.gradedBy;
 
           // map grade-by-name (support multiple possible field names)
-          const gradeByName =
-            d.gradeByName ;
+          const gradeByName = d.gradeByName;
 
           const submission: ClassworkSubmission = {
             id: d.id,
             classworkId: Number(candidateClassworkId ?? classworkId),
             appUserId: d.appUserId,
-            firstSubmissionTime:
-              d.firstSubmissionTime,
-            latestSubmissionTime:
-              d.latestSubmissionTime,
+            firstSubmissionTime: d.firstSubmissionTime,
+            latestSubmissionTime: d.latestSubmissionTime,
             files,
             score: d.score,
             submissionStatus: d.submissionStatus,
@@ -1727,7 +1893,7 @@ export const useClassStore = create<ClassState>()(
           const relativeEndpoints = [
             `/ClassNotification/${encodeURIComponent(
               notificationId
-            )}/submissions/${encodeURIComponent(submissionId)}/grade`
+            )}/submissions/${encodeURIComponent(submissionId)}/grade`,
           ];
           const prefixed = relativeEndpoints.map((e) => `/api${e}`);
           const allCandidates = [...relativeEndpoints, ...prefixed];
@@ -1882,7 +2048,7 @@ export const useClassStore = create<ClassState>()(
           if (!classworkId) return null;
 
           const endpoints = [
-            `/Classwork/submissioncount/${encodeURIComponent(classworkId)}`
+            `/Classwork/submissioncount/${encodeURIComponent(classworkId)}`,
           ];
 
           for (const ep of endpoints) {
@@ -2085,7 +2251,7 @@ export const useClassStore = create<ClassState>()(
             createdAt: formatISO(created.createdAt) ?? formatISO(new Date()),
             files: (created.files ?? []).map((f: any, idx: number) => ({
               id: f.id ?? `${Date.now()}-${idx}`,
-              fileName: f.fileName ,
+              fileName: f.fileName,
               fileUrl: f.fileUrl,
               thumbnail: f.thumbnail ?? undefined,
               isExternal: !!(f.isExternal ?? (f.url && !f.fileName)),
@@ -2093,11 +2259,11 @@ export const useClassStore = create<ClassState>()(
             comments:
               (created.comments ?? []).map((c: any) => ({
                 id: c.id,
-                notificationId: c.notificationId ,
+                notificationId: c.notificationId,
                 userId: c.userId,
                 userFullname: c.userFullname ?? "Bạn",
                 content: c.content ?? "",
-                avatarUrl: c.avatarUrl ,
+                avatarUrl: c.avatarUrl,
                 createdAt: formatISO(c.createdAt) ?? formatISO(new Date()),
               })) ?? [],
           };
@@ -2156,7 +2322,7 @@ export const useClassStore = create<ClassState>()(
           const postEndpoints = [
             `/ClassMember/${encodeURIComponent(
               userId
-            )}/decline?classId=${encodeURIComponent(classId)}`
+            )}/decline?classId=${encodeURIComponent(classId)}`,
           ];
 
           let res: any = null;
