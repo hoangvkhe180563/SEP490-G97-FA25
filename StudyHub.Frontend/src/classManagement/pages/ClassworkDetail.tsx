@@ -293,10 +293,7 @@ const ClassworkDetail: React.FC = () => {
   const teacherForClasswork = useMemo(() => {
     const teachers = currentClass?.data?.teachers ?? [];
     const createdBy =
-      (classwork as any)?.createdBy ??
-      (classwork as any)?.createdById ??
-      (classwork as any)?.created_by ??
-      null;
+      (classwork as any)?.createdBy ?? null;
     if (createdBy) {
       const found = teachers.find(
         (t: any) => String(t.userId) === String(createdBy)
@@ -330,7 +327,7 @@ const ClassworkDetail: React.FC = () => {
         if (!mounted) return;
         if (detail) {
           setCwDetail({
-            data: detail.data ?? detail.raw ?? {},
+            data: detail.data ?? {},
             submissions: detail.submissions ?? [],
             files: detail.files ?? [],
           });
@@ -344,22 +341,16 @@ const ClassworkDetail: React.FC = () => {
                 classworkId: s.classworkId ?? s.notificationId ?? classwork.id,
                 appUserId: s.appUserId ?? s.app_user_id ?? s.userId ?? "",
                 firstSubmissionTime:
-                  s.firstSubmissionTime ??
-                  s.first_submission_time ??
-                  s.firstSubmittedAt ??
-                  null,
+                  s.firstSubmissionTime ?? null,
                 latestSubmissionTime:
-                  s.latestSubmissionTime ??
-                  s.latest_submission_time ??
-                  s.latestSubmittedAt ??
-                  null,
+                  s.latestSubmissionTime ?? null,
                 files: (s.submissionFiles ?? s.files ?? []).map((f: any) => ({
                   id: f.id,
-                  fileName: f.fileName ?? f.file_name ?? f.name,
-                  fileUrl: f.fileUrl ?? f.file_url ?? f.url,
+                  fileName: f.fileName,
+                  fileUrl: f.fileUrl ,
                 })),
-                score: s.score ?? s.Score ?? null,
-                submissionStatus: s.submissionStatus ?? s.status ?? null,
+                score: s.score ?? null,
+                submissionStatus: s.submissionStatus?? null,
                 raw: s,
               })
             );
@@ -438,11 +429,11 @@ const ClassworkDetail: React.FC = () => {
       const normalized = (noti.comments ?? []).map((c: any) => ({
         id: c.id,
         notificationId: c.notificationId ?? noti.id,
-        userId: c.appUserId ?? c.app_user_id ?? c.userId ?? null,
-        content: c.content ?? c.text ?? c.html ?? "",
-        createdAt: c.createdAt ?? c.created_at ?? "",
-        userFullname: c.userFullname ?? c.userFullName ?? c.fullName ?? "",
-        imageUrl: c.imageUrl ?? c.avatarUrl ?? null,
+        userId: c.appUserId ?? null,
+        content: c.content ?? "",
+        createdAt: c.createdAt ?? "",
+        userFullname: c.userFullname ?? "",
+        imageUrl: c.imageUrl ?? null,
         raw: c,
       }));
       setComments(normalized);
@@ -551,19 +542,14 @@ const ClassworkDetail: React.FC = () => {
       if (created && typeof created === "object") {
         const createdAny = created as any;
         const createdUserId =
-          createdAny.userId ??
-          createdAny.appUserId ??
-          createdAny.app_user_id ??
-          createdBy;
+          createdAny.userId ?? createdBy;
         const mapped = {
           id: createdAny.id ?? Date.now(),
           notificationId: classwork.id,
           userId: createdUserId,
-          content: createdAny.content ?? createdAny.text ?? commentText,
+          content: createdAny.content ?? commentText,
           createdAt:
-            createdAny.createdAt ??
-            createdAny.created_at ??
-            formatISO(new Date()),
+            formatISO(createdAny.createdAt) ?? formatISO(new Date()),
           userFullname: createdAny.userFullname ?? createdAny.userName ?? "",
           imageUrl: null,
           raw: createdAny,
@@ -620,22 +606,11 @@ const ClassworkDetail: React.FC = () => {
 
   // derive teacher feedback and grader info for the current user's submission
   const teacherFeedback =
-    userSubmission?.feedback ??
-    (userSubmission as any)?.feedback ??
-    (userSubmission as any)?.graderFeedback ??
-    (userSubmission as any)?.teacherFeedback ??
-    (userSubmission as any)?.feedbackText ??
-    "";
+    userSubmission?.feedback ?? "";
   const gradedBy =
-    (userSubmission as any)?.gradeByName ??
-    (userSubmission as any)?.gradeByName ??
-    (userSubmission as any)?.gradeByName ??
-    null;
+    (userSubmission as any)?.gradeByName ?? null;
   const gradedAt =
-    (userSubmission as any)?.gradedAt ??
-    (userSubmission as any)?.graded_at ??
-    (userSubmission as any)?.gradedDate ??
-    null;
+    (userSubmission as any)?.gradedAt ?? null;
 
   // Determine allowSubmission flag:
   // use safe prototype-safe checks to detect presence of properties

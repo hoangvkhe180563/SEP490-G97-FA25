@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
-/* exercise-tab.tsx
-   Use classDefaultCount fallback when memberCounts[w.id] missing.
-*/
 import React, { useMemo, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/common/components/ui/button";
 import { Card } from "@/common/components/ui/card";
 import type { ClassWork } from "@/classManagement/interfaces/class";
@@ -16,7 +14,7 @@ type Props = {
   fetchCountsForWork?: (workId: number) => Promise<void>;
   submissionCounts?: Record<number, number | null>;
   memberCounts?: Record<number, number | null>;
-  classDefaultCount?: number | null; // new fallback prop
+  classDefaultCount?: number | null;
   navigateToEdit?: (workId: number) => void;
 };
 
@@ -24,10 +22,10 @@ const normalizeFiles = (rawFiles: any[], workId: number) => {
   if (!Array.isArray(rawFiles)) return [];
   return rawFiles.map((f: any, idx: number) => ({
     id: f.id ?? `${workId}-file-${idx}`,
-    fileName: f.fileName ?? f.name ?? f.title ?? f.file_name ?? "",
-    fileUrl: f.fileUrl ?? f.url ?? f.file_url ?? f.documentUrl ?? "",
-    thumbnail: f.thumbnail ?? f.thumb ?? undefined,
-    fileType: (f.fileType ?? f.contentType ?? "").toString().toLowerCase(),
+    fileName: f.fileName ?? "",
+    fileUrl: f.fileUrl ?? "",
+    thumbnail: f.thumbnail ?? undefined,
+    fileType: (f.fileType ?? "").toString().toLowerCase(),
     raw: f,
   }));
 };
@@ -42,9 +40,123 @@ const isPdfExt = (nameOrUrl?: string) => {
   return /\.pdf$/i.test(nameOrUrl) || (nameOrUrl.split(".").pop() || "").toLowerCase() === "pdf";
 };
 
+const isCloudinaryUrl = (u?: string) => {
+  if (!u) return false;
+  try {
+    const url = new URL(u);
+    return url.hostname.endsWith("cloudinary.com");
+  } catch {
+    return false;
+  }
+};
+
+const makeCloudinaryFlAttachment = (u: string) => {
+  try {
+    const url = new URL(u);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const idx = parts.indexOf("upload");
+    if (idx !== -1) {
+      parts.splice(idx + 1, 0, "fl_attachment");
+      url.pathname = "/" + parts.join("/");
+      return url.toString();
+    }
+    return u + (u.includes("?") ? "&" : "?") + "fl_attachment=1";
+  } catch {
+    return u;
+  }
+};
+
+async function downloadUrl(fileUrl?: string, suggestedName?: string): Promise<void> {
+  if (!fileUrl) return;
+  try {
+    let isCrossOrigin = false;
+    try {
+      const urlObj = new URL(String(fileUrl), window.location.href);
+      isCrossOrigin = urlObj.origin !== window.location.origin;
+    } catch {
+      isCrossOrigin = false;
+    }
+
+    const res = await fetch(String(fileUrl), {
+      method: "GET",
+      mode: "cors",
+      credentials: isCrossOrigin ? "omit" : "include",
+    });
+
+    if (!res.ok) {
+      if (isCloudinaryUrl(String(fileUrl))) {
+        window.open(makeCloudinaryFlAttachment(String(fileUrl)), "_blank", "noopener,noreferrer");
+      } else {
+        window.open(String(fileUrl), "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
+
+    if ((res as any).type === "opaque") {
+      if (isCloudinaryUrl(String(fileUrl))) {
+        window.open(makeCloudinaryFlAttachment(String(fileUrl)), "_blank", "noopener,noreferrer");
+      } else {
+        window.open(String(fileUrl), "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
+
+    const contentType = (res.headers.get("content-type") || "").toLowerCase();
+    const blob = await res.blob();
+
+    if (contentType.includes("text/html")) {
+      if (isCloudinaryUrl(String(fileUrl))) {
+        window.open(makeCloudinaryFlAttachment(String(fileUrl)), "_blank", "noopener,noreferrer");
+      } else {
+        window.open(String(fileUrl), "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
+
+    const contentDisposition = res.headers.get("content-disposition") || "";
+    let filename = suggestedName ?? "download";
+    const fileNameMatch =
+      contentDisposition.match(/filename\*=(?:UTF-8'')?([^;]+)/i) ||
+      contentDisposition.match(/filename="?([^";]+)"?/i);
+    if (fileNameMatch && fileNameMatch[1]) {
+      try {
+        filename = decodeURIComponent(fileNameMatch[1].replace(/(^['"]|['"]$)/g, ""));
+      } catch {
+        filename = fileNameMatch[1].replace(/(^['"]|['"]$)/g, "");
+      }
+    } else {
+      try {
+        const urlObj = new URL(String(fileUrl), window.location.href);
+        const last = urlObj.pathname.split("/").filter(Boolean).pop();
+        if (last) filename = decodeURIComponent(last);
+        if (!/\./.test(filename) && contentType.includes("image/")) {
+          const ext = contentType.split("/")[1] || "png";
+          filename = `${filename || "image"}.${ext.split(";")[0]}`;
+        }
+      } catch { /* empty */ }
+    }
+
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
+  } catch (err) {
+    console.warn("downloadUrl fallback", err);
+    if (isCloudinaryUrl(String(fileUrl))) {
+      window.open(makeCloudinaryFlAttachment(String(fileUrl)), "_blank", "noopener,noreferrer");
+    } else {
+      window.open(String(fileUrl), "_blank", "noopener,noreferrer");
+    }
+  }
+}
+
 const AttachmentRow: React.FC<{ file: any }> = ({ file }) => {
-  const url = file?.fileUrl ?? file?.url ?? "";
-  const name = file?.fileName ?? file?.name ?? url;
+  const url = file?.fileUrl ?? "";
+  const name = file?.fileName ?? url;
   const ext = (name || url).split(".").pop()?.toLowerCase() ?? "";
   const image = isImageExt(url || name);
   const pdf = isPdfExt(url || name);
@@ -81,7 +193,7 @@ const AttachmentRow: React.FC<{ file: any }> = ({ file }) => {
         {url ? (
           <>
             <a href={url} target="_blank" rel="noopener noreferrer" onClick={stop} className="text-xs text-blue-600 hover:underline px-2 py-1 rounded">Mở</a>
-            <a href={url} download onClick={stop} className="text-xs text-slate-600 hover:text-slate-800 px-2 py-1 rounded hover:bg-slate-100">Tải</a>
+            <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); void downloadUrl(url, name); }} className="text-xs text-slate-600 hover:text-slate-800 px-2 py-1 rounded hover:bg-slate-100">Tải</button>
           </>
         ) : (
           <div className="text-xs text-slate-400">Không có liên kết</div>
@@ -93,6 +205,8 @@ const AttachmentRow: React.FC<{ file: any }> = ({ file }) => {
 
 const ExerciseTab: React.FC<Props> = ({ works, role, onOpenWork, onAddWork, fetchCountsForWork, submissionCounts = {}, memberCounts = {}, classDefaultCount = null, navigateToEdit }) => {
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const uniqWorks = useMemo(() => {
     const map = new Map<number, ClassWork>();
@@ -102,16 +216,26 @@ const ExerciseTab: React.FC<Props> = ({ works, role, onOpenWork, onAddWork, fetc
     return Array.from(map.values());
   }, [works]);
 
+  const resolveClassIdFromPath = () => {
+    try {
+      const segments = location.pathname.split("/").filter(Boolean);
+      const idx = segments.findIndex((s) => s.toLowerCase() === "class");
+      if (idx !== -1 && segments.length > idx + 2) {
+        return segments[idx + 2];
+      }
+    } catch { /* empty */ }
+    return null;
+  };
+
   const handleCardClick = (w: ClassWork) => {
     if (role === "student") {
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       onOpenWork && onOpenWork(w.id);
-    } else {
-      const next = openDropdownId === w.id ? null : w.id;
-      setOpenDropdownId(next);
-      if (next === w.id && typeof fetchCountsForWork === "function") {
-        void fetchCountsForWork(w.id);
-      }
+      return;
+    }
+    const next = openDropdownId === w.id ? null : w.id;
+    setOpenDropdownId(next);
+    if (next === w.id && typeof fetchCountsForWork === "function") {
+      void fetchCountsForWork(w.id);
     }
   };
 
@@ -137,7 +261,6 @@ const ExerciseTab: React.FC<Props> = ({ works, role, onOpenWork, onAddWork, fetc
             {uniqWorks.map((w) => {
               const past = !!w.deadline && isPastDeadline(w.deadline);
               const submission = submissionCounts[w.id] ?? "—";
-              // prefer explicit per-work memberCounts, else fallback to classDefaultCount, else show "—"
               const members = (memberCounts[w.id] ?? null) !== null ? memberCounts[w.id] : (classDefaultCount !== null ? classDefaultCount : "—");
               const isOpen = openDropdownId === w.id;
 
@@ -161,8 +284,23 @@ const ExerciseTab: React.FC<Props> = ({ works, role, onOpenWork, onAddWork, fetc
                           <Button
                             type="button"
                             aria-label={`Sửa bài tập ${w.title}`}
-                            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                            onClick={(e) => { e.stopPropagation(); if (past) return; navigateToEdit && navigateToEdit(w.id); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (past) return;
+                              if (typeof navigateToEdit === "function") {
+                                navigateToEdit(w.id);
+                                return;
+                              }
+                              // Try to resolve classId from work, otherwise from current path
+                              const classIdCandidate = (w as any).classId ?? (w as any).class?.id ?? resolveClassIdFromPath();
+                              const classId = classIdCandidate ?? "";
+                              if (classId) {
+                                navigate(`/class/${role}/${classId}/classwork/${w.id}`);
+                              } else {
+                                // last-resort: navigate to a path that AddEdit can parse (AddEdit will try to fetch works)
+                                navigate(`/class/${role}/classwork/${w.id}`);
+                              }
+                            }}
                             variant="secondary"
                             size="sm"
                             disabled={past}
@@ -197,7 +335,6 @@ const ExerciseTab: React.FC<Props> = ({ works, role, onOpenWork, onAddWork, fetc
                         </div>
 
                         <div className="mt-4 text-right">
-                          
                           <Button type="button" onClick={(e) => { e.stopPropagation(); onOpenWork && onOpenWork(w.id); }}>Xem chi tiết</Button>
                         </div>
                       </div>

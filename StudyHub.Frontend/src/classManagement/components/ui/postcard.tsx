@@ -72,6 +72,32 @@ const safeHtml = (html?: string) => {
   });
 };
 
+const isCloudinaryUrl = (u?: string) => {
+  if (!u) return false;
+  try {
+    const url = new URL(u);
+    return url.hostname.endsWith("cloudinary.com");
+  } catch {
+    return false;
+  }
+};
+
+const makeCloudinaryFlAttachment = (u: string) => {
+  try {
+    const url = new URL(u);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const idx = parts.indexOf("upload");
+    if (idx !== -1) {
+      parts.splice(idx + 1, 0, "fl_attachment");
+      url.pathname = "/" + parts.join("/");
+      return url.toString();
+    }
+    return u + (u.includes("?") ? "&" : "?") + "fl_attachment=1";
+  } catch {
+    return u;
+  }
+};
+
 const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const [showComments, setShowComments] = useState(false);
   const [localComments, setLocalComments] = useState<PostComment[]>(post.comments ?? []);
@@ -229,33 +255,60 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     }
   };
 
-  // Improved programmatic download with better fallbacks and filename detection
+  // Improved programmatic download with cross-origin handling + Cloudinary fl_attachment fallback
   const downloadFile = async (file: PostFile) => {
     const key = String(file.id ?? file.fileUrl ?? file.fileName ?? Date.now());
     setDownloading((d) => ({ ...d, [key]: true }));
 
     try {
-      // Try fetching the file as blob. Keep credentials in case file is protected on same origin.
-      const res = await fetch(String(file.fileUrl), {
-        method: "GET",
-        credentials: "include",
-        // mode: "cors" // default is fine, but can be added if needed
-      });
+      // detect cross-origin
+      let isCrossOrigin = false;
+      try {
+        const urlObj = new URL(String(file.fileUrl), window.location.href);
+        isCrossOrigin = urlObj.origin !== window.location.origin;
+      } catch {
+        isCrossOrigin = false;
+      }
 
-      // If fetch failed (non-2xx), fallback to opening in new tab
+      const fetchOptions: RequestInit = {
+        method: "GET",
+        mode: "cors",
+        // For public CDNs like Cloudinary we must NOT include credentials (cookies) else CORS will fail.
+        credentials: isCrossOrigin ? "omit" : "include",
+      };
+
+      const res = await fetch(String(file.fileUrl), fetchOptions);
+
+      // If fetch failed (non-2xx) -> try cloudinary fl_attachment (if cloudinary) or open in new tab
       if (!res.ok) {
-        // Often a non-OK response is a redirect to login page or an error HTML => open in new tab so user can see
-        window.open(String(file.fileUrl), "_blank", "noopener");
+        if (isCloudinaryUrl(String(file.fileUrl))) {
+          window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
+        } else {
+          window.open(String(file.fileUrl), "_blank", "noopener");
+        }
+        return;
+      }
+
+      // If response is opaque (no CORS headers) we cannot read headers or blob reliably -> fallback
+      if ((res as any).type === "opaque") {
+        if (isCloudinaryUrl(String(file.fileUrl))) {
+          window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
+        } else {
+          window.open(String(file.fileUrl), "_blank", "noopener");
+        }
         return;
       }
 
       const contentType = (res.headers.get("content-type") || "").toLowerCase();
       const blob = await res.blob();
 
-      // If server returned HTML (likely an error page) and the original URL doesn't look like a direct file,
-      // fallback to opening the URL in a new tab for debugging / manual download.
-      if (contentType.includes("text/html") && !/\.(pdf|jpg|jpeg|png|gif|docx?|xlsx?|pptx?|zip|rar)$/i.test(String(file.fileUrl))) {
-        window.open(String(file.fileUrl), "_blank", "noopener");
+      // If server returned HTML (likely an error/redirect page) -> fallback
+      if (contentType.includes("text/html")) {
+        if (isCloudinaryUrl(String(file.fileUrl))) {
+          window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
+        } else {
+          window.open(String(file.fileUrl), "_blank", "noopener");
+        }
         return;
       }
 
@@ -273,24 +326,34 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
         } catch {
           filename = fileNameMatch[1].replace(/(^['"]|['"]$)/g, "");
         }
+      } else {
+        // try to infer from URL path
+        try {
+          const urlObj = new URL(String(file.fileUrl), window.location.href);
+          const pathName = urlObj.pathname;
+          const last = pathName.split("/").filter(Boolean).pop();
+          if (last && last.includes(".")) filename = decodeURIComponent(last);
+        } catch {
+          /* ignore */
+        }
       }
 
-      // Create an object URL and click an anchor with download attribute.
-      // This works even for cross-origin responses because blob URLs are same-origin.
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = filename;
-      // add to DOM to make click work in all browsers
       document.body.appendChild(a);
       a.click();
       a.remove();
-      // revoke after some time
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (err) {
       console.warn("Programmatic download failed, falling back to opening in new tab", err);
-      // Last resort: open the file URL in a new tab (user can save manually)
-      window.open(String(file.fileUrl), "_blank", "noopener");
+      // fallback to cloudinary fl_attachment when possible
+      if (isCloudinaryUrl(String(file.fileUrl))) {
+        window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
+      } else {
+        window.open(String(file.fileUrl), "_blank", "noopener");
+      }
     } finally {
       setDownloading((d) => ({ ...d, [key]: false }));
     }

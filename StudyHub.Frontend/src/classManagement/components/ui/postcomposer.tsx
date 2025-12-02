@@ -37,9 +37,7 @@ type Attachment =
       domain?: string;
     };
 
-// NOTE: this component previously relied on a passed avatarUrl prop only.
-// Some pages didn't pass avatarUrl; to ensure current user avatar always shows,
-// we fallback to authenticated user's avatar from useAuthStore when avatarUrl missing.
+
 
 export default function PostComposer({
   onPost,

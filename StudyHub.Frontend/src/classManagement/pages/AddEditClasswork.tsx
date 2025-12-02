@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
 import React, { useState, useEffect, useRef } from "react";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { mapToCoarseRole } from "@/classManagement/utils/roleutil";
 import type { ClassInfo } from "@/classManagement/interfaces/class";
@@ -21,6 +20,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/common/components/ui/alert";
+import { Book, Download, Eye, Trash } from "lucide-react";
 
 type LinkItem = { title: string; url: string };
 
@@ -34,15 +34,186 @@ type FilePreview = {
   fileName?: string;
 };
 
+// --- helpers for Cloudinary & downloads ---
+const isCloudinaryUrl = (u?: string) => {
+  if (!u) return false;
+  try {
+    const url = new URL(u);
+    return url.hostname.endsWith("cloudinary.com");
+  } catch {
+    return false;
+  }
+};
+
+const makeCloudinaryFlAttachment = (u: string) => {
+  try {
+    const url = new URL(u);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const idx = parts.indexOf("upload");
+    if (idx !== -1) {
+      parts.splice(idx + 1, 0, "fl_attachment");
+      url.pathname = "/" + parts.join("/");
+      return url.toString();
+    }
+    return u + (u.includes("?") ? "&" : "?") + "fl_attachment=1";
+  } catch {
+    return u;
+  }
+};
+
+async function downloadUrl(fileUrl?: string, suggestedName?: string): Promise<void> {
+  if (!fileUrl) return;
+  try {
+    // detect cross-origin
+    let isCrossOrigin = false;
+    try {
+      const urlObj = new URL(String(fileUrl), window.location.href);
+      isCrossOrigin = urlObj.origin !== window.location.origin;
+    } catch {
+      isCrossOrigin = false;
+    }
+
+    const res = await fetch(String(fileUrl), {
+      method: "GET",
+      mode: "cors",
+      credentials: isCrossOrigin ? "omit" : "include",
+    });
+
+    if (!res.ok) {
+      if (isCloudinaryUrl(String(fileUrl))) {
+        window.open(makeCloudinaryFlAttachment(String(fileUrl)), "_blank", "noopener,noreferrer");
+      } else {
+        window.open(String(fileUrl), "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
+
+    if ((res as any).type === "opaque") {
+      if (isCloudinaryUrl(String(fileUrl))) {
+        window.open(makeCloudinaryFlAttachment(String(fileUrl)), "_blank", "noopener,noreferrer");
+      } else {
+        window.open(String(fileUrl), "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
+
+    const contentType = (res.headers.get("content-type") || "").toLowerCase();
+    const blob = await res.blob();
+
+    if (contentType.includes("text/html")) {
+      if (isCloudinaryUrl(String(fileUrl))) {
+        window.open(makeCloudinaryFlAttachment(String(fileUrl)), "_blank", "noopener,noreferrer");
+      } else {
+        window.open(String(fileUrl), "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
+
+    const contentDisposition = res.headers.get("content-disposition") || "";
+    let filename = suggestedName ?? "download";
+    const fileNameMatch =
+      contentDisposition.match(/filename\*=(?:UTF-8'')?([^;]+)/i) ||
+      contentDisposition.match(/filename="?([^";]+)"?/i);
+    if (fileNameMatch && fileNameMatch[1]) {
+      try {
+        filename = decodeURIComponent(fileNameMatch[1].replace(/(^['"]|['"]$)/g, ""));
+      } catch {
+        filename = fileNameMatch[1].replace(/(^['"]|['"]$)/g, "");
+      }
+    } else {
+      try {
+        const urlObj = new URL(String(fileUrl), window.location.href);
+        const last = urlObj.pathname.split("/").filter(Boolean).pop();
+        if (last) filename = decodeURIComponent(last);
+        if (!/\./.test(filename) && contentType.includes("image/")) {
+          const ext = contentType.split("/")[1] || "png";
+          filename = `${filename || "image"}.${ext.split(";")[0]}`;
+        }
+      } catch { /* empty */ }
+    }
+
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
+  } catch (err) {
+    console.warn("downloadUrl fallback", err);
+    if (isCloudinaryUrl(String(fileUrl))) {
+      window.open(makeCloudinaryFlAttachment(String(fileUrl)), "_blank", "noopener,noreferrer");
+    } else {
+      window.open(String(fileUrl), "_blank", "noopener,noreferrer");
+    }
+  }
+}
+
+// --- safer deriveUrlFromFile to avoid TS errors when backend shape varies ---
+const deriveUrlFromFile = (f: any): string | undefined => {
+  if (!f) return undefined;
+  if (typeof f === "function") return undefined; // protect against schema/factory being passed by mistake
+  const candidates = [
+    (f as any).fileUrl,
+    (f as any).file_url,
+    (f as any).url,
+    (f as any).Url,
+    (f as any).FileUrl,
+    (f as any).path,
+    (f as any).link,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string") {
+      const s = c.trim();
+      if (s.length > 0) return s;
+    }
+  }
+  return undefined;
+};
+
+// --- file type detection ---
+const detectFileType = (fileOrName: File | string | undefined): FilePreview["type"] => {
+  if (!fileOrName) return "other";
+  const t = typeof fileOrName === "string" ? "" : (fileOrName as File).type ?? "";
+  if (typeof fileOrName === "string") {
+    const lower = fileOrName.toLowerCase();
+    if (/\.(png|jpe?g|gif|webp|bmp|svg)$/.test(lower)) return "image";
+    if (/\.pdf$/.test(lower)) return "pdf";
+    return "other";
+  } else {
+    if (/image\/(jpeg|png|webp|gif|bmp|svg)/i.test(t)) return "image";
+    if (/pdf/i.test(t) || ((fileOrName as File).name && (fileOrName as File).name.toLowerCase().endsWith(".pdf")))
+      return "pdf";
+    return "other";
+  }
+};
+
 const AddEditClassworkForm: React.FC = () => {
   const params = useParams<{ id?: string; classworkId?: string }>();
+  const location = useLocation();
   const id = params.id ?? "";
+
+  // fallback: if route doesn't provide classworkId param, try to parse it from path segments
+  const classworkIdResolved =
+    params.classworkId ??
+    (() => {
+      try {
+        const segments = location.pathname.split("/").filter(Boolean);
+        const idx = segments.findIndex((s) => s.toLowerCase() === "classwork");
+        if (idx !== -1 && segments.length > idx + 1) return segments[idx + 1];
+        return undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+
+  const isEdit = !!classworkIdResolved;
 
   const { user } = useAuthStore();
   const coarseRole = mapToCoarseRole(user?.roles);
   const role: UserRole = coarseRole === "student" ? "student" : "teacher";
 
-  const isEdit = !!params.classworkId;
   const {
     createClasswork,
     editClasswork,
@@ -127,91 +298,45 @@ const AddEditClassworkForm: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, id, navigate]);
 
-  const detectFileType = (fileOrName: File | string | undefined): FilePreview["type"] => {
-    if (!fileOrName) return "other";
-    const t = typeof fileOrName === "string" ? "" : fileOrName.type ?? "";
-    if (typeof fileOrName === "string") {
-      const lower = fileOrName.toLowerCase();
-      if (/\.(png|jpe?g|gif|webp|bmp|svg)$/.test(lower)) return "image";
-      if (/\.pdf$/.test(lower)) return "pdf";
-      return "other";
-    } else {
-      if (/image\/(jpeg|png|webp|gif|bmp|svg)/i.test(t)) return "image";
-      if (/pdf/i.test(t) || (fileOrName.name && fileOrName.name.toLowerCase().endsWith(".pdf")))
-        return "pdf";
-      return "other";
-    }
-  };
-
-  const deriveUrlFromFile = (f: any): string | undefined => {
-    if (!f) return undefined;
-    const candidates = [
-      f.fileUrl,
-      f.documentUrl,
-      f.downloadUrl,
-      f.url,
-      f.urlPath,
-      f.file_url,
-      f.path,
-      f.publicUrl,
-      f.signedUrl,
-      f.previewUrl,
-      f.thumbnail,
-      f.thumb,
-      f.imageUrl,
-    ];
-    for (const c of candidates) {
-      if (c === undefined || c === null) continue;
-      const s = String(c).trim();
-      if (s.length > 0) return s;
-    }
-    return undefined;
-  };
-
   // prefill when editing
   useEffect(() => {
-    if (isEdit && params.classworkId && currentClass?.data?.works) {
-      const cw = currentClass.data.works.find(
-        (w) => String(w.id) === String(params.classworkId)
-      );
-      if (!cw) return;
+    // debug info to help diagnosing missing prefill
+    // eslint-disable-next-line no-console
+    console.debug(
+      "[AddEditClasswork] classworkIdResolved=",
+      classworkIdResolved,
+      "currentClass?.data?.works length=",
+      currentClass?.data?.works?.length
+    );
 
-      setTitle(cw.title ?? "");
-      setDescription(cw.description ?? "");
-      setInstructionsHtml((cw as any).instructionsHtml ?? cw.description ?? "");
-      if (cw.deadline) {
-        const d = new Date(cw.deadline);
+    const fillFromTarget = (target: any) => {
+      setTitle(target.title ?? "");
+      setDescription(target.description ?? "");
+      setInstructionsHtml((target as any).instructionsHtml ?? target.description ?? "");
+      if (target.deadline) {
+        const d = new Date(target.deadline);
         const tzOffset = d.getTimezoneOffset() * 60000;
         const localISO = formatISO(new Date(d.getTime() - tzOffset)).slice(0, -1);
         setDeadline(localISO.slice(0, 16));
       } else {
         setDeadline("");
       }
-      setMaxScore((cw as any).maxScore ?? (cw as any).max_score ?? "");
-      setGradeType((cw as any).gradeType ?? "points");
-      setAllowSubmission((cw as any).allowSubmission ?? true);
+      setMaxScore((target as any).maxScore ?? (target as any).max_score ?? "");
+      setGradeType((target as any).gradeType ?? "points");
+      setAllowSubmission((target as any).allowSubmission ?? true);
 
-      const existingLinks: any[] =
-        (cw.links ??
-          (cw as any).linkDtos ??
-          (cw as any).linkDto ??
-          (cw as any).raw?.links ??
-          (cw as any).raw?.linkDtos) ||
-        [];
+      const existingLinks: any[] = (target.links) || [];
       const normLinks = existingLinks
-        .map((l: any) => ({
-          title: l.title ?? l.name ?? l.fileName ?? l.url ?? "",
-          url: l.url ?? l.link ?? l.fileUrl ?? "",
-        }))
+        .map((l: any) => ({ title: l.title ?? "", url: l.url ?? "" }))
         .filter((x: LinkItem) => !!x.url);
       setLinks(normLinks);
 
-      const existingFiles = (cw.files ?? (cw as any).raw?.files ?? (cw as any).submissionFiles ?? []) as any[];
+      const existingFiles = (target.files ?? []) as any[];
       const safeExistingFiles = Array.isArray(existingFiles) ? existingFiles.filter((f) => f != null) : [];
 
-      const existingPreviews: FilePreview[] = safeExistingFiles.map((f: any, idx: number) => {
+      const existingPreviews: FilePreview[] = safeExistingFiles.map((f: any) => {
         const url = deriveUrlFromFile(f);
-        const name = f?.fileName ?? f?.name ?? f?.file_name ?? f?.title ?? `file-${f?.id ?? idx}`;
+        const name = f?.fileName;
         const type = detectFileType(url ?? name);
         return {
           id: `existing-${f?.id ?? Math.random().toString(36).slice(2, 8)}`,
@@ -230,9 +355,58 @@ const AddEditClassworkForm: React.FC = () => {
           return [...prev, ...newOnes];
         });
       }
+    };
+
+    if (!isEdit || !classworkIdResolved) return;
+
+    // Try to find in currentClass first
+    const foundLocal = (currentClass?.data?.works ?? []).find((w: any) => String(w.id) === String(classworkIdResolved));
+    if (foundLocal) {
+      // eslint-disable-next-line no-console
+      console.debug("[AddEditClasswork] prefilling from currentClass data");
+      fillFromTarget(foundLocal);
+      return;
     }
+
+    // If not found, try calling getClassWorks() and use returned value if available.
+    (async () => {
+      try {
+        const maybe = await getClassWorks(Number(id));
+        // getClassWorks might return works array or update store; try both.
+        let worksArray: any[] | undefined = undefined;
+        if (Array.isArray(maybe)) worksArray = maybe;
+        else worksArray = (currentClass?.data?.works ?? []);
+
+        // if not found yet, give store a short time to update then read again
+        if (!worksArray || worksArray.length === 0) {
+          // wait briefly for store update (max 1s, polling)
+          const maxAttempts = 10;
+          let attempt = 0;
+          while ((!currentClass?.data?.works || currentClass.data.works.length === 0) && attempt < maxAttempts) {
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise((r) => setTimeout(r, 100));
+            attempt++;
+          }
+          worksArray = currentClass?.data?.works ?? worksArray;
+        }
+
+        const found = (worksArray ?? []).find((w: any) => String(w.id) === String(classworkIdResolved));
+        if (found) {
+          // eslint-disable-next-line no-console
+          console.debug("[AddEditClasswork] prefilling after getClassWorks/fetch:", found);
+          fillFromTarget(found);
+        } else {
+          // not found: as a last resort, try to fetch classwork detail from server via getClassInfo or leave blank
+          // eslint-disable-next-line no-console
+          console.warn("[AddEditClasswork] classwork not found after getClassWorks, leaving form empty.");
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("[AddEditClasswork] getClassWorks fallback failed", err);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEdit, params.classworkId, currentClass?.data?.works]);
+  }, [isEdit, classworkIdResolved, currentClass?.data?.works]);
 
   useEffect(() => {
     if (id) getClassInfo(Number(id));
@@ -273,26 +447,20 @@ const AddEditClassworkForm: React.FC = () => {
   // Helper: attempt to download existing preview URLs and convert to File objects
   const convertExistingPreviewsToFiles = async (): Promise<void> => {
     if (!filePreviews || filePreviews.length === 0) return;
-    // Map and try to fetch only those existing previews that have a url but no file
     const needsFetch = filePreviews.filter((p) => p.existing && p.url && !p.file);
     if (needsFetch.length === 0) return;
 
-    // fetch in parallel but limit errors per-item
     const updated = await Promise.all(
       filePreviews.map(async (p) => {
         if (!(p.existing && p.url && !p.file)) return p;
         try {
-          // try to fetch via axiosInstance to carry auth headers if configured
           const res = await axiosInstance.get(p.url, { responseType: "blob" });
           const blob = res.data as Blob;
-          // derive filename (prefers fileName if present)
-          const nameFromUrl = p.url.split("/").pop()?.split("?")[0];
+          const nameFromUrl = p.url!.split("/").pop()?.split("?")[0];
           const name = p.fileName ?? nameFromUrl ?? `file-${Date.now()}`;
           const file = new File([blob], name, { type: blob.type || "application/octet-stream" });
-          // mark as not-existing so it will be treated as upload OR keep existing true but we rely on p.file presence
           return { ...p, file, existing: false };
         } catch (err) {
-          // If fetch fails, keep it as-is so server can handle via keptExistingFileIds
           console.warn("Failed to fetch existing file preview for re-upload:", p.url, err);
           return p;
         }
@@ -303,7 +471,7 @@ const AddEditClassworkForm: React.FC = () => {
   };
 
   const handleSave = async (e?: React.FormEvent) => {
-    e?.preventDefault();
+    if (e) e.preventDefault();
     setLoading(true);
     setErrors({});
 
@@ -314,7 +482,6 @@ const AddEditClassworkForm: React.FC = () => {
         hasError = true;
       }
 
-      // maxScore is now required
       if (maxScore === "" || maxScore === null || maxScore === undefined) {
         setFieldError("maxScore", "Điểm tối đa là bắt buộc");
         hasError = true;
@@ -349,26 +516,16 @@ const AddEditClassworkForm: React.FC = () => {
         return;
       }
 
-      if (isEdit && params.classworkId) {
-        // Convert existing previews with only URLs into File objects where possible,
-        // so they can be re-used as uploaded files.
+      if (isEdit && classworkIdResolved) {
         await convertExistingPreviewsToFiles();
 
-        // Approach A: send new File objects + keptExistingFileIds to server
-        console.debug("Submitting edit — filePreviews:", filePreviews);
-
-        // Now treat any preview that has a File object as a "new upload".
         const newFiles = filePreviews.filter((p) => p.file).map((p) => p.file!) as File[];
-
-        // keptExistingFileIds are those existing previews that we didn't convert to File (i.e., still existing and have fileId)
         const keptExistingFileIds = filePreviews
           .filter((p) => p.existing && p.fileId != null && !p.file)
           .map((p) => p.fileId);
 
-        console.debug("newFiles:", newFiles.map(f => f.name), "keptExistingFileIds:", keptExistingFileIds, "removedExistingFileIds:", removedExistingFileIds);
-
         const payload: any = {
-          id: Number(params.classworkId),
+          id: Number(classworkIdResolved),
           classId: Number(id),
           title: title.trim(),
           description: description?.trim() ?? "",
@@ -383,7 +540,6 @@ const AddEditClassworkForm: React.FC = () => {
           removedFileIds: removedExistingFileIds.length > 0 ? removedExistingFileIds : undefined,
         };
 
-        console.debug("Edit payload prepared:", payload);
         const edited = await editClasswork(payload);
         if (!edited) {
           showAlert("Không thể cập nhật bài tập", "Lỗi", "destructive");
@@ -413,7 +569,6 @@ const AddEditClassworkForm: React.FC = () => {
 
       if (filePreviews.length > 0) {
         for (const p of filePreviews) {
-          // For create we're already only using p.file (newly chosen). Keep same behavior.
           if (!p.existing && p.file) fd.append("Files", p.file, p.file.name);
         }
       }
@@ -445,10 +600,7 @@ const AddEditClassworkForm: React.FC = () => {
   const handleFiles = (files: File[]) => {
     if (!files || files.length === 0) return;
     setFilePreviews((prev) => {
-      // Do NOT auto-mark existing previews as removed when user selects new files.
-      // Keep existing previews and append newly selected files (dedupe by name+size).
-      // Revoke object URLs of previous non-existing previews only when they are explicitly removed.
-      const existingKeep = prev.slice(); // keep all current previews (existing + new)
+      const existingKeep = prev.slice();
       const existingSignatures = new Set<string>();
       for (const p of existingKeep) {
         const name = p.file?.name ?? p.fileName ?? "";
@@ -461,7 +613,6 @@ const AddEditClassworkForm: React.FC = () => {
       for (const f of files) {
         const sig = `${f.name}:${f.size}`;
         if (existingSignatures.has(sig) || newSignatures.has(sig)) {
-          // skip duplicate
           continue;
         }
         newSignatures.add(sig);
@@ -493,8 +644,7 @@ const AddEditClassworkForm: React.FC = () => {
         if (toRemove.fileId !== undefined) setRemovedExistingFileIds((s) => [...s, toRemove.fileId as number | string]);
         return prev.filter((p) => p.id !== id);
       } else {
-        // eslint-disable-next-line no-empty
-        if (toRemove.url) try { URL.revokeObjectURL(toRemove.url); } catch {}
+        if (toRemove.url) try { URL.revokeObjectURL(toRemove.url); } catch { /* empty */ }
         return prev.filter((p) => p.id !== id);
       }
     });
@@ -530,16 +680,7 @@ const AddEditClassworkForm: React.FC = () => {
           </Button>
           <div className="flex items-start gap-3 w-full">
             <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white shrink-0">
-              <img
-                src="https://png.pngtree.com/png-clipart/20190916/original/pngtree-book-icon-material-png-image_4587953.jpg"
-                alt="class"
-                className="w-10 h-10 rounded-full object-cover"
-                onError={(e) => {
-                  const el = e.currentTarget;
-                  el.onerror = null;
-                  el.src = "";
-                }}
-              />
+             <Book className="w-5 h-5 text-white" />
             </div>
 
             <div className="flex-1">
@@ -685,15 +826,28 @@ const AddEditClassworkForm: React.FC = () => {
                               rel="noreferrer"
                               className="text-xs text-blue-600 hover:underline"
                             >
-                              Xem
+                             <Eye className="w-4 h-4 mr-1" />
                             </a>
+                          )}
+                          {p.url && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                void downloadUrl(p.url, p.fileName ?? p.file?.name);
+                              }}
+                              className="text-xs text-slate-600 hover:text-slate-800"
+                            >
+                              <Download className="w-4 h-4 mr-1" />
+                            </button>
                           )}
                           <button
                             type="button"
                             onClick={() => removeFile(p.id)}
                             className="text-sm text-red-600 hover:underline"
                           >
-                            Xóa
+                            <Trash className="w-4 h-4 mr-1" />
                           </button>
                         </div>
                       </div>

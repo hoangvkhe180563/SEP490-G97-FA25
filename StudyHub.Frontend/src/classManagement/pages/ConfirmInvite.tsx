@@ -130,7 +130,7 @@ const ConfirmInvite: React.FC = () => {
   };
 
   const classInfo = currentClass?.data?.classInfo ?? null;
-  const teacher = currentClass?.data?.teacher ?? null;
+  const teacher = currentClass?.data?.teachers ?? null;
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -161,7 +161,7 @@ const ConfirmInvite: React.FC = () => {
 
             <div>
               <Label className="text-xs">Người mời</Label>
-              <div className="mt-1 font-medium">{teacher?.fullname ?? "Giáo viên"}</div>
+              <div className="mt-1 font-medium">{teacher?.at(1)?.fullname ?? "Giáo viên"}</div>
             </div>
 
             <div className="sm:col-span-2">
