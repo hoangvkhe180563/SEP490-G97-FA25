@@ -108,7 +108,9 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
     }
   };
 
- 
+  // Generate .xlsx template using SheetJS (xlsx). This uses dynamic import so the bundle
+  // doesn't fail if the dependency isn't installed. If you don't have 'xlsx' installed,
+  // run: npm install xlsx
   const downloadExcelTemplate = async () => {
     // headers and example rows
     const headers = ["Email", "Full Name", "Student ID", "Grade", "Section", "Role"];
@@ -143,6 +145,7 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (err) {
       console.warn("Failed to generate .xlsx using SheetJS, falling back to CSV. Error:", err);
+      // fallback: generate CSV if xlsx isn't available
       const lines: string[] = [];
       lines.push(headers.join(","));
       for (const row of examples) {

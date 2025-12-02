@@ -72,6 +72,32 @@ const safeHtml = (html?: string) => {
   });
 };
 
+const isCloudinaryUrl = (u?: string) => {
+  if (!u) return false;
+  try {
+    const url = new URL(u);
+    return url.hostname.endsWith("cloudinary.com");
+  } catch {
+    return false;
+  }
+};
+
+const makeCloudinaryFlAttachment = (u: string) => {
+  try {
+    const url = new URL(u);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const idx = parts.indexOf("upload");
+    if (idx !== -1) {
+      parts.splice(idx + 1, 0, "fl_attachment");
+      url.pathname = "/" + parts.join("/");
+      return url.toString();
+    }
+    return u + (u.includes("?") ? "&" : "?") + "fl_attachment=1";
+  } catch {
+    return u;
+  }
+};
+
 const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const [showComments, setShowComments] = useState(false);
   const [localComments, setLocalComments] = useState<PostComment[]>(post.comments ?? []);
@@ -82,7 +108,8 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const [downloading, setDownloading] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-  
+    // update local comments when parent prop changes,
+    // but merge with any optimistic comments that may not exist on server yet.
     setLocalComments((prev) => {
       const server = post.comments ?? [];
       // keep any optimistic temp comments from prev (temp- prefix)
@@ -102,7 +129,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const currentUserId = user?.id ?? "unknown-user";
   const currentUserFullname = user?.fullname ?? "Bạn";
   const currentUserAvatar =
-    (user as any)?.avatarUrl ?? undefined;
+    (user as any)?.avatarUrl ?? (user as any)?.avatar ?? (user as any)?.imageUrl ?? undefined;
 
   // Resolve avatar for the post author with fallbacks:
   const authorAvatar =
@@ -110,7 +137,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     (String(post.createdBy) === String(currentUserId) ? currentUserAvatar : undefined);
 
   const avatarFallbackText = () => {
-    const name = (post as any).authorName ?? "";
+    const name = (post as any).authorName ?? (post as any).createdByName ?? post.title ?? "";
     if (!name) return "U";
     const parts = String(name).trim().split(/\s+/);
     if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
@@ -228,40 +255,86 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     }
   };
 
-  // Improved programmatic download with better fallbacks and filename detection
+  // Improved programmatic download with cross-origin handling + Cloudinary fl_attachment fallback
   const downloadFile = async (file: PostFile) => {
     const key = String(file.id ?? file.fileUrl ?? file.fileName ?? Date.now());
     setDownloading((d) => ({ ...d, [key]: true }));
 
     try {
-      const res = await fetch(String(file.fileUrl), {
-        method: "GET",
-        credentials: "include",
-      });
+      // detect cross-origin
+      let isCrossOrigin = false;
+      try {
+        const urlObj = new URL(String(file.fileUrl), window.location.href);
+        isCrossOrigin = urlObj.origin !== window.location.origin;
+      } catch {
+        isCrossOrigin = false;
+      }
 
+      const fetchOptions: RequestInit = {
+        method: "GET",
+        mode: "cors",
+        // For public CDNs like Cloudinary we must NOT include credentials (cookies) else CORS will fail.
+        credentials: isCrossOrigin ? "omit" : "include",
+      };
+
+      const res = await fetch(String(file.fileUrl), fetchOptions);
+
+      // If fetch failed (non-2xx) -> try cloudinary fl_attachment (if cloudinary) or open in new tab
       if (!res.ok) {
-        window.open(String(file.fileUrl), "_blank", "noopener");
+        if (isCloudinaryUrl(String(file.fileUrl))) {
+          window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
+        } else {
+          window.open(String(file.fileUrl), "_blank", "noopener");
+        }
+        return;
+      }
+
+      // If response is opaque (no CORS headers) we cannot read headers or blob reliably -> fallback
+      if ((res as any).type === "opaque") {
+        if (isCloudinaryUrl(String(file.fileUrl))) {
+          window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
+        } else {
+          window.open(String(file.fileUrl), "_blank", "noopener");
+        }
         return;
       }
 
       const contentType = (res.headers.get("content-type") || "").toLowerCase();
       const blob = await res.blob();
 
-      if (contentType.includes("text/html") && !/\.(pdf|jpg|jpeg|png|gif|docx?|xlsx?|pptx?|zip|rar)$/i.test(String(file.fileUrl))) {
-        window.open(String(file.fileUrl), "_blank", "noopener");
+      // If server returned HTML (likely an error/redirect page) -> fallback
+      if (contentType.includes("text/html")) {
+        if (isCloudinaryUrl(String(file.fileUrl))) {
+          window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
+        } else {
+          window.open(String(file.fileUrl), "_blank", "noopener");
+        }
         return;
       }
 
+      // Try to extract filename from Content-Disposition header if present
       const contentDisposition = res.headers.get("content-disposition") || "";
       let filename = file.fileName ?? "download";
       const fileNameMatch =
+        // filename*=UTF-8''encoded or filename="..." or filename=...
         contentDisposition.match(/filename\*=(?:UTF-8'')?([^;]+)/i) ||
         contentDisposition.match(/filename="?([^";]+)"?/i);
       if (fileNameMatch && fileNameMatch[1]) {
         try {
+          // decodeURIComponent for RFC5987 style
           filename = decodeURIComponent(fileNameMatch[1].replace(/(^['"]|['"]$)/g, ""));
         } catch {
           filename = fileNameMatch[1].replace(/(^['"]|['"]$)/g, "");
+        }
+      } else {
+        // try to infer from URL path
+        try {
+          const urlObj = new URL(String(file.fileUrl), window.location.href);
+          const pathName = urlObj.pathname;
+          const last = pathName.split("/").filter(Boolean).pop();
+          if (last && last.includes(".")) filename = decodeURIComponent(last);
+        } catch {
+          /* ignore */
         }
       }
 
@@ -272,11 +345,15 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       document.body.appendChild(a);
       a.click();
       a.remove();
-      // revoke after some time
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (err) {
       console.warn("Programmatic download failed, falling back to opening in new tab", err);
-      window.open(String(file.fileUrl), "_blank", "noopener");
+      // fallback to cloudinary fl_attachment when possible
+      if (isCloudinaryUrl(String(file.fileUrl))) {
+        window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
+      } else {
+        window.open(String(file.fileUrl), "_blank", "noopener");
+      }
     } finally {
       setDownloading((d) => ({ ...d, [key]: false }));
     }
