@@ -193,7 +193,7 @@ namespace StudyHub.Backend.Api.Controllers
             {
                 NotificationId = notificationId,
                 Content = dto.Content.Trim(),
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
                 CreatedBy = dto.CreatedBy
             };
 

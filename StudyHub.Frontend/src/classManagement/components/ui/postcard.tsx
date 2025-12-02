@@ -82,8 +82,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const [downloading, setDownloading] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    // update local comments when parent prop changes,
-    // but merge with any optimistic comments that may not exist on server yet.
+  
     setLocalComments((prev) => {
       const server = post.comments ?? [];
       // keep any optimistic temp comments from prev (temp- prefix)
@@ -103,7 +102,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const currentUserId = user?.id ?? "unknown-user";
   const currentUserFullname = user?.fullname ?? "Bạn";
   const currentUserAvatar =
-    (user as any)?.avatarUrl ?? (user as any)?.avatar ?? (user as any)?.imageUrl ?? undefined;
+    (user as any)?.avatarUrl ?? undefined;
 
   // Resolve avatar for the post author with fallbacks:
   const authorAvatar =
@@ -111,7 +110,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     (String(post.createdBy) === String(currentUserId) ? currentUserAvatar : undefined);
 
   const avatarFallbackText = () => {
-    const name = (post as any).authorName ?? (post as any).createdByName ?? post.title ?? "";
+    const name = (post as any).authorName ?? "";
     if (!name) return "U";
     const parts = String(name).trim().split(/\s+/);
     if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
@@ -235,16 +234,12 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     setDownloading((d) => ({ ...d, [key]: true }));
 
     try {
-      // Try fetching the file as blob. Keep credentials in case file is protected on same origin.
       const res = await fetch(String(file.fileUrl), {
         method: "GET",
         credentials: "include",
-        // mode: "cors" // default is fine, but can be added if needed
       });
 
-      // If fetch failed (non-2xx), fallback to opening in new tab
       if (!res.ok) {
-        // Often a non-OK response is a redirect to login page or an error HTML => open in new tab so user can see
         window.open(String(file.fileUrl), "_blank", "noopener");
         return;
       }
@@ -252,36 +247,28 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       const contentType = (res.headers.get("content-type") || "").toLowerCase();
       const blob = await res.blob();
 
-      // If server returned HTML (likely an error page) and the original URL doesn't look like a direct file,
-      // fallback to opening the URL in a new tab for debugging / manual download.
       if (contentType.includes("text/html") && !/\.(pdf|jpg|jpeg|png|gif|docx?|xlsx?|pptx?|zip|rar)$/i.test(String(file.fileUrl))) {
         window.open(String(file.fileUrl), "_blank", "noopener");
         return;
       }
 
-      // Try to extract filename from Content-Disposition header if present
       const contentDisposition = res.headers.get("content-disposition") || "";
       let filename = file.fileName ?? "download";
       const fileNameMatch =
-        // filename*=UTF-8''encoded or filename="..." or filename=...
         contentDisposition.match(/filename\*=(?:UTF-8'')?([^;]+)/i) ||
         contentDisposition.match(/filename="?([^";]+)"?/i);
       if (fileNameMatch && fileNameMatch[1]) {
         try {
-          // decodeURIComponent for RFC5987 style
           filename = decodeURIComponent(fileNameMatch[1].replace(/(^['"]|['"]$)/g, ""));
         } catch {
           filename = fileNameMatch[1].replace(/(^['"]|['"]$)/g, "");
         }
       }
 
-      // Create an object URL and click an anchor with download attribute.
-      // This works even for cross-origin responses because blob URLs are same-origin.
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = filename;
-      // add to DOM to make click work in all browsers
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -289,7 +276,6 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (err) {
       console.warn("Programmatic download failed, falling back to opening in new tab", err);
-      // Last resort: open the file URL in a new tab (user can save manually)
       window.open(String(file.fileUrl), "_blank", "noopener");
     } finally {
       setDownloading((d) => ({ ...d, [key]: false }));

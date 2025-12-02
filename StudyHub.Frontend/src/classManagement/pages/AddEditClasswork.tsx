@@ -147,18 +147,7 @@ const AddEditClassworkForm: React.FC = () => {
     if (!f) return undefined;
     const candidates = [
       f.fileUrl,
-      f.documentUrl,
-      f.downloadUrl,
-      f.url,
-      f.urlPath,
-      f.file_url,
-      f.path,
-      f.publicUrl,
-      f.signedUrl,
-      f.previewUrl,
-      f.thumbnail,
-      f.thumb,
-      f.imageUrl,
+     
     ];
     for (const c of candidates) {
       if (c === undefined || c === null) continue;
@@ -192,26 +181,22 @@ const AddEditClassworkForm: React.FC = () => {
       setAllowSubmission((cw as any).allowSubmission ?? true);
 
       const existingLinks: any[] =
-        (cw.links ??
-          (cw as any).linkDtos ??
-          (cw as any).linkDto ??
-          (cw as any).raw?.links ??
-          (cw as any).raw?.linkDtos) ||
+        (cw.links ) ||
         [];
       const normLinks = existingLinks
         .map((l: any) => ({
-          title: l.title ?? l.name ?? l.fileName ?? l.url ?? "",
-          url: l.url ?? l.link ?? l.fileUrl ?? "",
+          title: l.title  ?? "",
+          url: l.url ?? ""
         }))
         .filter((x: LinkItem) => !!x.url);
       setLinks(normLinks);
 
-      const existingFiles = (cw.files ?? (cw as any).raw?.files ?? (cw as any).submissionFiles ?? []) as any[];
+      const existingFiles = (cw.files ??  []) as any[];
       const safeExistingFiles = Array.isArray(existingFiles) ? existingFiles.filter((f) => f != null) : [];
 
       const existingPreviews: FilePreview[] = safeExistingFiles.map((f: any, idx: number) => {
         const url = deriveUrlFromFile(f);
-        const name = f?.fileName ?? f?.name ?? f?.file_name ?? f?.title ?? `file-${f?.id ?? idx}`;
+        const name = f?.fileName ;
         const type = detectFileType(url ?? name);
         return {
           id: `existing-${f?.id ?? Math.random().toString(36).slice(2, 8)}`,

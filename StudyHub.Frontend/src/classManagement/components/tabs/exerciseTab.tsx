@@ -1,7 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
-/* exercise-tab.tsx
-   Use classDefaultCount fallback when memberCounts[w.id] missing.
-*/
 import React, { useMemo, useState } from "react";
 import { Button } from "@/common/components/ui/button";
 import { Card } from "@/common/components/ui/card";
@@ -24,10 +21,10 @@ const normalizeFiles = (rawFiles: any[], workId: number) => {
   if (!Array.isArray(rawFiles)) return [];
   return rawFiles.map((f: any, idx: number) => ({
     id: f.id ?? `${workId}-file-${idx}`,
-    fileName: f.fileName ?? f.name ?? f.title ?? f.file_name ?? "",
-    fileUrl: f.fileUrl ?? f.url ?? f.file_url ?? f.documentUrl ?? "",
-    thumbnail: f.thumbnail ?? f.thumb ?? undefined,
-    fileType: (f.fileType ?? f.contentType ?? "").toString().toLowerCase(),
+    fileName: f.fileName ?? "",
+    fileUrl: f.fileUrl  ?? "",
+    thumbnail: f.thumbnail  ?? undefined,
+    fileType: (f.fileType  ?? "").toString().toLowerCase(),
     raw: f,
   }));
 };
@@ -43,8 +40,8 @@ const isPdfExt = (nameOrUrl?: string) => {
 };
 
 const AttachmentRow: React.FC<{ file: any }> = ({ file }) => {
-  const url = file?.fileUrl ?? file?.url ?? "";
-  const name = file?.fileName ?? file?.name ?? url;
+  const url = file?.fileUrl ??  "";
+  const name = file?.fileName ??  url;
   const ext = (name || url).split(".").pop()?.toLowerCase() ?? "";
   const image = isImageExt(url || name);
   const pdf = isPdfExt(url || name);

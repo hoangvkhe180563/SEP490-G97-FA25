@@ -19,14 +19,7 @@ const NotificationsTab: React.FC<Props> = ({ classId, notifications, onPost, isT
     if (!u) return undefined;
     return (
       u.avatarUrl ??
-      u.avatar ??
-      u.avatar_url ??
-      u.photoUrl ??
-      u.photo_url ??
-      u.imageUrl ??
-      u.image_url ??
-      u.userImage ??
-      u.profilePicture ??
+     
       undefined
     );
   };

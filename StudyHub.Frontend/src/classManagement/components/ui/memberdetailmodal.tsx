@@ -49,6 +49,18 @@ const toLocaleDateTime = (v?: string) => {
 
 const safeString = (v: any) => (v === undefined || v === null ? "-" : String(v));
 
+function openGmailCompose({ to, subject, body }: { to?: string; subject?: string; body?: string }) {
+  const base = "https://mail.google.com/mail/";
+  const params = new URLSearchParams();
+  params.set("view", "cm");
+  params.set("fs", "1"); // compose in full-screen
+  if (to) params.set("to", to);
+  if (subject) params.set("su", subject);
+  if (body) params.set("body", body);
+  const url = `${base}?${params.toString()}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
   if (!open || !member) return null;
 
@@ -59,18 +71,18 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
       ? [String(member.role)]
       : [];
 
-  const userId = member.userId ?? member.id ?? "";
-  const fullname = member.fullname ?? member.fullName ?? member.name ?? "";
-  const joinDate = member.joinDate ?? member.joinedAt ?? member.createdAt ?? "";
-  const gender = normalizeGender(member.gender ?? member.sex ?? member.isMale);
-  const schoolId = member.schoolId ?? member.school_id ?? null;
-  const schoolName = member.schoolName ?? member.school_name ?? null;
-  const communes = member.communes ?? member.communeName ?? null;
-  const address = member.address ?? member.addr ?? null;
-  const communeId = member.communeId ?? member.commune_id ?? null;
-  const phoneNumber = member.phoneNumber ?? member.phone ?? null;
+  const userId = member.userId ?? "";
+  const fullname = member.fullname ?? "";
+  const joinDate = member.joinDate ?? "";
+  const gender = normalizeGender(member.gender);
+  const schoolId = member.schoolId ?? null;
+  const schoolName = member.schoolName ?? null;
+  const communes = member.communes ?? null;
+  const address = member.address ?? null;
+  const communeId = member.communeId ?? null;
+  const phoneNumber = member.phoneNumber ?? null;
   const email = member.email ?? null;
-  const avatarUrl = member.avatarUrl ?? member.avatar ?? member.imageUrl ?? null;
+  const avatarUrl = member.avatarUrl ?? null;
 
   const initials =
     fullname && fullname.length > 0
@@ -86,12 +98,20 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
   const emailGuess =
     email ?? (fullname ? `${fullname.replace(/\s+/g, ".").toLowerCase()}@example.com` : "");
 
+  const handleOpenGmail = () => {
+    if (!emailGuess) return;
+    const subject = "";
+    const body = `Hi ${fullname || ""},..........`;
+    openGmailCompose({ to: emailGuess, subject, body });
+  };
+
   return (
     <Dialog open={open} onOpenChange={(val) => { if (!val) onClose(); }}>
       <DialogContent className="sm:max-w-3xl w-full">
         {/* Close button in top-right */}
         <DialogClose asChild>
-         
+          {/* keep empty so shadcn renders close icon in default spot if desired */}
+          <button aria-label="Close" className="sr-only">Close</button>
         </DialogClose>
 
         <DialogHeader className="pt-6 pb-2">
@@ -148,7 +168,27 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
                 <InfoRow label="Ngày tham gia" value={toLocaleDateTime(joinDate)} />
                 <InfoRow label="Giới tính" value={gender ?? "-"} />
                 <InfoRow label="Số điện thoại" value={safeString(phoneNumber)} />
-                <InfoRow label="Email" value={emailGuess || "-"} />
+                <InfoRow
+                  label="Email"
+                  value={
+                    emailGuess ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleOpenGmail();
+                        }}
+                        className="text-sky-600 hover:underline text-sm"
+                        aria-label={`Gửi email tới ${emailGuess}`}
+                      >
+                        {emailGuess}
+                      </button>
+                    ) : (
+                      "-"
+                    )
+                  }
+                />
                 <InfoRow label="Địa chỉ" value={safeString(address)} />
                 <InfoRow label="Phường/Xã (commune)" value={communes ?? communeId ?? "-"} />
                 <InfoRow label="Tên trường" value={schoolName ?? "-"} />
@@ -156,11 +196,16 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
 
               <div className="mt-4 flex gap-2 justify-end">
                 <Button
-                  asChild
                   variant="default"
                   size="sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleOpenGmail();
+                  }}
+                  disabled={!emailGuess}
                 >
-                  <a href={`mailto:${emailGuess}`}>Gửi email</a>
+                  Gửi email
                 </Button>
 
                 <Button variant="ghost" size="sm" onClick={onClose}>
@@ -171,7 +216,6 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
           </div>
         </div>
 
-        
       </DialogContent>
     </Dialog>
   );
