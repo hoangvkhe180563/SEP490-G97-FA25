@@ -96,7 +96,7 @@ const DetailedClassTeacher: React.FC = () => {
     const t = searchParams.get("tab");
     if (t) setActiveTab(t);
     else setActiveTab("notifications");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [searchParams]);
 
   // fetch class info
@@ -247,9 +247,6 @@ const DetailedClassTeacher: React.FC = () => {
   }, [
     activeTab,
     id,
-    currentClass?.data?.teachers,
-    currentClass?.data?.students,
-    currentClass?.data?.parents,
     getClassMembers,
   ]);
 
@@ -258,7 +255,7 @@ const DetailedClassTeacher: React.FC = () => {
     if (!id || activeTab !== "exercise") return;
     const hasWorks = (currentClass?.data?.works ?? []).length > 0;
     if (!hasWorks) getClassWorks(Number(id));
-  }, [activeTab, id, currentClass?.data?.works, getClassWorks]);
+  }, [activeTab, id, getClassWorks]);
 
   // fetchCountsForWork: fetch submission count and try to fetch accurate member count for a work (best-effort)
   const fetchCountsForWork = useCallback(
@@ -332,7 +329,7 @@ const DetailedClassTeacher: React.FC = () => {
         console.warn("Prefetch per-work counts failed", err);
       }
     })();
-  }, [activeTab, id, currentClass?.data?.works, currentClass?.data?.students, fetchCountsForWork, getMemberCount, classMemberCount]);
+  }, [activeTab, id, fetchCountsForWork, getMemberCount, classMemberCount]);
 
   // handlers (notifications / others)
   const handlePost = async (content: string, files?: File[] | undefined, links?: any[] | undefined, titleFromComposer?: string) => {

@@ -53,7 +53,7 @@ const Homepage = () => {
     <footer>
       <div className="w-full py-2 bg-gray-100 flex flex-col items-center gap-2 bg-gradient-to-b from-sky-200 to-sky-300">
         <img className="w-70" src={data?.logoImage} alt="[StudyHub Logo]" />
-        <span className="text-gray-500 text-sm font-bold">© 2025 StudyHub. Tất cả quyền được bảo lưu. <span className="text-blue-600 underline">Gửi phản hồi</span></span>
+        <span className="text-gray-500 text-sm font-bold">© 2025 StudyHub. Tất cả quyền được bảo lưu. </span>
       </div>
     </footer>
   </div>

@@ -287,7 +287,7 @@ const ClassworkDetail: React.FC = () => {
       if (works.length > 0) setClasswork(null);
       else setClasswork(undefined);
     }
-  }, [currentClass?.data?.works, classworkIdResolved]);
+  }, [classworkIdResolved]);
 
   // derive the teacher for this classwork: match createdBy -> teacher.userId; fallback to first teacher or currentClass.data.teacher
   const teacherForClasswork = useMemo(() => {
@@ -302,7 +302,7 @@ const ClassworkDetail: React.FC = () => {
     }
     if (teachers.length > 0) return teachers[0] as any;
     return (currentClass?.data?.teachers as any) ?? null;
-  }, [currentClass?.data?.teachers, classwork, currentClass?.data?.teachers]);
+  }, [classwork]);
 
   // When classwork is set, fetch detail if attachments/submissions missing
   useEffect(() => {
@@ -440,7 +440,7 @@ const ClassworkDetail: React.FC = () => {
     } else {
       setComments([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [
     classwork,
     getClassworkSubmissions,

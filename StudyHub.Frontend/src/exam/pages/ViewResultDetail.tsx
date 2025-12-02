@@ -83,7 +83,7 @@ const ViewResultDetail = () => {
       return '';
     }
 
-    let parts = question.questionText.split(BLANK_PLACEHOLDER);
+    const parts = question.questionText.split(BLANK_PLACEHOLDER);
     const displayedContent: JSX.Element[] = [];
     const blankCount = (question.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
 
