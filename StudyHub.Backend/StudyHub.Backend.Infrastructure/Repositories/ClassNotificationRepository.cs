@@ -125,7 +125,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 NotificationId = comment.NotificationId,
                 CreatedBy = comment.CreatedBy,
                 Content = comment.Content,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now
             };
             _context.ClassNotificationComments.Add(ent);
             _context.SaveChanges();
@@ -173,6 +173,15 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             _context.SaveChanges();
             return true;
         }
+        public bool DeleteNotificationFileById(int classNotificationFileId)
+        {
+            var files = _context.ClassNotificationFiles.FirstOrDefault(c => c.Id == classNotificationFileId);
+            if (files==null) { return false; }
+            _context.ClassNotificationFiles.RemoveRange(files);
+            _context.SaveChanges();
+            return true;
+        }
+        
         public List<ClassNotificationFile> GetFilesByNotification(int notificationId)
         {
             return _context.ClassNotificationFiles
@@ -195,8 +204,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 NotificationId = submission.NotificationId,
                 AppUserId = submission.AppUserId,
-                FirstSubmissionTime = DateTime.UtcNow,
-                LatestSubmissionTime = DateTime.UtcNow,
+                FirstSubmissionTime = DateTime.Now,
+                LatestSubmissionTime = DateTime.Now,
                 SubmissionStatus = submission.SubmissionStatus ?? "submitted"
             };
             _context.NotificationSubmissions.Add(ent);
@@ -226,7 +235,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             var ent = _context.NotificationSubmissions.FirstOrDefault(s => s.Id == submissionId);
             if (ent == null) return null;
-            ent.LatestSubmissionTime = DateTime.UtcNow;
+            ent.LatestSubmissionTime = DateTime.Now;
             _context.NotificationSubmissions.Update(ent);
 
             var existing = _context.SubmissionFiles.Where(f => f.SubmissionId == submissionId).ToList();
@@ -392,7 +401,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public int GetMemberClassCount(int classID)
         {
-            return _context.AppUserClasses.Where(a => a.ClassId == classID).GroupBy(a => a.UserId).Count();
+            return _context.AppUserClasses.Where(a => a.ClassId == classID&& a.Status.Equals("joined")).Count();
         }
     }
 }

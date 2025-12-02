@@ -63,7 +63,7 @@ export interface ClassDetailResponse {
   message: string;
   data: {
     classInfo: ClassInfo;
-    teacher: ClassMemberDto | null;
+    teachers: ClassMemberDto[];
     students: ClassMemberDto[];
     parents: ClassMemberDto[];
     notifications: ClassNotification[];
@@ -227,7 +227,8 @@ export interface ClassState {
 
   getSubmissionCount: (classworkId: number) => Promise<number | null>;
 
-  getMemberCount: (classId: number) => Promise<number | null>;
+  getMemberCount: (classId: number|null) => Promise<number | null>;
+  getMemberClassCount: (classID: number) => Promise<number | null>;
 
   getDocumentsByClassId?: (classId: number) => Promise<DocumentDto[] | null>;
 

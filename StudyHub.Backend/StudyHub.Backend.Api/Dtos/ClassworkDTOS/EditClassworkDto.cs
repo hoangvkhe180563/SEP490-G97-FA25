@@ -13,7 +13,7 @@ namespace StudyHub.Backend.Api.Dtos.ClassworkDTOS
         public bool AllowSubmission { get; set; } = false;
         public string? InstructionsHtml { get; set; }
         public List<IFormFile>? Files { get; set; }
-
+        public int[] KeptFileIds { get; set; }
         // Raw incoming JSON string (from form-data)
         public string? LinksJson { get; set; }
 

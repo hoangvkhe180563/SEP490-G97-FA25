@@ -63,6 +63,8 @@ export const useDocumentStore = create<DocumentState>()(
       approveEditRequestError: null,
       rejectEditRequestMessage: "",
       rejectEditRequestError: null,
+      submitForApprovalMessage: "",
+      submitForApprovalError: null,
       getDocumentById: async (id, handlerSuccess) => {
         set({
           isLoading: true,
@@ -235,6 +237,80 @@ export const useDocumentStore = create<DocumentState>()(
           set({
             success: false,
             rejectEditRequestError: axiosMessageErrorHandler(error),
+          });
+          console.error(error);
+          return false;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      submitForApproval: async (
+        documentId: number,
+        handlerSuccess?: () => void
+      ) => {
+        set({
+          isLoading: true,
+          submitForApprovalError: null,
+          submitForApprovalMessage: "",
+        });
+        try {
+          const response = await axiosInstance.post(
+            "/Document/submit-for-approval",
+            {
+              documentId,
+            }
+          );
+          const { data } = response;
+          set({
+            success: data.success,
+            submitForApprovalMessage: data.message || "Đã gửi phê duyệt",
+          });
+          if (data.success && handlerSuccess) {
+            handlerSuccess();
+          }
+          return data.success;
+        } catch (error: unknown) {
+          set({
+            success: false,
+            submitForApprovalError: axiosMessageErrorHandler(error),
+          });
+          console.error(error);
+          return false;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      cancelEditRequest: async (
+        documentId: number,
+        handlerSuccess?: () => void
+      ) => {
+        set({
+          isLoading: true,
+          cancelEditRequestError: null,
+          cancelEditRequestMessage: "",
+        });
+        try {
+          const response = await axiosInstance.post(
+            "/Document/cancel-edit-request",
+            {
+              documentId,
+            }
+          );
+          const { data } = response;
+          set({
+            success: data.success,
+            cancelEditRequestMessage:
+              data.message || "Đã hủy yêu cầu chỉnh sửa",
+          });
+          if (data.success && handlerSuccess) {
+            handlerSuccess();
+          }
+          return data.success;
+        } catch (error: unknown) {
+          set({
+            success: false,
+            cancelEditRequestError: axiosMessageErrorHandler(error),
           });
           console.error(error);
           return false;

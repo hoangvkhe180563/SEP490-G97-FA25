@@ -41,7 +41,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             dto.InactiveRate = dto.TotalUsers == 0 ? 0 : (double)inactiveCount / dto.TotalUsers * 100.0;
 
             // New accounts by period for last 'range' days/months/weeks
-            var since = DateTime.UtcNow.AddDays(-range);
+            var since = DateTime.Now.AddDays(-range);
             var recent = _context.AppUsers.Where(u => u.CreatedAt >= since).ToList();
 
             var list = new List<DateCountDto>();

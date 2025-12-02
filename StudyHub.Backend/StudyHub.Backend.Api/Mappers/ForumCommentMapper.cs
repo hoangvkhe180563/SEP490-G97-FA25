@@ -15,7 +15,35 @@ namespace StudyHub.Backend.Api.Mappers
             bool isOwner = currentUserId.HasValue && comment.CreatedBy == currentUserId.Value;
             bool isAutoDetected = comment.IsHidden && comment.Status == false;
             bool isManuallyHidden = comment.TotalViolationScore >= 10 && comment.IsHidden && comment.Status == true;
-            bool shouldMaskContent = isManuallyHidden && !isOwner && !isModerator;
+            bool shouldMaskContent = comment.IsHidden && !isOwner && !isModerator;
+
+            List<ForumAttachmentDto> attachments;
+            if (shouldMaskContent)
+            {
+                attachments = new List<ForumAttachmentDto>
+        {
+            new ForumAttachmentDto
+            {
+                AttachmentId = 0,
+                FileUrl = "[Nội dung đã bị ẩn do vi phạm quy định cộng đồng]",
+                IsApproved = false,
+                CreatedAt = comment.CreatedAt
+            }
+        };
+            }
+            else
+            {
+                attachments = comment.Attachments?
+                    .Where(a => isModerator || isOwner || a.IsApproved == true)
+                    .Select(a => new ForumAttachmentDto
+                    {
+                        AttachmentId = a.Id,
+                        CommentId = a.CommentId,
+                        FileUrl = a.FileUrl ?? string.Empty,
+                        IsApproved = a.IsApproved,
+                        CreatedAt = a.CreatedAt
+                    }).ToList() ?? new List<ForumAttachmentDto>();
+            }
 
             return new ForumCommentListDto
             {
@@ -39,18 +67,7 @@ namespace StudyHub.Backend.Api.Mappers
                 ReplyCount = comment.ReplyCount,
                 Replies = comment.Replies?.Select(r => r.ToListDto(currentUserId, isModerator)).ToList()
                     ?? new List<ForumCommentListDto>(),
-                Attachments = shouldMaskContent
-                    ? new List<ForumAttachmentDto>()
-                    : (comment.Attachments?
-                        .Where(a => isModerator || isOwner || a.IsApproved == true)
-                        .Select(a => new ForumAttachmentDto
-                        {
-                            AttachmentId = a.Id,
-                            CommentId = a.CommentId,
-                            FileUrl = a.FileUrl ?? string.Empty,
-                            IsApproved = a.IsApproved,
-                            CreatedAt = a.CreatedAt
-                        }).ToList() ?? new List<ForumAttachmentDto>())
+                Attachments = attachments
             };
         }
 
@@ -64,8 +81,35 @@ namespace StudyHub.Backend.Api.Mappers
             bool isOwner = currentUserId.HasValue && comment.CreatedBy == currentUserId.Value;
             bool isAutoDetected = comment.IsHidden && comment.Status == false;
             bool isManuallyHidden = comment.TotalViolationScore >= 10 && comment.IsHidden && comment.Status == true;
-            bool shouldMaskContent = isManuallyHidden && !isOwner && !isModerator;
+            bool shouldMaskContent = comment.IsHidden && !isOwner && !isModerator;
 
+            List<ForumAttachmentDto> attachments;
+            if (shouldMaskContent)
+            {
+                attachments = new List<ForumAttachmentDto>
+        {
+            new ForumAttachmentDto
+            {
+                AttachmentId = 0,
+                FileUrl = "[Nội dung đã bị ẩn do vi phạm quy định cộng đồng]",
+                IsApproved = false,
+                CreatedAt = comment.CreatedAt
+            }
+        };
+            }
+            else
+            {
+                attachments = comment.Attachments?
+                    .Where(a => isModerator || isOwner || a.IsApproved == true)
+                    .Select(a => new ForumAttachmentDto
+                    {
+                        AttachmentId = a.Id,
+                        CommentId = a.CommentId,
+                        FileUrl = a.FileUrl,
+                        IsApproved = a.IsApproved,
+                        CreatedAt = a.CreatedAt
+                    }).ToList() ?? new List<ForumAttachmentDto>();
+            }
 
             return new ForumCommentDetailDto
             {
@@ -88,18 +132,7 @@ namespace StudyHub.Backend.Api.Mappers
                 ReplyCount = comment.ReplyCount,
                 Replies = comment.Replies?.Select(r => r.ToListDto(currentUserId, isModerator)).ToList()
                     ?? new List<ForumCommentListDto>(),
-                Attachments = shouldMaskContent
-                    ? new List<ForumAttachmentDto>()
-                    : (comment.Attachments?
-                        .Where(a => isModerator || isOwner || a.IsApproved == true)
-                        .Select(a => new ForumAttachmentDto
-                        {
-                            AttachmentId = a.Id,
-                            CommentId = a.CommentId,
-                            FileUrl = a.FileUrl,
-                            IsApproved = a.IsApproved,
-                            CreatedAt = a.CreatedAt
-                        }).ToList() ?? new List<ForumAttachmentDto>()),
+                Attachments = attachments,
                 ViolationRecords = isModerator || isOwner
                     ? (comment.ViolationRecords?.Select(v => v.ToDto()).ToList() ?? new List<ViolationRecordDto>())
                     : new List<ViolationRecordDto>()

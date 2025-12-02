@@ -81,7 +81,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     {
                         UserId = userId,
                         ClassId = classId,
-                        JoinDate = DateTime.UtcNow,
+                        JoinDate = DateTime.Now,
                         Status = "joined"
                     };
                     _context.AppUserClasses.Add(newMemberData);

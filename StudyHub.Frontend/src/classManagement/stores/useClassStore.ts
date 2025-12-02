@@ -30,7 +30,7 @@ const defaultCurrentClass: ClassDetailResponse = {
   message: "",
   data: {
     classInfo: defaultClassInfo,
-    teacher: null,
+    teachers: [],
     students: [],
     parents: [],
     notifications: [],
@@ -178,7 +178,7 @@ export const useClassStore = create<ClassState>()(
                   createdObj.instructorName ?? createdObj.instructor ?? "",
                 description:
                   createdObj.description ?? payload.description ?? "",
-                  grade: createdObj.grade ?? payload.grade,
+                grade: createdObj.grade ?? payload.grade,
               }
             : null;
 
@@ -407,7 +407,7 @@ export const useClassStore = create<ClassState>()(
             (memberRoles ?? []).some((r) => pattern.test(String(r)));
 
           const teacherMember =
-            members.find((mm) => hasRole(mm.roles, /teacher/i)) ?? null;
+            members.filter((mm) => hasRole(mm.roles, /teacher/i)) ?? null;
           const parentMembers = members.filter((mm) =>
             hasRole(mm.roles, /parent/i)
           );
@@ -424,7 +424,7 @@ export const useClassStore = create<ClassState>()(
                 ...cur,
                 data: {
                   ...cur.data,
-                  teacher: teacherMember,
+                  teachers: teacherMember,
                   students: studentMembers,
                   parents: parentMembers,
                 },
@@ -891,7 +891,7 @@ export const useClassStore = create<ClassState>()(
               classId: n.classId ?? n.class_id ?? null,
               title: n.title ?? n.name ?? "",
               description: n.description ?? n.desc ?? n.instructionsHtml ?? "",
-              
+
               createdBy,
               createdAt,
               files: n.files ?? n.attachments ?? [],
@@ -938,7 +938,7 @@ export const useClassStore = create<ClassState>()(
                 createdAt: formatISO(data.createdAt),
                 grade: data.grade,
               },
-              teacher: get().currentClass.data.teacher ?? null,
+              teachers: get().currentClass.data.teachers ?? null,
               students: get().currentClass.data.students ?? [],
               parents: get().currentClass.data.parents ?? [],
               notifications,
@@ -975,7 +975,27 @@ export const useClassStore = create<ClassState>()(
           set({ isLoading: false });
         }
       },
-
+      getMemberClassCount: async (classId: number): Promise<number | null> => {
+        try {
+          if (!classId) return null;
+          const res = await axiosInstance.get(
+            `/Classwork/classmembercount/${classId}`
+          );
+          const raw = res?.data ?? null;
+          let count: number | null = null;
+          if (raw !== null) {
+            if (typeof raw === "number") count = raw;
+            else if (typeof raw?.data === "number") count = raw.data;
+            else if (typeof raw?.count === "number") count = raw.count;
+          }
+          return count;
+        } catch (err) {
+          console.error("getMemberCount error:", err);
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
       getDocumentsByClassId: async (
         classId: number
       ): Promise<DocumentDto[] | null> => {
@@ -1081,7 +1101,6 @@ export const useClassStore = create<ClassState>()(
       },
 
       addComment: async (payload) => {
-        set({ isLoading: true, success: false, message: "" });
         try {
           const body = {
             content: payload.content ?? "",
@@ -1093,11 +1112,7 @@ export const useClassStore = create<ClassState>()(
           const raw = res?.data ?? null;
 
           if (!raw || raw.success === false) {
-            set({
-              isLoading: false,
-              success: false,
-              message: raw?.message ?? "Failed to add comment",
-            });
+            // don't set store flags; return null and let caller handle UI
             return null;
           }
 
@@ -1109,48 +1124,13 @@ export const useClassStore = create<ClassState>()(
             userFullname: created.userFullname ?? "Bạn",
             content: created.content ?? payload.content,
             avatarUrl: created.avatarUrl ?? created.imageUrl ?? null,
-            createdAt: formatISO(
-              created.createdAt ?? created.createdAt ?? formatISO(new Date())
-            ),
+            createdAt: formatISO(created.createdAt ?? new Date()),
           };
-
-          set((state) => {
-            const cur = state.currentClass ?? defaultCurrentClass;
-            const updatedNotifications = (cur.data?.notifications ?? []).map(
-              (n) => {
-                if (String(n.id) === String(payload.notificationId)) {
-                  const comments = (n.comments ?? []).concat([mapped]);
-                  return { ...n, comments };
-                }
-                return n;
-              }
-            );
-
-            return {
-              currentClass: {
-                ...cur,
-                data: {
-                  ...cur.data,
-                  notifications: updatedNotifications,
-                },
-                success: true,
-              },
-              success: true,
-              message: raw.message ?? "Comment added",
-            };
-          });
 
           return mapped;
         } catch (err) {
           console.error("addComment error:", err);
-          set({
-            isLoading: false,
-            success: false,
-            message: "Failed to add comment",
-          });
           return null;
-        } finally {
-          set({ isLoading: false });
         }
       },
 
@@ -1208,52 +1188,119 @@ export const useClassStore = create<ClassState>()(
         instructionsHtml?: string | null;
         files?: File[] | null;
         links?: Array<{ url: string; title?: string }> | null;
+        keptExistingFileIds?: Array<number | string> | null;
       }) => {
         set({ isLoading: true, message: "" });
         try {
-          // Build FormData to match EditClassworkDto ([FromForm])
+          // Safety: if this is an edit and caller didn't pass keptExistingFileIds,
+          // try to fetch the current file ids for this classwork so we don't accidentally remove them.
+          let keptIdsToUse: Array<number | string> | null = null;
+          if (Array.isArray(payload.keptExistingFileIds)) {
+            keptIdsToUse = payload.keptExistingFileIds;
+          } else {
+            // attempt to fetch current files for this classwork (best-effort)
+            try {
+              const readCandidates = [
+                `/api/Classwork/${payload.id}`,
+                `/Classwork/${payload.id}`,
+              ];
+              for (const rurl of readCandidates) {
+                try {
+                  const getRes = await axiosInstance.get(rurl);
+                  const raw = getRes?.data ?? null;
+                  // Try to find files array in common places (data.files, files, data.data.files)
+                  const filesCandidate =
+                    raw?.files ??
+                    raw?.data?.files ??
+                    (raw?.data && raw?.data.files) ??
+                    (raw && raw.data && raw.data.files) ??
+                    null;
+                  if (
+                    Array.isArray(filesCandidate) &&
+                    filesCandidate.length > 0
+                  ) {
+                    const ids = filesCandidate
+                      .map((f: any) => {
+                        if (f == null) return null;
+                        return f.id ?? f.fileId ?? f.file_id ?? null;
+                      })
+                      .filter((x: any) => x != null)
+                      .map((x: any) => Number(x));
+                    keptIdsToUse = ids;
+                    break;
+                  }
+                  // some APIs return { data: { ...notificationDto... } }
+                  const notificationDto = raw?.data ?? raw;
+                  const candidateFiles =
+                    notificationDto?.files ??
+                    notificationDto?.attachedFiles ??
+                    null;
+                  if (
+                    Array.isArray(candidateFiles) &&
+                    candidateFiles.length > 0
+                  ) {
+                    const ids = candidateFiles
+                      .map((f: any) => f.id ?? f.fileId ?? f.file_id ?? null)
+                      .filter((x: any) => x != null)
+                      .map((x: any) => Number(x));
+                    keptIdsToUse = ids;
+                    break;
+                  }
+                } catch {
+                  // try next candidate
+                  continue;
+                }
+              }
+            } catch (err) {
+              // best-effort, ignore errors
+              console.debug(
+                "Could not preload existing file ids for edit (will rely on provided keptExistingFileIds)",
+                err
+              );
+            }
+          }
+
+          // If payload explicitly provided keptExistingFileIds (even empty array), use as-is.
+          if (Array.isArray(payload.keptExistingFileIds)) {
+            keptIdsToUse = payload.keptExistingFileIds;
+          }
+
           const form = new FormData();
 
-          // Required/primary fields
+          // Basic fields
           form.append("Title", payload.title ?? "");
           if (payload.description !== undefined)
             form.append("Description", payload.description ?? "");
-          // Deadline: if null explicitly, append empty or omit; server will treat missing as no-change
           if (payload.deadline !== undefined && payload.deadline !== null) {
-            // ensure ISO format if possible
             try {
               const d = new Date(payload.deadline);
-              if (!isNaN(d.getTime())) form.append("Deadline", d.toISOString());
-              else form.append("Deadline", String(payload.deadline));
+              form.append(
+                "Deadline",
+                !isNaN(d.getTime()) ? d.toISOString() : String(payload.deadline)
+              );
             } catch {
               form.append("Deadline", String(payload.deadline));
             }
           }
-
-          // Optional classwork-specific fields
-          if (payload.maxScore !== undefined && payload.maxScore !== null) {
+          if (payload.maxScore !== undefined && payload.maxScore !== null)
             form.append("MaxScore", String(payload.maxScore));
-          }
-          if (payload.gradeType !== undefined && payload.gradeType !== null) {
+          if (payload.gradeType !== undefined && payload.gradeType !== null)
             form.append("GradeType", payload.gradeType);
-          }
           if (
             payload.allowSubmission !== undefined &&
             payload.allowSubmission !== null
-          ) {
+          )
             form.append(
               "AllowSubmission",
               payload.allowSubmission ? "true" : "false"
             );
-          }
           if (
             payload.instructionsHtml !== undefined &&
             payload.instructionsHtml !== null
-          ) {
+          )
             form.append("InstructionsHtml", payload.instructionsHtml);
-          }
 
-          // Links: server DTO exposes LinksJson which the DTO parses to Links.
+          // Links as JSON (server expects LinksJson)
           if (
             payload.links &&
             Array.isArray(payload.links) &&
@@ -1262,11 +1309,11 @@ export const useClassStore = create<ClassState>()(
             try {
               form.append("LinksJson", JSON.stringify(payload.links));
             } catch {
-              // ignore / don't append if stringify fails
+              // ignore
             }
           }
 
-          // Files: append multiple files with the same field name "Files"
+          // Files (only new uploads)
           if (
             payload.files &&
             Array.isArray(payload.files) &&
@@ -1278,32 +1325,114 @@ export const useClassStore = create<ClassState>()(
             }
           }
 
-          // Note: if server expects additional form fields (e.g., ClassId), you can append here.
+          // Kept existing file ids -> append repeated fields "KeptFileIds"
+          // IMPORTANT: we append whatever keptIdsToUse contains (could be derived above)
+          if (Array.isArray(keptIdsToUse) && keptIdsToUse.length > 0) {
+            for (const fid of keptIdsToUse) {
+              form.append("KeptFileIds", String(fid));
+            }
+          } else if (Array.isArray(keptIdsToUse) && keptIdsToUse.length === 0) {
+            // If caller explicitly provided empty array, append nothing - server will treat as empty and remove all.
+            // To avoid accidental deletion, do NOT append anything in that case (server will interpret missing as empty too).
+            // If you want explicit empty semantics, uncomment the next line to send no-kept marker:
+            // form.append("KeptFileIds", "");
+          }
+
+          // Append ClassId if available
           if (payload.classId !== undefined && payload.classId !== null) {
             form.append("ClassId", String(payload.classId));
           }
 
-          // Send PUT with FormData. Do NOT set Content-Type header explicitly so browser sets boundary.
-          const res = await axiosInstance.put(`/Classwork/${payload.id}`, form);
-          const raw = res?.data ?? null;
-
-          if (!raw || raw.success === false) {
-            set({
-              isLoading: false,
-              success: false,
-              message: raw?.message ?? "Sửa bài tập thất bại",
-            });
-            return null;
+          // Debug helper: log FormData keys & types (dev only)
+          try {
+            for (const pair of (form as any).entries()) {
+              const [k, v] = pair as [string, any];
+              if (v instanceof File) {
+                console.debug(
+                  "FormData:",
+                  k,
+                  "=> File:",
+                  v.name,
+                  v.size,
+                  v.type
+                );
+              } else {
+                console.debug("FormData:", k, "=>", v);
+              }
+            }
+          } catch (dbgErr) {
+            console.debug("Failed to iterate FormData for debug", dbgErr);
           }
 
+          // Candidate URLs to try (order matters)
+          const candidates = [
+            `/api/Classwork/${payload.id}`, // matches controller attribute
+            `/Classwork/${payload.id}`, // if axiosInstance.baseURL already includes /api
+          ];
+
+          let lastError: any = null;
+          for (const url of candidates) {
+            try {
+              const res = await axiosInstance.put(url, form);
+              const raw = res?.data ?? null;
+
+              if (!raw || raw.success === false) {
+                set({
+                  isLoading: false,
+                  success: false,
+                  message: raw?.message ?? "Sửa bài tập thất bại",
+                });
+                return null;
+              }
+
+              set({
+                isLoading: false,
+                success: true,
+                message: raw.message ?? "Sửa bài tập thành công",
+              });
+              return raw.data ?? raw;
+            } catch (err: any) {
+              lastError = err;
+              const status = err?.response?.status;
+              console.warn(
+                `editClasswork attempt to ${url} failed:`,
+                status,
+                err?.response?.data ?? err?.message
+              );
+              // If 404 try next candidate
+              if (status === 404) continue;
+              // For other statuses, surface server response
+              if (err?.response?.data) {
+                console.error("Server response data:", err.response.data);
+              } else {
+                console.error("Error message:", err.message);
+              }
+              set({
+                isLoading: false,
+                success: false,
+                message: "Sửa bài tập thất bại",
+              });
+              return null;
+            }
+          }
+
+          // all candidates failed
+          console.error("editClasswork: all URL candidates failed", lastError);
+          if (lastError?.response?.data)
+            console.error("Last server response:", lastError.response.data);
           set({
             isLoading: false,
-            success: true,
-            message: raw.message ?? "Sửa bài tập thành công",
+            success: false,
+            message: "Sửa bài tập thất bại (route not found)",
           });
-          return raw.data ?? raw;
-        } catch (err) {
+          return null;
+        } catch (err: any) {
           console.error("editClasswork error:", err);
+          if (err?.response?.data) {
+            console.error("Server response data:", err.response.data);
+          } else if (err?.message) {
+            console.error("Error message:", err.message);
+          }
           set({
             isLoading: false,
             success: false,
@@ -1314,7 +1443,6 @@ export const useClassStore = create<ClassState>()(
           set({ isLoading: false });
         }
       },
-
       submitClasswork: async (
         classworkId: number,
         appUserId: string,

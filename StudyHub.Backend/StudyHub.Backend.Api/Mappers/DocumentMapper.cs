@@ -8,7 +8,6 @@ namespace StudyHub.Backend.Api.Mappers
     public static class DocumentMapper
     {
 
-        // DocumentMapper.cs - Sửa ToListDto và ToDetailDto
         public static DocumentListDto ToListDto(this Document d)
         {
             return new DocumentListDto

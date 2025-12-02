@@ -533,5 +533,25 @@ namespace StudyHub.Backend.Api.Controllers
             var dtos = documents.Select(d => d.ToListDto()).ToList();
             return Ok(new { success = true, data = dtos });
         }
+        [HttpPost("submit-for-approval")]
+        public async Task<IActionResult> SubmitForApproval([FromBody] ApprovalDto dto)
+        {
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            var document = await _documentService.SubmitForApproval(dto.DocumentId, currentUser.Id);
+            return Ok(new { success = true, data = document.ToDetailDto() });
+        }
+        [HttpPost("cancel-edit-request")]
+        public async Task<IActionResult> CancelEditRequest([FromBody] ApprovalDto dto)
+        {
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            var document = await _documentService.CancelEditRequest(dto.DocumentId, currentUser.Id);
+            return Ok(new { success = true, data = document.ToDetailDto() });
+        }
     }
 }

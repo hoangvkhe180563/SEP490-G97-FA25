@@ -16,6 +16,7 @@ export const useLoading = () => {
   return context;
 };
 
+
 export const LoadingContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [loading, setLoading] = useState<boolean>(false);
 
