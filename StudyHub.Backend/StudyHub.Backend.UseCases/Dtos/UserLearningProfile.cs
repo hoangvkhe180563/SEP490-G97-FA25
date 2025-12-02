@@ -8,7 +8,7 @@ namespace StudyHub.Backend.UseCases.Dtos
 {
     public class UserLearningProfile 
     {
-        public string UserId { get; set; }
+        public string UserId { get; set; }= string.Empty;
         public int SchoolId { get; set; }
         public List<int> CurrentGrades { get; set; } = new();
         public List<string> CurrentSubjectStudied { get; set; } = new();

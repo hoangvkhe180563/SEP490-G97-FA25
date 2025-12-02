@@ -38,7 +38,7 @@ namespace StudyHub.Backend.Api.Controllers
                 var currentUser = _authService.GetCurrentUser();
                 if (currentUser == null) return Unauthorized();
 
-                var profile = _profileService.GetUserLearningProfile(currentUser.Id);
+                var profile = _profileService.GetUserLearningProfile();
 
                 return Ok(new { profile = profile, topK = 30 });
             }
