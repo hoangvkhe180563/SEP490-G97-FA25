@@ -81,7 +81,15 @@ namespace StudyHub.Backend.UseCases.Services
             if (thumbnailFile != null)
                 document.Thumbnail = await _fileStorage.UploadFileAsync(thumbnailFile, FileConstants.ThumbnailUploadPath);
 
-            document.IsApproved = null;
+            if (document.SchoolId.HasValue && document.IsInClass)
+            {
+                document.IsApproved = true;
+            }
+            else
+            {
+                document.IsApproved = false;
+            }
+
             document.CreatedAt = DateTime.Now;
             document.Status = true;
 
@@ -118,13 +126,41 @@ namespace StudyHub.Backend.UseCases.Services
             }
             return created;
         }
+        public async Task<Document> SubmitForApproval(int id, Guid userId)
+        {
+            var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");
 
+            if (document.CreatedBy != userId)
+                throw new InvalidOperationException("Only document owner can submit for approval");
+
+            if (document.IsInClass)
+                throw new InvalidOperationException("Class documents do not require approval");
+
+            if (document.IsApproved != false)
+                throw new InvalidOperationException("Only draft documents can be submitted");
+
+            document.IsApproved = null;
+            document.UpdatedAt = DateTime.Now;
+            document.UpdatedBy = userId;
+
+            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+            if (!isValid)
+            {
+                throw new InvalidOperationException("Failed to update document updated at in search index.");
+            }
+            return _repo.UpdateDocument(document);
+        }
         public async Task<Document> UpdateDocumentAsync(Document document, IFormFile? documentFile = null, IFormFile? thumbnailFile = null)
         {
             var existingDocument = _repo.GetDocumentById(document.Id)
                 ?? throw new InvalidOperationException("Document not found");
 
-            if (existingDocument.IsApproved == true && existingDocument.Status == true && !existingDocument.IsInClass)
+            if (existingDocument.IsApproved == null)
+                throw new InvalidOperationException("Cannot edit document while pending approval.");
+
+            if (existingDocument.IsApproved == true &&
+                existingDocument.Status == true &&
+                !existingDocument.IsInClass)
                 throw new InvalidOperationException("Cannot edit approved documents. Request edit first.");
 
             if (document.IsInClass && document.SchoolId == null)
@@ -164,7 +200,15 @@ namespace StudyHub.Backend.UseCases.Services
             else
                 document.Thumbnail = existingDocument.Thumbnail;
 
-            document.IsApproved = existingDocument.IsApproved;
+            if (document.SchoolId.HasValue && document.IsInClass)
+            {
+                document.IsApproved = true;
+            }
+            else
+            {
+                document.IsApproved = existingDocument.IsApproved;
+            }
+
             document.Status = existingDocument.Status ?? true;
             document.UpdatedAt = DateTime.Now;
 
@@ -202,6 +246,49 @@ namespace StudyHub.Backend.UseCases.Services
                 throw new InvalidOperationException("Failed to update document in search index.");
             }
             return updated;
+        }
+
+        public Document RequestEditDocument(int id, Guid userId)
+        {
+            var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");
+
+            if (document.CreatedBy != userId)
+                throw new InvalidOperationException("Only document owner can request edit");
+
+            if (document.IsInClass)
+                throw new InvalidOperationException("Class documents can be edited directly");
+
+            if (document.IsApproved != true)
+                throw new InvalidOperationException("Only approved documents need edit request");
+
+            document.IsRequested = true;
+            document.UpdatedAt = DateTime.Now;
+            document.UpdatedBy = userId;
+
+            return _repo.UpdateDocument(document);
+        }
+
+        public async Task<Document> CancelEditRequest(int id, Guid userId)
+        {
+            var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");
+
+            if (document.CreatedBy != userId)
+                throw new InvalidOperationException("Only document owner can cancel edit request");
+
+            if (document.IsRequested != true)
+                throw new InvalidOperationException("No pending edit request to cancel");
+
+            document.IsRequested = null;
+            document.IsApproved = false;
+            document.UpdatedAt = DateTime.Now;
+            document.UpdatedBy = userId;
+
+            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+            if (!isValid)
+            {
+                throw new InvalidOperationException("Failed to update document updated at in search index.");
+            }
+            return _repo.UpdateDocument(document);
         }
 
         public async Task<bool> DeleteDocument(int id)
@@ -378,32 +465,33 @@ namespace StudyHub.Backend.UseCases.Services
         public List<Document> GetDocumentsByClass(int classId) => _repo.GetDocumentsByClass(classId);
 
         public List<Class> GetClassesByDocument(int documentId) => _repo.GetClassesByDocument(documentId);
-        public Document RequestEditDocument(int id, Guid userId)
-        {
-            var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");
+        //public Document RequestEditDocument(int id, Guid userId)
+        //{
+        //    var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");
 
-            if (document.CreatedBy != userId)
-                throw new InvalidOperationException("Only document owner can request edit");
+        //    if (document.CreatedBy != userId)
+        //        throw new InvalidOperationException("Only document owner can request edit");
 
-            if (document.IsInClass)
-                throw new InvalidOperationException("Class documents can be edited directly");
+        //    if (document.IsInClass)
+        //        throw new InvalidOperationException("Class documents can be edited directly");
 
-            if (document.IsApproved != true)
-                throw new InvalidOperationException("Only approved documents need edit request");
+        //    if (document.IsApproved != true)
+        //        throw new InvalidOperationException("Only approved documents need edit request");
 
-            document.IsRequested = true;
-            document.UpdatedAt = DateTime.Now;
-            document.UpdatedBy = userId;
+        //    document.IsRequested = true;
+        //    document.UpdatedAt = DateTime.Now;
+        //    document.UpdatedBy = userId;
 
-            return _repo.UpdateDocument(document);
-        }
+        //    return _repo.UpdateDocument(document);
+        //}
+
         public async Task<Document> ApproveEditRequest(int id, Guid approvedBy)
         {
             var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");
             if (document.IsRequested != true) throw new InvalidOperationException("No pending edit request");
 
             document.IsRequested = null;
-            document.IsApproved = null;
+            document.IsApproved = false;
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = approvedBy;
 
@@ -414,6 +502,7 @@ namespace StudyHub.Backend.UseCases.Services
             }
             return _repo.UpdateDocument(document);
         }
+
         public (List<Document> documents, int totalCount) GetEditRequestDocuments(
     bool? isRequested = null, int pageNumber = 1, int pageSize = 10)
     => _repo.GetEditRequestDocuments(isRequested, pageNumber, pageSize);

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { EyeOff, AlertTriangle } from "lucide-react";
+import { EyeOff, AlertTriangle, FileX } from "lucide-react";
 
 interface ImageGridProps {
   images: string[];
@@ -17,6 +17,22 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
   const [revealedImages, setRevealedImages] = useState<Set<number>>(new Set());
 
   if (images.length === 0) return null;
+
+  const isHiddenContent =
+    images.length === 1 && images[0].startsWith("[Nội dung");
+
+  if (isHiddenContent) {
+    return (
+      <div
+        className={`rounded-lg border border-red-200 bg-red-50 p-4 ${className}`}
+      >
+        <div className="flex items-center gap-3">
+          <FileX className="w-5 h-5 text-red-500 flex-shrink-0" />
+          <p className="text-sm text-red-700">{images[0]}</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleRevealImage = (idx: number, e: React.MouseEvent) => {
     e.stopPropagation();

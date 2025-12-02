@@ -19,7 +19,8 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                         Options = question.Options,
                         CorrectAnswer = question.CorrectAnswer.AsInt32,
                         SubjectId = question.SubjectId,
-                        Grade = question.Grade
+                        Grade = question.Grade,
+                        Status = question.Status,
                     };
                 case 1:
                     {
@@ -38,7 +39,8 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                             Options = question.Options,
                             CorrectAnswer = correctAnswerIndexes,
                             SubjectId = question.SubjectId,
-                            Grade = question.Grade
+                            Grade = question.Grade,
+                            Status = question.Status,
                         };
                     }
                 case 2:
@@ -49,7 +51,8 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                         Type = QuestionType.TextInput,
                         CorrectAnswer = question.CorrectAnswer.AsString,
                         SubjectId = question.SubjectId,
-                        Grade = question.Grade
+                        Grade = question.Grade,
+                        Status = question.Status
                     };
                 case 3:
                     return new FillBlankQuestion
@@ -59,7 +62,8 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                         Type = QuestionType.FillBlank,
                         CorrectAnswer = question.CorrectAnswer.AsBsonArray.Select(a => a.AsString).ToList(),
                         SubjectId = question.SubjectId,
-                        Grade = question.Grade
+                        Grade = question.Grade,
+                        Status = question.Status
                     };
                 case 4:
                     {
@@ -82,7 +86,8 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                             Definitions = question.Definitions,
                             CorrectAnswer = correctMatches,
                             SubjectId = question.SubjectId,
-                            Grade = question.Grade
+                            Grade = question.Grade,
+                            Status = question.Status
                         };
                     }
             }
@@ -101,6 +106,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers
                 questionData.Grade = question.Grade;
             }
             questionData.QuestionText = question.QuestionText;
+            questionData.Status = question.Status;
             switch (question.Type)
             {
                 case QuestionType.SingleChoice:

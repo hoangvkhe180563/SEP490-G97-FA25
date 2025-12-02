@@ -84,21 +84,21 @@ export default function LoginPage() {
       await login("", identifier, data.password, (user) => {
         if (user) {
           if (user.schoolId !== null) {
-            navigate(`/ui/${user?.schoolId}/landing`);
+            navigate(`/ui/school-landing`);
             return;
           }
         }
-        navigate("/");
+        navigate("/ui/landing");
       });
     } else {
       await login(identifier, "", data.password, (user) => {
         if (user) {
           if (user.schoolId !== null) {
-            navigate(`/ui/${user?.schoolId}/landing`);
+            navigate(`/ui/school-landing`);
             return;
           }
         }
-        navigate("/");
+        navigate("/ui/landing");
       });
     }
     setLastIdentifier(identifier);
@@ -110,10 +110,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-[url('/bg-auth.png')] bg-[length:100%_100%] bg-no-repeat">
       <ActivateFormModal />
       <div className="max-w-md w-full space-y-8">
         <div>
+          <img className="w-50 h-25 mx-auto cursor-pointer" onClick={() => navigate("/")} src="/StudyHubLogo.png" alt="Logo Studyhub" />
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Đăng nhập
           </h2>

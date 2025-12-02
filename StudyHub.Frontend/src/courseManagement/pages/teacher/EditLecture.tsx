@@ -13,6 +13,11 @@ import {
 import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
 import { ArrowLeft, Loader2, Upload, X, HelpCircle } from "lucide-react";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/common/components/ui/popover";
 import { useQuill } from "react-quilljs";
 import "quill/dist/quill.snow.css";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
@@ -23,6 +28,7 @@ import courseApi from "@/courseManagement/services/courseService";
 // Checkbox removed; embed is default
 import { formatISO } from "date-fns";
 import QuestionTemplate from "@/exam/components/QuestionTemplate";
+import RandomQuestionTemplate from "@/exam/components/RandomQuestionTemplate";
 
 const EditLecture: React.FC = () => {
   const navigate = useNavigate();
@@ -52,6 +58,9 @@ const EditLecture: React.FC = () => {
   const [description, setDescription] = useState("");
   const [postDate, setPostDate] = useState("");
   const [isPreview, setIsPreview] = useState(false);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number>(0);
+  const [selectedGrade, setSelectedGrade] = useState<number>(0);
+  const [randomQuestions, setRandomQuestions] = useState<string>("");
 
   // Interactive questions metadata (local only until saved to backend)
   const [interactiveQuestions, setInteractiveQuestions] = useState<
@@ -744,10 +753,13 @@ const EditLecture: React.FC = () => {
         fieldErrors.duration =
           "Với loại bài giảng kiểm tra thì thời gian là bắt buộc!";
 
-      if (questions.length === 0)
+      if (questions.length === 0) {
         aggErrors.push(
           "Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi."
         );
+      } else if (!Number(randomQuestions)) {
+        aggErrors.push("Vui lòng điền số câu hỏi cần tạo!");
+      }
 
       for (const q of questions) {
         if (!q.questionText.trim()) {
@@ -997,6 +1009,12 @@ const EditLecture: React.FC = () => {
         showCorrectAnswers: true,
         openTime: new Date(postDate),
       };
+
+      if (questions.length === 0) {
+        examToUpdate.noRandomQuestions = Number(randomQuestions) ?? 0;
+        examToUpdate.subjectId = selectedSubjectId;
+        examToUpdate.grade = selectedGrade;
+      }
 
       const isExamUpdated =
         type === "exam" ? await courseApi.updateExam(examToUpdate) : true;
@@ -1261,9 +1279,44 @@ const EditLecture: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-3">
-              <Label className="text-gray-800 font-medium text-sm">
-                Tài nguyên (File đính kèm)
-              </Label>
+              <div className="flex items-center gap-2">
+                <Label className="text-gray-800 font-medium text-sm">
+                  Tài nguyên (File đính kèm)
+                </Label>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Hướng dẫn tải tài nguyên"
+                      className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-gray-700"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-[320px] p-3">
+                    <div className="text-sm text-gray-700">
+                      <div className="font-medium mb-2">
+                        Hướng dẫn tải tài nguyên
+                      </div>
+                      <ol className="list-decimal pl-5 space-y-1">
+                        <li>
+                          Nhấn nút để chọn file từ máy tính (tất cả định dạng
+                          được hỗ trợ).
+                        </li>
+                        <li>
+                          Sau khi chọn file, nhấn "Tải lên" để upload lên
+                          server.
+                        </li>
+                        <li>
+                          Chờ popup thông báo "Tải lên tài nguyên thành công"
+                          trước khi tiếp tục.
+                        </li>
+                      </ol>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
 
               <div className="border border-dashed border-gray-300 rounded-xl p-4 bg-gray-50 hover:bg-gray-100 transition-colors duration-150">
                 {!resourceUrl ? (
@@ -1578,22 +1631,22 @@ const EditLecture: React.FC = () => {
             <Label>
               Câu hỏi <span className="text-red-500">*</span>
             </Label>
-            <QuestionTemplate
-              questions={questions}
-              setQuestions={(qs: any) => {
-                setQuestions(qs);
-                setErrors((prev) => {
-                  if (!prev || !prev.questions) return prev;
-                  const c = { ...prev };
-                  delete c.questions;
-                  return c;
-                });
-              }}
-            />
-            {errors.questions && (
-              <div className="text-sm text-rose-600 mt-1">
-                {errors.questions}
-              </div>
+
+            {questions.length > 0 ? (
+              <QuestionTemplate
+                questions={questions}
+                setQuestions={setQuestions}
+              />
+            ) : (
+              <RandomQuestionTemplate
+                isLesson
+                selectedSubjectId={selectedSubjectId}
+                setSelectedSubjectId={setSelectedSubjectId}
+                selectedGrade={selectedGrade}
+                setSelectedGrade={setSelectedGrade}
+                selectedRandomQuestions={randomQuestions}
+                setSelectedRandomQuestions={setRandomQuestions}
+              />
             )}
           </div>
         </div>

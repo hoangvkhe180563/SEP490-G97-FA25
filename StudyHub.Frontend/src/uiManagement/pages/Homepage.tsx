@@ -16,7 +16,7 @@ const Homepage = () => {
 
   useEffect(() => {
     if (user && user.schoolId !== null) {
-      navigate(`/ui/${user.schoolId}/landing`);
+      navigate(`/ui/school-landing`);
       return;
     }
 
@@ -27,23 +27,23 @@ const Homepage = () => {
       } catch (error) {
         console.log("error", error);
         setData({
-          bannerImage: "/src/uiManagement/assets/banner-image.png",
-          logoImage: "/src/common/assets/StudyHubLogo.png",
+          bannerImage: "/banner-image.png",
+          logoImage: "/StudyHubLogo.png",
           description: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book.",
           featuredCourses: [],
           featuredDocuments: [],
           featuredTeachers: [],
           introductionImage: [
-            "/src/common/assets/StudyHubLogo.png",
-            "/src/common/assets/StudyHubLogo.png",
-            "/src/common/assets/StudyHubLogo.png"
+            "/StudyHubLogo.png",
+            "/StudyHubLogo.png",
+            "/StudyHubLogo.png"
           ]
         })
       }
     }
 
     fetchData().catch(console.error);
-  }, [])
+  }, [user])
 
   return <div className="w-full h-full overflow-y-auto">
     <Banner logo={data?.logoImage} image={data?.bannerImage} schoolId={0} />

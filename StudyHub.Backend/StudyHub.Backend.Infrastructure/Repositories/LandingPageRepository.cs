@@ -16,8 +16,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         private Domain.Entities.LandingPage DEFAULT_LANDING_PAGE = new Domain.Entities.LandingPage
         {
             SchoolId = 0,
-            BannerUrl = "/src/uiManagement/assets/banner-image.png",
-            SchoolLogoUrl = "/src/common/assets/StudyHubLogo.png",
+            BannerUrl = "/banner-image.png",
+            SchoolLogoUrl = "/StudyHubLogo.png",
             Description = "StudyHub là một trang web phục vụ học tập và ôn luyện cho học sinh, giúp học sinh định hướng được phương pháp học tập cho bản thân.",
             FeaturedCourses = [],
             FeaturedDocuments = [],
@@ -172,9 +172,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (schoolId == 0)
                 {
                     return [
-                        "/src/common/assets/StudyHubLogo.png",
-                        "/src/common/assets/StudyHubLogo.png",
-                        "/src/common/assets/StudyHubLogo.png"
+                        "/StudyHubLogo.png",
+                        "/StudyHubLogo.png",
+                        "/StudyHubLogo.png"
                     ];
                 }
                 else
@@ -186,9 +186,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 new InfrastructureException("LandingPageRepository", "GetLandingPageImages failed. Inner error: " + ex.Message).LogError();
                 return [
-                    "/src/common/assets/StudyHubLogo.png",
-                    "/src/common/assets/StudyHubLogo.png",
-                    "/src/common/assets/StudyHubLogo.png"
+                    "/StudyHubLogo.png",
+                    "/StudyHubLogo.png",
+                    "/StudyHubLogo.png"
                 ];
             }
         }
@@ -356,6 +356,31 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 new InfrastructureException("LandingPageRepository", "GetLandingPages failed. Inner error: " + ex.Message).LogError();
             }
             return [];
+        }
+
+        public string GetSchoolAddress(int schoolId)
+        {
+            try
+            {
+                var school = _context.Schools.FirstOrDefault(s => s.Id == schoolId);
+                if (school == null) throw new Exception("School is null");
+
+                int communeId = school.CommuneId;
+
+                Data.Commune commune = _context.Communes.First(c => c.Id == communeId);
+                string communeName = commune.Name;
+                Data.Province province = _context.Provinces.First(p => p.Id == commune.ProvinceId);
+                string provinceName = province.Name;
+                Data.City city = _context.Cities.First(c => c.Id == province.CityId);
+                string cityName = city.Name;
+
+                return $"{school.Address}, Phường {communeName}, Quận {provinceName}, Thành phố {cityName}";
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("LandingPageRepository", "GetSchoolAddress failed. Inner error: " + ex.Message).LogError();
+            }
+            return string.Empty;
         }
     }
 }

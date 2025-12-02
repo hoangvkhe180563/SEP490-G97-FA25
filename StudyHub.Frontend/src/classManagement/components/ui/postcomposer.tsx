@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { X, Youtube, Upload, Link as LinkIcon } from "lucide-react";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 /* shadcn components */
 import { Button } from "@/common/components/ui/button";
@@ -35,6 +36,8 @@ type Attachment =
       thumbnail?: string;
       domain?: string;
     };
+
+
 
 export default function PostComposer({
   onPost,
@@ -168,8 +171,6 @@ export default function PostComposer({
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
-  
-
   const fetchLinkPreview = async (url: string) => {
     setLinkError(null);
     setLinkPreview(null);
@@ -262,6 +263,15 @@ export default function PostComposer({
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;");
 
+  // --- NEW: determine fallback avatar from auth store if avatarUrl prop missing ---
+  const { user } = useAuthStore();
+  const fallbackAvatar =
+    avatarUrl 
+  ;
+
+  // track if avatar image fails to load and fall back to initials
+  const [imgBroken, setImgBroken] = useState(false);
+
   return (
     <>
       <motion.div
@@ -272,8 +282,24 @@ export default function PostComposer({
         <div className="flex space-x-3">
           <div>
             <Avatar>
-              <AvatarImage src={avatarUrl ?? "/vite.svg"} alt="avatar" />
-              <AvatarFallback>U</AvatarFallback>
+              {!imgBroken && fallbackAvatar ? (
+                <AvatarImage
+                  src={fallbackAvatar}
+                  alt="avatar"
+                  onError={() => setImgBroken(true)}
+                />
+              ) : (
+                <AvatarFallback>
+                  {(user as any)?.fullname
+                    ? String((user as any).fullname)
+                        .split(/\s+/)
+                        .map((p: string) => p.charAt(0))
+                        .slice(0, 2)
+                        .join("")
+                        .toUpperCase()
+                    : "U"}
+                </AvatarFallback>
+              )}
             </Avatar>
           </div>
 
@@ -409,8 +435,6 @@ export default function PostComposer({
                 </div>
 
                 <div className="flex items-center gap-4 mt-3 ml-1 text-gray-500">
-                  
-
                   <label title="Tải tệp lên" className="cursor-pointer">
                     <div className="p-2 hover:text-blue-600 rounded-full hover:bg-gray-100 inline-flex">
                       <Upload size={18} />
@@ -441,8 +465,6 @@ export default function PostComposer({
           </div>
         </div>
       </motion.div>
-
-      
 
       {/* Link Dialog */}
       <Dialog open={showLinkModal} onOpenChange={(val) => !val && setShowLinkModal(false)}>

@@ -219,9 +219,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return (result, totalCount);
         }
         private IQueryable<Data.Document> ApplyManagerFilters(
-     IQueryable<Data.Document> query, string? searchQuery, int? categoryId, int? grade,
-     string? subject, int? classId, bool? isApproved, bool? status, bool? hasEditRequest,
-     DateTime? createdFrom, DateTime? createdTo, DateTime? updatedFrom, DateTime? updatedTo)
+             IQueryable<Data.Document> query, string? searchQuery, int? categoryId, int? grade,
+             string? subject, int? classId, bool? isApproved, bool? status, bool? hasEditRequest,
+             DateTime? createdFrom, DateTime? createdTo, DateTime? updatedFrom, DateTime? updatedTo)
         {
             if (!string.IsNullOrWhiteSpace(searchQuery))
             {
@@ -255,7 +255,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
             if (isApproved.HasValue)
             {
-                query = query.Where(d => d.IsApproved == isApproved.Value);
+                if (isApproved.Value)
+                    query = query.Where(d => d.IsApproved == true);
+                else
+                    query = query.Where(d => d.IsApproved == null);
             }
 
             if (status.HasValue)

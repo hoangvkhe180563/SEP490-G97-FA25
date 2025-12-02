@@ -68,7 +68,7 @@ export interface DialogState {
   navigateTo?: string;
 }
 
-export type CourseStatus = "Mở" | "Đóng" | "Nháp";
+export type CourseStatus = "Open" | "Closed" | "Draft" | "Requested" | "Edited";
 
 export type LessonResource = {
   id: number;
@@ -166,9 +166,12 @@ export interface Exam {
   lessonId?: number;
   openTime: Date;
   closeTime?: Date;
+  noRandomQuestions?: number;
+  subjectId?: number;
+  grade?: number;
 }
 
 export interface LessonExamStatus {
-  latestTime: Date,
-  isDisabled: boolean
+  latestTime: Date;
+  isDisabled: boolean;
 }

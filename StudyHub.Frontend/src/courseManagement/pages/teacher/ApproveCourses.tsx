@@ -2,6 +2,13 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/common/components/ui/input";
 import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/common/components/ui/select";
+import {
   Card,
   CardHeader,
   CardTitle,
@@ -21,8 +28,19 @@ import {
 import { Button } from "@/common/components/ui/button";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { format, formatISO } from "date-fns";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as ReTooltip,
+} from "recharts";
 import { documentService } from "@/documentManagement/services/documentService";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { useAppUserStore } from "@/user/stores/useAppUserStore";
+import courseApi from "@/courseManagement/services/courseService";
 
 const ApproveCourses: React.FC = () => {
   const navigate = useNavigate();
@@ -35,6 +53,13 @@ const ApproveCourses: React.FC = () => {
   const authUser = useAuthStore((s) => s.user);
 
   const [query, setQuery] = useState("");
+  // statsRange: determines how far back to include courses for statistics
+  const [statsRange, setStatsRange] = useState<"week" | "month" | "year">(
+    "week"
+  );
+  const [statsCourses, setStatsCourses] = useState<any[]>([]);
+  const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
+  const getAppUserById = useAppUserStore((s) => s.getAppUserById);
   const load = async () => {
     try {
       const s = await documentService.getSubjects();
@@ -44,14 +69,98 @@ const ApproveCourses: React.FC = () => {
     }
   };
 
+  const fetchStats = async () => {
+    try {
+      // retrieve a reasonable number of recent courses for stats (use large pageSize)
+      const res = await courseApi.getCourses({
+        page: 1,
+        pageSize: 200,
+        schoolId: authUser?.schoolId,
+      });
+      let items = res.items || [];
+
+      // filter by selected range (week/month/year)
+      const now = new Date();
+      const cutoff = new Date();
+      if (statsRange === "week") {
+        cutoff.setDate(now.getDate() - 7);
+      } else if (statsRange === "month") {
+        cutoff.setMonth(now.getMonth() - 1);
+      } else {
+        cutoff.setFullYear(now.getFullYear() - 1);
+      }
+
+      items = items.filter((c: any) => {
+        if (!c.createdAt) return false;
+        try {
+          const d = new Date(c.createdAt);
+          return d >= cutoff;
+        } catch (e) {
+          return false;
+        }
+      });
+
+      setStatsCourses(items);
+      // resolve creator names for stats items
+      const ids = Array.from(
+        new Set(items.map((c: any) => String(c.createdBy)).filter(Boolean))
+      );
+      resolveCreatorNames(ids).catch(() => {});
+    } catch (err) {
+      console.error("Failed to fetch stats courses", err);
+      setStatsCourses([]);
+    }
+  };
+
+  const resolveCreatorNames = async (ids: string[]) => {
+    const toFetch = ids.filter((id) => id && !creatorNames[id]);
+    if (toFetch.length === 0) return;
+    const next: Record<string, string> = {};
+    for (const id of toFetch) {
+      try {
+        const res: any = await getAppUserById(String(id));
+        const data = res?.data ?? res?.Data ?? res;
+        const name =
+          (data &&
+            (data.fullname ||
+              data.fullName ||
+              data.full_name ||
+              data.username ||
+              data.displayName)) ||
+          id;
+        next[id] = name;
+      } catch (e) {
+        next[id] = id;
+      }
+    }
+    setCreatorNames((prev) => ({ ...prev, ...next }));
+  };
+
   useEffect(() => {
-    fetchCourses({ page: 1, pageSize: 50, isApproved: false, status: "Mở" });
+    fetchCourses({ page: 1, pageSize: 50, isApproved: false });
     load();
   }, [fetchCourses]);
 
-  // Dashboard statistics derived from loaded (pending) courses
+  useEffect(() => {
+    if (!authUser?.schoolId) return;
+    fetchStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statsRange, authUser?.schoolId]);
+
+  // keep creator names up-to-date when pending courses list changes
+  useEffect(() => {
+    const ids = Array.from(
+      new Set(
+        (courses || []).map((c: any) => String(c.createdBy)).filter(Boolean)
+      )
+    );
+    if (ids.length > 0) resolveCreatorNames(ids).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courses]);
+
+  // Dashboard statistics derived from recent courses (statsCourses)
   const stats = useMemo(() => {
-    const items = courses || [];
+    const items = statsCourses || [];
     const pendingCount = items.filter(
       (c: any) => c.isApproved === false || c.isApproved == null
     ).length;
@@ -83,14 +192,13 @@ const ApproveCourses: React.FC = () => {
       .slice(0, 5)
       .map(([id, cnt]) => ({ id, count: cnt }));
 
-    // recent submissions (most recent first)
+    // recent submissions (most recent first) — include all recent items
     const recent = items
       .slice()
       .sort(
         (a: any, b: any) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      .slice(0, 6);
+      );
 
     // submissions per day (last 14 days)
     const perDay = new Map<string, number>();
@@ -115,7 +223,68 @@ const ApproveCourses: React.FC = () => {
       recent,
       perDay,
     };
-  }, [courses, subjects]);
+  }, [statsCourses, subjects]);
+
+  // chart data aggregated by selected statsRange
+  const chartData = React.useMemo(() => {
+    const items = statsCourses || [];
+    const now = new Date();
+
+    if (statsRange === "week") {
+      // last 7 days (labels as dd/MM)
+      const buckets: { label: string; count: number; date: string }[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        const key = format(d, "yyyy-MM-dd");
+        buckets.push({ label: format(d, "dd/MM"), count: 0, date: key });
+      }
+      for (const c of items) {
+        if (!c.createdAt) continue;
+        const d = new Date(c.createdAt);
+        const k = format(d, "yyyy-MM-dd");
+        const b = buckets.find((x) => x.date === k);
+        if (b) b.count++;
+      }
+      return buckets.map((b) => ({ label: b.label, count: b.count }));
+    }
+
+    if (statsRange === "month") {
+      // last 30 days
+      const days = 30;
+      const buckets: { label: string; count: number; date: string }[] = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        const key = format(d, "yyyy-MM-dd");
+        buckets.push({ label: format(d, "dd/MM"), count: 0, date: key });
+      }
+      for (const c of items) {
+        if (!c.createdAt) continue;
+        const d = new Date(c.createdAt);
+        const k = format(d, "yyyy-MM-dd");
+        const b = buckets.find((x) => x.date === k);
+        if (b) b.count++;
+      }
+      return buckets.map((b) => ({ label: b.label, count: b.count }));
+    }
+
+    // year: group by month for last 12 months
+    const months: { label: string; count: number; yearMonth: string }[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = format(d, "yyyy-MM");
+      months.push({ label: format(d, "MM/yyyy"), count: 0, yearMonth: key });
+    }
+    for (const c of items) {
+      if (!c.createdAt) continue;
+      const d = new Date(c.createdAt);
+      const k = format(d, "yyyy-MM");
+      const m = months.find((x) => x.yearMonth === k);
+      if (m) m.count++;
+    }
+    return months.map((m) => ({ label: m.label, count: m.count }));
+  }, [statsCourses, statsRange]);
 
   // 🔍 Lọc động (không cần nút)
   const filteredCourses = useMemo(() => {
@@ -135,20 +304,26 @@ const ApproveCourses: React.FC = () => {
       await fetchCourseById(id);
       const selected = useCourseStore.getState().selectedCourse;
       if (!selected) return alert("Không tìm thấy khóa học!");
-
       const dto: any = {
         ...selected,
         updatedAt: formatISO(new Date()),
         updatedBy: authUser?.id ?? null,
-        isApproved: true,
       };
+
+      // If the course is an edit-request, approving it should move it to Draft ('Nháp')
+      // and mark it as approved so the owner can edit the draft.
+      if (String(selected.status).trim() === "Chỉnh sửa") {
+        dto.status = "Nháp";
+        dto.isApproved = true;
+      } else {
+        dto.isApproved = true;
+      }
 
       await updateCourse(id, dto);
       await fetchCourses({
         page: 1,
         pageSize: 50,
         isApproved: false,
-        status: "Mở",
       });
     } catch (err) {
       console.error("Approve failed", err);
@@ -162,21 +337,27 @@ const ApproveCourses: React.FC = () => {
       await fetchCourseById(id);
       const selected = useCourseStore.getState().selectedCourse;
       if (!selected) return alert("Không tìm thấy khóa học!");
-
       const dto: any = {
         ...selected,
         updatedAt: formatISO(new Date()),
         updatedBy: authUser?.id ?? null,
-        isApproved: false,
-        status: "Đóng",
       };
+
+      // If the course was an edit-request, rejecting the request should reopen the
+      // course (set status to 'Mở') and mark it as approved/open.
+      if (String(selected.status).trim() === "Chỉnh sửa") {
+        dto.status = "Mở";
+        dto.isApproved = true;
+      } else {
+        dto.status = "Nháp";
+        dto.isApproved = true;
+      }
 
       await updateCourse(id, dto);
       await fetchCourses({
         page: 1,
         pageSize: 50,
         isApproved: false,
-        status: "Mở",
       });
     } catch (err) {
       console.error("Reject failed", err);
@@ -199,6 +380,21 @@ const ApproveCourses: React.FC = () => {
           onChange={(e) => setQuery(e.target.value)}
           className="w-full sm:w-80"
         />
+        <div className="w-44">
+          <Select
+            value={statsRange}
+            onValueChange={(v) => setStatsRange(v as "week" | "month" | "year")}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Phạm vi" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="week">Tuần</SelectItem>
+              <SelectItem value="month">Tháng</SelectItem>
+              <SelectItem value="year">Năm</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Dashboard summary cards */}
@@ -218,7 +414,13 @@ const ApproveCourses: React.FC = () => {
           <div className="text-xs text-slate-400">Tổng mục lấy về</div>
         </div>
         <div className="p-4 rounded bg-gradient-to-r from-amber-50 to-white border-l-4 border-amber-500 shadow-sm">
-          <div className="text-xs text-amber-600">Mục mới (7d)</div>
+          <div className="text-xs text-amber-600">
+            {statsRange === "week"
+              ? "Mục mới (7d)"
+              : statsRange === "month"
+              ? "Mục mới (30d)"
+              : "Mục mới (12 tháng)"}
+          </div>
           <div className="text-2xl font-bold text-amber-800 mt-1">
             {Array.from(stats.perDay.values()).reduce((s, n) => s + n, 0)}
           </div>
@@ -237,86 +439,83 @@ const ApproveCourses: React.FC = () => {
 
       {/* Sparkline & recent */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <div className="col-span-2 p-4 border rounded bg-white shadow-sm">
+        <div className="col-span-3 p-4 border rounded bg-white shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-sm text-slate-600">Lịch nộp bài (14 ngày)</div>
+            <div className="text-sm text-slate-600">
+              Lịch nộp bài (
+              {statsRange === "week"
+                ? "7 ngày"
+                : statsRange === "month"
+                ? "30 ngày"
+                : "12 tháng"}
+              )
+            </div>
             <div className="text-xs text-slate-400">
-              Tổng:{" "}
-              {Array.from(stats.perDay.values()).reduce((s, n) => s + n, 0)}
+              Tổng: {chartData.reduce((s, n) => s + (n.count ?? 0), 0)}
             </div>
           </div>
-          <div className="w-full h-24">
-            {/* simple sparkline svg */}
-            <svg viewBox={`0 0 140 40`} className="w-full h-24">
-              {(() => {
-                const vals = Array.from(stats.perDay.values());
-                const max = Math.max(...vals, 1);
-                const stepX = 140 / Math.max(vals.length - 1, 1);
-                const points = vals
-                  .map((v, i) => `${i * stepX},${40 - (v / max) * 36}`)
-                  .join(" ");
-                return (
-                  <>
-                    <polyline
-                      points={points}
-                      fill="none"
-                      stroke="#7c3aed"
-                      strokeWidth={2}
-                      strokeLinejoin="round"
-                      strokeLinecap="round"
-                    />
-                    {vals.map((v, i) => {
-                      const x = i * stepX;
-                      const y = 40 - (v / max) * 36;
-                      return (
-                        <circle
-                          key={i}
-                          cx={x}
-                          cy={y}
-                          r={1.8}
-                          fill={i === vals.length - 1 ? "#06b6d4" : "#60a5fa"}
-                        />
-                      );
-                    })}
-                  </>
-                );
-              })()}
-            </svg>
+          <div className="w-full h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={chartData}
+                margin={{ top: 8, right: 12, left: 0, bottom: 8 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                <ReTooltip />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#6366F1"
+                  strokeWidth={2}
+                  dot={{ r: 2 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
-        <div className="p-4 border rounded bg-white shadow-sm">
+        <div className="col-span-3 p-4 border rounded bg-white shadow-sm">
           <div className="text-sm text-slate-600 mb-2">Mục nộp gần đây</div>
-          <ul className="text-sm space-y-2">
-            {stats.recent.length === 0 ? (
-              <li className="text-slate-500">Không có</li>
-            ) : (
-              stats.recent.map((r: any) => (
-                <li key={r.id} className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium text-slate-800">{r.name}</div>
-                    <div className="text-xs text-slate-400">
-                      {r.createdBy ?? "-"} •{" "}
-                      {r.createdAt
-                        ? format(new Date(r.createdAt), "yyyy-MM-dd")
-                        : "-"}
+          <div className="max-h-56 overflow-y-auto">
+            <ul className="text-sm space-y-2">
+              {stats.recent.length === 0 ? (
+                <li className="text-slate-500">Không có</li>
+              ) : (
+                stats.recent.map((r: any) => (
+                  <li
+                    key={r.id}
+                    className="flex items-center justify-between py-2"
+                  >
+                    <div>
+                      <div className="font-medium text-slate-800">{r.name}</div>
+                      <div className="text-xs text-slate-400">
+                        {creatorNames[String(r.createdBy)] ??
+                          r.createdBy ??
+                          "-"}{" "}
+                        •{" "}
+                        {r.createdAt
+                          ? format(new Date(r.createdAt), "yyyy-MM-dd")
+                          : "-"}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() =>
-                        navigate(`/course/teacher/courses/${r.id}`)
-                      }
-                      className="text-slate-600"
-                    >
-                      Xem
-                    </Button>
-                  </div>
-                </li>
-              ))
-            )}
-          </ul>
+                    <div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          navigate(`/course/teacher/courses/${r.id}`)
+                        }
+                        className="text-slate-600"
+                      >
+                        Xem
+                      </Button>
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
         </div>
       </div>
 
@@ -364,7 +563,11 @@ const ApproveCourses: React.FC = () => {
                         {subjects.find((s: any) => s.id === c.subjectId)?.name}
                       </div>
                       <div className="text-xs text-gray-400">
-                        Tạo bởi: {c.createdBy ?? "—"} •{" "}
+                        Tạo bởi:{" "}
+                        {creatorNames[String(c.createdBy)] ??
+                          c.createdBy ??
+                          "—"}{" "}
+                        •{" "}
                         {c.createdAt
                           ? format(new Date(c.createdAt), "yyyy-MM-dd")
                           : ""}

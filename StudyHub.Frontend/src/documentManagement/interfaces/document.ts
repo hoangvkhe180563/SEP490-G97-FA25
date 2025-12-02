@@ -337,6 +337,14 @@ export interface DocumentState {
   approveEditRequestError: string | null;
   rejectEditRequestMessage: string;
   rejectEditRequestError: string | null;
+  submitForApprovalMessage: string;
+  submitForApprovalError: string | null;
+  cancelEditRequestMessage: string;
+  cancelEditRequestError: string | null;
+  cancelEditRequest: (
+    documentId: number,
+    handlerSuccess?: () => void
+  ) => Promise<boolean>;
   getDocumentById: (
     id: number,
     handlerSuccess?: () => void
@@ -453,4 +461,8 @@ export interface DocumentState {
     handlerSuccess?: () => void
   ) => Promise<boolean>;
   setCurrentPage: (page: number) => void;
+  submitForApproval: (
+    documentId: number,
+    handlerSuccess?: () => void
+  ) => Promise<boolean>;
 }

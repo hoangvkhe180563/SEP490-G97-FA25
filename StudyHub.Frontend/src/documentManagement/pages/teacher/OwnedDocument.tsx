@@ -478,7 +478,7 @@ function DocumentHeader({
                 <SelectItem value="all">Tất cả</SelectItem>
                 <SelectItem value="approved">Đã duyệt</SelectItem>
                 <SelectItem value="pending">Chờ duyệt</SelectItem>
-                <SelectItem value="rejected">Từ chối</SelectItem>
+                <SelectItem value="rejected">Nháp</SelectItem>
                 <SelectItem value="editRequest">Yêu cầu chỉnh sửa</SelectItem>
               </SelectContent>
             </Select>
@@ -639,7 +639,7 @@ function DocumentDetail({
   ) => {
     if (isRequested === true) return "Chờ duyệt chỉnh sửa";
     if (isApproved === true) return "Đã duyệt";
-    if (isApproved === false) return "Từ chối";
+    if (isApproved === false) return "Nháp";
     return "Chờ duyệt";
   };
   return (

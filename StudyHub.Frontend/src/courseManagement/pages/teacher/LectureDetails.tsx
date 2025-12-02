@@ -47,7 +47,9 @@ const LectureDetails: React.FC = () => {
   );
   const getLessonResource = useCourseStore((s) => s.getLessonResource);
   const fetchCourseById = useCourseStore((s) => s.fetchCourseById);
-  const [lessonExamQuestions, setLessonExamQuestions] = useState<Question[]>([]);
+  const [lessonExamQuestions, setLessonExamQuestions] = useState<Question[]>(
+    []
+  );
 
   useEffect(() => {
     (async () => {
@@ -119,7 +121,7 @@ const LectureDetails: React.FC = () => {
     }
     const questions = await courseApi.getLessonExamQuestions(exam.id);
     setLessonExamQuestions(questions);
-  }
+  };
 
   const { currentLesson, currentChapter } = useMemo(() => {
     const course = selectedCourse;
@@ -134,20 +136,29 @@ const LectureDetails: React.FC = () => {
 
   useEffect(() => {
     if (currentLesson === null || !lessonId) return;
-    if (currentLesson.type === 'Exam') {
+    if (currentLesson.type === "Exam") {
       fetchQuestions();
     }
-  }, [currentLesson, lessonId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLesson, lessonId]);
 
   const renderFillBlankQuestionText = (question: Question) => {
     const BLANK_PLACEHOLDER = "[BLANK]";
     if (question.type !== EXAM_TYPE.FILL_IN_BLANK) {
-      return '';
+      return "";
     }
 
-    let parts = question.questionText.split(BLANK_PLACEHOLDER);
+    const parts = question.questionText.split(BLANK_PLACEHOLDER);
     const displayedContent: JSX.Element[] = [];
-    const blankCount = (question.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+    const blankCount = (
+      question.questionText.match(
+        new RegExp(
+          // eslint-disable-next-line no-useless-escape
+          BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
+          "g"
+        )
+      ) || []
+    ).length;
 
     parts.forEach((part: string, index: number) => {
       displayedContent.push(<span key={`part-${index}`}>{part}</span>);
@@ -196,7 +207,7 @@ const LectureDetails: React.FC = () => {
             {currentLesson?.name ?? "Bài học"}
           </h1>
           <p className="text-sm text-[#525252]">
-            {teacherCreated?.fullname || "Giảng viên"} •{" "}
+            {teacherCreated?.fullname || "Giáo viên"} •{" "}
             {currentLesson?.postDate
               ? new Date(currentLesson.postDate).toLocaleDateString()
               : "Chưa cập nhật"}
@@ -218,7 +229,8 @@ const LectureDetails: React.FC = () => {
                 allowFullScreen
               />
             </div>
-          ) : currentLesson?.type === "Reading" && currentLesson.readingContent ? (
+          ) : currentLesson?.type === "Reading" &&
+            currentLesson.readingContent ? (
             <div
               className="bg-black rounded-lg overflow-hidden flex justify-center items-center"
               style={{ aspectRatio: "16/9" }}
@@ -232,121 +244,165 @@ const LectureDetails: React.FC = () => {
                 />
               </div>
             </div>
-          ) : currentLesson?.type === 'Exam' ? (
+          ) : currentLesson?.type === "Exam" ? (
             <div style={{ aspectRatio: "16/9" }} className="space-y-3">
-              {(lessonExamQuestions.length > 0) && lessonExamQuestions.map((question, index) => {
-                const correctAnswer = question.correctAnswer;
+              {lessonExamQuestions.length === 0 ? (
+                <div>Câu hỏi trong bài kiểm tra này được tạo ngẫu nhiên.</div>
+              ) : (
+                lessonExamQuestions.map((question, index) => {
+                  const correctAnswer = question.correctAnswer;
 
-                return (
-                  <div
-                    key={question.questionObjectId}
-                    className={`p-6 rounded-lg shadow-sm border border-gray-300 bg-gray-50`}
-                  >
-                    <p className="text-xl font-semibold mb-3 text-gray-800">
-                      Câu {index + 1}: {question.type !== EXAM_TYPE.FILL_IN_BLANK && question.questionText}
-                    </p>
+                  return (
+                    <div
+                      key={question.questionObjectId}
+                      className={`p-6 rounded-lg shadow-sm border border-gray-300 bg-gray-50`}
+                    >
+                      <p className="text-xl font-semibold mb-3 text-gray-800">
+                        Câu {index + 1}:{" "}
+                        {question.type !== EXAM_TYPE.FILL_IN_BLANK &&
+                          question.questionText}
+                      </p>
 
-                    <div className="space-y-3 text-gray-700">
-                      {question.type === EXAM_TYPE.SINGLE_CHOICE && (
-                        <div className="space-y-2">
-                          {question.options.map((option, optIndex) => (
-                            <label key={optIndex} className="flex items-center space-x-2 text-gray-700">
-                              <input
-                                type="radio"
-                                name={`result-question-${question.questionObjectId}`}
-                                value={option}
-                                checked={optIndex === correctAnswer}
-                                readOnly
-                                disabled
-                                className="form-radio text-blue-600"
-                              />
-                              <span>{option}</span>
-                            </label>
-                          ))
-                          }
-                        </div>
-                      )}
-
-                      {question.type === EXAM_TYPE.MULTI_CHOICE && (
-                        <div className="space-y-2">
-                          {question.options.map((option, optIndex) => {
-                            return (
-                              <label key={optIndex} className="flex items-center space-x-2 text-gray-700">
+                      <div className="space-y-3 text-gray-700">
+                        {question.type === EXAM_TYPE.SINGLE_CHOICE && (
+                          <div className="space-y-2">
+                            {question.options.map((option, optIndex) => (
+                              <label
+                                key={optIndex}
+                                className="flex items-center space-x-2 text-gray-700"
+                              >
                                 <input
-                                  type="checkbox"
+                                  type="radio"
                                   name={`result-question-${question.questionObjectId}`}
                                   value={option}
-                                  checked={correctAnswer.includes(optIndex)}
+                                  checked={optIndex === correctAnswer}
                                   readOnly
                                   disabled
-                                  className="form-checkbox text-blue-600 rounded"
+                                  className="form-radio text-blue-600"
                                 />
                                 <span>{option}</span>
                               </label>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {question.type === EXAM_TYPE.TEXT_INPUT && (
-                        <div>
-                          <input
-                            type="text"
-                            className="w-full border border-gray-300 rounded-lg p-2 mt-1 bg-gray-100"
-                            value={correctAnswer}
-                            readOnly
-                            disabled
-                          />
-                        </div>
-                      )}
-
-                      {question.type === EXAM_TYPE.FILL_IN_BLANK && renderFillBlankQuestionText(question)}
-
-                      {question.type === EXAM_TYPE.MATCHING && (
-                        <div className="mt-4">
-                          <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                              <h4 className="font-semibold text-gray-700 mb-2">Thuật ngữ</h4>
-                              {(question.terms || []).map((term, termIndex) => (
-                                <div key={termIndex} className="p-2 bg-gray-50 border border-gray-200 rounded mb-2">
-                                  {termIndex + 1}. {term}
-                                </div>
-                              ))}
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-700 mb-2">Định nghĩa</h4>
-                              {(question.definitions || []).map((definition, defIndex) => (
-                                <div key={defIndex} className="p-2 bg-gray-50 border border-gray-200 rounded mb-2">
-                                  {String.fromCharCode(65 + defIndex)}. {definition}
-                                </div>
-                              ))}
-                            </div>
+                            ))}
                           </div>
+                        )}
+
+                        {question.type === EXAM_TYPE.MULTI_CHOICE && (
+                          <div className="space-y-2">
+                            {question.options.map((option, optIndex) => {
+                              return (
+                                <label
+                                  key={optIndex}
+                                  className="flex items-center space-x-2 text-gray-700"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    name={`result-question-${question.questionObjectId}`}
+                                    value={option}
+                                    checked={correctAnswer.includes(optIndex)}
+                                    readOnly
+                                    disabled
+                                    className="form-checkbox text-blue-600 rounded"
+                                  />
+                                  <span>{option}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {question.type === EXAM_TYPE.TEXT_INPUT && (
                           <div>
-                            <h4 className="font-semibold text-gray-700 mb-2">Các cặp ghép đúng</h4>
-                            {(() => {
-                              return (question.terms || []).map((term, termIndex) => {
-                                return (
-                                  <div key={termIndex} className={`flex items-center mb-2 p-2 rounded bg-gray-100`}>
-                                    <span className="w-1/3 font-medium">{termIndex + 1}. {term}</span>
-                                    <span className="text-gray-500 mx-2">→</span>
-                                    <span className="flex-1">
-                                      {question.definitions && question.definitions[question.correctAnswer[termIndex]]}
-                                    </span>
-                                  </div>
-                                );
-                              });
-                            })()}
+                            <input
+                              type="text"
+                              className="w-full border border-gray-300 rounded-lg p-2 mt-1 bg-gray-100"
+                              value={correctAnswer}
+                              readOnly
+                              disabled
+                            />
                           </div>
-                        </div>
-                      )}
+                        )}
+
+                        {question.type === EXAM_TYPE.FILL_IN_BLANK &&
+                          renderFillBlankQuestionText(question)}
+
+                        {question.type === EXAM_TYPE.MATCHING && (
+                          <div className="mt-4">
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <h4 className="font-semibold text-gray-700 mb-2">
+                                  Thuật ngữ
+                                </h4>
+                                {(question.terms || []).map(
+                                  (term, termIndex) => (
+                                    <div
+                                      key={termIndex}
+                                      className="p-2 bg-gray-50 border border-gray-200 rounded mb-2"
+                                    >
+                                      {termIndex + 1}. {term}
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-gray-700 mb-2">
+                                  Định nghĩa
+                                </h4>
+                                {(question.definitions || []).map(
+                                  (definition, defIndex) => (
+                                    <div
+                                      key={defIndex}
+                                      className="p-2 bg-gray-50 border border-gray-200 rounded mb-2"
+                                    >
+                                      {String.fromCharCode(65 + defIndex)}.{" "}
+                                      {definition}
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-700 mb-2">
+                                Các cặp ghép đúng
+                              </h4>
+                              {(() => {
+                                return (question.terms || []).map(
+                                  (term, termIndex) => {
+                                    return (
+                                      <div
+                                        key={termIndex}
+                                        className={`flex items-center mb-2 p-2 rounded bg-gray-100`}
+                                      >
+                                        <span className="w-1/3 font-medium">
+                                          {termIndex + 1}. {term}
+                                        </span>
+                                        <span className="text-gray-500 mx-2">
+                                          →
+                                        </span>
+                                        <span className="flex-1">
+                                          {question.definitions &&
+                                            question.definitions[
+                                              question.correctAnswer[termIndex]
+                                            ]}
+                                        </span>
+                                      </div>
+                                    );
+                                  }
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           ) : (
-            <div className="bg-black rounded-lg overflow-hidden flex justify-center items-center" style={{ aspectRatio: "16/9" }}>
+            <div
+              className="bg-black rounded-lg overflow-hidden flex justify-center items-center"
+              style={{ aspectRatio: "16/9" }}
+            >
               <div className="text-white text-lg">
                 Không có nội dung cho bài học này.
               </div>
@@ -395,10 +451,11 @@ const LectureDetails: React.FC = () => {
                               {q.options.map((opt: any, idx: number) => (
                                 <div
                                   key={idx}
-                                  className={`text-sm p-2 rounded ${idx === (q.correctIndex ?? -1)
-                                    ? "bg-green-50 border border-green-200"
-                                    : "bg-gray-50"
-                                    }`}
+                                  className={`text-sm p-2 rounded ${
+                                    idx === (q.correctIndex ?? -1)
+                                      ? "bg-green-50 border border-green-200"
+                                      : "bg-gray-50"
+                                  }`}
                                 >
                                   {opt}
                                 </div>
@@ -451,10 +508,11 @@ const LectureDetails: React.FC = () => {
                             <li key={l.id}>
                               <Button
                                 variant="ghost"
-                                className={`w-full justify-start py-1 ${l.id === lessonId
-                                  ? "font-semibold text-blue-600"
-                                  : "hover:text-blue-600"
-                                  }`}
+                                className={`w-full justify-start py-1 ${
+                                  l.id === lessonId
+                                    ? "font-semibold text-blue-600"
+                                    : "hover:text-blue-600"
+                                }`}
                                 onClick={() =>
                                   navigate(`/course/teacher/lecture/${l.id}`)
                                 }
@@ -539,7 +597,7 @@ const LectureDetails: React.FC = () => {
           {/* === Instructor (created/updated) === */}
           <Card>
             <CardHeader>
-              <CardTitle>Giảng viên</CardTitle>
+              <CardTitle>Giáo viên</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-start gap-3">
@@ -557,7 +615,7 @@ const LectureDetails: React.FC = () => {
                 <div className="flex-1 text-sm text-[#404040]">
                   <div className="flex justify-between mb-1">
                     <span className="font-medium text-[#171717]">
-                      Giảng viên:
+                      Giáo viên:
                     </span>
                     <span>{teacherCreated?.fullname || "GV - Chính"}</span>
                   </div>
@@ -576,24 +634,13 @@ const LectureDetails: React.FC = () => {
                       </span>
                     </div>
                   )}
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="w-1/2 border-[#D1D5DB] hover:bg-gray-100 text-[#171717]"
-                    >
-                      Xem hồ sơ
-                    </Button>
-                    <Button className="w-1/2 bg-[#171717] hover:bg-[#2D2D2D] text-white">
-                      Nhắn tin
-                    </Button>
-                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </aside>
       </div>
-    </div >
+    </div>
   );
 };
 

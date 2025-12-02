@@ -27,8 +27,9 @@ import {
   Calendar,
   Lock,
   RefreshCw,
-  FileType,
+  Target,
   FolderOpen,
+  Ruler,
   User,
   Loader2,
   ArrowLeft,
@@ -140,10 +141,10 @@ function DocumentDetailsInfo({
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex justify-between items-center text-sm">
-          <span className="text-gray-600 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4" />
-            Ngày tạo:
-          </span>
+            <span>Ngày tạo:</span>
+          </div>
           <span className="font-semibold">
             {document?.createdAt
               ? new Date(document.createdAt).toLocaleDateString("vi-VN")
@@ -151,19 +152,19 @@ function DocumentDetailsInfo({
           </span>
         </div>
         <div className="flex justify-between items-center text-sm">
-          <span className="text-gray-600 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <Lock className="w-4 h-4" />
-            Quyền truy cập:
-          </span>
+            <span>Quyền truy cập:</span>
+          </div>
           <span className="font-semibold">
             {document?.schoolId ? "Trường học" : "Công khai"}
           </span>
         </div>
         <div className="flex justify-between items-center text-sm">
-          <span className="text-gray-600 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <RefreshCw className="w-4 h-4" />
-            Lần cập nhật:
-          </span>
+            <span>Lần cập nhật:</span>
+          </div>
           <span className="font-semibold">
             {document?.updatedAt
               ? new Date(document.updatedAt).toLocaleDateString("vi-VN")
@@ -171,16 +172,17 @@ function DocumentDetailsInfo({
           </span>
         </div>
         <div className="flex justify-between items-center text-sm">
-          <span className="text-gray-600 flex items-center gap-2">
-            <FileType className="w-4 h-4" />
-            Định dạng:
-          </span>
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            <span>Định dạng:</span>
+          </div>
           <span className="font-semibold">{document?.fileType || "PDF"}</span>
         </div>
         <div className="flex justify-between items-center text-sm">
-          <span className="text-gray-600 flex items-center gap-2">
-            📏 Độ dài:
-          </span>
+          <div className="flex items-center gap-2">
+            <Ruler className="w-4 h-4" />
+            <span>Độ dài:</span>
+          </div>
           <span className="font-semibold">
             {document?.documentLengthType === "Short"
               ? "Ngắn"
@@ -190,9 +192,10 @@ function DocumentDetailsInfo({
           </span>
         </div>
         <div className="flex justify-between items-center text-sm">
-          <span className="text-gray-600 flex items-center gap-2">
-            🎯 Độ khó:
-          </span>
+          <div className="flex items-center gap-2">
+            <Target className="w-4 h-4" />
+            <span>Độ khó:</span>
+          </div>
           <span className="font-semibold">
             {document?.documentLevel === "Easy"
               ? "Dễ"
@@ -202,10 +205,10 @@ function DocumentDetailsInfo({
           </span>
         </div>
         <div className="flex justify-between items-center text-sm">
-          <span className="text-gray-600 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <FolderOpen className="w-4 h-4" />
-            Danh mục:
-          </span>
+            <span>Danh mục:</span>
+          </div>
           <span className="font-semibold">
             {document?.categoryName || "N/A"}
           </span>
@@ -297,7 +300,7 @@ function RelatedDocumentCard({
               {document.name}
             </h4>
             <p className="text-xs text-gray-600">
-              {document.uploaderName || "N/A"} • Lớp {document.grade}
+              {/* {document.uploaderName || "N/A"} •  */}Lớp {document.grade}
             </p>
           </div>
         </div>

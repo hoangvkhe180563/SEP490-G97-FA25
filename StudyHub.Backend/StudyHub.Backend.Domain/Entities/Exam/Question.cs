@@ -7,5 +7,6 @@
         public required QuestionType Type { get; set; }
         public int? SubjectId { get; set; }
         public int? Grade { get; set; }
+        public bool Status { get; set; } = true;
     }
 }

@@ -131,7 +131,7 @@ const ViewResultDetail = () => {
   };
 
   return (
-    <div className="w-full h-full overflow-y-auto p-6">
+    <div className="w-full h-full overflow-y-auto p-6 scrollbar-hide">
       <Button variant='outline' className='flex items-center' onClick={() => {
         if (user?.roles.some(role => role.includes("Student"))) {
           if (exam.classId) {
@@ -160,7 +160,7 @@ const ViewResultDetail = () => {
         <p className="text-lg text-gray-700"><strong>Tiêu đề:</strong> {exam.title}</p>
         <p className="text-lg text-gray-700"><strong>Mô tả:</strong> {exam.description}</p>
         <p className="text-lg text-gray-700"><strong>Thời lượng:</strong> {exam.duration} phút</p>
-        <p className="text-lg text-gray-700"><strong>Tổng số câu hỏi:</strong> {exam.totalQuestions}</p>
+        <p className="text-lg text-gray-700"><strong>Tổng số câu hỏi:</strong> {questions.length}</p>
         <p className="text-lg text-gray-700"><strong>Cho phép thi nhiều lần:</strong> {exam.isMultipleAttempts ? 'Có' : 'Không'}</p>
       </div>
 

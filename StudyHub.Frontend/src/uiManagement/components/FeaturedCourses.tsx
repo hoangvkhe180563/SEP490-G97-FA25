@@ -17,12 +17,12 @@ const FeaturedCourses = (props: { data: IFeaturedCourse[] }) => {
             <Link
               to={`/course/student/courses/${course.id}`}
               key={course.id}
-              className="flex items-center gap-6 p-6 bg-white rounded-lg shadow-md hover:scale-103 transition-transform duration-200"
+              className="flex items-center p-6 bg-white rounded-lg shadow-md hover:scale-103 transition-transform duration-200"
             >
               <div className="flex-shrink-0 w-32 h-20 bg-gray-200 rounded-md flex items-center justify-center text-sm font-semibold text-gray-600 overflow-hidden">
                 <img className="h-full w-full" src={course.thumbnail} alt="" />
               </div>
-              <div className="flex-grow">
+              <div className="flex-grow ml-3">
                 <p className="text-xl font-semibold mb-2">{course.name}</p>
                 <div className="flex items-center gap-4 text-gray-700 text-sm">
                   <span className="flex items-center gap-1">

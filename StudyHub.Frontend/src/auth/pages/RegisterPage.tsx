@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -39,6 +39,7 @@ const registerSchema = z
 type RegisterValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
+  const navigate = useNavigate();
   const {
     register: registerAction,
     isLoading,
@@ -128,9 +129,10 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 bg-[url('/bg-auth.png')] bg-[length:100%_100%] bg-no-repeat">
       <div className="max-w-2xl w-full space-y-8">
         <div>
+          <img className="w-50 h-25 mx-auto cursor-pointer" onClick={() => navigate("/")} src="/StudyHubLogo.png" alt="Logo Studyhub" />
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Đăng ký
           </h2>

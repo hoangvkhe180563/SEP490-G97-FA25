@@ -62,5 +62,12 @@ namespace StudyHub.Backend.Api.Controllers
                 return Ok(landingPages.Select(lp => lp.ToLandingPageListItem()).ToList());
             }
         }
+
+        [HttpGet("{schoolId:int}/address")]
+        public IActionResult GetSchoolAddress(int schoolId)
+        {
+            string address = _service.GetSchoolAddress(schoolId);
+            return address == string.Empty ? NotFound() : Ok(address);
+        }
     }
 }

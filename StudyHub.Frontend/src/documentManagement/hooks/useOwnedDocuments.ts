@@ -271,7 +271,7 @@ export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
       if (doc.isApproved !== true) return false;
     } else if (filters.approvalStatus === "pending") {
       if (doc.isApproved !== null) return false;
-    } else if (filters.approvalStatus === "rejected") {
+    } else if (filters.approvalStatus === "draft") {
       if (doc.isApproved !== false) return false;
     } else if (filters.approvalStatus === "editRequest") {
       if (doc.isRequested !== true) return false;

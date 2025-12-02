@@ -5,7 +5,9 @@ import { Input } from "@/common/components/ui/input";
 import { Textarea } from "@/common/components/ui/textarea";
 import { Badge } from "@/common/components/ui/badge";
 import { Button } from "@/common/components/ui/button";
+import { documentService } from "@/documentManagement/services/documentService";
 import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
+import type { Subject } from "../interfaces/forum";
 import {
   Select,
   SelectContent,
@@ -51,7 +53,13 @@ const PostDetail = () => {
   const location = useLocation();
   const { user } = useAuthStore();
   const { getPosts } = useForumStore();
-
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [editImageError, setEditImageError] = useState("");
+  const [editCommentImageError, setEditCommentImageError] = useState("");
+  const [newCommentImageError, setNewCommentImageError] = useState("");
+  const [replyImageErrors, setReplyImageErrors] = useState<{
+    [key: number]: string;
+  }>({});
   const {
     currentPost,
     getPostById,
@@ -62,6 +70,7 @@ const PostDetail = () => {
     createComment,
     isLoading,
     flairs,
+    loadFlairs,
   } = useForumStore();
 
   const { joinPost, leavePost, sendTyping, isForumConnected } =
@@ -176,9 +185,35 @@ const PostDetail = () => {
       useForumSignalRStore.setState({ onPostUpdated: undefined });
     };
   }, [post?.post_id, getPostById]);
+  useEffect(() => {
+    if (isEditMode && currentPost?.school_id) {
+      loadFlairs(currentPost.school_id);
+      documentService.getSubjects().then(setSubjects);
+    }
+  }, [isEditMode, currentPost?.school_id, loadFlairs]);
+
+  useEffect(() => {
+    if (currentPost) {
+      setEditTitle(currentPost.title);
+      setEditContent(currentPost.content);
+      setEditFlairId(currentPost.flair_id);
+      setEditSubjectId(currentPost.subject_id);
+
+      const imgs = currentPost.image_urls
+        ? currentPost.image_urls.split(",").filter((url) => url.trim())
+        : [];
+      setEditImages(imgs);
+      setNewEditImages([]);
+      setDeletedImageUrls([]);
+    }
+  }, [currentPost]);
 
   useEffect(() => {
     if (!postId) return;
+
+    setIsEditMode(false);
+    setEditingCommentId(null);
+    setReplyingTo(null);
 
     let mounted = true;
     const id = parseInt(postId);
@@ -253,19 +288,36 @@ const PostDetail = () => {
       sendTyping(post.post_id, isTyping);
     }
   };
+  const [editSubjectId, setEditSubjectId] = useState<number | null>(null);
 
   const handleRemoveEditImage = (imageUrl: string) => {
     setEditImages((prev) => prev.filter((url) => url !== imageUrl));
     setDeletedImageUrls((prev) => [...prev, imageUrl]);
+    setEditImageError("");
   };
 
   const handleAddNewEditImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + editImages.length + newEditImages.length > 4) {
-      alert("Tối đa 4 ảnh");
+    const currentTotal = editImages.length + newEditImages.length;
+    const remainingSlots = 10 - currentTotal;
+
+    if (remainingSlots <= 0) {
+      setEditImageError("Bạn đã đạt giới hạn 10 ảnh");
+      e.target.value = "";
       return;
     }
+
+    if (files.length > remainingSlots) {
+      setEditImageError(
+        `Chỉ có thể thêm tối đa ${remainingSlots} ảnh nữa (tối đa 10 ảnh)`
+      );
+      e.target.value = "";
+      return;
+    }
+
+    setEditImageError("");
     setNewEditImages((prev) => [...prev, ...files]);
+    e.target.value = "";
   };
 
   const handleImageClick = (images: string[], idx: number) => {
@@ -338,20 +390,33 @@ const PostDetail = () => {
       prev.filter((url: string) => url !== imageUrl)
     );
     setDeletedCommentImageUrls((prev: string[]) => [...prev, imageUrl]);
+    setEditCommentImageError("");
   };
 
   const handleAddNewEditCommentImage = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const files = Array.from(e.target.files || []);
-    if (
-      files.length + editCommentImages.length + newEditCommentImages.length >
-      4
-    ) {
-      alert("Tối đa 4 ảnh");
+    const currentTotal = editCommentImages.length + newEditCommentImages.length;
+    const remainingSlots = 4 - currentTotal;
+
+    if (remainingSlots <= 0) {
+      setEditCommentImageError("Bạn đã đạt giới hạn 4 ảnh");
+      e.target.value = "";
       return;
     }
+
+    if (files.length > remainingSlots) {
+      setEditCommentImageError(
+        `Chỉ có thể thêm tối đa ${remainingSlots} ảnh nữa (tối đa 4 ảnh)`
+      );
+      e.target.value = "";
+      return;
+    }
+
+    setEditCommentImageError("");
     setNewEditCommentImages((prev) => [...prev, ...files]);
+    e.target.value = "";
   };
 
   const handleSaveEdit = async (commentId: number) => {
@@ -425,6 +490,11 @@ const PostDetail = () => {
         delete newState[parentCommentId];
         return newState;
       });
+      setReplyImageErrors((prev) => {
+        const newState = { ...prev };
+        delete newState[parentCommentId];
+        return newState;
+      });
       setReplyingTo(null);
       if (postId) {
         const postIdNum = parseInt(postId);
@@ -445,6 +515,7 @@ const PostDetail = () => {
     if (result?.success) {
       setNewCommentContent("");
       setNewCommentImages([]);
+      setNewCommentImageError("");
       if (postId) {
         await getPostById(parseInt(postId));
         await getComments(parseInt(postId));
@@ -456,11 +527,25 @@ const PostDetail = () => {
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + newCommentImages.length > 4) {
-      alert("Tối đa 4 ảnh");
+    const remainingSlots = 4 - newCommentImages.length;
+
+    if (remainingSlots <= 0) {
+      setNewCommentImageError("Bạn đã đạt giới hạn 4 ảnh");
+      e.target.value = "";
       return;
     }
+
+    if (files.length > remainingSlots) {
+      setNewCommentImageError(
+        `Chỉ có thể thêm tối đa ${remainingSlots} ảnh nữa (tối đa 4 ảnh)`
+      );
+      e.target.value = "";
+      return;
+    }
+
+    setNewCommentImageError("");
     setNewCommentImages((prev) => [...prev, ...files]);
+    e.target.value = "";
   };
 
   const handleReplyImageSelect = (
@@ -469,20 +554,45 @@ const PostDetail = () => {
   ) => {
     const files = Array.from(e.target.files || []);
     const currentImages = replyImagesList[commentId] || [];
+    const remainingSlots = 4 - currentImages.length;
 
-    if (files.length + currentImages.length > 4) {
-      alert("Tối đa 4 ảnh");
+    if (remainingSlots <= 0) {
+      setReplyImageErrors({
+        ...replyImageErrors,
+        [commentId]: "Bạn đã đạt giới hạn 4 ảnh",
+      });
+      e.target.value = "";
       return;
     }
 
+    if (files.length > remainingSlots) {
+      setReplyImageErrors({
+        ...replyImageErrors,
+        [commentId]: `Chỉ có thể thêm tối đa ${remainingSlots} ảnh nữa (tối đa 4 ảnh)`,
+      });
+      e.target.value = "";
+      return;
+    }
+
+    setReplyImageErrors({
+      ...replyImageErrors,
+      [commentId]: "",
+    });
     setReplyImagesList({
       ...replyImagesList,
       [commentId]: [...currentImages, ...files],
     });
+    e.target.value = "";
   };
 
   const handleSavePost = async () => {
-    if (!post || !editTitle.trim() || !editContent.trim() || !editFlairId)
+    if (
+      !post ||
+      !editTitle.trim() ||
+      !editContent.trim() ||
+      !editFlairId ||
+      !editSubjectId
+    )
       return;
 
     const formData = new FormData();
@@ -490,6 +600,7 @@ const PostDetail = () => {
     formData.append("title", editTitle);
     formData.append("content", editContent);
     formData.append("flairId", editFlairId.toString());
+    formData.append("subjectId", editSubjectId.toString());
 
     deletedImageUrls.forEach((url) => {
       formData.append("deletedAttachmentUrls", url);
@@ -513,6 +624,7 @@ const PostDetail = () => {
       setEditTitle(post.title);
       setEditContent(post.content);
       setEditFlairId(post.flair_id);
+      setEditSubjectId(post.subject_id);
 
       const imgs = post.image_urls
         ? post.image_urls.split(",").filter((url) => url.trim())
@@ -548,7 +660,11 @@ const PostDetail = () => {
                   placeholder="Nội dung bình luận..."
                   autoFocus
                 />
-
+                {editCommentImageError && (
+                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+                    {editCommentImageError}
+                  </div>
+                )}
                 {(editCommentImages.length > 0 ||
                   newEditCommentImages.length > 0) && (
                   <div className="grid grid-cols-4 gap-2">
@@ -821,7 +937,11 @@ const PostDetail = () => {
                       }}
                     />
                   </div>
-
+                  {replyImageErrors[comment.comment_id] && (
+                    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2 mb-2">
+                      {replyImageErrors[comment.comment_id]}
+                    </div>
+                  )}
                   {(replyImagesList[comment.comment_id]?.length || 0) > 0 && (
                     <div className="flex gap-2 mb-2 flex-wrap">
                       {replyImagesList[comment.comment_id].map((img, idx) => (
@@ -839,6 +959,10 @@ const PostDetail = () => {
                                 [comment.comment_id]: replyImagesList[
                                   comment.comment_id
                                 ].filter((_, i) => i !== idx),
+                              });
+                              setReplyImageErrors({
+                                ...replyImageErrors,
+                                [comment.comment_id]: "",
                               });
                             }}
                             className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600"
@@ -865,7 +989,8 @@ const PostDetail = () => {
                       }
                     >
                       <ImagePlus className="w-4 h-4 mr-1" />
-                      Ảnh ({replyImagesList[comment.comment_id]?.length || 0}/4)
+                      Ảnh ({replyImagesList[comment.comment_id]?.length || 0}
+                      /10)
                     </Button>
                     <input
                       id={`reply-images-${comment.comment_id}`}
@@ -1385,9 +1510,22 @@ const PostDetail = () => {
                         <div className="font-semibold text-lg">
                           {post.author_name}
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {post.author_class} •{" "}
-                          {formatTimestamp(post.created_at)}
+                        <span>{formatTimestamp(post.created_at)}</span>
+                        <div className="text-sm text-gray-500 flex items-center gap-2">
+                          <Badge
+                            className={`${getSubjectBadgeColor(
+                              post.subject_name
+                            )} text-white`}
+                          >
+                            {post.subject_name}
+                          </Badge>
+                          <span>•</span>
+                          <Badge
+                            variant="outline"
+                            className={getFlairColor(post.flair_name)}
+                          >
+                            {post.flair_name}
+                          </Badge>
                         </div>
                       </div>
                     </div>
@@ -1424,22 +1562,36 @@ const PostDetail = () => {
                     )}
                   </div>
 
-                  <div className="flex gap-2 mb-4">
-                    <Badge
-                      className={`${getSubjectBadgeColor(
-                        post.subject_name
-                      )} text-white`}
-                    >
-                      {post.subject_name}
-                    </Badge>
-                    {isEditMode ? (
+                  {isEditMode ? (
+                    <div className="space-y-4">
+                      <Select
+                        value={editSubjectId?.toString()}
+                        onValueChange={(value) =>
+                          setEditSubjectId(parseInt(value))
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Chọn môn học" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {subjects.map((subject) => (
+                            <SelectItem
+                              key={subject.id}
+                              value={subject.id.toString()}
+                            >
+                              {subject.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
                       <Select
                         value={editFlairId?.toString()}
                         onValueChange={(value) =>
                           setEditFlairId(parseInt(value))
                         }
                       >
-                        <SelectTrigger className="w-48">
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Chọn loại bài viết" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1453,18 +1605,6 @@ const PostDetail = () => {
                           ))}
                         </SelectContent>
                       </Select>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className={getFlairColor(post.flair_name)}
-                      >
-                        {post.flair_name}
-                      </Badge>
-                    )}
-                  </div>
-
-                  {isEditMode ? (
-                    <div className="space-y-4">
                       <Input
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
@@ -1493,12 +1633,12 @@ const PostDetail = () => {
                                 ?.click()
                             }
                             disabled={
-                              editImages.length + newEditImages.length >= 4
+                              editImages.length + newEditImages.length >= 10
                             }
                           >
                             <ImagePlus className="w-4 h-4 mr-1" />
                             Thêm ảnh ({editImages.length + newEditImages.length}
-                            /4)
+                            /10)
                           </Button>
                           <input
                             id="edit-post-images"
@@ -1509,7 +1649,11 @@ const PostDetail = () => {
                             onChange={handleAddNewEditImage}
                           />
                         </div>
-
+                        {editImageError && (
+                          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+                            {editImageError}
+                          </div>
+                        )}
                         <div className="grid grid-cols-4 gap-2">
                           {editImages.map((url, idx) => (
                             <div
@@ -1544,6 +1688,7 @@ const PostDetail = () => {
                                   setNewEditImages((prev) =>
                                     prev.filter((_, i) => i !== idx)
                                   );
+                                  setEditImageError("");
                                 }}
                                 className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
                               >
@@ -1647,7 +1792,11 @@ const PostDetail = () => {
                             Gửi
                           </Button>
                         </div>
-
+                        {newCommentImageError && (
+                          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2 mb-2">
+                            {newCommentImageError}
+                          </div>
+                        )}
                         {newCommentImages.length > 0 && (
                           <div className="flex gap-2 mb-2 flex-wrap">
                             {newCommentImages.map((img, idx) => (
@@ -1663,6 +1812,7 @@ const PostDetail = () => {
                                     setNewCommentImages((prev) =>
                                       prev.filter((_, i) => i !== idx)
                                     );
+                                    setNewCommentImageError("");
                                   }}
                                   className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600"
                                 >

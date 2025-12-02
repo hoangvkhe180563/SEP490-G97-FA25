@@ -7,7 +7,7 @@ namespace StudyHub.Backend.UseCases.Repositories
     {
         public List<AppUser> GetAllUsers();
 
-        public (List<AppUser>, int, int, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page, int limit);
+        public (List<AppUser>, int, int, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page, int limit, Guid myUserId);
         public AppUser? GetByEmail(string email);
         public AppUser? GetByUsername(string username);
         public AppUser? GetById(Guid id);

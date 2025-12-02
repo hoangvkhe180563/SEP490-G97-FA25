@@ -31,5 +31,7 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data
 
         [BsonElement("correctAnswer")]
         public BsonValue CorrectAnswer { get; set; } = BsonNull.Value;
+        [BsonElement("status")]
+        public bool Status { get; set; } = true;
     }
 }

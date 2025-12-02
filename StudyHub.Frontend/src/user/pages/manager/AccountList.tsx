@@ -420,8 +420,8 @@ const AccountList = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất cả trạng thái</SelectItem>
-            <SelectItem value="Active">Active</SelectItem>
-            <SelectItem value="Inactive">Inactive</SelectItem>
+            <SelectItem value="Active">Hoạt động</SelectItem>
+            <SelectItem value="Inactive">Không hoạt động</SelectItem>
           </SelectContent>
         </Select>
         <Button

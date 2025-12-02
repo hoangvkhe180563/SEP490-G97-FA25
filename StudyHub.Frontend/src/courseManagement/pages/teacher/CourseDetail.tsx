@@ -74,8 +74,8 @@ const CourseDetail: React.FC = () => {
   // Only the course owner (creator) may edit the course. Use auth user id.
   const isOwner = Boolean(
     authUser?.id &&
-    selectedCourse?.createdBy &&
-    String(authUser.id) === String(selectedCourse.createdBy)
+      selectedCourse?.createdBy &&
+      String(authUser.id) === String(selectedCourse.createdBy)
   );
 
   const categoryLabel = (id?: number | null) => {
@@ -257,7 +257,7 @@ const CourseDetail: React.FC = () => {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Giảng viên</CardTitle>
+                <CardTitle>Giáo viên</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-start gap-3">
@@ -276,7 +276,7 @@ const CourseDetail: React.FC = () => {
                   <div className="flex-1 text-sm text-[#404040]">
                     <div className="flex justify-between mb-1">
                       <span className="font-medium text-[#171717]">
-                        Giảng viên:
+                        Giáo viên:
                       </span>
                       <span>{teacherCreated?.fullname || "GV - Chính"}</span>
                     </div>
@@ -319,17 +319,6 @@ const CourseDetail: React.FC = () => {
                         </span>
                       </div>
                     )}
-                    <div className="mt-4 flex gap-2">
-                      <Button
-                        variant="outline"
-                        className="w-1/2 border-[#D1D5DB] hover:bg-gray-100 text-[#171717]"
-                      >
-                        Xem hồ sơ
-                      </Button>
-                      <Button className="w-1/2 bg-[#171717] hover:bg-[#2D2D2D] text-white">
-                        Nhắn tin
-                      </Button>
-                    </div>
                   </div>
                 </div>
               </CardContent>

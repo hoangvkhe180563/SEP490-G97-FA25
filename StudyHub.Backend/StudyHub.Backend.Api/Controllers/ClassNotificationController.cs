@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using CloudinaryDotNet.Actions;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using StudyHub.Backend.Api.Dtos.ClassDTOS;
 using StudyHub.Backend.Api.Dtos.ClassworkDTOS;
@@ -192,7 +193,7 @@ namespace StudyHub.Backend.Api.Controllers
             {
                 NotificationId = notificationId,
                 Content = dto.Content.Trim(),
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
                 CreatedBy = dto.CreatedBy
             };
 
@@ -252,7 +253,6 @@ namespace StudyHub.Backend.Api.Controllers
 
 
 
-        // Edit classwork (old route)
         [HttpPut("/api/Classwork/{id}")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> EditClasswork(int id, [FromForm] EditClassworkDto dto)
@@ -262,27 +262,40 @@ namespace StudyHub.Backend.Api.Controllers
                 var noti = _service.GetNotification(id);
                 if (noti == null) return NotFound(new { success = false, message = "Không tìm thấy classwork" });
 
-                // Update scalar fields if provided
                 if (!string.IsNullOrWhiteSpace(dto.Title)) noti.Title = dto.Title.Trim();
                 noti.Description = dto.Description ?? noti.Description;
                 noti.Deadline = dto.Deadline ?? noti.Deadline;
                 noti.UpdatedAt = DateTime.UtcNow;
 
-                // New/updated fields requested
                 if (dto.MaxScore.HasValue) noti.MaxScore = dto.MaxScore.Value;
                 if (!string.IsNullOrWhiteSpace(dto.GradeType)) noti.GradeType = dto.GradeType;
-                // AllowSubmission is a bool (non-nullable) in DTO — update directly
                 noti.AllowSubmission = dto.AllowSubmission;
                 if (!string.IsNullOrWhiteSpace(dto.InstructionsHtml)) noti.InstructionsHtml = dto.InstructionsHtml;
 
-                // Persist base notification changes
                 var res = _service.EditNotification(noti);
                 if (res == null) return StatusCode(500, new { success = false, message = "Cập nhật thất bại" });
-                if(dto.Files != null ||dto.Links != null )
+
+               
+                var existingFiles = _service.GetFilesByNotification(res.Id) ?? new List<ClassNotificationFile>();
+
+                var keptIds = (dto.KeptFileIds ?? Array.Empty<int>()).ToHashSet();
+
+                var toRemove = existingFiles.Where(f => !keptIds.Contains(f.Id)).ToList();
+
+                if (toRemove.Any())
                 {
-                    _service.DeleteNotificationFile(id);
+                    foreach (var fileToRemove in toRemove)
+                    {
+                        try
+                        {
+                            _service.DeleteNotificationFileById(fileToRemove.Id);
+                        }
+                        catch
+                        {
+                        }
+                    }
                 }
-                // Handle uploaded files (if any)
+
                 if (dto.Files != null && dto.Files.Any())
                 {
                     foreach (var formFile in dto.Files)
@@ -306,12 +319,10 @@ namespace StudyHub.Backend.Api.Controllers
                         }
                         catch
                         {
-                            // ignore file upload failure for this file and continue with others
                         }
                     }
                 }
 
-                // Handle link attachments (Links property already parses LinksJson via DTO)
                 if (dto.Links != null && dto.Links.Any())
                 {
                     foreach (var link in dto.Links)
@@ -331,27 +342,24 @@ namespace StudyHub.Backend.Api.Controllers
                         }
                         catch
                         {
-                            // ignore link persistence failure
                         }
                     }
                 }
 
-                // Re-read files for response
+               
+
                 var files = _service.GetFilesByNotification(res.Id);
                 var response = res.ToNotificationDto(_aUserService.GetUserById(res.CreatedBy), files.Select(f => f.ToFileDto()).ToList(), null);
 
-                // Notify clients about the update (best-effort)
                 try
                 {
                     await _hubContext.Clients.Group($"class_{res.ClassId}")
                         .SendAsync("UpdatedNotification", response);
-                    // Optionally also send a lightweight signal
                     await _hubContext.Clients.Group($"class_{res.ClassId}")
                         .SendAsync("NewNotification", res.ClassId, res.Title);
                 }
                 catch
                 {
-                    // ignore hub failures
                 }
 
                 return Ok(new { success = true, message = "Đã update", data = response });
@@ -366,7 +374,6 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        // Get detail (classwork detail + submissions) - old route
         [HttpGet("/api/Classwork/{id}/detail")]
         public IActionResult GetClassworkDetail(int id)
         {

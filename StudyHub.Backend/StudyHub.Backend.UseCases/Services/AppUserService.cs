@@ -21,14 +21,16 @@ namespace StudyHub.Backend.UseCases.Services
         public IAppRoleRepository _roleRepository;
         private readonly IConfiguration _configuration;
         private readonly ICloudinaryRepository _cloudinary;
+        private readonly AuthService _authService;
         private const int SALT_ROUNDS = 12; // BCrypt salt rounds for hashing
 
-        public AppUserService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, IConfiguration configuration, StudyHub.Backend.UseCases.Repositories.ICloudinaryRepository cloudinary)
+        public AppUserService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, IConfiguration configuration, StudyHub.Backend.UseCases.Repositories.ICloudinaryRepository cloudinary, AuthService authService)
         {
             _userRepository = userRepository;
             _roleRepository = roleRepository;
             _configuration = configuration;
             _cloudinary = cloudinary;
+            _authService = authService;
         }
 
         // Export all accounts to an Excel file (EPPlus)
@@ -634,7 +636,10 @@ namespace StudyHub.Backend.UseCases.Services
 
         public PagedResult<AppUserListDto> GetAppUsers(string? status, string? role, string? search, int page, int limit)
         {
-            var (users, total, totalPages, pageResult, limitResult) = _userRepository.GetAppUsersBySearchAndFilter(status, role, search, page, limit);
+
+            var myUserId = _authService.GetCurrentUser().Id;
+
+            var (users, total, totalPages, pageResult, limitResult) = _userRepository.GetAppUsersBySearchAndFilter(status, role, search, page, limit, myUserId);
 
             var items = new List<AppUserListDto>();
             foreach (var u in users)

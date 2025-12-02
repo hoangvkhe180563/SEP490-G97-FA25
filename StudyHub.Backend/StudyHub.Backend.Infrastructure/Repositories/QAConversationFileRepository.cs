@@ -38,7 +38,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 FileUrl = d.FileUrl,
                 FileName = d.FileName,
                 FileType = d.FileType,
-                CreatedAt = d.CreatedAt == default ? System.DateTime.UtcNow : d.CreatedAt
+                CreatedAt = d.CreatedAt == default ? System.DateTime.Now : d.CreatedAt
             };
         }
 

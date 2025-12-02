@@ -2,24 +2,76 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   BookOpen,
+  Eye,
   FileQuestion,
+  Home,
   LayoutDashboard,
   LibraryBig,
   MessageCircleQuestionMark,
   MessageSquare,
   NotebookPen,
   Receipt,
-  School,
   ScrollText,
+  Settings,
   Users,
 } from "lucide-react";
 import type { ISidebarItem } from "../interfaces/IMainLayoutProps";
 
-export const studentSidebarItems: ISidebarItem[] = [
+export const externalStudentSidebarItems: ISidebarItem[] = [
   {
-    icon: <LayoutDashboard size={20} />,
+    icon: <Home size={20} />,
     text: "Trang chủ",
-    link: "/",
+    link: "/ui/landing",
+  },
+  {
+    icon: <LibraryBig size={20} />,
+    text: "Tài liệu",
+    link: "/document/student/documents",
+  },
+  {
+    icon: <BookOpen size={20} />,
+    text: "Khóa học",
+    link: "/course/student/courses",
+  },
+  {
+    icon: <MessageCircleQuestionMark size={20} />,
+    text: "Hỏi đáp",
+    link: "/qa/student/conversations",
+  },
+  {
+    icon: <MessageSquare size={20} />,
+    text: "Đề xuất",
+    link: "/recommend/student",
+  },
+  {
+    icon: <Receipt size={20} />,
+    text: "Giao dịch",
+    link: "",
+    children: [
+      {
+        icon: <ScrollText size={20} />,
+        text: "Lịch sử giao dịch",
+        link: "/payment/student/transactions",
+      },
+      {
+        icon: <ArrowDownCircle size={20} />,
+        text: "Nạp tiền",
+        link: "/payment/student/wallet/topup",
+      },
+      {
+        icon: <ArrowUpCircle size={20} />,
+        text: "Rút tiền",
+        link: "/payment/student/wallet/withdrawal",
+      },
+    ],
+  }
+];
+
+export const schoolStudentSidebarItems: ISidebarItem[] = [
+  {
+    icon: <Home size={20} />,
+    text: "Trang chủ",
+    link: "/ui/school-landing",
   },
   {
     icon: <LibraryBig size={20} />,
@@ -63,9 +115,6 @@ export const studentSidebarItems: ISidebarItem[] = [
       },
     ],
   },
-];
-
-export const schoolStudentSidebarItems: ISidebarItem[] = [
   {
     icon: <Users size={20} />,
     text: "Lớp học của tôi",
@@ -80,9 +129,9 @@ export const schoolStudentSidebarItems: ISidebarItem[] = [
 
 export const teacherSidebarItems: ISidebarItem[] = [
   {
-    icon: <LayoutDashboard size={20} />,
+    icon: <Home size={20} />,
     text: "Trang chủ",
-    link: "/",
+    link: "/ui/school-landing",
   },
   {
     icon: <LibraryBig size={20} />,
@@ -145,16 +194,14 @@ export const documentManagerSidebarItems: ISidebarItem[] = [
 export const questionManagerSidebarItems: ISidebarItem[] = [
   {
     icon: <LayoutDashboard size={20} />,
-    text: "Quản lý câu hỏi",
-    link: "",
-    children: [
-      {
-        icon: <FileQuestion size={20} />,
-        text: "Ngân hàng câu hỏi",
-        link: "/exam/manager/questions",
-      },
-    ],
+    text: "Dashboard",
+    link: "/exam/manager/dashboard"
   },
+  {
+    icon: <FileQuestion size={20} />,
+    text: "Quản lý câu hỏi",
+    link: "/exam/manager/questions"
+  }
 ];
 
 export const financialManagerSidebarItems: ISidebarItem[] = [
@@ -177,7 +224,25 @@ export const financialManagerSidebarItems: ISidebarItem[] = [
   },
 ];
 
-export const uiManagerSidebarItems: ISidebarItem[] = [];
+export const uiManagerSidebarItems: ISidebarItem[] = [
+  {
+    icon: <Home size={20} />,
+    text: "Trang chủ",
+    link: "",
+    children: [
+      {
+        icon: <Eye size={20} />,
+        text: "Xem trang chủ",
+        link: "/ui/school-landing",
+      },
+      {
+        icon: <Settings size={20} />,
+        text: "Cấu hình trang chủ",
+        link: "/ui/school-landing/edit",
+      }
+    ]
+  },
+];
 
 export const moderatorSidebarItems: ISidebarItem[] = [
   {
@@ -246,11 +311,6 @@ export const schoolAdminSidebarItems: ISidebarItem[] = [
         link: "/user/manager/account-recoveries",
       },
     ],
-  },
-  {
-    icon: <School size={20} />,
-    text: "Quản lý giao diện",
-    link: "/ui/landing-pages",
   },
   {
     icon: <BookOpen size={20} />,

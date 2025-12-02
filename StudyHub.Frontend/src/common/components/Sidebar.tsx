@@ -51,7 +51,7 @@ export const Sidebar = (props: {
     if (result?.success) {
       toast.success(
         result?.message ||
-          "Đã tạo kháng cáo thành công. Vui lòng đợi moderator xem xét."
+        "Đã tạo kháng cáo thành công. Vui lòng đợi moderator xem xét."
       );
     } else {
       toast.error(
@@ -68,9 +68,8 @@ export const Sidebar = (props: {
       <aside className="transition-all inline-flex flex-col border-r border-gray-300 shadow-lg bg-slate-200">
         <div className="p-4 pb-2 flex justify-between items-center">
           <p
-            className={`overflow-hidden transition-all text-center font-bold text-lg ${
-              expanded ? "flex-1 w-32" : "w-0"
-            }`}
+            className={`overflow-hidden transition-all text-center font-bold text-lg ${expanded ? "flex-1 w-32" : "w-0"
+              }`}
           >
             Danh mục
           </p>
@@ -100,9 +99,8 @@ export const Sidebar = (props: {
             </AvatarFallback>
           </Avatar>
           <div
-            className={`flex items-center transition-all overflow-hidden ${
-              expanded ? "ml-3 flex-1" : "w-0"
-            }`}
+            className={`flex items-center transition-all overflow-hidden ${expanded ? "ml-3 flex-1" : "w-0"
+              }`}
           >
             <div className="w-40">
               <p className="font-medium truncate">{props.user.fullname}</p>
@@ -114,9 +112,8 @@ export const Sidebar = (props: {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className={`hover:bg-sky-400 hover:text-white overflow-hidden ${
-                    expanded ? "ml-2 w-10" : "w-0"
-                  }`}
+                  className={`hover:bg-sky-400 hover:text-white overflow-hidden ${expanded ? "ml-2 w-10" : "w-0"
+                    }`}
                 >
                   <EllipsisVertical size={16} />
                 </Button>
@@ -150,29 +147,22 @@ export const Sidebar = (props: {
 export const SidebarItem = (props: ISidebarItem) => {
   const { expanded } = useContext(SidebarContext);
   const location = useLocation();
-  let currentFunction = location.pathname.split("/")[1];
-  const linkFunction = props.link.split("/")[1];
-  if (currentFunction === "ui") {
-    currentFunction = "";
-  }
 
   return (
     <li>
       <Link
         to={props.link}
         className={`relative flex items-center py-2 px-3 my-1 font-medium rounded-md cursor-pointer transition-colors leading-4 group
-      ${
-        currentFunction === linkFunction
-          ? "bg-gradient-to-tr from-sky-500 to-sky-200 text-blue-800"
-          : "hover:bg-sky-200 text-gray-600"
-      }
+      ${(props.children === undefined && location.pathname.startsWith(props.link))
+            ? "bg-gradient-to-tr from-sky-500 to-sky-200 text-blue-800"
+            : "hover:bg-sky-200 text-gray-600"
+          }
     `}
       >
         {props.icon}
         <span
-          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${
-            expanded ? "w-40 ml-3" : "w-0"
-          }`}
+          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${expanded ? "w-40 ml-3" : "w-0"
+            }`}
         >
           {props.text}
         </span>
@@ -193,8 +183,6 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
   const { expanded } = useContext(SidebarContext);
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const currentFunction = location.pathname.split("/")[1];
-  const linkFunction = props.link.split("/")[1];
 
   const handleToggle = (e: any) => {
     e.stopPropagation();
@@ -209,9 +197,8 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
       >
         {props.icon}
         <span
-          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${
-            expanded ? "w-40 ml-3" : "w-0"
-          }`}
+          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${expanded ? "w-40 ml-3" : "w-0"
+            }`}
         >
           {props.text}
         </span>
@@ -235,11 +222,10 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
         )}
       </li>
       <ul
-        className={`transition-all duration-300 ${
-          isOpen && expanded
-            ? "max-h-96 opacity-100 w-full"
-            : "max-h-0 opacity-0 w-0"
-        }`}
+        className={`transition-all duration-300 ${isOpen && expanded
+          ? "max-h-96 opacity-100 w-full"
+          : "max-h-0 opacity-0 w-0"
+          }`}
       >
         {props.children &&
           props.children.map((child, index) => (
@@ -247,10 +233,9 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
               <Link
                 to={child.link}
                 className={`relative flex items-center py-2 px-3 my-1 ml-3 font-medium rounded-md cursor-pointer transition-colors leading-4 group text-sm
-                  ${
-                    currentFunction === linkFunction
-                      ? "bg-gradient-to-tr from-sky-400 to-sky-100 text-blue-800"
-                      : "hover:bg-sky-100 text-gray-600"
+                  ${location.pathname === child.link
+                    ? "bg-gradient-to-tr from-sky-400 to-sky-100 text-blue-800"
+                    : "hover:bg-sky-100 text-gray-600"
                   }
                 `}
               >
