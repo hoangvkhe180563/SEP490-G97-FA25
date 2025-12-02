@@ -4,7 +4,6 @@ using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Utils;
-using static Grpc.Core.Metadata;
 
 namespace StudyHub.Backend.UseCases.Services
 {

@@ -129,7 +129,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 existing.Description = topic.Description;
                 existing.SubjectId = topic.SubjectId;
                 if (topic.IsActive.HasValue) existing.IsActive = topic.IsActive.Value;
-                existing.UpdatedAt = DateTime.UtcNow;
+                existing.UpdatedAt = DateTime.Now;
                 _context.SaveChanges();
 
                 var saved = _context.QATopics
@@ -151,7 +151,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 var existing = _context.QATopics.FirstOrDefault(x => x.Id == id);
                 if (existing == null) return false;
                 existing.IsActive = false;
-                existing.UpdatedAt = DateTime.UtcNow;
+                existing.UpdatedAt = DateTime.Now;
                 _context.SaveChanges();
                 return true;
             }
