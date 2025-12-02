@@ -26,6 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/common/components/ui/alert-dialog";
 import { Button } from "@/common/components/ui/button";
+import { Clock, XCircle, User, BookOpen } from "lucide-react";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { format, formatISO } from "date-fns";
 import {
@@ -36,11 +37,18 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as ReTooltip,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from "recharts";
 import { documentService } from "@/documentManagement/services/documentService";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import courseApi from "@/courseManagement/services/courseService";
+import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 
 const ApproveCourses: React.FC = () => {
   const navigate = useNavigate();
@@ -58,6 +66,8 @@ const ApproveCourses: React.FC = () => {
     "week"
   );
   const [statsCourses, setStatsCourses] = useState<any[]>([]);
+  const fetchEnrollmentCounts = useEnrollmentStore((s) => s.fetchCounts);
+  const enrollmentCounts = useEnrollmentStore((s) => s.enrollmentCounts);
   const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
   const getAppUserById = useAppUserStore((s) => s.getAppUserById);
   const load = async () => {
@@ -79,8 +89,9 @@ const ApproveCourses: React.FC = () => {
       });
       let items = res.items || [];
 
-      // filter by selected range (week/month/year)
       const now = new Date();
+      now.setHours(23, 59, 59, 999);
+
       const cutoff = new Date();
       if (statsRange === "week") {
         cutoff.setDate(now.getDate() - 7);
@@ -89,6 +100,8 @@ const ApproveCourses: React.FC = () => {
       } else {
         cutoff.setFullYear(now.getFullYear() - 1);
       }
+
+      cutoff.setHours(0, 0, 0, 0);
 
       items = items.filter((c: any) => {
         if (!c.createdAt) return false;
@@ -101,7 +114,22 @@ const ApproveCourses: React.FC = () => {
       });
 
       setStatsCourses(items);
-      // resolve creator names for stats items
+
+      try {
+        const fromLocal = new Date(
+          cutoff.getTime() - cutoff.getTimezoneOffset() * 60000
+        );
+        const from = fromLocal.toISOString();
+
+        const toLocal = new Date(
+          now.getTime() - now.getTimezoneOffset() * 60000
+        );
+        const to = toLocal.toISOString();
+
+        await fetchEnrollmentCounts({ from, to, schoolId: authUser?.schoolId });
+      } catch (e) {
+        // ignore errors; store will remain empty
+      }
       const ids = Array.from(
         new Set(items.map((c: any) => String(c.createdBy)).filter(Boolean))
       );
@@ -224,6 +252,132 @@ const ApproveCourses: React.FC = () => {
       perDay,
     };
   }, [statsCourses, subjects]);
+
+  // Additional stats for cards and charts
+  const extraStats = useMemo(() => {
+    const items = statsCourses || [];
+    const now = new Date();
+
+    // Average approval time in days: use courses that have createdAt and updatedAt
+    const approvedItems = items.filter(
+      (c: any) =>
+        c.createdAt &&
+        c.updatedAt &&
+        (c.isApproved === true ||
+          String(c.status).toLowerCase().includes("nháp") ||
+          String(c.status).toLowerCase().includes("mở"))
+    );
+    const approvalDiffs: number[] = [];
+    for (const c of approvedItems) {
+      try {
+        const created = new Date(c.createdAt).getTime();
+        const updated = new Date(c.updatedAt).getTime();
+        if (!isNaN(created) && !isNaN(updated) && updated >= created) {
+          approvalDiffs.push((updated - created) / (1000 * 60 * 60 * 24));
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
+    }
+    const avgApprovalDays = approvalDiffs.length
+      ? approvalDiffs.reduce((s, n) => s + n, 0) / approvalDiffs.length
+      : 0;
+
+    // Rejection rate: count items that look rejected
+    const rejected = items.filter((c: any) => {
+      const st = String(c.status ?? "").toLowerCase();
+      if (
+        st.includes("từ chối") ||
+        st.includes("tuchoi") ||
+        st.includes("rejected") ||
+        st.includes("reject")
+      )
+        return true;
+      // closed + not approved => rejected in our mapping
+      if (st.includes("đóng") || st.includes("dong") || st.includes("closed")) {
+        return c.isApproved === false;
+      }
+      return false;
+    }).length;
+
+    const rejectionRate = items.length
+      ? Math.round((rejected / items.length) * 100)
+      : 0;
+
+    // top creator full name
+    const creatorCounts: Array<{ id: string; count: number }> = [];
+    const cmap = new Map<string, number>();
+    for (const c of items) {
+      const k = String(c.createdBy ?? "(unknown)");
+      cmap.set(k, (cmap.get(k) ?? 0) + 1);
+    }
+    for (const [id, cnt] of cmap.entries())
+      creatorCounts.push({ id, count: cnt });
+    creatorCounts.sort((a, b) => b.count - a.count);
+    const topCreatorId = creatorCounts[0]?.id ?? null;
+    const topCreatorName = topCreatorId
+      ? creatorNames[String(topCreatorId)] ?? topCreatorId
+      : "-";
+
+    // top subject for this month: filter items created within current month
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const monthItems = items.filter((c: any) => {
+      if (!c.createdAt) return false;
+      const d = new Date(c.createdAt);
+      return d >= monthStart && d < monthEnd;
+    });
+    const subjectMapThisMonth = new Map<number, number>();
+    for (const c of monthItems) {
+      const sid = c.subjectId ?? -1;
+      subjectMapThisMonth.set(sid, (subjectMapThisMonth.get(sid) ?? 0) + 1);
+    }
+    const topSubjectMonth = Array.from(subjectMapThisMonth.entries()).sort(
+      (a, b) => b[1] - a[1]
+    )[0];
+    const topSubjectMonthName = topSubjectMonth
+      ? subjects.find((s) => s.id === topSubjectMonth[0])?.name ??
+        String(topSubjectMonth[0])
+      : "-";
+
+    // bar chart: courses by creator (top 10)
+    const barData = creatorCounts.slice(0, 10).map((x) => ({
+      name: creatorNames[String(x.id)] ?? String(x.id),
+      count: x.count,
+    }));
+
+    // pie chart: status distribution
+    const statusMap = new Map<string, number>();
+    for (const c of items) {
+      const st = String(c.status ?? "Nháp");
+      statusMap.set(st, (statusMap.get(st) ?? 0) + 1);
+    }
+    const pieData = Array.from(statusMap.entries()).map(([k, v]) => ({
+      name: k,
+      value: v,
+    }));
+
+    // top enrolled courses computed from enrollmentCounts map (fallback 0)
+    const topEnrolled = (items || [])
+      .map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        count: Number(enrollmentCounts[Number(c.id)] ?? 0),
+      }))
+      .sort((a: any, b: any) => b.count - a.count)
+      .slice(0, 5);
+
+    console.log("Extra stats computed:", topEnrolled);
+    return {
+      avgApprovalDays: avgApprovalDays,
+      rejectionRate,
+      topCreatorName,
+      topSubjectMonthName,
+      barData,
+      pieData,
+      topEnrolled,
+    };
+  }, [statsCourses, creatorNames, subjects, enrollmentCounts]);
 
   // chart data aggregated by selected statsRange
   const chartData = React.useMemo(() => {
@@ -437,6 +591,65 @@ const ApproveCourses: React.FC = () => {
         </div>
       </div>
 
+      {/* Additional statistic cards requested */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="p-4 rounded bg-white border shadow-sm">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-slate-600" />
+            <div className="text-xs text-slate-600">
+              Thời gian duyệt trung bình
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-gray-800 mt-1">
+            {extraStats.avgApprovalDays
+              ? `${extraStats.avgApprovalDays.toFixed(1)} ngày`
+              : "-"}
+          </div>
+          <div className="text-xs text-slate-400">
+            Trung bình từ nộp → duyệt
+          </div>
+        </div>
+
+        <div className="p-4 rounded bg-white border shadow-sm">
+          <div className="flex items-center gap-2">
+            <XCircle className="w-4 h-4 text-red-500" />
+            <div className="text-xs text-slate-600">Tỉ lệ từ chối</div>
+          </div>
+          <div className="text-2xl font-bold text-red-600 mt-1">
+            {extraStats.rejectionRate}%
+          </div>
+          <div className="text-xs text-slate-400">
+            Tổng trong phạm vi đã chọn
+          </div>
+        </div>
+
+        <div className="p-4 rounded bg-white border shadow-sm">
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4 text-slate-600" />
+            <div className="text-xs text-slate-600">
+              Giảng viên tạo nhiều nhất
+            </div>
+          </div>
+          <div className="text-sm font-semibold text-gray-800 mt-1">
+            {extraStats.topCreatorName}
+          </div>
+          <div className="text-xs text-slate-400">Người có nhiều khóa</div>
+        </div>
+
+        <div className="p-4 rounded bg-white border shadow-sm">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-slate-600" />
+            <div className="text-xs text-slate-600">
+              Môn có nhiều khóa nhất tháng này
+            </div>
+          </div>
+          <div className="text-sm font-semibold text-gray-800 mt-1">
+            {extraStats.topSubjectMonthName}
+          </div>
+          <div className="text-xs text-slate-400">Tháng hiện tại</div>
+        </div>
+      </div>
+
       {/* Sparkline & recent */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         <div className="col-span-3 p-4 border rounded bg-white shadow-sm">
@@ -475,7 +688,69 @@ const ApproveCourses: React.FC = () => {
             </ResponsiveContainer>
           </div>
         </div>
-        <div className="col-span-3 p-4 border rounded bg-white shadow-sm">
+        {/* New charts: Bar (courses by creator) and Pie (status distribution) + Top enrolled */}
+        <div className="col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="col-span-2 p-4 border rounded bg-white shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-slate-600">Khóa theo giảng viên</div>
+              <div className="text-xs text-slate-400">Top giảng viên</div>
+            </div>
+            <div className="w-full h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={extraStats.barData}
+                  margin={{ left: 8, right: 12 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                  <ReTooltip />
+                  <Bar dataKey="count" fill="#0EA5E9" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="col-span-1 p-4 border rounded bg-white shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-slate-600">Tình trạng khóa học</div>
+              <div className="text-xs text-slate-400">Phân bổ</div>
+            </div>
+            <div className="w-full h-48 flex items-center justify-center">
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie
+                    data={extraStats.pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={60}
+                    innerRadius={28}
+                    label={{ fontSize: 11 }}
+                  >
+                    {extraStats.pieData.map((entry: any, idx: number) => (
+                      <Cell
+                        key={`cell-${idx}`}
+                        fill={
+                          [
+                            "#6366F1",
+                            "#0EA5E9",
+                            "#F59E0B",
+                            "#EF4444",
+                            "#10B981",
+                          ][idx % 5]
+                        }
+                      />
+                    ))}
+                  </Pie>
+                  <Legend verticalAlign="bottom" height={20} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+        <div className="col-span-3 lg:col-span-2 p-4 border rounded bg-white shadow-sm">
           <div className="text-sm text-slate-600 mb-2">Mục nộp gần đây</div>
           <div className="max-h-56 overflow-y-auto">
             <ul className="text-sm space-y-2">
@@ -492,7 +767,7 @@ const ApproveCourses: React.FC = () => {
                       <div className="text-xs text-slate-400">
                         {creatorNames[String(r.createdBy)] ??
                           r.createdBy ??
-                          "-"}{" "}
+                          "—"}{" "}
                         •{" "}
                         {r.createdAt
                           ? format(new Date(r.createdAt), "yyyy-MM-dd")
@@ -505,6 +780,45 @@ const ApproveCourses: React.FC = () => {
                         variant="ghost"
                         onClick={() =>
                           navigate(`/course/teacher/courses/${r.id}`)
+                        }
+                        className="text-slate-600"
+                      >
+                        Xem
+                      </Button>
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        </div>
+
+        <div className="col-span-3 lg:col-span-1 p-4 border rounded bg-white shadow-sm">
+          <div className="text-sm text-slate-600 mb-2">
+            Top khóa được đăng ký
+          </div>
+          <div className="max-h-56 overflow-y-auto">
+            <ul className="text-sm space-y-2">
+              {extraStats.topEnrolled.length === 0 ? (
+                <li className="text-slate-500">Không có dữ liệu</li>
+              ) : (
+                extraStats.topEnrolled.map((t: any) => (
+                  <li
+                    key={t.id}
+                    className="flex items-center justify-between py-2"
+                  >
+                    <div>
+                      <div className="font-medium text-slate-800">{t.name}</div>
+                      <div className="text-xs text-slate-400">
+                        Đã đăng ký: {t.count}
+                      </div>
+                    </div>
+                    <div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          navigate(`/course/teacher/courses/${t.id}`)
                         }
                         className="text-slate-600"
                       >
