@@ -313,15 +313,22 @@ const AddEditClassworkForm: React.FC = () => {
         setFieldError("title", "Tiêu đề không được để trống");
         hasError = true;
       }
+
+      // maxScore is now required
+      if (maxScore === "" || maxScore === null || maxScore === undefined) {
+        setFieldError("maxScore", "Điểm tối đa là bắt buộc");
+        hasError = true;
+      } else if (typeof maxScore === "number" && maxScore < 0) {
+        setFieldError("maxScore", "Điểm tối đa phải lớn hơn hoặc bằng 0");
+        hasError = true;
+      }
+
       if (!id || Number(id) <= 0) {
         showAlert("ClassId không hợp lệ", "Lỗi", "destructive");
         setLoading(false);
         return;
       }
-      if (maxScore !== "" && typeof maxScore === "number" && maxScore < 0) {
-        setFieldError("maxScore", "Điểm tối đa phải lớn hơn hoặc bằng 0");
-        hasError = true;
-      }
+
       if (deadline && deadline.trim() !== "") {
         const selected = new Date(deadline);
         const now = new Date();
@@ -438,31 +445,33 @@ const AddEditClassworkForm: React.FC = () => {
   const handleFiles = (files: File[]) => {
     if (!files || files.length === 0) return;
     setFilePreviews((prev) => {
-      // If there are any existing previews from DB, mark them as removed so server can delete them
-      const existingIdsToRemove = prev.filter((p) => p.existing && p.fileId != null).map((p) => p.fileId as number | string);
-      if (existingIdsToRemove.length > 0) {
-        setRemovedExistingFileIds((s) => [...s, ...existingIdsToRemove]);
+      // Do NOT auto-mark existing previews as removed when user selects new files.
+      // Keep existing previews and append newly selected files (dedupe by name+size).
+      // Revoke object URLs of previous non-existing previews only when they are explicitly removed.
+      const existingKeep = prev.slice(); // keep all current previews (existing + new)
+      const existingSignatures = new Set<string>();
+      for (const p of existingKeep) {
+        const name = p.file?.name ?? p.fileName ?? "";
+        const size = p.file?.size ?? 0;
+        existingSignatures.add(`${name}:${size}`);
       }
-      // Revoke object URLs of previous non-existing previews to avoid leaks
-      prev.forEach((p) => {
-        if (!p.existing && p.url) {
-          try { URL.revokeObjectURL(p.url); } catch { /* empty */ }
-        }
-      });
 
-      // Replace all previews with the newly selected files (dedupe by name+size)
       const newSignatures = new Set<string>();
-      const next = files.reduce<FilePreview[]>((acc, f) => {
+      const newPreviews: FilePreview[] = [];
+      for (const f of files) {
         const sig = `${f.name}:${f.size}`;
-        if (newSignatures.has(sig)) return acc;
+        if (existingSignatures.has(sig) || newSignatures.has(sig)) {
+          // skip duplicate
+          continue;
+        }
         newSignatures.add(sig);
         const tp = detectFileType(f);
         const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
         const url = URL.createObjectURL(f);
-        acc.push({ id, file: f, url, type: tp });
-        return acc;
-      }, []);
-      return next;
+        newPreviews.push({ id, file: f, url, type: tp });
+      }
+
+      return [...existingKeep, ...newPreviews];
     });
   };
 
@@ -774,7 +783,10 @@ const AddEditClassworkForm: React.FC = () => {
             </div>
 
             <div>
-              <Label>Điểm tối đa</Label>
+              <Label>
+                Điểm tối đa
+                <span className="text-red-600 ml-1">*</span>
+              </Label>
               <Input
                 type="number"
                 value={maxScore}

@@ -173,6 +173,15 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             _context.SaveChanges();
             return true;
         }
+        public bool DeleteNotificationFileById(int classNotificationFileId)
+        {
+            var files = _context.ClassNotificationFiles.FirstOrDefault(c => c.Id == classNotificationFileId);
+            if (files==null) { return false; }
+            _context.ClassNotificationFiles.RemoveRange(files);
+            _context.SaveChanges();
+            return true;
+        }
+        
         public List<ClassNotificationFile> GetFilesByNotification(int notificationId)
         {
             return _context.ClassNotificationFiles
@@ -392,7 +401,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public int GetMemberClassCount(int classID)
         {
-            return _context.AppUserClasses.Where(a => a.ClassId == classID).GroupBy(a => a.UserId).Count();
+            return _context.AppUserClasses.Where(a => a.ClassId == classID&& a.Status.Equals("joined")).Count();
         }
     }
 }

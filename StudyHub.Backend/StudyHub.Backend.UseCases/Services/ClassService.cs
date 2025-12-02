@@ -58,6 +58,7 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 Name = dto.Name.Trim(),
                 Description = dto.Description,
+                Grade = dto.Grade,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = dto.CreatedBy
             };

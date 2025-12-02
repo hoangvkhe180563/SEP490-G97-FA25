@@ -32,6 +32,7 @@ namespace StudyHub.Backend.UseCases.Services
         public ClassNotification EditNotification(ClassNotification notification) => _repo.EditNotification(notification);
         public ClassNotification GetNotification(int notificationId) => _repo.GetNotification(notificationId);
         public bool DeleteNotification(int notificationId) => _repo.DeleteNotification(notificationId);
+        public bool DeleteNotificationFileById(int classNotificationFileId)=>_repo.DeleteNotificationFileById(classNotificationFileId);
 
         // Comments & files
         public ClassNotificationComment CreateComment(ClassNotificationComment comment) => _repo.CreateComment(comment);

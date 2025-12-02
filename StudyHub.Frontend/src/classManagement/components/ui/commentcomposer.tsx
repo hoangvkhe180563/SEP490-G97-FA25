@@ -1,4 +1,6 @@
+// url=https://github.com/hoangvkhe180563/SEP490-G97-FA25/blob/main/StudyHub.Frontend/src/classManagement/components/ui/comment-composer.tsx
 import React, { useState } from "react";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 /* shadcn components */
 import { Avatar, AvatarImage, AvatarFallback } from "@/common/components/ui/avatar";
@@ -13,6 +15,9 @@ type Props = {
 
 const CommentComposer: React.FC<Props> = ({ avatarUrl, placeholder = "Viết bình luận...", onSend }) => {
   const [text, setText] = useState("");
+  const { user } = useAuthStore();
+  const fallbackAvatar =
+    avatarUrl ;
 
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -25,8 +30,24 @@ const CommentComposer: React.FC<Props> = ({ avatarUrl, placeholder = "Viết bì
   return (
     <form onSubmit={submit} className="flex items-start gap-3">
       <Avatar>
-        <AvatarImage src={avatarUrl ?? "/vite.svg"} alt="avatar" />
-        <AvatarFallback>U</AvatarFallback>
+         { fallbackAvatar ? (
+                        <AvatarImage
+                          src={fallbackAvatar}
+                          alt="avatar"
+                         
+                        />
+                      ) : (
+                        <AvatarFallback>
+                          {(user as any)?.fullname
+                            ? String((user as any).fullname)
+                                .split(/\s+/)
+                                .map((p: string) => p.charAt(0))
+                                .slice(0, 2)
+                                .join("")
+                                .toUpperCase()
+                            : "U"}
+                        </AvatarFallback>
+                      )}
       </Avatar>
 
       <div className="flex-1">
@@ -40,7 +61,7 @@ const CommentComposer: React.FC<Props> = ({ avatarUrl, placeholder = "Viết bì
 
       <div>
         <Button type="submit" disabled={!text.trim()}>
-          Send
+          Gửi
         </Button>
       </div>
     </form>
