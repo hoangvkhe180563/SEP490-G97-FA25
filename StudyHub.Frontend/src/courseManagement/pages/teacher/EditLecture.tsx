@@ -13,6 +13,11 @@ import {
 import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
 import { ArrowLeft, Loader2, Upload, X, HelpCircle } from "lucide-react";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/common/components/ui/popover";
 import { useQuill } from "react-quilljs";
 import "quill/dist/quill.snow.css";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
@@ -55,7 +60,7 @@ const EditLecture: React.FC = () => {
   const [isPreview, setIsPreview] = useState(false);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number>(0);
   const [selectedGrade, setSelectedGrade] = useState<number>(0);
-  const [randomQuestions, setRandomQuestions] = useState<string>('');
+  const [randomQuestions, setRandomQuestions] = useState<string>("");
 
   // Interactive questions metadata (local only until saved to backend)
   const [interactiveQuestions, setInteractiveQuestions] = useState<
@@ -263,13 +268,13 @@ const EditLecture: React.FC = () => {
                   q.type === "text" || q.type === "mc"
                     ? q.type
                     : q.type && String(q.type).toLowerCase().includes("text")
-                      ? "text"
-                      : "mc",
+                    ? "text"
+                    : "mc",
                 options: Array.isArray(q.options)
                   ? q.options
                   : q.options
-                    ? JSON.parse(JSON.stringify(q.options))
-                    : undefined,
+                  ? JSON.parse(JSON.stringify(q.options))
+                  : undefined,
                 correctIndex:
                   typeof q.correctIndex === "number" ? q.correctIndex : null,
                 correctAnswer: q.correctAnswer ?? null,
@@ -304,13 +309,13 @@ const EditLecture: React.FC = () => {
                     q.type === "text" || q.type === "mc"
                       ? q.type
                       : q.type && String(q.type).toLowerCase().includes("text")
-                        ? "text"
-                        : "mc",
+                      ? "text"
+                      : "mc",
                   options: Array.isArray(q.options)
                     ? q.options
                     : q.options
-                      ? JSON.parse(JSON.stringify(q.options))
-                      : undefined,
+                    ? JSON.parse(JSON.stringify(q.options))
+                    : undefined,
                   correctIndex:
                     typeof q.correctIndex === "number" ? q.correctIndex : null,
                   correctAnswer: q.correctAnswer ?? null,
@@ -480,12 +485,12 @@ const EditLecture: React.FC = () => {
       try {
         setTimeLabel(
           initial.timeLabel ??
-          ((): any => {
-            const s = Number(initial.timeSec) || 0;
-            const m = Math.floor(s / 60);
-            const sec = Math.floor(s % 60);
-            return `${m}:${sec.toString().padStart(2, "0")}`;
-          })()
+            ((): any => {
+              const s = Number(initial.timeSec) || 0;
+              const m = Math.floor(s / 60);
+              const sec = Math.floor(s % 60);
+              return `${m}:${sec.toString().padStart(2, "0")}`;
+            })()
         );
         setQuestionText(initial.question ?? "");
         setQtype(initial.type ?? "mc");
@@ -571,8 +576,9 @@ const EditLecture: React.FC = () => {
 
     return (
       <div
-        className={`border rounded p-3 bg-white ${type === "video" ? "" : "hidden"
-          } `}
+        className={`border rounded p-3 bg-white ${
+          type === "video" ? "" : "hidden"
+        } `}
       >
         <div className="grid grid-cols-12 gap-2 items-start">
           <div className="col-span-2">
@@ -972,14 +978,14 @@ const EditLecture: React.FC = () => {
         interactiveQuestions:
           interactiveQuestions && interactiveQuestions.length
             ? interactiveQuestions.map((q) => ({
-              timeSec: q.timeSec,
-              question: q.question,
-              type: q.type,
-              options: q.options ?? null,
-              correctIndex:
-                typeof q.correctIndex === "number" ? q.correctIndex : null,
-              correctAnswer: q.correctAnswer ?? null,
-            }))
+                timeSec: q.timeSec,
+                question: q.question,
+                type: q.type,
+                options: q.options ?? null,
+                correctIndex:
+                  typeof q.correctIndex === "number" ? q.correctIndex : null,
+                correctAnswer: q.correctAnswer ?? null,
+              }))
             : null,
       };
 
@@ -1064,8 +1070,8 @@ const EditLecture: React.FC = () => {
               {type === "video"
                 ? "Video"
                 : type === "reading"
-                  ? "Tài liệu đọc"
-                  : "Bài kiểm tra"}
+                ? "Tài liệu đọc"
+                : "Bài kiểm tra"}
               )
             </h1>
             <p className="text-sm text-[#525252]">
@@ -1273,9 +1279,44 @@ const EditLecture: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-3">
-              <Label className="text-gray-800 font-medium text-sm">
-                Tài nguyên (File đính kèm)
-              </Label>
+              <div className="flex items-center gap-2">
+                <Label className="text-gray-800 font-medium text-sm">
+                  Tài nguyên (File đính kèm)
+                </Label>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Hướng dẫn tải tài nguyên"
+                      className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-gray-700"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-[320px] p-3">
+                    <div className="text-sm text-gray-700">
+                      <div className="font-medium mb-2">
+                        Hướng dẫn tải tài nguyên
+                      </div>
+                      <ol className="list-decimal pl-5 space-y-1">
+                        <li>
+                          Nhấn nút để chọn file từ máy tính (tất cả định dạng
+                          được hỗ trợ).
+                        </li>
+                        <li>
+                          Sau khi chọn file, nhấn "Tải lên" để upload lên
+                          server.
+                        </li>
+                        <li>
+                          Chờ popup thông báo "Tải lên tài nguyên thành công"
+                          trước khi tiếp tục.
+                        </li>
+                      </ol>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
 
               <div className="border border-dashed border-gray-300 rounded-xl p-4 bg-gray-50 hover:bg-gray-100 transition-colors duration-150">
                 {!resourceUrl ? (
@@ -1489,10 +1530,11 @@ const EditLecture: React.FC = () => {
                           <div className="text-xs text-gray-500">
                             {q.type === "mc"
                               ? `MC — ${q.options?.length ?? 0} lựa chọn`
-                              : `Text${q.correctAnswer
-                                ? ` — đáp án: ${q.correctAnswer}`
-                                : ""
-                              }`}
+                              : `Text${
+                                  q.correctAnswer
+                                    ? ` — đáp án: ${q.correctAnswer}`
+                                    : ""
+                                }`}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1590,13 +1632,22 @@ const EditLecture: React.FC = () => {
               Câu hỏi <span className="text-red-500">*</span>
             </Label>
 
-            {
-              questions.length > 0 ? (
-                <QuestionTemplate questions={questions} setQuestions={setQuestions} />
-              ) : (
-                <RandomQuestionTemplate isLesson selectedSubjectId={selectedSubjectId} setSelectedSubjectId={setSelectedSubjectId} selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} selectedRandomQuestions={randomQuestions} setSelectedRandomQuestions={setRandomQuestions} />
-              )
-            }
+            {questions.length > 0 ? (
+              <QuestionTemplate
+                questions={questions}
+                setQuestions={setQuestions}
+              />
+            ) : (
+              <RandomQuestionTemplate
+                isLesson
+                selectedSubjectId={selectedSubjectId}
+                setSelectedSubjectId={setSelectedSubjectId}
+                selectedGrade={selectedGrade}
+                setSelectedGrade={setSelectedGrade}
+                selectedRandomQuestions={randomQuestions}
+                setSelectedRandomQuestions={setRandomQuestions}
+              />
+            )}
           </div>
         </div>
       </div>

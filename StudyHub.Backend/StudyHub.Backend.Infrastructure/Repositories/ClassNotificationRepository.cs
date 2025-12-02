@@ -125,7 +125,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 NotificationId = comment.NotificationId,
                 CreatedBy = comment.CreatedBy,
                 Content = comment.Content,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now
             };
             _context.ClassNotificationComments.Add(ent);
             _context.SaveChanges();
@@ -204,8 +204,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 NotificationId = submission.NotificationId,
                 AppUserId = submission.AppUserId,
-                FirstSubmissionTime = DateTime.UtcNow,
-                LatestSubmissionTime = DateTime.UtcNow,
+                FirstSubmissionTime = DateTime.Now,
+                LatestSubmissionTime = DateTime.Now,
                 SubmissionStatus = submission.SubmissionStatus ?? "submitted"
             };
             _context.NotificationSubmissions.Add(ent);
@@ -235,7 +235,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             var ent = _context.NotificationSubmissions.FirstOrDefault(s => s.Id == submissionId);
             if (ent == null) return null;
-            ent.LatestSubmissionTime = DateTime.UtcNow;
+            ent.LatestSubmissionTime = DateTime.Now;
             _context.NotificationSubmissions.Update(ent);
 
             var existing = _context.SubmissionFiles.Where(f => f.SubmissionId == submissionId).ToList();
