@@ -63,7 +63,7 @@ Card.displayName = "Card";
 
 const Matching = (props: MatchingProps) => {
   const shuffleArray = <T,>(array: T[]): T[] => {
-    let shuffled = [...array];
+    const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -208,6 +208,7 @@ const Matching = (props: MatchingProps) => {
 
     setDragging(null);
     setLine(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragging, props.questionNumber, props.handleChange]);
 
   useEffect(() => {

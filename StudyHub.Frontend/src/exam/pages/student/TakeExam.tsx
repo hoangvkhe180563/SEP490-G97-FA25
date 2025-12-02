@@ -110,7 +110,7 @@ const TakeExam = () => {
                 initialAnswer = '';
                 break;
               case EXAM_TYPE.FILL_IN_BLANK:
-                const blankCount = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+                const blankCount = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
                 initialAnswer = Array(blankCount).fill('');
                 break;
               case EXAM_TYPE.MATCHING:
@@ -160,6 +160,7 @@ const TakeExam = () => {
     };
     fetchExam();
     return () => clearInterval(backupInterval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {
@@ -172,6 +173,7 @@ const TakeExam = () => {
     } else if (timeLeft === 0 && !isSubmitted) {
       handleSubmitExam();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, isSubmitted]);
 
   useEffect(() => {
@@ -179,11 +181,13 @@ const TakeExam = () => {
       setCheatTimes(ct => ct + 1);
       setCheatDialogOpen(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isVisible]);
 
   useEffect(() => {
     if (exam.duration <= 0) return;
     handleBackupExamResult(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cheatTimes])
 
   const handleAnswerChange = (questionId: number, value: any, type: number, blankIndex: number | null = null) => {
@@ -368,7 +372,7 @@ const TakeExam = () => {
                 {question.questionText.split(BLANK_PLACEHOLDER).map((part, blankIndex) => (
                   <React.Fragment key={blankIndex}>
                     {part}
-                    {blankIndex < (question.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length && (
+                    {blankIndex < (question.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length && (
                       <input
                         type="text"
                         className="inline-block w-32 border border-gray-300 rounded-md p-1 mx-2 text-gray-800 text-base"

@@ -27,6 +27,7 @@ const RandomQuestionTemplate = (props: RandomQuestionTemplateProps) => {
     }
 
     fetchData().catch(console.error);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -34,6 +35,7 @@ const RandomQuestionTemplate = (props: RandomQuestionTemplateProps) => {
       return;
     }
     questionService.getTotalQuestions(props.selectedSubjectId, props.selectedGrade).then(result => setTotalQuestions(result));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.selectedSubjectId, props.selectedGrade]);
 
   return (
@@ -87,7 +89,7 @@ const RandomQuestionTemplate = (props: RandomQuestionTemplateProps) => {
         ) : (
           <div className="flex gap-3 items-center">
             <Label htmlFor="randomQuestions">Số câu hỏi cần lấy ngẫu nhiên: </Label>
-            <Input id="randomQuestions" className="w-16" type="number" value={props.selectedRandomQuestions} onChange={(e) => props.setSelectedRandomQuestions(e.target.value)} max={totalQuestions} min={totalQuestions === 0 ? 0 : 1} disabled={totalQuestions === 0}/>
+            <Input id="randomQuestions" className="w-16" type="number" value={props.selectedRandomQuestions} onChange={(e) => props.setSelectedRandomQuestions(e.target.value)} max={totalQuestions} min={totalQuestions === 0 ? 0 : 1} disabled={totalQuestions === 0} />
             <span>/ {totalQuestions}</span>
           </div>
         )
