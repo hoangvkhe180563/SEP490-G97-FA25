@@ -1301,14 +1301,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     {
                         dbQuery = dbQuery.Where(s =>
                             s.IsMute == true &&
-                            (s.MuteUntil == null || s.MuteUntil > DateTime.UtcNow));
+                            (s.MuteUntil == null || s.MuteUntil > DateTime.Now));
                     }
                     else
                     {
                         dbQuery = dbQuery.Where(s =>
                             s.IsMute == false ||
                             s.IsMute == null ||
-                            (s.IsMute == true && s.MuteUntil.HasValue && s.MuteUntil.Value <= DateTime.UtcNow));
+                            (s.IsMute == true && s.MuteUntil.HasValue && s.MuteUntil.Value <= DateTime.Now));
                     }
                 }
 

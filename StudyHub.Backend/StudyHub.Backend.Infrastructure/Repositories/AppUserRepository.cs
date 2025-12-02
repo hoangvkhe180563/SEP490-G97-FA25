@@ -135,11 +135,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
-        public (List<Domain.Entities.AppUser>, int, int, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page, int limit)
+        public (List<Domain.Entities.AppUser>, int, int, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page, int limit, Guid myUserId)
         {
             try
             {
-                var users = _context.AppUsers.AsQueryable();
+                var users = _context.AppUsers.Where(u => u.Id != myUserId).AsQueryable();
 
                 if (!string.IsNullOrEmpty(status))
                 {
@@ -172,7 +172,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (page < 1) page = DEFAULT_CURRENT_PAGE;
                 if (limit < 1) limit = DEFAULT_PAGE_SIZE;
                 var totalPages = (int)Math.Ceiling(total / (double)limit);
-                var paged = users.Skip((page - 1) * limit).Take(limit).ToList();
+                var paged = users.Skip((page - 1) * limit).Take(limit).OrderBy(u => u.CreatedAt).ToList();
                 var result = paged.Select(u => ToDomain(u)).ToList();
                 return (result, total, totalPages, page, limit);
             }

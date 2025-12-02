@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/common/components/ui/button";
+import { Copy, Clock, XCircle, Info } from "lucide-react";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { usePaymentStore } from "@/paymentManagement/stores/usePaymentStore";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
@@ -227,11 +228,13 @@ const PaymentCheckout: React.FC = () => {
 
             {loading ? (
               <div className="py-8 text-center text-sm text-gray-500">
-                ⏳ Đang tạo đơn và lấy mã QR…
+                <Clock className="inline-block w-5 h-5 mr-2 text-gray-400" />{" "}
+                Đang tạo đơn và lấy mã QR…
               </div>
             ) : error ? (
               <div className="p-4 bg-red-50 text-red-700 rounded-lg">
-                ❌ Lỗi: {error}
+                <XCircle className="inline-block w-4 h-4 mr-1 align-text-bottom" />{" "}
+                Lỗi: {error}
               </div>
             ) : result ? (
               <div className="space-y-5">
@@ -268,7 +271,7 @@ const PaymentCheckout: React.FC = () => {
                       onClick={() => copyImage(result.qrUrl)}
                       className="bg-sky-600 hover:bg-sky-700 text-white rounded-xl px-6 py-2 text-sm"
                     >
-                      📋 Copy image
+                      <Copy className="w-4 h-4 mr-1 inline-block" /> Copy image
                     </Button>
                   )}
 
@@ -282,9 +285,10 @@ const PaymentCheckout: React.FC = () => {
                 </div>
 
                 <p className="text-xs text-gray-500 leading-relaxed mt-4">
-                  💡 Quét mã QR bằng ứng dụng ngân hàng hoặc SePay để thanh
-                  toán. Sau khi hoàn tất, hệ thống sẽ tự động cập nhật trạng
-                  thái thanh toán (webhook xử lý tự động).
+                  <Info className="inline-block w-4 h-4 mr-2 text-gray-400" />{" "}
+                  Quét mã QR bằng ứng dụng ngân hàng hoặc SePay để thanh toán.
+                  Sau khi hoàn tất, hệ thống sẽ tự động cập nhật trạng thái
+                  thanh toán (webhook xử lý tự động).
                 </p>
               </div>
             ) : null}

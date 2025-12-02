@@ -20,6 +20,7 @@ import { transactionService } from "@/paymentManagement/services/transactionServ
 import { useTransactionStore } from "@/paymentManagement/stores/useTransactionStore";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
+import { useConversationStore } from "@/qaManagement/stores/useConversationStore";
 
 type AggregationMode = "time" | "course";
 
@@ -29,6 +30,7 @@ const RevenueReport: React.FC = () => {
   const [courseId, setCourseId] = useState<string | "All">("All");
   const [teacherId, setTeacherId] = useState<string | "All">("All");
   const [mode, setMode] = useState<AggregationMode>("time");
+  const [avgPeriod, setAvgPeriod] = useState<"day" | "month" | "year">("day");
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [dateError, setDateError] = useState<string | null>(null);
@@ -37,6 +39,8 @@ const RevenueReport: React.FC = () => {
   const fetchCourses = useCourseStore((s) => s.fetchCourses);
   const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
   const [teachers, setTeachers] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [topPayers, setTopPayers] = useState<any[]>([]);
 
   useEffect(() => {
     // initialize default date range to current week (Monday - Sunday)
@@ -59,6 +63,14 @@ const RevenueReport: React.FC = () => {
           "role=00000000-0000-0000-0000-000000000003&page=1&pageSize=200"
         );
         setTeachers(r?.data ?? []);
+      } catch (err) {
+        // ignore
+      }
+      try {
+        const convResp: any = await useConversationStore
+          .getState()
+          .getConversations();
+        setConversations(convResp?.data ?? []);
       } catch (err) {
         // ignore
       }
@@ -177,39 +189,141 @@ const RevenueReport: React.FC = () => {
     const txCount = (filtered || []).length;
     const avg = txCount > 0 ? totalRevenue / txCount : 0;
 
-    // top courses by revenue
+    // compute number of periods between from and to for avg per period
+    let periods = 1;
+    try {
+      if (from && to) {
+        const s = new Date(from);
+        const e = new Date(to);
+        if (s <= e) {
+          if (avgPeriod === "day") {
+            const msPerDay = 1000 * 60 * 60 * 24;
+            periods = Math.floor((e.getTime() - s.getTime()) / msPerDay) + 1;
+          } else if (avgPeriod === "month") {
+            periods =
+              (e.getFullYear() - s.getFullYear()) * 12 +
+              (e.getMonth() - s.getMonth()) +
+              1;
+          } else if (avgPeriod === "year") {
+            periods = e.getFullYear() - s.getFullYear() + 1;
+          }
+        }
+      }
+    } catch (err) {
+      periods = 1;
+    }
+
+    const avgPerPeriod = periods > 0 ? totalRevenue / periods : 0;
+
+    // top courses by revenue: only include known courses (hide unknown/no-course)
     const courseMap = new Map<string, number>();
     for (const t of filtered) {
-      const cid = t.courseId ? String(t.courseId) : "(none)";
+      if (!t.courseId) continue;
+      const cid = String(t.courseId);
       courseMap.set(cid, (courseMap.get(cid) ?? 0) + Number(t.amount ?? 0));
     }
     const courseEntries = Array.from(courseMap.entries()).sort(
       (a, b) => b[1] - a[1]
     );
-    const topCourses = courseEntries.slice(0, 5).map(([cid, amt]) => {
-      const c = (courses || []).find((x: any) => String(x.id) === cid);
-      return { id: cid, name: c ? c.name : cid, amount: amt };
-    });
+    const topCourses = courseEntries
+      .map(([cid, amt]) => {
+        const c = (courses || []).find((x: any) => String(x.id) === cid);
+        if (!c) return null; // exclude missing courses
+        return { id: cid, name: c.name, amount: amt };
+      })
+      .filter(Boolean)
+      .slice(0, 5) as any[];
 
-    // top teachers by revenue (best-effort using course.createdBy)
-    const teacherMap = new Map<string, number>();
-    for (const t of filtered) {
-      const c = (courses || []).find(
-        (x: any) => String(x.id) === String(t.courseId)
-      );
-      const tid = c ? String(c.createdBy) : "(unknown)";
-      teacherMap.set(tid, (teacherMap.get(tid) ?? 0) + Number(t.amount ?? 0));
+    // top teachers by QA conversation count (most asked in QA)
+    const teacherCountMap = new Map<string, number>();
+    for (const conv of conversations || []) {
+      if (!conv?.teacherId) continue;
+      const tid = String(conv.teacherId);
+      teacherCountMap.set(tid, (teacherCountMap.get(tid) ?? 0) + 1);
     }
-    const teacherEntries = Array.from(teacherMap.entries()).sort(
+    const teacherEntries = Array.from(teacherCountMap.entries()).sort(
       (a, b) => b[1] - a[1]
     );
-    const topTeachers = teacherEntries.slice(0, 5).map(([tid, amt]) => {
-      const t = teachers.find((x: any) => String(x.id) === tid);
-      return { id: tid, name: t ? t.fullname || t.username : tid, amount: amt };
-    });
+    const topTeachers = teacherEntries
+      .map(([tid, cnt]) => {
+        const t = teachers.find((x: any) => String(x.id) === tid);
+        if (!t) return null; // exclude unknown teachers
+        return {
+          id: tid,
+          name: t.fullname || t.username || t.name,
+          amount: cnt,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 5) as any[];
 
-    return { totalRevenue, txCount, avg, topCourses, topTeachers };
-  }, [filtered, courses, teachers]);
+    // top payers (students who topped up) - will be additionally resolved to names
+    const payerMap = new Map<string, number>();
+    for (const t of filtered) {
+      // consider positive amounts as top-up/deposit
+      if (!t.userId) continue;
+      const uid = String(t.userId);
+      payerMap.set(uid, (payerMap.get(uid) ?? 0) + Number(t.amount ?? 0));
+    }
+    const payerEntries = Array.from(payerMap.entries()).sort(
+      (a, b) => b[1] - a[1]
+    );
+    const topPayersLocal = payerEntries
+      .slice(0, 5)
+      .map(([uid, amt]) => ({ id: uid, amount: amt }));
+
+    return {
+      totalRevenue,
+      txCount,
+      avg,
+      avgPerPeriod,
+      avgPeriod,
+      topCourses,
+      topTeachers,
+      topPayers: topPayersLocal,
+    };
+  }, [filtered, courses, teachers, conversations, from, to, avgPeriod]);
+
+  // resolve top payer ids to user names whenever the top payer ids change
+  useEffect(() => {
+    const ids = (summary?.topPayers ?? []).map((p: any) => p.id);
+    if (!ids || ids.length === 0) {
+      setTopPayers([]);
+      return;
+    }
+    let mounted = true;
+    (async () => {
+      try {
+        const results = await Promise.all(
+          ids.map(async (id: string) => {
+            try {
+              const g = await useAppUserStore.getState().getAppUserById(id);
+              const user = g?.data ?? null;
+              return {
+                id,
+                name: user?.fullname || user?.username || id,
+                amount:
+                  summary.topPayers.find((p: any) => p.id === id)?.amount ?? 0,
+              };
+            } catch (err) {
+              return {
+                id,
+                name: id,
+                amount:
+                  summary.topPayers.find((p: any) => p.id === id)?.amount ?? 0,
+              };
+            }
+          })
+        );
+        if (mounted) setTopPayers(results.filter(Boolean));
+      } catch (err) {
+        if (mounted) setTopPayers([]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [summary?.topPayers]);
 
   const exportRevenueCsv = async () => {
     const txStore = useTransactionStore.getState();
@@ -319,18 +433,64 @@ const RevenueReport: React.FC = () => {
               </div>
               <div className="text-xs text-sky-500 mt-1">Giao dịch phù hợp</div>
             </div>
-            <div className="p-4 rounded shadow-sm border-l-4 border-amber-500 bg-gradient-to-r from-amber-50 to-white flex flex-col">
-              <div className="text-xs text-amber-600">
-                Trung bình / giao dịch
-              </div>
-              <div className="text-2xl font-extrabold mt-2 text-amber-800">
-                {summary.avg.toLocaleString(undefined, {
-                  maximumFractionDigits: 0,
-                })}
-                ₫
-              </div>
-              <div className="text-xs text-amber-500 mt-1">
-                Giá trị trung bình
+            <div className="p-4 rounded shadow-sm border-l-4 border-amber-500 bg-gradient-to-r from-amber-50 to-white">
+              <div className="flex items-center">
+                <div className="flex-1">
+                  <div className="text-xs text-amber-600">
+                    {avgPeriod === "day"
+                      ? "Trung bình / ngày"
+                      : avgPeriod === "month"
+                      ? "Trung bình / tháng"
+                      : "Trung bình / năm"}
+                  </div>
+                  <div className="text-2xl font-extrabold mt-2 text-amber-800">
+                    {Number(summary.avgPerPeriod || 0).toLocaleString(
+                      undefined,
+                      {
+                        maximumFractionDigits: 0,
+                      }
+                    )}
+                    ₫
+                  </div>
+                  <div className="text-xs text-amber-500 mt-1">
+                    Giá trị trung bình
+                  </div>
+                </div>
+                <div className="flex flex-col items-end ml-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAvgPeriod("day")}
+                    className={`text-xs px-3 py-1 rounded-md ${
+                      avgPeriod === "day"
+                        ? "bg-emerald-600 text-white"
+                        : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    Theo ngày
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAvgPeriod("month")}
+                    className={`text-xs px-3 py-1 rounded-md ${
+                      avgPeriod === "month"
+                        ? "bg-emerald-600 text-white"
+                        : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    Theo tháng
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAvgPeriod("year")}
+                    className={`text-xs px-3 py-1 rounded-md ${
+                      avgPeriod === "year"
+                        ? "bg-emerald-600 text-white"
+                        : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    Theo năm
+                  </button>
+                </div>
               </div>
             </div>
             <div className="p-4 rounded shadow-sm border-l-4 border-violet-500 bg-gradient-to-r from-violet-50 to-white flex flex-col">
@@ -387,7 +547,7 @@ const RevenueReport: React.FC = () => {
               onValueChange={(v) => setTeacherId(v as any)}
             >
               <SelectTrigger className="w-56">
-                <SelectValue placeholder="Chọn người bán / giảng viên" />
+                <SelectValue placeholder="Chọn người bán / giáo viên" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="All">Tất cả giáo viên</SelectItem>
@@ -563,8 +723,8 @@ const RevenueReport: React.FC = () => {
             </div>
           </div>
 
-          {/* Top lists: courses and teachers */}
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
+          {/* Top lists: courses, teachers (QA), and top payers */}
+          <div className="grid md:grid-cols-3 gap-4 mb-6">
             <div className="p-4 rounded bg-gradient-to-br from-white via-slate-50 to-white border shadow-sm">
               <div className="flex items-center justify-between mb-3">
                 <div className="text-sm text-slate-600">
@@ -574,7 +734,9 @@ const RevenueReport: React.FC = () => {
               </div>
               <div className="space-y-2">
                 {summary.topCourses.length === 0 ? (
-                  <div className="text-sm text-slate-500">Không có dữ liệu</div>
+                  <div className="text-sm text-slate-500">
+                    Không có khóa học nào thuộc top
+                  </div>
                 ) : (
                   summary.topCourses.map((c: any, i: number) => (
                     <div key={i} className="flex items-center justify-between">
@@ -605,13 +767,15 @@ const RevenueReport: React.FC = () => {
             <div className="p-4 rounded bg-gradient-to-br from-white via-slate-50 to-white border shadow-sm">
               <div className="flex items-center justify-between mb-3">
                 <div className="text-sm text-slate-600">
-                  Top giảng viên (theo doanh thu)
+                  Top giáo viên (theo câu hỏi QA)
                 </div>
                 <div className="text-xs text-slate-400">Top 5</div>
               </div>
               <div className="space-y-2">
                 {summary.topTeachers.length === 0 ? (
-                  <div className="text-sm text-slate-500">Không có dữ liệu</div>
+                  <div className="text-sm text-slate-500">
+                    Không có giáo viên nào thuộc top
+                  </div>
                 ) : (
                   summary.topTeachers.map((t: any, i: number) => (
                     <div key={i} className="flex items-center justify-between">
@@ -632,7 +796,46 @@ const RevenueReport: React.FC = () => {
                         <span className="truncate text-sm">{t.name}</span>
                       </div>
                       <div className="text-sm font-medium text-slate-800">
-                        {t.amount.toLocaleString()}₫
+                        {t.amount.toLocaleString()}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="p-4 rounded bg-gradient-to-br from-white via-slate-50 to-white border shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm text-slate-600">
+                  Top nạp tiền (học sinh)
+                </div>
+                <div className="text-xs text-slate-400">Top 5</div>
+              </div>
+              <div className="space-y-2">
+                {topPayers.length === 0 ? (
+                  <div className="text-sm text-slate-500">
+                    Không có học sinh nào thuộc top
+                  </div>
+                ) : (
+                  topPayers.map((p: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            i === 0
+                              ? "bg-emerald-500"
+                              : i === 1
+                              ? "bg-sky-500"
+                              : i === 2
+                              ? "bg-amber-500"
+                              : i === 3
+                              ? "bg-violet-500"
+                              : "bg-slate-300"
+                          }`}
+                        ></span>
+                        <span className="truncate text-sm">{p.name}</span>
+                      </div>
+                      <div className="text-sm font-medium text-slate-800">
+                        {Number(p.amount).toLocaleString()}₫
                       </div>
                     </div>
                   ))

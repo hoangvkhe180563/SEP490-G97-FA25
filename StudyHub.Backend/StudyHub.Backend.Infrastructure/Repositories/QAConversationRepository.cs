@@ -70,7 +70,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Type = qAConversation.Type,
                 IsPaid = qAConversation.IsPaid,
                 TopicId = qAConversation.TopicId,
-                CreatedAt = qAConversation.CreatedAt == default ? DateTime.UtcNow : qAConversation.CreatedAt,
+                CreatedAt = qAConversation.CreatedAt == default ? DateTime.Now : qAConversation.CreatedAt,
             };
             return entityConversation;
         }

@@ -19,6 +19,12 @@ const CourseFilterTeacher: React.FC = () => {
     { id: number; name: string }[]
   >([]);
   const [subjects, setSubjects] = useState<string>("all");
+  // status holds a statusKey that maps to backend params:
+  // "Open" => status: "Mở", isApproved: true
+  // "Requested" => status: "Mở", isApproved: false
+  // "Closed" => status: "Đóng", isApproved: true
+  // "Rejected" => status: "Đóng", isApproved: false
+  // "Draft" => status: "Nháp" (no isApproved filter)
   const [status, setStatus] = useState<string>("all");
   const [difficulty, setDifficulty] = useState<string>("all");
   const [length, setLength] = useState<string>("all");
@@ -37,18 +43,45 @@ const CourseFilterTeacher: React.FC = () => {
     fetchSubjects();
 
     const handler = setTimeout(() => {
-      if (authUser?.schoolId)
-        fetchCourses({
-          page: 1,
-          pageSize: 6,
-          q: q.trim() || undefined,
-          subjectId: subjects !== "all" ? Number(subjects) : undefined,
-          schoolId: authUser?.schoolId,
-          status: status !== "all" ? status : undefined,
-          difficulty: difficulty !== "all" ? difficulty : undefined,
-          length: length !== "all" ? length : undefined,
-          isApproved: true,
-        });
+      if (!authUser?.schoolId) return;
+
+      // Translate status key into backend params
+      let statusParam: string | undefined = undefined;
+      let isApprovedParam: boolean | undefined = undefined;
+
+      switch (status) {
+        case "Open":
+          statusParam = "Mở";
+          isApprovedParam = true;
+          break;
+        case "Requested":
+          statusParam = "Mở";
+          isApprovedParam = false;
+          break;
+        case "Closed":
+          statusParam = "Đóng";
+          isApprovedParam = true;
+          break;
+        case "Draft":
+          statusParam = "Nháp";
+          isApprovedParam = true;
+          break;
+        default:
+          statusParam = undefined;
+          isApprovedParam = undefined;
+      }
+
+      fetchCourses({
+        page: 1,
+        pageSize: 6,
+        q: q.trim() || undefined,
+        subjectId: subjects !== "all" ? Number(subjects) : undefined,
+        schoolId: authUser?.schoolId,
+        status: statusParam,
+        isApproved: isApprovedParam,
+        difficulty: difficulty !== "all" ? difficulty : undefined,
+        length: length !== "all" ? length : undefined,
+      });
     }, 300);
 
     return () => clearTimeout(handler);
@@ -95,9 +128,10 @@ const CourseFilterTeacher: React.FC = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất cả trạng thái</SelectItem>
-            <SelectItem value="Nháp">Nháp</SelectItem>
-            <SelectItem value="Mở">Đang mở</SelectItem>
-            <SelectItem value="Đóng">Đã đóng</SelectItem>
+            <SelectItem value="Draft">Nháp</SelectItem>
+            <SelectItem value="Open">Đang mở</SelectItem>
+            <SelectItem value="Requested">Đợi duyệt</SelectItem>
+            <SelectItem value="Closed">Đã đóng</SelectItem>
           </SelectContent>
         </Select>
 
