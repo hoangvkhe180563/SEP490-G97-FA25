@@ -1697,60 +1697,84 @@ namespace StudyHub.Backend.Api.Controllers
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
             }
         }
-    
-        [HttpPost("moderator/mute-user/{userId}/{action}")]
-        public async Task<IActionResult> MuteAction(Guid userId, string action, [FromQuery] int schoolId)
+
+        [HttpPost("mute-user/{userId:guid}")]
+        public async Task<IActionResult> MuteUser(Guid userId, [FromQuery] int schoolId, [FromQuery] int days = 7)
         {
             try
             {
-                if (action != "mute" && action != "unmute")
+                var currentUser = _authService.GetCurrentUser();
+                if (currentUser == null)
                 {
-                    return BadRequest(new { success = false, message = "Action không hợp lệ" });
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
                 }
 
-                var currentUser = _authService.GetCurrentUser();
-                if (currentUser == null || currentUser.SchoolId != schoolId)
+                if (!IsModerator())
+                {
+                    return Forbid();
+                }
+
+                if (currentUser.SchoolId != schoolId)
                 {
                     return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
                 }
 
-                bool result;
-                string successMessage;
-
-                if (action == "mute")
-                {
-                    var muteUntil = DateTime.UtcNow.AddDays(7);
-                    result = await _moderationService.MuteUserAsync(userId, schoolId, muteUntil);
-                    successMessage = "Đã cấm người dùng trong 7 ngày";
-
-                    if (result)
-                    {
-                        _logger.LogInformation("Moderator {ModeratorId} muted user {UserId} until {MuteUntil}",
-                            currentUser.Id, userId, muteUntil);
-                    }
-                }
-                else
-                {
-                    result = await _moderationService.UnmuteUserAsync(userId, schoolId);
-                    successMessage = "Đã bỏ cấm người dùng";
-
-                    if (result)
-                    {
-                        _logger.LogInformation("Moderator {ModeratorId} unmuted user {UserId}",
-                            currentUser.Id, userId);
-                    }
-                }
+                var muteUntil = DateTime.UtcNow.AddDays(days);
+                var result = await _moderationService.MuteUserAsync(userId, schoolId, muteUntil);
 
                 if (!result)
                 {
-                    return BadRequest(new { success = false, message = $"Không thể {action} người dùng" });
+                    return BadRequest(new { success = false, message = "Không thể cấm người dùng" });
                 }
 
-                return Ok(new { success = true, message = successMessage });
+                _logger.LogInformation("Moderator {ModeratorId} muted user {UserId} until {MuteUntil}",
+                    currentUser.Id, userId, muteUntil);
+
+                return Ok(new { success = true, message = $"Đã cấm người dùng trong {days} ngày" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error {Action} user {UserId}", action, userId);
+                _logger.LogError(ex, "Error muting user {UserId}", userId);
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
+
+        [HttpPost("unmute-user/{userId:guid}")]
+        public async Task<IActionResult> UnmuteUser(Guid userId, [FromQuery] int schoolId)
+        {
+            try
+            {
+                var currentUser = _authService.GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                if (!IsModerator())
+                {
+                    return Forbid();
+                }
+
+                if (currentUser.SchoolId != schoolId)
+                {
+                    return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+                }
+
+                var result = await _moderationService.UnmuteUserAsync(userId, schoolId);
+
+                if (!result)
+                {
+                    return BadRequest(new { success = false, message = "Không thể bỏ cấm người dùng" });
+                }
+
+                _logger.LogInformation("Moderator {ModeratorId} unmuted user {UserId}",
+                    currentUser.Id, userId);
+
+                return Ok(new { success = true, message = "Đã bỏ cấm người dùng" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error unmuting user {UserId}", userId);
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
             }
         }

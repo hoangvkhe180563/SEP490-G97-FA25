@@ -39,8 +39,8 @@ const SchoolHomepage = () => {
       } catch (error) {
         console.log("error", error);
         setData({
-          bannerImage: "/src/uiManagement/assets/banner-image.png",
-          logoImage: "/src/common/assets/StudyHubLogo.png",
+          bannerImage: "/banner-image.png",
+          logoImage: "/StudyHubLogo.png",
           description: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book.",
           featuredCourses: [],
           featuredDocuments: [],
@@ -51,9 +51,9 @@ const SchoolHomepage = () => {
             }
           ],
           introductionImage: [
-            "/src/common/assets/StudyHubLogo.png",
-            "/src/common/assets/StudyHubLogo.png",
-            "/src/common/assets/StudyHubLogo.png"
+            "/StudyHubLogo.png",
+            "/StudyHubLogo.png",
+            "/StudyHubLogo.png"
           ]
         })
       }
@@ -71,7 +71,7 @@ const SchoolHomepage = () => {
     <footer>
       <div className="w-full py-2 bg-gray-100 flex flex-col items-center gap-2 bg-gradient-to-b from-sky-200 to-sky-300">
         <div className="flex space-x-5 justify-center items-center">
-          <img className="w-70 h-30" src="/src/common/assets/StudyHubLogo.png" alt="[StudyHub Logo]" />
+          <img className="w-70 h-30" src="/StudyHubLogo.png" alt="[StudyHub Logo]" />
           <span className="font-bold text-lg">x</span>
           <img className="w-70 h-30" src={data?.logoImage} alt="[School Logo]" />
         </div>

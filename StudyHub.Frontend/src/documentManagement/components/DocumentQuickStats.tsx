@@ -56,10 +56,10 @@ const DocumentQuickStats: React.FC<DocumentQuickStatsProps> = ({
       ? ((stats.pendingApproval / stats.totalDocuments) * 100).toFixed(1)
       : 0;
 
-  const rejectionRate =
-    stats.totalDocuments > 0
-      ? ((stats.rejectedDocuments / stats.totalDocuments) * 100).toFixed(1)
-      : 0;
+  // const rejectionRate =
+  //   stats.totalDocuments > 0
+  //     ? ((stats.rejectedDocuments / stats.totalDocuments) * 100).toFixed(1)
+  //     : 0;
 
   const quickStats = [
     {
@@ -76,13 +76,13 @@ const DocumentQuickStats: React.FC<DocumentQuickStatsProps> = ({
       trendColor:
         Number(pendingRate) <= 20 ? "text-green-600" : "text-orange-600",
     },
-    {
-      label: "Tỷ lệ từ chối",
-      value: `${rejectionRate}%`,
-      trend: Number(rejectionRate) <= 10 ? "up" : "down",
-      trendColor:
-        Number(rejectionRate) <= 10 ? "text-green-600" : "text-red-600",
-    },
+    // {
+    //   label: "Tỷ lệ từ chối",
+    //   value: `${rejectionRate}%`,
+    //   trend: Number(rejectionRate) <= 10 ? "up" : "down",
+    //   trendColor:
+    //     Number(rejectionRate) <= 10 ? "text-green-600" : "text-red-600",
+    // },
   ];
 
   return (

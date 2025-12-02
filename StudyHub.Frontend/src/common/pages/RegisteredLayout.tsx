@@ -6,7 +6,7 @@ import {
 import { Outlet } from "react-router-dom";
 import type { AppUser } from "@/auth/interfaces/app-user";
 import { useEffect, useState } from "react";
-import { studentSidebarItems, schoolStudentSidebarItems, teacherSidebarItems, headOfDepartmentTeacherSidebarItems as headTeacherSidebarItems, qAndATeacherSidebarItems, documentManagerSidebarItems, financialManagerSidebarItems, questionManagerSidebarItems, moderatorSidebarItems, schoolAdminSidebarItems, uiManagerSidebarItems } from "../constants/SidebarItems";
+import { schoolStudentSidebarItems, teacherSidebarItems, headOfDepartmentTeacherSidebarItems as headTeacherSidebarItems, qAndATeacherSidebarItems, documentManagerSidebarItems, financialManagerSidebarItems, questionManagerSidebarItems, moderatorSidebarItems, schoolAdminSidebarItems, uiManagerSidebarItems, externalStudentSidebarItems } from "../constants/SidebarItems";
 import { ROLES } from "../constants/Roles";
 import type { ISidebarItem } from "../interfaces/IMainLayoutProps";
 
@@ -24,13 +24,14 @@ const RegisteredLayout = (props: IRegisteredLayoutProps) => {
 
     const allSidebarItems = [];
 
-    if (props.user.roles.some((role) => role.includes("Student"))) {
-      allSidebarItems.push(...studentSidebarItems);
-    } else if (props.user.roles.some((role) => role.includes("Teacher"))) {
+    if (props.user.roles.some((role) => role.includes("Teacher"))) {
       allSidebarItems.push(...teacherSidebarItems);
     }
 
     props.user.roles.forEach((role) => {
+      if (role === ROLES.EXTERNAL_STUDENT) {
+        allSidebarItems.push(...externalStudentSidebarItems);
+      }
       if (role === ROLES.SCHOOL_STUDENT) {
         allSidebarItems.push(...schoolStudentSidebarItems);
       }

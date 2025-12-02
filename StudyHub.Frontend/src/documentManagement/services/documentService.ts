@@ -89,7 +89,16 @@ export const documentService = {
     );
     return response.data;
   },
-
+  submitForApproval: async (
+    documentId: number
+  ): Promise<ApiResponse<DocumentDetailDto>> => {
+    const response = await axios.post<ApiResponse<DocumentDetailDto>>(
+      `${BASE_URL}/Document/submit-for-approval`,
+      { documentId },
+      { withCredentials: true }
+    );
+    return response.data;
+  },
   getManagerPublicDocuments: async (
     query?: string,
     categoryId?: number,
