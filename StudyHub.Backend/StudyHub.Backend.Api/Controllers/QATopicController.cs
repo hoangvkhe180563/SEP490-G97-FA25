@@ -64,6 +64,52 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
+        [HttpPut("{id}")]
+        public IActionResult Update(int id, [FromBody] UpdateQATopicRequest req)
+        {
+            if (req == null) return BadRequest(new { Success = false, Message = "Request body is required.", Data = (object?)null });
+            try
+            {
+                var updated = _service.UpdateQATopic(id, req.Name, req.SubjectId, req.Description, req.IsActive);
+                if (updated == null) return NotFound(new { Success = false, Message = "Topic not found or update failed.", Data = (object?)null });
+                return Ok(new { Success = true, Message = "Cập nhật topic thành công.", Data = QATopicMapper.MapToDto(updated) });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lỗi server khi cập nhật topic.", Data = (object?)null });
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public IActionResult Delete(int id)
+        {
+            try
+            {
+                var ok = _service.SoftDeleteTopic(id);
+                if (!ok) return NotFound(new { Success = false, Message = "Topic not found.", Data = (object?)null });
+                return Ok(new { Success = true, Message = "Xóa (soft) topic thành công.", Data = (object?)null });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lỗi server khi xóa topic.", Data = (object?)null });
+            }
+        }
+
+        [HttpGet("search")]
+        public IActionResult Search([FromQuery] string? q, [FromQuery] int? subjectId)
+        {
+            try
+            {
+                var list = _service.SearchTopics(q, subjectId);
+                var dtos = list.Select(t => QATopicMapper.MapToDto(t)).ToList();
+                return Ok(new { Success = true, Message = "Tìm kiếm topic thành công.", Data = dtos });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lỗi server khi tìm kiếm topic.", Data = (object?)null });
+            }
+        }
+
         [HttpGet("{id}")]
         public IActionResult GetTopic(int id)
         {

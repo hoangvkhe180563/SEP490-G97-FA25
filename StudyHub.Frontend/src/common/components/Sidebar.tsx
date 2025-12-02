@@ -19,11 +19,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { axiosInstance } from "@/lib/axios";
 import { MessageSquare } from "lucide-react";
 import { CreateAppealModal } from "@/forumManagement/components/CreateAppealModal";
 import { useAppealStore } from "@/forumManagement/stores/useAppealStore";
 import { toast } from "sonner";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 interface ISidebarContextProps {
   expanded: boolean;
 }
@@ -34,16 +34,12 @@ export const Sidebar = (props: {
   user: AppUser;
 }) => {
   const [showAppealModal, setShowAppealModal] = useState(false);
+  const { logout: logoutAuth } = useAuthStore();
   const { createAppeal, isLoading } = useAppealStore();
   const navigate = useNavigate();
   const logout = async () => {
-    await axiosInstance.post("/auth/logout").then((res) => {
-      if (res.status === 200) {
-        location.reload();
-      } else {
-        console.error("Lỗi không logout được!");
-      }
-    });
+    await logoutAuth();
+    navigate("/");
   };
   const handleCreateAppeal = async (reason: string) => {
     if (!props.user.schoolId) {
@@ -110,7 +106,9 @@ export const Sidebar = (props: {
           >
             <div className="w-40">
               <p className="font-medium truncate">{props.user.fullname}</p>
-              <p className="text-sm text-gray-600 truncate">{props.user.email}</p>
+              <p className="text-sm text-gray-600 truncate">
+                {props.user.email}
+              </p>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
