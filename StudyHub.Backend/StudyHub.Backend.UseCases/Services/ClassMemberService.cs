@@ -182,7 +182,12 @@ namespace StudyHub.Backend.UseCases.Services
             if (cls == null) throw new ArgumentException("Không tìm thấy lớp học.");
 
             if (file == null || file.Length == 0)
-                throw new ArgumentException("File không hợp lệ.");
+                throw new ArgumentException("File không hợp lệ hoặc trống.");
+
+            // Optional server-side size guard (adjust as needed)
+            const long maxBytes = 10 * 1024 * 1024; // 10 MB
+            if (file.Length > maxBytes)
+                throw new ArgumentException($"Kích thước file vượt quá giới hạn ({maxBytes / (1024 * 1024)} MB).");
 
             // Ensure EPPlus license is configured once
             EnsureEpplusLicense();
@@ -209,7 +214,7 @@ namespace StudyHub.Backend.UseCases.Services
 
             var sheet = workbook.Worksheets.First();
 
-            // Build header map (header names -> column index) to support flexible school format
+            // Build header map (header names -> column index)
             var headerRow = 1;
             var maxCol = sheet.Dimension?.End.Column ?? 1;
             var maxRow = sheet.Dimension?.End.Row ?? 1;
@@ -220,7 +225,6 @@ namespace StudyHub.Backend.UseCases.Services
                 var txt = sheet.Cells[headerRow, c].Text?.Trim();
                 if (!string.IsNullOrWhiteSpace(txt))
                 {
-                    // normalize header (lower, remove accents/whitespace not required here)
                     headerMap[txt.ToLowerInvariant()] = c;
                 }
             }
@@ -230,10 +234,8 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 foreach (var k in keys)
                 {
-                    // direct match
                     if (headerMap.TryGetValue(k.ToLowerInvariant(), out var col)) return col;
                 }
-                // try contains matching (e.g., "email address", "student id", "full name")
                 foreach (var kv in headerMap)
                 {
                     foreach (var k in keys)
@@ -245,46 +247,53 @@ namespace StudyHub.Backend.UseCases.Services
                 return null;
             }
 
-            // Preferred header names for common school fields
-            var emailCol = FindColumn("email", "e-mail", "email address", "emailaddress", "địa chỉ email", "địa chỉ email") ?? 0;
-            var nameCol = FindColumn("name", "full name", "fullname", "student_name", "ho ten", "họ tên", "họ và tên");
-            var studentIdCol = FindColumn("student_id", "student id", "id", "mã học sinh", "mã hs", "studentno", "student_no");
-            var gradeCol = FindColumn("grade", "class", "khối", "lớp", "grade/section", "year");
-            var sectionCol = FindColumn("section", "section/classroom", "phòng", "section");
-            var roleCol = FindColumn("role", "vai trò", "vaitro");
+            // Acceptable header variants (Vietnamese & English)
+            var emailKeys = new[] { "email", "e-mail", "email address", "emailaddress", "địa chỉ email", "địa chỉ email", "địa chỉ", "mail" };
+            var nameKeys = new[] { "họ và tên", "họ tên", "ho ten", "fullname", "full name", "name", "tên", "ten" };
 
-            // If no header for email found, assume the first column is email (common simple template)
-            bool headerPresent = headerMap.Count > 0;
-            if ((emailCol == 0 || emailCol == 0) && headerPresent)
+            var emailCol = FindColumn(emailKeys) ?? 0;
+            var nameCol = FindColumn(nameKeys);
+
+            var headerPresent = headerMap.Count > 0;
+
+            // If headers present but missing email/name -> validate failure
+            var missingHeaders = new List<string>();
+            if (headerPresent)
             {
-                // Try to fallback: scan first row cells for any cell that contains "@" to detect header-less file
-                // but safer: if headers exist but none matched email, try to treat column 1 as email
-                emailCol = 1;
+                if (emailCol == 0) missingHeaders.Add("Email");
+                if (nameCol == null) missingHeaders.Add("Họ và tên");
+                if (missingHeaders.Count > 0)
+                {
+                    // If headers present but missing required ones, reject with clear message
+                    throw new ArgumentException($"File thiếu cột bắt buộc: {string.Join(", ", missingHeaders)}. Vui lòng đảm bảo file có header 'Email' và 'Họ và tên' (có thể bằng tiếng Việt hoặc tiếng Anh).");
+                }
             }
-            if (!headerPresent)
+            else
             {
-                // No headers at all -> treat first column as email, second as name if present, third as student id...
+                // No headers: assume col 1 = email, col 2 = name (if present)
                 emailCol = 1;
                 if (nameCol == null && maxCol >= 2) nameCol = 2;
-                if (studentIdCol == null && maxCol >= 3) studentIdCol = 3;
             }
 
-            if (emailCol == 0)
-                emailCol = 1; // final fallback
+            if (emailCol == 0) emailCol = 1; // final fallback
 
             // Prepare regex for basic email validation
             var emailRegex = new System.Text.RegularExpressions.Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
             var rawRows = new List<Dictionary<string, string>>();
-            var emails = new List<string>();
+            var emails = new List<(string email, int row)>();
+            var invalidRows = new List<object>();
 
-            // Determine data start row: if header-like text exists, start from headerRow+1, else from headerRow
             var startRow = headerPresent ? headerRow + 1 : headerRow;
             var lastRow = maxRow;
 
+            // Optional row limit to protect server (adjust as needed)
+            const int maxRows = 5000;
+            if (lastRow - startRow + 1 > maxRows)
+                throw new ArgumentException($"Số lượng hàng vượt quá giới hạn ({maxRows}). Vui lòng chia nhỏ file.");
+
             for (int r = startRow; r <= lastRow; r++)
             {
-                // Read cells
                 string GetCell(int? colIndex)
                 {
                     if (colIndex == null || colIndex == 0) return string.Empty;
@@ -293,19 +302,14 @@ namespace StudyHub.Backend.UseCases.Services
 
                 var rowEmail = GetCell(emailCol);
                 var rowName = GetCell(nameCol);
-                var rowStudentId = GetCell(studentIdCol);
-                var rowGrade = GetCell(gradeCol);
-                var rowSection = GetCell(sectionCol);
-                var rowRole = GetCell(roleCol);
 
-                // Skip empty rows (no email and no other meaningful data)
-                if (string.IsNullOrWhiteSpace(rowEmail) && string.IsNullOrWhiteSpace(rowName) && string.IsNullOrWhiteSpace(rowStudentId))
+                // Skip completely empty rows
+                if (string.IsNullOrWhiteSpace(rowEmail) && string.IsNullOrWhiteSpace(rowName))
                     continue;
 
-                // If email cell doesn't look like an email but another column contains it, try find
+                // If email cell empty, scan for a candidate in the row
                 if (string.IsNullOrWhiteSpace(rowEmail))
                 {
-                    // scan the row for something that looks like an email
                     for (int c = 1; c <= maxCol; c++)
                     {
                         var candidate = sheet.Cells[r, c].Text?.Trim() ?? "";
@@ -317,55 +321,77 @@ namespace StudyHub.Backend.UseCases.Services
                     }
                 }
 
-                // Normalize role fallback
-                if (string.IsNullOrWhiteSpace(rowRole))
-                {
-                    rowRole = role ?? "Student";
-                }
-
                 var item = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["email"] = rowEmail ?? "",
-                    ["name"] = rowName ?? "",
-                    ["studentId"] = rowStudentId ?? "",
-                    ["grade"] = rowGrade ?? "",
-                    ["section"] = rowSection ?? "",
-                    ["role"] = rowRole ?? ""
+                    ["name"] = rowName ?? ""
                 };
 
-                rawRows.Add(item);
-
-                if (!string.IsNullOrWhiteSpace(rowEmail) && emailRegex.IsMatch(rowEmail))
+                // Validate
+                var reasons = new List<string>();
+                if (string.IsNullOrWhiteSpace(item["email"]))
                 {
-                    emails.Add(rowEmail);
+                    reasons.Add("Thiếu email");
                 }
+                else if (!emailRegex.IsMatch(item["email"]))
+                {
+                    reasons.Add("Email không hợp lệ");
+                }
+
+                if (string.IsNullOrWhiteSpace(item["name"]))
+                {
+                    reasons.Add("Thiếu họ và tên");
+                }
+
+                if (reasons.Count > 0)
+                {
+                    invalidRows.Add(new { row = r, email = item["email"], name = item["name"], reasons });
+                    continue; // skip adding to emails/rawRows for processing
+                }
+
+                rawRows.Add(item);
+                emails.Add((item["email"], r));
             }
 
             if (emails.Count == 0)
-                throw new ArgumentException("Không tìm thấy email hợp lệ trong file.");
+            {
+                // If no valid emails found, include invalidRows details in message
+                var details = invalidRows.Count > 0
+                    ? $" Một số hàng không hợp lệ: {invalidRows.Count} hàng."
+                    : "";
+                throw new ArgumentException($"Không tìm thấy email hợp lệ trong file.{details}");
+            }
 
-            // Deduplicate emails preserving order
-            var distinctEmails = emails
-                .Select(e => e.Trim())
-                .Where(e => !string.IsNullOrWhiteSpace(e))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            // Deduplicate emails preserving order and also track duplicates found
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var distinctEmails = new List<string>();
+            var duplicateRows = new List<object>();
+            foreach (var (email, row) in emails)
+            {
+                var t = email.Trim();
+                if (!seen.Add(t))
+                {
+                    duplicateRows.Add(new { row, email = t });
+                }
+                else
+                {
+                    distinctEmails.Add(t);
+                }
+            }
 
             // Call existing invite logic
             var serviceResults = await InviteByEmailsAsync(classId, distinctEmails, role, message, baseFrontendUrl);
-            // serviceResults expected to be List<object> where each object likely contains 'email' property.
-            // Attempt to create a map from email -> result object for merging
+
+            // Map service results by email (best-effort)
             var resultByEmail = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
             try
             {
                 foreach (var obj in serviceResults)
                 {
                     if (obj == null) continue;
-                    // Try to read 'email' property via reflection or as IDictionary
                     string emailKey = null;
                     if (obj is System.Collections.IDictionary dict)
                     {
-                        // dict keys may be "email" or "Email"
                         foreach (var k in dict.Keys)
                         {
                             var ks = k?.ToString() ?? "";
@@ -391,11 +417,12 @@ namespace StudyHub.Backend.UseCases.Services
             }
             catch
             {
-                // ignore mapping errors; we'll still return rawRows + serviceResults
+                // ignore mapping errors
             }
 
-            // Build merged results: for each raw row that had an email, attach service result if available
+            // Build merged results per input row
             var merged = new List<object>();
+
             foreach (var row in rawRows)
             {
                 var e = row.ContainsKey("email") ? row["email"] : "";
@@ -409,10 +436,9 @@ namespace StudyHub.Backend.UseCases.Services
                 });
             }
 
-            // Additionally, include service results for emails that may not have had full input rows
+            // Include service results for emails that may not have had full input rows
             foreach (var svc in serviceResults)
             {
-                // try extract email
                 string emailKey = null;
                 if (svc is System.Collections.IDictionary dict)
                 {
@@ -434,7 +460,6 @@ namespace StudyHub.Backend.UseCases.Services
                     if (prop != null) emailKey = prop.GetValue(svc)?.ToString();
                 }
 
-                // if not present in merged (no input row), add as standalone
                 if (string.IsNullOrWhiteSpace(emailKey) || !rawRows.Any(r => string.Equals(r.GetValueOrDefault("email"), emailKey, StringComparison.OrdinalIgnoreCase)))
                 {
                     merged.Add(new
@@ -445,7 +470,22 @@ namespace StudyHub.Backend.UseCases.Services
                 }
             }
 
-            return merged;
+            // Prepare summary as first element: total rows examined, valid processed, invalid rows, duplicates
+            var summary = new
+            {
+                totalRows = lastRow - startRow + 1,
+                processed = merged.Count,
+                invalidCount = invalidRows.Count,
+                invalidRows,
+                duplicateCount = duplicateRows.Count,
+                duplicateRows,
+                note = "Chỉ xử lý 2 trường: Email và Họ và tên. Những hàng không hợp lệ sẽ được bỏ qua."
+            };
+
+            // Return summary + merged list
+            var output = new List<object> { summary };
+            output.AddRange(merged);
+            return output;
         }
         // Helpers for confirm/kick with string parsing (controller can call these)
         public bool? ConfirmMemberFromString(int classId, string userId)
