@@ -4,7 +4,7 @@ import forumRoutes from "@/forumManagement/routes/ForumRoutes";
 import RouteConfig from "@/common/constants/RouteConfig";
 import uiManagementRoutes from "@/uiManagement/routes/UiManagementRoutes";
 import userRoutes from "@/user/routes/UserRoutes";
-import { Outlet, useRoutes } from "react-router-dom";
+import { Outlet, useLocation, useNavigate, useRoutes } from "react-router-dom";
 import courseRoutes from "@/courseManagement/routes/CourseRoute";
 import Homepage from "@/uiManagement/pages/Homepage";
 import authRoutes from "@/auth/routes/AuthRoutes";
@@ -23,64 +23,64 @@ import NotFound from "@/common/pages/NotFound";
 import recommendationRoutes from "@/recommend/routes/RecommendationRoutes";
 
 const AppRouter = () => {
-  const { user, checkAuth } = useAuthStore();
+  const { user, checkAuth, isAuthenticated } = useAuthStore();
   const { startPresence, stopPresence } = useUserOnlineStore();
   const { startPaymentConnection, stopPaymentConnection } = usePaymentStore();
   const { startRead, stopRead } = useConversationStore();
   const { startChat, stopChat } = useMessageStore();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // on component mount, check auth and start authentication hubs
+  useEffect(() => {
+    checkAuth();
+    if (!isAuthenticated && !location.pathname.includes("/auth")) {
+      navigate("/");
+    }
+  }, [checkAuth, isAuthenticated, location.pathname, navigate]);
+
   useEffect(() => {
     (async () => {
       try {
-        await checkAuth();
-        try {
-          // read latest user after checkAuth completed
-          const currentUser = useAuthStore.getState().user;
-          if (!currentUser) return;
-          await startPresence();
-          await startPaymentConnection();
-          await startRead?.();
-          await startChat?.();
+        // read latest user after checkAuth completed
+        if (!isAuthenticated) return;
+        await startPresence?.();
+        await startPaymentConnection();
+        await startRead?.();
+        await startChat?.();
 
-          // stop presence when the tab/window unloads
-          try {
-            window.addEventListener("beforeunload", stopPresence as any);
-            window.addEventListener("beforeunload", stopRead as any);
-            window.addEventListener("beforeunload", stopChat as any);
-            window.addEventListener("beforeunload", stopPresence as any);
-            window.removeEventListener(
-              "beforeunload",
-              stopPaymentConnection as any
-            );
-          } catch (err) {
-            console.warn("failed to add unload listener", err);
-          }
-        } catch (err) {
-          // non-fatal
-          console.warn("startPresence failed", err);
-        }
-      } catch {
-        console.log("lỗi authorization");
+        // stop presence when the tab/window unloads
+        // try {
+        //   window.addEventListener("beforeunload", stopPresence as any);
+        //   window.removeEventListener(
+        //     "beforeunload",
+        //     stopPaymentConnection as any
+        //   );
+        //   window.addEventListener("beforeunload", stopRead as any);
+        //   window.addEventListener("beforeunload", stopChat as any);
+        // } catch (err) {
+        //   console.warn("failed to add unload listener", err);
+        // }
+      } catch (err) {
+        // non-fatal
+        console.warn("startPresence failed", err);
       }
     })();
     return () => {
       try {
         // remove unload listener and stop presence
-        try {
-          window.removeEventListener("beforeunload", stopPresence as any);
-          window.removeEventListener(
-            "beforeunload",
-            stopPaymentConnection as any
-          );
-          window.removeEventListener("beforeunload", stopRead as any);
-          window.removeEventListener("beforeunload", stopChat as any);
-        } catch (err) {
-          console.warn("failed to remove unload listener", err);
-        }
-        const currentUser = useAuthStore.getState().user;
-        if (!currentUser) return;
-        stopPresence();
+        // try {
+        //   window.removeEventListener("beforeunload", stopPresence as any);
+        //   window.removeEventListener(
+        //     "beforeunload",
+        //     stopPaymentConnection as any
+        //   );
+        //   window.removeEventListener("beforeunload", stopRead as any);
+        //   window.removeEventListener("beforeunload", stopChat as any);
+        // } catch (err) {
+        //   console.warn("failed to remove unload listener", err);
+        // }
+        if (!isAuthenticated) return;
+        stopPresence?.();
         stopPaymentConnection();
         stopRead?.();
         stopChat?.();
@@ -88,14 +88,8 @@ const AppRouter = () => {
         /* ignore */
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); //bảo sao bị call 2 lần => x2 call api
-
-  // useEffect(() => {
-  //   if (authChecked && !user && !location.pathname.includes("/auth")) {
-  //     navigate("/");
-  //   }
-  // }, [authChecked, user, location.pathname, navigate]);
+    // eslint-disable-next-line
+  }, [isAuthenticated]);
 
   const appRoutes = [
     {

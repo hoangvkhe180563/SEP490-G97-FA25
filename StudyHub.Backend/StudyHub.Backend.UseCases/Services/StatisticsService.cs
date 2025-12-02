@@ -68,6 +68,72 @@ namespace StudyHub.Backend.UseCases.Services
             return _repo.GetTopSubjects(start, end, top);
         }
 
+        // QA conversation statistics
+        public int GetTotalQAConversations(DateTime? start, DateTime? end)
+        {
+            return _repo.GetTotalQAConversations(start, end);
+        }
+
+        public List<SubjectCountDto> GetQAConversationCountBySubject(DateTime? start, DateTime? end, int top = 10)
+        {
+            return _repo.GetQAConversationCountBySubject(start, end, top);
+        }
+
+        public List<TopicCountDto> GetQAConversationCountByTopic(DateTime? start, DateTime? end, int top = 10)
+        {
+            return _repo.GetQAConversationCountByTopic(start, end, top);
+        }
+
+        public long GetTotalQAMessages(DateTime? start, DateTime? end)
+        {
+            return _repo.GetTotalQAMessages(start, end);
+        }
+
+        public double GetAveragePaidConversationsPerDay(DateTime? start, DateTime? end)
+        {
+            return _repo.GetAveragePaidConversationsPerDay(start, end);
+        }
+
+        public double GetAveragePaidConversationsPerWeek(DateTime? start, DateTime? end)
+        {
+            return _repo.GetAveragePaidConversationsPerWeek(start, end);
+        }
+
+        public double GetAveragePaidConversationsPerMonth(DateTime? start, DateTime? end)
+        {
+            return _repo.GetAveragePaidConversationsPerMonth(start, end);
+        }
+
+        public double GetAverageMessagesPerDay(DateTime? start, DateTime? end)
+        {
+            return _repo.GetAverageMessagesPerDay(start, end);
+        }
+
+        public double GetAverageMessagesPerWeek(DateTime? start, DateTime? end)
+        {
+            return _repo.GetAverageMessagesPerWeek(start, end);
+        }
+
+        public double GetAverageMessagesPerMonth(DateTime? start, DateTime? end)
+        {
+            return _repo.GetAverageMessagesPerMonth(start, end);
+        }
+
+        public List<TeacherStatsDto> GetTopTeachers(DateTime? start, DateTime? end, int top = 10, string sortBy = "response")
+        {
+            return _repo.GetTopTeachers(start, end, top, sortBy);
+        }
+
+        public List<StudentQuestionStatsDto> GetTopQaStudents(DateTime? start, DateTime? end, int top = 10)
+        {
+            return _repo.GetTopQaStudents(start, end, top);
+        }
+
+        public List<SubjectCountDto> GetTopQaSubjects(DateTime? start, DateTime? end, int top = 10)
+        {
+            return _repo.GetTopQaSubjects(start, end, top);
+        }
+
         public List<RecommendedItemCountDto> GetTopRecommendedCourses(DateTime? start, DateTime? end, int top = 10)
         {
             return _repo.GetTopRecommendedCourses(start, end, top);

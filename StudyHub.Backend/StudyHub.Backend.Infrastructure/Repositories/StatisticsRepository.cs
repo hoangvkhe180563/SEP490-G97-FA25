@@ -5,6 +5,7 @@ using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
@@ -362,6 +363,213 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
 
             return subjectCounts.OrderByDescending(kv => kv.Value).Take(top).Select(kv => new SubjectCountDto { Subject = kv.Key, Count = kv.Value }).ToList();
+        }
+
+        // -------- QA conversation statistics --------
+        public int GetTotalQAConversations(DateTime? start, DateTime? end)
+        {
+            var q = _context.QAConversations.AsQueryable();
+            if (start.HasValue) q = q.Where(c => c.CreatedAt >= start.Value);
+            if (end.HasValue) q = q.Where(c => c.CreatedAt <= end.Value);
+            return q.Count();
+        }
+
+        public List<SubjectCountDto> GetQAConversationCountBySubject(DateTime? start, DateTime? end, int top = 10)
+        {
+            var q = _context.QAConversations.AsQueryable();
+            if (start.HasValue) q = q.Where(c => c.CreatedAt >= start.Value);
+            if (end.HasValue) q = q.Where(c => c.CreatedAt <= end.Value);
+
+            var groups = q
+                .Select(c => new { Subject = c.Topic.Subject.Name })
+                .AsEnumerable()
+                .GroupBy(x => x.Subject)
+                .Select(g => new SubjectCountDto { Subject = g.Key ?? string.Empty, Count = g.Count() })
+                .OrderByDescending(x => x.Count)
+                .Take(top)
+                .ToList();
+
+            return groups;
+        }
+
+        public List<TopicCountDto> GetQAConversationCountByTopic(DateTime? start, DateTime? end, int top = 10)
+        {
+            var q = _context.QAConversations.AsQueryable();
+            if (start.HasValue) q = q.Where(c => c.CreatedAt >= start.Value);
+            if (end.HasValue) q = q.Where(c => c.CreatedAt <= end.Value);
+
+            var groups = q
+                .Select(c => new { Topic = c.Topic.Name })
+                .AsEnumerable()
+                .GroupBy(x => x.Topic)
+                .Select(g => new TopicCountDto { Topic = g.Key ?? string.Empty, Count = g.Count() })
+                .OrderByDescending(x => x.Count)
+                .Take(top)
+                .ToList();
+
+            return groups;
+        }
+
+        public long GetTotalQAMessages(DateTime? start, DateTime? end)
+        {
+            var q = _context.QAMessages.AsQueryable();
+            if (start.HasValue) q = q.Where(m => m.CreatedAt >= start.Value);
+            if (end.HasValue) q = q.Where(m => m.CreatedAt <= end.Value);
+            return q.LongCount();
+        }
+
+        private (DateTime min, DateTime max) ResolveRange(IQueryable<Data.QAConversation> q)
+        {
+            var min = q.Min(c => (DateTime?)c.CreatedAt) ?? DateTime.Now;
+            var max = q.Max(c => (DateTime?)c.CreatedAt) ?? DateTime.Now;
+            return (min, max);
+        }
+
+        public double GetAveragePaidConversationsPerDay(DateTime? start, DateTime? end)
+        {
+            var q = _context.QAConversations.AsQueryable();
+            if (start.HasValue) q = q.Where(c => c.CreatedAt >= start.Value);
+            if (end.HasValue) q = q.Where(c => c.CreatedAt <= end.Value);
+
+            var paidCount = q.Count(c => c.IsPaid);
+            var range = ResolveRange(q);
+            var days = Math.Max(1, (int)Math.Ceiling((range.max - range.min).TotalDays));
+            return (double)paidCount / days;
+        }
+
+        public double GetAveragePaidConversationsPerWeek(DateTime? start, DateTime? end)
+        {
+            var q = _context.QAConversations.AsQueryable();
+            if (start.HasValue) q = q.Where(c => c.CreatedAt >= start.Value);
+            if (end.HasValue) q = q.Where(c => c.CreatedAt <= end.Value);
+
+            var paidCount = q.Count(c => c.IsPaid);
+            var range = ResolveRange(q);
+            var weeks = Math.Max(1, (int)Math.Ceiling((range.max - range.min).TotalDays / 7.0));
+            return (double)paidCount / weeks;
+        }
+
+        public double GetAveragePaidConversationsPerMonth(DateTime? start, DateTime? end)
+        {
+            var q = _context.QAConversations.AsQueryable();
+            if (start.HasValue) q = q.Where(c => c.CreatedAt >= start.Value);
+            if (end.HasValue) q = q.Where(c => c.CreatedAt <= end.Value);
+
+            var paidCount = q.Count(c => c.IsPaid);
+            var range = ResolveRange(q);
+            var months = Math.Max(1, ((range.max.Year - range.min.Year) * 12) + range.max.Month - range.min.Month + 1);
+            return (double)paidCount / months;
+        }
+
+        public double GetAverageMessagesPerDay(DateTime? start, DateTime? end)
+        {
+            var q = _context.QAMessages.AsQueryable();
+            if (start.HasValue) q = q.Where(m => m.CreatedAt >= start.Value);
+            if (end.HasValue) q = q.Where(m => m.CreatedAt <= end.Value);
+
+            var total = q.Count();
+            var min = q.Min(m => (DateTime?)m.CreatedAt) ?? DateTime.Now;
+            var max = q.Max(m => (DateTime?)m.CreatedAt) ?? DateTime.Now;
+            var days = Math.Max(1, (int)Math.Ceiling((max - min).TotalDays));
+            return (double)total / days;
+        }
+
+        public double GetAverageMessagesPerWeek(DateTime? start, DateTime? end)
+        {
+            var q = _context.QAMessages.AsQueryable();
+            if (start.HasValue) q = q.Where(m => m.CreatedAt >= start.Value);
+            if (end.HasValue) q = q.Where(m => m.CreatedAt <= end.Value);
+
+            var total = q.Count();
+            var min = q.Min(m => (DateTime?)m.CreatedAt) ?? DateTime.Now;
+            var max = q.Max(m => (DateTime?)m.CreatedAt) ?? DateTime.Now;
+            var weeks = Math.Max(1, (int)Math.Ceiling((max - min).TotalDays / 7.0));
+            return (double)total / weeks;
+        }
+
+        public double GetAverageMessagesPerMonth(DateTime? start, DateTime? end)
+        {
+            var q = _context.QAMessages.AsQueryable();
+            if (start.HasValue) q = q.Where(m => m.CreatedAt >= start.Value);
+            if (end.HasValue) q = q.Where(m => m.CreatedAt <= end.Value);
+
+            var total = q.Count();
+            var min = q.Min(m => (DateTime?)m.CreatedAt) ?? DateTime.UtcNow;
+            var max = q.Max(m => (DateTime?)m.CreatedAt) ?? DateTime.UtcNow;
+            var months = Math.Max(1, ((max.Year - min.Year) * 12) + max.Month - min.Month + 1);
+            return (double)total / months;
+        }
+
+        public List<TeacherStatsDto> GetTopTeachers(DateTime? start, DateTime? end, int top = 10, string sortBy = "response")
+        {
+            var q = _context.QAConversations.Include(c => c.Teacher).AsQueryable();
+            if (start.HasValue) q = q.Where(c => c.CreatedAt >= start.Value);
+            if (end.HasValue) q = q.Where(c => c.CreatedAt <= end.Value);
+
+            // Consider only conversations that have an assigned teacher
+            var convs = q.Where(c => c.TeacherId != null).ToList();
+
+            var stats = new Dictionary<Guid, (string name, int count, double totalMinutes)>();
+
+            foreach (var conv in convs)
+            {
+                var tId = conv.TeacherId!.Value;
+                if (!stats.ContainsKey(tId)) stats[tId] = (conv.Teacher?.Fullname ?? string.Empty, 0, 0.0);
+                var entry = stats[tId];
+                entry.count += 1;
+
+                // find first teacher message in this conversation
+                var firstTeacherMsg = _context.QAMessages.Where(m => m.ConversationId == conv.Id && m.SenderId == conv.TeacherId).OrderBy(m => m.CreatedAt).FirstOrDefault();
+                if (firstTeacherMsg != null)
+                {
+                    var minutes = (firstTeacherMsg.CreatedAt - conv.CreatedAt).TotalMinutes;
+                    entry.totalMinutes += minutes;
+                }
+
+                stats[tId] = entry;
+            }
+
+            var results = stats.Select(kv => new TeacherStatsDto
+            {
+                TeacherId = kv.Key,
+                FullName = kv.Value.name,
+                ConversationCount = kv.Value.count,
+                AverageFirstResponseMinutes = kv.Value.count == 0 ? 0 : Math.Round(kv.Value.totalMinutes / kv.Value.count, 2)
+            }).ToList();
+
+            if ((sortBy ?? "").ToLowerInvariant() == "conversations")
+            {
+                return results.OrderByDescending(r => r.ConversationCount).Take(top).ToList();
+            }
+
+            // default: sort by average response minutes ascending (fastest responders first)
+            return results.OrderBy(r => r.AverageFirstResponseMinutes).Take(top).ToList();
+        }
+
+        public List<StudentQuestionStatsDto> GetTopQaStudents(DateTime? start, DateTime? end, int top = 10)
+        {
+            var q = _context.QAConversations.AsQueryable();
+            if (start.HasValue) q = q.Where(c => c.CreatedAt >= start.Value);
+            if (end.HasValue) q = q.Where(c => c.CreatedAt <= end.Value);
+
+            var groups = q.GroupBy(c => c.StudentId)
+                .Select(g => new StudentQuestionStatsDto
+                {
+                    UserId = g.Key,
+                    FullName = g.Select(x => x.Student.Fullname).FirstOrDefault(),
+                    TotalQuestions = g.Count()
+                })
+                .OrderByDescending(x => x.TotalQuestions)
+                .Take(top)
+                .ToList();
+
+            return groups;
+        }
+
+        public List<SubjectCountDto> GetTopQaSubjects(DateTime? start, DateTime? end, int top = 10)
+        {
+            // Reuse conversation-by-subject implementation
+            return GetQAConversationCountBySubject(start, end, top);
         }
 
         public TokenSummaryDto GetTokenSummary(DateTime? start, DateTime? end)
