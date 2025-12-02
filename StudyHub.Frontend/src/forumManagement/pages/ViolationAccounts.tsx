@@ -71,7 +71,39 @@ const ViolationAccounts = () => {
     action: "mute" | "unmute";
     userId: string;
     userName: string;
-  }>({ open: false, action: "mute", userId: "", userName: "" });
+    days: number;
+  }>({ open: false, action: "mute", userId: "", userName: "", days: 7 });
+
+  const handleMuteClick = (userId: string, userName: string) => {
+    setConfirmDialog({ open: true, action: "mute", userId, userName, days: 7 });
+  };
+
+  const handleConfirmAction = async () => {
+    const { action, userId, days } = confirmDialog;
+
+    const success =
+      action === "mute"
+        ? await muteUser(userId, schoolId, days)
+        : await unmuteUser(userId, schoolId);
+
+    if (success) {
+      toast.success(
+        action === "mute"
+          ? `Đã cấm người dùng trong ${days} ngày`
+          : "Đã bỏ cấm người dùng"
+      );
+    } else {
+      toast.error("Có lỗi xảy ra");
+    }
+
+    setConfirmDialog({
+      open: false,
+      action: "mute",
+      userId: "",
+      userName: "",
+      days: 7,
+    });
+  };
 
   useEffect(() => {
     if (schoolId) {
@@ -164,33 +196,14 @@ const ViolationAccounts = () => {
     setCurrentPage(page);
   };
 
-  const handleMuteClick = (userId: string, userName: string) => {
-    setConfirmDialog({ open: true, action: "mute", userId, userName });
-  };
-
   const handleUnmuteClick = (userId: string, userName: string) => {
-    setConfirmDialog({ open: true, action: "unmute", userId, userName });
-  };
-
-  const handleConfirmAction = async () => {
-    const { action, userId } = confirmDialog;
-
-    const success =
-      action === "mute"
-        ? await muteUser(userId, schoolId)
-        : await unmuteUser(userId, schoolId);
-
-    if (success) {
-      toast.success(
-        action === "mute"
-          ? "Đã cấm người dùng trong 7 ngày"
-          : "Đã bỏ cấm người dùng"
-      );
-    } else {
-      toast.error("Có lỗi xảy ra");
-    }
-
-    setConfirmDialog({ open: false, action: "mute", userId: "", userName: "" });
+    setConfirmDialog({
+      open: true,
+      action: "unmute",
+      userId,
+      userName,
+      days: 7,
+    });
   };
 
   useEffect(() => {
@@ -414,10 +427,39 @@ const ViolationAccounts = () => {
                 ? "Xác nhận cấm người dùng"
                 : "Xác nhận bỏ cấm người dùng"}
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmDialog.action === "mute"
-                ? `Bạn có muốn cấm người dùng "${confirmDialog.userName}" trong vòng 7 ngày?`
-                : `Bạn có muốn bỏ cấm người dùng "${confirmDialog.userName}"?`}
+            <AlertDialogDescription asChild>
+              {confirmDialog.action === "mute" ? (
+                <div className="space-y-4">
+                  <p>Bạn có muốn cấm người dùng "{confirmDialog.userName}"?</p>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Số ngày cấm:</label>
+                    <Select
+                      value={confirmDialog.days.toString()}
+                      onValueChange={(value) =>
+                        setConfirmDialog({
+                          ...confirmDialog,
+                          days: parseInt(value),
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 ngày</SelectItem>
+                        <SelectItem value="3">3 ngày</SelectItem>
+                        <SelectItem value="7">7 ngày</SelectItem>
+                        <SelectItem value="14">14 ngày</SelectItem>
+                        <SelectItem value="30">30 ngày</SelectItem>
+                        <SelectItem value="90">90 ngày</SelectItem>
+                        <SelectItem value="365">1 năm</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ) : (
+                <p>Bạn có muốn bỏ cấm người dùng "{confirmDialog.userName}"?</p>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

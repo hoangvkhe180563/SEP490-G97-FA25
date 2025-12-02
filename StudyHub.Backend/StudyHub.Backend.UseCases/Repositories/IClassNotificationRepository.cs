@@ -28,6 +28,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         NotificationSubmission GetSubmissionByUserAndNotification(int notificationId, Guid userId);
         List<NotificationSubmission> GetSubmissionsByNotificationId(int notificationId);
         bool DeleteNotificationFile(int classNotificationId);
+        bool DeleteNotificationFileById(int classNotificationFileId);
         SubmissionFile AddSubmissionFile(SubmissionFile file);
         List<SubmissionFile> GetSubmissionFiles(int submissionId);
 

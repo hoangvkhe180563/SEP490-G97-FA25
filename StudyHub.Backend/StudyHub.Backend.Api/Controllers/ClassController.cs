@@ -12,6 +12,7 @@ using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Services;
 using System.Collections.Generic;
 using System.Net;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -43,8 +44,14 @@ namespace StudyHub.Backend.Api.Controllers
          [FromQuery] int limit = 10
      )
         {
+            if (User.FindFirst(ClaimTypes.NameIdentifier) == null)
+            {
+                return Unauthorized(new { success = false, message = "Unauthorized" });
+            }
+            var userGuid = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            
             // Controller: validation + mapping only
-            var (classesEntities, totalItems, currentPage, pageLimit, totalPages) = _service.GetClassesPaged(query, status, memberid, page, limit);
+            var (classesEntities, totalItems, currentPage, pageLimit, totalPages) = _service.GetClassesPaged(query, status, userGuid, page, limit);
 
             var classListDtos = classesEntities
                 .Select(c =>
@@ -78,6 +85,7 @@ namespace StudyHub.Backend.Api.Controllers
                 return BadRequest(new { success = false, message = "Tên lớp học không được để trống." });
 
             var entity = dto.ToEntity(); // ToEntity returns Domain.Class
+            entity.Grade=dto.Grade;
             var createdClass = _service.CreateClass(entity);
             return CreatedAtAction(nameof(GetClasses), new { id = createdClass.Id }, createdClass.ToDetailDto());
         }

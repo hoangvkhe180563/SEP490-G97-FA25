@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, Maximize, MinusSquare, PlusSquare, Repeat } from 'lucide-react';
+import { Clock, Maximize } from 'lucide-react';
 import './TakeExam.css'
 import { ExamService } from '@/exam/services/ExamService';
 import type { Exam } from '@/exam/interfaces/models/Exam';
@@ -315,11 +315,6 @@ const TakeExam = () => {
       <div className="px-8 py-3 w-full border-b border-gray-400">
         <div className="flex justify-end items-center space-x-4">
           <Button className="bg-blue-500 hover:bg-blue-700" onClick={() => handleBackupExamResult(false)}>Lưu</Button>
-          <div className="flex space-x-2">
-            <Button size="icon" className="bg-blue-800 hover:bg-blue-900 size-6 rounded-sm"><MinusSquare /></Button>
-            <Button size="icon" className="bg-blue-800 hover:bg-blue-900 size-6 rounded-sm"><PlusSquare /></Button>
-            <Button variant="outline" size="icon" className="size-6 rounded-sm text-blue-600"><Repeat /></Button>
-          </div>
         </div>
       </div>
       <div className="px-6 py-6 space-y-3 flex-1 overflow-y-auto">

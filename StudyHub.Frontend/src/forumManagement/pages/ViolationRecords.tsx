@@ -355,7 +355,7 @@ const ViolationRecords = () => {
             >
               <TabsList className="grid w-full max-w-md grid-cols-2">
                 <TabsTrigger value="all">Tất cả Vi phạm</TabsTrigger>
-                <TabsTrigger value="reports">Báo cáo chờ xử lý</TabsTrigger>
+                <TabsTrigger value="reports">Người dùng báo cáo</TabsTrigger>
               </TabsList>
             </Tabs>
 

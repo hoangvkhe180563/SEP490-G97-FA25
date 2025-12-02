@@ -115,5 +115,29 @@ namespace StudyHub.Backend.Api.Controllers
             QuestionExcelDto questions = _questionService.ImportQuestionsFromExcel(excelFile);
             return questions.ErrorMessages.Count > 0 ? BadRequest(questions.ErrorMessages) : Ok(questions.Questions.Select(q => q.ToDetailDto()).ToList());
         }
+
+        [HttpGet("dashboard-overview/{managerId:guid}")]
+        public IActionResult GetQuestionDashboardOverview(Guid managerId)
+        {
+            if (managerId == Guid.Empty)
+            {
+                return BadRequest("Chưa truyền id!");
+            }
+
+            var result = _questionService.GetQuestionDashboardOverview(managerId);
+            return result == null ? NotFound() : Ok(result);
+        }
+
+        [HttpGet("question-statistics/{managerId:guid}")]
+        public IActionResult GetQuestionStatistics(Guid managerId)
+        {
+            if (managerId == Guid.Empty)
+            {
+                return BadRequest("Chưa truyền id!");
+            }
+
+            var result = _questionService.GetQuestionDetailOverview(managerId);
+            return result == null ? NotFound() : Ok(result);
+        }
     }
 }

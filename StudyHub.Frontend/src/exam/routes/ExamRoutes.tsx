@@ -9,6 +9,7 @@ import ViewExamDetail from "../pages/student/ViewExamDetail";
 import ListQuestions from "../pages/questionManager/ListQuestions";
 import AddQuestion from "../pages/questionManager/AddQuestion";
 import RequireRole from "@/common/components/RequireRole";
+import Dashboard from "../pages/questionManager/Dashboard";
 
 const examRoutes: RouteObject[] = [
   {
@@ -22,9 +23,9 @@ const examRoutes: RouteObject[] = [
   {
     path: ExamRouteConfig.STUDENT.TAKE_EXAM,
     element: (
-      <RequireRole allowedRoles={["School Student", "External Student"]}>
+      // <RequireRole allowedRoles={["School Student", "External Student"]}>
         <TakeExam />
-      </RequireRole>
+      // </RequireRole> TẠO 2 LẦN EXAM RỒI ĐẤY HAIZZZ
     ),
   },
   {
@@ -112,6 +113,12 @@ const examRoutes: RouteObject[] = [
       >
         <AddQuestion />
       </RequireRole>
+    ),
+  },
+  {
+    path: ExamRouteConfig.QUESTION_MANAGER.DASHBOARD,
+    element: (
+      <Dashboard />
     ),
   },
 ];
