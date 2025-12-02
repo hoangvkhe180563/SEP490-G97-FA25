@@ -171,7 +171,7 @@ export const CreateClassModal: React.FC<{
             </div>
 
             <div>
-              <Label className="text-sm">Khối (grade) <span className="text-red-500">*</span></Label>
+              <Label className="text-sm">Khối <span className="text-red-500">*</span></Label>
               <Input
                 type="number"
                 min={1}

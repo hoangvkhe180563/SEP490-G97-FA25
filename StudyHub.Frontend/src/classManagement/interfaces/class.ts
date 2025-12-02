@@ -227,7 +227,7 @@ export interface ClassState {
 
   getSubmissionCount: (classworkId: number) => Promise<number | null>;
 
-  getMemberCount: (classId: number) => Promise<number | null>;
+  getMemberCount: (classId: number|null) => Promise<number | null>;
   getMemberClassCount: (classID: number) => Promise<number | null>;
 
   getDocumentsByClassId?: (classId: number) => Promise<DocumentDto[] | null>;

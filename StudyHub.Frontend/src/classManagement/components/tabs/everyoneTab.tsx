@@ -9,21 +9,33 @@ import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { mapToCoarseRole } from "@/classManagement/utils/roleutil";
 
 type Props = {
-  // now accept multiple teachers
   teachers?: ClassMemberDto[];
   students: ClassMemberDto[];
   parents: ClassMemberDto[];
   onMail?: (p: ClassMemberDto) => void;
   onSelect?: (p: ClassMemberDto) => void;
-  onAddMember?: () => void; // optional parent handler
+  onAddMember?: () => void;
   classId?: number | string;
 };
+
+
+function openGmailCompose({ to, subject, body }: { to?: string; subject?: string; body?: string }) {
+  const base = "https://mail.google.com/mail/";
+  const params = new URLSearchParams();
+  params.set("view", "cm");
+  params.set("fs", "1"); // compose in full-screen
+  if (to) params.set("to", to);
+  if (subject) params.set("su", subject);
+  if (body) params.set("body", body);
+  // open in a new tab/window
+  const url = `${base}?${params.toString()}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
 
 const EveryoneTab: React.FC<Props> = ({
   teachers = [],
   students,
   parents,
-  onMail,
   onSelect,
   onAddMember,
   classId,
@@ -35,7 +47,6 @@ const EveryoneTab: React.FC<Props> = ({
   const coarseRole = mapToCoarseRole(user?.roles);
   const isTeacher = coarseRole === "teacher";
 
-  // Only teachers can open the add modal (and see the button)
   const openAdd = () => {
     if (!isTeacher) return;
     setOpenAddLocal(true);
@@ -46,6 +57,29 @@ const EveryoneTab: React.FC<Props> = ({
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     onSelect && onSelect(p);
     setSelectedMemberLocal(p);
+  };
+
+  const getEmail = (m: ClassMemberDto) => {
+    return (m as any).email ?? (m as any).userEmail ?? (m as any).emailAddress ?? (m as any).mail ?? "";
+  };
+
+  const getDisplayName = (m: ClassMemberDto) =>
+    (m as any).fullname ?? (m as any).fullName ?? (m as any).displayName ?? (m as any).name ?? "";
+
+  // click handler to open Gmail compose for member
+  const handleOpenGmail = (member: ClassMemberDto) => {
+    const email = getEmail(member);
+    const name = getDisplayName(member);
+    const subject = ""; // optionally set default subject here
+    const body = `Hi ${name || ""},%0D%0A%0D%0A`; // simple prefilled greeting (url encoded newline)
+    openGmailCompose({ to: email, subject, body });
+  };
+
+  // capture phase handler to prevent inner mailto anchors and route to Gmail
+  const onRowClickCapture = (e: React.MouseEvent, member: ClassMemberDto) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleOpenGmail(member);
   };
 
   return (
@@ -68,7 +102,21 @@ const EveryoneTab: React.FC<Props> = ({
           ) : (
             <div className="space-y-2">
               {teachers.map((t) => (
-                <MemberRowSimple key={t.userId} m={t} onMail={onMail} onSelect={handleSelect} roleLabel="Giáo viên" />
+                <div
+                  key={t.userId ?? `t-${Math.random()}`}
+                  role="button"
+                  tabIndex={0}
+                  onClickCapture={(e) => onRowClickCapture(e, t)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleOpenGmail(t);
+                    }
+                  }}
+                  className="block w-full text-left focus:outline-none"
+                >
+                  <MemberRowSimple m={t} onSelect={handleSelect} roleLabel="Giáo viên" />
+                </div>
               ))}
             </div>
           )}
@@ -85,21 +133,33 @@ const EveryoneTab: React.FC<Props> = ({
           ) : (
             <div className="space-y-2">
               {students.map((s) => (
-                <MemberRowSimple key={s.userId} m={s} onMail={onMail} onSelect={handleSelect} roleLabel="Học sinh" />
+                <div
+                  key={s.userId ?? `s-${Math.random()}`}
+                  role="button"
+                  tabIndex={0}
+                  onClickCapture={(e) => onRowClickCapture(e, s)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleOpenGmail(s);
+                    }
+                  }}
+                  className="block w-full text-left focus:outline-none"
+                >
+                  <MemberRowSimple m={s} onSelect={handleSelect} roleLabel="Học sinh" />
+                </div>
               ))}
             </div>
           )}
         </div>
       </Card>
 
-      {/* Member detail modal (local fallback) */}
       <MemberDetailModal
         open={!!selectedMemberLocal}
         member={selectedMemberLocal}
         onClose={() => setSelectedMemberLocal(null)}
       />
 
-      {/* Add member modal (local fallback) - only relevant when teacher */}
       <AddMemberModal
         open={openAddLocal}
         classId={classId ? Number(classId) : 0}

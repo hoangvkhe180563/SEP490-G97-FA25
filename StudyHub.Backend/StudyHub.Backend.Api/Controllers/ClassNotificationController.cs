@@ -342,29 +342,24 @@ namespace StudyHub.Backend.Api.Controllers
                         }
                         catch
                         {
-                            // ignore link persistence failure
                         }
                     }
                 }
 
                
 
-                // Re-read files for response
                 var files = _service.GetFilesByNotification(res.Id);
                 var response = res.ToNotificationDto(_aUserService.GetUserById(res.CreatedBy), files.Select(f => f.ToFileDto()).ToList(), null);
 
-                // Notify clients about the update (best-effort)
                 try
                 {
                     await _hubContext.Clients.Group($"class_{res.ClassId}")
                         .SendAsync("UpdatedNotification", response);
-                    // Optionally also send a lightweight signal
                     await _hubContext.Clients.Group($"class_{res.ClassId}")
                         .SendAsync("NewNotification", res.ClassId, res.Title);
                 }
                 catch
                 {
-                    // ignore hub failures
                 }
 
                 return Ok(new { success = true, message = "Đã update", data = response });
@@ -379,7 +374,6 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        // Get detail (classwork detail + submissions) - old route
         [HttpGet("/api/Classwork/{id}/detail")]
         public IActionResult GetClassworkDetail(int id)
         {
