@@ -281,4 +281,21 @@ export const schoolAdminSidebarItems: ISidebarItem[] = [
       },
     ],
   },
+  {
+    icon: <MessageCircleQuestionMark size={20} />,
+    text: "Quản lý hỏi đáp",
+    link: "",
+    children: [
+      {
+        icon: <LayoutDashboard size={20} />,
+        text: "Thống kê hỏi đáp",
+        link: "/qa/manager",
+      },
+      {
+        icon: <MessageSquare size={20} />,
+        text: "Quản lý chủ đề hỏi đáp",
+        link: "/qa/manager/topics",
+      },
+    ],
+  },
 ];
