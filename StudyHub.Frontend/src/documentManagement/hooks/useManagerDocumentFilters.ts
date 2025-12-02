@@ -202,8 +202,6 @@ export const useManagerDocumentFilters = () => {
   const filteredDocuments = sortedDocuments.filter((doc) => {
     if (filters.statusFilter === "approved") {
       if (doc.isApproved !== true || doc.isRequested === true) return false;
-    } else if (filters.statusFilter === "rejected") {
-      if (doc.isApproved !== false) return false;
     } else if (filters.statusFilter === "pending") {
       if (doc.isApproved !== null || doc.isRequested === true) return false;
     } else if (filters.statusFilter === "editRequest") {

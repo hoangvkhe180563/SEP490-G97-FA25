@@ -11,8 +11,8 @@ import ViolationRecords from "../pages/ViolationRecords";
 import { ForumLayout } from "../components/ForumLayout";
 import ForumRuleManagement from "../pages/ForumRuleManagement";
 import ModeratorDashboard from "../pages/ModeratorDashboard";
-import ForumMain from "../pages/forummain";
-import PostDetail from "../pages/postdetail";
+import ForumMain from "../pages/ForumMain";
+import PostDetail from "../pages/PostDetail";
 
 const managerRoutes = [
   {
@@ -108,6 +108,8 @@ const forumRoutes: RouteObject[] = [
           "Head of Department Teacher",
           "Q&A Teacher",
           "Homeroom Teacher",
+          "Moderator",
+          "School Student",
         ]}
       >
         <ForumLayout>

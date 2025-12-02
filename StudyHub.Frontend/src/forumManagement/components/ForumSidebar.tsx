@@ -89,7 +89,8 @@ export const ForumSidebar = ({
       : [];
 
   const handlePostClick = (postId: number) => {
-    navigate(`/forum/forums/details/${postId}`);
+    navigate(`/forum/forums/details/${postId}`, { replace: true });
+    window.scrollTo(0, 0);
   };
 
   return (

@@ -58,7 +58,7 @@ const DocumentApprovalChart: React.FC<DocumentApprovalChartProps> = ({
   const chartData = [
     { name: "Đã duyệt", value: stats.approvedDocuments },
     { name: "Chờ duyệt", value: stats.pendingApproval },
-    { name: "Từ chối", value: stats.rejectedDocuments },
+    // { name: "Từ chối", value: stats.rejectedDocuments },
   ];
 
   return (
