@@ -4,6 +4,7 @@ using StudyHub.Backend.Domain.Entities.Exam;
 using StudyHub.Backend.Infrastructure.MongoDb.Data.Mappers;
 using StudyHub.Backend.Infrastructure.MongoDb.Exceptions;
 using StudyHub.Backend.UseCases.Repositories.Exam;
+using System.Diagnostics;
 
 namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
 {
@@ -284,6 +285,20 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
             catch (Exception ex)
             {
                 new MongoDbException("QuestionRepository", "GenerateRandomQuestions failed. Inner error: " + ex.Message).LogError();
+            }
+            return [];
+        }
+
+        public List<Domain.Entities.Exam.Question> GetCommonQuestionsBySubjects(List<int> subjectIds)
+        {
+            try
+            {
+                var questions = _questionCollection.Find(q => q.SubjectId != null && subjectIds.Contains(q.SubjectId.Value) && q.Status == true).ToList();
+                return questions.Select(q => q.ToQuestionEntity()).ToList();
+            }
+            catch (Exception ex)
+            {
+                new MongoDbException("QuestionRepository", "GetCommonQuestionsBySubjects failed. Inner error: " + ex.Message).LogError();
             }
             return [];
         }

@@ -194,16 +194,14 @@ export const documentManagerSidebarItems: ISidebarItem[] = [
 export const questionManagerSidebarItems: ISidebarItem[] = [
   {
     icon: <LayoutDashboard size={20} />,
-    text: "Quản lý câu hỏi",
-    link: "",
-    children: [
-      {
-        icon: <FileQuestion size={20} />,
-        text: "Ngân hàng câu hỏi",
-        link: "/exam/manager/questions",
-      },
-    ],
+    text: "Dashboard",
+    link: "/exam/manager/dashboard"
   },
+  {
+    icon: <FileQuestion size={20} />,
+    text: "Quản lý câu hỏi",
+    link: "/exam/manager/questions"
+  }
 ];
 
 export const financialManagerSidebarItems: ISidebarItem[] = [

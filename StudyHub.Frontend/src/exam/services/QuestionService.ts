@@ -3,6 +3,8 @@ import type { CommonQuestionResponse } from "../interfaces/responses/CommonQuest
 import type { Question } from "../interfaces/models/Question";
 import type { Subject } from "../interfaces/models/Subject";
 import type { ExcelQuestionResponse } from "../interfaces/responses/ExcelQuestionResponse";
+import type { QuestionOverviewResponse } from "../interfaces/responses/QuestionOverviewResponse";
+import type { QuestionDetailOverviewResponse } from "../interfaces/responses/QuestionDetailOverviewResponse";
 
 export class QuestionService {
   getCommonQuestions = async (subjectId: number, grade: number, type: number, page: number, questionText: string): Promise<CommonQuestionResponse | null> => {
@@ -204,5 +206,47 @@ export class QuestionService {
       errorMessages: ["Không kết nối được CSDL!"],
       questions: []
     };
+  }
+
+  getQuestionDashboardOverview = async (managerId: string): Promise<QuestionOverviewResponse> => {
+    if (managerId.length < 36) {
+      return {
+        totalGrades: 0,
+        totalQuestions: 0,
+        totalSubjects: 0
+      }
+    }
+    try {
+      const res = await axiosInstance.get(`question/dashboard-overview/${managerId}`);
+      if (res.status === 200) {
+        return res.data;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error getQuestionDashboardOverview: ", error);
+    }
+    return {
+      totalGrades: 0,
+      totalQuestions: 0,
+      totalSubjects: 0
+    }
+  }
+
+  getQuestionStatistics = async (managerId: string): Promise<QuestionDetailOverviewResponse[]> => {
+    if (managerId.length < 36) {
+      return [];
+    }
+    try {
+      const res = await axiosInstance.get(`question/question-statistics/${managerId}`);
+      if (res.status === 200) {
+        return res.data;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error getQuestionStatistics: ", error);
+    }
+    return [];
   }
 }

@@ -10,7 +10,8 @@ const ExamRouteConfig = {
   },
   QUESTION_MANAGER: {
     QUESTION_LIST: "manager/questions",
-    CREATE_QUESTION: "manager/questions/create"
+    CREATE_QUESTION: "manager/questions/create",
+    DASHBOARD: "manager/dashboard"
   },
   EXAM_RESULT_DETAIL: "results/:id"
 };
