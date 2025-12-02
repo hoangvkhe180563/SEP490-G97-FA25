@@ -281,5 +281,31 @@ namespace StudyHub.Backend.UseCases.Services
                 };
             }
         }
+
+        public QuestionOverviewDto GetQuestionDashboardOverview(Guid managerId)
+        {
+            QuestionOverviewDto dto = new QuestionOverviewDto();
+
+            List<Subject> subjects = GetManagerSubjects(managerId);
+            dto.TotalSubjects = subjects.Count;
+
+            var questions = _questionRepo.GetCommonQuestionsBySubjects(subjects.Select(s => (int)s.Id).ToList());
+            dto.TotalQuestions = questions.Count;
+            dto.TotalGrades = questions.Select(q => q.Grade).Distinct().Count();
+
+            return dto;
+        }
+
+        public List<QuestionDetailOverviewDto> GetQuestionDetailOverview(Guid managerId)
+        {
+            List<Subject> subjects = GetManagerSubjects(managerId);
+            var questions = _questionRepo.GetCommonQuestionsBySubjects(subjects.Select(s => (int)s.Id).ToList());
+            return questions.Select(q => new QuestionDetailOverviewDto
+            {
+                SubjectId = q.SubjectId!.Value,
+                Grade = q.Grade!.Value,
+                Type = q.Type,
+            }).ToList();
+        }
     }
 }

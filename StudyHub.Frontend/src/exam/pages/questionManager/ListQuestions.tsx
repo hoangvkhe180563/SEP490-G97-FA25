@@ -458,6 +458,7 @@ export default function ListQuestions() {
           <h2 className="text-3xl font-bold tracking-tight">Ngân hàng câu hỏi</h2>
           <p className="text-sm text-muted-foreground">Các câu hỏi để cho vào bài kiểm tra.</p>
           <p className="text-sm text-muted-foreground">Các môn học của bạn: <b>{subjectData.map(subject => subject.name).join(", ")}</b>.</p>
+          <p className="text-sm text-muted-foreground">Đang hiển thị danh sách câu hỏi môn: <b>{subjectData.find(subject => subject.id === Number(searchParams.get("subjectId") ?? subjectData[0].id))?.name}</b></p>
         </div>
         <Badge variant="secondary" className="px-3 py-1 text-sm">
           Tổng số câu hỏi: {totalQuestions}

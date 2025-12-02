@@ -185,7 +185,6 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
   const { expanded } = useContext(SidebarContext);
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  console.log(location.pathname + " & " + props.link);
 
   const handleToggle = (e: any) => {
     e.stopPropagation();

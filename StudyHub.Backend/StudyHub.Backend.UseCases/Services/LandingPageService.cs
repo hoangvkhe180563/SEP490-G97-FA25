@@ -24,7 +24,7 @@ namespace StudyHub.Backend.UseCases.Services
             //no teachers included
             landingPage.FeaturedDocuments = documents;
             landingPage.FeaturedCourses = courses;
-            landingPage.LandingPageImages = Enumerable.Repeat("/src/common/assets/StudyHubLogo.png", 3).ToList();
+            landingPage.LandingPageImages = Enumerable.Repeat("/StudyHubLogo.png", 3).ToList();
 
             return landingPage;
         }
