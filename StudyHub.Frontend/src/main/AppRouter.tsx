@@ -23,7 +23,7 @@ import NotFound from "@/common/pages/NotFound";
 import recommendationRoutes from "@/recommend/routes/RecommendationRoutes";
 
 const AppRouter = () => {
-  const { user, checkAuth, isAuthenticated } = useAuthStore();
+  const { user, checkAuth, isAuthenticated, isCheckingAuth } = useAuthStore();
   const { startPresence, stopPresence } = useUserOnlineStore();
   const { startPaymentConnection, stopPaymentConnection } = usePaymentStore();
   const { startRead, stopRead } = useConversationStore();
@@ -33,10 +33,14 @@ const AppRouter = () => {
 
   useEffect(() => {
     checkAuth();
+  }, [checkAuth]);
+
+  useEffect(() => {
+    if (isCheckingAuth) return;
     if (!isAuthenticated && !location.pathname.includes("/auth")) {
       navigate("/");
     }
-  }, [checkAuth, isAuthenticated, location.pathname, navigate]);
+  }, [isAuthenticated, isCheckingAuth, location.pathname, navigate]);
 
   useEffect(() => {
     (async () => {
@@ -47,19 +51,6 @@ const AppRouter = () => {
         await startPaymentConnection();
         await startRead?.();
         await startChat?.();
-
-        // stop presence when the tab/window unloads
-        // try {
-        //   window.addEventListener("beforeunload", stopPresence as any);
-        //   window.removeEventListener(
-        //     "beforeunload",
-        //     stopPaymentConnection as any
-        //   );
-        //   window.addEventListener("beforeunload", stopRead as any);
-        //   window.addEventListener("beforeunload", stopChat as any);
-        // } catch (err) {
-        //   console.warn("failed to add unload listener", err);
-        // }
       } catch (err) {
         // non-fatal
         console.warn("startPresence failed", err);
@@ -67,18 +58,6 @@ const AppRouter = () => {
     })();
     return () => {
       try {
-        // remove unload listener and stop presence
-        // try {
-        //   window.removeEventListener("beforeunload", stopPresence as any);
-        //   window.removeEventListener(
-        //     "beforeunload",
-        //     stopPaymentConnection as any
-        //   );
-        //   window.removeEventListener("beforeunload", stopRead as any);
-        //   window.removeEventListener("beforeunload", stopChat as any);
-        // } catch (err) {
-        //   console.warn("failed to remove unload listener", err);
-        // }
         if (!isAuthenticated) return;
         stopPresence?.();
         stopPaymentConnection();

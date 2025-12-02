@@ -5,6 +5,7 @@ import ConversationDetails from "../pages/student/ConversationDetails";
 import TeacherConversationList from "../pages/teacher/ConversationList";
 import TeacherConversationDetails from "../pages/teacher/ConversationDetails";
 import ManagerDashboard from "../pages/manager/Dashboard";
+import TopicList from "../pages/manager/TopicList";
 
 const teacherRoutes: RouteObject[] = [
   { index: true, element: <div>Teacher Dashboard</div> },
@@ -37,6 +38,10 @@ const managerRoutes: RouteObject[] = [
   {
     index: true,
     element: <ManagerDashboard />,
+  },
+  {
+    path: QARouteConfig.MANAGER.TOPICS,
+    element: <TopicList />,
   },
 ];
 
