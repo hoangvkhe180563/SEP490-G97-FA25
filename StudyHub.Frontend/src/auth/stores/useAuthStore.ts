@@ -6,36 +6,6 @@ import { axiosInstance, axiosMessageErrorHandler } from "@/lib/axios";
 import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
 import type { AppUser } from "../interfaces/app-user";
 
-function normalizeRoles(raw: any): string[] {
-  if (!raw) return [];
-  try {
-    return (raw as any[])
-      .map((r) => {
-        if (!r && r !== 0) return "";
-        if (typeof r === "string") return r;
-        if (typeof r === "number") return String(r);
-        if (typeof r === "object") {
-          return (
-            r.name || r.roleName || r.normalizedName || r.displayName || r.role || ""
-          );
-        }
-        return String(r);
-      })
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
-function normalizeUser(u: any): AppUser | null {
-  if (!u) return null;
-  return {
-    ...u,
-    roles: normalizeRoles(u.roles),
-    permissions: normalizeRoles(u.permissions),
-  } as AppUser;
-}
-
 export const useAuthStore = create<AuthState>()(
   devtools(
     (set) => ({
@@ -87,7 +57,7 @@ export const useAuthStore = create<AuthState>()(
           const { data } = res;
           set({
             isAuthenticated: data.success,
-            user: normalizeUser(data.data),
+            user: data.data,
             loginMessage: data.message,
           });
           if (data.success) {
@@ -250,7 +220,7 @@ export const useAuthStore = create<AuthState>()(
           const res = await axiosInstance.get("/Auth/check-auth");
           const { data } = res;
           if (data.success) {
-            set({ isAuthenticated: true, user: normalizeUser(data.data) });
+            set({ isAuthenticated: true, user: data.data });
           } else {
             set({ isAuthenticated: false, user: null });
             console.log("s");
@@ -306,7 +276,7 @@ export const useAuthStore = create<AuthState>()(
           set({
             handlerGoogleCallbackMessage: data.message,
             isAuthenticated: data.success,
-            user: normalizeUser(data.data),
+            user: data.data,
           });
           if (data.success) {
             handlerSuccess();

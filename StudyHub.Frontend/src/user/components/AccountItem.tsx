@@ -89,9 +89,10 @@ const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
           const isTeacher = roles.some((r: any) => {
             const v = String(r || "").toLowerCase();
             return (
-              v.includes("teacher") ||
-              v.includes("giáo") ||
-              v.includes("giaovien")
+              v.includes("subject teacher") ||
+              v.includes("homeroom teacher") ||
+              v.includes("head of department teacher") ||
+              v.includes("q&a teacher")
             );
           });
           const subjects = (user as any).subjects || [];
