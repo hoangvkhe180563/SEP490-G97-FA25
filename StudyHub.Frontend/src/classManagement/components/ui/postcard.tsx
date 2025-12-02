@@ -229,32 +229,68 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     }
   };
 
-  // Programmatic download: fetch -> blob -> link click
+  // Improved programmatic download with better fallbacks and filename detection
   const downloadFile = async (file: PostFile) => {
     const key = String(file.id ?? file.fileUrl ?? file.fileName ?? Date.now());
-    // set downloading state
     setDownloading((d) => ({ ...d, [key]: true }));
+
     try {
-      // Try fetching the file as blob
-      const res = await fetch(file.fileUrl, { method: "GET", credentials: "include" });
+      // Try fetching the file as blob. Keep credentials in case file is protected on same origin.
+      const res = await fetch(String(file.fileUrl), {
+        method: "GET",
+        credentials: "include",
+        // mode: "cors" // default is fine, but can be added if needed
+      });
+
+      // If fetch failed (non-2xx), fallback to opening in new tab
       if (!res.ok) {
-        // fallback: open in new tab
-        window.open(file.fileUrl, "_blank");
+        // Often a non-OK response is a redirect to login page or an error HTML => open in new tab so user can see
+        window.open(String(file.fileUrl), "_blank", "noopener");
         return;
       }
+
+      const contentType = (res.headers.get("content-type") || "").toLowerCase();
       const blob = await res.blob();
+
+      // If server returned HTML (likely an error page) and the original URL doesn't look like a direct file,
+      // fallback to opening the URL in a new tab for debugging / manual download.
+      if (contentType.includes("text/html") && !/\.(pdf|jpg|jpeg|png|gif|docx?|xlsx?|pptx?|zip|rar)$/i.test(String(file.fileUrl))) {
+        window.open(String(file.fileUrl), "_blank", "noopener");
+        return;
+      }
+
+      // Try to extract filename from Content-Disposition header if present
+      const contentDisposition = res.headers.get("content-disposition") || "";
+      let filename = file.fileName ?? "download";
+      const fileNameMatch =
+        // filename*=UTF-8''encoded or filename="..." or filename=...
+        contentDisposition.match(/filename\*=(?:UTF-8'')?([^;]+)/i) ||
+        contentDisposition.match(/filename="?([^";]+)"?/i);
+      if (fileNameMatch && fileNameMatch[1]) {
+        try {
+          // decodeURIComponent for RFC5987 style
+          filename = decodeURIComponent(fileNameMatch[1].replace(/(^['"]|['"]$)/g, ""));
+        } catch {
+          filename = fileNameMatch[1].replace(/(^['"]|['"]$)/g, "");
+        }
+      }
+
+      // Create an object URL and click an anchor with download attribute.
+      // This works even for cross-origin responses because blob URLs are same-origin.
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = file.fileName ?? "download";
+      a.download = filename;
+      // add to DOM to make click work in all browsers
       document.body.appendChild(a);
       a.click();
       a.remove();
+      // revoke after some time
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (err) {
       console.warn("Programmatic download failed, falling back to opening in new tab", err);
-      // fallback to opening in new tab (may allow user to manually save)
-      window.open(file.fileUrl, "_blank");
+      // Last resort: open the file URL in a new tab (user can save manually)
+      window.open(String(file.fileUrl), "_blank", "noopener");
     } finally {
       setDownloading((d) => ({ ...d, [key]: false }));
     }
