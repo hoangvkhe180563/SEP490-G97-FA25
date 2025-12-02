@@ -188,7 +188,7 @@ const ManagerDocumentApprovalList = () => {
   };
 
   const handleViewDocument = (id: number) => {
-    navigate(`/document/student/details/${id}`);
+    navigate(`/document/details/${id}`);
   };
 
   const getSortIcon = (field: typeof sortBy) => {
@@ -591,7 +591,23 @@ const ManagerDocumentApprovalList = () => {
             </div>
           )}
         </div>
-
+        <style>{`
+  .scrollbar-custom::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .scrollbar-custom::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 5px;
+  }
+  .scrollbar-custom::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 5px;
+  }
+  .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+  }
+`}</style>
         <div className="flex-1 overflow-auto scrollbar-custom">
           {loading ? (
             <div className="flex items-center justify-center h-full">
@@ -601,40 +617,40 @@ const ManagerDocumentApprovalList = () => {
             <Table>
               <TableHeader className="sticky top-0 bg-gray-50 z-10">
                 <TableRow>
-                  <TableHead className="text-center font-semibold text-gray-700 w-16">
+                  <TableHead className="text-center font-semibold text-gray-700 w-8">
                     STT
                   </TableHead>
                   <TableHead
-                    className="text-center font-semibold text-gray-700 w-40 cursor-pointer hover:bg-gray-100"
+                    className="text-center font-semibold text-gray-700 w-18 cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort("name")}
                   >
                     TÀI LIỆU {getSortIcon("name")}
                   </TableHead>
-                  <TableHead className="text-center font-semibold text-gray-700 w-48">
+                  <TableHead className="text-center font-semibold text-gray-700 w-50">
                     MÔ TẢ
                   </TableHead>
-                  <TableHead className="text-center font-semibold text-gray-700 w-32">
+                  <TableHead className="text-center font-semibold text-gray-700 w-24">
                     TÁC GIẢ
                   </TableHead>
-                  <TableHead className="text-center font-semibold text-gray-700 w-32">
+                  <TableHead className="text-center font-semibold text-gray-700 w-18">
                     MÔN HỌC
                   </TableHead>
-                  <TableHead className="text-center font-semibold text-gray-700 w-24">
+                  <TableHead className="text-center font-semibold text-gray-700 w-16">
                     KHỐI
                   </TableHead>
-                  <TableHead className="text-center font-semibold text-gray-700 w-24">
+                  <TableHead className="text-center font-semibold text-gray-700 w-15">
                     ĐỘ DÀI
                   </TableHead>
-                  <TableHead className="text-center font-semibold text-gray-700 w-24">
+                  <TableHead className="text-center font-semibold text-gray-700 w-20">
                     ĐỘ KHÓ
                   </TableHead>
                   <TableHead
-                    className="text-center font-semibold text-gray-700 w-32 cursor-pointer hover:bg-gray-100"
+                    className="text-center font-semibold text-gray-700 w-24 cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort("createdAt")}
                   >
                     NGÀY TẠO {getSortIcon("createdAt")}
                   </TableHead>
-                  <TableHead className="text-center font-semibold text-gray-700 w-32">
+                  <TableHead className="text-center font-semibold text-gray-700 w-13">
                     TRẠNG THÁI
                   </TableHead>
                   {/* {filters.statusFilter === "approved" && (
@@ -645,7 +661,7 @@ const ManagerDocumentApprovalList = () => {
                       NGÀY DUYỆT {getSortIcon("updatedAt")}
                     </TableHead>
                   )} */}
-                  <TableHead className="text-center font-semibold text-gray-700 w-24">
+                  <TableHead className="text-center font-semibold text-gray-700 w-10">
                     THAO TÁC
                   </TableHead>
                 </TableRow>
@@ -657,11 +673,11 @@ const ManagerDocumentApprovalList = () => {
                       {(currentPage - 1) * pageSize + index + 1}
                     </TableCell>
                     <TableCell>
-                      <div className="text-xs text-center">
-                        <div className="font-medium line-clamp-2">
+                      <div className="text-xs text-center max-w-[100px] overflow-x-auto scrollbar-custom">
+                        <div className="font-medium whitespace-nowrap">
                           {doc.name}
                         </div>
-                        <div className="text-gray-500 text-[11px] mt-1">
+                        <div className="text-gray-500 text-[11px] mt-1 whitespace-nowrap">
                           {doc.fileType || "PDF"}
                         </div>
                       </div>
@@ -672,17 +688,17 @@ const ManagerDocumentApprovalList = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="text-xs text-center">
-                        <div className="font-medium">
+                      <div className="text-xs text-center max-w-[100px] overflow-x-auto scrollbar-custom">
+                        <div className="font-medium whitespace-nowrap">
                           {doc.uploaderName || "N/A"}
                         </div>
-                        <div className="text-gray-500 text-[11px] mt-1">
+                        <div className="text-gray-500 text-[11px] mt-1 whitespace-nowrap">
                           {doc.schoolName || "N/A"}
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center text-xs">
-                      {doc.subjectName}
+                    <TableCell className="text-center text-xs max-w-[96px] overflow-x-auto scrollbar-custom">
+                      <div className="whitespace-nowrap">{doc.subjectName}</div>
                     </TableCell>
                     <TableCell className="text-center text-xs">
                       Lớp {doc.grade}

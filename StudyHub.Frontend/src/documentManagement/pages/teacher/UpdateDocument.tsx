@@ -268,7 +268,7 @@ export default function UpdateDocument() {
 
   const handlePreview = () => {
     if (!document?.id) return;
-    window.open(`/document/student/doc-info/${document.id}`, "_blank");
+    window.open(`/document/doc-info/${document.id}`, "_blank");
   };
 
   const handleDownload = async () => {
