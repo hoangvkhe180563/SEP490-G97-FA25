@@ -188,7 +188,7 @@ const ManagerDocumentApprovalList = () => {
   };
 
   const handleViewDocument = (id: number) => {
-    navigate(`/document/student/details/${id}`);
+    navigate(`/document/details/${id}`);
   };
 
   const getSortIcon = (field: typeof sortBy) => {

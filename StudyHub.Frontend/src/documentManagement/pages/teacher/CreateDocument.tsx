@@ -229,7 +229,11 @@ export default function CreateDocument() {
       showToast("error", "Vui lòng chọn file tài liệu");
       return;
     }
-
+    if (documentFile.size > MAX_FILE_SIZE) {
+      showToast("error", "Kích thước file không được vượt quá 10MB");
+      setDocumentFile(null);
+      return;
+    }
     const subject = subjects.find((s) => s.id.toString() === data.subject);
     const category = categories.find((c) => c.id.toString() === data.type);
 
