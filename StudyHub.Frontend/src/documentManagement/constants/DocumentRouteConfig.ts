@@ -8,6 +8,7 @@ const DocumentRouteConfig = {
     ADD: "create-document",
     EDIT: "update-document/:id",
     DOCUMENTS: "documents",
+    SCHOOL_TEACHERS: "school-teachers",
   },
   MANAGER: {
     INDEX: "manager",

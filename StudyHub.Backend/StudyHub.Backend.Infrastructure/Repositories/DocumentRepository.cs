@@ -671,7 +671,40 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 return new List<Document>();
             }
         }
+        public (List<Document> documents, int totalCount) GetSchoolTeachersDocuments(
+    int schoolId,
+    Guid currentUserId,
+    string? query = null,
+    int? categoryId = null,
+    int? grade = null,
+    string? subject = null,
+    int? classId = null,
+    string? documentLengthType = null,
+    string? documentLevel = null,
+    int? pageNumber = null,
+    int? pageSize = null)
+        {
+            try
+            {
+                var dbQuery = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Include(d => d.Classes)
+                    .Where(d => d.DeletedAt == null
+                        && d.IsApproved == true
+                        && d.CreatedBy != currentUserId
+                        && _context.AppUsers.Any(u => u.Id == d.CreatedBy && u.SchoolId == schoolId)
+                        && ((d.SchoolId == null && d.IsInClass == false) || (d.SchoolId == schoolId && d.IsInClass == false)));
 
+                return ExecuteQuery(dbQuery, query, categoryId, grade, subject, classId, documentLengthType, documentLevel, null, null, pageNumber, pageSize, true);
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("DocumentRepository", "GetSchoolTeachersDocuments failed: " + ex.Message).LogError();
+                return (new List<Document>(), 0);
+            }
+        }
         public List<Class> GetClassesByDocument(int documentId)
         {
             try

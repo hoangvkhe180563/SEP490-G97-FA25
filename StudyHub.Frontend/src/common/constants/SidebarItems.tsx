@@ -137,6 +137,18 @@ export const teacherSidebarItems: ISidebarItem[] = [
     icon: <LibraryBig size={20} />,
     text: "Quản lý Tài liệu",
     link: "/document/teacher/my-documents",
+    children: [
+      {
+        icon: <ScrollText size={20} />,
+        text: "Xem tài liệu của tôi",
+        link: "/document/teacher/my-documents",
+      },
+      {
+        icon: <ScrollText size={20} />,
+        text: "Xem tài liệu trường tôi",
+        link: "/document/teacher/documents",
+      },
+    ],
   },
   {
     icon: <BookOpen size={20} />,

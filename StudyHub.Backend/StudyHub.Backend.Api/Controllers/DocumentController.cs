@@ -109,7 +109,30 @@ namespace StudyHub.Backend.Api.Controllers
                 creatorId, query, categoryId, grade, subject, classId, documentLengthType, documentLevel, pageNumber, pageSize);
             return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
         }
+        [HttpGet("school-teachers/{schoolId}")]
+        public IActionResult GetSchoolTeachersDocuments(
+    int schoolId,
+    [FromQuery] string? query = null,
+    [FromQuery] int? categoryId = null,
+    [FromQuery] int? grade = null,
+    [FromQuery] string? subject = null,
+    [FromQuery] int? classId = null,
+    [FromQuery] string? documentLengthType = null,
+    [FromQuery] string? documentLevel = null,
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10)
+        {
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
+            if (currentUser.SchoolId != schoolId)
+                return Forbid();
+
+            var (documents, totalCount) = _documentService.GetSchoolTeachersDocuments(
+                schoolId, currentUser.Id, query, categoryId, grade, subject, classId, documentLengthType, documentLevel, pageNumber, pageSize);
+            return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
+        }
         [HttpGet("manager/public")]
         public IActionResult GetManagerPublicDocuments(
           [FromQuery] string? query = null,

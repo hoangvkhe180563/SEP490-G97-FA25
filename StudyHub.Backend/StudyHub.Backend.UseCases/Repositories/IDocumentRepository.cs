@@ -51,6 +51,18 @@ namespace StudyHub.Backend.UseCases.Repositories
             DateTime? updatedTo = null,
             int? pageNumber = null,
             int? pageSize = null);
+        (List<Document> documents, int totalCount) GetSchoolTeachersDocuments(
+    int schoolId,
+    Guid currentUserId,
+    string? query = null,
+    int? categoryId = null,
+    int? grade = null,
+    string? subject = null,
+    int? classId = null,
+    string? documentLengthType = null,
+    string? documentLevel = null,
+    int? pageNumber = null,
+    int? pageSize = null);
         (List<Document> documents, int totalCount) GetEditRequestDocuments(bool? isRequested = null, int? pageNumber = null, int? pageSize = null);
         List<Document> GetDocumentsBySubject(int subjectId);
         List<Document> GetDocumentsBySubjectForPublic(int subjectId);

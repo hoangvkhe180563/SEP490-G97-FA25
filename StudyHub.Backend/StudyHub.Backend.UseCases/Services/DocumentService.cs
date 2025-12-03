@@ -503,7 +503,19 @@ namespace StudyHub.Backend.UseCases.Services
             }
             return _repo.UpdateDocument(document);
         }
-
+        public (List<Document> documents, int totalCount) GetSchoolTeachersDocuments(
+    int schoolId,
+    Guid currentUserId,
+    string? query = null,
+    int? categoryId = null,
+    int? grade = null,
+    string? subject = null,
+    int? classId = null,
+    string? documentLengthType = null,
+    string? documentLevel = null,
+    int pageNumber = 1,
+    int pageSize = 10)
+    => _repo.GetSchoolTeachersDocuments(schoolId, currentUserId, query, categoryId, grade, subject, classId, documentLengthType, documentLevel, pageNumber, pageSize);
         public (List<Document> documents, int totalCount) GetEditRequestDocuments(
     bool? isRequested = null, int pageNumber = 1, int pageSize = 10)
     => _repo.GetEditRequestDocuments(isRequested, pageNumber, pageSize);
