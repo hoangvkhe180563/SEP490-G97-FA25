@@ -13,13 +13,13 @@ import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { Calendar, ChevronDown, Check } from "lucide-react";
 import CourseContentItem from "@/courseManagement/components/CourseContentItem";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import type {
   ChapterListDto,
   LessonListDto,
 } from "@/courseManagement/types/api";
 import { Clock } from "lucide-react";
+import { formatDate } from "@/courseManagement/utils/formatDate";
 import { Progress } from "@/common/components/ui/progress";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 
@@ -46,7 +46,6 @@ const CourseDetail: React.FC = () => {
   >({});
 
   // load subjects (for label lookups)
-  const [_subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
   const [contentView, setContentView] = useState<"list" | "grid">("list");
   const [contentSort, setContentSort] = useState<string>("default");
   const [progressFilters, setProgressFilters] = useState({
@@ -60,39 +59,7 @@ const CourseDetail: React.FC = () => {
     assignment: false,
     quiz: false,
   });
-  const [teacher, setTeacher] = useState<any>();
-  const getAppUserById = useAppUserStore((s) => s.getAppUserById);
   const [durationFilter, setDurationFilter] = useState<string>("all");
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const { documentService } = await import(
-          "@/documentManagement/services/documentService"
-        );
-        const res = await documentService.getSubjects();
-        if (mounted && Array.isArray(res)) {
-          setSubjects(res.map((s) => ({ id: s.id, name: s.name })));
-        }
-      } catch (err) {
-        // ignore
-      }
-    })();
-    (async () => {
-      try {
-        if (!selectedCourse?.createdBy) return;
-        const r = await getAppUserById(selectedCourse?.createdBy);
-
-        if (mounted) setTeacher(r?.data.fullname);
-      } catch (err) {
-        // ignore
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [getAppUserById, selectedCourse?.createdBy]);
 
   const authUser = useAuthStore((s) => s.user);
 
@@ -201,13 +168,6 @@ const CourseDetail: React.FC = () => {
       }
     })();
   };
-
-  const subjectLabel = (() => {
-    const id = (selectedCourse as any)?.subjectId;
-    if (id === undefined || id === null) return undefined;
-    const found = _subjects.find((s) => s.id === Number(id));
-    return found ? found.name : String(id);
-  })();
 
   const sortLessons = (lessons: LessonListDto[] = []) => {
     const arr = [...lessons];
@@ -320,11 +280,20 @@ const CourseDetail: React.FC = () => {
   };
 
   const fmtPrice = (p: number | undefined) => {
-    if (p === undefined || p === null) return "Free";
+    // Treat null/undefined/0 as free
+    if (
+      p === undefined ||
+      p === null ||
+      Number(p) === 0 ||
+      Number.isNaN(Number(p))
+    )
+      return "Miễn phí";
     try {
-      return new Intl.NumberFormat(undefined, {
+      return new Intl.NumberFormat("vi-VN", {
         style: "currency",
         currency: "VND",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
       }).format(p);
     } catch {
       return String(p);
@@ -390,54 +359,56 @@ const CourseDetail: React.FC = () => {
             <div className="flex flex-col lg:flex-row items-start gap-6">
               <div className="flex-1">
                 <div className="inline-block bg-blue-100 text-blue-800 text-lg font-semibold px-4 py-2 rounded-full shadow-sm">
-                  {subjectLabel}
+                  {selectedCourse?.subject?.name ?? "Chưa xác định"}
                 </div>
 
                 <div className="flex items-center gap-4 mt-4 text-base text-gray-800">
                   <div className="flex items-center gap-4">
                     {/* Avatar chữ cái */}
                     <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-lg font-bold text-blue-700 shadow-sm border border-blue-50">
-                      {teacher ? teacher.charAt(0).toUpperCase() : "G"}
+                      {selectedCourse?.teacherCreatedName
+                        ? selectedCourse.teacherCreatedName
+                            .charAt(0)
+                            .toUpperCase()
+                        : "G"}
                     </div>
 
                     {/* Thông tin giáo viên */}
                     <div>
                       <div className="font-semibold text-gray-900 text-lg leading-snug">
-                        {teacher ?? "Giáo viên"}
+                        {selectedCourse?.teacherCreatedName ?? "Giáo viên"}
                       </div>
 
-                        <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
-                          <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 font-medium shadow-sm">
-                            Khối {selectedCourse?.grade ?? "-"}
-                          </span>
-                          <span className="text-gray-400">|</span>
-                          <span className="text-gray-500">
-                            {teacher ?? "Giáo viên"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="ml-auto text-right">
-                      <div className="text-sm text-gray-500">Thời gian</div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {selectedCourse?.startAt && selectedCourse?.endAt ? (
-                          <>
-                            <Calendar
-                              className="inline-block w-4 h-4 mr-1 text-gray-500"
-                              aria-hidden
-                            />
-                            {`${new Date(
-                              selectedCourse.startAt
-                            ).toLocaleDateString("vi-VN")} - ${new Date(
-                              selectedCourse.endAt
-                            ).toLocaleDateString("vi-VN")}`}
-                          </>
-                        ) : (
-                          "-"
-                        )}
+                      <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
+                        <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 font-medium shadow-sm">
+                          Khối {selectedCourse?.grade ?? "-"}
+                        </span>
+                        <span className="text-gray-400">|</span>
+                        <span className="text-gray-500">
+                          {selectedCourse?.teacherCreatedName ?? "Giáo viên"}
+                        </span>
                       </div>
                     </div>
                   </div>
+                  <div className="ml-auto text-right">
+                    <div className="text-sm text-gray-500">Thời gian</div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {selectedCourse?.startAt && selectedCourse?.endAt ? (
+                        <>
+                          <Calendar
+                            className="inline-block w-4 h-4 mr-1 text-gray-500"
+                            aria-hidden
+                          />
+                          {`${formatDate(
+                            selectedCourse.startAt
+                          )} - ${formatDate(selectedCourse.endAt)}`}
+                        </>
+                      ) : (
+                        "-"
+                      )}
+                    </div>
+                  </div>
+                </div>
 
                 {enrollment ? (
                   <div className="mt-6 p-5 border border-gray-100 rounded-xl bg-white shadow-sm">

@@ -10,19 +10,24 @@ import WithdrawRequest from "../pages/student/WithdrawRequest";
 import PaymentSuccess from "../pages/student/PaymentSuccess";
 import PaymentFailed from "../pages/student/PaymentFailed";
 import TransactionHistory from "../pages/student/TransactionHistory";
+import { ROLES } from "@/common/constants/Roles";
 
 const financialManagerRoutes: RouteObject[] = [
   {
-    index: true,
-    element: <div>Dashboard</div>,
-  },
-  {
     path: PaymentRouteConfig.FINANCIAL_MANAGER.TRANSACTION,
-    element: <TransactionList />,
+    element: (
+      <RequireRole allowedRoles={[ROLES.FINANCIAL_MANAGER]}>
+        <TransactionList />
+      </RequireRole>
+    ),
   },
   {
     path: PaymentRouteConfig.FINANCIAL_MANAGER.REVENUE,
-    element: <RevenueReport />,
+    element: (
+      <RequireRole allowedRoles={[ROLES.FINANCIAL_MANAGER, ROLES.SCHOOL_ADMIN]}>
+        <RevenueReport />
+      </RequireRole>
+    ),
   },
 ];
 
@@ -74,7 +79,9 @@ const paymentRoutes: RouteObject[] = [
   {
     path: PaymentRouteConfig.STUDENT.INDEX,
     element: (
-      <RequireRole allowedRoles={["School Student", "External Student"]}>
+      <RequireRole
+        allowedRoles={[ROLES.SCHOOL_STUDENT, ROLES.EXTERNAL_STUDENT]}
+      >
         <Outlet />
       </RequireRole>
     ),
@@ -83,11 +90,7 @@ const paymentRoutes: RouteObject[] = [
   // Cấu hình routes cho Quản lý tài chính (Base path: /financial)
   {
     path: PaymentRouteConfig.FINANCIAL_MANAGER.INDEX,
-    element: (
-      <RequireRole allowedRoles={["Financial Manager", "School Admin"]}>
-        <Outlet />
-      </RequireRole>
-    ),
+    element: <Outlet />,
     children: financialManagerRoutes,
   },
 ];

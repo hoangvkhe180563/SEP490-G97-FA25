@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import type {
   ChapterListDto,
   LessonListDto,
@@ -20,9 +19,9 @@ import {
 } from "@/common/components/ui/collapsible";
 import { Button } from "@/common/components/ui/button";
 import { Edit2, ArrowLeft } from "lucide-react";
-import { documentService } from "@/documentManagement/services/documentService";
-import type { AppUser } from "@/auth/interfaces/app-user";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+
+import { formatDateTime } from "@/courseManagement/utils/formatDate";
 
 const CourseDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -34,55 +33,20 @@ const CourseDetail: React.FC = () => {
   );
   const fetchCourseById = useCourseStore((s) => s.fetchCourseById);
 
-  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
-  const [teacherCreated, setTeacherCreated] = useState<Partial<AppUser> | null>(
-    null
-  );
-  const [teacherUpdated, setTeacherUpdated] = useState<Partial<AppUser> | null>(
-    null
-  );
-  const getAppUserById = useAppUserStore((s) => s.getAppUserById);
   const authUser = useAuthStore((s) => s.user);
 
   useEffect(() => {
-    (async () => {
-      const res = await documentService.getSubjects();
-      if (Array.isArray(res)) {
-        setSubjects(res.map((s: any) => ({ id: s.id, name: s.name })));
-      }
-    })();
     if (courseId) {
       fetchCourseById(courseId);
     }
   }, [fetchCourseById, courseId]);
 
-  // when selectedCourse is loaded, fetch creator/updater info
-  useEffect(() => {
-    if (!selectedCourse) return;
-    if (selectedCourse.createdBy) {
-      getAppUserById(selectedCourse.createdBy).then((res) => {
-        if (res?.success && res.data) setTeacherCreated(res.data);
-      });
-    }
-    if (selectedCourse.updatedBy) {
-      getAppUserById(selectedCourse.updatedBy).then((res) => {
-        if (res?.success && res.data) setTeacherUpdated(res.data);
-      });
-    }
-  }, [selectedCourse, getAppUserById]);
-
   // Only the course owner (creator) may edit the course. Use auth user id.
   const isOwner = Boolean(
     authUser?.id &&
-    selectedCourse?.createdBy &&
-    String(authUser.id) === String(selectedCourse.createdBy)
+      selectedCourse?.createdBy &&
+      String(authUser.id) === String(selectedCourse.createdBy)
   );
-
-  const categoryLabel = (id?: number | null) => {
-    if (id === undefined || id === null) return "-";
-    const found = subjects.find((s) => s.id === Number(id));
-    return found ? found.name : String(id);
-  };
 
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-6 h-full flex flex-col">
@@ -246,7 +210,7 @@ const CourseDetail: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span>Môn học</span>
-                    <span>{categoryLabel(selectedCourse?.subjectId)}</span>
+                    <span>{selectedCourse?.subject?.name ?? "-"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Khối lớp</span>
@@ -257,13 +221,13 @@ const CourseDetail: React.FC = () => {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Giảng viên</CardTitle>
+                <CardTitle>Giáo viên</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-start gap-3">
                   <div className="w-12 h-12 rounded-full bg-[#171717] text-white flex items-center justify-center text-sm font-semibold shadow-sm">
                     {(() => {
-                      const name = teacherCreated?.fullname || "GV";
+                      const name = selectedCourse?.teacherCreatedName || "GV";
 
                       return name
                         .split(" ")
@@ -276,18 +240,21 @@ const CourseDetail: React.FC = () => {
                   <div className="flex-1 text-sm text-[#404040]">
                     <div className="flex justify-between mb-1">
                       <span className="font-medium text-[#171717]">
-                        Giảng viên:
+                        Giáo viên:
                       </span>
-                      <span>{teacherCreated?.fullname || "GV - Chính"}</span>
+                      <span>
+                        {selectedCourse?.teacherCreatedName || "GV - Chính"}
+                      </span>
                     </div>
-                    {teacherUpdated?.fullname && (
+                    {selectedCourse?.teacherUpdatedName && (
                       <>
                         <div className="flex justify-between mb-1">
                           <span className="font-medium text-[#171717]">
                             Cập nhật bởi:
                           </span>
                           <span>
-                            {teacherUpdated?.fullname || "GV - Cập nhật"}
+                            {selectedCourse?.teacherUpdatedName ||
+                              "GV - Cập nhật"}
                           </span>
                         </div>
                         <div className="flex justify-between mb-1">
@@ -295,11 +262,7 @@ const CourseDetail: React.FC = () => {
                             Cập nhật ngày:
                           </span>
                           <span>
-                            {new Date(
-                              selectedCourse.updatedAt || ""
-                            ).toLocaleString("vi-VN", {
-                              hour12: false,
-                            })}
+                            {formatDateTime(selectedCourse.updatedAt)}
                           </span>
                         </div>
                       </>
@@ -309,27 +272,9 @@ const CourseDetail: React.FC = () => {
                         <span className="font-medium text-[#171717]">
                           Tạo ngày:
                         </span>
-                        <span>
-                          {new Date(selectedCourse.createdAt).toLocaleString(
-                            "vi-VN",
-                            {
-                              hour12: false,
-                            }
-                          )}
-                        </span>
+                        <span>{formatDateTime(selectedCourse.createdAt)}</span>
                       </div>
                     )}
-                    <div className="mt-4 flex gap-2">
-                      <Button
-                        variant="outline"
-                        className="w-1/2 border-[#D1D5DB] hover:bg-gray-100 text-[#171717]"
-                      >
-                        Xem hồ sơ
-                      </Button>
-                      <Button className="w-1/2 bg-[#171717] hover:bg-[#2D2D2D] text-white">
-                        Nhắn tin
-                      </Button>
-                    </div>
                   </div>
                 </div>
               </CardContent>

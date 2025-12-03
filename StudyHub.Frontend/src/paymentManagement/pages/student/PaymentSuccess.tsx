@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/common/components/ui/button";
+import { Clock } from "lucide-react";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import { useSubscriptionStore } from "@/paymentManagement/stores/useSubscriptionStore";
@@ -146,7 +147,10 @@ const PaymentSuccess: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="text-gray-500 py-8">⏳ Đang xử lý...</div>
+          <div className="text-gray-500 py-8">
+            <Clock className="inline-block w-5 h-5 mr-2 text-gray-400" />
+            Đang xử lý...
+          </div>
         ) : (
           <div>
             {message && <div className="text-emerald-700 mb-4">{message}</div>}

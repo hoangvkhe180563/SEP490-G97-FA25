@@ -1,3 +1,6 @@
+using System;
+using System.Linq;
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.UseCases.Services;
 using StudyHub.Backend.Api.Mappers;
@@ -137,6 +140,14 @@ public class EnrollmentController : ControllerBase
     {
         var items = _enrollService.GetEnrollmentsByUser(userId);
         return Ok(items.Select(i => i.ToListDto()));
+    }
+
+    [HttpGet("stats/course-count")]
+    public IActionResult GetEnrollmentCounts([FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null, [FromQuery] int? schoolId = null)
+    {
+        var list = _enrollService.GetEnrollmentCounts(from, to, schoolId);
+        var dto = list.Select(kv => new { courseId = kv.Key, count = kv.Value }).ToList();
+        return Ok(dto);
     }
 
     [HttpGet("{id}")]

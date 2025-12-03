@@ -1,7 +1,6 @@
 import CourseCard from "@/courseManagement/components/CourseCard";
 import CourseFilters from "@/courseManagement/components/CourseListFiltersStudent";
 import { useEffect, useState } from "react";
-import { documentService } from "@/documentManagement/services/documentService";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import type { CourseListDto } from "@/courseManagement/types/api";
@@ -29,9 +28,8 @@ const CourseList: React.FC = () => {
   const [filters, setFilters] = useState<Record<string, any>>({});
   const [selectedPageSize, setSelectedPageSize] = useState<number | null>(6);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
-  const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
+  const getTeachers = useAppUserStore((s) => s.getTeachers);
   const authUser = useAuthStore((s) => s.user);
 
   const pageSize = useCourseStore((s) => s.pageSize);
@@ -75,30 +73,15 @@ const CourseList: React.FC = () => {
   }, [fetchCourses, effectivePageSize, authUser?.schoolId]);
 
   useEffect(() => {
-    let mounted = true;
     (async () => {
       try {
-        const s = await documentService.getSubjects();
-        if (!mounted) return;
-        setSubjects((s || []).map((x: any) => ({ id: x.id, name: x.name })));
-      } catch (err) {
-        console.error("Failed to load subjects", err);
-      }
-    })();
-    (async () => {
-      try {
-        const r = await filterAppUsers(
-          "role=00000000-0000-0000-0000-000000000003&page=1"
-        );
-        setTeachers(r?.data ?? []);
+        const list = await getTeachers?.();
+        setTeachers(list ?? []);
       } catch (err) {
         // ignore
       }
     })();
-    return () => {
-      mounted = false;
-    };
-  }, [filterAppUsers]);
+  }, [getTeachers]);
 
   const page = useCourseStore((s) => s.page);
 
@@ -129,7 +112,7 @@ const CourseList: React.FC = () => {
   const currentPage = page ?? 1;
 
   return (
-    <div className="p-4 mx-auto w-full h-full overflow-y-auto scrollbar-hide">
+    <div className={`p-4 mx-auto w-full h-full overflow-y-auto scrollbar-hide ${authUser ? '' : 'mt-[65px]'}`}>
       <div className="mb-4">
         <div className="text-2xl font-normal text-[#171717]">
           Tất cả các khóa học
@@ -248,14 +231,6 @@ const CourseList: React.FC = () => {
                   />
                 ))
               : courses.map((c: CourseListDto) => {
-                  // map category id -> subject name if available
-                  const categoryLabel = (() => {
-                    const id = c.subjectId as any;
-                    if (id === null || id === undefined) return undefined;
-                    const found = subjects.find((s) => s.id === Number(id));
-                    return found ? found.name : String(id);
-                  })();
-
                   const uiCourse: Course = {
                     id: c.id,
                     name: c.name,
@@ -267,19 +242,12 @@ const CourseList: React.FC = () => {
                     grade: c.grade,
                     schoolId: (c.schoolId as any) ?? null,
                     isFeatured: c.isFeatured,
-                    // resolve instructor name into createdBy (keeps existing DTO shape)
-                    createdBy:
-                      (c.createdBy &&
-                        (teachers.find(
-                          (t) => String(t.id) === String(c.createdBy)
-                        )?.fullname ??
-                          String(c.createdBy))) ||
-                      null,
-                    // pass through course schedule fields (these exist on the DTO)
+                    createdBy: c.createdBy,
                     startAt: c.startAt ?? null,
                     endAt: c.endAt ?? null,
                     createdAt: c.createdAt,
-                    subjectName: c.subjectName ?? "",
+                    teacherCreatedName: c.teacherCreatedName ?? null,
+                    subjectName: c.subject?.name ?? "",
                     isApproved: c.isApproved ?? false,
                     difficulty: c.difficulty ?? null,
                     length: c.length ?? null,
@@ -290,10 +258,7 @@ const CourseList: React.FC = () => {
                       key={c.id}
                       className={viewMode === "list" ? "" : undefined}
                     >
-                      <CourseCard
-                        course={uiCourse}
-                        categoryLabel={categoryLabel ?? undefined}
-                      />
+                      <CourseCard course={uiCourse} />
                     </div>
                   );
                 })}

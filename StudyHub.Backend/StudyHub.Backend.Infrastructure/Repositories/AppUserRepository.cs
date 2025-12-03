@@ -135,11 +135,30 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
-        public (List<Domain.Entities.AppUser>, int, int, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page, int limit)
+        public List<Domain.Entities.AppUser> GetTeachers()
         {
             try
             {
-                var users = _context.AppUsers.AsQueryable();
+                var teacherRoleNames = new[] { "Subject Teacher", "Head of Department Teacher", "Q&A Teacher", "Homeroom Teacher" };
+                var users = _context.AppUsers
+                            .Include(u => u.Roles)
+                            .Where(u => u.Roles.Any(r =>teacherRoleNames.Any(tr =>(r.Name ?? "").ToLower() == tr.ToLower())))
+                            .ToList();
+
+                return users.Select(u => ToDomain(u)).ToList();
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("AppUserRepository", "GetTeachers failed. Inner error: " + ex.Message).LogError();
+                return new List<Domain.Entities.AppUser>();
+            }
+        }
+
+        public (List<Domain.Entities.AppUser>, int, int, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page, int limit, Guid myUserId)
+        {
+            try
+            {
+                var users = _context.AppUsers.Where(u => u.Id != myUserId).AsQueryable();
 
                 if (!string.IsNullOrEmpty(status))
                 {
@@ -172,7 +191,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (page < 1) page = DEFAULT_CURRENT_PAGE;
                 if (limit < 1) limit = DEFAULT_PAGE_SIZE;
                 var totalPages = (int)Math.Ceiling(total / (double)limit);
-                var paged = users.Skip((page - 1) * limit).Take(limit).ToList();
+                var paged = users.Skip((page - 1) * limit).Take(limit).OrderBy(u => u.CreatedAt).ToList();
                 var result = paged.Select(u => ToDomain(u)).ToList();
                 return (result, total, totalPages, page, limit);
             }
@@ -511,6 +530,24 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 .ToList();
 
             return subjectIds;
+        }
+
+        public List<string> GetUserRoleNames(Guid userId)
+        {
+            try
+            {
+                var roles = _context.AppUsers
+                    .Where(u => u.Id == userId)
+                    .SelectMany(u => u.Roles.Select(r => r.Name ?? string.Empty))
+                    .Distinct()
+                    .ToList();
+                return roles;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("AppUserRepository", "GetUserRoleNames failed. Inner error: " + ex.Message).LogError();
+                return new List<string>();
+            }
         }
 
         // Lấy tất cả ClassId mà user đã có claims

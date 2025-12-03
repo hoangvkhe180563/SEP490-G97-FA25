@@ -19,7 +19,12 @@ import {
 } from "@/common/components/ui/select";
 import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
-import { ArrowLeft, Loader2, Upload } from "lucide-react";
+import { ArrowLeft, Loader2, Upload, HelpCircle } from "lucide-react";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/common/components/ui/popover";
 import { documentService } from "@/documentManagement/services/documentService";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
@@ -150,7 +155,7 @@ const AddCourse: React.FC = () => {
         startAt: startDate ? formatISO(startDate) : formatISO(new Date()),
         endAt: endDate ? formatISO(endDate) : formatISO(new Date()),
         createdBy: authUser?.id ?? "",
-        isApproved: status === "Mở" ? false : true,
+        isApproved: true,
       };
 
       const created = await createCourse(dto);
@@ -422,10 +427,44 @@ const AddCourse: React.FC = () => {
             <CardContent>
               <div className="space-y-6">
                 <div>
-                  <Label className="font-semibold text-base text-gray-800">
-                    Hình thu nhỏ khóa học{" "}
-                    <span className="text-red-600">*</span>
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="font-semibold text-base text-gray-800">
+                      Hình thu nhỏ khóa học{" "}
+                      <span className="text-red-600">*</span>
+                    </Label>
+
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Hướng dẫn tải ảnh"
+                          className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-gray-700"
+                        >
+                          <HelpCircle className="w-4 h-4" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-[300px] p-3">
+                        <div className="text-sm text-gray-700">
+                          <div className="font-medium mb-2">
+                            Hướng dẫn tải ảnh
+                          </div>
+                          <ol className="list-decimal pl-5 space-y-1">
+                            <li>
+                              Nhấn nút "Chọn ảnh" và chọn file từ máy tính.
+                            </li>
+                            <li>
+                              Sau khi đã chọn ảnh, nhấn nút "Tải lên" để gửi ảnh
+                              lên server.
+                            </li>
+                            <li>
+                              Chờ thông báo popup "Tải lên hình ảnh thành công"
+                              trước khi tiếp tục các thao tác khác.
+                            </li>
+                          </ol>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
 
                   {/* Vùng xem trước ảnh */}
                   <div
@@ -671,7 +710,6 @@ const AddCourse: React.FC = () => {
                       <SelectValue placeholder="Chọn trạng thái" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Mở">Đang mở</SelectItem>
                       <SelectItem value="Nháp">Nháp</SelectItem>
                     </SelectContent>
                   </Select>

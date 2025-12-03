@@ -406,5 +406,19 @@ namespace StudyHub.Backend.UseCases.Services
                 IsDisabled = isMaxAttempts && isInsideLockTime
             };
         }
+
+        public ExamResult? GetProcessingExamResult(int examId, Guid studentId)
+        {
+            var results = _examResultRepo.GetResultsByExamIdAndStudentId(examId, studentId);
+            var latestResult = results.FirstOrDefault(result => result.SubmissionTime == null);
+            if (latestResult == null)
+            {
+                return null;
+            }
+
+            var answers = _answerRepo.GetAnswersByResultId(latestResult.Id, true, false);
+            latestResult.Answers = answers;
+            return latestResult;
+        }
     }
 }

@@ -38,7 +38,7 @@ const getApprovalStatus = (
       class: "bg-green-50 text-green-700 border-green-200",
     };
   if (isApproved === false)
-    return { label: "Từ chối", class: "bg-red-50 text-red-700 border-red-200" };
+    return { label: "Nháp", class: "bg-red-50 text-red-700 border-red-200" };
   return {
     label: "Chờ duyệt",
     class: "bg-amber-50 text-amber-700 border-amber-200",

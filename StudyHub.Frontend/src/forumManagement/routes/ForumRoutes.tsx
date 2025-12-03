@@ -11,14 +11,11 @@ import ViolationRecords from "../pages/ViolationRecords";
 import { ForumLayout } from "../components/ForumLayout";
 import ForumRuleManagement from "../pages/ForumRuleManagement";
 import ModeratorDashboard from "../pages/ModeratorDashboard";
-import ForumMain from "../pages/ForumMain";
-import PostDetail from "../pages/PostDetail";
+import ForumMain from "../pages/forummain";
+import PostDetail from "../pages/postdetail";
+import { ROLES } from "@/common/constants/Roles";
 
 const managerRoutes = [
-  {
-    index: true,
-    element: <div>Manager Dashboard</div>,
-  },
   {
     path: ForumRouteConfig.MANAGER.DASHBOARD,
     element: <ModeratorDashboard />,
@@ -59,30 +56,11 @@ const managerRoutes = [
 
 const teacherRoutes = [
   {
-    index: true,
-    element: <div>Teacher Dashboard</div>,
-  },
-  {
-    path: ForumRouteConfig.TEACHER.FORUMS,
+    path: ForumRouteConfig.USER.FORUMS,
     element: <ForumMain />,
   },
   {
-    path: ForumRouteConfig.TEACHER.POST_DETAIL,
-    element: <PostDetail />,
-  },
-];
-
-const studentRoutes = [
-  {
-    index: true,
-    element: <div>Student Dashboard</div>,
-  },
-  {
-    path: ForumRouteConfig.STUDENT.FORUMS,
-    element: <ForumMain />,
-  },
-  {
-    path: ForumRouteConfig.STUDENT.POST_DETAIL,
+    path: ForumRouteConfig.USER.POST_DETAIL,
     element: <PostDetail />,
   },
 ];
@@ -91,7 +69,7 @@ const forumRoutes: RouteObject[] = [
   {
     path: ForumRouteConfig.MANAGER.INDEX,
     element: (
-      <RequireRole allowedRoles={["Moderator", "School Admin"]}>
+      <RequireRole allowedRoles={[ROLES.MODERATOR]}>
         <ForumLayout>
           <Outlet />
         </ForumLayout>
@@ -100,16 +78,15 @@ const forumRoutes: RouteObject[] = [
     children: managerRoutes,
   },
   {
-    path: ForumRouteConfig.TEACHER.INDEX,
+    path: ForumRouteConfig.USER.INDEX,
     element: (
       <RequireRole
         allowedRoles={[
-          "Subject Teacher",
-          "Head of Department Teacher",
-          "Q&A Teacher",
-          "Homeroom Teacher",
-          "Moderator",
-          "School Student",
+          ROLES.SUBJECT_TEACHER,
+          ROLES.HOMEROOM_TEACHER,
+          ROLES.HEAD_TEACHER,
+          ROLES.QNA_TEACHER,
+          ROLES.SCHOOL_STUDENT,
         ]}
       >
         <ForumLayout>
@@ -118,17 +95,6 @@ const forumRoutes: RouteObject[] = [
       </RequireRole>
     ),
     children: teacherRoutes,
-  },
-  {
-    path: ForumRouteConfig.STUDENT.INDEX,
-    element: (
-      <RequireRole allowedRoles={["School Student", "External Student"]}>
-        <ForumLayout>
-          <Outlet />
-        </ForumLayout>
-      </RequireRole>
-    ),
-    children: studentRoutes,
   },
 ];
 

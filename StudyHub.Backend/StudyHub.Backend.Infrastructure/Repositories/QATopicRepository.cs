@@ -45,6 +45,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             try
             {
                 var result = _context.QATopics
+                    .Where(q => q.IsActive == true)
                     .Include(s => s.Subject)
                     .Select(q => ToDomain(q))
                     .ToList();
@@ -67,7 +68,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 if (subjectId <= 0) return new List<Domain.Entities.QATopic>();
                 var result = _context.QATopics
-                    .Where(q => q.SubjectId == subjectId)
+                    .Where(q => q.SubjectId == subjectId && q.IsActive == true)
                     .Include(s => s.Subject)
                     .Select(q => ToDomain(q))
                     .ToList();
@@ -91,7 +92,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Description = topic.Description,
                     SubjectId = topic.SubjectId,
                     IsActive = topic.IsActive ?? true,
-                    CreatedAt = topic.CreatedAt == default ? DateTime.UtcNow : topic.CreatedAt,
+                    CreatedAt = topic.CreatedAt == default ? DateTime.Now : topic.CreatedAt,
                 };
                 _context.QATopics.Add(entity);
                 _context.SaveChanges();
@@ -116,6 +117,77 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 .FirstOrDefault(x => x.Id == id);
             if (result == null) return null;
             return ToDomain(result);
+        }
+
+        public Domain.Entities.QATopic? UpdateQATopic(Domain.Entities.QATopic topic)
+        {
+            try
+            {
+                var existing = _context.QATopics.FirstOrDefault(x => x.Id == topic.Id);
+                if (existing == null) return null;
+                existing.Name = topic.Name;
+                existing.Description = topic.Description;
+                existing.SubjectId = topic.SubjectId;
+                if (topic.IsActive.HasValue) existing.IsActive = topic.IsActive.Value;
+                existing.UpdatedAt = DateTime.Now;
+                _context.SaveChanges();
+
+                var saved = _context.QATopics
+                    .Include(s => s.Subject)
+                    .FirstOrDefault(x => x.Id == existing.Id);
+                return saved == null ? null : ToDomain(saved);
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("QARepository", "UpdateQATopic failed. Inner error: " + ex.Message).LogError();
+                return null;
+            }
+        }
+
+        public bool SoftDeleteTopic(int id)
+        {
+            try
+            {
+                var existing = _context.QATopics.FirstOrDefault(x => x.Id == id);
+                if (existing == null) return false;
+                existing.IsActive = false;
+                existing.UpdatedAt = DateTime.Now;
+                _context.SaveChanges();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("QARepository", "SoftDeleteTopic failed. Inner error: " + ex.Message).LogError();
+                return false;
+            }
+        }
+
+        public List<Domain.Entities.QATopic> SearchTopics(string? query, int? subjectId)
+        {
+            try
+            {
+                var q = _context.QATopics.AsQueryable();
+                if (subjectId.HasValue && subjectId.Value > 0)
+                {
+                    q = q.Where(x => x.SubjectId == subjectId.Value);
+                }
+                if (!string.IsNullOrWhiteSpace(query))
+                {
+                    var lowered = query.Trim().ToLower();
+                    q = q.Where(x => x.Name.ToLower().Contains(lowered) ||
+                                     x.Description != null && x.Description.ToLower().Contains(lowered) ||
+                                     x.Subject != null && x.Subject.Name.ToLower().Contains(lowered));
+                }
+                var result = q.Include(s => s.Subject)
+                              .Select(x => ToDomain(x))
+                              .ToList();
+                return result ?? new List<Domain.Entities.QATopic>();
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("QARepository", "SearchTopics failed. Inner error: " + ex.Message).LogError();
+                return new List<Domain.Entities.QATopic>();
+            }
         }
     }
 }

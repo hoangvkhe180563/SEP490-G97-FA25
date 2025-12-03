@@ -3,16 +3,22 @@ import DetailedClassTeacher from "@/classManagement/pages/teacher/DetailedClassT
 import ClassRouteConfig from "@/classManagement/constants/ClassRouteConfig";
 import { Outlet, type RouteObject } from "react-router-dom";
 import RequireRole from "@/common/components/RequireRole";
+
 import AddEditClassworkForm from "../pages/teacher/EditClasswork";
 import ClassworkDetail from "../pages/student/ClassworkDetail";
+
 import ConfirmInvite from "../pages/ConfirmInvite";
 import ClassRedirect from "../components/redirect/ClassRedirect";
 import ClassworkSubmissionsPage from "../pages/teacher/ClassSubmission";
 import ClassDocumentsPage from "@/classManagement/pages/ClassDocument";
+
 import AddClasswork from "../pages/teacher/AddClasswork";
 import EditClassworkForm from "../pages/teacher/EditClasswork";
 import DashboardPage from "../pages/manager/ClassManagement";
 import { m } from "framer-motion";
+
+import { ROLES } from "@/common/constants/Roles";
+
 
 const teacherClassRoutes = [
   {
@@ -83,12 +89,7 @@ const classRoutes: RouteObject[] = [
     path: ClassRouteConfig.TEACHER.INDEX,
     element: (
       <RequireRole
-        allowedRoles={[
-          "Homeroom Teacher",
-          "Subject Teacher",
-          "Head of Department Teacher",
-          "Q&A Teacher",
-        ]}
+        allowedRoles={[ROLES.SUBJECT_TEACHER, ROLES.HOMEROOM_TEACHER]}
       >
         <Outlet />
       </RequireRole>
@@ -98,7 +99,7 @@ const classRoutes: RouteObject[] = [
   {
     path: ClassRouteConfig.STUDENT.INDEX,
     element: (
-      <RequireRole allowedRoles={["School Student", "External Student"]}>
+      <RequireRole allowedRoles={[ROLES.SCHOOL_STUDENT]}>
         <Outlet />
       </RequireRole>
     ),

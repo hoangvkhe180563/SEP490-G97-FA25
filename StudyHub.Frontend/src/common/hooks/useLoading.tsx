@@ -7,6 +7,7 @@ interface LoadingType {
 
 const LoadingContext = createContext<LoadingType | undefined>(undefined);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useLoading = () => {
   const context = useContext(LoadingContext);
   if (context === undefined) {
@@ -14,6 +15,7 @@ export const useLoading = () => {
   }
   return context;
 };
+
 
 export const LoadingContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [loading, setLoading] = useState<boolean>(false);

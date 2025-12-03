@@ -1,9 +1,7 @@
 import React, { useEffect, useState, useMemo, type JSX } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
-import { documentService } from "@/documentManagement/services/documentService";
 import { Button } from "@/common/components/ui/button";
 import {
   Collapsible,
@@ -17,11 +15,14 @@ import {
   CardTitle,
 } from "@/common/components/ui/card";
 import { ArrowLeft, File } from "lucide-react";
-import type { AppUser } from "@/auth/interfaces/app-user";
 import type { CourseListDto } from "@/courseManagement/types/api";
 import type { Question } from "@/courseManagement/interfaces/types";
 import courseApi from "@/courseManagement/services/courseService";
 import toast from "react-hot-toast";
+import {
+  formatDate,
+  formatDateTime,
+} from "@/courseManagement/utils/formatDate";
 import { EXAM_TYPE } from "@/courseManagement/constants/ExamType";
 
 const LectureDetails: React.FC = () => {
@@ -32,14 +33,9 @@ const LectureDetails: React.FC = () => {
   const selectedCourse = useCourseStore(
     (s) => s.selectedCourse as CourseListDto
   );
-  const [teacherCreated, setTeacherCreated] = useState<Partial<AppUser> | null>(
-    null
-  );
   const [resources, setResources] = useState<{ id: number; url: string }[]>([]);
-  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
   const [interactiveQuestions, setInteractiveQuestions] = useState<any[]>([]);
 
-  const getAppUserById = useAppUserStore((s) => s.getAppUserById);
   const getLessonById = useLectureStore((s) => s.fetchLesson);
   const getChapterById = useLectureStore((s) => s.fetchChapter);
   const fetchInteractiveQuestions = useLectureStore(
@@ -47,17 +43,15 @@ const LectureDetails: React.FC = () => {
   );
   const getLessonResource = useCourseStore((s) => s.getLessonResource);
   const fetchCourseById = useCourseStore((s) => s.fetchCourseById);
-  const [lessonExamQuestions, setLessonExamQuestions] = useState<Question[]>([]);
+  const [lessonExamQuestions, setLessonExamQuestions] = useState<Question[]>(
+    []
+  );
 
   useEffect(() => {
     (async () => {
       if (!lessonId) return;
 
       try {
-        const subs = await documentService.getSubjects();
-        if (Array.isArray(subs))
-          setSubjects(subs.map((s: any) => ({ id: s.id, name: s.name })));
-
         const lessonData = await getLessonById(lessonId);
         if (!lessonData) return;
 
@@ -76,11 +70,6 @@ const LectureDetails: React.FC = () => {
 
         if (chapterData.courseId) {
           await fetchCourseById(chapterData.courseId);
-          const courseData = useCourseStore.getState().selectedCourse;
-          if (courseData?.createdBy) {
-            const res = await getAppUserById(String(courseData.createdBy));
-            if (res?.success && res.data) setTeacherCreated(res.data);
-          }
         }
 
         const resourceId =
@@ -105,7 +94,6 @@ const LectureDetails: React.FC = () => {
     lessonId,
     getLessonById,
     getChapterById,
-    getAppUserById,
     fetchCourseById,
     getLessonResource,
     fetchInteractiveQuestions,
@@ -119,7 +107,7 @@ const LectureDetails: React.FC = () => {
     }
     const questions = await courseApi.getLessonExamQuestions(exam.id);
     setLessonExamQuestions(questions);
-  }
+  };
 
   const { currentLesson, currentChapter } = useMemo(() => {
     const course = selectedCourse;
@@ -134,20 +122,29 @@ const LectureDetails: React.FC = () => {
 
   useEffect(() => {
     if (currentLesson === null || !lessonId) return;
-    if (currentLesson.type === 'Exam') {
+    if (currentLesson.type === "Exam") {
       fetchQuestions();
     }
-  }, [currentLesson, lessonId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLesson, lessonId]);
 
   const renderFillBlankQuestionText = (question: Question) => {
     const BLANK_PLACEHOLDER = "[BLANK]";
     if (question.type !== EXAM_TYPE.FILL_IN_BLANK) {
-      return '';
+      return "";
     }
 
-    let parts = question.questionText.split(BLANK_PLACEHOLDER);
+    const parts = question.questionText.split(BLANK_PLACEHOLDER);
     const displayedContent: JSX.Element[] = [];
-    const blankCount = (question.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+    const blankCount = (
+      question.questionText.match(
+        new RegExp(
+          // eslint-disable-next-line no-useless-escape
+          BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&"),
+          "g"
+        )
+      ) || []
+    ).length;
 
     parts.forEach((part: string, index: number) => {
       displayedContent.push(<span key={`part-${index}`}>{part}</span>);
@@ -163,12 +160,6 @@ const LectureDetails: React.FC = () => {
       }
     });
     return <>{displayedContent}</>;
-  };
-
-  const categoryLabel = (id?: number | null) => {
-    if (id === undefined || id === null) return "-";
-    const found = subjects.find((s) => s.id === Number(id));
-    return found ? found.name : String(id);
   };
 
   return (
@@ -196,9 +187,9 @@ const LectureDetails: React.FC = () => {
             {currentLesson?.name ?? "Bài học"}
           </h1>
           <p className="text-sm text-[#525252]">
-            {teacherCreated?.fullname || "Giảng viên"} •{" "}
+            {selectedCourse?.teacherCreatedName || "Giáo viên"} •{" "}
             {currentLesson?.postDate
-              ? new Date(currentLesson.postDate).toLocaleDateString()
+              ? formatDate(String(currentLesson.postDate))
               : "Chưa cập nhật"}
           </p>
         </div>
@@ -218,7 +209,8 @@ const LectureDetails: React.FC = () => {
                 allowFullScreen
               />
             </div>
-          ) : currentLesson?.type === "Reading" && currentLesson.readingContent ? (
+          ) : currentLesson?.type === "Reading" &&
+            currentLesson.readingContent ? (
             <div
               className="bg-black rounded-lg overflow-hidden flex justify-center items-center"
               style={{ aspectRatio: "16/9" }}
@@ -232,12 +224,12 @@ const LectureDetails: React.FC = () => {
                 />
               </div>
             </div>
-          ) : currentLesson?.type === 'Exam' ? (
+          ) : currentLesson?.type === "Exam" ? (
             <div style={{ aspectRatio: "16/9" }} className="space-y-3">
-              {
-                lessonExamQuestions.length === 0 ? (
-                  <div>Câu hỏi trong bài kiểm tra này được tạo ngẫu nhiên.</div>
-                ) : lessonExamQuestions.map((question, index) => {
+              {lessonExamQuestions.length === 0 ? (
+                <div>Câu hỏi trong bài kiểm tra này được tạo ngẫu nhiên.</div>
+              ) : (
+                lessonExamQuestions.map((question, index) => {
                   const correctAnswer = question.correctAnswer;
 
                   return (
@@ -246,14 +238,19 @@ const LectureDetails: React.FC = () => {
                       className={`p-6 rounded-lg shadow-sm border border-gray-300 bg-gray-50`}
                     >
                       <p className="text-xl font-semibold mb-3 text-gray-800">
-                        Câu {index + 1}: {question.type !== EXAM_TYPE.FILL_IN_BLANK && question.questionText}
+                        Câu {index + 1}:{" "}
+                        {question.type !== EXAM_TYPE.FILL_IN_BLANK &&
+                          question.questionText}
                       </p>
 
                       <div className="space-y-3 text-gray-700">
                         {question.type === EXAM_TYPE.SINGLE_CHOICE && (
                           <div className="space-y-2">
                             {question.options.map((option, optIndex) => (
-                              <label key={optIndex} className="flex items-center space-x-2 text-gray-700">
+                              <label
+                                key={optIndex}
+                                className="flex items-center space-x-2 text-gray-700"
+                              >
                                 <input
                                   type="radio"
                                   name={`result-question-${question.questionObjectId}`}
@@ -265,8 +262,7 @@ const LectureDetails: React.FC = () => {
                                 />
                                 <span>{option}</span>
                               </label>
-                            ))
-                            }
+                            ))}
                           </div>
                         )}
 
@@ -274,7 +270,10 @@ const LectureDetails: React.FC = () => {
                           <div className="space-y-2">
                             {question.options.map((option, optIndex) => {
                               return (
-                                <label key={optIndex} className="flex items-center space-x-2 text-gray-700">
+                                <label
+                                  key={optIndex}
+                                  className="flex items-center space-x-2 text-gray-700"
+                                >
                                   <input
                                     type="checkbox"
                                     name={`result-question-${question.questionObjectId}`}
@@ -303,42 +302,72 @@ const LectureDetails: React.FC = () => {
                           </div>
                         )}
 
-                        {question.type === EXAM_TYPE.FILL_IN_BLANK && renderFillBlankQuestionText(question)}
+                        {question.type === EXAM_TYPE.FILL_IN_BLANK &&
+                          renderFillBlankQuestionText(question)}
 
                         {question.type === EXAM_TYPE.MATCHING && (
                           <div className="mt-4">
                             <div className="grid grid-cols-2 gap-4 mb-4">
                               <div>
-                                <h4 className="font-semibold text-gray-700 mb-2">Thuật ngữ</h4>
-                                {(question.terms || []).map((term, termIndex) => (
-                                  <div key={termIndex} className="p-2 bg-gray-50 border border-gray-200 rounded mb-2">
-                                    {termIndex + 1}. {term}
-                                  </div>
-                                ))}
+                                <h4 className="font-semibold text-gray-700 mb-2">
+                                  Thuật ngữ
+                                </h4>
+                                {(question.terms || []).map(
+                                  (term, termIndex) => (
+                                    <div
+                                      key={termIndex}
+                                      className="p-2 bg-gray-50 border border-gray-200 rounded mb-2"
+                                    >
+                                      {termIndex + 1}. {term}
+                                    </div>
+                                  )
+                                )}
                               </div>
                               <div>
-                                <h4 className="font-semibold text-gray-700 mb-2">Định nghĩa</h4>
-                                {(question.definitions || []).map((definition, defIndex) => (
-                                  <div key={defIndex} className="p-2 bg-gray-50 border border-gray-200 rounded mb-2">
-                                    {String.fromCharCode(65 + defIndex)}. {definition}
-                                  </div>
-                                ))}
+                                <h4 className="font-semibold text-gray-700 mb-2">
+                                  Định nghĩa
+                                </h4>
+                                {(question.definitions || []).map(
+                                  (definition, defIndex) => (
+                                    <div
+                                      key={defIndex}
+                                      className="p-2 bg-gray-50 border border-gray-200 rounded mb-2"
+                                    >
+                                      {String.fromCharCode(65 + defIndex)}.{" "}
+                                      {definition}
+                                    </div>
+                                  )
+                                )}
                               </div>
                             </div>
                             <div>
-                              <h4 className="font-semibold text-gray-700 mb-2">Các cặp ghép đúng</h4>
+                              <h4 className="font-semibold text-gray-700 mb-2">
+                                Các cặp ghép đúng
+                              </h4>
                               {(() => {
-                                return (question.terms || []).map((term, termIndex) => {
-                                  return (
-                                    <div key={termIndex} className={`flex items-center mb-2 p-2 rounded bg-gray-100`}>
-                                      <span className="w-1/3 font-medium">{termIndex + 1}. {term}</span>
-                                      <span className="text-gray-500 mx-2">→</span>
-                                      <span className="flex-1">
-                                        {question.definitions && question.definitions[question.correctAnswer[termIndex]]}
-                                      </span>
-                                    </div>
-                                  );
-                                });
+                                return (question.terms || []).map(
+                                  (term, termIndex) => {
+                                    return (
+                                      <div
+                                        key={termIndex}
+                                        className={`flex items-center mb-2 p-2 rounded bg-gray-100`}
+                                      >
+                                        <span className="w-1/3 font-medium">
+                                          {termIndex + 1}. {term}
+                                        </span>
+                                        <span className="text-gray-500 mx-2">
+                                          →
+                                        </span>
+                                        <span className="flex-1">
+                                          {question.definitions &&
+                                            question.definitions[
+                                              question.correctAnswer[termIndex]
+                                            ]}
+                                        </span>
+                                      </div>
+                                    );
+                                  }
+                                );
                               })()}
                             </div>
                           </div>
@@ -346,10 +375,14 @@ const LectureDetails: React.FC = () => {
                       </div>
                     </div>
                   );
-                })}
+                })
+              )}
             </div>
           ) : (
-            <div className="bg-black rounded-lg overflow-hidden flex justify-center items-center" style={{ aspectRatio: "16/9" }}>
+            <div
+              className="bg-black rounded-lg overflow-hidden flex justify-center items-center"
+              style={{ aspectRatio: "16/9" }}
+            >
               <div className="text-white text-lg">
                 Không có nội dung cho bài học này.
               </div>
@@ -398,10 +431,11 @@ const LectureDetails: React.FC = () => {
                               {q.options.map((opt: any, idx: number) => (
                                 <div
                                   key={idx}
-                                  className={`text-sm p-2 rounded ${idx === (q.correctIndex ?? -1)
-                                    ? "bg-green-50 border border-green-200"
-                                    : "bg-gray-50"
-                                    }`}
+                                  className={`text-sm p-2 rounded ${
+                                    idx === (q.correctIndex ?? -1)
+                                      ? "bg-green-50 border border-green-200"
+                                      : "bg-gray-50"
+                                  }`}
                                 >
                                   {opt}
                                 </div>
@@ -454,10 +488,11 @@ const LectureDetails: React.FC = () => {
                             <li key={l.id}>
                               <Button
                                 variant="ghost"
-                                className={`w-full justify-start py-1 ${l.id === lessonId
-                                  ? "font-semibold text-blue-600"
-                                  : "hover:text-blue-600"
-                                  }`}
+                                className={`w-full justify-start py-1 ${
+                                  l.id === lessonId
+                                    ? "font-semibold text-blue-600"
+                                    : "hover:text-blue-600"
+                                }`}
                                 onClick={() =>
                                   navigate(`/course/teacher/lecture/${l.id}`)
                                 }
@@ -529,7 +564,7 @@ const LectureDetails: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span>Môn học</span>
-                  <span>{categoryLabel(selectedCourse?.subjectId)}</span>
+                  <span>{selectedCourse?.subject?.name ?? "-"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Khối lớp</span>
@@ -542,13 +577,13 @@ const LectureDetails: React.FC = () => {
           {/* === Instructor (created/updated) === */}
           <Card>
             <CardHeader>
-              <CardTitle>Giảng viên</CardTitle>
+              <CardTitle>Giáo viên</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-start gap-3">
                 <div className="w-12 h-12 rounded-full bg-[#171717] text-white flex items-center justify-center font-semibold shadow-sm">
                   {(() => {
-                    const name = teacherCreated?.fullname || "GV";
+                    const name = selectedCourse?.teacherCreatedName || "GV";
                     return name
                       .split(" ")
                       .slice(-2)
@@ -560,43 +595,27 @@ const LectureDetails: React.FC = () => {
                 <div className="flex-1 text-sm text-[#404040]">
                   <div className="flex justify-between mb-1">
                     <span className="font-medium text-[#171717]">
-                      Giảng viên:
+                      Giáo viên:
                     </span>
-                    <span>{teacherCreated?.fullname || "GV - Chính"}</span>
+                    <span>
+                      {selectedCourse?.teacherCreatedName || "GV - Chính"}
+                    </span>
                   </div>
                   {selectedCourse?.createdAt && (
                     <div className="flex justify-between mb-1">
                       <span className="font-medium text-[#171717]">
                         Tạo ngày:
                       </span>
-                      <span>
-                        {new Date(selectedCourse.createdAt).toLocaleString(
-                          "vi-VN",
-                          {
-                            hour12: false,
-                          }
-                        )}
-                      </span>
+                      <span>{formatDateTime(selectedCourse.createdAt)}</span>
                     </div>
                   )}
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="w-1/2 border-[#D1D5DB] hover:bg-gray-100 text-[#171717]"
-                    >
-                      Xem hồ sơ
-                    </Button>
-                    <Button className="w-1/2 bg-[#171717] hover:bg-[#2D2D2D] text-white">
-                      Nhắn tin
-                    </Button>
-                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </aside>
       </div>
-    </div >
+    </div>
   );
 };
 

@@ -12,53 +12,110 @@ import CourseRouteConfig from "@/courseManagement/constants/CourseRouteConfig";
 import { Outlet, type RouteObject } from "react-router-dom";
 import RequireRole from "@/common/components/RequireRole";
 import ApproveCourses from "../pages/teacher/ApproveCourses";
+import { ROLES } from "@/common/constants/Roles";
 
 // --- TEACHER ROUTES (Đường dẫn con cho /teacher) ---
 const teacherCourseRoutes: RouteObject[] = [
   {
-    // index element={<div>Dashboard</div>} // Đường dẫn /teacher (Dashboard)
-    index: true,
-    element: <div>Dashboard</div>,
-  },
-  {
     // path="courses" element={<CourseListTeacher />}
     path: CourseRouteConfig.TEACHER.COURSES,
-    element: <CourseListTeacher />,
+    element: (
+      <RequireRole
+        allowedRoles={[
+          ROLES.SUBJECT_TEACHER,
+          ROLES.HOMEROOM_TEACHER,
+          ROLES.HEAD_TEACHER,
+          ROLES.QNA_TEACHER,
+        ]}
+      >
+        <CourseListTeacher />
+      </RequireRole>
+    ),
   },
   {
     // path="courses/:id" element={<CourseDetailTeacher />}
     path: CourseRouteConfig.TEACHER.COURSE_DETAIL,
-    element: <CourseDetailTeacher />,
+    element: (
+      <RequireRole
+        allowedRoles={[
+          ROLES.SUBJECT_TEACHER,
+          ROLES.HOMEROOM_TEACHER,
+          ROLES.HEAD_TEACHER,
+          ROLES.QNA_TEACHER,
+        ]}
+      >
+        <CourseDetailTeacher />
+      </RequireRole>
+    ),
   },
   {
     // path="add-course" element={<AddCourse />}
     path: CourseRouteConfig.TEACHER.ADD_COURSE,
-    element: <AddCourse />,
+    element: (
+      <RequireRole
+        allowedRoles={[ROLES.SUBJECT_TEACHER, ROLES.HOMEROOM_TEACHER]}
+      >
+        <AddCourse />
+      </RequireRole>
+    ),
   },
   {
     // path="edit-course" element={<EditCourse />}
     path: CourseRouteConfig.TEACHER.EDIT_COURSE,
-    element: <EditCourse />,
+    element: (
+      <RequireRole
+        allowedRoles={[ROLES.SUBJECT_TEACHER, ROLES.HOMEROOM_TEACHER]}
+      >
+        <EditCourse />
+      </RequireRole>
+    ),
   },
   {
     // path="approved-courses" element={<ApprovedCourses />}
     path: CourseRouteConfig.TEACHER.APPROVED_COURSES,
-    element: <ApproveCourses />,
+    element: (
+      <RequireRole allowedRoles={[ROLES.HEAD_TEACHER]}>
+        <ApproveCourses />
+      </RequireRole>
+    ),
   },
   {
     // path="add-lecture" element={<AddLecture />}
     path: CourseRouteConfig.TEACHER.ADD_LECTURE,
-    element: <AddLecture />,
+    element: (
+      <RequireRole
+        allowedRoles={[ROLES.SUBJECT_TEACHER, ROLES.HOMEROOM_TEACHER]}
+      >
+        <AddLecture />
+      </RequireRole>
+    ),
   },
   {
     // path="edit-lecture" element={<EditLecture />}
     path: CourseRouteConfig.TEACHER.EDIT_LECTURE,
-    element: <EditLecture />,
+    element: (
+      <RequireRole
+        allowedRoles={[ROLES.SUBJECT_TEACHER, ROLES.HOMEROOM_TEACHER]}
+      >
+        <EditLecture />
+      </RequireRole>
+    ),
   },
   {
     // path="lecture/:id" element={<LectureDetails />}
     path: CourseRouteConfig.TEACHER.LECTURE_DETAIL,
-    element: <LectureDetails />,
+    element: (
+      <RequireRole
+        allowedRoles={[
+          ROLES.SUBJECT_TEACHER,
+          ROLES.HOMEROOM_TEACHER,
+          ROLES.HEAD_TEACHER,
+          ROLES.QNA_TEACHER,
+        ]}
+      >
+        <LectureDetails />
+      </RequireRole>
+    ),
   },
 ];
 
@@ -89,30 +146,14 @@ const courseRoutes: RouteObject[] = [
   // Cấu hình routes cho Giáo viên (Base path: /teacher)
   {
     path: CourseRouteConfig.TEACHER.INDEX,
-    element: (
-      <RequireRole
-        allowedRoles={[
-          "Subject Teacher",
-          "Head of Department Teacher",
-          "Q&A Teacher",
-          "Homeroom Teacher",
-          "School Admin",
-        ]}
-      >
-        <Outlet />
-      </RequireRole>
-    ),
+    element: <Outlet />,
     children: teacherCourseRoutes,
   },
 
   // Cấu hình routes cho Học sinh (Base path: /)
   {
     path: CourseRouteConfig.STUDENT.INDEX,
-    element: (
-      <RequireRole allowedRoles={["External Student", "School Student"]}>
-        <Outlet />
-      </RequireRole>
-    ),
+    element: <Outlet />,
     children: studentCourseRoutes,
   },
 ];

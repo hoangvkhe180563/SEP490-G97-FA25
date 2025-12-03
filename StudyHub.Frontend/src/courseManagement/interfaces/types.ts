@@ -1,3 +1,7 @@
+export type Subject = {
+  id: number;
+  name: string;
+};
 export type ProgressListDto = {
   Id: number;
   EnrollmentId: number;
@@ -56,7 +60,10 @@ export type CourseListDto = {
   updatedAt?: string | null;
   updatedBy?: string | null;
   createdBy: string;
+  teacherCreatedName: string;
+  teacherUpdatedName?: string | null;
   isApproved: boolean;
+  subject?: Subject;
   chapters?: ChapterListDto[];
 };
 
@@ -68,7 +75,7 @@ export interface DialogState {
   navigateTo?: string;
 }
 
-export type CourseStatus = "Mở" | "Đóng" | "Nháp";
+export type CourseStatus = "Open" | "Closed" | "Draft" | "Requested" | "Edited";
 
 export type LessonResource = {
   id: number;
@@ -172,6 +179,6 @@ export interface Exam {
 }
 
 export interface LessonExamStatus {
-  latestTime: Date,
-  isDisabled: boolean
+  latestTime: Date;
+  isDisabled: boolean;
 }

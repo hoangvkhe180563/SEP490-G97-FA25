@@ -42,6 +42,7 @@ import {
   X,
   ChevronUp,
   ChevronDown,
+  Search,
 } from "lucide-react";
 import {
   Dialog,
@@ -305,20 +306,7 @@ const TransactionHistory: React.FC = () => {
                   className="w-full h-12 text-base pl-10 pr-4 rounded-lg border-slate-300 focus-visible:ring-primary focus-visible:ring-2 placeholder:text-slate-400"
                 />
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z"
-                    />
-                  </svg>
+                  <Search className="h-5 w-5" />
                 </span>
               </div>
 
