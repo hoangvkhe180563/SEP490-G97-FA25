@@ -68,6 +68,7 @@ const ViewResultDetail = () => {
     };
 
     fetchResultDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user]);
 
   if (error) {
@@ -85,7 +86,7 @@ const ViewResultDetail = () => {
 
     const parts = question.questionText.split(BLANK_PLACEHOLDER);
     const displayedContent: JSX.Element[] = [];
-    const blankCount = (question.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+    const blankCount = (question.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
 
     parts.forEach((part: string, index: number) => {
       displayedContent.push(<span key={`part-${index}`}>{part}</span>);
@@ -97,7 +98,7 @@ const ViewResultDetail = () => {
         displayedContent.push(
           <span
             key={`blank-${index}`}
-            className={`font-semibold inline-block px-2 py-1 mx-1 rounded-md ${isBlankCorrect ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
+            className={`font-semibold inline-block px-2 py-1 mx-1 rounded-md ${!showCorrectAnswers ? 'bg-gray-200 text-gray-800' : isBlankCorrect ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
               }`}
           >
             {studentAns}
@@ -280,23 +281,22 @@ const ViewResultDetail = () => {
                           {(() => {
                             const studentMatches = studentAnswer;
                             const correctMatches = question.correctAnswer as Record<number, number>;
-                            
+
                             return (question.terms || []).map((term, termIndex) => {
                               const studentDefIdx = studentMatches[termIndex];
                               const correctDefIdx = correctMatches[termIndex];
                               const isMatch = studentDefIdx === correctDefIdx;
                               const studentDef = question.definitions?.[studentDefIdx] || 'Không trả lời';
-                              
+
                               return (
-                                <div key={termIndex} className={`flex items-center mb-2 p-2 rounded ${
-                                  showCorrectAnswers 
+                                <div key={termIndex} className={`flex items-center mb-2 p-2 rounded ${showCorrectAnswers
                                     ? (isMatch ? 'bg-green-100 border border-green-300' : 'bg-red-100 border border-red-300')
                                     : 'bg-gray-100'
-                                }`}>
+                                  }`}>
                                   <span className="w-1/3 font-medium">{termIndex + 1}. {term}</span>
                                   <span className="text-gray-500 mx-2">→</span>
                                   <span className="flex-1">
-                                    {studentDefIdx !== undefined && studentDefIdx !== -1 
+                                    {studentDefIdx !== undefined && studentDefIdx !== -1
                                       ? `${String.fromCharCode(65 + studentDefIdx)}. ${studentDef}`
                                       : 'Không trả lời'
                                     }
