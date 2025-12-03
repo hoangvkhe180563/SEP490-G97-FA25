@@ -12,6 +12,8 @@ import {
   DialogClose,
 } from "@/common/components/ui/dialog";
 import { ScrollArea } from "@/common/components/ui/scroll-area";
+import { axiosInstance } from "@/lib/axios";
+import { showNotification } from "@/lib/notify";
 
 type Props = {
   open: boolean;
@@ -25,10 +27,10 @@ type PreviewData = { headers: string[]; rows: string[][] };
 const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/i;
 
 /**
- * add-member-modal9 (fixed)
- * - Inputs in preview are uncontrolled (defaultValue) and commit onBlur / Enter.
- * - commitCellChange updates previewData and validates that row.
- * - previewVersion key forces remount when previewData is replaced programmatically.
+ * add-member-modal11
+ * - Calls showNotification(...) to display a toast when invites succeed.
+ * - Fixes missing helper implementations (handleDialogOpenChange, handleUploadCorrectedFile).
+ * - Keeps inline/legacy success UI as well.
  */
 
 const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) => {
@@ -47,7 +49,13 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
   const [importCellErrors, setImportCellErrors] = useState<Record<number, Record<number, string[]>>>({});
   const [showImportErrors, setShowImportErrors] = useState(false);
 
+  // success state + explicit toast visibility
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+
+  // single invite form state
+  const [singleEmail, setSingleEmail] = useState<string>("");
+  const [singleInviteProcessing, setSingleInviteProcessing] = useState(false);
 
   // version to key the table so programmatic changes remount inputs and update defaultValue
   const [previewVersion, setPreviewVersion] = useState(0);
@@ -57,10 +65,23 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // bump previewVersion each time previewData reference changes (programmatic updates)
   useEffect(() => {
     setPreviewVersion((v) => v + 1);
   }, [previewData]);
+
+  // Auto-close toast & dialog after 2.5s whenever successMsg is set
+  useEffect(() => {
+    if (!successMsg) {
+      setShowToast(false);
+      return;
+    }
+    setShowToast(true);
+    const t = setTimeout(() => {
+      setSuccessMsg(null);
+      setShowToast(false);
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [successMsg]);
 
   const resetAll = () => {
     setFile(null);
@@ -71,7 +92,10 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
     setImportErrors({});
     setImportCellErrors({});
     setShowImportErrors(false);
+    setSingleEmail("");
+    setSingleInviteProcessing(false);
     if (inputRef.current) inputRef.current.value = "";
+    // NOTE: don't clear successMsg here so success UI can remain visible briefly after actions
   };
 
   const humanFileSize = (size: number) => {
@@ -337,6 +361,7 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
 
     try {
       const { res, payload } = await doImportFromPreview(previewData);
+      console.log("bulk invite response:", res, payload);
       const errorsObj = (payload && (payload as any).errors) ?? (res && (res as any).errors) ?? null;
       if (errorsObj) {
         const rowMap: Record<number, string[]> = {};
@@ -410,12 +435,24 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
           }
           const title = "Đã gửi lời mời";
           const description = invitedCount !== undefined ? `Đã gửi lời mời tới ${invitedCount} người.` : "Lời mời đã được gửi.";
+          setError(null);
           setSuccessMsg(`${title}\n\n${description}`);
+          // show visible toast (uses notify util)
+          try {
+            showNotification(`${title}\n\n${description}`, { type: "success", duration: 2500 });
+          } catch {
+            /* ignore */
+          }
         } catch {
+          setError(null);
           setSuccessMsg("Đã gửi lời mời.");
+          try {
+            showNotification("Đã gửi lời mời.", { type: "success", duration: 2500 });
+          } catch { /* ignore */ }
         }
 
         onInvited?.(payload);
+        // don't clear successMsg here; auto-close effect will hide it
         resetAll();
       } else {
         const msg = (payload && (payload as any).message) ?? (res as any)?.message ?? "Import thất bại";
@@ -428,6 +465,7 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
     }
   };
 
+  // upload corrected file into preview (keeps same previewData shape)
   const handleUploadCorrectedFile = async (f: File | null) => {
     if (!f) return;
     setError(null);
@@ -464,6 +502,67 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
     if (!val) {
       if (showPreview) return;
       onClose();
+    }
+  };
+
+  // Single invite API call — send the payload the backend expects
+  const sendSingleInvite = async () => {
+    setError(null);
+    const email = (singleEmail ?? "").trim();
+    if (!email) {
+      setError("Vui lòng nhập email.");
+      return;
+    }
+    if (!emailRegex.test(email)) {
+      setError("Email không hợp lệ.");
+      return;
+    }
+
+    setSingleInviteProcessing(true);
+    try {
+      // Backend expects InviteRequest with Emails list
+      const url = `/ClassMember/invite?classId=${encodeURIComponent(classId)}`;
+      const payload = { Emails: [email], Role: "Student" };
+      console.log("sending single invite payload:", url, payload);
+      const res = await axiosInstance.post(url, payload);
+      console.log("single invite response:", res);
+      const data = res?.data ?? res;
+
+      if (data && data.success === false) {
+        const msg = data.message ?? "Không thể gửi lời mời.";
+        setError(String(msg));
+        setSingleInviteProcessing(false);
+        return;
+      }
+
+      // success — refresh members
+      try {
+        if (getClassMembers && typeof getClassMembers === "function") {
+          await getClassMembers(classId);
+        }
+      } catch (refreshErr) {
+        console.warn("getClassMembers refresh failed", refreshErr);
+      }
+
+      setError(null);
+      const message = `Đã gửi lời mời tới ${email}.`;
+      setSuccessMsg(message);
+      // show toast
+      try {
+        showNotification(message, { type: "success", duration: 2500 });
+      } catch {
+        /* ignore */
+      }
+      setSingleEmail("");
+      onInvited?.(data);
+
+      // If parent closes the modal immediately via onInvited, notification is still shown (notify appends to body)
+    } catch (err: any) {
+      console.error("sendSingleInvite error:", err, err?.response?.data);
+      const msg = err?.response?.data?.message ?? err?.message ?? "Lỗi khi gửi lời mời.";
+      setError(String(msg));
+    } finally {
+      setSingleInviteProcessing(false);
     }
   };
 
@@ -721,7 +820,7 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
                 <div>
                   <DialogTitle>Import & Mời thành viên</DialogTitle>
                   <DialogDescription className="text-sm text-slate-500">
-                    Upload file Excel (.xlsx) chứa danh sách Email và Họ & tên. Sau khi chọn file sẽ hiển thị preview để bạn sửa trước khi gửi.
+                    Upload file Excel (.xlsx) chứa danh sách Email và Họ & tên. Hoặc mời từng người bằng form bên dưới.
                   </DialogDescription>
                 </div>
                 <DialogClose asChild />
@@ -729,6 +828,25 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
             </DialogHeader>
 
             <div className="px-4 pb-4">
+              {/* Single-invite small form */}
+              <div className="mb-4 flex items-center gap-2">
+                <input
+                  type="email"
+                  placeholder="Nhập email để mời 1 người"
+                  value={singleEmail}
+                  onChange={(e) => setSingleEmail(e.target.value)}
+                  className="px-3 py-2 border rounded w-full"
+                  disabled={singleInviteProcessing}
+                />
+                <Button
+                  onClick={sendSingleInvite}
+                  disabled={singleInviteProcessing}
+                >
+                  {singleInviteProcessing ? "Đang gửi..." : "Gửi"}
+                </Button>
+              </div>
+
+              {/* File upload / template area */}
               <label className="text-sm text-slate-600 block mb-2">Chọn file Excel (.xlsx/.xls/.csv)</label>
               <div className="flex items-center gap-3">
                 <input
@@ -842,11 +960,34 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
         </Dialog>
       </div>
 
+      {/* Render the Preview modal when requested */}
       {showPreview && <PreviewModal />}
 
-      {successMsg && (
-        <SuccessDialog />
+      {/* Visible top-right toast so user definitely sees the success */}
+      {showToast && successMsg && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            top: 16,
+            right: 16,
+            zIndex: 9999999999,
+            background: "#16a34a",
+            color: "white",
+            padding: "12px 16px",
+            borderRadius: 8,
+            boxShadow: "0 6px 24px rgba(0,0,0,0.25)",
+            whiteSpace: "pre-line",
+            maxWidth: "min(80vw, 420px)",
+          }}
+        >
+          {successMsg}
+        </div>
       )}
+
+      {/* Legacy success dialog (kept) */}
+      {successMsg && <SuccessDialog />}
 
       {showImportErrors && Object.keys(importErrors).length > 0 && (
         <div className="mb-4 p-4 border border-rose-200 rounded-md bg-rose-50">
