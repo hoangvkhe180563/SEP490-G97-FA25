@@ -124,9 +124,7 @@ const examRoutes: RouteObject[] = [
   },
   {
     path: ExamRouteConfig.QUESTION_MANAGER.DASHBOARD,
-    element: (
-      <Dashboard />
-    ),
+    element: <Dashboard />,
   },
 ];
 

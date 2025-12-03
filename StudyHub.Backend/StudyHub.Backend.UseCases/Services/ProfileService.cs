@@ -18,8 +18,20 @@ namespace StudyHub.Backend.UseCases.Services
         private readonly StudyHub.Backend.UseCases.Repositories.Exam.IExamRepository _examRepository;
         private readonly AuthService _authService;
         private readonly IClassRepository _classRepository;
+        private readonly IClassMemberRepository _classMemberRepository;
+        private readonly IAppUserRepository _appUserRepository;
 
-        public ProfileService(IEnrollmentRepository enrollmentRepository, ICourseRepository courseRepository, IProgressRepository progressRepository, IChapterRepository chapterRepository, IExamResultRepository examResultRepository, StudyHub.Backend.UseCases.Repositories.Exam.IExamRepository examRepository, IClassRepository classRepository, AuthService authService)
+        public ProfileService(
+            IEnrollmentRepository enrollmentRepository,
+            ICourseRepository courseRepository,
+            IProgressRepository progressRepository,
+            IChapterRepository chapterRepository,
+            IExamResultRepository examResultRepository,
+            StudyHub.Backend.UseCases.Repositories.Exam.IExamRepository examRepository,
+            IClassRepository classRepository,
+            IClassMemberRepository classMemberRepository,
+            IAppUserRepository appUserRepository,
+            AuthService authService)
         {
             _enrollmentRepository = enrollmentRepository;
             _courseRepository = courseRepository;
@@ -28,6 +40,8 @@ namespace StudyHub.Backend.UseCases.Services
             _examResultRepository = examResultRepository;
             _examRepository = examRepository;
             _classRepository = classRepository; // Assigning the new parameter to the field
+            _classMemberRepository = classMemberRepository;
+            _appUserRepository = appUserRepository;
             _authService = authService;
         }
 
@@ -64,6 +78,30 @@ namespace StudyHub.Backend.UseCases.Services
                 {
                     if (ex.SubjectId.HasValue)
                         subjectIdsStudied.Add((short)ex.SubjectId.Value);
+                }
+            }
+
+            // Additionally, include subjects owned by teachers in these classes.
+            // For each class get its members; if a member is not the current user and has a teacher role
+            // (Subject Teacher or Homeroom Teacher) then include their subject ids.
+            foreach (var cid in classIds)
+            {
+                var members = _classMemberRepository.GetClassMembers(cid) ?? new List<AppUserClass>();
+                foreach (var m in members)
+                {
+                    if (m.UserId == userId) continue; // skip current user
+
+                    // get role names for the member
+                    var roles = _appUserRepository.GetUserRoleNames(m.UserId) ?? new List<string>();
+                    var hasTeacherRole = roles.Any(r => string.Equals(r, "Subject Teacher", StringComparison.OrdinalIgnoreCase) || string.Equals(r, "Homeroom Teacher", StringComparison.OrdinalIgnoreCase));
+                    if (!hasTeacherRole) continue;
+
+                    // get subject ids owned by that teacher and add them
+                    var teacherSubjectIds = _appUserRepository.GetUserSubjectIds(m.UserId) ?? new List<short>();
+                    foreach (var sid in teacherSubjectIds)
+                    {
+                        subjectIdsStudied.Add(sid);
+                    }
                 }
             }
             profile.CurrentSubjectStudied = subjectIdsStudied.Select(id => subjectMap.ContainsKey(id) ? subjectMap[id] : id.ToString()).ToList();

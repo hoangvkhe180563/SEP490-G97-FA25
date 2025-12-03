@@ -7,27 +7,49 @@ import ManagerLayout from "../components/layouts/ManagerLayout";
 import UpdateProfile from "../pages/UpdateProfile";
 import AccountRecoveryList from "../pages/manager/AccountRecoveryList";
 import AccountDashboard from "../pages/manager/AccountDashboard";
+import RequireRole from "@/common/components/RequireRole";
+import { ROLES } from "@/common/constants/Roles";
 
 const managerRoutes = [
   {
     index: true,
-    element: <AccountDashboard />,
+    element: (
+      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN]}>
+        <AccountDashboard />
+      </RequireRole>
+    ),
   },
   {
     path: UserRouteConfig.MANAGER.ACCOUNT_LIST,
-    element: <AccountList />,
+    element: (
+      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN]}>
+        <AccountList />
+      </RequireRole>
+    ),
   },
   {
     path: UserRouteConfig.MANAGER.ADD_ACCOUNT,
-    element: <CreateAccount />,
+    element: (
+      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN]}>
+        <CreateAccount />
+      </RequireRole>
+    ),
   },
   {
     path: UserRouteConfig.MANAGER.UPDATE_ACCOUNT,
-    element: <UpdateAccount />,
+    element: (
+      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN]}>
+        <UpdateAccount />
+      </RequireRole>
+    ),
   },
   {
     path: UserRouteConfig.MANAGER.ACCOUNT_RECOVERY_LIST,
-    element: <AccountRecoveryList />,
+    element: (
+      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN]}>
+        <AccountRecoveryList />
+      </RequireRole>
+    ),
   },
 ];
 
