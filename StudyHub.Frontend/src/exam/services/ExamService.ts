@@ -377,4 +377,21 @@ export class ExamService {
     }
     return [];
   }
+
+  getProcessingResult = async (examId: number, studentId: string): Promise<ExamResult | null> => {
+    try {
+      if (!examId || !studentId) {
+        throw new Error("Data is null");
+      }
+      const res = await axiosInstance.get(`/examResult/processing/${studentId}/${examId}`);
+      if (res.status === 200) {
+        return res.data;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error getProcessingResult: ", error);
+    }
+    return null;
+  }
 }

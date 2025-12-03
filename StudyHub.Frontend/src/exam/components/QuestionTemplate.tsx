@@ -34,7 +34,7 @@ const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Di
   }
 
   const addQuestion = (type: number) => {
-    let newQuestion: Question = {
+    const newQuestion: Question = {
       id: Date.now(),
       type: type,
       questionText: '',
@@ -65,7 +65,7 @@ const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Di
         return q;
       }
       if (field === 'questionText' && q.type === EXAM_TYPE.FILL_IN_BLANK) {
-        const placeholderRegex = new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+        const placeholderRegex = new RegExp(BLANK_PLACEHOLDER.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
         const expectedBlanks = (String(value).match(placeholderRegex) || []).length;
         const currentAnswers = Array.isArray(q.correctAnswer) ? [...q.correctAnswer] : [];
 
@@ -290,7 +290,7 @@ const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Di
             {q.type === EXAM_TYPE.FILL_IN_BLANK && (
               <div className="mb-4">
                 <label className="text-gray-700 text-sm font-bold mb-2">Các đáp án đúng cho chỗ trống</label>
-                {(q.questionText.match(new RegExp("[BLANK]".replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).map((_, index) => (
+                {(q.questionText.match(new RegExp("[BLANK]".replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).map((_, index) => (
                   <div key={index} className="flex items-center mb-2">
                     <span className="mr-2 text-gray-600">Chỗ trống {index + 1}:</span>
                     <input

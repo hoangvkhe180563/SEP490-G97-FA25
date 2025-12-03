@@ -1,11 +1,11 @@
+import { Outlet } from "react-router-dom";
 import Header from "../components/Header";
-import Homepage from "@/uiManagement/pages/Homepage";
 
 const GuestLayout = () => {
   return (
     <div className="relative">
       <Header />
-      <Homepage />
+      <Outlet />
     </div>
   );
 };

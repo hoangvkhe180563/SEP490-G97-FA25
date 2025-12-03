@@ -78,16 +78,59 @@ const DetailedClassTeacher: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>(initialTab);
 
   const navigate = useNavigate();
-
-  // refs to guard one-time calls per id
   const consolidatedFetchedRef = useRef<string | null>(null);
-  const fetchedWorksRef = useRef<string | null>(null);
-  const fetchedMembersRef = useRef<string | null>(null);
-  const prefetchCountsRef = useRef<string | null>(null);
+  // init activeTab from query
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t) setActiveTab(t);
+    else setActiveTab("notifications");
+     
+  }, [searchParams]);
 
-  const worksLength = (currentClass?.data?.works ?? []).length;
-  const studentsLength = (currentClass?.data?.students ?? []).length;
+  // fetch class info
+  useEffect(() => {
+    if (id) getClassInfo(Number(id));
+  }, [id, getClassInfo]);
 
+  // fetch class-level member count once (used as fast fallback)
+  useEffect(() => {
+    if (!id) return;
+    let mounted = true;
+    (async () => {
+      try {
+        // prefer server count endpoint
+        const cnt = await getMemberClassCount(Number(id));
+        if (mounted) setClassMemberCount(typeof cnt === "number" ? cnt : null);
+      } catch {
+        if (mounted) setClassMemberCount(null);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [id, getMemberClassCount]);
+
+  // fetch documents
+  useEffect(() => {
+    if (!id) return;
+    const fetchFn = getDocumentsByClassId;
+    if (!fetchFn) return;
+    let mounted = true;
+    (async () => {
+      try {
+        setDocsLoading(true);
+        const docs = await fetchFn(Number(id));
+        if (mounted) setDocuments(docs ?? []);
+      } catch {
+        if (mounted) setDocuments([]);
+      } finally {
+        if (mounted) setDocsLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [id, getDocumentsByClassId]);
   const DocumentPreviewCard: React.FC<{ doc: DocumentDto; role: string }> = ({ doc, role }) => {
     const navigateLocal = useNavigate();
     const isImage = !!(doc.fileType && /jpg|jpeg|png|gif|bmp|webp/i.test(String(doc.fileType)));
@@ -293,44 +336,26 @@ const DetailedClassTeacher: React.FC = () => {
   // Everyone tab: fetch members once (guarded)
   useEffect(() => {
     if (!id || activeTab !== "everyone") return;
-    if (fetchedMembersRef.current === id) return;
-    fetchedMembersRef.current = id;
-
-    (async () => {
-      try {
-        const hasTeacher = (currentClass?.data?.teachers ?? []).length > 0;
-        const hasStudents = (currentClass?.data?.students ?? []).length > 0;
-        const hasParents = (currentClass?.data?.parents ?? []).length > 0;
-        if (!hasTeacher && !hasStudents && !hasParents && typeof getClassMembers === "function") {
-          await getClassMembers(Number(id));
-        }
-      } catch (err) {
-        console.warn("getClassMembers failed", err);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, id]);
+    const hasTeacher = (currentClass?.data?.teachers ?? []).length > 0;
+    const hasStudents = (currentClass?.data?.students ?? []).length > 0;
+    const hasParents = (currentClass?.data?.parents ?? []).length > 0;
+    if (!hasTeacher && !hasStudents && !hasParents) {
+      getClassMembers(Number(id));
+    }
+  }, [
+    activeTab,
+    id,
+    getClassMembers,
+  ]);
 
   // Exercise tab: fetch works once (guarded)
   useEffect(() => {
     if (!id || activeTab !== "exercise") return;
-    if (fetchedWorksRef.current === id) return;
-    fetchedWorksRef.current = id;
+    const hasWorks = (currentClass?.data?.works ?? []).length > 0;
+    if (!hasWorks) getClassWorks(Number(id));
+  }, [activeTab, id, getClassWorks]);
 
-    (async () => {
-      try {
-        const hasWorks = (currentClass?.data?.works ?? []).length > 0;
-        if (!hasWorks && typeof getClassWorks === "function") {
-          await getClassWorks(Number(id));
-        }
-      } catch (err) {
-        console.warn("getClassWorks failed", err);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, id]);
-
-  // fetchCountsForWork (unchanged)
+  // fetchCountsForWork: fetch submission count and try to fetch accurate member count for a work (best-effort)
   const fetchCountsForWork = useCallback(
     async (wid: number) => {
       try {
@@ -359,10 +384,50 @@ const DetailedClassTeacher: React.FC = () => {
         console.error("fetchCountsForWork failed for", wid, e);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [id, studentsLength, classMemberCount]
+    [getSubmissionCount, getClassworkSubmissions, getMemberCount, id, currentClass?.data?.students, classMemberCount]
   );
 
+  // when entering exercise tab: set quick defaults and prefetch per-work counts in background
+  useEffect(() => {
+    if (!id || activeTab !== "exercise") return;
+    const works = currentClass?.data?.works ?? [];
+    if (!Array.isArray(works) || works.length === 0) return;
+
+    (async () => {
+      // resolve a reasonable default (prefer classMemberCount which was fetched separately)
+      let defaultCount: number | null = classMemberCount ?? null;
+      if (defaultCount === null) {
+        try {
+          const cnt = await getMemberCount(Number(id));
+          defaultCount = typeof cnt === "number" ? cnt : null;
+        } catch {
+          // fallback to currentClass students length
+          defaultCount = (currentClass?.data?.students ?? []).length ?? null;
+        }
+      }
+
+      if (defaultCount !== null) {
+        setMemberCounts((prev) => {
+          const next = { ...prev };
+          for (const w of works) {
+            if (next[w.id] === undefined || next[w.id] === null) {
+              next[w.id] = defaultCount;
+            }
+          }
+          return next;
+        });
+      }
+
+      // now prefetch per-work accurate counts (background)
+      try {
+        await Promise.all(works.map((w) => fetchCountsForWork(w.id)));
+      } catch (err) {
+        console.warn("Prefetch per-work counts failed", err);
+      }
+    })();
+  }, [activeTab, id, fetchCountsForWork, getMemberCount, classMemberCount]);
+
+  // handlers (notifications / others)
   const handlePost = async (content: string, files?: File[] | undefined, links?: any[] | undefined, titleFromComposer?: string) => {
     if (!id) return;
     const fallbackTitle = content && content.length > 40 ? `${content.slice(0, 40)}...` : "Thông báo mới";

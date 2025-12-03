@@ -100,7 +100,7 @@ namespace StudyHub.Backend.UseCases.Services
                         {
                             if (res.SubmissionTime != default && exam.OpenTime != default && res.SubmissionTime > exam.OpenTime)
                             {
-                                var hours = (res.SubmissionTime - exam.OpenTime).TotalHours;
+                                var hours = (res.SubmissionTime.GetValueOrDefault() - exam.OpenTime).TotalHours;
                                 if (hours >= 0)
                                 {
                                     if (!classSubjectHours.ContainsKey(subjectName)) classSubjectHours[subjectName] = new List<double>();

@@ -220,13 +220,19 @@ const LandingPageEdit = () => {
       return;
     }
 
-    const result = await uiManagementService.updateLandingPage(Number(schoolId), landingPageData);
-    setLoading(false);
-    if (result) {
-      alert(result);
-    } else {
-      toast.success("Cập nhật trang giới thiệu thành công!");
-      navigate(`/ui/school-landing`);
+    try {
+      const result = await uiManagementService.updateLandingPage(Number(schoolId), landingPageData);
+      setLoading(false);
+      if (result) {
+        throw new Error(result);
+      } else {
+        toast.success("Cập nhật trang giới thiệu thành công!");
+        navigate(`/ui/school-landing`);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Cập nhật trang giới thiệu thất bại!")
+      setLoading(false);
     }
   };
 

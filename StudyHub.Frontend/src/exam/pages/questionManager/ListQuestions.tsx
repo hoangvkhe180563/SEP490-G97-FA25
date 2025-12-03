@@ -49,7 +49,7 @@ const TypeBadge = ({ type }: { type: number }) => {
 // Add helper to count BLANK_PLACEHOLDER occurrences in a given text
 const getBlankCount = (text: string) => {
   if (!text) return 0;
-  const escaped = BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const escaped = BLANK_PLACEHOLDER.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
   const matches = text.match(new RegExp(escaped, 'g')) || [];
   return matches.length;
 };
@@ -59,7 +59,7 @@ const renderFillBlankQuestionText = (question: Question) => {
     return '';
   }
 
-  let parts = question.questionText.split(BLANK_PLACEHOLDER);
+  const parts = question.questionText.split(BLANK_PLACEHOLDER);
   const displayedContent: JSX.Element[] = [];
   const blankCount = getBlankCount(question.questionText);
 
@@ -197,9 +197,12 @@ export default function ListQuestions() {
     setLoading(true);
     const fetchData = async () => {
       const questionText = searchParams.get("questionText") ?? "";
-      const questionType = searchParams.get("questionType") !== null ? (Number(searchParams.get("questionType")) ?? -1) : -1;
-      const subjectId = Number(searchParams.get("subjectId")) ?? 0;
-      const grade = Number(searchParams.get("grade")) ?? 0;
+      const questionTypeRaw = searchParams.get("questionType");
+      const questionType = questionTypeRaw !== null ? Number(questionTypeRaw) : -1;
+      const subjectIdRaw = searchParams.get("subjectId");
+      const subjectId = subjectIdRaw !== null ? Number(subjectIdRaw) : 0;
+      const gradeRaw = searchParams.get("grade");
+      const grade = gradeRaw !== null ? Number(gradeRaw) : 0;
       const page = searchParams.get("page") !== null ? Number(searchParams.get("page")) : 1;
 
       setSearchQuery(questionText);
@@ -225,6 +228,7 @@ export default function ListQuestions() {
     }
 
     fetchData().catch(console.error).finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const handleFilter = (pageOverride?: number) => {

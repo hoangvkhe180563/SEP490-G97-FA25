@@ -109,9 +109,7 @@ const courseRoutes: RouteObject[] = [
   {
     path: CourseRouteConfig.STUDENT.INDEX,
     element: (
-      <RequireRole allowedRoles={["External Student", "School Student"]}>
-        <Outlet />
-      </RequireRole>
+      <Outlet />
     ),
     children: studentCourseRoutes,
   },

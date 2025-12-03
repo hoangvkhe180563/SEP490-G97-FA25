@@ -234,10 +234,9 @@ const ClassworkDetail: React.FC = () => {
     else {
       // If works array is present but not found -> not found
       if (works.length > 0) setClasswork(null);
-      else setClasswork(undefined); // still loading
+      else setClasswork(undefined);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classworkIdResolved, worksLength]);
+  }, [classworkIdResolved]);
 
   // when classwork is set, fetch detail/submissions/userSubmission (guarded per classwork)
   useEffect(() => {
@@ -351,11 +350,16 @@ const ClassworkDetail: React.FC = () => {
     } else {
       setComments([]);
     }
+     
+  }, [
+    classwork,
+    getClassworkSubmissions,
+    getSubmissionByUserAndClasswork,
+    currentClass,
+    user?.id,
+    cwDetail?.submissions,
+  ]);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classwork, user && user.id]);
-
-  // click outside handler for menu
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       if (!menuRef.current) return;

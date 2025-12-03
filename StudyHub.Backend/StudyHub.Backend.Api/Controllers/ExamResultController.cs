@@ -162,5 +162,16 @@ namespace StudyHub.Backend.Api.Controllers
             var result = _service.CheckLessonStatus(lessonId, studentId);
             return result == null ? NotFound() : Ok(result);
         }
+
+        [HttpGet("processing/{studentId:guid}/{examId:int}")]
+        public IActionResult GetProcessingExamResult(int examId, Guid studentId)
+        {
+            if (examId == 0 || studentId == Guid.Empty)
+            {
+                return BadRequest("Vui lòng nhập dữ liệu!");
+            }
+            var result = _service.GetProcessingExamResult(examId, studentId);
+            return result == null ? NotFound() : Ok(result);
+        }
     }
 }
