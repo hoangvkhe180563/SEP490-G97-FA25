@@ -50,19 +50,11 @@ const CourseItem: React.FC<Props> = ({ course }) => {
     message: "",
   });
 
-  // Determine whether the current user is the owner/teacher of this course.
-  // Backend sometimes returns `createdBy` as an id, or as a fullname string.
   const courseCreator = (course as any).createdBy ?? "";
   const isOwner = (() => {
     try {
       if (!courseCreator) return false;
       if (authUser?.id && String(authUser?.id) === String(courseCreator))
-        return true;
-      if (
-        authUser?.fullname &&
-        String(authUser?.fullname).trim().toLowerCase() ===
-          String(courseCreator).trim().toLowerCase()
-      )
         return true;
       return false;
     } catch {
@@ -156,7 +148,7 @@ const CourseItem: React.FC<Props> = ({ course }) => {
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
               <span className="text-xs font-medium text-gray-600">
-                {(course.updatedBy || course.createdBy || "")
+                {(course.teacherUpdatedName || course.teacherCreatedName || "")
                   .split(" ")
                   .map((n) => n[0])
                   .slice(0, 2)
@@ -164,7 +156,7 @@ const CourseItem: React.FC<Props> = ({ course }) => {
               </span>
             </div>
             <span className="text-sm text-gray-800 truncate max-w-[8rem]">
-              {course.updatedBy || course.createdBy || ""}
+              {course.teacherUpdatedName || course.teacherCreatedName || ""}
             </span>
           </div>
         </td>

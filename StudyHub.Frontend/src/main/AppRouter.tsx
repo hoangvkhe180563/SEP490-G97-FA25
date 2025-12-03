@@ -96,11 +96,11 @@ const AppRouter = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); //bảo sao bị call 2 lần => x2 call api
 
-  useEffect(() => {
-    if (authChecked && !user && !location.pathname.includes("/auth")) {
-      navigate("/");
-    }
-  }, [authChecked, user, location.pathname, navigate]);
+  // useEffect(() => {
+  //   if (authChecked && !user && !location.pathname.includes("/auth")) {
+  //     navigate("/");
+  //   }
+  // }, [authChecked, user, location.pathname, navigate]);
 
   const appRoutes = [
     {

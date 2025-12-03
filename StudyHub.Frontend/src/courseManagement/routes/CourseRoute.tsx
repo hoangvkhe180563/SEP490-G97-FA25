@@ -108,11 +108,7 @@ const courseRoutes: RouteObject[] = [
   // Cấu hình routes cho Học sinh (Base path: /)
   {
     path: CourseRouteConfig.STUDENT.INDEX,
-    element: (
-      <RequireRole allowedRoles={["External Student", "School Student"]}>
-        <Outlet />
-      </RequireRole>
-    ),
+    element: <Outlet />,
     children: studentCourseRoutes,
   },
 ];

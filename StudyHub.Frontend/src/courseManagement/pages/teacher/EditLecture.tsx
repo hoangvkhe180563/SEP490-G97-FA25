@@ -1011,7 +1011,7 @@ const EditLecture: React.FC = () => {
       };
 
       if (questions.length === 0) {
-        examToUpdate.noRandomQuestions = Number(randomQuestions) ?? 0;
+        examToUpdate.noRandomQuestions = Number(randomQuestions);
         examToUpdate.subjectId = selectedSubjectId;
         examToUpdate.grade = selectedGrade;
       }

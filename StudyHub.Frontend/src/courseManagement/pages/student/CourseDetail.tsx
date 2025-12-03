@@ -13,7 +13,6 @@ import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { Calendar, ChevronDown, Check } from "lucide-react";
 import CourseContentItem from "@/courseManagement/components/CourseContentItem";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import type {
   ChapterListDto,
@@ -46,7 +45,6 @@ const CourseDetail: React.FC = () => {
   >({});
 
   // load subjects (for label lookups)
-  const [_subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
   const [contentView, setContentView] = useState<"list" | "grid">("list");
   const [contentSort, setContentSort] = useState<string>("default");
   const [progressFilters, setProgressFilters] = useState({
@@ -60,39 +58,7 @@ const CourseDetail: React.FC = () => {
     assignment: false,
     quiz: false,
   });
-  const [teacher, setTeacher] = useState<any>();
-  const getAppUserById = useAppUserStore((s) => s.getAppUserById);
   const [durationFilter, setDurationFilter] = useState<string>("all");
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const { documentService } = await import(
-          "@/documentManagement/services/documentService"
-        );
-        const res = await documentService.getSubjects();
-        if (mounted && Array.isArray(res)) {
-          setSubjects(res.map((s) => ({ id: s.id, name: s.name })));
-        }
-      } catch (err) {
-        // ignore
-      }
-    })();
-    (async () => {
-      try {
-        if (!selectedCourse?.createdBy) return;
-        const r = await getAppUserById(selectedCourse?.createdBy);
-
-        if (mounted) setTeacher(r?.data.fullname);
-      } catch (err) {
-        // ignore
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [getAppUserById, selectedCourse?.createdBy]);
 
   const authUser = useAuthStore((s) => s.user);
 
@@ -201,13 +167,6 @@ const CourseDetail: React.FC = () => {
       }
     })();
   };
-
-  const subjectLabel = (() => {
-    const id = (selectedCourse as any)?.subjectId;
-    if (id === undefined || id === null) return undefined;
-    const found = _subjects.find((s) => s.id === Number(id));
-    return found ? found.name : String(id);
-  })();
 
   const sortLessons = (lessons: LessonListDto[] = []) => {
     const arr = [...lessons];
@@ -399,20 +358,24 @@ const CourseDetail: React.FC = () => {
             <div className="flex flex-col lg:flex-row items-start gap-6">
               <div className="flex-1">
                 <div className="inline-block bg-blue-100 text-blue-800 text-lg font-semibold px-4 py-2 rounded-full shadow-sm">
-                  {subjectLabel}
+                  {selectedCourse?.subject?.name ?? "Chưa xác định"}
                 </div>
 
                 <div className="flex items-center gap-4 mt-4 text-base text-gray-800">
                   <div className="flex items-center gap-4">
                     {/* Avatar chữ cái */}
                     <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-lg font-bold text-blue-700 shadow-sm border border-blue-50">
-                      {teacher ? teacher.charAt(0).toUpperCase() : "G"}
+                      {selectedCourse?.teacherCreatedName
+                        ? selectedCourse.teacherCreatedName
+                            .charAt(0)
+                            .toUpperCase()
+                        : "G"}
                     </div>
 
                     {/* Thông tin giáo viên */}
                     <div>
                       <div className="font-semibold text-gray-900 text-lg leading-snug">
-                        {teacher ?? "Giáo viên"}
+                        {selectedCourse?.teacherCreatedName ?? "Giáo viên"}
                       </div>
 
                       <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
@@ -421,7 +384,7 @@ const CourseDetail: React.FC = () => {
                         </span>
                         <span className="text-gray-400">|</span>
                         <span className="text-gray-500">
-                          {teacher ?? "Giáo viên"}
+                          {selectedCourse?.teacherCreatedName ?? "Giáo viên"}
                         </span>
                       </div>
                     </div>

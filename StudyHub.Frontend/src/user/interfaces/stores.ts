@@ -29,6 +29,7 @@ interface FilterAppUsersResponse {
 }
 interface AppUserState {
   appUsers: AppUser[];
+  teachers?: AppUser[];
   appUser: AppUser | undefined;
   currentUser: CurrentUser | undefined;
   success: boolean;
@@ -37,6 +38,7 @@ interface AppUserState {
   meta?: Meta | null;
 
   filterAppUsers: (query: string) => Promise<FilterAppUsersResponse | null>;
+  getTeachers?: () => Promise<AppUser[] | null>;
   // Accept either an array or a functional updater like React's setState
   setAppUsers: (users: AppUser[] | ((prev: AppUser[]) => AppUser[])) => void;
   getAppUserById: (id: string) => Promise<any>;

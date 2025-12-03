@@ -44,9 +44,7 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import { documentService } from "@/documentManagement/services/documentService";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import courseApi from "@/courseManagement/services/courseService";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 
@@ -57,7 +55,6 @@ const ApproveCourses: React.FC = () => {
   const loading = useCourseStore((s) => s.loading);
   const fetchCourseById = useCourseStore((s) => s.fetchCourseById);
   const updateCourse = useCourseStore((s) => s.updateCourse);
-  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
   const authUser = useAuthStore((s) => s.user);
 
   const [query, setQuery] = useState("");
@@ -69,15 +66,6 @@ const ApproveCourses: React.FC = () => {
   const fetchEnrollmentCounts = useEnrollmentStore((s) => s.fetchCounts);
   const enrollmentCounts = useEnrollmentStore((s) => s.enrollmentCounts);
   const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
-  const getAppUserById = useAppUserStore((s) => s.getAppUserById);
-  const load = async () => {
-    try {
-      const s = await documentService.getSubjects();
-      setSubjects(s || []);
-    } catch (err) {
-      console.error("Failed to load subjects", err);
-    }
-  };
 
   const fetchStats = async () => {
     try {
@@ -145,28 +133,23 @@ const ApproveCourses: React.FC = () => {
     if (toFetch.length === 0) return;
     const next: Record<string, string> = {};
     for (const id of toFetch) {
-      try {
-        const res: any = await getAppUserById(String(id));
-        const data = res?.data ?? res?.Data ?? res;
-        const name =
-          (data &&
-            (data.fullname ||
-              data.fullName ||
-              data.full_name ||
-              data.username ||
-              data.displayName)) ||
-          id;
-        next[id] = name;
-      } catch (e) {
-        next[id] = id;
+      // Prefer the teacher name already present on the course object
+      const courseWithName = (courses || []).find(
+        (c: any) => String(c.createdBy) === String(id) && c.teacherCreatedName
+      );
+      if (courseWithName && courseWithName.teacherCreatedName) {
+        next[id] = courseWithName.teacherCreatedName;
+        continue;
       }
+
+      // If no course-level name is available, fall back to the id (do not call API)
+      next[id] = id;
     }
     setCreatorNames((prev) => ({ ...prev, ...next }));
   };
 
   useEffect(() => {
     fetchCourses({ page: 1, pageSize: 50, isApproved: false });
-    load();
   }, [fetchCourses]);
 
   useEffect(() => {
@@ -203,11 +186,11 @@ const ApproveCourses: React.FC = () => {
     const topSubjects = Array.from(subjectMap.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
-      .map(([id, cnt]) => ({
-        id,
-        count: cnt,
-        name: subjects.find((s) => s.id === id)?.name ?? String(id),
-      }));
+      .map(([id, cnt]) => {
+        const sample = items.find((it: any) => (it.subjectId ?? -1) === id);
+        const name = sample?.subject?.name ?? sample?.subjectName ?? String(id);
+        return { id, count: cnt, name };
+      });
 
     // by creator
     const creatorMap = new Map<string, number>();
@@ -251,7 +234,7 @@ const ApproveCourses: React.FC = () => {
       recent,
       perDay,
     };
-  }, [statsCourses, subjects]);
+  }, [statsCourses]);
 
   // Additional stats for cards and charts
   const extraStats = useMemo(() => {
@@ -336,7 +319,10 @@ const ApproveCourses: React.FC = () => {
       (a, b) => b[1] - a[1]
     )[0];
     const topSubjectMonthName = topSubjectMonth
-      ? subjects.find((s) => s.id === topSubjectMonth[0])?.name ??
+      ? items.find((it: any) => (it.subjectId ?? -1) === topSubjectMonth[0])
+          ?.subject?.name ??
+        items.find((it: any) => (it.subjectId ?? -1) === topSubjectMonth[0])
+          ?.subjectName ??
         String(topSubjectMonth[0])
       : "-";
 
@@ -377,7 +363,7 @@ const ApproveCourses: React.FC = () => {
       pieData,
       topEnrolled,
     };
-  }, [statsCourses, creatorNames, subjects, enrollmentCounts]);
+  }, [statsCourses, creatorNames, enrollmentCounts]);
 
   // chart data aggregated by selected statsRange
   const chartData = React.useMemo(() => {
@@ -874,7 +860,7 @@ const ApproveCourses: React.FC = () => {
                         {c.name}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {subjects.find((s: any) => s.id === c.subjectId)?.name}
+                        {c.subject?.name ?? "Chưa xác định"}
                       </div>
                       <div className="text-xs text-gray-400">
                         Tạo bởi:{" "}

@@ -38,7 +38,6 @@ import {
 } from "@/common/components/ui/popover";
 import { documentService } from "@/documentManagement/services/documentService";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import type {
   ChapterListDto,
   CourseListDto,
@@ -73,7 +72,6 @@ const EditCourse: React.FC = () => {
   const updateChapterStore = useLectureStore((s) => s.updateChapter);
   const fetchChapter = useLectureStore((s) => s.fetchChapter);
   const deleteLessonStore = useLectureStore((s) => s.deleteLesson);
-  const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
   const authUser = useAuthStore((s) => s.user);
 
   const fetchCourseByIdRef = useRef(fetchCourseById);
@@ -116,7 +114,7 @@ const EditCourse: React.FC = () => {
       }
     };
     fetchSubjects();
-  }, [filterAppUsers]);
+  }, []);
 
   useEffect(() => {
     fetchCourseByIdRef.current = fetchCourseById;
