@@ -110,7 +110,7 @@ namespace StudyHub.Backend.Api.Controllers
             return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
         }
         [HttpGet("school-teachers/{schoolId}")]
-        public IActionResult GetSchoolTeachersDocuments(
+public IActionResult GetSchoolTeachersDocuments(
     int schoolId,
     [FromQuery] string? query = null,
     [FromQuery] int? categoryId = null,
@@ -121,18 +121,18 @@ namespace StudyHub.Backend.Api.Controllers
     [FromQuery] string? documentLevel = null,
     [FromQuery] int pageNumber = 1,
     [FromQuery] int pageSize = 10)
-        {
-            var currentUser = _authService.GetCurrentUser();
-            if (currentUser == null)
-                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+{
+    var currentUser = _authService.GetCurrentUser();
+    if (currentUser == null)
+        return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            if (currentUser.SchoolId != schoolId)
-                return Forbid();
+    if (currentUser.SchoolId != schoolId)
+        return Forbid();
 
-            var (documents, totalCount) = _documentService.GetSchoolTeachersDocuments(
-                schoolId, currentUser.Id, query, categoryId, grade, subject, classId, documentLengthType, documentLevel, pageNumber, pageSize);
-            return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
-        }
+    var (documents, totalCount) = _documentService.GetSchoolTeachersDocuments(
+        schoolId, currentUser.Id, query, categoryId, grade, subject, classId, documentLengthType, documentLevel, pageNumber, pageSize);
+    return PagedResult(documents.Select(d => d.ToListDto()).ToList(), totalCount, pageNumber, pageSize);
+}
         [HttpGet("manager/public")]
         public IActionResult GetManagerPublicDocuments(
           [FromQuery] string? query = null,

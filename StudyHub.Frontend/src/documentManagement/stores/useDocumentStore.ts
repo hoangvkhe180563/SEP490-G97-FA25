@@ -67,6 +67,8 @@ export const useDocumentStore = create<DocumentState>()(
       submitForApprovalError: null,
       fetchSchoolTeachersDocumentsMessage: "",
       fetchSchoolTeachersDocumentsError: null,
+      ownedDocuments: [],
+      schoolTeachersDocuments: [],
       getDocumentById: async (id, handlerSuccess) => {
         set({
           isLoading: true,
@@ -487,6 +489,7 @@ export const useDocumentStore = create<DocumentState>()(
           >(`/Document/owned/${creatorId}?${params.toString()}`);
 
           set({
+            ownedDocuments: response.data.data.items,
             documents: response.data.data.items,
             totalCount: response.data.data.total,
             totalPages: response.data.data.totalPages,
@@ -538,7 +541,8 @@ export const useDocumentStore = create<DocumentState>()(
           >(`/Document/school-teachers/${schoolId}?${params.toString()}`);
 
           set({
-            documents: response.data.data.items,
+            schoolTeachersDocuments: response.data.data.items, // Lưu vào state riêng
+            documents: response.data.data.items, // Giữ backward compatible
             totalCount: response.data.data.total,
             totalPages: response.data.data.totalPages,
             currentPage: response.data.data.page,

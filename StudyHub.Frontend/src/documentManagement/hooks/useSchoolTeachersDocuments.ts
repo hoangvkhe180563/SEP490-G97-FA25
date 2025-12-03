@@ -8,7 +8,7 @@ export const useSchoolTeachersDocuments = (
   pageSize: number = 10
 ) => {
   const {
-    documents,
+    schoolTeachersDocuments: documents,
     totalCount,
     currentPage,
     isLoading,
@@ -115,8 +115,13 @@ export const useSchoolTeachersDocuments = (
       currentPage,
       pageSize
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schoolId, searchQuery, currentPage, pageSize]);
+  }, [
+    schoolId,
+    searchQuery,
+    currentPage,
+    pageSize,
+    fetchSchoolTeachersDocuments,
+  ]);
 
   const clearFilters = () => {
     setFilters({

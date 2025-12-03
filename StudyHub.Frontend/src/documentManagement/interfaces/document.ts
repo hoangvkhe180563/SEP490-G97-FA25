@@ -343,6 +343,8 @@ export interface DocumentState {
   cancelEditRequestError: string | null;
   fetchSchoolTeachersDocumentsMessage: string;
   fetchSchoolTeachersDocumentsError: string | null;
+  ownedDocuments: Document[];
+  schoolTeachersDocuments: Document[];
   cancelEditRequest: (
     documentId: number,
     handlerSuccess?: () => void

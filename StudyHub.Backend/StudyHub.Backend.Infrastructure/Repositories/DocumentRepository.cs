@@ -194,10 +194,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         private (List<Document>, int) ExecuteManagerQuery(
-            IQueryable<Data.Document> dbQuery, string? query, int? categoryId, int? grade,
-            string? subject, int? classId, bool? isApproved, bool? status, bool? hasEditRequest,
-            DateTime? createdFrom, DateTime? createdTo, DateTime? updatedFrom, DateTime? updatedTo,
-            int? pageNumber, int? pageSize)
+      IQueryable<Data.Document> dbQuery, string? query, int? categoryId, int? grade,
+      string? subject, int? classId, bool? isApproved, bool? status, bool? hasEditRequest,
+      DateTime? createdFrom, DateTime? createdTo, DateTime? updatedFrom, DateTime? updatedTo,
+      int? pageNumber, int? pageSize)
         {
             dbQuery = ApplyManagerFilters(dbQuery, query, categoryId, grade, subject, classId, isApproved, status, hasEditRequest, createdFrom, createdTo, updatedFrom, updatedTo);
             var totalCount = dbQuery.Count();
@@ -206,14 +206,35 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 dbQuery = dbQuery.Skip((pageNumber.Value - 1) * pageSize.Value).Take(pageSize.Value);
             var documents = dbQuery.ToList();
             var creatorIds = documents.Select(d => d.CreatedBy).Distinct().ToList();
-            var users = _context.AppUsers.Where(u => creatorIds.Contains(u.Id))
-                .Select(u => new { u.Id, u.Username, u.Fullname }).ToList();
+
+            var users = _context.AppUsers
+                .Where(u => creatorIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.Username, u.Fullname, u.SchoolId })
+                .ToList();
+
+            var schoolIds = users.Where(u => u.SchoolId.HasValue).Select(u => u.SchoolId!.Value).Distinct().ToList();
+            var schools = _context.Schools
+                .Where(s => schoolIds.Contains(s.Id))
+                .Select(s => new { s.Id, s.Name })
+                .ToList();
+
             var result = documents.Select(d =>
             {
                 var doc = MapToEntity(d);
                 var user = users.FirstOrDefault(u => u.Id == d.CreatedBy);
                 if (user != null)
+                {
                     doc.Username = new AppUser { Id = user.Id, Username = user.Username, Fullname = user.Fullname };
+
+                    if (user.SchoolId.HasValue)
+                    {
+                        var school = schools.FirstOrDefault(s => s.Id == user.SchoolId.Value);
+                        if (school != null)
+                        {
+                            doc.School = new School { Id = school.Id, Name = school.Name };
+                        }
+                    }
+                }
                 return doc;
             }).ToList();
             return (result, totalCount);
