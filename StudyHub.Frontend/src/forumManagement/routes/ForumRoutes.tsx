@@ -11,14 +11,11 @@ import ViolationRecords from "../pages/ViolationRecords";
 import { ForumLayout } from "../components/ForumLayout";
 import ForumRuleManagement from "../pages/ForumRuleManagement";
 import ModeratorDashboard from "../pages/ModeratorDashboard";
-import ForumMain from "../pages/ForumMain";
-import PostDetail from "../pages/PostDetail";
+import ForumMain from "../pages/forummain";
+import PostDetail from "../pages/postdetail";
+import { ROLES } from "@/common/constants/Roles";
 
 const managerRoutes = [
-  {
-    index: true,
-    element: <div>Manager Dashboard</div>,
-  },
   {
     path: ForumRouteConfig.MANAGER.DASHBOARD,
     element: <ModeratorDashboard />,
@@ -59,10 +56,6 @@ const managerRoutes = [
 
 const teacherRoutes = [
   {
-    index: true,
-    element: <div>Teacher Dashboard</div>,
-  },
-  {
     path: ForumRouteConfig.TEACHER.FORUMS,
     element: <ForumMain />,
   },
@@ -73,10 +66,6 @@ const teacherRoutes = [
 ];
 
 const studentRoutes = [
-  {
-    index: true,
-    element: <div>Student Dashboard</div>,
-  },
   {
     path: ForumRouteConfig.STUDENT.FORUMS,
     element: <ForumMain />,
@@ -91,7 +80,7 @@ const forumRoutes: RouteObject[] = [
   {
     path: ForumRouteConfig.MANAGER.INDEX,
     element: (
-      <RequireRole allowedRoles={["Moderator", "School Admin"]}>
+      <RequireRole allowedRoles={[ROLES.MODERATOR]}>
         <ForumLayout>
           <Outlet />
         </ForumLayout>
@@ -104,12 +93,10 @@ const forumRoutes: RouteObject[] = [
     element: (
       <RequireRole
         allowedRoles={[
-          "Subject Teacher",
-          "Head of Department Teacher",
-          "Q&A Teacher",
-          "Homeroom Teacher",
-          "Moderator",
-          "School Student",
+          ROLES.SUBJECT_TEACHER,
+          ROLES.HOMEROOM_TEACHER,
+          ROLES.HEAD_TEACHER,
+          ROLES.QNA_TEACHER,
         ]}
       >
         <ForumLayout>
@@ -122,7 +109,7 @@ const forumRoutes: RouteObject[] = [
   {
     path: ForumRouteConfig.STUDENT.INDEX,
     element: (
-      <RequireRole allowedRoles={["School Student", "External Student"]}>
+      <RequireRole allowedRoles={[ROLES.SCHOOL_STUDENT]}>
         <ForumLayout>
           <Outlet />
         </ForumLayout>

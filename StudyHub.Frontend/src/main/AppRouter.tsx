@@ -24,7 +24,7 @@ import recommendationRoutes from "@/recommend/routes/RecommendationRoutes";
 import ProtectedRoute from "@/common/components/ProtectedRoute";
 
 const AppRouter = () => {
-  const { user, checkAuth, isAuthenticated } = useAuthStore();
+  const { user, checkAuth, isAuthenticated, isCheckingAuth } = useAuthStore();
   const { startPresence, stopPresence } = useUserOnlineStore();
   const { startPaymentConnection, stopPaymentConnection } = usePaymentStore();
   const { startRead, stopRead } = useConversationStore();
@@ -181,6 +181,19 @@ const AppRouter = () => {
   ];
 
   const routesElement = useRoutes(appRoutes);
+
+  if (isCheckingAuth) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/60 dark:bg-black/60">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-sky-500" />
+          <p className="text-lg text-slate-700 dark:text-slate-200">
+            Đang kiểm tra xác thực...
+          </p>
+        </div>
+      </div>
+    );
+  }
   return routesElement;
 };
 

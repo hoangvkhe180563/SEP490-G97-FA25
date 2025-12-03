@@ -6,9 +6,10 @@ import TeacherConversationList from "../pages/teacher/ConversationList";
 import TeacherConversationDetails from "../pages/teacher/ConversationDetails";
 import ManagerDashboard from "../pages/manager/Dashboard";
 import TopicList from "../pages/manager/TopicList";
+import RequireRole from "@/common/components/RequireRole";
+import { ROLES } from "@/common/constants/Roles";
 
 const teacherRoutes: RouteObject[] = [
-  { index: true, element: <div>Teacher Dashboard</div> },
   {
     path: QARouteConfig.TEACHER.CONVERSATIONS,
     element: <TeacherConversationList />,
@@ -20,10 +21,6 @@ const teacherRoutes: RouteObject[] = [
 ];
 
 const studentRoutes: RouteObject[] = [
-  {
-    index: true,
-    element: <div>Student Dashboard</div>,
-  },
   {
     path: QARouteConfig.STUDENT.CONVERSATIONS,
     element: <ConversationList />,
@@ -48,17 +45,31 @@ const managerRoutes: RouteObject[] = [
 const qaRoutes = [
   {
     path: QARouteConfig.TEACHER.INDEX,
-    element: <Outlet />,
+    element: (
+      <RequireRole allowedRoles={[ROLES.QNA_TEACHER]}>
+        <Outlet />
+      </RequireRole>
+    ),
     children: teacherRoutes,
   },
   {
     path: QARouteConfig.STUDENT.INDEX,
-    element: <Outlet />,
+    element: (
+      <RequireRole
+        allowedRoles={[ROLES.SCHOOL_STUDENT, ROLES.EXTERNAL_STUDENT]}
+      >
+        <Outlet />
+      </RequireRole>
+    ),
     children: studentRoutes,
   },
   {
     path: QARouteConfig.MANAGER.INDEX,
-    element: <Outlet />,
+    element: (
+      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN]}>
+        <Outlet />
+      </RequireRole>
+    ),
     children: managerRoutes,
   },
 ];

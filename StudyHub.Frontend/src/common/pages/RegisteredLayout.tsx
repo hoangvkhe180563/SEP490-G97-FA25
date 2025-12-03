@@ -6,7 +6,19 @@ import {
 import { Outlet } from "react-router-dom";
 import type { AppUser } from "@/auth/interfaces/app-user";
 import { useEffect, useState } from "react";
-import { schoolStudentSidebarItems, teacherSidebarItems, headOfDepartmentTeacherSidebarItems as headTeacherSidebarItems, qAndATeacherSidebarItems, documentManagerSidebarItems, financialManagerSidebarItems, questionManagerSidebarItems, moderatorSidebarItems, schoolAdminSidebarItems, uiManagerSidebarItems, externalStudentSidebarItems } from "../constants/SidebarItems";
+import {
+  schoolStudentSidebarItems,
+  teacherSidebarItems,
+  headOfDepartmentTeacherSidebarItems as headTeacherSidebarItems,
+  qAndATeacherSidebarItems,
+  documentManagerSidebarItems,
+  financialManagerSidebarItems,
+  questionManagerSidebarItems,
+  moderatorSidebarItems,
+  schoolAdminSidebarItems,
+  uiManagerSidebarItems,
+  externalStudentSidebarItems,
+} from "../constants/SidebarItems";
 import { ROLES } from "../constants/Roles";
 import type { ISidebarItem } from "../interfaces/IMainLayoutProps";
 
