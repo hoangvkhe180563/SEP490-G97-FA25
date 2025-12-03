@@ -56,22 +56,11 @@ const managerRoutes = [
 
 const teacherRoutes = [
   {
-    path: ForumRouteConfig.TEACHER.FORUMS,
+    path: ForumRouteConfig.USER.FORUMS,
     element: <ForumMain />,
   },
   {
-    path: ForumRouteConfig.TEACHER.POST_DETAIL,
-    element: <PostDetail />,
-  },
-];
-
-const studentRoutes = [
-  {
-    path: ForumRouteConfig.STUDENT.FORUMS,
-    element: <ForumMain />,
-  },
-  {
-    path: ForumRouteConfig.STUDENT.POST_DETAIL,
+    path: ForumRouteConfig.USER.POST_DETAIL,
     element: <PostDetail />,
   },
 ];
@@ -89,7 +78,7 @@ const forumRoutes: RouteObject[] = [
     children: managerRoutes,
   },
   {
-    path: ForumRouteConfig.TEACHER.INDEX,
+    path: ForumRouteConfig.USER.INDEX,
     element: (
       <RequireRole
         allowedRoles={[
@@ -97,6 +86,7 @@ const forumRoutes: RouteObject[] = [
           ROLES.HOMEROOM_TEACHER,
           ROLES.HEAD_TEACHER,
           ROLES.QNA_TEACHER,
+          ROLES.SCHOOL_STUDENT,
         ]}
       >
         <ForumLayout>
@@ -105,17 +95,6 @@ const forumRoutes: RouteObject[] = [
       </RequireRole>
     ),
     children: teacherRoutes,
-  },
-  {
-    path: ForumRouteConfig.STUDENT.INDEX,
-    element: (
-      <RequireRole allowedRoles={[ROLES.SCHOOL_STUDENT]}>
-        <ForumLayout>
-          <Outlet />
-        </ForumLayout>
-      </RequireRole>
-    ),
-    children: studentRoutes,
   },
 ];
 

@@ -3,7 +3,6 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { AuthState } from "../interfaces/stores";
 import { axiosInstance, axiosMessageErrorHandler } from "@/lib/axios";
-import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
 import type { AppUser } from "../interfaces/app-user";
 
 export const useAuthStore = create<AuthState>()(
@@ -62,13 +61,6 @@ export const useAuthStore = create<AuthState>()(
           });
           if (data.success) {
             handlerSuccess(data.data);
-            try {
-              const start = useUserOnlineStore.getState().startPresence;
-              if (start) start();
-            } catch (err) {
-              // best-effort
-              console.warn("startPresence on login failed", err);
-            }
           }
         } catch (error: unknown) {
           set({
