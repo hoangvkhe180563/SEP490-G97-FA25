@@ -320,13 +320,8 @@ export const schoolAdminSidebarItems: ISidebarItem[] = [
       {
         icon: <LayoutDashboard size={20} />,
         text: "Thống kê lớp học",
-        link: "/class/manager",
-      },
-      {
-        icon: <BookOpen size={20} />,
-        text: "Quản lý lớp học",
-        link: "/class/manager/classes",
-      },
+        link: "/class/manager/manage-classes",
+      }
     ],
   },
   {

@@ -15,6 +15,10 @@ const ClassRouteConfig = {
     CLASSWORK_DETAIL:":id/classwork/:classworkId/detail", // The path is relative to the StudentLayout route
     CONFIRM_INVITE:":id/invite/confirm",
     CLASS_DOCUMENTS:":id/documents"
+  },
+  MANAGER:{
+    INDEX: "manager",
+    CLASS_MANAGEMENT: "manage-classes",
   }
 };
 export default ClassRouteConfig;

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
 import { formatISO, parseISO } from "date-fns";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";

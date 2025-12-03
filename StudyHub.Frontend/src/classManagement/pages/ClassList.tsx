@@ -224,7 +224,7 @@ const ClassList: React.FC = () => {
                 <SelectItem value="all">Tất cả khối</SelectItem>
                 {availableGrades.length === 0 ? (
                   // If no grades available show a disabled placeholder
-                  <SelectItem value="all">Không có khối</SelectItem>
+                  <SelectItem value="-1">Không có khối</SelectItem>
                 ) : (
                   availableGrades.map((g) => (
                     <SelectItem key={g} value={String(g)}>

@@ -33,6 +33,7 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
             services.AddScoped<IProgressRepository, ProgressRepository>();
             services.AddScoped<IClassRepository, ClassRepository>();
+            services.AddScoped<IClassManagementRepository, ClassManagementRepository>();
             services.AddScoped<IClassMemberRepository, ClassMemberRepository>();
             services.AddScoped<IClassNotificationRepository, ClassNotificationRepository>();
             services.AddScoped<IAppRoleRepository, AppRoleRepositoy>();

@@ -366,7 +366,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
             var classEntity = _context.AppUserClasses
                 .Include(c => c.User)
-                .Where(c => c.ClassId == classId && c.User.Roles.Any(r => r.Name.Contains("Student")))
+                .Where(c => c.ClassId == classId && c.User.Roles.Any(r => r.Name.Contains("Student") && c.Status.Equals("joined")))
                 .GroupBy(a => a.UserId)
                 .ToList();
 
