@@ -53,37 +53,38 @@ namespace StudyHub.Backend.Api.Controllers
         {
             var request = new RecommendationRequest
             {
-                Profile = new UserLearningProfile
-                {
-                    UserId = "user123",
-                    SchoolId = 1,
-                    CurrentGrades = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 },
-                    CurrentSubjectStudied = new List<string> { "Toán học", "Hoá học", "Ngữ văn", "Vật lý" },
-                    SubjectStrength = new Dictionary<string, float>
-                    {
-                        { "Toán học", 0.9f },
-                        { "Hoá học", 0.5f },
-                        { "Ngữ văn", 0.3f },
-                        { "Vật lý", 0.9f },
-                    },
-                    SubjectAccuracy = new Dictionary<string, float>
-                    {
-                        { "Toán học", 0.3f },
-                        { "Vật lý", 0.9f },
-                    },
-                    WorkSpeed = new Dictionary<string, float>
-                    {
-                        { "Toán học", 0.8f },
-                        { "Hoá học", 0.4f },
-                        { "Ngữ văn", 0.6f },
-                        { "Vật lý", 0.9f },
-                    },
-                    CourseWatchPercentage = new Dictionary<string, float>
-                    {
-                        { "Toán học", 0.95f },
-                        { "Vật lý", 0.4f },
-                    },
-                },
+                //Profile = new UserLearningProfile
+                //{
+                //    UserId = "user123",
+                //    SchoolId = 1,
+                //    CurrentGrades = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 },
+                //    CurrentSubjectStudied = new List<string> { "Toán học", "Hoá học", "Ngữ văn", "Vật lý" },
+                //    SubjectStrength = new Dictionary<string, float>
+                //    {
+                //        { "Toán học", 0.9f },
+                //        { "Hoá học", 0.5f },
+                //        { "Ngữ văn", 0.3f },
+                //        { "Vật lý", 0.9f },
+                //    },
+                //    SubjectAccuracy = new Dictionary<string, float>
+                //    {
+                //        { "Toán học", 0.3f },
+                //        { "Vật lý", 0.9f },
+                //    },
+                //    WorkSpeed = new Dictionary<string, float>
+                //    {
+                //        { "Toán học", 0.8f },
+                //        { "Hoá học", 0.4f },
+                //        { "Ngữ văn", 0.6f },
+                //        { "Vật lý", 0.9f },
+                //    },
+                //    CourseWatchPercentage = new Dictionary<string, float>
+                //    {
+                //        { "Toán học", 0.95f },
+                //        { "Vật lý", 0.4f },
+                //    },
+                //},
+                Profile = _profileService.GetUserLearningProfile(),
                 TopK = 30
             };
             try

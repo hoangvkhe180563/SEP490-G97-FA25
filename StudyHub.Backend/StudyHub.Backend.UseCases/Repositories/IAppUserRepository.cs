@@ -27,6 +27,8 @@ namespace StudyHub.Backend.UseCases.Repositories
         public List<AppUserClaim> GetClaimsForUser(Guid userId);
         // get all subject ids associated with a user
         public List<short> GetUserSubjectIds(Guid userId);
+        // Get all role names assigned to a user
+        public List<string> GetUserRoleNames(Guid userId);
         // helper to get related names
 
         // find user by refresh token

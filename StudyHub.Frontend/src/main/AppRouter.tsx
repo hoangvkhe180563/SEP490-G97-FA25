@@ -4,7 +4,7 @@ import forumRoutes from "@/forumManagement/routes/ForumRoutes";
 import RouteConfig from "@/common/constants/RouteConfig";
 import uiManagementRoutes from "@/uiManagement/routes/UiManagementRoutes";
 import userRoutes from "@/user/routes/UserRoutes";
-import { Outlet, useLocation, useNavigate, useRoutes } from "react-router-dom";
+import { Outlet, useRoutes } from "react-router-dom";
 import courseRoutes from "@/courseManagement/routes/CourseRoute";
 import Homepage from "@/uiManagement/pages/Homepage";
 import authRoutes from "@/auth/routes/AuthRoutes";
@@ -21,26 +21,18 @@ import { useConversationStore } from "@/qaManagement/stores/useConversationStore
 import { useMessageStore } from "@/qaManagement/stores/useMessageStore";
 import NotFound from "@/common/pages/NotFound";
 import recommendationRoutes from "@/recommend/routes/RecommendationRoutes";
+import ProtectedRoute from "@/common/components/ProtectedRoute";
 
 const AppRouter = () => {
-  const { user, checkAuth, isAuthenticated, isCheckingAuth } = useAuthStore();
+  const { user, checkAuth, isAuthenticated } = useAuthStore();
   const { startPresence, stopPresence } = useUserOnlineStore();
   const { startPaymentConnection, stopPaymentConnection } = usePaymentStore();
   const { startRead, stopRead } = useConversationStore();
   const { startChat, stopChat } = useMessageStore();
-  const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
-
-  useEffect(() => {
-    if (isCheckingAuth) return;
-    if (!isAuthenticated && !location.pathname.includes("/auth")) {
-      navigate("/");
-    }
-  }, [isAuthenticated, isCheckingAuth, location.pathname, navigate]);
 
   useEffect(() => {
     (async () => {
@@ -73,7 +65,13 @@ const AppRouter = () => {
   const appRoutes = [
     {
       path: "/",
-      element: user ? <RegisteredLayout user={user} /> : <GuestLayout />,
+      element: user ? (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ) : (
+        <GuestLayout />
+      ),
       children: [
         {
           index: true,
@@ -88,52 +86,92 @@ const AppRouter = () => {
     },
     {
       path: RouteConfig.USER,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />,
+        </ProtectedRoute>
+      ),
       children: userRoutes,
     },
     {
       path: RouteConfig.UI_MANAGEMENT,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
       children: uiManagementRoutes,
     },
     {
       path: RouteConfig.CLASS_MANAGEMENT,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
       children: classRoutes,
     },
     {
       path: RouteConfig.DOCUMENT_MANAGEMENT,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
       children: documentRoutes,
     },
     {
       path: RouteConfig.COURSE_MANAGEMENT,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
       children: courseRoutes,
     },
     {
       path: RouteConfig.PAYMENT_MANAGEMENT,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
       children: paymentRoutes,
     },
     {
       path: RouteConfig.FORUM_MANAGEMENT,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
       children: forumRoutes,
     },
     {
       path: RouteConfig.QA_MANAGEMENT,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
       children: qaRoutes,
     },
     {
       path: RouteConfig.EXAM,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
       children: examRoutes,
     },
     {
       path: RouteConfig.RECOMMENDATION,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
       children: recommendationRoutes,
     },
     {
