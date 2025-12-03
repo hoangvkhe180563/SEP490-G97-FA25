@@ -13,7 +13,6 @@ import { Checkbox } from '@/common/components/ui/checkbox';
 import useDocumentVisibility from '@/exam/hooks/useDocumentVisibility';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/common/components/ui/alert-dialog';
 import { useAuthStore } from '@/auth/stores/useAuthStore';
-import { calculateFinishTime } from '@/exam/utils/ExamUtils';
 import toast from 'react-hot-toast';
 import type { Question } from '@/exam/interfaces/models/Question';
 import Matching from '@/exam/components/Matching';
@@ -80,75 +79,29 @@ const TakeExam = () => {
     const fetchExam = async () => {
       try {
         setLoading(true);
-        const fetchedExam = await examService.getExamById(Number(id), true);
+        const fetchedExam = await examService.getExamById(Number(id));
+        const fetchedResult = await examService.getProcessingResult(Number(id), user.id);
+        if (fetchedResult === null) {
+          toast.error("Không tải được bài làm!");
+          return;
+        }
+        const fetchedQuestions = await examService.getExamQuestionsByResultId(fetchedResult.id);
         setExam(fetchedExam);
         setTimeLeft(fetchedExam.duration * 60);
+        setQuestions(fetchedQuestions);
 
-        let questions: Question[] = fetchedExam.questions;
-        if (fetchedExam.noRandomQuestions) {
-          questions = await examService.generateRandomQuestions(Number(id));
-        }
-        if (questions.length === 0) {
-          throw new Error("Không load được câu hỏi!");
-        }
-        setQuestions(questions);
-
-        const examResult: ExamResult = {
-          id: '',
-          examId: Number(fetchedExam.id),
-          studentId: user.id,
-          answers: questions.map((q) => {
-            let initialAnswer;
-            switch (q.type) {
-              case EXAM_TYPE.SINGLE_CHOICE:
-                initialAnswer = -1;
-                break;
-              case EXAM_TYPE.MULTI_CHOICE:
-                initialAnswer = [];
-                break;
-              case EXAM_TYPE.TEXT_INPUT:
-                initialAnswer = '';
-                break;
-              case EXAM_TYPE.FILL_IN_BLANK:
-                const blankCount = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
-                initialAnswer = Array(blankCount).fill('');
-                break;
-              case EXAM_TYPE.MATCHING:
-                initialAnswer = {};
-                const terms = q.terms;
-                if (terms) {
-                  terms.forEach((_, termIndex) => {
-                    initialAnswer[termIndex] = -1;
-                  });
-                }
-                break;
-            }
-
-            return {
-              questionId: q.questionObjectId ?? '',
-              jsonAnswers: q.type === EXAM_TYPE.TEXT_INPUT ? initialAnswer : JSON.stringify(initialAnswer),
-              isCorrect: false,
-            };
-          }),
-          cheatTimes: cheatTimes,
-          finishTime: calculateFinishTime()
-        };
         setStudentAnswers(_ => {
           const newAnswers: { [key: number]: any } = {};
-          questions.forEach((q, index) => {
-            const answerEntry = examResult.answers.find(a => a.questionId === q.questionObjectId);
+          fetchedQuestions.forEach((q, index) => {
+            const answerEntry = fetchedResult.answers.find(a => a.questionId === q.questionObjectId);
             if (answerEntry) {
-              newAnswers[index + 1] = q.type === EXAM_TYPE.TEXT_INPUT ? answerEntry.jsonAnswers : JSON.parse(answerEntry.jsonAnswers);
+              newAnswers[index + 1] = JSON.parse(answerEntry.jsonAnswers);
             }
           });
           return newAnswers;
         });
-        const resultObjectId = await examService.createResult(examResult);
-        if (!resultObjectId) {
-          throw new Error("Không thể tạo bài làm");
-        }
-        examResult.id = resultObjectId;
-        setExamResult(examResult);
+
+        setExamResult(fetchedResult);
         backupInterval = setInterval(handleBackupExamResult, 30000);
       } catch (err) {
         console.error("Failed to fetch exam:", err);
@@ -160,6 +113,7 @@ const TakeExam = () => {
     };
     fetchExam();
     return () => clearInterval(backupInterval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {
@@ -172,6 +126,7 @@ const TakeExam = () => {
     } else if (timeLeft === 0 && !isSubmitted) {
       handleSubmitExam();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, isSubmitted]);
 
   useEffect(() => {
@@ -179,11 +134,13 @@ const TakeExam = () => {
       setCheatTimes(ct => ct + 1);
       setCheatDialogOpen(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isVisible]);
 
   useEffect(() => {
     if (exam.duration <= 0) return;
     handleBackupExamResult(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cheatTimes])
 
   const handleAnswerChange = (questionId: number, value: any, type: number, blankIndex: number | null = null) => {
@@ -368,7 +325,7 @@ const TakeExam = () => {
                 {question.questionText.split(BLANK_PLACEHOLDER).map((part, blankIndex) => (
                   <React.Fragment key={blankIndex}>
                     {part}
-                    {blankIndex < (question.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length && (
+                    {blankIndex < (question.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length && (
                       <input
                         type="text"
                         className="inline-block w-32 border border-gray-300 rounded-md p-1 mx-2 text-gray-800 text-base"
@@ -415,12 +372,13 @@ const TakeExam = () => {
               case EXAM_TYPE.FILL_IN_BLANK:
                 hasAnswered = studentAnswers[index + 1].every((ans: string) => ans !== '');
                 break;
-              case EXAM_TYPE.MATCHING:
+              case EXAM_TYPE.MATCHING: {
                 const matchingAnswers = studentAnswers[index + 1] || {};
                 const termsCount = q.terms?.length || 0;
                 hasAnswered = Object.keys(matchingAnswers).length === termsCount &&
                   Object.values(matchingAnswers).every((val: any) => val !== -1);
                 break;
+              }
             }
 
             if (hasAnswered) {

@@ -59,6 +59,7 @@ const AddQuestion = () => {
     };
 
     fetchData().catch(console.error).finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
@@ -114,7 +115,7 @@ const AddQuestion = () => {
           return;
         }
       } else if (q.type === EXAM_TYPE.FILL_IN_BLANK) {
-        const expectedBlanks = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+        const expectedBlanks = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
         if (expectedBlanks === 0) {
           toast.error(`Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
           setLoading(false);

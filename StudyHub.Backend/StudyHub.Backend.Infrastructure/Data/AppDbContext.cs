@@ -209,6 +209,8 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.PhoneNumber, "PhoneNumber").IsUnique();
 
+            entity.HasIndex(e => e.TransferId, "TransferId").IsUnique();
+
             entity.HasIndex(e => e.Username, "Username").IsUnique();
 
             entity.Property(e => e.Address).HasMaxLength(1000);
@@ -362,7 +364,6 @@ public partial class AppDbContext : DbContext
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
-            entity.Property(e => e.Grade).HasColumnType("tinyint(4)");
             entity.Property(e => e.Name).HasMaxLength(200);
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
         });
@@ -517,7 +518,6 @@ public partial class AppDbContext : DbContext
                 .HasColumnType("datetime");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
-            entity.Property(e => e.DocumentCategoryId).HasColumnType("tinyint(4)");
             entity.Property(e => e.DocumentLengthType).HasColumnType("enum('Short','Medium','Long')");
             entity.Property(e => e.DocumentLevel).HasColumnType("enum('Hard','Easy','Medium')");
             entity.Property(e => e.Name).HasMaxLength(200);
@@ -606,21 +606,14 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.SubjectId, "SubjectId");
 
-            entity.Property(e => e.Id).HasColumnType("int(11)");
-            entity.Property(e => e.ClassId).HasColumnType("int(11)");
             entity.Property(e => e.CloseTime).HasColumnType("datetime");
             entity.Property(e => e.Description).HasMaxLength(1000);
-            entity.Property(e => e.Duration).HasColumnType("int(10) unsigned");
-            entity.Property(e => e.Grade).HasColumnType("tinyint(4)");
-            entity.Property(e => e.LessonId).HasColumnType("int(11)");
-            entity.Property(e => e.NoRandomQuestions).HasColumnType("tinyint(4)");
             entity.Property(e => e.OpenTime)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime");
             entity.Property(e => e.ShowAnswers)
                 .IsRequired()
                 .HasDefaultValueSql("'1'");
-            entity.Property(e => e.SubjectId).HasColumnType("smallint(6)");
             entity.Property(e => e.Title).HasMaxLength(500);
 
             entity.HasOne(d => d.Class).WithMany(p => p.Exams)
@@ -730,7 +723,6 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.IsModerationPending)
                 .IsRequired()
                 .HasDefaultValueSql("'1'");
-            entity.Property(e => e.PostId).HasColumnType("int(11)");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
             entity.HasOne(d => d.Comment).WithMany(p => p.ForumAttachments)
@@ -976,8 +968,6 @@ public partial class AppDbContext : DbContext
             entity.ToTable("landing_page_images");
 
             entity.HasIndex(e => e.LandingPageId, "LandingPageId");
-
-            entity.Property(e => e.Id).ValueGeneratedNever();
 
             entity.HasOne(d => d.LandingPage).WithMany(p => p.LandingPageImages)
                 .HasForeignKey(d => d.LandingPageId)
@@ -1225,7 +1215,7 @@ public partial class AppDbContext : DbContext
             entity.HasIndex(e => e.ConversationId, "ConversationId");
 
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("current_timestamp()")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime");
             entity.Property(e => e.FileName).HasMaxLength(200);
             entity.Property(e => e.FileType).HasMaxLength(100);

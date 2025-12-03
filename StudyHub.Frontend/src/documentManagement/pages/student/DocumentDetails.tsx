@@ -357,7 +357,7 @@ function RelatedDocumentsSection({
   }, [subjectId, currentDocId]);
 
   const handleDocumentClick = (docId: number) => {
-    window.location.href = `/document/student/details/${docId}`;
+    window.location.href = `/document/details/${docId}`;
   };
 
   if (isLoading) {
@@ -464,7 +464,7 @@ export default function DocumentDetails() {
   }, [id, getDocumentById]);
 
   const handleView = () => {
-    navigate(`/document/student/doc-info/${id}`);
+    navigate(`/document/doc-info/${id}`);
   };
 
   const handleDownload = async () => {

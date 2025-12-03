@@ -95,10 +95,12 @@ const AppRouter = () => {
     },
     {
       path: RouteConfig.UI_MANAGEMENT,
-      element: (
+      element: user ? (
         <ProtectedRoute>
           <RegisteredLayout user={user} />
         </ProtectedRoute>
+      ) : (
+        <GuestLayout />
       ),
       children: uiManagementRoutes,
     },
@@ -113,19 +115,23 @@ const AppRouter = () => {
     },
     {
       path: RouteConfig.DOCUMENT_MANAGEMENT,
-      element: (
+      element: user ? (
         <ProtectedRoute>
           <RegisteredLayout user={user} />
         </ProtectedRoute>
+      ) : (
+        <GuestLayout />
       ),
       children: documentRoutes,
     },
     {
       path: RouteConfig.COURSE_MANAGEMENT,
-      element: (
+      element: user ? (
         <ProtectedRoute>
           <RegisteredLayout user={user} />
         </ProtectedRoute>
+      ) : (
+        <GuestLayout />
       ),
       children: courseRoutes,
     },

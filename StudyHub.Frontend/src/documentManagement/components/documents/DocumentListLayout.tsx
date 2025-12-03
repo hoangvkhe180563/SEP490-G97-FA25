@@ -1,4 +1,5 @@
 // src/documentManagement/components/documents/DocumentListLayout.tsx
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 import type { ReactNode } from "react";
 
 interface DocumentListLayoutProps {
@@ -13,8 +14,10 @@ const DocumentListLayout = ({
   filterSidebar,
   mainContent,
 }: DocumentListLayoutProps) => {
+  const { user } = useAuthStore();
+
   return (
-    <div className="flex flex-col h-full">
+    <div className={`flex flex-col h-full ${user ? '' : 'mt-[65px]'}`}>
       <div className="shrink-0 px-6 py-4 bg-white border-b">
         <div className="mb-3">
           <h1 className="text-2xl font-bold text-gray-800 mb-1">

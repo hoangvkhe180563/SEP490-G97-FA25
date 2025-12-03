@@ -16,11 +16,13 @@ const DocumentItem: React.FC<DocumentItemProps> = ({ document }) => {
     <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
       <div className="relative aspect-video bg-gray-200">
         {document.thumbnail ? (
-          <img
-            src={document.thumbnail || "/placeholder.svg"}
-            alt={document.name}
-            className="w-full h-full object-cover"
-          />
+          <div className="h-55">
+            <img
+              src={document.thumbnail || "/placeholder.svg"}
+              alt={document.name}
+              className="w-full h-full object-contain"
+            />
+          </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-400">
             <span className="text-sm">

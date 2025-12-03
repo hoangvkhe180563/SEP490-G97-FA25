@@ -26,7 +26,7 @@ export const externalStudentSidebarItems: ISidebarItem[] = [
   {
     icon: <LibraryBig size={20} />,
     text: "Tài liệu",
-    link: "/document/student/documents",
+    link: "/document/documents",
   },
   {
     icon: <BookOpen size={20} />,
@@ -64,7 +64,7 @@ export const externalStudentSidebarItems: ISidebarItem[] = [
         link: "/payment/student/wallet/withdrawal",
       },
     ],
-  }
+  },
 ];
 
 export const schoolStudentSidebarItems: ISidebarItem[] = [
@@ -76,7 +76,7 @@ export const schoolStudentSidebarItems: ISidebarItem[] = [
   {
     icon: <LibraryBig size={20} />,
     text: "Tài liệu",
-    link: "/document/student/documents",
+    link: "/document/documents",
   },
   {
     icon: <BookOpen size={20} />,
@@ -195,13 +195,13 @@ export const questionManagerSidebarItems: ISidebarItem[] = [
   {
     icon: <LayoutDashboard size={20} />,
     text: "Dashboard",
-    link: "/exam/manager/dashboard"
+    link: "/exam/manager/dashboard",
   },
   {
     icon: <FileQuestion size={20} />,
     text: "Quản lý câu hỏi",
-    link: "/exam/manager/questions"
-  }
+    link: "/exam/manager/questions",
+  },
 ];
 
 export const financialManagerSidebarItems: ISidebarItem[] = [
@@ -239,8 +239,8 @@ export const uiManagerSidebarItems: ISidebarItem[] = [
         icon: <Settings size={20} />,
         text: "Cấu hình trang chủ",
         link: "/ui/school-landing/edit",
-      }
-    ]
+      },
+    ],
   },
 ];
 
