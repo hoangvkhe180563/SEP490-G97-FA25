@@ -10,6 +10,10 @@ const QARouteConfig = {
     CONVERSATIONS: "conversations",
     DETAILS: "conversations/:id",
   },
+  MANAGER: {
+    INDEX: "manager",
+    TOPICS: "topics",
+  },
 };
 
 export default QARouteConfig;

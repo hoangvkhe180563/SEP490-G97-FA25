@@ -716,6 +716,29 @@ namespace StudyHub.Backend.UseCases.Services
             return items;
         }
 
+        // Return all teachers (matching the standard teacher role names)
+        public List<AppUserListDto> GetTeachers()
+        {
+            var users = _userRepository.GetTeachers();
+            var items = new List<AppUserListDto>();
+            foreach (var u in users)
+            {
+                var roles = _roleRepository.GetRolesForUser(u.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
+                items.Add(new AppUserListDto
+                {
+                    Id = u.Id,
+                    Email = u.Email,
+                    Username = u.Username,
+                    Fullname = u.Fullname,
+                    Avatar = u.Avatar,
+                    Status = (u.Status == true) ? "Active" : "Inactive",
+                    CreatedAt = u.CreatedAt.ToString("yyyy/MM/dd"),
+                    Roles = roles
+                });
+            }
+            return items;
+        }
+
         // Admin / management methods
         public AppUser? GetUserById(Guid id)
         {

@@ -36,4 +36,19 @@ namespace StudyHub.Backend.UseCases.Dtos
         public string? FullName { get; set; }
         public long TotalTokens { get; set; }
     }
+
+    public class TopicCountDto
+    {
+        public string Topic { get; set; } = null!;
+        public int Count { get; set; }
+    }
+
+    public class TeacherStatsDto
+    {
+        public Guid TeacherId { get; set; }
+        public string? FullName { get; set; }
+        public int ConversationCount { get; set; }
+        // Average minutes to first teacher response
+        public double AverageFirstResponseMinutes { get; set; }
+    }
 }

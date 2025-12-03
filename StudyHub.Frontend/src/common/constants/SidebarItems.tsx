@@ -2,17 +2,20 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   BookOpen,
+  Contact,
   Eye,
   FileQuestion,
   Home,
   LayoutDashboard,
   LibraryBig,
+  Lightbulb,
   MessageCircleQuestionMark,
   MessageSquare,
   NotebookPen,
   Receipt,
   ScrollText,
   Settings,
+  UserCog,
   Users,
 } from "lucide-react";
 import type { ISidebarItem } from "../interfaces/IMainLayoutProps";
@@ -303,7 +306,24 @@ export const moderatorSidebarItems: ISidebarItem[] = [
 
 export const schoolAdminSidebarItems: ISidebarItem[] = [
   {
-    icon: <BookOpen size={20} />,
+    icon: <Home size={20} />,
+    text: "Quản lý trang chủ",
+    link: "",
+    children: [
+      {
+        icon: <LayoutDashboard size={20} />,
+        text: "Xem trang chủ",
+        link: "/ui/school-landing",
+      },
+      {
+        icon: <Settings size={20} />,
+        text: "Sửa trang chủ",
+        link: "/ui/school-landing/edit",
+      },
+    ],
+  },
+  {
+    icon: <UserCog size={20} />,
     text: "Quản lý người dùng",
     link: "",
     children: [
@@ -313,14 +333,26 @@ export const schoolAdminSidebarItems: ISidebarItem[] = [
         link: "/user/manager",
       },
       {
-        icon: <BookOpen size={20} />,
+        icon: <Users size={20} />,
         text: "Quản lý người dùng",
         link: "/user/manager/accounts",
       },
       {
-        icon: <Users size={20} />,
+        icon: <Contact size={20} />,
         text: "Quản lý khôi phục tài khoản",
         link: "/user/manager/account-recoveries",
+      },
+    ],
+  },
+  {
+    icon: <Receipt size={20} />,
+    text: "Quản lý giao dịch",
+    link: "",
+    children: [
+      {
+        icon: <LayoutDashboard size={20} />,
+        text: "Thống kê giao dịch",
+        link: "/payment/financial/revenue",
       },
     ],
   },
@@ -342,7 +374,24 @@ export const schoolAdminSidebarItems: ISidebarItem[] = [
     ],
   },
   {
-    icon: <Receipt size={20} />,
+    icon: <FileQuestion size={20} />,
+    text: "Quản lý câu hỏi",
+    link: "",
+    children: [
+      {
+        icon: <LayoutDashboard size={20} />,
+        text: "Dashboard",
+        link: "/exam/manager/dashboard",
+      },
+      {
+        icon: <FileQuestion size={20} />,
+        text: "Danh sách câu hỏi",
+        link: "/exam/manager/questions",
+      },
+    ],
+  },
+  {
+    icon: <Lightbulb size={20} />,
     text: "Quản lý đề xuất",
     link: "",
     children: [
@@ -350,6 +399,23 @@ export const schoolAdminSidebarItems: ISidebarItem[] = [
         icon: <LayoutDashboard size={20} />,
         text: "Thống kê đề xuất",
         link: "/recommend/manager",
+      },
+    ],
+  },
+  {
+    icon: <MessageCircleQuestionMark size={20} />,
+    text: "Quản lý hỏi đáp",
+    link: "",
+    children: [
+      {
+        icon: <LayoutDashboard size={20} />,
+        text: "Thống kê hỏi đáp",
+        link: "/qa/manager",
+      },
+      {
+        icon: <MessageSquare size={20} />,
+        text: "Quản lý chủ đề hỏi đáp",
+        link: "/qa/manager/topics",
       },
     ],
   },

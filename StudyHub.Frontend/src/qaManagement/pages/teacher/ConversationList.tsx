@@ -183,7 +183,7 @@ const TeacherConversationList: React.FC = () => {
 
   return (
     <div className="flex gap-6 p-6 min-h-[calc(100vh-100px)]">
-      <aside className="w-72 shrink-0">
+      <aside className="w-75 shrink-0">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-sm flex items-center gap-2 font-semibold">
             <Users2 />
@@ -192,14 +192,14 @@ const TeacherConversationList: React.FC = () => {
         </div>
 
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center flex-wrap gap-3 w-full">
+          <div className="flex items-center flex-col gap-3 w-full">
             <Input
               placeholder="Tìm học sinh..."
               value={studentSearch}
               onChange={(e) => setStudentSearch(e.target.value)}
               className="max-w-md"
             />
-            <div className="inline-flex  rounded-md border bg-muted p-0.5">
+            <div className="inline-flex rounded-md border bg-muted p-0.5 justify-center">
               <Button
                 variant={studentFilter === "all" ? undefined : "ghost"}
                 onClick={() => setStudentFilter("all")}
@@ -222,7 +222,7 @@ const TeacherConversationList: React.FC = () => {
           </div>
         </div>
 
-        <ScrollArea className="rounded-lg border">
+        <ScrollArea className="rounded-lg border w-full">
           <div className="space-y-3 pr-2 max-h-[calc(100vh-220px)]">
             {filteredStudents.map((s) => (
               <Card

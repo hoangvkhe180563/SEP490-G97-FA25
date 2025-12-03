@@ -19,6 +19,24 @@ namespace StudyHub.Backend.UseCases.Repositories
         List<HourCountDto> GetLlmPeakHoursForLlm(DateTime? start, DateTime? end, int top = 5);
         List<SubjectCountDto> GetTopSubjects(DateTime? start, DateTime? end, int top = 10);
 
+        // QA conversation statistics
+        int GetTotalQAConversations(DateTime? start, DateTime? end);
+        List<SubjectCountDto> GetQAConversationCountBySubject(DateTime? start, DateTime? end, int top = 10);
+        List<TopicCountDto> GetQAConversationCountByTopic(DateTime? start, DateTime? end, int top = 10);
+        long GetTotalQAMessages(DateTime? start, DateTime? end);
+
+        double GetAveragePaidConversationsPerDay(DateTime? start, DateTime? end);
+        double GetAveragePaidConversationsPerWeek(DateTime? start, DateTime? end);
+        double GetAveragePaidConversationsPerMonth(DateTime? start, DateTime? end);
+
+        double GetAverageMessagesPerDay(DateTime? start, DateTime? end);
+        double GetAverageMessagesPerWeek(DateTime? start, DateTime? end);
+        double GetAverageMessagesPerMonth(DateTime? start, DateTime? end);
+
+        List<TeacherStatsDto> GetTopTeachers(DateTime? start, DateTime? end, int top = 10, string sortBy = "response");
+        List<StudentQuestionStatsDto> GetTopQaStudents(DateTime? start, DateTime? end, int top = 10);
+        List<SubjectCountDto> GetTopQaSubjects(DateTime? start, DateTime? end, int top = 10);
+
         // Top recommended items (courses/documents) parsed from stored LLM responses
         List<RecommendedItemCountDto> GetTopRecommendedCourses(DateTime? start, DateTime? end, int top = 10);
         List<RecommendedItemCountDto> GetTopRecommendedDocuments(DateTime? start, DateTime? end, int top = 10);

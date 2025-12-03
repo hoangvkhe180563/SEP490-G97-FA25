@@ -13,5 +13,8 @@ namespace StudyHub.Backend.UseCases.Repositories
         QATopic? GetQATopicById(int id);
         List<QATopic> GetTopicsBySubject(int subjectId);
         QATopic? CreateQATopic(QATopic topic);
+        QATopic? UpdateQATopic(QATopic topic);
+        bool SoftDeleteTopic(int id);
+        List<QATopic> SearchTopics(string? query, int? subjectId);
     }
 }

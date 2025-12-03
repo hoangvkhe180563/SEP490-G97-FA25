@@ -5,7 +5,10 @@ import LectureNextUp from "@/courseManagement/components/LectureNextUp";
 import { Button } from "@/common/components/ui/button";
 import LectureFilters from "@/courseManagement/components/LectureFilters";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
-import type { LessonExamStatus, LessonListDto } from "@/courseManagement/interfaces/types";
+import type {
+  LessonExamStatus,
+  LessonListDto,
+} from "@/courseManagement/interfaces/types";
 import { useNavigate, useParams } from "react-router-dom";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import { Check, HelpCircle, NotebookPen, X } from "lucide-react";
@@ -144,8 +147,12 @@ const LecturePlayer: React.FC = () => {
 
   // nicer UI state for overlay
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionResult, setSubmissionResult] = useState<boolean | null>(null);
-  const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
+  const [submissionResult, setSubmissionResult] = useState<boolean | null>(
+    null
+  );
+  const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(
+    null
+  );
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [_localProgress, setLocalProgress] = useState<number>(0);
@@ -157,11 +164,13 @@ const LecturePlayer: React.FC = () => {
   const recordProgress = useEnrollmentStore((s: any) => s.recordProgress);
   const fetchProgresses = useEnrollmentStore((s: any) => s.fetchProgresses);
   const _enrollAction = useEnrollmentStore((s: any) => s.enroll);
-  const enrollment = useEnrollmentStore((s: any) => s.getEnrollmentForCourse(cid));
+  const enrollment = useEnrollmentStore((s: any) =>
+    s.getEnrollmentForCourse(cid)
+  );
   const enrollmentId = enrollment?.id ?? null;
   const [examDialogOpen, setExamDialogOpen] = useState<boolean>(false);
   const [examStatus, setExamStatus] = useState<LessonExamStatus | null>(null);
-  const [examResultId, setExamResultId] = useState<string>('');
+  const [examResultId, setExamResultId] = useState<string>("");
 
   const localKey = React.useCallback(
     (lessonId: number) => `studyhub_local_progress_${lessonId}`,
@@ -279,7 +288,7 @@ const LecturePlayer: React.FC = () => {
   ]);
 
   useEffect(() => {
-    if (!lid || !authUser || selectedLesson?.type !== 'Exam') return;
+    if (!lid || !authUser || selectedLesson?.type !== "Exam") return;
     const fetchExamStatus = async () => {
       const status = await courseApi.checkExamStatus(lid, String(authUser?.id));
       if (status === null) {
@@ -288,13 +297,16 @@ const LecturePlayer: React.FC = () => {
       }
       setExamStatus(status);
 
-      const resultId = await courseApi.getResultIdByLessonId(lessonId, authUser.id ?? '');
+      const resultId = await courseApi.getResultIdByLessonId(
+        lessonId,
+        authUser.id ?? ""
+      );
       setExamResultId(resultId);
-    }
+    };
 
     fetchExamStatus();
-
-  }, [lid, selectedLesson, authUser])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lid, selectedLesson, authUser]);
 
   useEffect(() => {
     if (!lid) return;
@@ -818,24 +830,25 @@ const LecturePlayer: React.FC = () => {
       return;
     }
 
-    if (examResultId == '') {
+    if (examResultId == "") {
       toast.error("Không lấy được dữ liệu bài làm!");
       return;
     }
 
     navigate(`/exam/results/${examResultId}`);
-  }
+  };
 
   const calculateExamEnableTime = () => {
     const now = new Date();
     if (!examStatus?.isDisabled) return 0;
-    const remainingTime = examStatus.latestTime.getTime() + (8 * 60 * 60 * 1000) - now.getTime();
+    const remainingTime =
+      examStatus.latestTime.getTime() + 8 * 60 * 60 * 1000 - now.getTime();
     const hours = Math.floor(remainingTime / (1000 * 60 * 60));
     const minutes = Math.floor(
       (remainingTime % (1000 * 60 * 60)) / (1000 * 60)
     );
     return `${hours} giờ ${minutes} phút`;
-  }
+  };
 
   return (
     <div className="w-full bg-gray-50 min-h-screen p-4 h-full overflow-y-auto scrollbar-hide">
@@ -948,8 +961,9 @@ const LecturePlayer: React.FC = () => {
                     if (isEmbed || (!isMp4 && src.startsWith("http"))) {
                       const isYouTubeEmbed = /youtube|youtu\.be/.test(lower);
                       if (isYouTubeEmbed) {
-                        const elId = `yt-player-${selectedLesson?.id ?? "unknown"
-                          }`;
+                        const elId = `yt-player-${
+                          selectedLesson?.id ?? "unknown"
+                        }`;
                         return <div id={elId} className="w-full h-full" />;
                       }
 
@@ -1023,7 +1037,10 @@ const LecturePlayer: React.FC = () => {
                 >
                   Bắt đầu làm bài
                 </Button>
-                <Button disabled={examResultId === ''} onClick={handleViewExamResult}>
+                <Button
+                  disabled={examResultId === ""}
+                  onClick={handleViewExamResult}
+                >
                   <NotebookPen /> Xem kết quả
                 </Button>
               </div>
@@ -1059,8 +1076,8 @@ const LecturePlayer: React.FC = () => {
                           const bgCls = isCorrectOpt
                             ? "bg-green-50 border border-green-200"
                             : isChosenWrong
-                              ? "bg-red-50 border border-red-200"
-                              : "bg-gray-100 hover:bg-gray-200";
+                            ? "bg-red-50 border border-red-200"
+                            : "bg-gray-100 hover:bg-gray-200";
                           return (
                             <button
                               key={idx}
@@ -1181,12 +1198,19 @@ const LecturePlayer: React.FC = () => {
               Bắt đầu làm bài
             </AlertDialogTitle>
             <AlertDialogDescription className="text-center">
-              {examStatus?.isDisabled ? `Bạn đã làm bài 3 lần liên tiếp. Lần tiếp theo sẽ mở trong ${calculateExamEnableTime()}` : "Bạn có muốn bắt đầu làm bài?"}
+              {examStatus?.isDisabled
+                ? `Bạn đã làm bài 3 lần liên tiếp. Lần tiếp theo sẽ mở trong ${calculateExamEnableTime()}`
+                : "Bạn có muốn bắt đầu làm bài?"}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mx-auto">
             <AlertDialogCancel>Hủy</AlertDialogCancel>
-            <AlertDialogAction disabled={examStatus?.isDisabled} onClick={handleStartExam}>OK</AlertDialogAction>
+            <AlertDialogAction
+              disabled={examStatus?.isDisabled}
+              onClick={handleStartExam}
+            >
+              OK
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

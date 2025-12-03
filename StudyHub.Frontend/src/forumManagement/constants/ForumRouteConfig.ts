@@ -1,6 +1,6 @@
 // src/forumManagement/constants/ForumRouteConfig.ts
 const ForumRouteConfig = {
-  TEACHER: {
+  USER: {
     INDEX: "",
     FORUMS: "forums",
     POST_DETAIL: "forums/details/:postId",
@@ -16,11 +16,6 @@ const ForumRouteConfig = {
     VIOLATION_RECORDS: "violations",
     FLAIR_MANAGEMENT: "flairs",
     RULE_MANAGEMENT: "rules",
-  },
-  STUDENT: {
-    INDEX: "",
-    FORUMS: "forums",
-    POST_DETAIL: "forums/details/:postId",
   },
 };
 

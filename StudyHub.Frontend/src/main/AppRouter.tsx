@@ -21,66 +21,37 @@ import { useConversationStore } from "@/qaManagement/stores/useConversationStore
 import { useMessageStore } from "@/qaManagement/stores/useMessageStore";
 import NotFound from "@/common/pages/NotFound";
 import recommendationRoutes from "@/recommend/routes/RecommendationRoutes";
+import ProtectedRoute from "@/common/components/ProtectedRoute";
 
 const AppRouter = () => {
-  const { user, checkAuth } = useAuthStore();
+  const { user, checkAuth, isAuthenticated, isCheckingAuth } = useAuthStore();
   const { startPresence, stopPresence } = useUserOnlineStore();
   const { startPaymentConnection, stopPaymentConnection } = usePaymentStore();
   const { startRead, stopRead } = useConversationStore();
   const { startChat, stopChat } = useMessageStore();
 
-  // on component mount, check auth and start authentication hubs
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
   useEffect(() => {
     (async () => {
       try {
-        await checkAuth();
-        try {
-          // read latest user after checkAuth completed
-          const currentUser = useAuthStore.getState().user;
-          if (!currentUser) return;
-          await startPresence();
-          await startPaymentConnection();
-          await startRead?.();
-          await startChat?.();
-
-          // stop presence when the tab/window unloads
-          try {
-            window.addEventListener("beforeunload", stopPresence as any);
-            window.addEventListener("beforeunload", stopRead as any);
-            window.addEventListener("beforeunload", stopChat as any);
-            window.addEventListener("beforeunload", stopPresence as any);
-            window.removeEventListener(
-              "beforeunload",
-              stopPaymentConnection as any
-            );
-          } catch (err) {
-            console.warn("failed to add unload listener", err);
-          }
-        } catch (err) {
-          // non-fatal
-          console.warn("startPresence failed", err);
-        }
-      } catch {
-        console.log("lỗi authorization");
+        // read latest user after checkAuth completed
+        if (!isAuthenticated) return;
+        await startPresence?.();
+        await startPaymentConnection();
+        await startRead?.();
+        await startChat?.();
+      } catch (err) {
+        // non-fatal
+        console.warn("startPresence failed", err);
       }
     })();
     return () => {
       try {
-        // remove unload listener and stop presence
-        try {
-          window.removeEventListener("beforeunload", stopPresence as any);
-          window.removeEventListener(
-            "beforeunload",
-            stopPaymentConnection as any
-          );
-          window.removeEventListener("beforeunload", stopRead as any);
-          window.removeEventListener("beforeunload", stopChat as any);
-        } catch (err) {
-          console.warn("failed to remove unload listener", err);
-        }
-        const currentUser = useAuthStore.getState().user;
-        if (!currentUser) return;
-        stopPresence();
+        if (!isAuthenticated) return;
+        stopPresence?.();
         stopPaymentConnection();
         stopRead?.();
         stopChat?.();
@@ -88,19 +59,19 @@ const AppRouter = () => {
         /* ignore */
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); //bảo sao bị call 2 lần => x2 call api
-
-  // useEffect(() => {
-  //   if (authChecked && !user && !location.pathname.includes("/auth")) {
-  //     navigate("/");
-  //   }
-  // }, [authChecked, user, location.pathname, navigate]);
+    // eslint-disable-next-line
+  }, [isAuthenticated]);
 
   const appRoutes = [
     {
       path: "/",
-      element: user ? <RegisteredLayout user={user} /> : <GuestLayout />,
+      element: user ? (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ) : (
+        <GuestLayout />
+      ),
       children: [
         {
           index: true,
@@ -115,52 +86,98 @@ const AppRouter = () => {
     },
     {
       path: RouteConfig.USER,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />,
+        </ProtectedRoute>
+      ),
       children: userRoutes,
     },
     {
       path: RouteConfig.UI_MANAGEMENT,
-      element: user ? <RegisteredLayout user={user} /> : <GuestLayout />,
+      element: user ? (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ) : (
+        <GuestLayout />
+      ),
       children: uiManagementRoutes,
     },
     {
       path: RouteConfig.CLASS_MANAGEMENT,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
       children: classRoutes,
     },
     {
       path: RouteConfig.DOCUMENT_MANAGEMENT,
-      element: user ? <RegisteredLayout user={user} /> : <GuestLayout />,
+      element: user ? (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ) : (
+        <GuestLayout />
+      ),
       children: documentRoutes,
     },
     {
       path: RouteConfig.COURSE_MANAGEMENT,
-      element: user ? <RegisteredLayout user={user} /> : <GuestLayout />,
+      element: user ? (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ) : (
+        <GuestLayout />
+      ),
       children: courseRoutes,
     },
     {
       path: RouteConfig.PAYMENT_MANAGEMENT,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
       children: paymentRoutes,
     },
     {
       path: RouteConfig.FORUM_MANAGEMENT,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
       children: forumRoutes,
     },
     {
       path: RouteConfig.QA_MANAGEMENT,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
       children: qaRoutes,
     },
     {
       path: RouteConfig.EXAM,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
       children: examRoutes,
     },
     {
       path: RouteConfig.RECOMMENDATION,
-      element: <RegisteredLayout user={user} />,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
       children: recommendationRoutes,
     },
     {
@@ -170,6 +187,19 @@ const AppRouter = () => {
   ];
 
   const routesElement = useRoutes(appRoutes);
+
+  if (isCheckingAuth) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/60 dark:bg-black/60">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-sky-500" />
+          <p className="text-lg text-slate-700 dark:text-slate-200">
+            Đang kiểm tra xác thực...
+          </p>
+        </div>
+      </div>
+    );
+  }
   return routesElement;
 };
 

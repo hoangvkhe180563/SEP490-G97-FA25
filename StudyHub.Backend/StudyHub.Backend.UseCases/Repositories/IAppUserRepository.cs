@@ -20,6 +20,9 @@ namespace StudyHub.Backend.UseCases.Repositories
         // Get all users who have a teacher-related role (role name contains "teacher")
         public List<AppUser> GetQATeachers();
 
+        // Get users who have any of the standard teacher roles (Subject Teacher, Head of Department Teacher, Q&A Teacher, Homeroom Teacher)
+        public List<AppUser> GetTeachers();
+
         // Get QA teachers who teach a given subject (by subject id)
         public List<AppUser> GetQATeachersBySubject(short subjectId);
 
@@ -27,6 +30,8 @@ namespace StudyHub.Backend.UseCases.Repositories
         public List<AppUserClaim> GetClaimsForUser(Guid userId);
         // get all subject ids associated with a user
         public List<short> GetUserSubjectIds(Guid userId);
+        // Get all role names assigned to a user
+        public List<string> GetUserRoleNames(Guid userId);
         // helper to get related names
 
         // find user by refresh token

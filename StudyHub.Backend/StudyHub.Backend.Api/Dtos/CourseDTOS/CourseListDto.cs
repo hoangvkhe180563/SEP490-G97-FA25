@@ -1,3 +1,5 @@
+using StudyHub.Backend.Domain.Entities;
+
 namespace StudyHub.Backend.Api.Dtos.CourseDTOS;
 
 public class CourseListDto
@@ -16,6 +18,8 @@ public class CourseListDto
     public string Status { get; set; }
     public DateTime CreatedAt { get; set; }
 
+    public string TeacherCreatedName { get; set; } = null!;
+
     public DateTime StartAt { get; set; }
 
     public DateTime EndAt { get; set; }
@@ -24,8 +28,11 @@ public class CourseListDto
 
     public Guid? UpdatedBy { get; set; }
 
+    public string TeacherUpdatedName { get; set; } = null!;
+
     public Guid CreatedBy { get; set; }
     public bool IsApproved { get; set; }
+    public Subject Subject { get; set; } = null!;
     public List<ChapterListDto> Chapters { get; set; } = new();
 }
 

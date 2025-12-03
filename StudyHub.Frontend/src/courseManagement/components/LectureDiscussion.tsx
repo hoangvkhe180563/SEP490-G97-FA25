@@ -1,4 +1,5 @@
 import React from "react";
+import { formatDateTime } from "@/courseManagement/utils/formatDate";
 import {
   Card,
   CardContent,
@@ -144,7 +145,7 @@ const LectureDiscussion: React.FC<Props> = ({ lessonId, courseId }) => {
                       </p>
                       <div className="flex items-center text-xs text-gray-500 mt-0.5">
                         <Clock className="w-3.5 h-3.5 mr-1 text-gray-400" />
-                        <span>{new Date(c.createdAt).toLocaleString("vi-VN")}</span>
+                        <span>{formatDateTime(c.createdAt)}</span>
                       </div>
                     </div>
 
