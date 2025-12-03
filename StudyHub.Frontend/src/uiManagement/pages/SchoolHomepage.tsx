@@ -21,12 +21,12 @@ const SchoolHomepage = () => {
   useEffect(() => {
     const fetchData = async () => {
       if (!user) {
+        navigate("/");
         return;
       }
       try {
         const schoolId = user.schoolId;
         if (!schoolId) {
-          toast.error("Bạn không có quyền truy cập!");
           navigate("/");
           return;
         }
@@ -60,7 +60,8 @@ const SchoolHomepage = () => {
     }
 
     fetchData().catch(console.error);
-  }, [user])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return <div className="w-full h-full overflow-y-auto">
     <Banner logo={data?.logoImage} image={data?.bannerImage} schoolId={schoolId} />
