@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo } from "react";
+import { formatDate } from "@/courseManagement/utils/formatDate";
 import CourseItem from "../../components/CourseItem";
 import type { CourseListDto as CourseType } from "@/courseManagement/interfaces/types";
 import {
@@ -14,8 +15,6 @@ import CourseFilterTeacher from "@/courseManagement/components/CourseFilterTeach
 
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import type { CourseListDto } from "@/courseManagement/types/api";
-import { documentService } from "@/documentManagement/services/documentService";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const CourseList: React.FC = () => {
@@ -24,9 +23,6 @@ const CourseList: React.FC = () => {
   const totalCourses = useCourseStore((s) => s.total);
   const page = useCourseStore((s) => s.page);
   const pageSize = useCourseStore((s) => s.pageSize);
-  const filterAppUsers = useAppUserStore((s) => s.filterAppUsers);
-  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
-  const [teachers, setTeachers] = useState<any[]>([]);
   const authUser = useAuthStore((s) => s.user);
 
   const totalPages = useMemo(() => {
@@ -46,32 +42,6 @@ const CourseList: React.FC = () => {
         });
     }
   };
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const s = await documentService.getSubjects();
-        if (!mounted) return;
-        setSubjects((s || []).map((x: any) => ({ id: x.id, name: x.name })));
-      } catch (err) {
-        console.error("Failed to load subjects", err);
-      }
-    })();
-    (async () => {
-      try {
-        const r = await filterAppUsers(
-          "role=00000000-0000-0000-0000-000000000003&page=1"
-        );
-        setTeachers(r?.data ?? []);
-      } catch (err) {
-        // ignore
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [filterAppUsers]);
 
   useEffect(() => {
     (async () => {
@@ -96,16 +66,18 @@ const CourseList: React.FC = () => {
     price: c.price,
     grade: c.grade,
     subjectId: c.subjectId,
-    subjectName: subjects.find((s) => s.id === c.subjectId)?.name || "",
+    subjectName: c.subject?.name ?? "",
     schoolId: c.schoolId ?? null,
     isFeatured: c.isFeatured,
     status: c.status,
-    createdAt: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "",
-    startAt: c.startAt ? new Date(c.startAt).toLocaleDateString() : "",
-    endAt: c.endAt ? new Date(c.endAt).toLocaleDateString() : "",
-    updatedAt: c.updatedAt ? new Date(c.updatedAt).toLocaleDateString() : null,
-    updatedBy: teachers.find((t) => t.id === c.updatedBy)?.fullname || "",
-    createdBy: teachers.find((t) => t.id === c.createdBy)?.fullname || "",
+    createdAt: c.createdAt ? formatDate(c.createdAt) : "",
+    startAt: c.startAt ? formatDate(c.startAt) : "",
+    endAt: c.endAt ? formatDate(c.endAt) : "",
+    updatedAt: c.updatedAt ? formatDate(c.updatedAt) : null,
+    updatedBy: c.updatedBy ?? null,
+    createdBy: c.createdBy ?? null,
+    teacherCreatedName: c.teacherCreatedName ?? "Giáo viên",
+    teacherUpdatedName: c.teacherUpdatedName ?? null,
     chapters: c.chapters ?? [],
     isApproved: c.isApproved,
     difficulty: c.difficulty,
