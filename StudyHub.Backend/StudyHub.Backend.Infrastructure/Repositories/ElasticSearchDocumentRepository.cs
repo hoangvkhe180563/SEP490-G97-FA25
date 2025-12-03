@@ -5,7 +5,6 @@ using StudyHub.Backend.Domain.Entities.ElasticSearch;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Repositories;
-using static Grpc.Core.Metadata;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {

@@ -3,7 +3,6 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { AuthState } from "../interfaces/stores";
 import { axiosInstance, axiosMessageErrorHandler } from "@/lib/axios";
-import { useUserOnlineStore } from "@/common/stores/useUserOnlineStore";
 import type { AppUser } from "../interfaces/app-user";
 
 export const useAuthStore = create<AuthState>()(
@@ -13,7 +12,7 @@ export const useAuthStore = create<AuthState>()(
       googleRedirectURL: "",
       isAuthenticated: false,
       isLoading: false,
-      isCheckingAuth: false,
+      isCheckingAuth: true,
       error: null,
       message: "",
       loginMessage: "",
@@ -62,13 +61,6 @@ export const useAuthStore = create<AuthState>()(
           });
           if (data.success) {
             handlerSuccess(data.data);
-            try {
-              const start = useUserOnlineStore.getState().startPresence;
-              if (start) start();
-            } catch (err) {
-              // best-effort
-              console.warn("startPresence on login failed", err);
-            }
           }
         } catch (error: unknown) {
           set({
@@ -223,7 +215,6 @@ export const useAuthStore = create<AuthState>()(
             set({ isAuthenticated: true, user: data.data });
           } else {
             set({ isAuthenticated: false, user: null });
-            console.log("s");
           }
         } catch {
           set({ isAuthenticated: false, user: null });
@@ -329,23 +320,12 @@ export const useAuthStore = create<AuthState>()(
       // call the server. When we call the server, pass a flag to the request
       // config so the response interceptor can skip trying to refresh/ retry
       // on the logout request and avoid recursive behavior.
-      logout: async (remote = true) => {
+      logout: async () => {
         // Clear local state synchronously so UI reacts immediately.
         set({
           user: null,
           isAuthenticated: false,
         });
-
-        // Ensure presence connection is stopped when the user logs out locally
-        try {
-          const stop = useUserOnlineStore.getState().stopPresence;
-          if (stop) stop();
-        } catch (err) {
-          // best-effort
-          console.warn("stopPresence on logout failed", err);
-        }
-
-        if (!remote) return;
 
         try {
           // Add a custom flag to the request config so the interceptor can

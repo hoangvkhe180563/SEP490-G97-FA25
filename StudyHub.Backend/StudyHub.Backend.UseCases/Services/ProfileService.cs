@@ -4,6 +4,7 @@ using System.Linq;
 using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Repositories.Exam;
+using StudyHub.Backend.Domain.Entities;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -15,9 +16,22 @@ namespace StudyHub.Backend.UseCases.Services
         private readonly IChapterRepository _chapterRepository;
         private readonly IExamResultRepository _examResultRepository;
         private readonly StudyHub.Backend.UseCases.Repositories.Exam.IExamRepository _examRepository;
+        private readonly AuthService _authService;
         private readonly IClassRepository _classRepository;
+        private readonly IClassMemberRepository _classMemberRepository;
+        private readonly IAppUserRepository _appUserRepository;
 
-        public ProfileService(IEnrollmentRepository enrollmentRepository, ICourseRepository courseRepository, IProgressRepository progressRepository, IChapterRepository chapterRepository, IExamResultRepository examResultRepository, StudyHub.Backend.UseCases.Repositories.Exam.IExamRepository examRepository, IClassRepository classRepository)
+        public ProfileService(
+            IEnrollmentRepository enrollmentRepository,
+            ICourseRepository courseRepository,
+            IProgressRepository progressRepository,
+            IChapterRepository chapterRepository,
+            IExamResultRepository examResultRepository,
+            StudyHub.Backend.UseCases.Repositories.Exam.IExamRepository examRepository,
+            IClassRepository classRepository,
+            IClassMemberRepository classMemberRepository,
+            IAppUserRepository appUserRepository,
+            AuthService authService)
         {
             _enrollmentRepository = enrollmentRepository;
             _courseRepository = courseRepository;
@@ -26,229 +40,169 @@ namespace StudyHub.Backend.UseCases.Services
             _examResultRepository = examResultRepository;
             _examRepository = examRepository;
             _classRepository = classRepository; // Assigning the new parameter to the field
+            _classMemberRepository = classMemberRepository;
+            _appUserRepository = appUserRepository;
+            _authService = authService;
         }
 
-        public UserLearningProfile GetUserLearningProfile(Guid userId)
+        public UserLearningProfile GetUserLearningProfile()
         {
-            var profile = new UserLearningProfile
+            var profile = new UserLearningProfile();
+
+            // obtain current user from auth service
+            var current = _authService.GetCurrentUser();
+            if (current == null) return profile;
+
+            var userId = current.Id;
+            profile.UserId = userId.ToString();
+            profile.SchoolId = current?.SchoolId ?? 0;
+
+            // classes the user belongs to
+            var classes = _classRepository.GetClassByUserId(userId) ?? new List<Class>();
+
+            // current grades
+            profile.CurrentGrades = classes.Select(c => (int)c.Grade).Distinct().ToList();
+
+            // prepare subject lookup
+            var allSubjects = _classRepository.GetAllSubject();
+            if (allSubjects == null) allSubjects = new List<Subject>();
+            var subjectMap = allSubjects.ToDictionary(s => s.Id, s => s.Name ?? string.Empty);
+
+            // collect subject ids from class exams (subjects student studies via class)
+            var classIds = classes.Select(c => c.Id).Distinct().ToList();
+            var subjectIdsStudied = new HashSet<short>();
+            foreach (var cid in classIds)
             {
-                UserId = userId.ToString(),
-                SchoolId = 0
-            };
-
-            // Compute class-based metrics first (CurrentGrades, CurrentSubjectStudied, SubjectStrength, WorkSpeed)
-            var classes = _classRepository.GetAllClassByUserId(userId);
-
-            var subjectClassAverages = new Dictionary<string, List<float>>(); // per-subject list of class-average scores
-            var subjectClassWorkHours = new Dictionary<string, List<double>>(); // per-subject list of class-average hours
-
-            foreach (var cls in classes)
-            {
-                try
+                var exams = _examRepository.GetAllClassExams(cid) ?? new List<Domain.Entities.Exam.Exam>();
+                foreach (var ex in exams)
                 {
-                    if (!string.IsNullOrWhiteSpace(cls.Name))
-                    {
-                        var ch = cls.Name.FirstOrDefault(c => char.IsDigit(c));
-                        if (ch != default(char))
-                        {
-                            var parsedGrade = ch - '0';
-                            if (parsedGrade >= 0)
-                            {
-                                profile.CurrentGrades.Add(parsedGrade);
-                            }
-                        }
-                    }
-                }
-                catch
-                {
-                    // ignore parsing issues
-                }
-                // collect scores/hours per subject for this class
-                var classSubjectScores = new Dictionary<string, List<float>>();
-                var classSubjectHours = new Dictionary<string, List<double>>();
-
-                var classExams = _examRepository.GetAllClassExams(cls.Id);
-                foreach (var exam in classExams)
-                {
-                    // map exam -> lesson -> course -> subject
-                    string subjectName = "Unknown";
-                    var courseId = 0;
-                    if (exam.LessonId > 0)
-                    {
-                        courseId = _examRepository.GetCourseIdByLessonId(exam.LessonId);
-                        var course = _courseRepository.GetCourseById(courseId);
-                        if (course != null)
-                        {
-                            subjectName = course.Subject?.Name ?? subjectName;
-                        }
-                    }
-
-                    if (!profile.CurrentSubjectStudied.Contains(subjectName)) profile.CurrentSubjectStudied.Add(subjectName);
-
-                    // parse grade from class name (take first numeric digit only)
-
-
-                    // get student's results for this exam
-                    var studentResults = _examResultRepository.GetResultsByExamIdAndStudentId(exam.Id, userId);
-                    foreach (var res in studentResults)
-                    {
-                        if (!classSubjectScores.ContainsKey(subjectName)) classSubjectScores[subjectName] = new List<float>();
-                        classSubjectScores[subjectName].Add((float)res.Score / 100f);
-
-                        // compute time taken relative to exam open time
-                        try
-                        {
-                            if (res.SubmissionTime != default && exam.OpenTime != default && res.SubmissionTime > exam.OpenTime)
-                            {
-                                var hours = (res.SubmissionTime.GetValueOrDefault() - exam.OpenTime).TotalHours;
-                                if (hours >= 0)
-                                {
-                                    if (!classSubjectHours.ContainsKey(subjectName)) classSubjectHours[subjectName] = new List<double>();
-                                    classSubjectHours[subjectName].Add(hours);
-                                }
-                            }
-                        }
-                        catch
-                        {
-                            // ignore date issues
-                        }
-                    }
-                }
-
-                // compute per-class average per subject and add to global lists
-                foreach (var kv in classSubjectScores)
-                {
-                    var subj = kv.Key;
-                    var avg = kv.Value.Count > 0 ? kv.Value.Average() : 0f;
-                    if (!subjectClassAverages.ContainsKey(subj)) subjectClassAverages[subj] = new List<float>();
-                    subjectClassAverages[subj].Add(avg);
-                }
-
-                foreach (var kv in classSubjectHours)
-                {
-                    var subj = kv.Key;
-                    var avgHours = kv.Value.Count > 0 ? kv.Value.Average() : 0.0;
-                    if (!subjectClassWorkHours.ContainsKey(subj)) subjectClassWorkHours[subj] = new List<double>();
-                    subjectClassWorkHours[subj].Add(avgHours);
+                    if (ex.SubjectId.HasValue)
+                        subjectIdsStudied.Add((short)ex.SubjectId.Value);
                 }
             }
 
-            // now map class aggregates into SubjectStrength and WorkSpeed (preliminary)
-            var enrollments = _enrollmentRepository.GetEnrollmentsByUser(userId);
-            var subjectCourseWatch = new Dictionary<string, List<float>>();
-            var subjectExamScores = new Dictionary<string, List<float>>();
-            var subjectWorkHours = new Dictionary<string, List<double>>();
-
-            // SubjectStrength: average of class averages per subject
-            foreach (var kv in subjectClassAverages)
+            // Additionally, include subjects owned by teachers in these classes.
+            // For each class get its members; if a member is not the current user and has a teacher role
+            // (Subject Teacher or Homeroom Teacher) then include their subject ids.
+            foreach (var cid in classIds)
             {
-                var subj = kv.Key;
-                var classAvgs = kv.Value;
-                var strength = classAvgs.Count > 0 ? classAvgs.Average() : 0f;
-                profile.SubjectStrength[subj] = (float)Math.Round(strength, 4);
-            }
+                var members = _classMemberRepository.GetClassMembers(cid) ?? new List<AppUserClass>();
+                foreach (var m in members)
+                {
+                    if (m.UserId == userId) continue; // skip current user
 
-            // WorkSpeed: normalize averaged class hours -> closer to 1 is faster
-            foreach (var kv in subjectClassWorkHours)
+                    // get role names for the member
+                    var roles = _appUserRepository.GetUserRoleNames(m.UserId) ?? new List<string>();
+                    var hasTeacherRole = roles.Any(r => string.Equals(r, "Subject Teacher", StringComparison.OrdinalIgnoreCase) || string.Equals(r, "Homeroom Teacher", StringComparison.OrdinalIgnoreCase));
+                    if (!hasTeacherRole) continue;
+
+                    // get subject ids owned by that teacher and add them
+                    var teacherSubjectIds = _appUserRepository.GetUserSubjectIds(m.UserId) ?? new List<short>();
+                    foreach (var sid in teacherSubjectIds)
+                    {
+                        subjectIdsStudied.Add(sid);
+                    }
+                }
+            }
+            profile.CurrentSubjectStudied = subjectIdsStudied.Select(id => subjectMap.ContainsKey(id) ? subjectMap[id] : id.ToString()).ToList();
+
+            // get all exam results for this student
+            var results = _examResultRepository.GetResultsByStudentId(userId) ?? new List<Domain.Entities.Exam.ExamResult>();
+
+            // SubjectStrength: average score on class exams (only exams belonging to user's classes)
+            var strengthGroups = new Dictionary<short, List<decimal>>();
+            foreach (var r in results)
             {
-                var subj = kv.Key;
-                var avgHours = kv.Value.Count > 0 ? kv.Value.Average() : 0.0;
-                var norm = 1.0 - Math.Min(avgHours / 720.0, 1.0);
-                profile.WorkSpeed[subj] = (float)Math.Round((float)norm, 4);
+                var ex = _examRepository.GetExamById(r.ExamId);
+                if (ex == null) continue;
+                if (ex.ClassId != 0 && classIds.Contains(ex.ClassId))
+                {
+                    var sid = ex.SubjectId ?? 0;
+                    if (!strengthGroups.ContainsKey((short)sid)) strengthGroups[(short)sid] = new List<decimal>();
+                    strengthGroups[(short)sid].Add(r.Score);
+                }
             }
+            var strengthBySub = new Dictionary<string, float>();
+            foreach (var kv in strengthGroups)
+            {
+                var avg = kv.Value.Average();
+                var norm = avg > 1 ? (double)(avg / 100m) : (double)avg;
+                var name = subjectMap.ContainsKey(kv.Key) ? subjectMap[kv.Key] : kv.Key.ToString();
+                strengthBySub[name] = (float)Math.Round(norm, 3);
+            }
+            profile.SubjectStrength = strengthBySub;
 
+            // SubjectAccuracy: average score for lesson exams that belong to courses
+            var accuracyGroups = new Dictionary<short, List<decimal>>();
+            foreach (var r in results)
+            {
+                var ex = _examRepository.GetExamById(r.ExamId);
+                if (ex == null) continue;
+                if (ex.LessonId != 0)
+                {
+                    var courseId = _examRepository.GetCourseIdByLessonId(ex.LessonId);
+                    if (courseId != 0)
+                    {
+                        var sid = ex.SubjectId ?? 0;
+                        if (!accuracyGroups.ContainsKey((short)sid)) accuracyGroups[(short)sid] = new List<decimal>();
+                        accuracyGroups[(short)sid].Add(r.Score);
+                    }
+                }
+            }
+            var accuracyBySub = new Dictionary<string, float>();
+            foreach (var kv in accuracyGroups)
+            {
+                var avg = kv.Value.Average();
+                var norm = avg > 1 ? (double)(avg / 100m) : (double)avg;
+                var name = subjectMap.ContainsKey(kv.Key) ? subjectMap[kv.Key] : kv.Key.ToString();
+                accuracyBySub[name] = (float)Math.Round(norm, 3);
+            }
+            profile.SubjectAccuracy = accuracyBySub;
+
+            // WorkSpeed: based on exam duration and submission times for class exams
+            var speedGroups = new Dictionary<short, List<double>>();
+            foreach (var r in results)
+            {
+                var ex = _examRepository.GetExamById(r.ExamId);
+                if (ex == null) continue;
+                if (ex.ClassId != 0 && classIds.Contains(ex.ClassId))
+                {
+                    if (r.SubmissionTime != default && r.FinishTime != default)
+                    {
+                        var timeTaken = Math.Abs((r.SubmissionTime.GetValueOrDefault() - r.FinishTime).TotalSeconds);
+                        var maxSeconds = (double)(ex.Duration * 60);
+                        var speed = maxSeconds <= 0 ? 0 : Math.Min(1.0, maxSeconds / Math.Max(1.0, timeTaken));
+                        var sid = ex.SubjectId ?? 0;
+                        if (!speedGroups.ContainsKey((short)sid)) speedGroups[(short)sid] = new List<double>();
+                        speedGroups[(short)sid].Add(speed);
+                    }
+                }
+            }
+            var workSpeed = new Dictionary<string, float>();
+            foreach (var kv in speedGroups)
+            {
+                var avg = kv.Value.Average();
+                var name = subjectMap.ContainsKey(kv.Key) ? subjectMap[kv.Key] : kv.Key.ToString();
+                workSpeed[name] = (float)Math.Round(avg, 3);
+            }
+            profile.WorkSpeed = workSpeed;
+
+            // CourseWatchPercentage: for each enrollment, percentage of lessons completed in course, grouped by subject name
+            var enrollments = _enrollmentRepository.GetEnrollmentsByUser(userId) ?? new List<Enrollment>();
+            var courseWatch = new Dictionary<string, float>();
             foreach (var en in enrollments)
             {
                 var course = _courseRepository.GetCourseById(en.CourseId);
                 if (course == null) continue;
-
-                var subjectName = course.Subject?.Name ?? "Unknown";
-
-                // course watch percentage: lesson progresses / total lessons
-                var chapters = _chapterRepository.GetChaptersByCourseId(course.Id);
-                var totalLessons = chapters.SelectMany(ch => ch.Lessons).Count();
-                var progresses = _progressRepository.GetProgressesByEnrollment(en.Id);
-                var doneCount = progresses.Count;
-                float courseWatch = 0f;
-                if (totalLessons > 0) courseWatch = (float)doneCount / totalLessons;
-
-                if (!subjectCourseWatch.ContainsKey(subjectName)) subjectCourseWatch[subjectName] = new List<float>();
-                subjectCourseWatch[subjectName].Add(courseWatch);
-
-                // work speed: average hours from enrollment to progress completion for this enrollment
-                if (progresses.Count > 0)
-                {
-                    var hours = progresses.Select(p => (p.CompletionDate - en.EnrollmentDate).TotalHours).Where(h => h >= 0).ToList();
-                    if (hours.Count > 0)
-                    {
-                        var avgHours = hours.Average();
-                        if (!subjectWorkHours.ContainsKey(subjectName)) subjectWorkHours[subjectName] = new List<double>();
-                        subjectWorkHours[subjectName].Add(avgHours);
-                    }
-                }
+                var chapters = _chapterRepository.GetChaptersByCourseId(course.Id) ?? new List<Chapter>();
+                var totalLessons = chapters.Sum(ch => ch.Lessons?.Count ?? 0);
+                var progresses = _progressRepository.GetProgressesByEnrollment(en.Id) ?? new List<CourseProgress>();
+                var completed = progresses.Select(p => p.LessonId).Distinct().Count();
+                var pct = totalLessons == 0 ? 0f : (float)completed / (float)totalLessons;
+                var subjName = subjectMap.ContainsKey((short)course.SubjectId) ? subjectMap[(short)course.SubjectId] : course.SubjectId.ToString();
+                courseWatch[subjName] = (float)Math.Round(pct, 3);
             }
-
-            // Subject accuracy: from exam results
-            var examResults = _examResultRepository.GetResultsByStudentId(userId);
-            foreach (var res in examResults)
-            {
-                try
-                {
-                    string subject = "Unknown";
-                    var exam = _examRepository.GetExamById(res.ExamId);
-                    if (exam != null && exam.LessonId > 0)
-                    {
-                        var courseId = _examRepository.GetCourseIdByLessonId(exam.LessonId);
-                        var course = _courseRepository.GetCourseById(courseId);
-                        if (course != null) subject = course.Subject?.Name ?? subject;
-                    }
-
-                    if (!subjectExamScores.ContainsKey(subject)) subjectExamScores[subject] = new List<float>();
-                    // Score decimal to float normalized 0..1 (assume score max 100)
-                    subjectExamScores[subject].Add((float)res.Score / 100f);
-                }
-                catch
-                {
-                    // ignore mapping errors
-                }
-            }
-
-            // Aggregate per-subject metrics
-            foreach (var kv in subjectCourseWatch)
-            {
-                var subj = kv.Key;
-                var avgWatch = kv.Value.Count > 0 ? kv.Value.Average() : 0f;
-                profile.CourseWatchPercentage[subj] = (float)Math.Round(avgWatch, 4);
-            }
-
-            foreach (var kv in subjectExamScores)
-            {
-                var subj = kv.Key;
-                var avg = kv.Value.Count > 0 ? kv.Value.Average() : 0f;
-                profile.SubjectAccuracy[subj] = (float)Math.Round(avg, 4);
-            }
-
-            foreach (var kv in subjectWorkHours)
-            {
-                var subj = kv.Key;
-                var avgHours = kv.Value.Average();
-                // Normalize work speed: faster (smaller hours) -> closer to 1. Cap normalization at 720 hours (30 days)
-                var norm = 1.0 - Math.Min(avgHours / 720.0, 1.0);
-                profile.WorkSpeed[subj] = (float)Math.Round((float)norm, 4);
-            }
-
-            // Subject strength: combine watch and accuracy (60% watch, 40% accuracy) if both exist, else fallback
-            var subjects = new HashSet<string>(profile.CurrentSubjectStudied.Concat(profile.SubjectAccuracy.Keys).Concat(profile.CourseWatchPercentage.Keys));
-            foreach (var subj in subjects)
-            {
-                float watch = profile.CourseWatchPercentage.ContainsKey(subj) ? profile.CourseWatchPercentage[subj] : 0f;
-                float acc = profile.SubjectAccuracy.ContainsKey(subj) ? profile.SubjectAccuracy[subj] : 0f;
-                var strength = 0.6f * watch + 0.4f * acc;
-                profile.SubjectStrength[subj] = (float)Math.Round(strength, 4);
-            }
-
-            // dedupe current grades
-            profile.CurrentGrades = profile.CurrentGrades.Distinct().ToList();
+            profile.CourseWatchPercentage = courseWatch;
 
             return profile;
         }

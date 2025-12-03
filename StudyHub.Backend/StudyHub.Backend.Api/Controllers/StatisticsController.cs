@@ -245,5 +245,88 @@ namespace StudyHub.Backend.Api.Controllers
                 return StatusCode(500, new { Success = false, Message = "Lấy người dùng tốn token nhất thất bại", Error = ex.Message });
             }
         }
+
+        // Group: QA conversation statistics
+        [HttpGet("QA/Overview")]
+        public IActionResult QaOverview([FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null, [FromQuery] int top = 10)
+        {
+            try
+            {
+                var totalConvs = _service.GetTotalQAConversations(start, end);
+                var totalMsgs = _service.GetTotalQAMessages(start, end);
+                var bySubject = _service.GetQAConversationCountBySubject(start, end, top);
+                var byTopic = _service.GetQAConversationCountByTopic(start, end, top);
+                var avgPaidDay = _service.GetAveragePaidConversationsPerDay(start, end);
+                var avgPaidWeek = _service.GetAveragePaidConversationsPerWeek(start, end);
+                var avgPaidMonth = _service.GetAveragePaidConversationsPerMonth(start, end);
+                var avgMsgsDay = _service.GetAverageMessagesPerDay(start, end);
+                var avgMsgsWeek = _service.GetAverageMessagesPerWeek(start, end);
+                var avgMsgsMonth = _service.GetAverageMessagesPerMonth(start, end);
+                var topStudents = _service.GetTopQaStudents(start, end, top);
+                var topSubjects = _service.GetTopQaSubjects(start, end, top);
+
+                return Ok(new
+                {
+                    Success = true,
+                    Data = new
+                    {
+                        TotalConversations = totalConvs,
+                        TotalMessages = totalMsgs,
+                        ConversationsBySubject = bySubject,
+                        ConversationsByTopic = byTopic,
+                        AveragePaidConversations = new { Day = avgPaidDay, Week = avgPaidWeek, Month = avgPaidMonth },
+                        AverageMessages = new { Day = avgMsgsDay, Week = avgMsgsWeek, Month = avgMsgsMonth },
+                        TopStudents = topStudents,
+                        TopSubjects = topSubjects
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lấy thống kê QA thất bại", Error = ex.Message });
+            }
+        }
+
+        [HttpGet("QA/TopTeachers")]
+        public IActionResult QaTopTeachers([FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null, [FromQuery] int top = 10, [FromQuery] string sortBy = "response")
+        {
+            try
+            {
+                var res = _service.GetTopTeachers(start, end, top, sortBy);
+                return Ok(new { Success = true, Data = res });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lấy top giáo viên thất bại", Error = ex.Message });
+            }
+        }
+
+        [HttpGet("QA/TopStudents")]
+        public IActionResult QaTopStudents([FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null, [FromQuery] int top = 10)
+        {
+            try
+            {
+                var res = _service.GetTopQaStudents(start, end, top);
+                return Ok(new { Success = true, Data = res });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lấy top học sinh hỏi nhiều thất bại", Error = ex.Message });
+            }
+        }
+
+        [HttpGet("QA/TopSubjects")]
+        public IActionResult QaTopSubjects([FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null, [FromQuery] int top = 10)
+        {
+            try
+            {
+                var res = _service.GetTopQaSubjects(start, end, top);
+                return Ok(new { Success = true, Data = res });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Lấy môn học được hỏi nhiều nhất (QA) thất bại", Error = ex.Message });
+            }
+        }
     }
 }

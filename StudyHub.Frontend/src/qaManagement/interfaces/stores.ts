@@ -46,11 +46,18 @@ interface MessageState {
 interface TopicState {
   topics: Topic[];
   isLoading: boolean;
+  isSaving: boolean;
+  isDeleting: boolean;
+  isSearching: boolean;
   success: boolean;
   message: string;
   getTopics: () => Promise<void>;
   getTopicsBySubject: (subjectId: number) => Promise<void>;
   createTopic: (dto: any) => Promise<void>;
+  updateTopic: (id: number, dto: any) => Promise<void>;
+  deleteTopic: (id: number) => Promise<void>;
+  searchTopics: (q?: string, subjectId?: number) => Promise<void>;
+  getSubjects?: () => Promise<any[]>;
 }
 
 interface AppUserState {

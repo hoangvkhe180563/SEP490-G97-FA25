@@ -532,6 +532,24 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return subjectIds;
         }
 
+        public List<string> GetUserRoleNames(Guid userId)
+        {
+            try
+            {
+                var roles = _context.AppUsers
+                    .Where(u => u.Id == userId)
+                    .SelectMany(u => u.Roles.Select(r => r.Name ?? string.Empty))
+                    .Distinct()
+                    .ToList();
+                return roles;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("AppUserRepository", "GetUserRoleNames failed. Inner error: " + ex.Message).LogError();
+                return new List<string>();
+            }
+        }
+
         // Lấy tất cả ClassId mà user đã có claims
         private List<int> GetUserClassIds(Guid userId)
         {
