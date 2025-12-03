@@ -1,42 +1,67 @@
 import { BookOpen, GraduationCap } from "lucide-react";
 import type { IFeaturedCourse } from "../interfaces/IFeaturedCourse";
 import { Link } from "react-router-dom";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/common/components/ui/carousel"
+import React from "react";
+import Autoplay from "embla-carousel-autoplay";
 
 const FeaturedCourses = (props: { data: IFeaturedCourse[] }) => {
+
+  const plugin = React.useRef(
+    Autoplay({ delay: 2000, stopOnInteraction: true })
+  );
+
   return (
-    <div className="w-full flex flex-col items-center">
-      <div className="w-4/5">
+    <div className="w-full flex flex-col items-center py-8">
+      <div className="w-full max-w-6xl px-12 mx-auto">
         <h1 className="mt-5 text-2xl py-2 font-bold text-center">
           KHÓA HỌC NỔI BẬT
         </h1>
-        <div className="space-y-8 mb-5">
-          {props.data.length === 0 && (
-            <div className="w-full text-center italic">Không có dữ liệu!</div>
-          )}
-          {props.data.map((course) => (
-            <Link
-              to={`/course/student/courses/${course.id}`}
-              key={course.id}
-              className="flex items-center p-6 bg-white rounded-lg shadow-md hover:scale-103 transition-transform duration-200"
-            >
-              <div className="flex-shrink-0 w-32 h-20 bg-gray-200 rounded-md flex items-center justify-center text-sm font-semibold text-gray-600 overflow-hidden">
-                <img className="h-full w-full" src={course.thumbnail} alt="" />
-              </div>
-              <div className="flex-grow ml-3">
-                <p className="text-xl font-semibold mb-2">{course.name}</p>
-                <div className="flex items-center gap-4 text-gray-700 text-sm">
-                  <span className="flex items-center gap-1">
-                    <BookOpen className="fill-blue-500 stroke-blue-500" /> Môn{" "}
-                    <b>{course.subjectName}</b>
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <GraduationCap className="fill-orange-500 stroke-orange-500" />{" "}
-                    Khối <b>{course.grade}</b>
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
+        <div className="space-y-6">
+          {props.data.length === 0 && <div className="w-full text-center italic">Không có dữ liệu!</div>}
+
+          <Carousel
+            plugins={[plugin.current]}
+            opts={{
+              align: "start",
+              loop: true
+            }}
+            className="w-full"
+            onMouseEnter={plugin.current.stop}
+            onMouseLeave={() => plugin.current.play()}
+          >
+            <CarouselContent className="-ml-4 my-3">
+              {props.data.map((course) => (
+                <CarouselItem key={course.id} className="pl-4 basis-full md:basis-1/2 lg:basis-1/2">
+                  <Link
+                    to={`/course/student/courses/${course.id}`}
+                    className="flex items-center gap-4 bg-white p-4 rounded-lg shadow-md hover:scale-[1.02] transition-transform h-full"
+                  >
+                    <div className="flex-shrink-0 w-20 h-20 bg-gray-200 rounded-md flex items-center justify-center text-sm overflow-hidden">
+                      <img src={course.thumbnail} alt="" className="w-full h-full object-cover rounded-md" />
+                    </div>
+                    <div className="flex flex-col justify-center">
+                      <p className="font-semibold text-lg line-clamp-1" title={course.name}>{course.name}</p>
+                      <p className="text-gray-600 text-sm flex items-center gap-1">
+                        <BookOpen size={16} className="text-blue-500" /> Môn <b className="text-gray-800">{course.subjectName}</b>
+                      </p>
+                      <p className="text-gray-600 text-sm flex items-center gap-1">
+                        <GraduationCap size={16} className="text-orange-500" /> Lớp <b className="text-gray-800">{course.grade}</b>
+                      </p>
+                    </div>
+                  </Link>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious />
+            <CarouselNext />
+          </Carousel>
         </div>
       </div>
     </div>

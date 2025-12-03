@@ -18,7 +18,6 @@ type Props = {
   classId?: number | string;
 };
 
-
 function openGmailCompose({ to, subject, body }: { to?: string; subject?: string; body?: string }) {
   const base = "https://mail.google.com/mail/";
   const params = new URLSearchParams();
@@ -27,7 +26,6 @@ function openGmailCompose({ to, subject, body }: { to?: string; subject?: string
   if (to) params.set("to", to);
   if (subject) params.set("su", subject);
   if (body) params.set("body", body);
-  // open in a new tab/window
   const url = `${base}?${params.toString()}`;
   window.open(url, "_blank", "noopener,noreferrer");
 }
@@ -36,6 +34,7 @@ const EveryoneTab: React.FC<Props> = ({
   teachers = [],
   students,
   parents,
+  onMail,
   onSelect,
   onAddMember,
   classId,
@@ -49,8 +48,10 @@ const EveryoneTab: React.FC<Props> = ({
 
   const openAdd = () => {
     if (!isTeacher) return;
+    // 1) open modal first (so modal mounts)
     setOpenAddLocal(true);
-    if (onAddMember) onAddMember();
+    // 2) call parent callback deferred (avoid sync parent side-effects causing modal mount to be lost)
+   
   };
 
   const handleSelect = (p: ClassMemberDto) => {
@@ -60,33 +61,84 @@ const EveryoneTab: React.FC<Props> = ({
   };
 
   const getEmail = (m: ClassMemberDto) => {
-    return (m as any).email ?? (m as any).userEmail ?? (m as any).emailAddress ?? (m as any).mail ?? "";
+    return (m as any).email ?? "";
   };
 
-  const getDisplayName = (m: ClassMemberDto) =>
-    (m as any).fullname ?? (m as any).fullName ?? (m as any).displayName ?? (m as any).name ?? "";
+  const getDisplayName = (m: ClassMemberDto) => (m as any).fullname ?? "";
 
-  // click handler to open Gmail compose for member
   const handleOpenGmail = (member: ClassMemberDto) => {
     const email = getEmail(member);
+    if (!email) return;
     const name = getDisplayName(member);
-    const subject = ""; // optionally set default subject here
-    const body = `Hi ${name || ""},%0D%0A%0D%0A`; // simple prefilled greeting (url encoded newline)
-    openGmailCompose({ to: email, subject, body });
+    const subject = "";
+    const body = `Hi ${name || ""},%0D%0A%0D%0A`;
+    if (typeof onMail === "function") {
+      onMail(member);
+    } else {
+      openGmailCompose({ to: email, subject, body });
+    }
   };
 
-  // capture phase handler to prevent inner mailto anchors and route to Gmail
   const onRowClickCapture = (e: React.MouseEvent, member: ClassMemberDto) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleOpenGmail(member);
+    try {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest && (target.closest("a") as HTMLAnchorElement | null);
+      if (!anchor) return;
+      const href = anchor.getAttribute("href") || "";
+      const isMailLink =
+        href.startsWith("mailto:") ||
+        anchor.dataset?.mail === "true" ||
+        anchor.classList.contains("mail-link") ||
+        /\bemail\b/i.test(anchor.className || "");
+      if (isMailLink) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleOpenGmail(member);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleRowKeyDown = (e: React.KeyboardEvent, member: ClassMemberDto) => {
+    if (e.key === "Enter" || e.key === " ") {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest && (target.closest("a") as HTMLAnchorElement | null);
+      if (anchor) {
+        const href = anchor.getAttribute("href") || "";
+        if (href.startsWith("mailto:")) {
+          handleOpenGmail(member);
+          return;
+        }
+      }
+      e.preventDefault();
+      handleSelect(member);
+    }
+  };
+
+  const renderMemberRow = (m: ClassMemberDto, roleLabel?: string) => {
+    const key = m.userId ?? `m-${Math.random()}`;
+    return (
+      <div
+        key={key}
+        role="button"
+        tabIndex={0}
+        onClickCapture={(e) => onRowClickCapture(e as React.MouseEvent, m)}
+        onClick={() => handleSelect(m)}
+        onKeyDown={(e) => handleRowKeyDown(e, m)}
+        className="block w-full text-left focus:outline-none"
+      >
+        <MemberRowSimple m={m} onSelect={handleSelect} roleLabel={roleLabel} />
+      </div>
+    );
   };
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
         {isTeacher && (
-          <Button onClick={openAdd} className="mb-2">
+          // ensure button type is explicit to avoid submitting a surrounding form
+          <Button type="button" onClick={openAdd} className="mb-2">
             Thêm thành viên
           </Button>
         )}
@@ -100,25 +152,7 @@ const EveryoneTab: React.FC<Props> = ({
           {teachers.length === 0 ? (
             <div className="text-sm text-slate-500">Chưa có giáo viên được gán cho lớp này.</div>
           ) : (
-            <div className="space-y-2">
-              {teachers.map((t) => (
-                <div
-                  key={t.userId ?? `t-${Math.random()}`}
-                  role="button"
-                  tabIndex={0}
-                  onClickCapture={(e) => onRowClickCapture(e, t)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      handleOpenGmail(t);
-                    }
-                  }}
-                  className="block w-full text-left focus:outline-none"
-                >
-                  <MemberRowSimple m={t} onSelect={handleSelect} roleLabel="Giáo viên" />
-                </div>
-              ))}
-            </div>
+            <div className="space-y-2">{teachers.map((t) => renderMemberRow(t, "Giáo viên"))}</div>
           )}
         </div>
       </Card>
@@ -131,25 +165,7 @@ const EveryoneTab: React.FC<Props> = ({
           {students.length === 0 ? (
             <div className="text-sm text-slate-500">Chưa có học sinh.</div>
           ) : (
-            <div className="space-y-2">
-              {students.map((s) => (
-                <div
-                  key={s.userId ?? `s-${Math.random()}`}
-                  role="button"
-                  tabIndex={0}
-                  onClickCapture={(e) => onRowClickCapture(e, s)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      handleOpenGmail(s);
-                    }
-                  }}
-                  className="block w-full text-left focus:outline-none"
-                >
-                  <MemberRowSimple m={s} onSelect={handleSelect} roleLabel="Học sinh" />
-                </div>
-              ))}
-            </div>
+            <div className="space-y-2">{students.map((s) => renderMemberRow(s, "Học sinh"))}</div>
           )}
         </div>
       </Card>
@@ -161,12 +177,10 @@ const EveryoneTab: React.FC<Props> = ({
       />
 
       <AddMemberModal
-        open={openAddLocal}
+        open={Boolean(openAddLocal)}
         classId={classId ? Number(classId) : 0}
         onClose={() => setOpenAddLocal(false)}
-        onInvited={() => {
-          setOpenAddLocal(false);
-        }}
+        onInvited={() => setOpenAddLocal(false)}
       />
     </div>
   );

@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import type { IIntroductionProps } from '../interfaces/IIntroductionProps'
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/common/components/ui/carousel'
 import { Card, CardContent } from '@/common/components/ui/card'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import Autoplay from 'embla-carousel-autoplay'
 
 const Introduction = (props: IIntroductionProps) => {
   const [api, setApi] = useState<CarouselApi>();
@@ -24,6 +25,10 @@ const Introduction = (props: IIntroductionProps) => {
     api?.scrollTo(index);
   };
 
+  const plugin = React.useRef(
+    Autoplay({ delay: 2000, stopOnInteraction: true })
+  );
+
   return (
     <div className='w-full flex flex-col items-center'>
       <div className='w-4/5'>
@@ -34,16 +39,16 @@ const Introduction = (props: IIntroductionProps) => {
               {props.description}
             </div>
           </div>
-          <Carousel opts={{
+          <Carousel plugins={[plugin.current]} opts={{
             loop: true,
-          }} setApi={setApi} className='w-1/2 h-[280px] relative flex flex-col items-center'>
+          }} setApi={setApi} onMouseEnter={plugin.current.stop} onMouseLeave={() => plugin.current.play()} className='w-1/2 h-[280px] relative flex flex-col items-center'>
             <CarouselContent>
               {props.introductionImage && Array.from(props.introductionImage).map((image, index) => (
                 <CarouselItem key={index}>
                   <div>
                     <Card className="rounded-none p-0">
                       <CardContent className="flex items-center justify-center p-0">
-                        <img src={image} className='w-full h-full'/>
+                        <img src={image} className='w-full h-full' />
                       </CardContent>
                     </Card>
                   </div>

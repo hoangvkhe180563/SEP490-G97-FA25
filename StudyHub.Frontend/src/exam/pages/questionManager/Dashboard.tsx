@@ -49,6 +49,7 @@ export default function Dashboard() {
     }
 
     fetchData().catch(console.error).finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const filteredQuestions = useMemo(() => {
@@ -83,6 +84,7 @@ export default function Dashboard() {
       counts[subjectName] = (counts[subjectName] || 0) + 1;
     });
     return Object.keys(counts).map(key => ({ name: key, value: counts[key] }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredQuestions]);
 
   return (

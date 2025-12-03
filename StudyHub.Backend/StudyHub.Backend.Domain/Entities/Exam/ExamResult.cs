@@ -9,7 +9,7 @@
         public string StudentName { get; set; } = string.Empty;
         public int CheatTimes { get; set; } = 0;
         public DateTime FinishTime { get; set; }
-        public DateTime SubmissionTime { get; set; }
+        public DateTime? SubmissionTime { get; set; }
         public int TotalQuestions { get; set; }
         public decimal Score { get; set; }
     }

@@ -223,10 +223,8 @@ const ClassworkSubmissionsPage: React.FC = () => {
     if (!submissions || submissions.length === 0) return 100;
     for (const s of submissions) {
       const candidates = [
-        (s as any).maxScore,
-        (s as any).total,
-        (s as any).max,
-        (s as any).max_points,
+        (s as any).maxScore
+        
       ];
       for (const c of candidates) {
         const n = Number(c);
@@ -236,9 +234,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
     if (selectedSubmission) {
       const candidates = [
         (selectedSubmission as any).maxScore,
-        (selectedSubmission as any).total,
-        (selectedSubmission as any).max,
-        (selectedSubmission as any).max_points,
+       
       ];
       for (const c of candidates) {
         const n = Number(c);
@@ -253,14 +249,8 @@ const ClassworkSubmissionsPage: React.FC = () => {
     try {
       if (!cwDetail) return null;
       const candList = [
-        cwDetail.maxScore,
-        cwDetail.MaxScore,
-        cwDetail.data?.maxScore,
-        cwDetail.data?.MaxScore,
-        cwDetail.data?.max_points,
-        cwDetail.max_points,
-        cwDetail.data?.total,
-        cwDetail.data?.max,
+        cwDetail.maxScore
+       
       ];
       for (const c of candList) {
         const n = Number(c);
@@ -278,10 +268,8 @@ const ClassworkSubmissionsPage: React.FC = () => {
       const w = works.find((x: any) => Number(x.id) === Number(workId));
       if (!w) return null;
       const candidates = [
-        w.maxScore,
-        (w as any).max_points,
-        (w as any).total,
-        (w as any).max,
+        w.maxScore
+       
       ];
       for (const c of candidates) {
         const n = Number(c);
@@ -371,10 +359,6 @@ const ClassworkSubmissionsPage: React.FC = () => {
 
         const fb =
           s.feedback ??
-          (s as any).gradeFeedback ??
-          (s as any).graderFeedback ??
-          (s as any).teacherFeedback ??
-          (s as any).feedbackText ??
           "";
         setGradeFeedback(typeof fb === "string" ? fb : String(fb ?? ""));
       } else {
@@ -393,12 +377,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
           }
 
           const fb =
-            (fallback as any).feedback ??
-            (fallback as any).gradeFeedback ??
-            (fallback as any).graderFeedback ??
-            (fallback as any).teacherFeedback ??
-            (fallback as any).feedbackText ??
-            "";
+            (fallback as any).feedback ?? "";
           setGradeFeedback(typeof fb === "string" ? fb : String(fb ?? ""));
         }
       }
@@ -539,12 +518,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
       }
 
       const serverFb =
-        (finalSubmission as any).feedback ??
-        (finalSubmission as any).gradeFeedback ??
-        (finalSubmission as any).graderFeedback ??
-        (finalSubmission as any).teacherFeedback ??
-        (finalSubmission as any).feedbackText ??
-        null;
+        (finalSubmission as any).feedback ?? null;
       setGradeFeedback(
         typeof serverFb === "string" ? serverFb : String(serverFb ?? "")
       );
@@ -598,11 +572,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
           }
           const refreshedFb =
             (refreshed as any).feedback ??
-            (refreshed as any).gradeFeedback ??
-            (refreshed as any).graderFeedback ??
-            (refreshed as any).teacherFeedback ??
-            (refreshed as any).feedbackText ??
-            "";
+          "";
           setGradeFeedback(
             typeof refreshedFb === "string"
               ? refreshedFb
