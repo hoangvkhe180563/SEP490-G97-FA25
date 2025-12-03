@@ -178,7 +178,7 @@ const detectFileType = (fileOrName: File | string | undefined): FilePreview["typ
   }
 };
 
-const AddEditClassworkForm: React.FC = () => {
+const EditClassworkForm: React.FC = () => {
   // ---------- Stable hooks & state ----------
   const params = useParams<{ id?: string; classworkId?: string }>();
   const location = useLocation();
@@ -1010,4 +1010,4 @@ const AddEditClassworkForm: React.FC = () => {
   );
 };
 
-export default AddEditClassworkForm;
+export default EditClassworkForm;

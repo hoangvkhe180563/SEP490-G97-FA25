@@ -17,21 +17,13 @@ import { Card } from "@/common/components/ui/card";
 import { Textarea } from "@/common/components/ui/textarea";
 import { Badge } from "@/common/components/ui/badge";
 import { formatISO } from "date-fns";
+import { Book } from "lucide-react";
 
 
 
 const AvatarIcon: React.FC = () => (
   <div className="w-16 h-16 rounded-full flex items-center justify-center shadow">
-    <img
-      src="https://png.pngtree.com/png-clipart/20190916/original/pngtree-book-icon-material-png-image_4587953.jpg"
-      alt="class"
-      className="w-10 h-10 rounded-full object-cover"
-      onError={(e) => {
-        const el = e.currentTarget;
-        el.onerror = null;
-        el.src = "";
-      }}
-    />
+    <Book className="w-5 h-5 text-amber-950" />
   </div>
 );
 

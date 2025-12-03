@@ -3,12 +3,14 @@ import DetailedClassTeacher from "@/classManagement/pages/teacher/DetailedClassT
 import ClassRouteConfig from "@/classManagement/constants/ClassRouteConfig";
 import { Outlet, type RouteObject } from "react-router-dom";
 import RequireRole from "@/common/components/RequireRole";
-import AddEditClassworkForm from "../pages/AddEditClasswork";
+import AddEditClassworkForm from "../pages/EditClasswork";
 import ClassworkDetail from "../pages/ClassworkDetail";
 import ConfirmInvite from "../pages/ConfirmInvite";
 import ClassRedirect from "../components/redirect/ClassRedirect";
 import ClassworkSubmissionsPage from "../pages/ClassSubmission";
 import ClassDocumentsPage from "@/classManagement/pages/ClassDocument";
+import AddClasswork from "../pages/AddClasswork";
+import EditClassworkForm from "../pages/EditClasswork";
 
 const teacherClassRoutes = [
   {
@@ -21,11 +23,11 @@ const teacherClassRoutes = [
   },
   {
     path: ClassRouteConfig.TEACHER.ADD_CLASSWORK,
-    element: <AddEditClassworkForm />,
+    element: <AddClasswork />,
   },
   {
     path: ClassRouteConfig.TEACHER.EDIT_CLASSWORK,
-    element: <AddEditClassworkForm />,
+    element: <EditClassworkForm />,
   },
   {
     path: ClassRouteConfig.TEACHER.CLASSWORK_DETAIL,

@@ -402,27 +402,24 @@ export const useClassStore = create<ClassState>()(
       importMembers: async (classId: number, formData: FormData) => {
         set({ isLoading: true, success: false, message: "" });
         try {
-          const endpoints = [
-            `/ClassMember/invite-excel?classId=${encodeURIComponent(classId)}`,
-            `/ClassMember/invite/excel?classId=${encodeURIComponent(classId)}`,
-          ];
+          const endpoints = 
+           
+            `/ClassMember/invite-excel?classId=${encodeURIComponent(classId)}`;
 
           let res: any = null;
           let lastError: any = null;
 
-          for (const ep of endpoints) {
             try {
-              res = await axiosInstance.post(ep, formData, {
-                headers: {
-                  /* Don't set Content-Type; browser will set multipart boundary */
-                },
-              });
-              break;
+              // Do NOT set Content-Type manually; axios/browser will set multipart boundary
+              res = await axiosInstance.post(endpoints, formData);
             } catch (err: any) {
               lastError = err;
-              if (err?.response?.status === 404) continue;
-              if (err?.response) break;
-            }
+              console.error(`[importMembers] POST ${endpoints} failed:`, {
+                message: err?.message,
+                status: err?.response?.status,
+                responseData: err?.response?.data,
+              });
+              // If 404, try next variant; otherwise break and return error info
           }
 
           if (!res) {
@@ -430,24 +427,20 @@ export const useClassStore = create<ClassState>()(
               lastError?.response?.data?.message ??
               lastError?.message ??
               "Failed to import invites";
-            set({
-              isLoading: false,
+            // return structured error for UI to show
+            return {
               success: false,
               message: serverMsg,
-            });
-            return { success: false, message: serverMsg };
+              rawError: lastError?.response?.data ?? lastError,
+            };
           }
 
           const raw = res?.data ?? null;
           if (raw && raw.success === false) {
-            set({
-              isLoading: false,
-              success: false,
-              message: raw?.message ?? "Failed to import invites",
-            });
             return {
               success: false,
               message: raw?.message ?? "Failed to import invites",
+              data: raw,
             };
           }
 
@@ -455,29 +448,12 @@ export const useClassStore = create<ClassState>()(
           const message = raw?.message ?? "Import completed";
           const data = raw?.data ?? raw;
 
-          set({
-            isLoading: false,
-            success,
-            message,
-          });
-
-          try {
-            await get().getClassMembers(classId);
-          } catch {
-            /* empty */
-          }
-
-          return { success, message, data };
-        } catch (error) {
-          console.error("importMembers error:", error);
-          set({
-            isLoading: false,
-            success: false,
-            message: "Failed to import invites",
-          });
-          return { success: false, message: "Failed to import invites" };
-        } finally {
-          set({ isLoading: false });
+          // return payload to caller
+          return { success, message, data, raw };
+        } catch (error: any) {
+          console.error("importMembers unexpected error:", error);
+          const msg = error?.message ?? "Failed to import invites";
+          return { success: false, message: msg, rawError: error };
         }
       },
       inviteMembers: async (
@@ -1070,7 +1046,10 @@ export const useClassStore = create<ClassState>()(
               console.debug(
                 "createClasswork: posting provided FormData to /Classwork"
               );
-              const res = await axiosInstance.post("/api/ClassNotification", payload);
+              const res = await axiosInstance.post(
+                "/api/ClassNotification",
+                payload
+              );
               const raw = res?.data ?? null;
               if (!raw || raw.success === false) {
                 set({
@@ -1089,7 +1068,10 @@ export const useClassStore = create<ClassState>()(
             } catch (err) {
               // fallback try alternate candidate
               try {
-                const res2 = await axiosInstance.post("/ClassNotification", payload);
+                const res2 = await axiosInstance.post(
+                  "/ClassNotification",
+                  payload
+                );
                 const raw2 = res2?.data ?? null;
                 if (!raw2 || raw2.success === false) {
                   set({
@@ -1188,7 +1170,6 @@ export const useClassStore = create<ClassState>()(
             }
           }
 
-         
           const keptIds = Array.isArray(payload.keptExistingFileIds)
             ? payload.keptExistingFileIds
             : Array.isArray(payload.keptFileIds)

@@ -9,7 +9,10 @@ import { isPastDeadline } from "@/classManagement/utils/dateutil";
 type Props = {
   works: ClassWork[];
   role: "teacher" | "student";
-  onOpenWork: (workId: number) => void;
+  // Backwards-compatible: onOpenWork still supported.
+  onOpenWork?: (workId: number) => void;
+  onOpenWorkStudent?: (workId: number) => void;
+  onOpenWorkTeacher?: (workId: number) => void;
   onAddWork?: () => void;
   fetchCountsForWork?: (workId: number) => Promise<void>;
   submissionCounts?: Record<number, number | null>;
@@ -21,27 +24,27 @@ type Props = {
 const normalizeFiles = (rawFiles: any[], workId: number) => {
   if (!Array.isArray(rawFiles)) return [];
   return rawFiles.map((f: any, idx: number) => ({
-    id: f.id ?? `${workId}-file-${idx}`,
-    fileName: f.fileName ?? "",
-    fileUrl: f.fileUrl ?? "",
-    thumbnail: f.thumbnail ?? undefined,
-    fileType: (f.fileType ?? "").toString().toLowerCase(),
+    id: f?.id ?? `${workId}-file-${idx}`,
+    fileName: f?.fileName ?? f?.name ?? "",
+    fileUrl: f?.fileUrl ?? f?.url ?? f?.documentUrl ?? null,
+    thumbnail: f?.thumbnail ?? undefined,
+    fileType: (f?.fileType ?? f?.contentType ?? "").toString().toLowerCase(),
     raw: f,
   }));
 };
 
 const isImageExt = (nameOrUrl?: string) => {
-  if (!nameOrUrl) return false;
-  return /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(nameOrUrl) || /jpg|jpeg|png|gif|webp|bmp|svg/i.test(nameOrUrl.split(".").pop() || "");
+  if (!nameOrUrl || typeof nameOrUrl !== "string") return false;
+  return /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(nameOrUrl) || /jpg|jpeg|png|gif|webp|bmp|svg/i.test((nameOrUrl.split(".").pop() || ""));
 };
 
 const isPdfExt = (nameOrUrl?: string) => {
-  if (!nameOrUrl) return false;
+  if (!nameOrUrl || typeof nameOrUrl !== "string") return false;
   return /\.pdf$/i.test(nameOrUrl) || (nameOrUrl.split(".").pop() || "").toLowerCase() === "pdf";
 };
 
 const isCloudinaryUrl = (u?: string) => {
-  if (!u) return false;
+  if (!u || typeof u !== "string") return false;
   try {
     const url = new URL(u);
     return url.hostname.endsWith("cloudinary.com");
@@ -154,20 +157,50 @@ async function downloadUrl(fileUrl?: string, suggestedName?: string): Promise<vo
   }
 }
 
+/**
+ * AttachmentRow: accepts either:
+ * - a string (url) OR
+ * - an object { fileUrl?, fileName?, url?, name?, raw? }
+ *
+ * It safely computes url/name and guards against non-string values to avoid `.split` on objects.
+ */
 const AttachmentRow: React.FC<{ file: any }> = ({ file }) => {
-  const url = file;
-  const name = file;
-  const ext = (name || url).split(".").pop()?.toLowerCase() ?? "";
-  const image = isImageExt(url || name);
-  const pdf = isPdfExt(url || name);
+  // Determine url and name robustly
+  let url: string | null = null;
+  let name: string | null = null;
+
+  if (typeof file === "string") {
+    url = file;
+    name = file;
+  } else if (file && typeof file === "object") {
+    // common shapes
+    url = (file.fileUrl ?? file.url ?? file.documentUrl ?? file.raw?.fileUrl ?? file.raw?.url ?? null) as string | null;
+    name = (file.fileName ?? file.name ?? (typeof url === "string" ? url.split("/").pop() : null) ?? null) as string | null;
+    // fallback to JSON string if nothing else
+    if (!name && file.id) name = String(file.id);
+  } else {
+    // unknown type: show nothing
+    url = null;
+    name = null;
+  }
+
+  const display = (name ?? url ?? "").toString();
+  const ext = (display || "").split(".").pop()?.toLowerCase() ?? "";
+  const image = isImageExt(display);
+  const pdf = isPdfExt(display);
   const stop = (e: React.MouseEvent) => { e.stopPropagation(); };
+
   return (
     <div className="w-full flex items-center gap-3 bg-white border rounded overflow-hidden px-3 py-2 hover:shadow transition">
       <div className="w-16 h-12 flex-shrink-0 rounded overflow-hidden bg-gray-100 flex items-center justify-center">
         {image ? (
-          <a href={url} target="_blank" rel="noopener noreferrer" onClick={stop} className="w-full h-full block">
-            <img src={url} alt={name} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-          </a>
+          url ? (
+            <a href={url} target="_blank" rel="noopener noreferrer" onClick={stop} className="w-full h-full block">
+              <img src={url} alt={display} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+            </a>
+          ) : (
+            <div className="w-full h-full bg-gray-100" />
+          )
         ) : pdf ? (
           <div className="flex items-center justify-center w-full h-full bg-red-50 text-red-600">
             <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none">
@@ -183,7 +216,7 @@ const AttachmentRow: React.FC<{ file: any }> = ({ file }) => {
       </div>
 
       <div className="flex-1 min-w-0" style={{ overflow: "hidden" }}>
-        <div className="text-sm text-gray-800 underline decoration-dashed truncate block" title={name}>{name}</div>
+        <div className="text-sm text-gray-800 underline decoration-dashed truncate block" title={display}>{display}</div>
         <div className="text-xs text-gray-500 mt-1" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {pdf ? "PDF" : image ? "Image" : (ext ? ext.toUpperCase() : "File")}
         </div>
@@ -193,7 +226,7 @@ const AttachmentRow: React.FC<{ file: any }> = ({ file }) => {
         {url ? (
           <>
             <a href={url} target="_blank" rel="noopener noreferrer" onClick={stop} className="text-xs text-blue-600 hover:underline px-2 py-1 rounded">Mở</a>
-            <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); void downloadUrl(url, name); }} className="text-xs text-slate-600 hover:text-slate-800 px-2 py-1 rounded hover:bg-slate-100">Tải</button>
+            <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); void downloadUrl(url as string, display); }} className="text-xs text-slate-600 hover:text-slate-800 px-2 py-1 rounded hover:bg-slate-100">Tải</button>
           </>
         ) : (
           <div className="text-xs text-slate-400">Không có liên kết</div>
@@ -203,7 +236,19 @@ const AttachmentRow: React.FC<{ file: any }> = ({ file }) => {
   );
 };
 
-const ExerciseTab: React.FC<Props> = ({ works, role, onOpenWork, onAddWork, fetchCountsForWork, submissionCounts = {}, memberCounts = {}, classDefaultCount = null, navigateToEdit }) => {
+const ExerciseTab: React.FC<Props> = ({
+  works,
+  role,
+  onOpenWork,
+  onOpenWorkStudent,
+  onOpenWorkTeacher,
+  onAddWork,
+  fetchCountsForWork,
+  submissionCounts = {},
+  memberCounts = {},
+  classDefaultCount = null,
+  navigateToEdit,
+}) => {
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -228,10 +273,23 @@ const ExerciseTab: React.FC<Props> = ({ works, role, onOpenWork, onAddWork, fetc
   };
 
   const handleCardClick = (w: ClassWork) => {
+    // Student: navigate to detail (use explicit student callback if provided,
+    // otherwise fallback to legacy onOpenWork)
     if (role === "student") {
-      onOpenWork && onOpenWork(w.id);
+      const fn = onOpenWorkStudent ?? onOpenWork;
+      if (typeof fn === "function") {
+        fn(w.id);
+        return;
+      }
+      const classIdCandidate = (w as any).classId ?? (w as any).class?.id ?? resolveClassIdFromPath();
+      if (classIdCandidate) {
+        navigate(`/class/student/${classIdCandidate}/classwork/${w.id}/detail`);
+        return;
+      }
       return;
     }
+
+    // Teacher: toggle open panel under the card (do NOT navigate away)
     const next = openDropdownId === w.id ? null : w.id;
     setOpenDropdownId(next);
     if (next === w.id && typeof fetchCountsForWork === "function") {
@@ -291,13 +349,11 @@ const ExerciseTab: React.FC<Props> = ({ works, role, onOpenWork, onAddWork, fetc
                                 navigateToEdit(w.id);
                                 return;
                               }
-                              // Try to resolve classId from work, otherwise from current path
                               const classIdCandidate = (w as any).classId ?? (w as any).class?.id ?? resolveClassIdFromPath();
                               const classId = classIdCandidate ?? "";
                               if (classId) {
                                 navigate(`/class/${role}/${classId}/classwork/${w.id}`);
                               } else {
-                                // last-resort: navigate to a path that AddEdit can parse (AddEdit will try to fetch works)
                                 navigate(`/class/${role}/classwork/${w.id}`);
                               }
                             }}
@@ -335,7 +391,26 @@ const ExerciseTab: React.FC<Props> = ({ works, role, onOpenWork, onAddWork, fetc
                         </div>
 
                         <div className="mt-4 text-right">
-                          <Button type="button" onClick={(e) => { e.stopPropagation(); onOpenWork && onOpenWork(w.id); }}>Xem chi tiết</Button>
+                          <Button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // teacher explicit handler first, then legacy fallback
+                              const fn = onOpenWorkTeacher ?? onOpenWork;
+                              if (typeof fn === "function") {
+                                fn(w.id);
+                                return;
+                              }
+                              const classIdCandidate = (w as any).classId ?? (w as any).class?.id ?? resolveClassIdFromPath();
+                              if (classIdCandidate) {
+                                navigate(`/class/teacher/${classIdCandidate}/classwork/${w.id}/submissions`);
+                              } else {
+                                navigate(`/class/teacher/${w.id}/classwork/${w.id}/submissions`);
+                              }
+                            }}
+                          >
+                            Xem chi tiết
+                          </Button>
                         </div>
                       </div>
                     </Card>
