@@ -46,6 +46,7 @@ import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { formatISO } from "date-fns";
+import { formatDateTime } from "@/courseManagement/utils/formatDate";
 
 const EditCourse: React.FC = () => {
   const navigate = useNavigate();
@@ -1535,9 +1536,9 @@ const EditCourse: React.FC = () => {
                           Cập nhật gần nhất
                           <span className="float-right">
                             {selectedCourse?.updatedAt
-                              ? formatISO(new Date(selectedCourse.updatedAt))
+                              ? formatDateTime(selectedCourse.updatedAt)
                               : selectedCourse?.createdAt
-                              ? formatISO(new Date(selectedCourse.createdAt))
+                              ? formatDateTime(selectedCourse.createdAt)
                               : "-"}
                           </span>
                         </div>
@@ -1545,7 +1546,7 @@ const EditCourse: React.FC = () => {
                           Được tạo vào
                           <span className="float-right">
                             {selectedCourse?.createdAt
-                              ? formatISO(new Date(selectedCourse.createdAt))
+                              ? formatDateTime(selectedCourse.createdAt)
                               : "-"}
                           </span>
                         </div>

@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import type { CourseListDto as Course } from "@/courseManagement/interfaces/types";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import { CalendarDays } from "lucide-react";
+import { formatDate } from "@/courseManagement/utils/formatDate";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 // module-level cache to avoid repeated fetches when many CourseCard components mount
@@ -47,19 +48,6 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
     course.id,
     enrollmentsLoaded,
   ]);
-
-  const formatDate = (d?: string | null) => {
-    if (!d) return "—";
-    try {
-      const date = new Date(d);
-      const day = String(date.getDate()).padStart(2, "0");
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const year = date.getFullYear();
-      return `${day}/${month}/${year}`;
-    } catch {
-      return String(d);
-    }
-  };
 
   const priceLabel = (() => {
     if (!course.price || course.price === 0) return "Miễn phí";

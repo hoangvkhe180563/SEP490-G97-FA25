@@ -19,6 +19,7 @@ import type {
   LessonListDto,
 } from "@/courseManagement/types/api";
 import { Clock } from "lucide-react";
+import { formatDate } from "@/courseManagement/utils/formatDate";
 import { Progress } from "@/common/components/ui/progress";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 
@@ -398,11 +399,9 @@ const CourseDetail: React.FC = () => {
                             className="inline-block w-4 h-4 mr-1 text-gray-500"
                             aria-hidden
                           />
-                          {`${new Date(
+                          {`${formatDate(
                             selectedCourse.startAt
-                          ).toLocaleDateString("vi-VN")} - ${new Date(
-                            selectedCourse.endAt
-                          ).toLocaleDateString("vi-VN")}`}
+                          )} - ${formatDate(selectedCourse.endAt)}`}
                         </>
                       ) : (
                         "-"

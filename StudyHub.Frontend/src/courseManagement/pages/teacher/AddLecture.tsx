@@ -1069,7 +1069,7 @@ const AddLecture: React.FC = () => {
                 className={`space-y-2 pt-4 ${type === "video" ? "" : "hidden"}`}
               >
                 <div className="flex items-center justify-between">
-                  <Label> Câu hỏi tương tác (Interactive questions)</Label>
+                  <Label> Câu hỏi tương tác</Label>
                   <div className="text-sm text-gray-500">
                     Hiển thị trên video tại thời điểm
                   </div>

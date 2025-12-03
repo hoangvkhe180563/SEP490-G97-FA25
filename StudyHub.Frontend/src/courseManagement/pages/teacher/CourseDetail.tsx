@@ -21,6 +21,8 @@ import { Button } from "@/common/components/ui/button";
 import { Edit2, ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 
+import { formatDateTime } from "@/courseManagement/utils/formatDate";
+
 const CourseDetail: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -260,11 +262,7 @@ const CourseDetail: React.FC = () => {
                             Cập nhật ngày:
                           </span>
                           <span>
-                            {new Date(
-                              selectedCourse.updatedAt || ""
-                            ).toLocaleString("vi-VN", {
-                              hour12: false,
-                            })}
+                            {formatDateTime(selectedCourse.updatedAt)}
                           </span>
                         </div>
                       </>
@@ -274,14 +272,7 @@ const CourseDetail: React.FC = () => {
                         <span className="font-medium text-[#171717]">
                           Tạo ngày:
                         </span>
-                        <span>
-                          {new Date(selectedCourse.createdAt).toLocaleString(
-                            "vi-VN",
-                            {
-                              hour12: false,
-                            }
-                          )}
-                        </span>
+                        <span>{formatDateTime(selectedCourse.createdAt)}</span>
                       </div>
                     )}
                   </div>

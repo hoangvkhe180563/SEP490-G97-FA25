@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from "react";
+import { formatDate } from "@/courseManagement/utils/formatDate";
 import CourseItem from "../../components/CourseItem";
 import type { CourseListDto as CourseType } from "@/courseManagement/interfaces/types";
 import {
@@ -69,10 +70,10 @@ const CourseList: React.FC = () => {
     schoolId: c.schoolId ?? null,
     isFeatured: c.isFeatured,
     status: c.status,
-    createdAt: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "",
-    startAt: c.startAt ? new Date(c.startAt).toLocaleDateString() : "",
-    endAt: c.endAt ? new Date(c.endAt).toLocaleDateString() : "",
-    updatedAt: c.updatedAt ? new Date(c.updatedAt).toLocaleDateString() : null,
+    createdAt: c.createdAt ? formatDate(c.createdAt) : "",
+    startAt: c.startAt ? formatDate(c.startAt) : "",
+    endAt: c.endAt ? formatDate(c.endAt) : "",
+    updatedAt: c.updatedAt ? formatDate(c.updatedAt) : null,
     updatedBy: c.updatedBy ?? null,
     createdBy: c.createdBy ?? null,
     teacherCreatedName: c.teacherCreatedName ?? "Giáo viên",

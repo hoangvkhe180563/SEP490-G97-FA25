@@ -29,6 +29,7 @@ import { Button } from "@/common/components/ui/button";
 import { Clock, XCircle, User, BookOpen } from "lucide-react";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { format, formatISO } from "date-fns";
+import { formatDate } from "@/courseManagement/utils/formatDate";
 import {
   ResponsiveContainer,
   LineChart,
@@ -754,10 +755,7 @@ const ApproveCourses: React.FC = () => {
                         {creatorNames[String(r.createdBy)] ??
                           r.createdBy ??
                           "—"}{" "}
-                        •{" "}
-                        {r.createdAt
-                          ? format(new Date(r.createdAt), "yyyy-MM-dd")
-                          : "-"}
+                        • {r.createdAt ? formatDate(r.createdAt) : "-"}
                       </div>
                     </div>
                     <div>
@@ -867,10 +865,7 @@ const ApproveCourses: React.FC = () => {
                         {creatorNames[String(c.createdBy)] ??
                           c.createdBy ??
                           "—"}{" "}
-                        •{" "}
-                        {c.createdAt
-                          ? format(new Date(c.createdAt), "yyyy-MM-dd")
-                          : ""}
+                        • {c.createdAt ? formatDate(c.createdAt) : ""}
                       </div>
                     </div>
                   </Button>

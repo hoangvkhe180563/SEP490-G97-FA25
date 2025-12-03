@@ -31,30 +31,30 @@ namespace StudyHub.Backend.UseCases.Services
         public async Task<Course> CreateCourse(Course course)
         {
             var created = _repo.CreateCourse(course);
-            var elasticCourse = new UpsertElasticCourseRequest
-            {
-                Id = created.Id,
-                Name = created.Name,
-                ImageUrl = created.ImageUrl ?? string.Empty,
-                Price = created.Price,
-                StartAt = created.StartAt,
-                EndAt = created.EndAt,
-                CreatedAt = created.CreatedAt,
-                UpdatedAt = created.UpdatedAt,
-                CreatedById = created.CreatedBy,
-                Information = created.Information,
-                Status = created.Status,
-                SchoolId = created.SchoolId,
-                Subject = created.Subject,
-                Difficulty = created.Difficulty,
-                Length = created.Length,
-                Grade = created.Grade,
-            };
-            var isValid = await _elasticCourseVectorSearchService.IndexCourseAsync(elasticCourse);
-            if (!isValid)
-            {
-                throw new Exception("Failed to update course in ElasticSearch.");
-            }
+            //var elasticCourse = new UpsertElasticCourseRequest
+            //{
+            //    Id = created.Id,
+            //    Name = created.Name,
+            //    ImageUrl = created.ImageUrl ?? string.Empty,
+            //    Price = created.Price,
+            //    StartAt = created.StartAt,
+            //    EndAt = created.EndAt,
+            //    CreatedAt = created.CreatedAt,
+            //    UpdatedAt = created.UpdatedAt,
+            //    CreatedById = created.CreatedBy,
+            //    Information = created.Information,
+            //    Status = created.Status,
+            //    SchoolId = created.SchoolId,
+            //    Subject = created.Subject,
+            //    Difficulty = created.Difficulty,
+            //    Length = created.Length,
+            //    Grade = created.Grade,
+            //};
+            //var isValid = await _elasticCourseVectorSearchService.IndexCourseAsync(elasticCourse);
+            //if (!isValid)
+            //{
+            //    throw new Exception("Failed to update course in ElasticSearch.");
+            //}
             return created;
         }
 
@@ -104,11 +104,11 @@ namespace StudyHub.Backend.UseCases.Services
 
         public async Task<bool> DeleteCourse(int id)
         {
-            var isValid = await _elasticSearchCourse.DeleteCourseByIdAsync(id);
-            if (!isValid)
-            {
-                throw new Exception("Failed to delete course in ElasticSearch.");
-            }
+            //var isValid = await _elasticSearchCourse.DeleteCourseByIdAsync(id);
+            //if (!isValid)
+            //{
+            //    throw new Exception("Failed to delete course in ElasticSearch.");
+            //}
             return _repo.DeleteCourse(id);
         }
 

@@ -19,6 +19,10 @@ import type { CourseListDto } from "@/courseManagement/types/api";
 import type { Question } from "@/courseManagement/interfaces/types";
 import courseApi from "@/courseManagement/services/courseService";
 import toast from "react-hot-toast";
+import {
+  formatDate,
+  formatDateTime,
+} from "@/courseManagement/utils/formatDate";
 import { EXAM_TYPE } from "@/courseManagement/constants/ExamType";
 
 const LectureDetails: React.FC = () => {
@@ -185,7 +189,7 @@ const LectureDetails: React.FC = () => {
           <p className="text-sm text-[#525252]">
             {selectedCourse?.teacherCreatedName || "Giáo viên"} •{" "}
             {currentLesson?.postDate
-              ? new Date(currentLesson.postDate).toLocaleDateString()
+              ? formatDate(String(currentLesson.postDate))
               : "Chưa cập nhật"}
           </p>
         </div>
@@ -602,14 +606,7 @@ const LectureDetails: React.FC = () => {
                       <span className="font-medium text-[#171717]">
                         Tạo ngày:
                       </span>
-                      <span>
-                        {new Date(selectedCourse.createdAt).toLocaleString(
-                          "vi-VN",
-                          {
-                            hour12: false,
-                          }
-                        )}
-                      </span>
+                      <span>{formatDateTime(selectedCourse.createdAt)}</span>
                     </div>
                   )}
                 </div>

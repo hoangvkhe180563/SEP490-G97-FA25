@@ -13,16 +13,12 @@ import TransactionHistory from "../pages/student/TransactionHistory";
 
 const financialManagerRoutes: RouteObject[] = [
   {
-    index: true,
-    element: <div>Dashboard</div>,
+    path: PaymentRouteConfig.FINANCIAL_MANAGER.REVENUE,
+    element: <RevenueReport />,
   },
   {
     path: PaymentRouteConfig.FINANCIAL_MANAGER.TRANSACTION,
     element: <TransactionList />,
-  },
-  {
-    path: PaymentRouteConfig.FINANCIAL_MANAGER.REVENUE,
-    element: <RevenueReport />,
   },
 ];
 
