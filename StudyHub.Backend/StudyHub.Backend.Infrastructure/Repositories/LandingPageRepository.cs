@@ -244,37 +244,28 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return false;
         }
 
-        public bool UpdateLandingPageImages(int schoolId, List<string> oldImages, List<string> newImages)
+        public bool UpdateLandingPageImages(int schoolId, List<string> images)
         {
+            var transaction = _context.Database.BeginTransaction();
             try
             {
-                // Remove old images
-                var imagesToRemove = _context.LandingPageImages
-                    .Where(i => i.LandingPageId == schoolId && oldImages.Contains(i.ImageUrl))
-                    .ToList();
-                _context.LandingPageImages.RemoveRange(imagesToRemove);
-
-                // Add new images (avoid duplicates)
-                var existingImages = _context.LandingPageImages
-                    .Where(i => i.LandingPageId == schoolId)
-                    .Select(i => i.ImageUrl)
-                    .ToList();
-
-                var imagesToAdd = newImages
-                    .Except(existingImages)
-                    .Select(image => new LandingPageImage
-                    {
-                        ImageUrl = image,
-                        LandingPageId = schoolId
-                    }).ToList();
-
-                _context.LandingPageImages.AddRange(imagesToAdd);
+                var oldImages = _context.LandingPageImages.Where(lp => lp.LandingPageId == schoolId).ToList();
+                _context.LandingPageImages.RemoveRange(oldImages);
                 _context.SaveChanges();
 
+                var newImages = images.Select(i => new LandingPageImage
+                {
+                    LandingPageId = schoolId,
+                    ImageUrl = i
+                }).ToList();
+                _context.LandingPageImages.AddRange(newImages);
+                _context.SaveChanges();
+                transaction.Commit();
                 return true;
             }
             catch (Exception ex)
             {
+                transaction.Rollback();
                 new InfrastructureException("LandingPageRepository", "UpdateLandingPageImages failed. Inner error: " + ex.Message).LogError();
             }
             return false;

@@ -711,7 +711,8 @@ function DocumentDetail({
 
             {document.isApproved === true &&
               document.status === true &&
-              document.isRequested !== true && (
+              document.isRequested !== true &&
+              accessType !== "class" && (
                 <Button
                   type="button"
                   variant="outline"
@@ -720,10 +721,7 @@ function DocumentDetail({
                   onClick={async () => {
                     const success = await requestEditDocument(document.id);
                     if (success) {
-                      // showToast("success", "Đã gửi yêu cầu chỉnh sửa");
                       setTimeout(() => window.location.reload(), 1000);
-                    } else {
-                      // showToast("error", "Gửi yêu cầu thất bại");
                     }
                   }}
                 >
@@ -745,7 +743,8 @@ function DocumentDetail({
               </Button>
             )}
 
-            {!(document.isApproved === true && document.status === true) &&
+            {(!(document.isApproved === true && document.status === true) ||
+              accessType === "class") &&
               document.isRequested !== true && (
                 <>
                   <Button
@@ -886,7 +885,7 @@ export default function OwnedDocument() {
     const success = await requestEditDocument(documentId);
     if (success) {
       showToast("success", "Đã gửi yêu cầu chỉnh sửa");
-      setTimeout(() => window.location.reload(), 1000);
+      setTimeout(() => window.location.reload(), 100);
     } else {
       showToast("error", "Gửi yêu cầu thất bại");
     }
@@ -992,7 +991,7 @@ export default function OwnedDocument() {
   };
 
   const handlePreview = (docId: number) => {
-    navigate(`/document/student/doc-info/${docId}`);
+    navigate(`/document/doc-info/${docId}`);
   };
 
   const handleApprovalStatusChange = (status: string) => {

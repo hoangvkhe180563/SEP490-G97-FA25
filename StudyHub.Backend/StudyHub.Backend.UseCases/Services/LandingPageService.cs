@@ -89,7 +89,14 @@ namespace StudyHub.Backend.UseCases.Services
                 landingPageNewImages.Add(fileUrl);
             }
 
-            bool isImagesUpdated = _repo.UpdateLandingPageImages(landingPage.SchoolId, landingPageDeleteImages, landingPageNewImages);
+            var currentLandingPageImages = _repo.GetLandingPageImages(landingPage.SchoolId);
+            foreach (var item in landingPageDeleteImages)
+            {
+                currentLandingPageImages.RemoveAll(item => landingPageDeleteImages.Contains(item));
+            }
+            currentLandingPageImages.AddRange(landingPageNewImages);
+
+            bool isImagesUpdated = _repo.UpdateLandingPageImages(landingPage.SchoolId, currentLandingPageImages);
             if (!isImagesUpdated)
             {
                 return "Không lưu được logo trường vào cơ sở dữ liệu!";

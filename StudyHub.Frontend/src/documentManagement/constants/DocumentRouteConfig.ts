@@ -17,7 +17,7 @@ const DocumentRouteConfig = {
     INFO: "doc-info/:id",
   },
   STUDENT: {
-    INDEX: "student",
+    INDEX: "",
     DETAILS: "details/:id",
     INFO: "doc-info/:id",
     DOCUMENTS: "documents",

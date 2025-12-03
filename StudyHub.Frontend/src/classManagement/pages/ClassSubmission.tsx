@@ -571,7 +571,8 @@ const ClassworkSubmissionsPage: React.FC = () => {
             );
           }
           const refreshedFb =
-            (refreshed as any).feedback ?? "";
+            (refreshed as any).feedback ??
+          "";
           setGradeFeedback(
             typeof refreshedFb === "string"
               ? refreshedFb

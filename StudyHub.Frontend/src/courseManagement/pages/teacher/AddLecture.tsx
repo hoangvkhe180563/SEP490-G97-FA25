@@ -248,7 +248,7 @@ const AddLecture: React.FC = () => {
         aggErrors.push(
           "Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi."
         );
-      } else if (!Number(randomQuestions)) {
+      } else if (selectedTab === "bank-questions" && !Number(randomQuestions)) {
         aggErrors.push("Vui lòng điền số câu hỏi cần tạo!");
       }
 

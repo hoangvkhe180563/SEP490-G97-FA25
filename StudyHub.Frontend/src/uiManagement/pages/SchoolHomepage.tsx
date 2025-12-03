@@ -21,12 +21,12 @@ const SchoolHomepage = () => {
   useEffect(() => {
     const fetchData = async () => {
       if (!user) {
+        navigate("/");
         return;
       }
       try {
         const schoolId = user.schoolId;
         if (!schoolId) {
-          toast.error("Bạn không có quyền truy cập!");
           navigate("/");
           return;
         }
@@ -60,7 +60,8 @@ const SchoolHomepage = () => {
     }
 
     fetchData().catch(console.error);
-  }, [user])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return <div className="w-full h-full overflow-y-auto">
     <Banner logo={data?.logoImage} image={data?.bannerImage} schoolId={schoolId} />
@@ -76,7 +77,7 @@ const SchoolHomepage = () => {
           <img className="w-70 h-30" src={data?.logoImage} alt="[School Logo]" />
         </div>
         <span>Địa chỉ: {address}</span>
-        <span className="text-gray-500 text-sm font-bold">© 2025 StudyHub. Tất cả quyền được bảo lưu. <span className="text-blue-600 underline">Gửi phản hồi</span></span>
+        <span className="text-gray-500 text-sm font-bold">© 2025 StudyHub. Tất cả quyền được bảo lưu. </span>
       </div>
     </footer>
   </div>

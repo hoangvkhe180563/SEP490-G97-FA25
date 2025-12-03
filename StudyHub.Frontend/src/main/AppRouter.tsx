@@ -4,12 +4,12 @@ import forumRoutes from "@/forumManagement/routes/ForumRoutes";
 import RouteConfig from "@/common/constants/RouteConfig";
 import uiManagementRoutes from "@/uiManagement/routes/UiManagementRoutes";
 import userRoutes from "@/user/routes/UserRoutes";
-import { Outlet, useLocation, useNavigate, useRoutes } from "react-router-dom";
+import { Outlet, useRoutes } from "react-router-dom";
 import courseRoutes from "@/courseManagement/routes/CourseRoute";
 import Homepage from "@/uiManagement/pages/Homepage";
 import authRoutes from "@/auth/routes/AuthRoutes";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import GuestLayout from "@/common/pages/GuestLayout";
 import RegisteredLayout from "@/common/pages/RegisteredLayout";
 import paymentRoutes from "@/paymentManagement/routes/PaymentRoute";
@@ -28,9 +28,6 @@ const AppRouter = () => {
   const { startPaymentConnection, stopPaymentConnection } = usePaymentStore();
   const { startRead, stopRead } = useConversationStore();
   const { startChat, stopChat } = useMessageStore();
-  const [authChecked, setAuthChecked] = useState<boolean>(false);
-  const navigate = useNavigate();
-  const location = useLocation();
 
   // on component mount, check auth and start authentication hubs
   useEffect(() => {
@@ -65,8 +62,6 @@ const AppRouter = () => {
         }
       } catch {
         console.log("lỗi authorization");
-      } finally {
-        setAuthChecked(true);
       }
     })();
     return () => {
@@ -125,7 +120,7 @@ const AppRouter = () => {
     },
     {
       path: RouteConfig.UI_MANAGEMENT,
-      element: <RegisteredLayout user={user} />,
+      element: user ? <RegisteredLayout user={user} /> : <GuestLayout />,
       children: uiManagementRoutes,
     },
     {
@@ -135,12 +130,12 @@ const AppRouter = () => {
     },
     {
       path: RouteConfig.DOCUMENT_MANAGEMENT,
-      element: <RegisteredLayout user={user} />,
+      element: user ? <RegisteredLayout user={user} /> : <GuestLayout />,
       children: documentRoutes,
     },
     {
       path: RouteConfig.COURSE_MANAGEMENT,
-      element: <RegisteredLayout user={user} />,
+      element: user ? <RegisteredLayout user={user} /> : <GuestLayout />,
       children: courseRoutes,
     },
     {

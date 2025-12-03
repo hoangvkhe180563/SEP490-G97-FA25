@@ -104,6 +104,7 @@ const documentRoutes: RouteObject[] = [
           "Head of Department Teacher",
           "Q&A Teacher",
           "Homeroom Teacher",
+          "Document Manager",
         ]}
       >
         <Outlet />
@@ -114,7 +115,15 @@ const documentRoutes: RouteObject[] = [
   {
     path: DocumentRouteConfig.STUDENT.INDEX,
     element: (
-      <RequireRole allowedRoles={["School Student", "External Student"]}>
+      <RequireRole
+        allowedRoles={[
+          "School Student",
+          "External Student",
+          "Document Manager",
+          "Subject Teacher",
+          "Homeroom Teacher",
+        ]}
+      >
         <Outlet />
       </RequireRole>
     ),
