@@ -354,7 +354,6 @@ export default function DocumentViewer() {
         const availableWidth = container.clientWidth;
         const availableHeight = container.clientHeight;
 
-        // Tính toán kích thước dựa trên tỷ lệ 550:733
         const ratio = 733 / 550;
         let width = Math.min(550, availableWidth * 0.8);
         let height = width * ratio;
@@ -375,7 +374,7 @@ export default function DocumentViewer() {
     window.addEventListener("resize", calculateFlipbookSize);
 
     return () => window.removeEventListener("resize", calculateFlipbookSize);
-  }, [viewMode, isSidebarOpen]); // ADD isSidebarOpen dependency
+  }, [viewMode, isSidebarOpen]); 
   useEffect(() => {
     const loadThumbnails = async () => {
       const start = Math.max(0, currentPage - 5);

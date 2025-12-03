@@ -518,14 +518,22 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("by-subject/{subjectId:int}")]
         public IActionResult GetDocumentsBySubject(int subjectId)
         {
-            var currentUser = _authService.GetCurrentUser();
-
             List<Document> documents;
-            if (currentUser != null && currentUser.SchoolId.HasValue)
+
+            try
             {
-                documents = _documentService.GetDocumentsBySubjectForSchool(subjectId, currentUser.SchoolId.Value);
+                var currentUser = _authService.GetCurrentUser();
+
+                if (currentUser != null && currentUser.SchoolId.HasValue)
+                {
+                    documents = _documentService.GetDocumentsBySubjectForSchool(subjectId, currentUser.SchoolId.Value);
+                }
+                else
+                {
+                    documents = _documentService.GetDocumentsBySubjectForPublic(subjectId);
+                }
             }
-            else
+            catch (InvalidOperationException)
             {
                 documents = _documentService.GetDocumentsBySubjectForPublic(subjectId);
             }
@@ -533,6 +541,7 @@ namespace StudyHub.Backend.Api.Controllers
             var dtos = documents.Select(d => d.ToListDto()).ToList();
             return Ok(new { success = true, data = dtos });
         }
+
         [HttpPost("submit-for-approval")]
         public async Task<IActionResult> SubmitForApproval([FromBody] ApprovalDto dto)
         {
