@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories;
@@ -16,7 +19,8 @@ namespace Infrastructure.Repositories
 
         public Enrollment? GetEnrollment(int id)
         {
-            try { 
+            try
+            {
                 var e = _context.Enrollments.FirstOrDefault(x => x.Id == id);
                 if (e == null) return null;
                 return new Enrollment
@@ -30,7 +34,7 @@ namespace Infrastructure.Repositories
             catch (Exception ex)
             {
                 new InfrastructureException("EnrollmentRepository", "GetEnrollment failed. Inner error: " + ex.Message).LogError();
-                return new Enrollment{};
+                return new Enrollment { };
             }
         }
 
@@ -107,6 +111,28 @@ namespace Infrastructure.Repositories
             {
                 new InfrastructureException("EnrollmentRepository", "GetEnrollmentsByCourse failed. Inner error: " + ex.Message).LogError();
                 return new List<Enrollment>();
+            }
+        }
+
+        public List<KeyValuePair<int, int>> GetEnrollmentCounts(DateTime? from, DateTime? to, int? schoolId)
+        {
+            try
+            {
+                var q = _context.Enrollments.AsQueryable();
+                if (from.HasValue) q = q.Where(x => x.EnrollmentDate >= from.Value);
+                if (to.HasValue) q = q.Where(x => x.EnrollmentDate < to.Value);
+                if (schoolId.HasValue) q = q.Where(x => x.Course != null && x.Course.SchoolId == schoolId.Value);
+
+                var grouped = q.GroupBy(x => x.CourseId)
+                    .Select(g => new { courseId = g.Key, cnt = g.Count() })
+                    .ToList();
+
+                return grouped.Select(g => new KeyValuePair<int, int>(g.courseId, g.cnt)).ToList();
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("EnrollmentRepository", "GetEnrollmentCounts failed. Inner error: " + ex.Message).LogError();
+                return new List<KeyValuePair<int, int>>();
             }
         }
 

@@ -1011,7 +1011,7 @@ const EditLecture: React.FC = () => {
       };
 
       if (questions.length === 0) {
-        examToUpdate.noRandomQuestions = Number(randomQuestions) ?? 0;
+        examToUpdate.noRandomQuestions = Number(randomQuestions);
         examToUpdate.subjectId = selectedSubjectId;
         examToUpdate.grade = selectedGrade;
       }
@@ -1503,7 +1503,7 @@ const EditLecture: React.FC = () => {
               {/* Interactive questions editor moved here (below video preview) */}
               <div className="space-y-2 pt-4">
                 <div className="flex items-center justify-between">
-                  <Label> Câu hỏi tương tác (Interactive questions)</Label>
+                  <Label> Câu hỏi tương tác</Label>
                   <div className="text-sm text-gray-500">
                     Hiển thị trên video tại thời điểm
                   </div>

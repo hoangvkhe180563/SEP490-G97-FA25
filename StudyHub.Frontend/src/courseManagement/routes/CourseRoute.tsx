@@ -108,9 +108,7 @@ const courseRoutes: RouteObject[] = [
   // Cấu hình routes cho Học sinh (Base path: /)
   {
     path: CourseRouteConfig.STUDENT.INDEX,
-    element: (
-      <Outlet />
-    ),
+    element: <Outlet />,
     children: studentCourseRoutes,
   },
 ];

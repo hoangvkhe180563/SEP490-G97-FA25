@@ -1,9 +1,7 @@
 import React, { useEffect, useState, useMemo, type JSX } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useAppUserStore } from "@/user/stores/useAppUserStore";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
-import { documentService } from "@/documentManagement/services/documentService";
 import { Button } from "@/common/components/ui/button";
 import {
   Collapsible,
@@ -17,11 +15,14 @@ import {
   CardTitle,
 } from "@/common/components/ui/card";
 import { ArrowLeft, File } from "lucide-react";
-import type { AppUser } from "@/auth/interfaces/app-user";
 import type { CourseListDto } from "@/courseManagement/types/api";
 import type { Question } from "@/courseManagement/interfaces/types";
 import courseApi from "@/courseManagement/services/courseService";
 import toast from "react-hot-toast";
+import {
+  formatDate,
+  formatDateTime,
+} from "@/courseManagement/utils/formatDate";
 import { EXAM_TYPE } from "@/courseManagement/constants/ExamType";
 
 const LectureDetails: React.FC = () => {
@@ -32,14 +33,9 @@ const LectureDetails: React.FC = () => {
   const selectedCourse = useCourseStore(
     (s) => s.selectedCourse as CourseListDto
   );
-  const [teacherCreated, setTeacherCreated] = useState<Partial<AppUser> | null>(
-    null
-  );
   const [resources, setResources] = useState<{ id: number; url: string }[]>([]);
-  const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
   const [interactiveQuestions, setInteractiveQuestions] = useState<any[]>([]);
 
-  const getAppUserById = useAppUserStore((s) => s.getAppUserById);
   const getLessonById = useLectureStore((s) => s.fetchLesson);
   const getChapterById = useLectureStore((s) => s.fetchChapter);
   const fetchInteractiveQuestions = useLectureStore(
@@ -56,10 +52,6 @@ const LectureDetails: React.FC = () => {
       if (!lessonId) return;
 
       try {
-        const subs = await documentService.getSubjects();
-        if (Array.isArray(subs))
-          setSubjects(subs.map((s: any) => ({ id: s.id, name: s.name })));
-
         const lessonData = await getLessonById(lessonId);
         if (!lessonData) return;
 
@@ -78,11 +70,6 @@ const LectureDetails: React.FC = () => {
 
         if (chapterData.courseId) {
           await fetchCourseById(chapterData.courseId);
-          const courseData = useCourseStore.getState().selectedCourse;
-          if (courseData?.createdBy) {
-            const res = await getAppUserById(String(courseData.createdBy));
-            if (res?.success && res.data) setTeacherCreated(res.data);
-          }
         }
 
         const resourceId =
@@ -107,7 +94,6 @@ const LectureDetails: React.FC = () => {
     lessonId,
     getLessonById,
     getChapterById,
-    getAppUserById,
     fetchCourseById,
     getLessonResource,
     fetchInteractiveQuestions,
@@ -176,12 +162,6 @@ const LectureDetails: React.FC = () => {
     return <>{displayedContent}</>;
   };
 
-  const categoryLabel = (id?: number | null) => {
-    if (id === undefined || id === null) return "-";
-    const found = subjects.find((s) => s.id === Number(id));
-    return found ? found.name : String(id);
-  };
-
   return (
     <div className="max-w-[1200px] mx-auto px-6 py-6 h-full overflow-y-auto scrollbar-hide">
       {/* === Header navigation === */}
@@ -207,9 +187,9 @@ const LectureDetails: React.FC = () => {
             {currentLesson?.name ?? "Bài học"}
           </h1>
           <p className="text-sm text-[#525252]">
-            {teacherCreated?.fullname || "Giáo viên"} •{" "}
+            {selectedCourse?.teacherCreatedName || "Giáo viên"} •{" "}
             {currentLesson?.postDate
-              ? new Date(currentLesson.postDate).toLocaleDateString()
+              ? formatDate(String(currentLesson.postDate))
               : "Chưa cập nhật"}
           </p>
         </div>
@@ -584,7 +564,7 @@ const LectureDetails: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span>Môn học</span>
-                  <span>{categoryLabel(selectedCourse?.subjectId)}</span>
+                  <span>{selectedCourse?.subject?.name ?? "-"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Khối lớp</span>
@@ -603,7 +583,7 @@ const LectureDetails: React.FC = () => {
               <div className="flex items-start gap-3">
                 <div className="w-12 h-12 rounded-full bg-[#171717] text-white flex items-center justify-center font-semibold shadow-sm">
                   {(() => {
-                    const name = teacherCreated?.fullname || "GV";
+                    const name = selectedCourse?.teacherCreatedName || "GV";
                     return name
                       .split(" ")
                       .slice(-2)
@@ -617,21 +597,16 @@ const LectureDetails: React.FC = () => {
                     <span className="font-medium text-[#171717]">
                       Giáo viên:
                     </span>
-                    <span>{teacherCreated?.fullname || "GV - Chính"}</span>
+                    <span>
+                      {selectedCourse?.teacherCreatedName || "GV - Chính"}
+                    </span>
                   </div>
                   {selectedCourse?.createdAt && (
                     <div className="flex justify-between mb-1">
                       <span className="font-medium text-[#171717]">
                         Tạo ngày:
                       </span>
-                      <span>
-                        {new Date(selectedCourse.createdAt).toLocaleString(
-                          "vi-VN",
-                          {
-                            hour12: false,
-                          }
-                        )}
-                      </span>
+                      <span>{formatDateTime(selectedCourse.createdAt)}</span>
                     </div>
                   )}
                 </div>

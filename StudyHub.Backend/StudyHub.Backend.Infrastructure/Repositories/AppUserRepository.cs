@@ -135,6 +135,25 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
+        public List<Domain.Entities.AppUser> GetTeachers()
+        {
+            try
+            {
+                var teacherRoleNames = new[] { "Subject Teacher", "Head of Department Teacher", "Q&A Teacher", "Homeroom Teacher" };
+                var users = _context.AppUsers
+                            .Include(u => u.Roles)
+                            .Where(u => u.Roles.Any(r =>teacherRoleNames.Any(tr =>(r.Name ?? "").ToLower() == tr.ToLower())))
+                            .ToList();
+
+                return users.Select(u => ToDomain(u)).ToList();
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("AppUserRepository", "GetTeachers failed. Inner error: " + ex.Message).LogError();
+                return new List<Domain.Entities.AppUser>();
+            }
+        }
+
         public (List<Domain.Entities.AppUser>, int, int, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page, int limit, Guid myUserId)
         {
             try

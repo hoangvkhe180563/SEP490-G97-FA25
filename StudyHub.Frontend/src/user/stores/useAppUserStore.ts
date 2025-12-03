@@ -13,6 +13,7 @@ export const useAppUserStore = create<AppUserState>()(
   devtools(
     (set) => ({
       appUsers: [],
+      teachers: [],
       appUser: undefined,
       currentUser: undefined,
       success: false,
@@ -38,6 +39,26 @@ export const useAppUserStore = create<AppUserState>()(
             message: "Failed to fetch users",
           });
           console.log(error);
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      getTeachers: async () => {
+        set({ isLoading: true });
+        try {
+          const response = await axiosInstance.get(`/AppUser/teachers`);
+          const { data } = response;
+          const list = data?.data ?? [];
+          set({
+            teachers: list,
+            success: data?.success ?? true,
+            message: data?.message ?? "",
+          });
+          return list;
+        } catch (err: any) {
+          set({ success: false, message: axiosMessageErrorHandler(err) });
+          console.error(err);
           return null;
         } finally {
           set({ isLoading: false });

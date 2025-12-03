@@ -27,7 +27,10 @@ public static class CourseMapper
         UpdatedAt = c.UpdatedAt,
         UpdatedBy = c.UpdatedBy,
         CreatedBy = c.CreatedBy,
+        TeacherCreatedName = c.TeacherCreatedName,
+        TeacherUpdatedName = c.TeacherUpdatedName,
         IsApproved = c.IsApproved,
+        Subject = c.Subject,
         Chapters = c.Chapters?.Select(ch => ch.ToListDto()).ToList() ?? new List<ChapterListDto>()
     };
 

@@ -122,6 +122,29 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
+        // Get all teachers (standard teacher roles)
+        [HttpGet("teachers")]
+        public IActionResult GetTeachers()
+        {
+            try
+            {
+                var result = _userService.GetTeachers();
+                if (result == null || !result.Any())
+                {
+                    return NotFound(new { Success = false, Message = "Không tìm thấy giáo viên" });
+                }
+                return Ok(new { Success = true, Data = result });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { Success = false, Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = "Tải danh sách giáo viên không thành công", Error = ex.Message });
+            }
+        }
+
         // Admin: get account detail
         //[Authorize(Roles = "School Manager")]
         [HttpGet("{id}")]

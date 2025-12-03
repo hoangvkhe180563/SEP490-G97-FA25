@@ -5,12 +5,18 @@ type EnrollmentState = {
   enrollments: any[];
   loading: boolean;
   progresses: Record<number, string | null>;
+  enrollmentCounts: Record<number, number>;
   fetchByUser: (userId: string) => Promise<any[] | null>;
   enroll: (payload: { appUserId: string; courseId: number }) => Promise<any>;
   consumeWallet: (payload: {
     appUserId: string;
     courseId: number;
   }) => Promise<any>;
+  fetchCounts: (query?: {
+    from?: string;
+    to?: string;
+    schoolId?: number;
+  }) => Promise<Record<number, number> | null>;
   getEnrollmentForCourse: (courseId: number) => any | null;
   recordProgress: (
     enrollmentId: number,
@@ -25,6 +31,7 @@ export const useEnrollmentStore = create<EnrollmentState>((set, get) => ({
   enrollments: [],
   loading: false,
   progresses: {},
+  enrollmentCounts: {},
   fetchByUser: async (userId: string) => {
     set({ loading: true });
     try {
@@ -101,6 +108,24 @@ export const useEnrollmentStore = create<EnrollmentState>((set, get) => ({
     });
     set({ progresses: map });
     return items;
+  },
+  fetchCounts: async (query) => {
+    set({ loading: true });
+    try {
+      const res = await enrollmentService.getCounts(query as any);
+      // expect array like [{ courseId, count }, ...]
+      const items = Array.isArray(res) ? res : res?.items ?? [];
+      const map: Record<number, number> = {};
+      (items || []).forEach((r: any) => {
+        if (r && r.courseId !== undefined)
+          map[Number(r.courseId)] = Number(r.count || 0);
+      });
+      set({ enrollmentCounts: map, loading: false });
+      return map;
+    } catch (err) {
+      set({ loading: false });
+      return null;
+    }
   },
   getLessonCompleted: (lessonId: number) => {
     const map = get().progresses || {};

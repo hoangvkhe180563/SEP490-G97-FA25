@@ -1,3 +1,7 @@
+export type Subject = {
+  id: number;
+  name: string;
+};
 export type ProgressListDto = {
   Id: number;
   EnrollmentId: number;
@@ -56,7 +60,10 @@ export type CourseListDto = {
   updatedAt?: string | null;
   updatedBy?: string | null;
   createdBy: string;
+  teacherCreatedName: string;
+  teacherUpdatedName?: string | null;
   isApproved: boolean;
+  subject?: Subject;
   chapters?: ChapterListDto[];
 };
 

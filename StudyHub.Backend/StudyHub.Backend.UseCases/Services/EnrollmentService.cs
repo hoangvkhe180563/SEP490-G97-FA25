@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Repositories;
 
@@ -17,5 +19,6 @@ namespace StudyHub.Backend.UseCases.Services
         public bool DeleteEnrollment(int id) => _repo.DeleteEnrollment(id);
         public List<Enrollment> GetEnrollmentsByCourse(int courseId) => _repo.GetEnrollmentsByCourse(courseId);
         public List<Enrollment> GetEnrollmentsByUser(Guid userId) => _repo.GetEnrollmentsByUser(userId);
+        public List<KeyValuePair<int, int>> GetEnrollmentCounts(DateTime? from, DateTime? to, int? schoolId) => _repo.GetEnrollmentCounts(from, to, schoolId);
     }
 }
