@@ -11,12 +11,19 @@ import {
 } from "@/common/components/ui/alert-dialog";
 import { Button } from "@/common/components/ui/button";
 import { useLoading } from "@/common/hooks/useLoading";
-import { DEFAULT_EXAM } from "@/exam/constants/Constants";
+import {
+  BLANK_PLACEHOLDER,
+  DEFAULT_EXAM,
+  EXAM_TYPE,
+} from "@/exam/constants/Constants";
 import type { Exam } from "@/exam/interfaces/models/Exam";
 import type { ExamResult } from "@/exam/interfaces/models/ExamResult";
+import type { Question } from "@/exam/interfaces/models/Question";
 import { ExamService } from "@/exam/services/ExamService";
+import { calculateFinishTime } from "@/exam/utils/ExamUtils";
 import { ArrowLeft, Check } from "lucide-react";
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import { useParams, Link, useNavigate } from "react-router-dom";
 
 const ViewExamDetail = () => {
@@ -48,6 +55,8 @@ const ViewExamDetail = () => {
         setLoading(true);
         const [fetchedExam, results] = await Promise.all([
           examService.getExamById(Number(id)),
+          examService.getResultsByStudentAndExamId(user.id, Number(id)),
+          examService.getExamById(Number(id), true),
           examService.getResultsByStudentAndExamId(user.id, Number(id)),
         ]);
         setExam(fetchedExam);

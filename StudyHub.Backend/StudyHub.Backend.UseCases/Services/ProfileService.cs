@@ -169,7 +169,7 @@ namespace StudyHub.Backend.UseCases.Services
                 {
                     if (r.SubmissionTime != default && r.FinishTime != default)
                     {
-                        var timeTaken = Math.Abs((r.SubmissionTime - r.FinishTime).TotalSeconds);
+                        var timeTaken = Math.Abs((r.SubmissionTime.GetValueOrDefault() - r.FinishTime).TotalSeconds);
                         var maxSeconds = (double)(ex.Duration * 60);
                         var speed = maxSeconds <= 0 ? 0 : Math.Min(1.0, maxSeconds / Math.Max(1.0, timeTaken));
                         var sid = ex.SubjectId ?? 0;
