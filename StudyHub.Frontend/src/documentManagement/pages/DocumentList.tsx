@@ -14,11 +14,6 @@ const DocumentList = () => {
   const location = useLocation();
   const { user } = useAuthStore();
 
-  const locationState = location.state as {
-    searchQuery?: string;
-    showSchoolDocs?: boolean;
-  } | null;
-
   const {
     documents,
     loading,
@@ -38,20 +33,26 @@ const DocumentList = () => {
   const hasSchoolAccess = !!(user && user.schoolId);
 
   useEffect(() => {
+    const locationState = location.state as {
+      searchQuery?: string;
+      showSchoolDocs?: boolean;
+    } | null;
+
     if (locationState?.searchQuery) {
+      setCurrentPage(1);
       setSearchQuery(locationState.searchQuery);
-    }
-    if (locationState?.showSchoolDocs !== undefined && hasSchoolAccess) {
-      setFilters((prev) => ({
-        ...prev,
-        showSchoolDocs: !!locationState.showSchoolDocs,
-      }));
-    }
-    if (locationState) {
-      window.history.replaceState({}, document.title);
+
+      if (locationState.showSchoolDocs !== undefined && hasSchoolAccess) {
+        setFilters((prev) => ({
+          ...prev,
+          showSchoolDocs: !!locationState.showSchoolDocs,
+        }));
+      }
+
+      navigate(location.pathname, { replace: true, state: null });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [location.state]);
 
   const handleGradeChange = (gradeId: number) => {
     setFilters((prev) => ({

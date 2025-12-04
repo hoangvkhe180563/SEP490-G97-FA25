@@ -40,8 +40,8 @@ export const useManagerDocumentFilters = () => {
     documents: storeDocuments,
     categories: storeCategories,
     subjects: storeSubjects,
-    totalPages: storeTotalPages,
-    totalCount: storeTotalCount,
+    // totalPages: storeTotalPages,
+    // totalCount: storeTotalCount,
     fetchManagerPublicDocuments,
     fetchManagerSchoolDocuments,
     getCategories,
@@ -243,6 +243,13 @@ export const useManagerDocumentFilters = () => {
     return true;
   });
 
+  const totalFilteredCount = filteredDocuments.length;
+  const calculatedTotalPages = Math.ceil(totalFilteredCount / pageSize);
+  const paginatedDocuments = filteredDocuments.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
   const handleSort = (field: typeof sortBy) => {
     if (sortBy === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -276,13 +283,13 @@ export const useManagerDocumentFilters = () => {
   };
 
   return {
-    documents: filteredDocuments,
+    documents: paginatedDocuments,
     subjects: storeSubjects,
     categories: storeCategories,
     loading: isLoading,
     currentPage,
-    totalPages: storeTotalPages,
-    totalCount: storeTotalCount,
+    totalPages: calculatedTotalPages,
+    totalCount: totalFilteredCount,
     pageSize,
     searchQuery,
     sortBy,

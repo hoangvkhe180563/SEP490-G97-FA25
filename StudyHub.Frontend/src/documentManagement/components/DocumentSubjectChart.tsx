@@ -65,7 +65,9 @@ const DocumentSubjectChart: React.FC<DocumentSubjectChartProps> = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Top 10 môn học</CardTitle>
+        <CardTitle>
+          Thống kê 10 môn học có số lượng tài liệu nhiều nhất
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>

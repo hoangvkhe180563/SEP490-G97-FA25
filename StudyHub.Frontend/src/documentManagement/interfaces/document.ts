@@ -341,6 +341,10 @@ export interface DocumentState {
   submitForApprovalError: string | null;
   cancelEditRequestMessage: string;
   cancelEditRequestError: string | null;
+  fetchSchoolTeachersDocumentsMessage: string;
+  fetchSchoolTeachersDocumentsError: string | null;
+  ownedDocuments: Document[];
+  schoolTeachersDocuments: Document[];
   cancelEditRequest: (
     documentId: number,
     handlerSuccess?: () => void
@@ -412,6 +416,17 @@ export interface DocumentState {
     isApproved?: boolean | null,
     status?: boolean,
     isRequested?: boolean | null,
+    pageNumber?: number,
+    pageSize?: number,
+    handlerSuccess?: () => void
+  ) => Promise<void>;
+  fetchSchoolTeachersDocuments: (
+    schoolId: number,
+    query?: string | null,
+    categoryId?: number | null,
+    gradeId?: number | null,
+    subject?: string | null,
+    classId?: number | null,
     pageNumber?: number,
     pageSize?: number,
     handlerSuccess?: () => void
