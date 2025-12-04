@@ -220,7 +220,7 @@ const ConversationList: React.FC = () => {
           </div>
         </div>
         <ScrollArea className="rounded-lg border w-full">
-          <div className="space-y-3 pr-2 max-h-[calc(100vh-220px)] ">
+          <div className="space-y-3 pr-2 max-h-[calc(100vh-220px)] w-78">
             {filteredTeachers.map((t: any) => {
               const name =
                 t.fullname ?? t.fullName ?? t.name ?? t.username ?? "Giáo viên";
