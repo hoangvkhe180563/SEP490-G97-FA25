@@ -12,6 +12,7 @@ import { Outlet, type RouteObject } from "react-router-dom";
 import RequireRole from "@/common/components/RequireRole";
 import DocumentDashboard from "../pages/manager/DocumentDashboard";
 import { ROLES } from "@/common/constants/Roles";
+import ProtectedRoute from "@/common/components/ProtectedRoute";
 
 const managerRoutes = [
   {
@@ -74,24 +75,28 @@ const documentRoutes: RouteObject[] = [
   {
     path: DocumentRouteConfig.MANAGER.INDEX,
     element: (
-      <RequireRole allowedRoles={[ROLES.DOCUMENT_MANAGER]}>
-        <Outlet />
-      </RequireRole>
+      <ProtectedRoute>
+        <RequireRole allowedRoles={[ROLES.DOCUMENT_MANAGER]}>
+          <Outlet />
+        </RequireRole>
+      </ProtectedRoute>
     ),
     children: managerRoutes,
   },
   {
     path: DocumentRouteConfig.TEACHER.INDEX,
     element: (
-      <RequireRole
-        allowedRoles={[
-          ROLES.SUBJECT_TEACHER,
-          ROLES.HOMEROOM_TEACHER,
-          ROLES.HEAD_TEACHER,
-        ]}
-      >
-        <Outlet />
-      </RequireRole>
+      <ProtectedRoute>
+        <RequireRole
+          allowedRoles={[
+            ROLES.SUBJECT_TEACHER,
+            ROLES.HOMEROOM_TEACHER,
+            ROLES.HEAD_TEACHER,
+          ]}
+        >
+          <Outlet />
+        </RequireRole>
+      </ProtectedRoute>
     ),
     children: teacherRoutes,
   },
