@@ -12,6 +12,9 @@ services:
       - mongo-db
       - mysql-db
       - elasticsearch
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
 
   # 2. MONGODB
   mongo-db:
