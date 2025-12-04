@@ -7,18 +7,8 @@ const Header = () => {
   return (
     <header className="fixed top-0 left-0 right-0 h-[65px] flex items-center justify-between px-3 bg-sky-300 text-white z-1">
       <div className="flex items-center space-x-5">
-<<<<<<< HEAD
         <Link to={"/"}><img src="/StudyHubLogo.png" className="w-32" /></Link>
         <Link to={"/document/documents"} className="font-bold transition-colors hover:text-sky-100">
-=======
-        <a href="/">
-          <img src="/StudyHubLogo.png" className="w-32" />
-        </a>
-        <Link
-          to={"/document/documents"}
-          className="font-bold transition-colors hover:text-sky-100"
-        >
->>>>>>> develop
           Tài liệu
         </Link>
         <Link

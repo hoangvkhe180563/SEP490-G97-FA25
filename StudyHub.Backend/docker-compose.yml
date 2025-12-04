@@ -7,14 +7,14 @@ services:
       context: .
       dockerfile: StudyHub.Backend.Api/Dockerfile
     ports:
-      - "8080:8080"
+      - "6789:6789"
     depends_on:
       - mongo-db
       - mysql-db
       - elasticsearch
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
+      - ASPNETCORE_URLS=http://+:6789
 
   # 2. MONGODB
   mongo-db:

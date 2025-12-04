@@ -284,7 +284,7 @@ const UpdateAccount: React.FC = () => {
             fullname: user.fullname ?? user.username ?? "",
             dob: (user as any)?.dob
               ? useDobStore.getState().isoToDisplay((user as any).dob) ??
-                undefined
+              undefined
               : undefined,
             cityId: user.cityId ? String(user.cityId) : undefined,
             provinceId: user.provinceId ? String(user.provinceId) : undefined,
@@ -481,11 +481,8 @@ const UpdateAccount: React.FC = () => {
   // remove debug log
 
   return (
-    <Form {...form}>
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="bg-white rounded-xl p-6 shadow-md space-y-6 max-h-screen overflow-auto"
-      >
+    <div className="h-full overflow-y-auto bg-white rounded-xl p-6 shadow-md space-y-6">
+      <Form {...form}>
         <div className="flex items-center gap-6">
           <div className="relative">
             <Avatar className="w-20 h-20">
@@ -669,10 +666,10 @@ const UpdateAccount: React.FC = () => {
                         {field.value === "1"
                           ? "Nam"
                           : field.value === "0"
-                          ? "Nữ"
-                          : field.value === "2"
-                          ? "Khác"
-                          : "Chọn giới tính"}
+                            ? "Nữ"
+                            : field.value === "2"
+                              ? "Khác"
+                              : "Chọn giới tính"}
                       </span>
                     </SelectTrigger>
                     <SelectContent>
@@ -1013,8 +1010,8 @@ const UpdateAccount: React.FC = () => {
                   {isLoading
                     ? "Đang tiến hành..."
                     : getValues("status")
-                    ? "Có, tôi chắc chắn"
-                    : "Có, kích hoạt"}
+                      ? "Có, tôi chắc chắn"
+                      : "Có, kích hoạt"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -1028,13 +1025,14 @@ const UpdateAccount: React.FC = () => {
               type="submit"
               className="bg-black text-white"
               disabled={formState.isSubmitting}
+              onClick={handleSubmit(onSubmit)}
             >
               Cập nhật
             </Button>
           </div>
         </div>
-      </form>
-    </Form>
+      </Form>
+    </div>
   );
 };
 
