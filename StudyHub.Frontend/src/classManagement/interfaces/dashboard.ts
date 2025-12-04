@@ -46,3 +46,27 @@ export type AssignmentInteractionDto = {
   title: string;
   submissionsCount: number;
 };
+export type MonthlyCountDto = {
+  month: string; // "YYYY-MM" format
+  count: number;
+};
+
+export type ClassStatsDto = {
+  classId: number;
+  className: string;
+  studentsCount: number;
+  submissionRate: number; // fraction 0..1
+  readRate: number; // fraction 0..1
+  classworksCount: number;
+  notificationsCount: number;
+  totalSubmissions: number;
+};
+
+export type NotificationStatDto = {
+  notificationId: number;
+  title: string;
+  readsCount: number;
+  ignoredCount: number; // recipients - reads
+  totalRecipients: number;
+  submissionsCount?: number;
+};

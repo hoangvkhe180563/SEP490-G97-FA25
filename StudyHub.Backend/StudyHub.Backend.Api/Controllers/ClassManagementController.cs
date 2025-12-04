@@ -97,7 +97,7 @@ namespace StudyHub.Backend.Api.Controllers
         public IActionResult ReadRates()
         {
             var data = _service.GetReadRatesPrimitives();
-            var dto = data.Select(x => new KeyValueDto { Key = x.Key, Value = x.Percent }).ToList();
+            var dto = data.Select(x => new KeyValueDto { Key = x.Key, Value = (int)Math.Round(x.Percent) }).ToList();
             return Ok(dto);
         }
 
@@ -147,6 +147,107 @@ namespace StudyHub.Backend.Api.Controllers
                 Title = x.Title,
                 SubmissionsCount = x.SubmissionsCount
             }).ToList();
+            return Ok(dto);
+        }
+
+        // Monthly endpoints now accept optional months query parameter (default 12)
+        [HttpGet("monthly/classworks")]
+        public IActionResult ClassworksPerMonth([FromQuery] int months = 12)
+        {
+            var data = _service.GetClassworksByMonthPrimitives(months);
+            var dto = data.Select(x => new MonthlyCountDto { Month = x.Month, Count = x.Count }).ToList();
+            return Ok(dto);
+        }
+
+        [HttpGet("monthly/notifications")]
+        public IActionResult NotificationsPerMonth([FromQuery] int months = 12)
+        {
+            var data = _service.GetNotificationsByMonthPrimitives(months);
+            var dto = data.Select(x => new MonthlyCountDto { Month = x.Month, Count = x.Count }).ToList();
+            return Ok(dto);
+        }
+
+        [HttpGet("monthly/submissions")]
+        public IActionResult SubmissionsPerMonth([FromQuery] int months = 12)
+        {
+            var data = _service.GetSubmissionsByMonthPrimitives(months);
+            var dto = data.Select(x => new MonthlyCountDto { Month = x.Month, Count = x.Count }).ToList();
+            return Ok(dto);
+        }
+
+        [HttpGet("monthly/new-classes")]
+        public IActionResult NewClassesPerMonth([FromQuery] int months = 12)
+        {
+            var data = _service.GetNewClassesByMonthPrimitives(months);
+            var dto = data.Select(x => new MonthlyCountDto { Month = x.Month, Count = x.Count }).ToList();
+            return Ok(dto);
+        }
+
+        // === Per-class aggregated stats ===
+        [HttpGet("class-stats")]
+        public IActionResult ClassStats()
+        {
+            var data = _service.GetClassStatsPrimitives();
+            var dto = data.Select(x => new ClassStatsDto
+            {
+                ClassId = x.ClassId,
+                ClassName = x.ClassName,
+                StudentsCount = x.StudentsCount,
+                SubmissionRate = x.SubmissionRate,
+                ReadRate = x.ReadRate,
+                ClassworksCount = x.ClassworksCount,
+                NotificationsCount = x.NotificationsCount,
+                TotalSubmissions = x.TotalSubmissions
+            }).ToList();
+            return Ok(dto);
+        }
+
+        [HttpGet("top-read-notifications")]
+        public IActionResult TopReadNotifications([FromQuery] int top = 10)
+        {
+            var data = _service.GetTopReadNotificationsPrimitives(top);
+            var dto = data.Select(x => new NotificationStatDto
+            {
+                NotificationId = x.NotificationId,
+                Title = x.Title,
+                ReadsCount = x.ReadsCount,
+                IgnoredCount = x.IgnoredCount,
+                TotalRecipients = x.TotalRecipients,
+                SubmissionsCount = x.SubmissionsCount
+            }).ToList();
+            return Ok(dto);
+        }
+
+        [HttpGet("most-ignored-notifications")]
+        public IActionResult MostIgnoredNotifications([FromQuery] int top = 10)
+        {
+            var data = _service.GetMostIgnoredNotificationsPrimitives(top);
+            var dto = data.Select(x => new NotificationStatDto
+            {
+                NotificationId = x.NotificationId,
+                Title = x.Title,
+                ReadsCount = x.ReadsCount,
+                IgnoredCount = x.IgnoredCount,
+                TotalRecipients = x.TotalRecipients,
+                SubmissionsCount = x.SubmissionsCount
+            }).ToList();
+            return Ok(dto);
+        }
+
+        [HttpGet("class-with-most-notifications")]
+        public IActionResult ClassWithMostNotifications()
+        {
+            var data = _service.GetClassWithMostNotificationsPrimitives();
+            if (data == null) return Ok(null);
+            var dto = new TopActiveClassDto
+            {
+                ClassId = data.Value.ClassId,
+                ClassName = data.Value.ClassName,
+                ActivityScore = 0,
+                NotificationsCount = data.Value.NotificationsCount,
+                SubmissionsCount = data.Value.SubmissionsCount,
+                CommentsCount = data.Value.CommentsCount
+            };
             return Ok(dto);
         }
     }

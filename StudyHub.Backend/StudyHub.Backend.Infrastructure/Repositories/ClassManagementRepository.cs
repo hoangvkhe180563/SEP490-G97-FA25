@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
-    public class ClassManagementRepository: IClassManagementRepository
+    public class ClassManagementRepository : IClassManagementRepository
     {
         private readonly Data.AppDbContext _context;
         public ClassManagementRepository(Data.AppDbContext context)
@@ -17,30 +17,30 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             _context = context;
         }
 
-       
 
-            public int GetTotalUsers() =>
-                _context.AppUserClasses.AsNoTracking().Where(a=>a.Status.Equals("joined")).GroupBy(a=>a.UserId).Count();
 
-            public int GetTotalClasses() =>
-                _context.Classes.AsNoTracking().Count();
+        public int GetTotalUsers() =>
+            _context.AppUserClasses.AsNoTracking().Where(a => a.Status.Equals("joined")).GroupBy(a => a.UserId).Count();
 
-            public int GetTotalClassworkNotifications() =>
-                _context.ClassNotifications.AsNoTracking().Count(n => n.Type == "classwork");
+        public int GetTotalClasses() =>
+            _context.Classes.AsNoTracking().Count();
 
-            public int GetTotalAnnouncementNotifications() =>
-                _context.ClassNotifications.AsNoTracking().Count(n => n.Type == "notification");
+        public int GetTotalClassworkNotifications() =>
+            _context.ClassNotifications.AsNoTracking().Count(n => n.Type == "classwork");
 
-            public List<sbyte> GetAllGrades() =>
-                _context.Classes.AsNoTracking().Select(c => c.Grade).Distinct().OrderBy(g => g).ToList();
+        public int GetTotalAnnouncementNotifications() =>
+            _context.ClassNotifications.AsNoTracking().Count(n => n.Type == "notification");
 
-            public int GetClassCountByGrade(int grade) =>
-                _context.Classes.AsNoTracking().Count(c => c.Grade == grade);
+        public List<sbyte> GetAllGrades() =>
+            _context.Classes.AsNoTracking().Select(c => c.Grade).Distinct().OrderBy(g => g).ToList();
 
-            public List<int> GetAllClassIds() =>
-                _context.Classes.AsNoTracking().Select(c => c.Id).ToList();
+        public int GetClassCountByGrade(int grade) =>
+            _context.Classes.AsNoTracking().Count(c => c.Grade == grade);
 
-            public int GetStudentsCountByClassId(int classId)
+        public List<int> GetAllClassIds() =>
+            _context.Classes.AsNoTracking().Select(c => c.Id).ToList();
+
+        public int GetStudentsCountByClassId(int classId)
         {
             var classEntity = _context.AppUserClasses
                .Include(c => c.User)
@@ -51,11 +51,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return classEntity.Count();
         }
 
-            public string GetClassNameById(int classId) =>
-                _context.Classes.AsNoTracking().Where(c => c.Id == classId).Select(c => c.Name).FirstOrDefault() ?? string.Empty;
+        public string GetClassNameById(int classId) =>
+            _context.Classes.AsNoTracking().Where(c => c.Id == classId).Select(c => c.Name).FirstOrDefault() ?? string.Empty;
 
-            public List<string> GetAllRoleNames() =>
-                _context.AppRoles.AsNoTracking().Select(r => r.Name).ToList();
+        public List<string> GetAllRoleNames() =>
+            _context.AppRoles.AsNoTracking().Select(r => r.Name).ToList();
 
         public int GetRoleCountByName(string roleName)
         {
@@ -148,5 +148,128 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public int GetSubmissionsCountByNotificationId(int notificationId) =>
             _context.NotificationSubmissions.AsNoTracking().Count(s => s.NotificationId == notificationId);
+
+        public List<string> GetDistinctClassworkMonths()
+        {
+            return _context.ClassNotifications.AsNoTracking()
+                .Where(n => n.Type == "classwork" && n.CreatedAt != null)
+                .Select(n => new { Year = n.CreatedAt.Year, Month = n.CreatedAt.Month })
+                .AsEnumerable()
+                .Select(x => $"{x.Year:D4}-{x.Month:D2}")
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+        }
+
+        public int GetClassworkCountForYearMonth(int year, int month)
+        {
+            return _context.ClassNotifications.AsNoTracking()
+                .Count(n => n.Type == "classwork" && n.CreatedAt.Year == year && n.CreatedAt.Month == month);
+        }
+
+        public List<string> GetDistinctNotificationMonths()
+        {
+            return _context.ClassNotifications.AsNoTracking()
+                .Where(n => n.Type == "notification" && n.CreatedAt != null)
+                .Select(n => new { Year = n.CreatedAt.Year, Month = n.CreatedAt.Month })
+                .AsEnumerable()
+                .Select(x => $"{x.Year:D4}-{x.Month:D2}")
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+        }
+
+        public int GetNotificationCountForYearMonth(int year, int month)
+        {
+            return _context.ClassNotifications.AsNoTracking()
+                .Count(n => n.Type == "notification" && n.CreatedAt.Year == year && n.CreatedAt.Month == month);
+        }
+
+        public List<string> GetDistinctSubmissionMonths()
+        {
+            return _context.NotificationSubmissions.AsNoTracking()
+                .Where(s => s.LatestSubmissionTime != null)
+                .Select(s => new { Year = s.LatestSubmissionTime.Year, Month = s.LatestSubmissionTime.Month })
+                .AsEnumerable()
+                .Select(x => $"{x.Year:D4}-{x.Month:D2}")
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+        }
+
+        public int GetSubmissionCountForYearMonth(int year, int month)
+        {
+            return _context.NotificationSubmissions.AsNoTracking()
+                .Count(s => s.LatestSubmissionTime.Year == year && s.LatestSubmissionTime.Month == month);
+        }
+
+        public List<string> GetDistinctClassCreatedMonths()
+        {
+            return _context.Classes.AsNoTracking()
+                .Where(c => c.CreatedAt != null)
+                .Select(c => new { Year = c.CreatedAt.Year, Month = c.CreatedAt.Month })
+                .AsEnumerable()
+                .Select(x => $"{x.Year:D4}-{x.Month:D2}")
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+        }
+
+        public int GetClassCreatedCountForYearMonth(int year, int month)
+        {
+            return _context.Classes.AsNoTracking()
+                .Count(c => c.CreatedAt.Year == year && c.CreatedAt.Month == month);
+        }
+
+        // CLASS-LEVEL helpers
+        public int GetClassworksCountByClassId(int classId)
+        {
+            return _context.ClassNotifications.AsNoTracking()
+                .Count(n => n.ClassId == classId && n.Type == "classwork");
+        }
+
+        public int GetTotalSubmissionsForClassId(int classId)
+        {
+            return (from s in _context.NotificationSubmissions.AsNoTracking()
+                    join n in _context.ClassNotifications.AsNoTracking() on s.NotificationId equals n.Id
+                    where n.ClassId == classId && n.Type == "classwork"
+                    select s).Count();
+        }
+
+        public int GetTotalNotificationReadEntriesForClassId(int classId)
+        {
+            return (from rs in _context.ClassNotificationReadStatuses.AsNoTracking()
+                    join n in _context.ClassNotifications.AsNoTracking() on rs.NotificationId equals n.Id
+                    where n.ClassId == classId
+                    select rs).Count();
+        }
+
+        public int GetReadCountForClassId(int classId)
+        {
+            return (from rs in _context.ClassNotificationReadStatuses.AsNoTracking()
+                    join n in _context.ClassNotifications.AsNoTracking() on rs.NotificationId equals n.Id
+                    where n.ClassId == classId && rs.IsRead == true
+                    select rs).Count();
+        }
+
+        // NOTIFICATION-LEVEL helpers
+        public List<int> GetAllNotificationIds()
+        {
+            return _context.ClassNotifications.AsNoTracking()
+                .Select(n => n.Id)
+                .ToList();
+        }
+
+        public int GetReadCountForNotification(int notificationId)
+        {
+            return _context.ClassNotificationReadStatuses.AsNoTracking()
+                .Count(rs => rs.NotificationId == notificationId && rs.IsRead == true);
+        }
+
+        public int GetTotalRecipientsForNotification(int notificationId)
+        {
+            return _context.ClassNotificationReadStatuses.AsNoTracking()
+                .Count(rs => rs.NotificationId == notificationId);
+        }
     }
 }

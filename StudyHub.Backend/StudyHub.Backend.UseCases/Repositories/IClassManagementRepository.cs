@@ -46,5 +46,27 @@ namespace StudyHub.Backend.UseCases.Repositories
         List<int> GetNotificationIdsForClasswork();
         string GetNotificationTitle(int notificationId);
         int GetSubmissionsCountByNotificationId(int notificationId);
+        List<string> GetDistinctClassworkMonths();
+        int GetClassworkCountForYearMonth(int year, int month);
+
+        List<string> GetDistinctNotificationMonths();
+        int GetNotificationCountForYearMonth(int year, int month);
+
+        List<string> GetDistinctSubmissionMonths();
+        int GetSubmissionCountForYearMonth(int year, int month);
+
+        List<string> GetDistinctClassCreatedMonths();
+        int GetClassCreatedCountForYearMonth(int year, int month);
+
+        // CLASS-LEVEL helpers (per-class single-value methods)
+        int GetClassworksCountByClassId(int classId);
+        int GetTotalSubmissionsForClassId(int classId);
+        int GetTotalNotificationReadEntriesForClassId(int classId);
+        int GetReadCountForClassId(int classId);
+
+        // NOTIFICATION-LEVEL helpers (per-notification single-value methods)
+        List<int> GetAllNotificationIds();
+        int GetReadCountForNotification(int notificationId);
+        int GetTotalRecipientsForNotification(int notificationId);
     }
 }

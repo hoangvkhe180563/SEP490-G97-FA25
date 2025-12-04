@@ -10,6 +10,9 @@ import type {
   TopActiveClassDto,
   ScoreDistributionDto,
   AssignmentInteractionDto,
+  MonthlyCountDto,
+  ClassStatsDto,
+  NotificationStatDto,
 } from "@/classManagement/interfaces/dashboard";
 
 type DashboardState = {
@@ -26,6 +29,16 @@ type DashboardState = {
   submissionRate: number | null;
   scoreDistribution: ScoreDistributionDto[];
   mostInteractiveAssignments: AssignmentInteractionDto[];
+
+  // new data for charts & lists
+  monthlyClassworks: MonthlyCountDto[];
+  monthlyNotifications: MonthlyCountDto[];
+  monthlySubmissions: MonthlyCountDto[];
+  monthlyNewClasses: MonthlyCountDto[];
+  classStats: ClassStatsDto[];
+  topReadNotifications: NotificationStatDto[];
+  mostIgnoredNotifications: NotificationStatDto[];
+  classWithMostNotifications: TopActiveClassDto | null;
 
   // meta
   isLoading: boolean;
@@ -45,6 +58,16 @@ type DashboardState = {
   fetchSubmissionRate: () => Promise<number | null>;
   fetchScoreDistribution: () => Promise<ScoreDistributionDto[] | null>;
   fetchMostInteractiveAssignments: (top?: number) => Promise<AssignmentInteractionDto[] | null>;
+
+  // new actions
+  fetchMonthlyClassworks: (months?: number) => Promise<MonthlyCountDto[] | null>;
+  fetchMonthlyNotifications: (months?: number) => Promise<MonthlyCountDto[] | null>;
+  fetchMonthlySubmissions: (months?: number) => Promise<MonthlyCountDto[] | null>;
+  fetchMonthlyNewClasses: (months?: number) => Promise<MonthlyCountDto[] | null>;
+  fetchClassStats: () => Promise<ClassStatsDto[] | null>;
+  fetchTopReadNotifications: (top?: number) => Promise<NotificationStatDto[] | null>;
+  fetchMostIgnoredNotifications: (top?: number) => Promise<NotificationStatDto[] | null>;
+  fetchClassWithMostNotifications: () => Promise<TopActiveClassDto | null>;
 };
 
 export const useDashboardStore = create<DashboardState>()(
@@ -75,6 +98,15 @@ export const useDashboardStore = create<DashboardState>()(
       scoreDistribution: [],
       mostInteractiveAssignments: [],
 
+      monthlyClassworks: [],
+      monthlyNotifications: [],
+      monthlySubmissions: [],
+      monthlyNewClasses: [],
+      classStats: [],
+      topReadNotifications: [],
+      mostIgnoredNotifications: [],
+      classWithMostNotifications: null,
+
       isLoading: false,
       error: null,
 
@@ -92,6 +124,16 @@ export const useDashboardStore = create<DashboardState>()(
           submissionRate: null,
           scoreDistribution: [],
           mostInteractiveAssignments: [],
+
+          monthlyClassworks: [],
+          monthlyNotifications: [],
+          monthlySubmissions: [],
+          monthlyNewClasses: [],
+          classStats: [],
+          topReadNotifications: [],
+          mostIgnoredNotifications: [],
+          classWithMostNotifications: null,
+
           isLoading: false,
           error: null,
         });
@@ -324,6 +366,124 @@ export const useDashboardStore = create<DashboardState>()(
           })) as AssignmentInteractionDto[];
           set({ mostInteractiveAssignments: mapped, isLoading: false });
           return mapped;
+        } catch (err) {
+          handleError(err);
+          return null;
+        }
+      },
+
+      // New fetchers for monthly and class/notification stats (accept months param)
+      fetchMonthlyClassworks: async (months?: number) => {
+        set({ isLoading: true, error: null });
+        try {
+          const qs = months && months > 0 ? `?months=${encodeURIComponent(String(months))}` : "";
+          const res = await axiosInstance.get<MonthlyCountDto[]>(`${base}/monthly/classworks${qs}`);
+          const raw = res && res.data ? res.data : [];
+          const arr = Array.isArray(raw) ? raw : [];
+          set({ monthlyClassworks: arr, isLoading: false });
+          return arr;
+        } catch (err) {
+          handleError(err);
+          return null;
+        }
+      },
+
+      fetchMonthlyNotifications: async (months?: number) => {
+        set({ isLoading: true, error: null });
+        try {
+          const qs = months && months > 0 ? `?months=${encodeURIComponent(String(months))}` : "";
+          const res = await axiosInstance.get<MonthlyCountDto[]>(`${base}/monthly/notifications${qs}`);
+          const raw = res && res.data ? res.data : [];
+          const arr = Array.isArray(raw) ? raw : [];
+          set({ monthlyNotifications: arr, isLoading: false });
+          return arr;
+        } catch (err) {
+          handleError(err);
+          return null;
+        }
+      },
+
+      fetchMonthlySubmissions: async (months?: number) => {
+        set({ isLoading: true, error: null });
+        try {
+          const qs = months && months > 0 ? `?months=${encodeURIComponent(String(months))}` : "";
+          const res = await axiosInstance.get<MonthlyCountDto[]>(`${base}/monthly/submissions${qs}`);
+          const raw = res && res.data ? res.data : [];
+          const arr = Array.isArray(raw) ? raw : [];
+          set({ monthlySubmissions: arr, isLoading: false });
+          return arr;
+        } catch (err) {
+          handleError(err);
+          return null;
+        }
+      },
+
+      fetchMonthlyNewClasses: async (months?: number) => {
+        set({ isLoading: true, error: null });
+        try {
+          const qs = months && months > 0 ? `?months=${encodeURIComponent(String(months))}` : "";
+          const res = await axiosInstance.get<MonthlyCountDto[]>(`${base}/monthly/new-classes${qs}`);
+          const raw = res && res.data ? res.data : [];
+          const arr = Array.isArray(raw) ? raw : [];
+          set({ monthlyNewClasses: arr, isLoading: false });
+          return arr;
+        } catch (err) {
+          handleError(err);
+          return null;
+        }
+      },
+
+      fetchClassStats: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const res = await axiosInstance.get<ClassStatsDto[]>(`${base}/class-stats`);
+          const raw = res && res.data ? res.data : [];
+          const arr = Array.isArray(raw) ? raw : [];
+          set({ classStats: arr, isLoading: false });
+          return arr;
+        } catch (err) {
+          handleError(err);
+          return null;
+        }
+      },
+
+      fetchTopReadNotifications: async (top?: number) => {
+        set({ isLoading: true, error: null });
+        try {
+          const qs = top && top > 0 ? `?top=${encodeURIComponent(String(top))}` : "";
+          const res = await axiosInstance.get<NotificationStatDto[]>(`${base}/top-read-notifications${qs}`);
+          const raw = res && res.data ? res.data : [];
+          const arr = Array.isArray(raw) ? raw : [];
+          set({ topReadNotifications: arr, isLoading: false });
+          return arr;
+        } catch (err) {
+          handleError(err);
+          return null;
+        }
+      },
+
+      fetchMostIgnoredNotifications: async (top?: number) => {
+        set({ isLoading: true, error: null });
+        try {
+          const qs = top && top > 0 ? `?top=${encodeURIComponent(String(top))}` : "";
+          const res = await axiosInstance.get<NotificationStatDto[]>(`${base}/most-ignored-notifications${qs}`);
+          const raw = res && res.data ? res.data : [];
+          const arr = Array.isArray(raw) ? raw : [];
+          set({ mostIgnoredNotifications: arr, isLoading: false });
+          return arr;
+        } catch (err) {
+          handleError(err);
+          return null;
+        }
+      },
+
+      fetchClassWithMostNotifications: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const res = await axiosInstance.get<TopActiveClassDto | null>(`${base}/class-with-most-notifications`);
+          const data = res && res.data ? res.data : null;
+          set({ classWithMostNotifications: data, isLoading: false });
+          return data;
         } catch (err) {
           handleError(err);
           return null;
