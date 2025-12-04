@@ -58,6 +58,7 @@ const CreateExam = () => {
       }
     }
     fetchData().catch(console.error);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const handleSubmit = async () => {
@@ -125,7 +126,7 @@ const CreateExam = () => {
             return;
           }
         } else if (q.type === EXAM_TYPE.FILL_IN_BLANK) {
-          const expectedBlanks = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+          const expectedBlanks = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
           if (expectedBlanks === 0) {
             toast.error(`Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
             setLoading(false);
@@ -184,7 +185,7 @@ const CreateExam = () => {
     };
 
     if (selectedTab === 'bank-questions') {
-      newExam.noRandomQuestions = Number(randomQuestions) ?? 0;
+      newExam.noRandomQuestions = Number(randomQuestions);
       newExam.subjectId = selectedSubjectId;
       newExam.grade = selectedGrade;
     }

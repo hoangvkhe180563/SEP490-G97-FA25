@@ -39,7 +39,7 @@ export const Sidebar = (props: {
   const logout = async () => {
     await axiosInstance.post("/auth/logout").then((res) => {
       if (res.status === 200) {
-        location.reload();
+        location.href = '/';
       } else {
         console.error("Lỗi không logout được!");
       }
