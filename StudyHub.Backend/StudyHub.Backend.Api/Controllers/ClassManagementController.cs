@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudyHub.Backend.Api.Dtos.ClassStatisticDTOS;
+using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.UseCases.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -12,16 +14,97 @@ namespace StudyHub.Backend.Api.Controllers
     public class ClassManagementController : ControllerBase
     {
         private readonly ClassManagementService _service;
+        private readonly AppUserService _appUserService;
+        private readonly ClassService _classService;
 
-        public ClassManagementController(ClassManagementService service)
+        public ClassManagementController(ClassManagementService service, AppUserService appUserService, ClassService classService)
         {
             _service = service ?? throw new ArgumentNullException(nameof(service));
+            _appUserService = appUserService ?? throw new ArgumentNullException(nameof(appUserService));
+            _classService= classService ?? throw new ArgumentNullException( nameof(classService));
+        }
+        [HttpGet("my-school")]
+        public IActionResult MySchool()
+        {
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (claim == null)
+                return Unauthorized(new { success = false, message = "Unauthorized" });
+
+            if (!Guid.TryParse(claim.Value, out var userGuid))
+                return Unauthorized(new { success = false, message = "Invalid user identifier" });
+
+            var school = _service.GetSchool(userGuid);
+            return Ok(school.Name);
+        }
+        [HttpGet("get-all-class")]
+        public IActionResult GetClasses(
+         [FromQuery] string? query,
+         [FromQuery] string? status,
+         [FromQuery] int page = 1,
+         [FromQuery] int limit = 10
+     )
+        {
+            if (User.FindFirst(ClaimTypes.NameIdentifier) == null)
+            {
+                return Unauthorized(new { success = false, message = "Unauthorized" });
+            }
+            var userGuid = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+            // Controller: validation + mapping only
+            var (classesEntities, totalItems, currentPage, pageLimit, totalPages) = _service.GetClassesPaged(query, status, userGuid, page, limit);
+
+            var classListDtos = classesEntities
+                .Select(c =>
+                {
+                    var teacher = _classService.GetTeachers().FirstOrDefault(t => t.Id == c.CreatedBy);
+                    return c.ToListClassDto(teacher);
+                })
+                .ToList();
+
+            var response = new
+            {
+                success = true,
+                message = "Danh sách lớp học được tải thành công.",
+                classes = classListDtos,
+                meta = new
+                {
+                    total = totalItems,
+                    page = currentPage,
+                    limit = pageLimit,
+                    totalPages = totalPages
+                }
+            };
+
+            return Ok(response);
+        }
+        private (bool Success, int? SchoolId, IActionResult? ErrorResult) ResolveSchoolIdFromCurrentUser()
+        {
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (claim == null)
+            {
+                return (false, null, Unauthorized(new { success = false, message = "Unauthorized" }));
+            }
+
+            if (!Guid.TryParse(claim.Value, out var userGuid))
+            {
+                return (false, null, Unauthorized(new { success = false, message = "Invalid user identifier" }));
+            }
+
+            var appUser = _appUserService.GetUserById(userGuid);
+            if (appUser == null)
+            {
+                return (false, null, Unauthorized(new { success = false, message = "User not found" }));
+            }
+
+            return (true, appUser.SchoolId, null);
         }
 
         [HttpGet("overview")]
         public IActionResult Overview()
         {
-            var p = _service.GetOverviewPrimitives();
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var p = _service.GetOverviewPrimitives(resolved.SchoolId);
             var dto = new OverviewDto
             {
                 TotalUsers = p.TotalUsers,
@@ -35,15 +118,19 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("classes-by-grade")]
         public IActionResult ClassesByGrade()
         {
-            var data = _service.GetClassesByGradePrimitives();
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetClassesByGradePrimitives(resolved.SchoolId);
             var dto = data.Select(x => new GradeCountDto { Grade = x.Grade, Count = x.Count }).ToList();
             return Ok(dto);
         }
 
         [HttpGet("students-per-class")]
-        public IActionResult StudentsPerClass([FromQuery] int? limit)
+        public IActionResult StudentsPerClass([FromQuery] int? limit = null)
         {
-            var data = _service.GetStudentsPerClassPrimitives(limit);
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetStudentsPerClassPrimitives(limit, resolved.SchoolId);
             var dto = data.Select(x => new StudentsPerClassDto
             {
                 ClassId = x.ClassId,
@@ -56,7 +143,9 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("role-counts")]
         public IActionResult RoleCounts()
         {
-            var data = _service.GetRoleCountsPrimitives();
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetRoleCountsPrimitives(resolved.SchoolId);
             var dto = data.Select(x => new RoleCountDto { RoleName = x.RoleName, Count = x.Count }).ToList();
             return Ok(dto);
         }
@@ -64,7 +153,9 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("gender-ratio")]
         public IActionResult GenderRatio()
         {
-            var p = _service.GetGenderRatioPrimitives();
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var p = _service.GetGenderRatioPrimitives(resolved.SchoolId);
             var dto = new List<KeyValueDto>
             {
                 new KeyValueDto { Key = "Male", Value = p.Male },
@@ -76,7 +167,9 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("email-verified")]
         public IActionResult EmailVerified()
         {
-            var p = _service.GetEmailVerifiedPrimitives();
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var p = _service.GetEmailVerifiedPrimitives(resolved.SchoolId);
             var dto = new List<KeyValueDto>
             {
                 new KeyValueDto { Key = "Verified", Value = p.Verified },
@@ -88,7 +181,9 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("announcements-by-type")]
         public IActionResult AnnouncementsByType()
         {
-            var data = _service.GetAnnouncementsByTypePrimitives();
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetAnnouncementsByTypePrimitives(resolved.SchoolId);
             var dto = data.Select(x => new KeyValueDto { Key = x.Type, Value = x.Count }).ToList();
             return Ok(dto);
         }
@@ -96,7 +191,9 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("read-rates")]
         public IActionResult ReadRates()
         {
-            var data = _service.GetReadRatesPrimitives();
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetReadRatesPrimitives(resolved.SchoolId);
             var dto = data.Select(x => new KeyValueDto { Key = x.Key, Value = (int)Math.Round(x.Percent) }).ToList();
             return Ok(dto);
         }
@@ -104,7 +201,9 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("top-active-classes")]
         public IActionResult TopActiveClasses([FromQuery] int top = 10)
         {
-            var data = _service.GetTopActiveClassesPrimitives(top);
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetTopActiveClassesPrimitives(top, resolved.SchoolId);
             var dto = data.Select(x => new TopActiveClassDto
             {
                 ClassId = x.ClassId,
@@ -120,14 +219,18 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("submission-rate")]
         public IActionResult SubmissionRate()
         {
-            var rate = _service.GetSubmissionRatePrimitives();
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var rate = _service.GetSubmissionRatePrimitives(resolved.SchoolId);
             return Ok(new { Rate = rate });
         }
 
         [HttpGet("score-distribution")]
         public IActionResult ScoreDistribution()
         {
-            var data = _service.GetScoreDistributionPrimitives();
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetScoreDistributionPrimitives(resolved.SchoolId);
             var dto = data.Select(x => new ScoreDistributionDto
             {
                 Range = x.Range,
@@ -140,21 +243,26 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("most-interactive-assignments")]
         public IActionResult MostInteractiveAssignments([FromQuery] int top = 10)
         {
-            var data = _service.GetMostInteractiveAssignmentsPrimitives(top);
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetMostInteractiveAssignmentsPrimitives(top, resolved.SchoolId);
             var dto = data.Select(x => new AssignmentInteractionDto
             {
                 NotificationId = x.NotificationId,
                 Title = x.Title,
+                CreateBy = x.CreateBy,
                 SubmissionsCount = x.SubmissionsCount
             }).ToList();
             return Ok(dto);
         }
 
-        // Monthly endpoints now accept optional months query parameter (default 12)
+        // Monthly endpoints
         [HttpGet("monthly/classworks")]
         public IActionResult ClassworksPerMonth([FromQuery] int months = 12)
         {
-            var data = _service.GetClassworksByMonthPrimitives(months);
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetClassworksByMonthPrimitives(months, resolved.SchoolId);
             var dto = data.Select(x => new MonthlyCountDto { Month = x.Month, Count = x.Count }).ToList();
             return Ok(dto);
         }
@@ -162,7 +270,9 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("monthly/notifications")]
         public IActionResult NotificationsPerMonth([FromQuery] int months = 12)
         {
-            var data = _service.GetNotificationsByMonthPrimitives(months);
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetNotificationsByMonthPrimitives(months, resolved.SchoolId);
             var dto = data.Select(x => new MonthlyCountDto { Month = x.Month, Count = x.Count }).ToList();
             return Ok(dto);
         }
@@ -170,7 +280,9 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("monthly/submissions")]
         public IActionResult SubmissionsPerMonth([FromQuery] int months = 12)
         {
-            var data = _service.GetSubmissionsByMonthPrimitives(months);
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetSubmissionsByMonthPrimitives(months, resolved.SchoolId);
             var dto = data.Select(x => new MonthlyCountDto { Month = x.Month, Count = x.Count }).ToList();
             return Ok(dto);
         }
@@ -178,16 +290,20 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("monthly/new-classes")]
         public IActionResult NewClassesPerMonth([FromQuery] int months = 12)
         {
-            var data = _service.GetNewClassesByMonthPrimitives(months);
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetNewClassesByMonthPrimitives(months, resolved.SchoolId);
             var dto = data.Select(x => new MonthlyCountDto { Month = x.Month, Count = x.Count }).ToList();
             return Ok(dto);
         }
 
-        // === Per-class aggregated stats ===
+        // Class stats
         [HttpGet("class-stats")]
         public IActionResult ClassStats()
         {
-            var data = _service.GetClassStatsPrimitives();
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetClassStatsPrimitives(resolved.SchoolId);
             var dto = data.Select(x => new ClassStatsDto
             {
                 ClassId = x.ClassId,
@@ -205,10 +321,13 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("top-read-notifications")]
         public IActionResult TopReadNotifications([FromQuery] int top = 10)
         {
-            var data = _service.GetTopReadNotificationsPrimitives(top);
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetTopReadNotificationsPrimitives(top, resolved.SchoolId);
             var dto = data.Select(x => new NotificationStatDto
             {
                 NotificationId = x.NotificationId,
+                CreatedBy = x.CreatedBy,
                 Title = x.Title,
                 ReadsCount = x.ReadsCount,
                 IgnoredCount = x.IgnoredCount,
@@ -221,10 +340,13 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("most-ignored-notifications")]
         public IActionResult MostIgnoredNotifications([FromQuery] int top = 10)
         {
-            var data = _service.GetMostIgnoredNotificationsPrimitives(top);
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetMostIgnoredNotificationsPrimitives(top, resolved.SchoolId);
             var dto = data.Select(x => new NotificationStatDto
             {
                 NotificationId = x.NotificationId,
+                CreatedBy = x.CreatedBy,
                 Title = x.Title,
                 ReadsCount = x.ReadsCount,
                 IgnoredCount = x.IgnoredCount,
@@ -237,7 +359,9 @@ namespace StudyHub.Backend.Api.Controllers
         [HttpGet("class-with-most-notifications")]
         public IActionResult ClassWithMostNotifications()
         {
-            var data = _service.GetClassWithMostNotificationsPrimitives();
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
+            var data = _service.GetClassWithMostNotificationsPrimitives(resolved.SchoolId);
             if (data == null) return Ok(null);
             var dto = new TopActiveClassDto
             {

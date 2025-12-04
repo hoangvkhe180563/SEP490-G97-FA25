@@ -18,7 +18,8 @@ const ClassRouteConfig = {
   },
   MANAGER:{
     INDEX: "manager",
-    CLASS_MANAGEMENT: "manage-classes",
+    CLASS_DASHBOARD: "dashboard-classes",
+    CLASS_MANAGEMENT: "management-classes"
   }
 };
 export default ClassRouteConfig;

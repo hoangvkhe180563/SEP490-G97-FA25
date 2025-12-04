@@ -105,7 +105,24 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(updated.ToDetailDto());
         }
 
-     
+        [HttpDelete("{id}")]
+        public IActionResult Delete(int id)
+        {
+            if (User.FindFirst(ClaimTypes.NameIdentifier) == null)
+            {
+                return Unauthorized(new { success = false, message = "Unauthorized" });
+            }
+
+            var userGuid = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+            var deleted = _service.DeleteClass(id, userGuid);
+            if (deleted == null)
+            {
+                return NotFound(new { success = false, message = "Class not found" });
+            }
+
+            return Ok(new { success = true, message = "Xóa lớp thành công (soft delete)", data = deleted.ToDetailDto() });
+        }
 
         [HttpGet("{id}/detail")]
         public IActionResult GetClassDetail(int id)

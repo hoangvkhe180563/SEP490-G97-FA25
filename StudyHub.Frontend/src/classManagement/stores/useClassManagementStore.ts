@@ -40,6 +40,9 @@ type DashboardState = {
   mostIgnoredNotifications: NotificationStatDto[];
   classWithMostNotifications: TopActiveClassDto | null;
 
+  // school info (from new endpoint)
+  schoolName: string | null;
+
   // meta
   isLoading: boolean;
   error: string | null;
@@ -68,6 +71,9 @@ type DashboardState = {
   fetchTopReadNotifications: (top?: number) => Promise<NotificationStatDto[] | null>;
   fetchMostIgnoredNotifications: (top?: number) => Promise<NotificationStatDto[] | null>;
   fetchClassWithMostNotifications: () => Promise<TopActiveClassDto | null>;
+
+  // new: get school name for current user
+  fetchMySchool: () => Promise<string | null>;
 };
 
 export const useDashboardStore = create<DashboardState>()(
@@ -107,6 +113,9 @@ export const useDashboardStore = create<DashboardState>()(
       mostIgnoredNotifications: [],
       classWithMostNotifications: null,
 
+      // school name
+      schoolName: null,
+
       isLoading: false,
       error: null,
 
@@ -133,6 +142,8 @@ export const useDashboardStore = create<DashboardState>()(
           topReadNotifications: [],
           mostIgnoredNotifications: [],
           classWithMostNotifications: null,
+
+          schoolName: null,
 
           isLoading: false,
           error: null,
@@ -362,6 +373,7 @@ export const useDashboardStore = create<DashboardState>()(
           const mapped = arr.map((r: any) => ({
             notificationId: typeof r.notificationId === "number" ? r.notificationId : Number(r.NotificationId ?? r.id ?? 0),
             title: String(r.title ?? r.Title ?? r.name ?? ""),
+            createdBy: String(r.createBy ),
             submissionsCount: typeof r.submissionsCount === "number" ? r.submissionsCount : Number(r.SubmissionsCount ?? r.interactions ?? 0),
           })) as AssignmentInteractionDto[];
           set({ mostInteractiveAssignments: mapped, isLoading: false });
@@ -454,8 +466,18 @@ export const useDashboardStore = create<DashboardState>()(
           const res = await axiosInstance.get<NotificationStatDto[]>(`${base}/top-read-notifications${qs}`);
           const raw = res && res.data ? res.data : [];
           const arr = Array.isArray(raw) ? raw : [];
-          set({ topReadNotifications: arr, isLoading: false });
-          return arr;
+          // map to a stable client-side shape, supporting various casing
+          const mapped = arr.map((r: any) => ({
+            notificationId: typeof r.notificationId === "number" ? r.notificationId : Number(r.NotificationId ?? r.id ?? 0),
+            title: String(r.title ?? r.Title ?? r.name ?? ""),
+            readsCount: typeof r.readsCount === "number" ? r.readsCount : Number(r.ReadsCount ?? r.reads ?? 0),
+            ignoredCount: typeof r.ignoredCount === "number" ? r.ignoredCount : Number(r.IgnoredCount ?? r.ignored ?? 0),
+            totalRecipients: typeof r.totalRecipients === "number" ? r.totalRecipients : Number(r.TotalRecipients ?? r.total ?? 0),
+            submissionsCount: typeof r.submissionsCount === "number" ? r.submissionsCount : Number(r.SubmissionsCount ?? r.submissions ?? 0),
+            createdBy: String(r.createdBy ?? r.CreatedBy ?? r.createdByName ?? r.createdByDisplayName ?? r.CreatedByDisplayName ?? ""),
+          })) as NotificationStatDto[];
+          set({ topReadNotifications: mapped, isLoading: false });
+          return mapped;
         } catch (err) {
           handleError(err);
           return null;
@@ -469,8 +491,17 @@ export const useDashboardStore = create<DashboardState>()(
           const res = await axiosInstance.get<NotificationStatDto[]>(`${base}/most-ignored-notifications${qs}`);
           const raw = res && res.data ? res.data : [];
           const arr = Array.isArray(raw) ? raw : [];
-          set({ mostIgnoredNotifications: arr, isLoading: false });
-          return arr;
+          const mapped = arr.map((r: any) => ({
+            notificationId: typeof r.notificationId === "number" ? r.notificationId : Number(r.NotificationId ?? r.id ?? 0),
+            title: String(r.title ?? r.Title ?? r.name ?? ""),
+            readsCount: typeof r.readsCount === "number" ? r.readsCount : Number(r.ReadsCount ?? r.reads ?? 0),
+            ignoredCount: typeof r.ignoredCount === "number" ? r.ignoredCount : Number(r.IgnoredCount ?? r.ignored ?? 0),
+            totalRecipients: typeof r.totalRecipients === "number" ? r.totalRecipients : Number(r.TotalRecipients ?? r.total ?? 0),
+            submissionsCount: typeof r.submissionsCount === "number" ? r.submissionsCount : Number(r.SubmissionsCount ?? r.submissions ?? 0),
+            createdBy: String(r.createdBy ?? r.CreatedBy ?? r.createdByName ?? r.createdByDisplayName ?? r.CreatedByDisplayName ?? ""),
+          })) as NotificationStatDto[];
+          set({ mostIgnoredNotifications: mapped, isLoading: false });
+          return mapped;
         } catch (err) {
           handleError(err);
           return null;
@@ -484,6 +515,39 @@ export const useDashboardStore = create<DashboardState>()(
           const data = res && res.data ? res.data : null;
           set({ classWithMostNotifications: data, isLoading: false });
           return data;
+        } catch (err) {
+          handleError(err);
+          return null;
+        }
+      },
+
+      // New: fetch current user's school name (endpoint returns string or object)
+      fetchMySchool: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const res = await axiosInstance.get<any>(`${base}/my-school`);
+          const raw = res && res.data ? res.data : null;
+          let name: string | null = null;
+
+          if (raw === null) {
+            name = null;
+          } else if (typeof raw === "string") {
+            name = raw;
+          } else if (typeof raw === "object") {
+            // possible shapes: { SchoolId, SchoolName } or { schoolId, schoolName } or just { name }
+            name = (raw.schoolName ?? raw.SchoolName ?? raw.name ?? raw.Name ?? null) as string | null;
+            // if server returns just the name as top-level primitive property
+            if (!name && typeof raw === "object") {
+              const keys = Object.keys(raw);
+              if (keys.length === 1) {
+                const v = (raw as any)[keys[0]];
+                if (typeof v === "string") name = v;
+              }
+            }
+          }
+
+          set({ schoolName: name, isLoading: false });
+          return name;
         } catch (err) {
           handleError(err);
           return null;

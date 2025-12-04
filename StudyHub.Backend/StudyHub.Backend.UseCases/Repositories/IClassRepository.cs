@@ -12,6 +12,7 @@ namespace StudyHub.Backend.UseCases.Repositories
         List<Class> GetAllClasses(Guid? userid);
         List<Subject> GetAllSubject();
         List<AppUser> GetAllTeacher();
+        bool HasTeacher(Guid? userid, int classID);
         List<Class> GetClassesByTeacherId(string teacherId);
         Class? GetClassById(int id);
         Class CreateClass(Class classEntity);
@@ -20,8 +21,6 @@ namespace StudyHub.Backend.UseCases.Repositories
        
         List<Class> GetClassByUserId(Guid userid);
         List<Class> GetAllClassByUserId(Guid userid);
-
-       
-      
+        Class DeleteClass(Class classID);
     }
 }

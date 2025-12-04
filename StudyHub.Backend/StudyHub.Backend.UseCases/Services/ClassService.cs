@@ -51,6 +51,34 @@ namespace StudyHub.Backend.UseCases.Services
         }
         public List<Subject> GetSubjects() => _classRepository.GetAllSubject();
         public List<AppUser> GetTeachers() => _classRepository.GetAllTeacher();
+        public List<AppUser> GetTeachersHomeRoom(int classID)
+        {
+            var teachers = _classRepository.GetAllTeacher() ?? new List<AppUser>();
+
+            var homeroomTeachers = teachers
+                .Where(t => t.Roles != null && t.Roles.Any(r => string.Equals(r.Name, "Homeroom Teacher", StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
+            var result = new List<AppUser>();
+
+            foreach (var teacher in homeroomTeachers)
+            {
+                try
+                {
+                    if (_classRepository.HasTeacher(teacher.Id, classID))
+                    {
+                        result.Add(teacher);
+                    }
+                }
+                catch
+                {
+                    // Nếu repository có thể ném lỗi, bỏ qua trường hợp lỗi và tiếp tục
+                    continue;
+                }
+            }
+
+            return result;
+        }
 
         public Class CreateClass(Class dto)
         {
@@ -65,7 +93,7 @@ namespace StudyHub.Backend.UseCases.Services
 
             return _classRepository.CreateClass(entity);
         }
-
+       
         public Class UpdateClass(Class dto) => _classRepository.UpdateClass(dto);
 
        
@@ -82,11 +110,23 @@ namespace StudyHub.Backend.UseCases.Services
 
         public Class GetClassById(int id) => _classRepository.GetClassById(id);
         public Class? GetClassDetail(int id) => _classRepository.GetClassDetailById(id);
-       
+        public Class? DeleteClass(int id, Guid? deletedBy)
+        {
+            var existing = _classRepository.GetClassById(id);
+            if (existing == null) return null;
+
+            existing.DeletedAt = DateTime.Now;
+            existing.UpdatedAt = DateTime.Now;
+            existing.UpdatedBy = deletedBy;
+
+            // Repository has DeleteClass that sets DeletedAt and updates DB
+            var deleted = _classRepository.DeleteClass(existing);
+            return deleted;
+        }
 
         // --- Classwork / Submission flow ---
-      
 
-        
+
+
     }
 }

@@ -129,7 +129,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     IsLoginWithGoogle = u.IsLoginWithGoogle,
                     RefreshToken = u.RefreshToken,
                     Status = u.Status,
-                    RefreshTokenExpire = u.RefreshTokenExpire
+                    RefreshTokenExpire = u.RefreshTokenExpire,
+                    Roles=u.Roles.Select(a=>new AppRole
+                    {
+                        Id = a.Id,
+                        Name=a.Name
+
+                    }).ToList(),
                 })
                 .ToList();
         }
@@ -242,6 +248,34 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     "GetClassByUserId failed: " + ex.Message).LogError();
                 return new List<Class>();
             }
+        }
+
+        public bool HasTeacher(Guid? userid, int classID)
+        {
+           var teacher = _context.AppUserClasses.FirstOrDefault(a=>a.UserId == userid&&a.ClassId==classID);
+            return teacher != null;
+        }
+        public Class DeleteClass(Class classID)
+        {
+            var classes = _context.Classes.FirstOrDefault(a => a.Id == classID.Id);
+            if (classes == null) { return null; }
+            classes.DeletedAt = DateTime.Now;
+            classes.UpdatedBy = classID.UpdatedBy;
+            classes.UpdatedAt = classID.CreatedAt;
+
+            _context.Classes.Update(classes);
+            _context.SaveChanges();
+            return new Class
+            {
+                Id = classID.Id,
+                Name = classes.Name,
+                Grade = classes.Grade,
+                Description= classes.Description,
+                CreatedAt= classes.CreatedAt,
+                UpdatedAt = classes.UpdatedAt,
+                DeletedAt = classes.DeletedAt
+                
+            };
         }
     }
 }

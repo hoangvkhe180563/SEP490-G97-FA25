@@ -14,10 +14,11 @@ import ClassDocumentsPage from "@/classManagement/pages/ClassDocument";
 
 import AddClasswork from "../pages/teacher/AddClasswork";
 import EditClassworkForm from "../pages/teacher/EditClasswork";
-import DashboardPage from "../pages/manager/ClassManagement";
+import DashboardPage from "../pages/manager/ClassDashboard";
 import { m } from "framer-motion";
 
 import { ROLES } from "@/common/constants/Roles";
+import ClassListManagement from "../pages/manager/ClassManagement";
 
 
 const teacherClassRoutes = [
@@ -80,9 +81,13 @@ const studentClassRoutes = [
 const managerClassRoutes = [
 
   {
-    path: ClassRouteConfig.MANAGER.CLASS_MANAGEMENT,
+    path: ClassRouteConfig.MANAGER.CLASS_DASHBOARD,
     element: <DashboardPage />,
-  }
+  },
+   {
+    path: ClassRouteConfig.MANAGER.CLASS_MANAGEMENT,
+    element: <ClassListManagement />,
+  },
 ];
 const classRoutes: RouteObject[] = [
   {

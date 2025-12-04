@@ -1,3 +1,4 @@
+import { create } from 'zustand';
 export type OverviewDto = {
   totalUsers: number;
   totalClasses: number;
@@ -44,6 +45,7 @@ export type ScoreDistributionDto = {
 export type AssignmentInteractionDto = {
   notificationId: number;
   title: string;
+  createdBy: string;
   submissionsCount: number;
 };
 export type MonthlyCountDto = {
@@ -69,4 +71,5 @@ export type NotificationStatDto = {
   ignoredCount: number; // recipients - reads
   totalRecipients: number;
   submissionsCount?: number;
+  createdBy?: string;
 };
