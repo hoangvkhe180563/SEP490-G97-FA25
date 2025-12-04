@@ -34,7 +34,7 @@ type FilePreview = {
   fileName?: string;
 };
 
-// --- helpers for Cloudinary & downloads ---
+// --- helpers for Cloudinary & downloads (unchanged) ---
 const isCloudinaryUrl = (u?: string) => {
   if (!u) return false;
   try {
@@ -64,7 +64,6 @@ const makeCloudinaryFlAttachment = (u: string) => {
 async function downloadUrl(fileUrl?: string, suggestedName?: string): Promise<void> {
   if (!fileUrl) return;
   try {
-    // detect cross-origin
     let isCrossOrigin = false;
     try {
       const urlObj = new URL(String(fileUrl), window.location.href);
@@ -79,16 +78,7 @@ async function downloadUrl(fileUrl?: string, suggestedName?: string): Promise<vo
       credentials: isCrossOrigin ? "omit" : "include",
     });
 
-    if (!res.ok) {
-      if (isCloudinaryUrl(String(fileUrl))) {
-        window.open(makeCloudinaryFlAttachment(String(fileUrl)), "_blank", "noopener,noreferrer");
-      } else {
-        window.open(String(fileUrl), "_blank", "noopener,noreferrer");
-      }
-      return;
-    }
-
-    if ((res as any).type === "opaque") {
+    if (!res.ok || (res as any).type === "opaque") {
       if (isCloudinaryUrl(String(fileUrl))) {
         window.open(makeCloudinaryFlAttachment(String(fileUrl)), "_blank", "noopener,noreferrer");
       } else {
@@ -150,10 +140,10 @@ async function downloadUrl(fileUrl?: string, suggestedName?: string): Promise<vo
   }
 }
 
-// --- safer deriveUrlFromFile to avoid TS errors when backend shape varies ---
+// --- safer deriveUrlFromFile & detectFileType (unchanged) ---
 const deriveUrlFromFile = (f: any): string | undefined => {
   if (!f) return undefined;
-  if (typeof f === "function") return undefined; // protect against schema/factory being passed by mistake
+  if (typeof f === "function") return undefined;
   const candidates = [
     (f as any).fileUrl,
     (f as any).file_url,
@@ -172,7 +162,6 @@ const deriveUrlFromFile = (f: any): string | undefined => {
   return undefined;
 };
 
-// --- file type detection ---
 const detectFileType = (fileOrName: File | string | undefined): FilePreview["type"] => {
   if (!fileOrName) return "other";
   const t = typeof fileOrName === "string" ? "" : (fileOrName as File).type ?? "";
@@ -189,12 +178,12 @@ const detectFileType = (fileOrName: File | string | undefined): FilePreview["typ
   }
 };
 
-const AddEditClassworkForm: React.FC = () => {
+const EditClassworkForm: React.FC = () => {
+  // ---------- Stable hooks & state ----------
   const params = useParams<{ id?: string; classworkId?: string }>();
   const location = useLocation();
   const id = params.id ?? "";
 
-  // fallback: if route doesn't provide classworkId param, try to parse it from path segments
   const classworkIdResolved =
     params.classworkId ??
     (() => {
@@ -234,9 +223,7 @@ const AddEditClassworkForm: React.FC = () => {
   const [filePreviews, setFilePreviews] = useState<FilePreview[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [removedExistingFileIds, setRemovedExistingFileIds] = useState<
-    (number | string)[]
-  >([]);
+  const [removedExistingFileIds, setRemovedExistingFileIds] = useState<(number | string)[]>([]);
 
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [linkTitle, setLinkTitle] = useState("");
@@ -252,6 +239,23 @@ const AddEditClassworkForm: React.FC = () => {
   } | null>(null);
   const alertTimeoutRef = useRef<number | null>(null);
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const setFieldError = (field: string, message: string) =>
+    setErrors((s) => ({ ...s, [field]: message }));
+  const clearFieldError = (field: string) =>
+    setErrors((s) => {
+      if (!s[field]) return s;
+      const next = { ...s };
+      delete next[field];
+      return next;
+    });
+
+  // ---------- Refs to guard one-time fetches / prefill ----------
+  const initialFetchedRef = useRef<string | null>(null); // guards getClassInfo/getClassWorks once per id
+  const prefillFetchedRef = useRef<string | null>(null); // guards prefill once per classworkId
+  const getClassWorksCalledForPrefillRef = useRef<string | null>(null);
+
+  // ---------- showAlert helper ----------
   const showAlert = (
     message: string,
     title?: string,
@@ -280,34 +284,50 @@ const AddEditClassworkForm: React.FC = () => {
     };
   }, []);
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const setFieldError = (field: string, message: string) =>
-    setErrors((s) => ({ ...s, [field]: message }));
-  const clearFieldError = (field: string) =>
-    setErrors((s) => {
-      if (!s[field]) return s;
-      const next = { ...s };
-      delete next[field];
-      return next;
-    });
-
+  // ---------- Redirect non-teachers once (role/id stable) ----------
   useEffect(() => {
     if (role !== "teacher") {
       navigate(`/class/${role}/${id}`);
     }
+    // only depends on role and id; navigate stable from router
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, id, navigate]);
+  }, [role, id]);
 
-  // prefill when editing
+  // ---------- Initial load: ensure class info + works fetched once per id ----------
   useEffect(() => {
-    // debug info to help diagnosing missing prefill
-    // eslint-disable-next-line no-console
-    console.debug(
-      "[AddEditClasswork] classworkIdResolved=",
-      classworkIdResolved,
-      "currentClass?.data?.works length=",
-      currentClass?.data?.works?.length
-    );
+    if (!id) return;
+    if (initialFetchedRef.current === id) return;
+    initialFetchedRef.current = id;
+
+    (async () => {
+      try {
+        if (typeof getClassInfo === "function") {
+          await getClassInfo(Number(id));
+        }
+      } catch (err) {
+        console.error("getClassInfo failed", err);
+      }
+      try {
+        if (typeof getClassWorks === "function") {
+          await getClassWorks(Number(id));
+        }
+      } catch (err) {
+        console.error("getClassWorks failed", err);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  // ---------- Prefill when editing: guarded to run once per classworkId ----------
+  // Strategy:
+  //  - Try fill from store immediately (works array).
+  //  - If not found, call getClassWorks once for this id and use returned value (if any).
+  //  - Also listen to works length changes indirectly by depending on worksLength below so if store updates later,
+  //    we try to prefill from store (only once).
+  const worksLength = (currentClass?.data?.works ?? []).length;
+  useEffect(() => {
+    if (!isEdit || !classworkIdResolved) return;
+    if (prefillFetchedRef.current === String(classworkIdResolved)) return;
 
     const fillFromTarget = (target: any) => {
       setTitle(target.title ?? "");
@@ -357,61 +377,59 @@ const AddEditClassworkForm: React.FC = () => {
       }
     };
 
-    if (!isEdit || !classworkIdResolved) return;
-
-    // Try to find in currentClass first
+    // 1) try store immediately
     const foundLocal = (currentClass?.data?.works ?? []).find((w: any) => String(w.id) === String(classworkIdResolved));
     if (foundLocal) {
-      // eslint-disable-next-line no-console
-      console.debug("[AddEditClasswork] prefilling from currentClass data");
+      prefillFetchedRef.current = String(classworkIdResolved);
       fillFromTarget(foundLocal);
       return;
     }
 
-    // If not found, try calling getClassWorks() and use returned value if available.
+    // 2) If not in store and we haven't called getClassWorks specifically for prefill, do it once.
+    if (getClassWorksCalledForPrefillRef.current !== id) {
+      getClassWorksCalledForPrefillRef.current = id;
+      (async () => {
+        try {
+          if (typeof getClassWorks === "function") {
+            const maybe = await getClassWorks(Number(id));
+            if (Array.isArray(maybe) && maybe.length > 0) {
+              const found = maybe.find((w: any) => String(w.id) === String(classworkIdResolved));
+              if (found) {
+                prefillFetchedRef.current = String(classworkIdResolved);
+                fillFromTarget(found);
+                return;
+              }
+            }
+            // if maybe not returned array, we rely on store update below (worksLength change)
+          }
+        } catch (err) {
+          console.warn("[AddEditClasswork] getClassWorks prefill failed", err);
+        }
+      })();
+    }
+
+    // 3) If store later updates (worksLength changes), this effect will re-run and try store again.
+    // Note: we don't poll or delay here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, classworkIdResolved, worksLength]);
+
+  // ---------- ensure class info is loaded once per id (guarded) ----------
+  const fetchedClassInfoRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!id) return;
+    if (fetchedClassInfoRef.current === id) return;
+    fetchedClassInfoRef.current = id;
     (async () => {
       try {
-        const maybe = await getClassWorks(Number(id));
-        // getClassWorks might return works array or update store; try both.
-        let worksArray: any[] | undefined = undefined;
-        if (Array.isArray(maybe)) worksArray = maybe;
-        else worksArray = (currentClass?.data?.works ?? []);
-
-        // if not found yet, give store a short time to update then read again
-        if (!worksArray || worksArray.length === 0) {
-          // wait briefly for store update (max 1s, polling)
-          const maxAttempts = 10;
-          let attempt = 0;
-          while ((!currentClass?.data?.works || currentClass.data.works.length === 0) && attempt < maxAttempts) {
-            // eslint-disable-next-line no-await-in-loop
-            await new Promise((r) => setTimeout(r, 100));
-            attempt++;
-          }
-          worksArray = currentClass?.data?.works ?? worksArray;
-        }
-
-        const found = (worksArray ?? []).find((w: any) => String(w.id) === String(classworkIdResolved));
-        if (found) {
-          // eslint-disable-next-line no-console
-          console.debug("[AddEditClasswork] prefilling after getClassWorks/fetch:", found);
-          fillFromTarget(found);
-        } else {
-          // not found: as a last resort, try to fetch classwork detail from server via getClassInfo or leave blank
-          // eslint-disable-next-line no-console
-          console.warn("[AddEditClasswork] classwork not found after getClassWorks, leaving form empty.");
-        }
+        if (typeof getClassInfo === "function") await getClassInfo(Number(id));
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn("[AddEditClasswork] getClassWorks fallback failed", err);
+        console.warn("getClassInfo failed", err);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEdit, classworkIdResolved, currentClass?.data?.works]);
+  }, [id]);
 
-  useEffect(() => {
-    if (id) getClassInfo(Number(id));
-  }, [id, getClassInfo]);
-
+  // ---------- cleanup objectURLs when previews change / on unmount ----------
   useEffect(() => {
     return () => {
       filePreviews.forEach((p) => {
@@ -426,6 +444,7 @@ const AddEditClassworkForm: React.FC = () => {
     };
   }, [filePreviews]);
 
+  // ---------- helpers used by handlers ----------
   const handleCancel = () => navigate(`/class/${role}/${id}?tab=exercise`);
 
   const postCreateNotification = async (fd: FormData) => {
@@ -470,6 +489,7 @@ const AddEditClassworkForm: React.FC = () => {
     setFilePreviews(updated);
   };
 
+  // ---------- save handler (unchanged logic but uses guarded fetches) ----------
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setLoading(true);
@@ -547,8 +567,8 @@ const AddEditClassworkForm: React.FC = () => {
           return;
         }
 
-        await getClassWorks(Number(id));
-        await getClassInfo(Number(id));
+        if (typeof getClassWorks === "function") await getClassWorks(Number(id));
+        if (typeof getClassInfo === "function") await getClassInfo(Number(id));
         navigate(`/class/${role}/${id}?tab=exercise`);
         setLoading(false);
         return;
@@ -584,8 +604,8 @@ const AddEditClassworkForm: React.FC = () => {
         return;
       }
 
-      await getClassWorks(Number(id));
-      await getClassInfo(Number(id));
+      if (typeof getClassWorks === "function") await getClassWorks(Number(id));
+      if (typeof getClassInfo === "function") await getClassInfo(Number(id));
       navigate(`/class/${role}/${id}?tab=exercise`);
     } catch (err: any) {
       console.error("Save error", err);
@@ -596,7 +616,7 @@ const AddEditClassworkForm: React.FC = () => {
     }
   };
 
-  // file selection and preview
+  // ---------- file selection / preview logic (unchanged) ----------
   const handleFiles = (files: File[]) => {
     if (!files || files.length === 0) return;
     setFilePreviews((prev) => {
@@ -663,6 +683,7 @@ const AddEditClassworkForm: React.FC = () => {
 
   const removeLink = (index: number) => setLinks((prev) => prev.filter((_, i) => i !== index));
 
+  // ---------- derived values & rendering helpers ----------
   const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
   const inputClass = (base = "", field?: string) => { const err = field ? errors[field] : undefined; return `${base} ${err ? "border-red-500 ring-1 ring-red-200" : ""}`.trim(); };
 
@@ -989,4 +1010,4 @@ const AddEditClassworkForm: React.FC = () => {
   );
 };
 
-export default AddEditClassworkForm;
+export default EditClassworkForm;

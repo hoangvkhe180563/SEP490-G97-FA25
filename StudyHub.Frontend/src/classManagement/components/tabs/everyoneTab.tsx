@@ -26,7 +26,6 @@ function openGmailCompose({ to, subject, body }: { to?: string; subject?: string
   if (to) params.set("to", to);
   if (subject) params.set("su", subject);
   if (body) params.set("body", body);
-  // open in a new tab/window
   const url = `${base}?${params.toString()}`;
   window.open(url, "_blank", "noopener,noreferrer");
 }
@@ -49,8 +48,10 @@ const EveryoneTab: React.FC<Props> = ({
 
   const openAdd = () => {
     if (!isTeacher) return;
+    // 1) open modal first (so modal mounts)
     setOpenAddLocal(true);
-    if (onAddMember) onAddMember();
+    // 2) call parent callback deferred (avoid sync parent side-effects causing modal mount to be lost)
+   
   };
 
   const handleSelect = (p: ClassMemberDto) => {
@@ -65,7 +66,6 @@ const EveryoneTab: React.FC<Props> = ({
 
   const getDisplayName = (m: ClassMemberDto) => (m as any).fullname ?? "";
 
-  // click handler to open Gmail compose for member
   const handleOpenGmail = (member: ClassMemberDto) => {
     const email = getEmail(member);
     if (!email) return;
@@ -79,12 +79,11 @@ const EveryoneTab: React.FC<Props> = ({
     }
   };
 
-  // capture-phase handler: only intercept clicks that originated from a mail link (or an <a> with mail data)
   const onRowClickCapture = (e: React.MouseEvent, member: ClassMemberDto) => {
     try {
       const target = e.target as HTMLElement;
       const anchor = target.closest && (target.closest("a") as HTMLAnchorElement | null);
-      if (!anchor) return; // not clicking a link -> do nothing, let onClick open detail
+      if (!anchor) return;
       const href = anchor.getAttribute("href") || "";
       const isMailLink =
         href.startsWith("mailto:") ||
@@ -97,19 +96,17 @@ const EveryoneTab: React.FC<Props> = ({
         handleOpenGmail(member);
       }
     } catch {
-      // ignore and allow normal behavior
+      // ignore
     }
   };
 
   const handleRowKeyDown = (e: React.KeyboardEvent, member: ClassMemberDto) => {
     if (e.key === "Enter" || e.key === " ") {
-      // If focused element is an anchor (e.g. mail link), do not open detail modal here.
       const target = e.target as HTMLElement;
       const anchor = target.closest && (target.closest("a") as HTMLAnchorElement | null);
       if (anchor) {
         const href = anchor.getAttribute("href") || "";
         if (href.startsWith("mailto:")) {
-          // Let the anchor handle it (or call mail handler)
           handleOpenGmail(member);
           return;
         }
@@ -140,7 +137,8 @@ const EveryoneTab: React.FC<Props> = ({
     <div className="space-y-4">
       <div className="flex justify-end">
         {isTeacher && (
-          <Button onClick={openAdd} className="mb-2">
+          // ensure button type is explicit to avoid submitting a surrounding form
+          <Button type="button" onClick={openAdd} className="mb-2">
             Thêm thành viên
           </Button>
         )}
@@ -179,12 +177,10 @@ const EveryoneTab: React.FC<Props> = ({
       />
 
       <AddMemberModal
-        open={openAddLocal}
+        open={Boolean(openAddLocal)}
         classId={classId ? Number(classId) : 0}
         onClose={() => setOpenAddLocal(false)}
-        onInvited={() => {
-          setOpenAddLocal(false);
-        }}
+        onInvited={() => setOpenAddLocal(false)}
       />
     </div>
   );

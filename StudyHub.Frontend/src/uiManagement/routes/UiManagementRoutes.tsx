@@ -4,6 +4,7 @@ import LandingPageEdit from "../pages/LandingPageEdit";
 import Homepage from "../pages/Homepage";
 import SchoolHomepage from "../pages/SchoolHomepage";
 import RequireRole from "@/common/components/RequireRole";
+import { ROLES } from "@/common/constants/Roles";
 
 const uiManagementRoutes: RouteObject[] = [
   {
@@ -17,7 +18,7 @@ const uiManagementRoutes: RouteObject[] = [
   {
     path: UiManagementRouteConfig.LANDING_PAGE.EDIT,
     element: (
-      <RequireRole allowedRoles={["School Admin", "UI Manager"]}>
+      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN, ROLES.UI_MANAGER]}>
         <LandingPageEdit />
       </RequireRole>
     ),

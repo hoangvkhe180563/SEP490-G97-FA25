@@ -5,6 +5,8 @@ import ResultsPage from "../pages/results";
 import LlmResultPage from "../pages/llm-result";
 import RecommendationRouteConfig from "../constants/RecomendationRouteConfig";
 import RecommendStatistics from "../pages/statistics";
+import RequireRole from "@/common/components/RequireRole";
+import { ROLES } from "@/common/constants/Roles";
 
 const studentRoutes = [
   {
@@ -36,12 +38,22 @@ const managerRoutes = [
 const recommendationRoutes = [
   {
     path: RecommendationRouteConfig.STUDENT.INDEX,
-    element: <Outlet />,
+    element: (
+      <RequireRole
+        allowedRoles={[ROLES.EXTERNAL_STUDENT, ROLES.SCHOOL_STUDENT]}
+      >
+        <Outlet />
+      </RequireRole>
+    ),
     children: studentRoutes,
   },
   {
     path: RecommendationRouteConfig.MANAGER.INDEX,
-    element: <Outlet />,
+    element: (
+      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN]}>
+        <Outlet />
+      </RequireRole>
+    ),
     children: managerRoutes,
   },
 ];

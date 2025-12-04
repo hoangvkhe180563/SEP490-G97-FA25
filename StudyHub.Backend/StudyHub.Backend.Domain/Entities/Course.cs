@@ -27,7 +27,8 @@ public class Course : IAuditTrail
     public CourseDifficulty Difficulty { get; set; } = CourseDifficulty.Beginner;
     public CourseLength Length { get; set; } = CourseLength.Short;
     public Subject Subject { get; set; } = null!;
-
+    public string TeacherCreatedName { get; set; } = null!;
+    public string TeacherUpdatedName { get; set; } = null!;
     public List<Chapter> Chapters { get; set; } = new();
     public List<Enrollment> Enrollments { get; set; } = new();
 }

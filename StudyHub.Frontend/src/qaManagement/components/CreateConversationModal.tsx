@@ -221,14 +221,19 @@ const CreateConversationModal: React.FC<CreateConversationModalProps> = ({
                   Bạn chưa có gói hội thoại đang hoạt động. <br />
                   Vui lòng mua gói tháng để tạo cuộc hội thoại mới.
                 </div>
-                <Button
-                  onClick={() => {
-                    setCreateOpen(false);
-                    navigate(`/payment/student/subscription`);
-                  }}
-                >
-                  Mua gói tháng
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" onClick={() => setCreateOpen(false)}>
+                    Hủy
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setCreateOpen(false);
+                      navigate(`/payment/student/subscription`);
+                    }}
+                  >
+                    Mua gói tháng
+                  </Button>
+                </div>
               </div>
             </>
           ) : (

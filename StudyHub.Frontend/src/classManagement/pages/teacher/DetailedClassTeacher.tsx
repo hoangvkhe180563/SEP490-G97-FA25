@@ -1,7 +1,4 @@
-/* detailed-class-teacher6.tsx
-   Updated: reliably set class-level fallback count and prefetch per-work counts.
-*/
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import type { ClassWork } from "@/classManagement/interfaces/class";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
@@ -14,9 +11,7 @@ import type {
   DocumentDto,
 } from "@/classManagement/interfaces/class";
 import { ChevronRight } from "lucide-react";
-import { axiosInstance } from "@/lib/axios";
 
-import { Button } from "@/common/components/ui/button";
 import { Card } from "@/common/components/ui/card";
 import { Badge } from "@/common/components/ui/badge";
 import {
@@ -39,9 +34,6 @@ import ExerciseTab from "@/classManagement/components/tabs/exerciseTab";
 import EveryoneTab from "@/classManagement/components/tabs/everyoneTab";
 import ClassExams from "@/classManagement/components/ClassExams";
 
-import { isPastDeadline } from "@/classManagement/utils/dateutil";
-import { useNotificationStore } from "@/classManagement/stores/useNotificationStore";
-
 const DetailedClassTeacher: React.FC = () => {
   const params = useParams<{ id?: string; role?: string }>();
   const id = params.id ?? "";
@@ -57,6 +49,7 @@ const DetailedClassTeacher: React.FC = () => {
       ? "teacher"
       : "student";
 
+  // include documentsByClass from store (single canonical cache key)
   const {
     getClassInfo,
     getClassMembers,
@@ -65,19 +58,12 @@ const DetailedClassTeacher: React.FC = () => {
     getMemberCount,
     getMemberClassCount,
     getDocumentsByClassId,
+    documentsByClass,
     isLoading,
     createNotification,
     getClassworkSubmissions,
     getSubmissionCount,
   } = useClassStore();
-
-  const {
-    connect,
-    joinClass,
-    leaveClass,
-    addNewNotificationListener,
-    removeNewNotificationListener,
-  } = useNotificationStore();
 
   const [documents, setDocuments] = useState<DocumentDto[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
@@ -87,10 +73,12 @@ const DetailedClassTeacher: React.FC = () => {
   const [submissionCounts, setSubmissionCounts] = useState<Record<number, number | null>>({});
   const [memberCounts, setMemberCounts] = useState<Record<number, number | null>>({});
 
-  const [activeTab, setActiveTab] = useState<string>("notifications");
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const initialTab = searchParams.get("tab") ?? "notifications";
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
 
+  const navigate = useNavigate();
+  const consolidatedFetchedRef = useRef<string | null>(null);
   // init activeTab from query
   useEffect(() => {
     const t = searchParams.get("tab");
@@ -144,21 +132,18 @@ const DetailedClassTeacher: React.FC = () => {
     };
   }, [id, getDocumentsByClassId]);
   const DocumentPreviewCard: React.FC<{ doc: DocumentDto; role: string }> = ({ doc, role }) => {
-    const navigate = useNavigate();
+    const navigateLocal = useNavigate();
     const isImage = !!(doc.fileType && /jpg|jpeg|png|gif|bmp|webp/i.test(String(doc.fileType)));
     const isPdf = !!(doc.fileType && /pdf/i.test(String(doc.fileType)));
-
     const detailPath = `/document/student/details/${doc.id}`;
 
     return (
       <a
         href={detailPath}
         onClick={(e) => {
-          if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
-            return;
-          }
+          if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
           e.preventDefault();
-          navigate(detailPath);
+          navigateLocal(detailPath);
         }}
         className="block"
         title={doc.name}
@@ -170,10 +155,6 @@ const DetailedClassTeacher: React.FC = () => {
                 <img src={doc.documentUrl} alt={doc.name} className="w-full h-full object-cover rounded" />
               ) : isPdf ? (
                 <div className="text-sm text-slate-600 text-center px-2">
-                  <svg className="mx-auto mb-1" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M13 2v6h6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
                   <div className="text-sm font-medium">PDF</div>
                 </div>
               ) : (
@@ -190,52 +171,169 @@ const DetailedClassTeacher: React.FC = () => {
       </a>
     );
   };
-  // initial notifications from store if present
-  useEffect(() => {
-    if (currentClass?.data?.notifications) setNotifications(currentClass.data.notifications);
-  }, [currentClass?.data?.notifications]);
 
-  // signalR connect/join
+  // Helper: try to coerce value to a number, return null if cannot
+  const coerceToNumberOrNull = (v: any): number | null => {
+    if (v === null || typeof v === "undefined") return null;
+    if (typeof v === "number") return Number.isFinite(v) ? v : null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  // Consolidated loader: simplified, set consolidatedFetchedRef after fetch completes
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setDocuments([]);
+      setNotifications([]);
+      setClassMemberCount(null);
+      return;
+    }
+
+    // if we've already completed loading for this id, sync and return
+    if (consolidatedFetchedRef.current === id) {
+      if (currentClass?.data?.notifications) setNotifications(currentClass.data.notifications);
+      const cached = documentsByClass?.[Number(id)];
+      if (Array.isArray(cached)) setDocuments(cached);
+      return;
+    }
+
     let mounted = true;
+
     (async () => {
       try {
-        await connect();
-        await joinClass(id);
-      } catch (err) {
-        console.warn("Notification hub connect/join failed", err);
+        // 1) getClassInfo to populate store notifications/class data
+        try {
+          if (typeof getClassInfo === "function") {
+            const classInfoResult = await getClassInfo(Number(id));
+            if (mounted) {
+              const maybeNotifications =
+                (classInfoResult as any)?.data?.notifications ??
+                (classInfoResult as any)?.notifications;
+              if (Array.isArray(maybeNotifications)) setNotifications(maybeNotifications);
+              else if (currentClass?.data?.notifications) setNotifications(currentClass.data.notifications);
+            }
+          } else {
+            console.debug("[DetailedClassTeacher] getClassInfo is not a function");
+          }
+        } catch (err) {
+          console.warn("getClassInfo failed", err);
+        }
+
+        // 2) documents: try store cache first, then call API (API will also cache into store)
+        try {
+          const cached = documentsByClass?.[Number(id)];
+          if (Array.isArray(cached) && cached.length > 0) {
+            if (mounted) setDocuments(cached);
+          }
+
+          if (typeof getDocumentsByClassId === "function") {
+            setDocsLoading(true);
+            const docs = await getDocumentsByClassId(Number(id));
+            if (mounted) {
+              if (Array.isArray(docs) && docs.length > 0) {
+                setDocuments(docs);
+              } else {
+                const cached2 = documentsByClass?.[Number(id)];
+                setDocuments(Array.isArray(cached2) ? cached2 : []);
+              }
+            }
+          } else {
+            console.debug("[DetailedClassTeacher] getDocumentsByClassId is not a function; using cache only");
+          }
+        } catch (err) {
+          console.warn("getDocumentsByClassId failed", err);
+          const cached = documentsByClass?.[Number(id)];
+          if (mounted) setDocuments(Array.isArray(cached) ? cached : []);
+        } finally {
+          if (mounted) setDocsLoading(false);
+        }
+
+        // 3) member count: call getMemberClassCount and coerce to number if possible
+        try {
+          let count: number | null = null;
+          if (typeof getMemberClassCount === "function") {
+            const raw = await getMemberClassCount(Number(id));
+            console.debug("getMemberClassCount raw:", raw);
+            count = coerceToNumberOrNull(raw);
+            if (count === null && typeof getMemberCount === "function") {
+              const raw2 = await getMemberCount(Number(id));
+              console.debug("getMemberCount raw:", raw2);
+              count = coerceToNumberOrNull(raw2);
+            }
+          } else if (typeof getMemberCount === "function") {
+            const raw2 = await getMemberCount(Number(id));
+            console.debug("getMemberCount raw:", raw2);
+            count = coerceToNumberOrNull(raw2);
+          } else {
+            console.debug("[DetailedClassTeacher] no member count functions available in store");
+          }
+
+          // final fallback: students length in store
+          if (count === null) {
+            const fallback = (currentClass?.data?.students ?? []).length ?? null;
+            count = typeof fallback === "number" && Number.isFinite(fallback) ? fallback : null;
+          }
+
+          if (mounted) setClassMemberCount(count);
+        } catch (err) {
+          console.warn("getMemberClassCount / getMemberCount failed", err);
+          if (mounted) {
+            const fallback = (currentClass?.data?.students ?? []).length ?? null;
+            setClassMemberCount(typeof fallback === "number" ? fallback : null);
+          }
+        }
+
+        // mark as fetched after attempts finished (prevents skipping due to early set)
+        consolidatedFetchedRef.current = id;
+      } catch (outer) {
+        console.error("consolidated loader error", outer);
+        // still mark as fetched to avoid repeated retries by default
+        consolidatedFetchedRef.current = id;
       }
     })();
+
     return () => {
-      try { leaveClass(id); } catch { /* empty */ }
       mounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // Debug effect: runs once when id exists to print function types and raw responses.
+  // Remove this effect when debugging is complete.
   useEffect(() => {
     if (!id) return;
-    const handler = (payload: any) => {
+    (async () => {
       try {
-        const cid = String(payload?.classId ?? payload?.ClassId ?? "");
-        if (String(cid) === String(id) || Number(cid) === Number(id)) {
-          setNotifications((prev) => {
-            const exists = prev.some((p) => String(p.id) === String(payload?.id ?? payload?.Id ?? ""));
-            if (exists) return prev;
-            return [payload as ClassNotification, ...(prev ?? [])];
-          });
+        console.debug("[DetailedClassTeacher DEBUG] classId:", id);
+        console.debug("[DetailedClassTeacher DEBUG] getDocumentsByClassId typeof:", typeof getDocumentsByClassId);
+        console.debug("[DetailedClassTeacher DEBUG] getMemberClassCount typeof:", typeof getMemberClassCount);
+        console.debug("[DetailedClassTeacher DEBUG] documentsByClass cache:", documentsByClass?.[Number(id)]);
+
+        if (typeof getDocumentsByClassId === "function") {
+          try {
+            const docs = await getDocumentsByClassId(Number(id));
+            console.debug("[DetailedClassTeacher DEBUG] getDocumentsByClassId result:", docs);
+          } catch (err) {
+            console.error("[DetailedClassTeacher DEBUG] getDocumentsByClassId threw:", err);
+          }
         }
-      } catch (err) {
-        console.error("new notification handler error", err);
+
+        if (typeof getMemberClassCount === "function") {
+          try {
+            const raw = await getMemberClassCount(Number(id));
+            console.debug("[DetailedClassTeacher DEBUG] getMemberClassCount raw:", raw);
+          } catch (err) {
+            console.error("[DetailedClassTeacher DEBUG] getMemberClassCount threw:", err);
+          }
+        }
+      } catch (e) {
+        console.error("[DetailedClassTeacher DEBUG] unexpected debug error", e);
       }
-    };
-    addNewNotificationListener(handler);
-    return () => removeNewNotificationListener(handler);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // ensure members are loaded when opening everyone tab
+  // Everyone tab: fetch members once (guarded)
   useEffect(() => {
     if (!id || activeTab !== "everyone") return;
     const hasTeacher = (currentClass?.data?.teachers ?? []).length > 0;
@@ -250,7 +348,7 @@ const DetailedClassTeacher: React.FC = () => {
     getClassMembers,
   ]);
 
-  // fetch works when user opens exercise tab
+  // Exercise tab: fetch works once (guarded)
   useEffect(() => {
     if (!id || activeTab !== "exercise") return;
     const hasWorks = (currentClass?.data?.works ?? []).length > 0;
@@ -261,7 +359,6 @@ const DetailedClassTeacher: React.FC = () => {
   const fetchCountsForWork = useCallback(
     async (wid: number) => {
       try {
-        // submission count
         if (typeof getSubmissionCount === "function") {
           const sc = await getSubmissionCount(wid);
           setSubmissionCounts((prev) => ({ ...prev, [wid]: sc }));
@@ -272,17 +369,16 @@ const DetailedClassTeacher: React.FC = () => {
           setSubmissionCounts((prev) => ({ ...prev, [wid]: unique.size }));
         }
 
-        // member count: try getMemberCount (API), fallback to classMemberCount or students.length
         let accurateCount: number | null = null;
         try {
-          const cnt = await getMemberCount(Number(id));
-          accurateCount = typeof cnt === "number" ? cnt : null;
+          if (typeof getMemberCount === "function") {
+            const cnt = await getMemberCount(Number(id));
+            accurateCount = coerceToNumberOrNull(cnt);
+          }
         } catch {
           // ignore
         }
-        if (accurateCount === null) {
-          accurateCount = (currentClass?.data?.students ?? []).length ?? classMemberCount ?? null;
-        }
+        if (accurateCount === null) accurateCount = (currentClass?.data?.students ?? []).length ?? classMemberCount ?? null;
         setMemberCounts((prev) => ({ ...prev, [wid]: accurateCount }));
       } catch (e) {
         console.error("fetchCountsForWork failed for", wid, e);
@@ -342,7 +438,7 @@ const DetailedClassTeacher: React.FC = () => {
       const created = await createNotification(payload);
       if (created) {
         setNotifications((prev) => [created, ...(prev ?? [])]);
-        await getClassInfo(Number(id));
+        if (typeof getClassInfo === "function") await getClassInfo(Number(id));
       }
     } catch (err) {
       console.error("handlePost/createNotification error:", err);
@@ -353,7 +449,7 @@ const DetailedClassTeacher: React.FC = () => {
     window.location.href = `mailto:${person.fullname.replace(/\s+/g, ".").toLowerCase()}@example.com`;
   };
 
-  const handleSelect = (p: ClassMemberDto) => {}; // keep placeholder
+  const handleSelect = (p: ClassMemberDto) => {}; // placeholder
 
   if (isLoading) return <div className="p-8 text-center text-slate-500">Đang tải thông tin lớp học...</div>;
   if (!currentClass?.success) return <div className="p-8 text-center text-red-500">Không thể tải thông tin lớp học.</div>;
@@ -419,7 +515,7 @@ const DetailedClassTeacher: React.FC = () => {
             </TabsContent>
 
             <TabsContent value="everyone">
-              <EveryoneTab teachers={teacher} students={students} parents={parents} onMail={handleMail} onSelect={handleSelect} onAddMember={() => {}} classId={currentClass?.data?.classInfo?.id ?? 0} />
+              <EveryoneTab teachers={teacher} students={students} parents={parents} onMail={handleMail} onSelect={handleSelect} onAddMember={() => { if (typeof getClassMembers === "function") void getClassMembers(Number(id)); }} classId={currentClass?.data?.classInfo?.id ?? 0} />
             </TabsContent>
 
             <TabsContent value="exam">
@@ -442,7 +538,7 @@ const DetailedClassTeacher: React.FC = () => {
               </div>
               <div className="px-6 pb-6 flex items-center justify-between">
                 <div className="text-xs text-slate-400">Số thành viên</div>
-                <Badge className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg font-semibold text-lg">{classMemberCount}</Badge>
+                <Badge className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg font-semibold text-lg">{classMemberCount ?? "—"}</Badge>
               </div>
             </Card>
 

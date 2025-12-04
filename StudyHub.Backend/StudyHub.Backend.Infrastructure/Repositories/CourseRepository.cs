@@ -138,6 +138,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         UpdatedAt = c.UpdatedAt,
                         UpdatedBy = c.UpdatedBy,
                         CreatedBy = c.CreatedBy,
+                        TeacherCreatedName = _context.AppUsers.Where(u => u.Id == c.CreatedBy).Select(u => u.Fullname).FirstOrDefault() ?? string.Empty,
+                        TeacherUpdatedName = c.UpdatedBy.HasValue ? _context.AppUsers.Where(u => u.Id == c.UpdatedBy.Value).Select(u => u.Fullname).FirstOrDefault() ?? string.Empty : string.Empty,
                         IsApproved = c.IsApproved,
                         Subject = new Subject
                         {
@@ -169,6 +171,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             try
             {
                 var c = _context.Courses
+            .Include(c => c.Subject)
             .Include(c => c.Chapters)
                 .ThenInclude(ch => ch.Lessons)
                     .ThenInclude(l => l.LessonReading)
@@ -199,7 +202,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     UpdatedAt = c.UpdatedAt,
                     UpdatedBy = c.UpdatedBy,
                     CreatedBy = c.CreatedBy,
+                    TeacherCreatedName = _context.AppUsers.Where(u => u.Id == c.CreatedBy).Select(u => u.Fullname).FirstOrDefault() ?? string.Empty,
+                    TeacherUpdatedName = c.UpdatedBy.HasValue ? _context.AppUsers.Where(u => u.Id == c.UpdatedBy.Value).Select(u => u.Fullname).FirstOrDefault() ?? string.Empty : string.Empty,
                     IsApproved = c.IsApproved,
+                    Subject = new Subject
+                    {
+                        Id = c.Subject.Id,
+                        Name = c.Subject.Name
+                    },
                     Chapters = c.Chapters.Select(ch => new Chapter
                     {
                         Id = ch.Id,

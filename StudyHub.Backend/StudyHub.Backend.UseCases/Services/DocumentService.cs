@@ -4,7 +4,6 @@ using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Utils;
-using static Grpc.Core.Metadata;
 
 namespace StudyHub.Backend.UseCases.Services
 {
@@ -248,7 +247,19 @@ namespace StudyHub.Backend.UseCases.Services
             }
             return updated;
         }
-
+        public (List<Document> documents, int totalCount) GetSchoolTeachersDocuments(
+int schoolId,
+Guid currentUserId,
+string? query = null,
+int? categoryId = null,
+int? grade = null,
+string? subject = null,
+int? classId = null,
+string? documentLengthType = null,
+string? documentLevel = null,
+int pageNumber = 1,
+int pageSize = 10)
+=> _repo.GetSchoolTeachersDocuments(schoolId, currentUserId, query, categoryId, grade, subject, classId, documentLengthType, documentLevel, pageNumber, pageSize);
         public Document RequestEditDocument(int id, Guid userId)
         {
             var document = _repo.GetDocumentById(id) ?? throw new InvalidOperationException("Document not found");

@@ -1,6 +1,6 @@
 // src/documentManagement/pages/student/DocumentDetails.tsx
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/common/components/ui/button";
 import Autoplay from "embla-carousel-autoplay";
 import {
@@ -357,7 +357,7 @@ function RelatedDocumentsSection({
   }, [subjectId, currentDocId]);
 
   const handleDocumentClick = (docId: number) => {
-    window.location.href = `/document/student/details/${docId}`;
+    window.location.href = `/document/details/${docId}`;
   };
 
   if (isLoading) {
@@ -449,7 +449,6 @@ function RelatedDocumentsSection({
 export default function DocumentDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const { document, isLoading, getDocumentById, downloadDocument } =
     useDocumentStore();
@@ -464,7 +463,7 @@ export default function DocumentDetails() {
   }, [id, getDocumentById]);
 
   const handleView = () => {
-    navigate(`/document/student/doc-info/${id}`);
+    navigate(`/document/doc-info/${id}`);
   };
 
   const handleDownload = async () => {
@@ -488,19 +487,14 @@ export default function DocumentDetails() {
 
   const handleViewUploaderDocs = () => {
     if (document?.uploaderName) {
-      const basePath = location.pathname.split("/details")[0];
-      const documentsPath = basePath.replace(
-        /\/(teacher|student|manager)$/,
-        "/$1/documents"
-      );
-
       const hasSchoolAccess = !!userSchoolId && !!document.schoolId;
 
-      navigate(documentsPath, {
+      navigate("/document/documents", {
+        replace: true,
         state: {
           searchQuery: document.uploaderName,
           showSchoolDocs: hasSchoolAccess,
-          timestamp: Date.now(),
+          autoSearch: true,
         },
       });
     }

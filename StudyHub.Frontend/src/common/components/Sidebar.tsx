@@ -19,11 +19,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { axiosInstance } from "@/lib/axios";
 import { MessageSquare } from "lucide-react";
 import { CreateAppealModal } from "@/forumManagement/components/CreateAppealModal";
 import { useAppealStore } from "@/forumManagement/stores/useAppealStore";
 import { toast } from "sonner";
+import { axiosInstance } from "@/lib/axios";
+import { Skeleton } from "./ui/skeleton";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 interface ISidebarContextProps {
   expanded: boolean;
 }
@@ -35,6 +37,7 @@ export const Sidebar = (props: {
 }) => {
   const [showAppealModal, setShowAppealModal] = useState(false);
   const { createAppeal, isLoading } = useAppealStore();
+  const { isCheckingAuth } = useAuthStore();
   const navigate = useNavigate();
   const logout = async () => {
     await axiosInstance.post("/auth/logout").then((res) => {
@@ -55,7 +58,7 @@ export const Sidebar = (props: {
     if (result?.success) {
       toast.success(
         result?.message ||
-        "Đã tạo kháng cáo thành công. Vui lòng đợi moderator xem xét."
+          "Đã tạo kháng cáo thành công. Vui lòng đợi moderator xem xét."
       );
     } else {
       toast.error(
@@ -67,13 +70,41 @@ export const Sidebar = (props: {
   };
   const [expanded, setExpanded] = useState<boolean>(true);
 
+  if (isCheckingAuth) {
+    return (
+      <aside className="transition-all inline-flex flex-col border-r border-gray-300 shadow-lg bg-slate-200 p-4 w-64">
+        <div className="flex justify-between items-center mb-4">
+          <Skeleton className="h-6 w-32" />
+          <Skeleton className="h-8 w-8 rounded-full" />
+        </div>
+
+        <ul className="flex-1 px-1 space-y-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <li key={i}>
+              <Skeleton className="h-4 w-11/12 rounded-md" />
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-4 pt-4 border-t border-gray-300 flex items-center gap-3">
+          <Skeleton className="h-10 w-10 rounded-full" />
+          <div className="flex-1">
+            <Skeleton className="h-4 w-3/4 mb-2" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <>
       <aside className="transition-all inline-flex flex-col border-r border-gray-300 shadow-lg bg-slate-200">
         <div className="p-4 pb-2 flex justify-between items-center">
           <p
-            className={`overflow-hidden transition-all text-center font-bold text-lg ${expanded ? "flex-1 w-32" : "w-0"
-              }`}
+            className={`overflow-hidden transition-all text-center font-bold text-lg ${
+              expanded ? "flex-1 w-32" : "w-0"
+            }`}
           >
             Danh mục
           </p>
@@ -103,19 +134,23 @@ export const Sidebar = (props: {
             </AvatarFallback>
           </Avatar>
           <div
-            className={`flex items-center transition-all overflow-hidden ${expanded ? "ml-3 flex-1" : "w-0"
-              }`}
+            className={`flex items-center transition-all overflow-hidden ${
+              expanded ? "ml-3 flex-1" : "w-0"
+            }`}
           >
             <div className="w-40">
               <p className="font-medium truncate">{props.user.fullname}</p>
-              <p className="text-sm text-gray-600 truncate">{props.user.email}</p>
+              <p className="text-sm text-gray-600 truncate">
+                {props.user.email}
+              </p>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className={`hover:bg-sky-400 hover:text-white overflow-hidden ${expanded ? "ml-2 w-10" : "w-0"
-                    }`}
+                  className={`hover:bg-sky-400 hover:text-white overflow-hidden ${
+                    expanded ? "ml-2 w-10" : "w-0"
+                  }`}
                 >
                   <EllipsisVertical size={16} />
                 </Button>
@@ -155,16 +190,18 @@ export const SidebarItem = (props: ISidebarItem) => {
       <Link
         to={props.link}
         className={`relative flex items-center py-2 px-3 my-1 font-medium rounded-md cursor-pointer transition-colors leading-4 group
-      ${(props.children === undefined && location.pathname.startsWith(props.link))
-            ? "bg-gradient-to-tr from-sky-500 to-sky-200 text-blue-800"
-            : "hover:bg-sky-200 text-gray-600"
-          }
+      ${
+        props.children === undefined && location.pathname.startsWith(props.link)
+          ? "bg-gradient-to-tr from-sky-500 to-sky-200 text-blue-800"
+          : "hover:bg-sky-200 text-gray-600"
+      }
     `}
       >
         {props.icon}
         <span
-          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${expanded ? "w-40 ml-3" : "w-0"
-            }`}
+          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${
+            expanded ? "w-40 ml-3" : "w-0"
+          }`}
         >
           {props.text}
         </span>
@@ -199,8 +236,9 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
       >
         {props.icon}
         <span
-          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${expanded ? "w-40 ml-3" : "w-0"
-            }`}
+          className={`whitespace-nowrap overflow-hidden transition-all leading-7 ${
+            expanded ? "w-40 ml-3" : "w-0"
+          }`}
         >
           {props.text}
         </span>
@@ -224,10 +262,11 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
         )}
       </li>
       <ul
-        className={`transition-all duration-300 ${isOpen && expanded
-          ? "max-h-96 opacity-100 w-full"
-          : "max-h-0 opacity-0 w-0"
-          }`}
+        className={`transition-all duration-300 ${
+          isOpen && expanded
+            ? "max-h-96 opacity-100 w-full"
+            : "max-h-0 opacity-0 w-0"
+        }`}
       >
         {props.children &&
           props.children.map((child, index) => (
@@ -235,9 +274,10 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
               <Link
                 to={child.link}
                 className={`relative flex items-center py-2 px-3 my-1 ml-3 font-medium rounded-md cursor-pointer transition-colors leading-4 group text-sm
-                  ${location.pathname === child.link
-                    ? "bg-gradient-to-tr from-sky-400 to-sky-100 text-blue-800"
-                    : "hover:bg-sky-100 text-gray-600"
+                  ${
+                    location.pathname === child.link
+                      ? "bg-gradient-to-tr from-sky-400 to-sky-100 text-blue-800"
+                      : "hover:bg-sky-100 text-gray-600"
                   }
                 `}
               >

@@ -65,6 +65,10 @@ export const useDocumentStore = create<DocumentState>()(
       rejectEditRequestError: null,
       submitForApprovalMessage: "",
       submitForApprovalError: null,
+      fetchSchoolTeachersDocumentsMessage: "",
+      fetchSchoolTeachersDocumentsError: null,
+      ownedDocuments: [],
+      schoolTeachersDocuments: [],
       getDocumentById: async (id, handlerSuccess) => {
         set({
           isLoading: true,
@@ -485,6 +489,7 @@ export const useDocumentStore = create<DocumentState>()(
           >(`/Document/owned/${creatorId}?${params.toString()}`);
 
           set({
+            ownedDocuments: response.data.data.items,
             documents: response.data.data.items,
             totalCount: response.data.data.total,
             totalPages: response.data.data.totalPages,
@@ -505,7 +510,59 @@ export const useDocumentStore = create<DocumentState>()(
           set({ isLoading: false });
         }
       },
+      fetchSchoolTeachersDocuments: async (
+        schoolId,
+        query,
+        categoryId,
+        gradeId,
+        subject,
+        classId,
+        pageNumber = 1,
+        pageSize = 10,
+        handlerSuccess
+      ) => {
+        set({
+          isLoading: true,
+          fetchSchoolTeachersDocumentsError: null,
+          fetchSchoolTeachersDocumentsMessage: "",
+        });
+        try {
+          const params = new URLSearchParams();
+          if (query) params.append("query", query);
+          if (categoryId) params.append("categoryId", categoryId.toString());
+          if (gradeId) params.append("grade", gradeId.toString());
+          if (subject) params.append("subject", subject);
+          if (classId) params.append("classId", classId.toString());
+          params.append("pageNumber", pageNumber.toString());
+          params.append("pageSize", pageSize.toString());
 
+          const response = await axiosInstance.get<
+            ApiResponse<PagedDocumentResponse>
+          >(`/Document/school-teachers/${schoolId}?${params.toString()}`);
+
+          set({
+            schoolTeachersDocuments: response.data.data.items, // Lưu vào state riêng
+            documents: response.data.data.items, // Giữ backward compatible
+            totalCount: response.data.data.total,
+            totalPages: response.data.data.totalPages,
+            currentPage: response.data.data.page,
+            success: true,
+            fetchSchoolTeachersDocumentsMessage:
+              "Documents fetched successfully",
+          });
+          if (handlerSuccess) {
+            handlerSuccess();
+          }
+        } catch (error: unknown) {
+          set({
+            fetchSchoolTeachersDocumentsError: axiosMessageErrorHandler(error),
+            success: false,
+          });
+          console.error(error);
+        } finally {
+          set({ isLoading: false });
+        }
+      },
       fetchManagerPublicDocuments: async (
         query,
         categoryId,

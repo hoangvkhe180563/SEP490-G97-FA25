@@ -207,6 +207,7 @@ export interface ClassState {
   }) => Promise<PostComment | null>;
   deleteNotification: (notificationId: number | string) => Promise<boolean>;
   inviteMembers: (classId: number, emails: string[], role?: string) => Promise<any | null>;
+  importMembers: (classId: number, formData: FormData) => Promise<any | null>;
   getClassWorks: (classId: number) => Promise<ClassWork[] | null>;
   createClasswork: (payload: { classId: number; title: string; description?: string; deadline?: string }) => Promise<ClassWork | null>;
   editClasswork: (payload: { id: number; classId: number; title: string; description?: string; deadline?: string }) => Promise<ClassWork | null>;

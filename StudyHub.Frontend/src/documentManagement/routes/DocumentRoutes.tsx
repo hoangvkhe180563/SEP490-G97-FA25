@@ -11,12 +11,10 @@ import DocumentList from "@/documentManagement/pages/DocumentList";
 import { Outlet, type RouteObject } from "react-router-dom";
 import RequireRole from "@/common/components/RequireRole";
 import DocumentDashboard from "../pages/manager/DocumentDashboard";
+import SchoolTeachersDocuments from "../pages/teacher/SchoolTeachersDocuments";
+import { ROLES } from "@/common/constants/Roles";
 
 const managerRoutes = [
-  {
-    index: true,
-    element: <div>Manager Dashboard</div>,
-  },
   {
     path: DocumentRouteConfig.MANAGER.VERIFY,
     element: <VerifyDocument />,
@@ -37,14 +35,6 @@ const managerRoutes = [
 
 const teacherRoutes = [
   {
-    index: true,
-    element: <div>Teacher Dashboard</div>,
-  },
-  // {
-  //   path: DocumentRouteConfig.TEACHER.INFO,
-  //   element: <TeacherDocumentInfo />,
-  // },
-  {
     path: DocumentRouteConfig.TEACHER.DETAILS,
     element: <DocumentDetails />,
   },
@@ -62,15 +52,11 @@ const teacherRoutes = [
   },
   {
     path: DocumentRouteConfig.TEACHER.DOCUMENTS,
-    element: <DocumentList />,
+    element: <SchoolTeachersDocuments />,
   },
 ];
 
 const studentRoutes = [
-  {
-    index: true,
-    element: <div>Student Dashboard</div>,
-  },
   {
     path: DocumentRouteConfig.STUDENT.DETAILS,
     element: <DocumentDetails />,
@@ -89,7 +75,7 @@ const documentRoutes: RouteObject[] = [
   {
     path: DocumentRouteConfig.MANAGER.INDEX,
     element: (
-      <RequireRole allowedRoles={["School Admin", "Document Manager"]}>
+      <RequireRole allowedRoles={[ROLES.DOCUMENT_MANAGER]}>
         <Outlet />
       </RequireRole>
     ),
@@ -100,10 +86,9 @@ const documentRoutes: RouteObject[] = [
     element: (
       <RequireRole
         allowedRoles={[
-          "Subject Teacher",
-          "Head of Department Teacher",
-          "Q&A Teacher",
-          "Homeroom Teacher",
+          ROLES.SUBJECT_TEACHER,
+          ROLES.HOMEROOM_TEACHER,
+          ROLES.HEAD_TEACHER,
         ]}
       >
         <Outlet />
@@ -113,16 +98,8 @@ const documentRoutes: RouteObject[] = [
   },
   {
     path: DocumentRouteConfig.STUDENT.INDEX,
-    element: (
-      <RequireRole allowedRoles={["School Student", "External Student"]}>
-        <Outlet />
-      </RequireRole>
-    ),
+    element: <Outlet />,
     children: studentRoutes,
-  },
-  {
-    path: "documents",
-    element: <DocumentList />,
   },
 ];
 
