@@ -104,7 +104,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 .Select(r => r.Id)
                 .ToList();
 
-            var teachers = _context.AppUsers
+            var teachers = _context.AppUsers.Include(a=>a.Roles)
                 .Where(u => u.Roles.Any(role => teacherRoleIds.Contains(role.Id)))
                 .ToList();
 
@@ -171,6 +171,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             clas.Grade = classEntity.Grade;
             clas.UpdatedAt = classEntity.UpdatedAt;
             clas.UpdatedBy = classEntity.UpdatedBy;
+            clas.CreatedBy = classEntity.CreatedBy;
 
             _context.Classes.Update(clas);
             _context.SaveChanges();

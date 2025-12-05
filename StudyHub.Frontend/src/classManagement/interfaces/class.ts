@@ -185,7 +185,7 @@ export interface ClassState {
   getClasses: (query: string, memberUserId?: string) => Promise<GetClassesResponse | null>;
   addClass: (payload: { title: string; description?: string; createdBy: string ; grade:number|undefined}) => Promise<any | null>;
   getAllSubjects: () => Promise<Subject[]>;
-  updateClass: (payload: { id: number; title: string; description?: string; updateBy?: string, grade?:number|undefined }) => Promise<any | null>;
+  updateClass: (payload: { id: number; title: string; description?: string; updateBy?: string, grade?:number|undefined,createdBy:string|null }) => Promise<any | null>;
 
 
   getClassInfo: (id: number) => Promise<ClassDetailResponse | null>;

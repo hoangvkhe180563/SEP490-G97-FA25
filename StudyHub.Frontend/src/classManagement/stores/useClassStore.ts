@@ -194,20 +194,25 @@ export const useClassStore = create<ClassState>()(
         }
       },
 
+      // This is the updateClass function inside your class store (updated)
       updateClass: async (payload: {
         id: number;
         title: string;
         description?: string;
         grade: number;
         updatedBy?: string;
+        createdBy?: string;
       }) => {
         set({ isLoading: true, success: false, message: "" });
         try {
           const body: Record<string, any> = {
             name: payload.title,
             description: payload.description ?? "",
-            updatedBy: payload.updatedBy,
+            // only include updatedBy if provided (avoid sending sentinel)
+            ...(payload.updatedBy ? { updatedBy: payload.updatedBy } : {}),
             grade: payload.grade,
+            // include createdBy only when provided
+            createBy:payload.createdBy,
           };
 
           const endpoints = [`/Class/${encodeURIComponent(payload.id)}`];
@@ -401,24 +406,24 @@ export const useClassStore = create<ClassState>()(
       importMembers: async (classId: number, formData: FormData) => {
         set({ isLoading: true, success: false, message: "" });
         try {
-          const endpoints = 
-           
-            `/ClassMember/invite-excel?classId=${encodeURIComponent(classId)}`;
+          const endpoints = `/ClassMember/invite-excel?classId=${encodeURIComponent(
+            classId
+          )}`;
 
           let res: any = null;
           let lastError: any = null;
 
-            try {
-              // Do NOT set Content-Type manually; axios/browser will set multipart boundary
-              res = await axiosInstance.post(endpoints, formData);
-            } catch (err: any) {
-              lastError = err;
-              console.error(`[importMembers] POST ${endpoints} failed:`, {
-                message: err?.message,
-                status: err?.response?.status,
-                responseData: err?.response?.data,
-              });
-              // If 404, try next variant; otherwise break and return error info
+          try {
+            // Do NOT set Content-Type manually; axios/browser will set multipart boundary
+            res = await axiosInstance.post(endpoints, formData);
+          } catch (err: any) {
+            lastError = err;
+            console.error(`[importMembers] POST ${endpoints} failed:`, {
+              message: err?.message,
+              status: err?.response?.status,
+              responseData: err?.response?.data,
+            });
+            // If 404, try next variant; otherwise break and return error info
           }
 
           if (!res) {

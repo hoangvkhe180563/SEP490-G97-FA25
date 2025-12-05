@@ -90,17 +90,26 @@ namespace StudyHub.Backend.Api.Controllers
             return CreatedAtAction(nameof(GetClasses), new { id = createdClass.Id }, createdClass.ToDetailDto());
         }
 
-        [HttpGet("Subject")]
+        [HttpGet("subject")]
         public IActionResult GetSubject()
         {
             return Ok(_service.GetSubjects());
         }
-
+        [HttpGet("get-all-homeroomteacher")]
+        public IActionResult GetAllHomeroomTeacher()
+        {
+            if (User.FindFirst(ClaimTypes.NameIdentifier) == null)
+            {
+                return Unauthorized(new { success = false, message = "Unauthorized" });
+            }
+            var userGuid = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            return Ok(_service.GetTeachersHomeRoom(userGuid));
+        }
         [HttpPut("{id}")]
         public IActionResult Update(int id, [FromBody] EditClassDto dto)
         {
             // Controller maps DTO -> primitives/domain and calls service
-            var updated = _service.UpdateClassFromPrimitives(id, dto.Name, dto.Description, dto.UpdatedBy);
+            var updated = _service.UpdateClassFromPrimitives(id, dto.Name, dto.Description, dto.UpdatedBy, dto.CreateBy);
             if (updated == null) return NotFound();
             return Ok(updated.ToDetailDto());
         }

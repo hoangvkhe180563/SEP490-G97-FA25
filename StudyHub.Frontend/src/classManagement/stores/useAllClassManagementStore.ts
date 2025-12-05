@@ -14,6 +14,12 @@ export type ClassManagementDto = {
   raw?: any;
 };
 
+export type HomeroomTeacherDto = {
+  id: string;
+  fullname: string;
+  raw?: any;
+};
+
 type Meta = {
   total: number;
   page: number;
@@ -29,6 +35,10 @@ type AllClassManagementState = {
   message: string | null;
   error: string | null;
 
+  // homeroom teachers cache + loader
+  homeroomTeachers: HomeroomTeacherDto[];
+  getAllHomeroomTeachers: () => Promise<HomeroomTeacherDto[]>;
+
   reset: () => void;
   fetchAllClasses: (query?: string) => Promise<{ classes: ClassManagementDto[]; meta: Meta } | null>;
   deleteClass: (id: number, query?: string) => Promise<boolean>;
@@ -37,7 +47,7 @@ type AllClassManagementState = {
 export const useAllClassManagementStore = create<AllClassManagementState>()(
   devtools((set, get) => {
     const base = "/ClassManagement";
-
+    const classBase = "/Class";
     const handleError = (err: any) => {
       let msg = "Unknown error";
       if (err && err.response && err.response.data && err.response.data.message) {
@@ -56,6 +66,45 @@ export const useAllClassManagementStore = create<AllClassManagementState>()(
       message: null,
       error: null,
 
+      // homeroom teachers cache
+      homeroomTeachers: [],
+
+      // fetch all homeroom teachers using axios only (no fetch fallback)
+      getAllHomeroomTeachers: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          let raw=null;
+            try {
+              const res = await axiosInstance.get(`${classBase}/get-all-homeroomteacher`);
+               raw= res?.data ?? null;
+            } catch (err) {
+              console.error("getAllHomeroomTeachers axios error:", err);
+            }
+          
+
+          // If no candidate returned data, treat as empty result (no fetch fallback)
+        
+
+          // normalize array (API may return array or { data: [...] })
+          const arr = Array.isArray(raw) ? raw : raw?.data ?? raw?.data?.data ?? [];
+
+          const mapped: HomeroomTeacherDto[] = (Array.isArray(arr) ? arr : []).map((t: any) => ({
+            id: String(t.id),
+            fullname: String(t.fullname ),
+            raw: t,
+          }));
+
+          // cache
+          set({ homeroomTeachers: mapped, isLoading: false, success: true, error: null });
+
+          return mapped;
+        } catch (err) {
+          console.error("getAllHomeroomTeachers error:", err);
+          set({ homeroomTeachers: [], isLoading: false, success: false, error: "Failed to load homeroom teachers" });
+          return [];
+        }
+      },
+
       reset: () => {
         set({
           classes: [],
@@ -64,6 +113,7 @@ export const useAllClassManagementStore = create<AllClassManagementState>()(
           success: true,
           message: null,
           error: null,
+          homeroomTeachers: [],
         });
       },
 
@@ -83,12 +133,12 @@ export const useAllClassManagementStore = create<AllClassManagementState>()(
           const arr = Array.isArray(raw.classes) ? raw.classes : Array.isArray(raw) ? raw : [];
           const mapped = (arr || []).map((c: any) => ({
             id: typeof c.id === "number" ? c.id : Number(c.Id ?? 0),
-            name: String(c.name ),
-            subjectName: c.subjectName ,
-            createdAt: String(c.createAt ),
+            name: String(c.name ?? c.Name ?? ""),
+            subjectName: c.subjectName ?? c.SubjectName ?? null,
+            createdAt: String(c.createAt ?? c.createdAt ?? ""),
             grade: typeof c.grade === "number" ? c.grade : (c.Grade !== undefined ? Number(c.Grade) : null),
-            instructorName: c.instructorName,
-            description: c.description ,
+            instructorName: c.instructorName ?? c.instructor ?? null,
+            description: c.description ?? c.Description ?? null,
             raw: c,
           })) as ClassManagementDto[];
 

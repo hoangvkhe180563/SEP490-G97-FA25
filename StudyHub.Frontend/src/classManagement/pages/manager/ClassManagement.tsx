@@ -1,5 +1,3 @@
-// Updated ClassListManagement: build grade filter like ClassList (grade as its own query param)
-// Note: fixed import path for the all-classes store
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Input } from "@/common/components/ui/input";
@@ -29,7 +27,7 @@ import {
 } from "lucide-react";
 // use the new store (corrected path)
 import useAllClassManagementStore from "@/classManagement/stores/useAllClassManagementStore";
-// use class store for create/update actions (modal callbacks)
+// use class store for create/update actions (modal callbacks) and getClassInfo
 import useClassStore from "@/classManagement/stores/useClassStore";
 // auth store to get current user id (createdBy)
 import { useAuthStore } from "@/auth/stores/useAuthStore";
@@ -79,7 +77,7 @@ const ClassListManagement: React.FC = () => {
     deleteClass,
   } = useAllClassManagementStore();
 
-  const { addClass, updateClass } = useClassStore();
+  const { addClass, updateClass, getClassInfo } = useClassStore();
 
   // get current user id for createdBy/updatedBy
   const { user } = useAuthStore();
@@ -201,33 +199,118 @@ const ClassListManagement: React.FC = () => {
   };
 
   // open edit modal (populate editing object)
-  const openEditModal = (c: any) => {
-    setEditing({
-      id: c.id,
-      title: c.name ?? "",
-      description: c.description ?? "",
-      grade: c.grade ?? null,
-      // include other fields if modal expects them
-      subjectId: c.subjectId ?? null,
-      raw: c.raw ?? c,
-    });
-    setShowEdit(true);
+  const openEditModal = async (c: any) => {
+    // Try to pull instructor/createdBy id from the lightweight item first
+    const rawCandidate = c.raw ?? c;
+    let instructorId =
+      c.instructorId ??
+      c.instructor?.id ??
+      rawCandidate?.instructorId ??
+      rawCandidate?.instructor?.id ??
+      rawCandidate?.createdBy ??
+      rawCandidate?.created_by ??
+      null;
+
+    let instructorName = c.instructorName ?? c.instructor?.fullname ?? rawCandidate?.instructorName ?? rawCandidate?.instructor?.fullname ?? null;
+
+    // If we don't have a reliable createdBy/instructor id or name, fetch class detail
+    try {
+      // fetch detailed class info (controller often returns more fields)
+      const detail = await getClassInfo?.(c.id);
+      // getClassInfo as implemented in store returns normalized shape, but we also want raw
+      // try fetching raw detail if getClassInfo returns limited fields
+      if (!detail || !detail.data || (!instructorId && !instructorName)) {
+        // fallback to direct endpoint to inspect raw response
+        try {
+          const res = await axiosInstance.get(`/Class/${encodeURIComponent(c.id)}/detail`);
+          const raw = res?.data ?? null;
+          const d = raw?.data ?? raw;
+          // common places for createdBy/instructor id
+          instructorId =
+            instructorId ??
+            d?.createdBy ??
+            d?.created_by ??
+            d?.instructorId ??
+            d?.instructor?.id ??
+            null;
+          instructorName =
+            instructorName ??
+            d?.instructorName ??
+            d?.instructor?.fullname ??
+            d?.instructor?.name ??
+            null;
+          // also keep raw for modal
+          setEditing({
+            id: c.id,
+            title: c.name ?? "",
+            description: c.description ?? "",
+            grade: c.grade ?? null,
+            subjectId: c.subjectId ?? null,
+            instructorId: instructorId ?? null,
+            createdBy: instructorId ?? null,
+            instructorName,
+            raw: d ?? rawCandidate,
+          });
+          setShowEdit(true);
+          return;
+        } catch (err) {
+          // ignore direct fetch error, we'll still open with whatever we have
+          console.debug("Failed to fetch /detail fallback:", err);
+        }
+      }
+
+      // If we reached here, we have at least some instructorId or name or fallback to lightweight object
+      setEditing({
+        id: c.id,
+        title: c.name ?? "",
+        description: c.description ?? "",
+        grade: c.grade ?? null,
+        subjectId: c.subjectId ?? null,
+        instructorId: instructorId ?? null,
+        createdBy: instructorId ?? null,
+        instructorName,
+        raw: rawCandidate,
+      });
+      setShowEdit(true);
+    } catch (err) {
+      console.error("openEditModal error:", err);
+      // still open modal with best-effort fields
+      setEditing({
+        id: c.id,
+        title: c.name ?? "",
+        description: c.description ?? "",
+        grade: c.grade ?? null,
+        subjectId: c.subjectId ?? null,
+        instructorId: instructorId ?? null,
+        createdBy: instructorId ?? null,
+        instructorName,
+        raw: rawCandidate,
+      });
+      setShowEdit(true);
+    }
   };
 
   // Create modal callback
   const handleCreate = async (payload: {
     title: string;
     description?: string;
+    // accept both possible names just in case: createdBy (modal) or createBy (older)
+    createdBy?: string;
+    createBy?: string;
     grade?: number | null;
   }) => {
     try {
-      const createdBy = currentUserId || "00000000-0000-0000-0000-000000000000";
+      // prefer createdBy passed from modal select (if any), otherwise fallback to current user id (only if available)
+      const createdByFromModal = payload.createdBy ?? payload.createBy ?? undefined;
+      const createdByToSend = createdByFromModal ?? (currentUserId || undefined);
+
       // prefer useClassStore.addClass if available and expects createdBy
       if (typeof addClass === "function") {
         await addClass({
           title: payload.title,
           description: payload.description,
-          createdBy: createdBy,
+          // pass createdByToSend (may be undefined -> store will handle omitted)
+          createdBy: createdByToSend,
           grade: payload.grade ?? undefined,
         } as any);
       }
@@ -247,9 +330,11 @@ const ClassListManagement: React.FC = () => {
     title: string;
     description?: string;
     grade: number;
+    createdBy?: string;
   }) => {
     try {
-      const updatedBy = currentUserId || "00000000-0000-0000-0000-000000000000";
+      const updatedBy = currentUserId || undefined;
+
       if (typeof updateClass === "function") {
         await updateClass({
           id: payload.id,
@@ -257,6 +342,8 @@ const ClassListManagement: React.FC = () => {
           description: payload.description,
           grade: payload.grade,
           updatedBy: updatedBy,
+          // pass through createdBy if provided (for SchoolAdmin teacher selection)
+          createdBy: payload.createdBy ?? undefined,
         } as any);
       }
       setShowEdit(false);
@@ -289,9 +376,7 @@ const ClassListManagement: React.FC = () => {
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold">Quản lý Lớp học</h1>
-          <div className="text-sm text-slate-600">
-            {schoolName ?? "—"}
-          </div>
+        <div className="text-sm text-slate-600">{schoolName ?? "—"}</div>
         </div>
 
         <div className="flex items-center gap-4">
@@ -555,7 +640,7 @@ const ClassListManagement: React.FC = () => {
         open={showCreate}
         onClose={() => setShowCreate(false)}
         onCreate={async (p) => {
-          await handleCreate(p);
+          await handleCreate(p as any);
         }}
       />
       <EditClassModal

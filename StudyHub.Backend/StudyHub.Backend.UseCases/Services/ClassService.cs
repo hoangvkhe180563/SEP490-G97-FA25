@@ -51,33 +51,18 @@ namespace StudyHub.Backend.UseCases.Services
         }
         public List<Subject> GetSubjects() => _classRepository.GetAllSubject();
         public List<AppUser> GetTeachers() => _classRepository.GetAllTeacher();
-        public List<AppUser> GetTeachersHomeRoom(int classID)
+        public List<AppUser> GetTeachersHomeRoom(Guid user)
         {
+            var users =_userRepository.GetById(user);
             var teachers = _classRepository.GetAllTeacher() ?? new List<AppUser>();
 
             var homeroomTeachers = teachers
-                .Where(t => t.Roles != null && t.Roles.Any(r => string.Equals(r.Name, "Homeroom Teacher", StringComparison.OrdinalIgnoreCase)))
+                .Where(t =>t.SchoolId==users.SchoolId&& t.Roles != null && t.Roles.Any(r => string.Equals(r.Name, "Homeroom Teacher", StringComparison.OrdinalIgnoreCase)))
                 .ToList();
 
-            var result = new List<AppUser>();
+            
 
-            foreach (var teacher in homeroomTeachers)
-            {
-                try
-                {
-                    if (_classRepository.HasTeacher(teacher.Id, classID))
-                    {
-                        result.Add(teacher);
-                    }
-                }
-                catch
-                {
-                    // Nếu repository có thể ném lỗi, bỏ qua trường hợp lỗi và tiếp tục
-                    continue;
-                }
-            }
-
-            return result;
+            return homeroomTeachers;
         }
 
         public Class CreateClass(Class dto)
@@ -87,7 +72,7 @@ namespace StudyHub.Backend.UseCases.Services
                 Name = dto.Name.Trim(),
                 Description = dto.Description,
                 Grade = dto.Grade,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
                 CreatedBy = dto.CreatedBy
             };
 
@@ -97,7 +82,7 @@ namespace StudyHub.Backend.UseCases.Services
         public Class UpdateClass(Class dto) => _classRepository.UpdateClass(dto);
 
        
-        public Class? UpdateClassFromPrimitives(int id, string? name, string? description, Guid? updatedBy)
+        public Class? UpdateClassFromPrimitives(int id, string? name, string? description, Guid? updatedBy, Guid CreateBY)
         {
             var existing = _classRepository.GetClassById(id);
             if (existing == null) return null;
@@ -105,6 +90,10 @@ namespace StudyHub.Backend.UseCases.Services
             existing.Description = description;
             existing.UpdatedAt = DateTime.UtcNow;
             existing.UpdatedBy = updatedBy;
+            
+                existing.CreatedBy = CreateBY;
+            
+            
             return _classRepository.UpdateClass(existing);
         }
 

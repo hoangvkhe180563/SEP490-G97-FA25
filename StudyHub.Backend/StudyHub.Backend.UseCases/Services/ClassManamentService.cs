@@ -65,7 +65,7 @@ namespace StudyHub.Backend.UseCases.Services
             List<Class> result = new List<Class>();
             foreach (var clazz in classes)
             {
-                if (_userRepo.GetById(clazz.CreatedBy).SchoolId == schoolID)
+                if (_userRepo.GetById(clazz.CreatedBy)!=null&&_userRepo.GetById(clazz.CreatedBy).SchoolId == schoolID)
                 {
                     result.Add(clazz);
                 }
