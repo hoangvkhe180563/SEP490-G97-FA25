@@ -25,6 +25,7 @@ import {
 import { createFallBack } from "../utils/avatarUtils";
 import { formatDate } from "../utils/dateUtils";
 import toast from "react-hot-toast";
+import { ROLES } from "@/common/constants/Roles";
 
 const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
   const { updateUserStatus } = useAppUserStore();
@@ -87,12 +88,12 @@ const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
         {(() => {
           const roles = user.roles || [];
           const isTeacher = roles.some((r: any) => {
-            const v = String(r || "").toLowerCase();
+            const v = String(r || "");
             return (
-              v.includes("subject teacher") ||
-              v.includes("homeroom teacher") ||
-              v.includes("head of department teacher") ||
-              v.includes("q&a teacher")
+              v === ROLES.SUBJECT_TEACHER ||
+              v === ROLES.HOMEROOM_TEACHER ||
+              v === ROLES.HEAD_TEACHER ||
+              v === ROLES.QUESTION_MANAGER
             );
           });
           const subjects = (user as any).subjects || [];

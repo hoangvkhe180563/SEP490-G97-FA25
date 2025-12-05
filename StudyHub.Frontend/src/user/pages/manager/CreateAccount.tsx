@@ -266,6 +266,57 @@ const CreateAccount: React.FC = () => {
   const selectedRoles = watch("roleIds") || [];
   const selectedSubjects = watch("subjectIds") || [];
 
+  // Determine which roles are selected by name so we can control subject selection rules.
+  const roleNameMatches = (name: string | undefined, keywords: string[]) => {
+    if (!name) return false;
+    const s = String(name).toLowerCase();
+    return keywords.some((k) => s.includes(k));
+  };
+
+  const selectedRoleNames = (selectedRoles || []).map((rid: any) => {
+    const r = (appRoles || []).find((a: any) => String(a.id) === String(rid));
+    return r?.name ?? String(rid ?? "");
+  });
+
+  const isTeacher = selectedRoleNames.some((n) =>
+    roleNameMatches(n, ["teacher", "giáo", "giáo viên", "giaovien"])
+  );
+  const isQuestionManager = selectedRoleNames.some((n) =>
+    roleNameMatches(n, [
+      "question",
+      "question manager",
+      "question_manager",
+      "câu hỏi",
+    ])
+  );
+  const hasHomeroomOrHead = selectedRoleNames.some((n) =>
+    roleNameMatches(n, [
+      "homeroom",
+      "home room",
+      "head",
+      "department",
+      "trưởng",
+      "khoa",
+      "tổ",
+    ])
+  );
+
+  const canShowSubjects = isTeacher || isQuestionManager;
+  const allowMultipleSubjects = isQuestionManager || hasHomeroomOrHead;
+
+  // When roles change such that subjects are no longer applicable, clear them.
+  useEffect(() => {
+    if (!canShowSubjects) {
+      setValue("subjectIds", []);
+    } else if (!allowMultipleSubjects) {
+      // trim to at most one subject if multiple were present previously
+      const cur = form.getValues("subjectIds") || [];
+      if (Array.isArray(cur) && cur.length > 1)
+        setValue("subjectIds", [String(cur[0])]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRoles, appRoles]);
+
   useEffect(() => {
     getAppRoles();
     fetchCities();
@@ -478,7 +529,11 @@ const CreateAccount: React.FC = () => {
               </div>
 
               <div className="mt-2 flex flex-col gap-2">
-                {(!subjects || subjects.length) === 0 ? (
+                {!canShowSubjects ? (
+                  <div className="text-sm text-gray-500">
+                    Chỉ có giáo viên hoặc Question Manager mới được chọn môn học
+                  </div>
+                ) : (subjects || []).length === 0 ? (
                   <div className="text-sm text-gray-500">Chưa có môn học</div>
                 ) : (
                   <>
@@ -517,10 +572,17 @@ const CreateAccount: React.FC = () => {
                           if (!v) return;
                           addSubject(v);
                         }}
+                        disabled={
+                          !allowMultipleSubjects &&
+                          (selectedSubjects || []).length >= 1
+                        }
                       >
                         <SelectTrigger className="w-full">
                           <span className="text-sm text-gray-700">
-                            Thêm môn học
+                            {!allowMultipleSubjects &&
+                            (selectedSubjects || []).length >= 1
+                              ? "Đã chọn 1 môn (không thể thêm)"
+                              : "Thêm môn học"}
                           </span>
                         </SelectTrigger>
                         <SelectContent>
@@ -539,6 +601,13 @@ const CreateAccount: React.FC = () => {
                         </SelectContent>
                       </Select>
                     </div>
+                    {!allowMultipleSubjects && isTeacher && (
+                      <div className="text-xs text-gray-500">
+                        Lưu ý: Giáo viên thường chỉ được chọn 1 môn. Để chọn
+                        nhiều môn, cấp vai trò Homeroom/Head-of-department hoặc
+                        Question Manager.
+                      </div>
+                    )}
                   </>
                 )}
               </div>

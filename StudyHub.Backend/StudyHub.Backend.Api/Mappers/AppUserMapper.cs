@@ -55,7 +55,8 @@ namespace StudyHub.Backend.Api.Mappers
                 CityId = cityId,
                 ProvinceId = provinceId,
                 Roles = roles?.ToList() ?? new List<string>(),
-                CommuneId = communeId
+                CommuneId = communeId,
+                Subjects = user.Subjects?.Select(s => new SubjectDto { Id = s.Id, Name = s.Name })?.ToList() ?? new List<SubjectDto>()
             };
         }
 
