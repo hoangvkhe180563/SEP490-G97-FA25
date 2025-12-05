@@ -38,6 +38,7 @@ import { useAuthStore } from "@/auth/stores/useAuthStore";
 import type { UpdateProfileDto } from "../interfaces/dtos";
 import { isValidVietnamPhone } from "../utils/phoneUtils";
 import useDobStore from "@/user/stores/useDobStore";
+import { ROLES } from "@/common/constants/Roles";
 
 // Vietnam phone validator
 
@@ -300,6 +301,17 @@ export default function UpdateProfile() {
     }
   };
 
+  const roles = currentUser?.roles || [];
+  const showSubjects = roles.some((r: any) => {
+    const v = String(r || "");
+    return (
+      v === ROLES.SUBJECT_TEACHER ||
+      v === ROLES.HOMEROOM_TEACHER ||
+      v === ROLES.HEAD_TEACHER ||
+      v === ROLES.QUESTION_MANAGER
+    );
+  });
+
   return (
     <Form {...form}>
       <form
@@ -353,6 +365,23 @@ export default function UpdateProfile() {
                     </span>
                   )}
                 </div>
+                {showSubjects && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <div className="text-sm">Môn học:</div>
+                    {Array.isArray(currentUser?.subjects) &&
+                    currentUser.subjects.length > 0 ? (
+                      currentUser.subjects.map((s: any) => (
+                        <Badge key={s.id} variant="outline" className="text-xs">
+                          {s.name}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted-foreground">
+                        Chưa có môn học
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
