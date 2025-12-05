@@ -173,7 +173,13 @@ const AddLecture: React.FC = () => {
                 const course = await courseApi.getCourseById(
                   Number((ch as any).courseId)
                 );
-                if (course) setCourseEndDate(course.endAt ?? null);
+
+                //hoàng fetch course để lấy subject id và lớp
+                if (course) {
+                  setCourseEndDate(course.endAt ?? null);
+                  setSelectedSubjectId(course.subjectId);
+                  setSelectedGrade(course.grade);
+                }
               } catch (err) {
                 console.warn("Failed to load course for end date", err);
               }
@@ -250,6 +256,8 @@ const AddLecture: React.FC = () => {
         );
       } else if (selectedTab === "bank-questions" && !Number(randomQuestions)) {
         aggErrors.push("Vui lòng điền số câu hỏi cần tạo!");
+      } else if (selectedTab === "bank-questions" && Number(randomQuestions) <= 0) {
+        aggErrors.push("Số câu hỏi phải > 0!");
       }
 
       for (const q of questions) {
@@ -814,12 +822,12 @@ const AddLecture: React.FC = () => {
         showCorrectAnswers: true,
         lessonId: created.id,
         openTime: postDate ? new Date(postDate) : new Date(),
+        subjectId: selectedSubjectId,
+        grade: selectedGrade
       };
 
       if (selectedTab === "bank-questions") {
         newExam.noRandomQuestions = Number(randomQuestions);
-        newExam.subjectId = selectedSubjectId;
-        newExam.grade = selectedGrade;
       }
 
       const isExamCreated =
@@ -1438,9 +1446,7 @@ const AddLecture: React.FC = () => {
                     <RandomQuestionTemplate
                       isLesson
                       selectedSubjectId={selectedSubjectId}
-                      setSelectedSubjectId={setSelectedSubjectId}
                       selectedGrade={selectedGrade}
-                      setSelectedGrade={setSelectedGrade}
                       selectedRandomQuestions={randomQuestions}
                       setSelectedRandomQuestions={setRandomQuestions}
                     />

@@ -64,6 +64,7 @@ namespace StudyHub.Backend.Api.Mappers
                 Id = c.Id,
                 Name = c.Name,
                 Description = c.Description,
+                Grade = c.Grade,
                 CreatedAt = c.CreatedAt,
                 Notifications = notifications
             };

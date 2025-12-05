@@ -1,5 +1,4 @@
 import { Label } from "@/common/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select"
 import { useEffect, useState } from "react"
 import { QuestionService } from "../services/QuestionService"
 import type { Subject } from "../interfaces/models/Subject"
@@ -7,9 +6,7 @@ import { Input } from "@/common/components/ui/input"
 
 interface RandomQuestionTemplateProps {
   selectedSubjectId: number,
-  setSelectedSubjectId: React.Dispatch<React.SetStateAction<number>>,
   selectedGrade: number,
-  setSelectedGrade: React.Dispatch<React.SetStateAction<number>>,
   selectedRandomQuestions: string,
   setSelectedRandomQuestions: React.Dispatch<React.SetStateAction<string>>,
   isLesson?: boolean
@@ -42,43 +39,11 @@ const RandomQuestionTemplate = (props: RandomQuestionTemplateProps) => {
     <div>
       <div className="flex">
         <div className="flex items-center gap-3 flex-1">
-          <Label>Môn học <span className="text-red-500">*</span></Label>
-          <Select
-            // disabled={props.isLesson}
-            value={props.selectedSubjectId ? props.selectedSubjectId.toString() : ""}
-            onValueChange={(val) => props.setSelectedSubjectId(Number(val))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Chọn môn học" />
-            </SelectTrigger>
-            <SelectContent>
-              {subjects.map(subject => (
-                <SelectItem key={subject.id} value={subject.id.toString()}>
-                  {subject.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>Môn học: <b>{subjects.find(subject => subject.id === props.selectedSubjectId)?.name ?? 'Không có'}</b></Label>
         </div>
 
         <div className="flex items-center gap-3 flex-1">
-          <Label>Lớp <span className="text-red-500">*</span></Label>
-          <Select
-            // disabled={props.isLesson}
-            value={props.selectedGrade ? props.selectedGrade.toString() : ""}
-            onValueChange={(val) => props.setSelectedGrade(Number(val))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Chọn lớp" />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 12 }, (_, index) => (
-                <SelectItem key={`grade-${index}`} value={(index + 1).toString()}>
-                  Lớp {index + 1}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>Lớp: <b>{props.selectedGrade}</b></Label>
         </div>
       </div>
       {
