@@ -946,7 +946,20 @@ const LecturePlayer: React.FC = () => {
                 </div>
               </div>
             </div>
-
+            <div className="grid grid-cols-1 gap-4">
+              <div className="bg-white border rounded p-4 mb-10">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium">Mô tả bài giảng</h4>
+                </div>
+                <div className="max-h-48 overflow-auto text-sm text-gray-700">
+                  <p>
+                    {selectedLesson?.description ??
+                      (selectedLesson as any)?.readingContent ??
+                      "Không có bảng ghi chép nào."}
+                  </p>
+                </div>
+              </div>
+            </div>
             {selectedLesson?.type === "Video" ? (
               <div className="bg-black w-full aspect-video rounded-lg mb-4 flex items-center justify-center text-white overflow-hidden shadow-lg">
                 {selectedLesson?.videoUrl ? (
@@ -1163,21 +1176,6 @@ const LecturePlayer: React.FC = () => {
                 </div>
               </div>
             )}
-
-            <div className="grid grid-cols-1 gap-4">
-              <div className="bg-white border rounded p-4 mb-10">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium">Nội dung bài giảng</h4>
-                </div>
-                <div className="max-h-48 overflow-auto text-sm text-gray-700">
-                  <p>
-                    {selectedLesson?.description ??
-                      (selectedLesson as any)?.readingContent ??
-                      "Không có bảng ghi chép nào."}
-                  </p>
-                </div>
-              </div>
-            </div>
           </main>
           <aside className="col-span-12 lg:col-span-3 space-y-4 lg:sticky lg:top-24 mb-10">
             <LectureResources />
