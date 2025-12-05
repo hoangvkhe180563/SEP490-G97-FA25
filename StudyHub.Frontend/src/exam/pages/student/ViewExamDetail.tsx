@@ -257,7 +257,7 @@ const ViewExamDetail = () => {
           <AlertDialogFooter className="mx-auto">
             <AlertDialogCancel>Hủy</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => navigate(`/exam/student/take-exam/${exam.id}`)}
+              onClick={handleStartExam}
             >
               OK
             </AlertDialogAction>

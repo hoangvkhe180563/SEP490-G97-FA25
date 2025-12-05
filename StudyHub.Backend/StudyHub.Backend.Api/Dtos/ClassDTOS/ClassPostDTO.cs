@@ -6,8 +6,8 @@
         public string Name { get; set; } = null!;
         public short? SubjectId { get; set; }
         public string? Description { get; set; }
+        public sbyte Grade { get; set; }
         public DateTime CreatedAt { get; set; }
-
         public List<NotificationDto> Notifications { get; set; } = new();
     }
 }

@@ -8,6 +8,7 @@ import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import type {
   LessonExamStatus,
   LessonListDto,
+  Question,
 } from "@/courseManagement/interfaces/types";
 import { useNavigate, useParams } from "react-router-dom";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
@@ -31,11 +32,18 @@ import {
 } from "@/common/components/ui/alert-dialog";
 import courseApi from "@/courseManagement/services/courseService";
 import toast from "react-hot-toast";
+import { ExamService } from "@/exam/services/ExamService";
+import type { ExamResult } from "@/exam/interfaces/models/ExamResult";
+import { EXAM_TYPE } from "@/courseManagement/constants/ExamType";
+import { BLANK_PLACEHOLDER } from "@/exam/constants/Constants";
+import { calculateFinishTime } from "@/exam/utils/ExamUtils";
+import { useLoading } from "@/common/hooks/useLoading";
 // Progress UI removed for Video lessons; keep setters used by auto-complete logic
 
 const LecturePlayer: React.FC = () => {
   const params = useParams();
   const navigate = useNavigate();
+  const { setLoading } = useLoading();
   const lid = Number(
     (params as any).lectureId ?? (params as any).lessonId ?? 0
   );
@@ -816,9 +824,80 @@ const LecturePlayer: React.FC = () => {
   ]);
 
   const handleStartExam = async () => {
+    if (!authUser) {
+      return;
+    }
+    setLoading(true);
     const exam = await courseApi.getExamByLessonId(lessonId);
     if (exam) {
-      location.href = `/exam/student/take-exam/${exam.id}`;
+      const examService = new ExamService();
+      let questions: Question[] = exam.questions;
+      if (exam.noRandomQuestions) {
+        questions = await examService.generateRandomQuestions(Number(exam.id));
+      }
+
+      try {
+        const examResult: ExamResult = {
+          id: "",
+          examId: Number(exam.id),
+          studentId: authUser.id,
+          answers: questions.map((q) => {
+            let initialAnswer;
+            switch (q.type) {
+              case EXAM_TYPE.SINGLE_CHOICE:
+                initialAnswer = -1;
+                break;
+              case EXAM_TYPE.MULTI_CHOICE:
+                initialAnswer = [];
+                break;
+              case EXAM_TYPE.TEXT_INPUT:
+                initialAnswer = "";
+                break;
+              case EXAM_TYPE.FILL_IN_BLANK: {
+                const blankCount = (
+                  q.questionText.match(
+                    new RegExp(
+                      BLANK_PLACEHOLDER.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&"),
+                      "g"
+                    )
+                  ) || []
+                ).length;
+                initialAnswer = Array(blankCount).fill("");
+                break;
+              }
+              case EXAM_TYPE.MATCHING: {
+                initialAnswer = {};
+                const terms = q.terms;
+                if (terms) {
+                  terms.forEach((_, termIndex) => {
+                    initialAnswer[termIndex] = -1;
+                  });
+                }
+                break;
+              }
+            }
+
+            return {
+              questionId: q.questionObjectId ?? "",
+              jsonAnswers:
+                q.type === EXAM_TYPE.TEXT_INPUT
+                  ? initialAnswer
+                  : JSON.stringify(initialAnswer),
+              isCorrect: false,
+            };
+          }),
+          cheatTimes: 0,
+          finishTime: calculateFinishTime(),
+        };
+
+        await examService.createResult(examResult);
+        navigate(`/exam/student/take-exam/${exam.id}`);
+      } catch (error) {
+        console.error(error);
+        toast.error("Không tạo được bài làm!");
+      } finally {
+        setLoading(false);
+      }
     } else {
       toast.error("Không có bài kiểm tra!");
     }
@@ -974,9 +1053,8 @@ const LecturePlayer: React.FC = () => {
                     if (isEmbed || (!isMp4 && src.startsWith("http"))) {
                       const isYouTubeEmbed = /youtube|youtu\.be/.test(lower);
                       if (isYouTubeEmbed) {
-                        const elId = `yt-player-${
-                          selectedLesson?.id ?? "unknown"
-                        }`;
+                        const elId = `yt-player-${selectedLesson?.id ?? "unknown"
+                          }`;
                         return <div id={elId} className="w-full h-full" />;
                       }
 
@@ -1089,8 +1167,8 @@ const LecturePlayer: React.FC = () => {
                           const bgCls = isCorrectOpt
                             ? "bg-green-50 border border-green-200"
                             : isChosenWrong
-                            ? "bg-red-50 border border-red-200"
-                            : "bg-gray-100 hover:bg-gray-200";
+                              ? "bg-red-50 border border-red-200"
+                              : "bg-gray-100 hover:bg-gray-200";
                           return (
                             <button
                               key={idx}
