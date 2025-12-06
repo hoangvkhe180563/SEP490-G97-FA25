@@ -30,6 +30,7 @@ interface CurrentUser {
   provinceId: number;
   communeId: number;
   roles?: string[];
+  subjects?: string[];
 }
 
 export type { AppUser, CurrentUser };

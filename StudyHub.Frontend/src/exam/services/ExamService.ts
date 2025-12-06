@@ -119,7 +119,7 @@ export class ExamService {
     return DEFAULT_EXAM;
   }
 
-  getExamQuestionsByResultId = async (resultId: string) : Promise<Question[]> => {
+  getExamQuestionsByResultId = async (resultId: string): Promise<Question[]> => {
     try {
       const res = await axiosInstance.get(`examResult/${resultId}/questions`);
       if (res.status === 200) {
@@ -348,6 +348,20 @@ export class ExamService {
       console.error("Error getClassName: ", error);
     }
     return '';
+  }
+
+  getClassGradeById = async (classId: number): Promise<number> => {
+    try {
+      const res = await axiosInstance.get(`/class/${classId}/detail`);
+      if (res.status === 200) {
+        return res.data.data.grade;
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error getClassGradeById: ", error);
+    }
+    return 0;
   }
 
   getCourseIdByLessonId = async (lessonId: number): Promise<number> => {

@@ -23,8 +23,9 @@ import { MessageSquare } from "lucide-react";
 import { CreateAppealModal } from "@/forumManagement/components/CreateAppealModal";
 import { useAppealStore } from "@/forumManagement/stores/useAppealStore";
 import { toast } from "sonner";
+import { axiosInstance } from "@/lib/axios";
+import { Skeleton } from "./ui/skeleton";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-import { Skeleton } from "@/common/components/ui/skeleton";
 interface ISidebarContextProps {
   expanded: boolean;
 }
@@ -35,12 +36,17 @@ export const Sidebar = (props: {
   user: AppUser;
 }) => {
   const [showAppealModal, setShowAppealModal] = useState(false);
-  const { logout: logoutAuth, isCheckingAuth } = useAuthStore();
   const { createAppeal, isLoading } = useAppealStore();
+  const { isCheckingAuth } = useAuthStore();
   const navigate = useNavigate();
   const logout = async () => {
-    await logoutAuth();
-    navigate("/");
+    await axiosInstance.post("/auth/logout").then((res) => {
+      if (res.status === 200) {
+        location.href = '/';
+      } else {
+        console.error("Lỗi không logout được!");
+      }
+    });
   };
   const handleCreateAppeal = async (reason: string) => {
     if (!props.user.schoolId) {
@@ -117,7 +123,7 @@ export const Sidebar = (props: {
         </div>
 
         <SidebarContext.Provider value={{ expanded }}>
-          <ul className="flex-1 px-3">{props.children}</ul>
+          <ul className="flex-1 overflow-y-auto px-3 scrollbar-hide">{props.children}</ul>
         </SidebarContext.Provider>
 
         <div className="p-2 text-gray-500 border-t border-gray-300 flex items-center justify-center">

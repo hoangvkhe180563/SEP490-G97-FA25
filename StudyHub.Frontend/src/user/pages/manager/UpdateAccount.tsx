@@ -236,6 +236,55 @@ const UpdateAccount: React.FC = () => {
   const selectedRoles = watch("roleIds") || [];
   const selectedSubjects = watch("subjectIds") || [];
 
+  // Determine which roles are selected by name so we can control subject selection rules.
+  const roleNameMatches = (name: string | undefined, keywords: string[]) => {
+    if (!name) return false;
+    const s = String(name).toLowerCase();
+    return keywords.some((k) => s.includes(k));
+  };
+
+  const selectedRoleNames = (selectedRoles || []).map((rid: any) => {
+    const r = (appRoles || []).find((a: any) => String(a.id) === String(rid));
+    return r?.name ?? String(rid ?? "");
+  });
+
+  const isTeacher = selectedRoleNames.some((n) =>
+    roleNameMatches(n, ["teacher", "giáo", "giáo viên", "giaovien"])
+  );
+  const isQuestionManager = selectedRoleNames.some((n) =>
+    roleNameMatches(n, [
+      "question",
+      "question manager",
+      "question_manager",
+      "câu hỏi",
+    ])
+  );
+  const hasHomeroomOrHead = selectedRoleNames.some((n) =>
+    roleNameMatches(n, [
+      "homeroom",
+      "home room",
+      "head",
+      "department",
+      "trưởng",
+      "khoa",
+      "tổ",
+    ])
+  );
+
+  const canShowSubjects = isTeacher || isQuestionManager;
+  const allowMultipleSubjects = isQuestionManager || hasHomeroomOrHead;
+
+  useEffect(() => {
+    if (!canShowSubjects) {
+      setValue("subjectIds", []);
+    } else if (!allowMultipleSubjects) {
+      const cur = getValues("subjectIds") || [];
+      if (Array.isArray(cur) && cur.length > 1)
+        setValue("subjectIds", [String(cur[0])]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRoles, appRoles]);
+
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
     setFile(f);
@@ -284,7 +333,7 @@ const UpdateAccount: React.FC = () => {
             fullname: user.fullname ?? user.username ?? "",
             dob: (user as any)?.dob
               ? useDobStore.getState().isoToDisplay((user as any).dob) ??
-                undefined
+              undefined
               : undefined,
             cityId: user.cityId ? String(user.cityId) : undefined,
             provinceId: user.provinceId ? String(user.provinceId) : undefined,
@@ -481,11 +530,8 @@ const UpdateAccount: React.FC = () => {
   // remove debug log
 
   return (
-    <Form {...form}>
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="bg-white rounded-xl p-6 shadow-md space-y-6 max-h-screen overflow-auto"
-      >
+    <div className="h-full overflow-y-auto bg-white rounded-xl p-6 shadow-md space-y-6">
+      <Form {...form}>
         <div className="flex items-center gap-6">
           <div className="relative">
             <Avatar className="w-20 h-20">
@@ -669,10 +715,10 @@ const UpdateAccount: React.FC = () => {
                         {field.value === "1"
                           ? "Nam"
                           : field.value === "0"
-                          ? "Nữ"
-                          : field.value === "2"
-                          ? "Khác"
-                          : "Chọn giới tính"}
+                            ? "Nữ"
+                            : field.value === "2"
+                              ? "Khác"
+                              : "Chọn giới tính"}
                       </span>
                     </SelectTrigger>
                     <SelectContent>
@@ -910,62 +956,88 @@ const UpdateAccount: React.FC = () => {
           <FormItem className="w-full">
             <FormLabel>Môn học</FormLabel>
             <div className="mt-2 flex flex-col gap-2">
-              <div className="flex flex-wrap gap-2 max-h-36 overflow-auto pr-2">
-                {selectedSubjects.map((sid: any) => {
-                  const sub = (subjects || []).find(
-                    (s: any) => String(s.id) === String(sid)
-                  );
-                  const name = sub ? sub.name : String(sid);
-                  return (
-                    <Badge
-                      key={String(sid)}
-                      className="flex items-center gap-2 cursor-pointer"
-                      onClick={() => removeSubject(String(sid))}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Remove subject ${name}`}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          removeSubject(String(sid));
-                        }
-                      }}
-                    >
-                      <span className="text-sm">{name}</span>
-                      <span className="opacity-60" aria-hidden>
-                        ×
-                      </span>
-                    </Badge>
-                  );
-                })}
-              </div>
+              {!canShowSubjects ? (
+                <div className="text-sm text-gray-500">
+                  Chỉ có giáo viên hoặc Question Manager mới được chọn môn học
+                </div>
+              ) : (subjects || []).length === 0 ? (
+                <div className="text-sm text-gray-500">Chưa có môn học</div>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-2 max-h-36 overflow-auto pr-2">
+                    {selectedSubjects.map((sid: any) => {
+                      const sub = (subjects || []).find(
+                        (s: any) => String(s.id) === String(sid)
+                      );
+                      const name = sub ? sub.name : String(sid);
+                      return (
+                        <Badge
+                          key={String(sid)}
+                          className="flex items-center gap-2 cursor-pointer"
+                          onClick={() => removeSubject(String(sid))}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Remove subject ${name}`}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              removeSubject(String(sid));
+                            }
+                          }}
+                        >
+                          <span className="text-sm">{name}</span>
+                          <span className="opacity-60" aria-hidden>
+                            ×
+                          </span>
+                        </Badge>
+                      );
+                    })}
+                  </div>
 
-              <div className="mt-2">
-                <Select
-                  onValueChange={(v) => {
-                    if (!v) return;
-                    addSubject(v);
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <span className="text-sm text-gray-700">Thêm môn học</span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(subjects || [])
-                      .filter(
-                        (s: any) =>
-                          !selectedSubjects.some(
-                            (ss: any) => String(ss) === String(s.id)
+                  <div className="mt-2">
+                    <Select
+                      onValueChange={(v) => {
+                        if (!v) return;
+                        addSubject(v);
+                      }}
+                      disabled={
+                        !allowMultipleSubjects &&
+                        (selectedSubjects || []).length >= 1
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <span className="text-sm text-gray-700">
+                          {!allowMultipleSubjects &&
+                          (selectedSubjects || []).length >= 1
+                            ? "Đã chọn 1 môn (không thể thêm)"
+                            : "Thêm môn học"}
+                        </span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(subjects || [])
+                          .filter(
+                            (s: any) =>
+                              !selectedSubjects.some(
+                                (ss: any) => String(ss) === String(s.id)
+                              )
                           )
-                      )
-                      .map((s: any) => (
-                        <SelectItem key={s.id} value={String(s.id)}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                          .map((s: any) => (
+                            <SelectItem key={s.id} value={String(s.id)}>
+                              {s.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {!allowMultipleSubjects && isTeacher && (
+                    <div className="text-xs text-gray-500">
+                      Lưu ý: Giáo viên thường chỉ được chọn 1 môn. Để chọn nhiều
+                      môn, cấp vai trò Homeroom/Head-of-department hoặc Question
+                      Manager.
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </FormItem>
         </div>
@@ -1013,8 +1085,8 @@ const UpdateAccount: React.FC = () => {
                   {isLoading
                     ? "Đang tiến hành..."
                     : getValues("status")
-                    ? "Có, tôi chắc chắn"
-                    : "Có, kích hoạt"}
+                      ? "Có, tôi chắc chắn"
+                      : "Có, kích hoạt"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -1028,13 +1100,14 @@ const UpdateAccount: React.FC = () => {
               type="submit"
               className="bg-black text-white"
               disabled={formState.isSubmitting}
+              onClick={handleSubmit(onSubmit)}
             >
               Cập nhật
             </Button>
           </div>
         </div>
-      </form>
-    </Form>
+      </Form>
+    </div>
   );
 };
 

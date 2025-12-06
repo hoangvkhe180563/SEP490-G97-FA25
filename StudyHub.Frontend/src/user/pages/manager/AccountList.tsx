@@ -378,7 +378,7 @@ const AccountList = () => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6 max-h-full overflow-y-auto">
+    <div className="bg-white rounded-xl shadow-md p-6 h-full overflow-y-auto">
       <div className="flex items-center gap-4 mb-6">
         <Input
           placeholder="Tìm kiếm tài khoản..."

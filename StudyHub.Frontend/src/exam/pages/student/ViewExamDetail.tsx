@@ -256,7 +256,11 @@ const ViewExamDetail = () => {
           </AlertDialogHeader>
           <AlertDialogFooter className="mx-auto">
             <AlertDialogCancel>Hủy</AlertDialogCancel>
-            <AlertDialogAction onClick={handleStartExam}>OK</AlertDialogAction>
+            <AlertDialogAction
+              onClick={handleStartExam}
+            >
+              OK
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

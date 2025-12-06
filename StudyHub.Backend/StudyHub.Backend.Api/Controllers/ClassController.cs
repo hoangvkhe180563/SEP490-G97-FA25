@@ -165,14 +165,5 @@ namespace StudyHub.Backend.Api.Controllers
                 data = dto
             });
         }
-
-        
-        public class CreateCommentDto
-        {
-            public string Content { get; set; } = string.Empty;
-            public Guid CreatedBy { get; set; }
-        }
-
-       
     }
 }
