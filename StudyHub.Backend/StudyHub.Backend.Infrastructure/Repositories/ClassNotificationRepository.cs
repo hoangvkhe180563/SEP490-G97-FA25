@@ -392,8 +392,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
            
             var unreadCount = query.Count(n =>
-                !_context.ClassNotificationReadStatuses
-                    .Any(r => r.NotificationId == n.Id && r.AppUserId == userID && r.IsRead));
+                !_context.NotificationReads
+                    .Any(r =>  r.IsRead));
 
             return unreadCount;
         }

@@ -11,6 +11,7 @@ const RouteConfig = {
   QA_MANAGEMENT: "/qa",
   EXAM: "/exam",
   RECOMMENDATION: "/recommend",
+  NOTIFICATION: "/notification",
 };
 
 export default RouteConfig;

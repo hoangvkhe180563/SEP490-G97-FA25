@@ -58,8 +58,8 @@ namespace StudyHub.Backend.UseCases.Services
                 {
                     NotificationId = notificationId,
                     AppUserId = userId,
-                    FirstSubmissionTime = DateTime.UtcNow,
-                    LatestSubmissionTime = DateTime.UtcNow,
+                    FirstSubmissionTime = DateTime.Now,
+                    LatestSubmissionTime = DateTime.Now,
                     SubmissionStatus = "submitted"
                 };
                 submission = _repo.SubmitNotification(submission, new List<SubmissionFile>());
@@ -67,7 +67,7 @@ namespace StudyHub.Backend.UseCases.Services
             else
             {
                 submission = existing;
-                submission.LatestSubmissionTime = DateTime.UtcNow;
+                submission.LatestSubmissionTime = DateTime.Now;
                 _repo.ResubmitNotification(submission.Id, new List<SubmissionFile>());
                 isResubmit = true;
             }

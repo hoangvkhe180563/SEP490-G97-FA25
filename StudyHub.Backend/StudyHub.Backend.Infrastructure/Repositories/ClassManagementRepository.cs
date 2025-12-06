@@ -149,33 +149,29 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             _context.ClassNotifications.AsNoTracking().Count(n => n.Type == type && n.ClassId == classId);
 
         public int GetTotalNotificationReadEntries() =>
-            _context.ClassNotificationReadStatuses.AsNoTracking().Count();
+            _context.NotificationReads.AsNoTracking().Count();
 
         public int GetTotalNotificationReadReadEntries() =>
-            _context.ClassNotificationReadStatuses.AsNoTracking().Count(r => r.IsRead == true);
+            _context.NotificationReads.AsNoTracking().Count(r => r.IsRead == true);
 
         public int GetNotificationTotalByType(string type) =>
-            (from rs in _context.ClassNotificationReadStatuses.AsNoTracking()
-             join n in _context.ClassNotifications.AsNoTracking() on rs.NotificationId equals n.Id
-             where n.Type == type
+            (from rs in _context.NotificationReads.AsNoTracking()
+             
              select rs).Count();
 
         public int GetNotificationReadByType(string type) =>
-            (from rs in _context.ClassNotificationReadStatuses.AsNoTracking()
-             join n in _context.ClassNotifications.AsNoTracking() on rs.NotificationId equals n.Id
-             where n.Type == type && rs.IsRead == true
+            (from rs in _context.NotificationReads.AsNoTracking()
+             
              select rs).Count();
 
         public int GetNotificationTotalByTypeForClass(string type, int classId) =>
-            (from rs in _context.ClassNotificationReadStatuses.AsNoTracking()
-             join n in _context.ClassNotifications.AsNoTracking() on rs.NotificationId equals n.Id
-             where n.Type == type && n.ClassId == classId
+            (from rs in _context.NotificationReads.AsNoTracking()
+             
              select rs).Count();
 
         public int GetNotificationReadByTypeForClass(string type, int classId) =>
-            (from rs in _context.ClassNotificationReadStatuses.AsNoTracking()
-             join n in _context.ClassNotifications.AsNoTracking() on rs.NotificationId equals n.Id
-             where n.Type == type && n.ClassId == classId && rs.IsRead == true
+            (from rs in _context.NotificationReads.AsNoTracking()
+             
              select rs).Count();
 
         public int GetNotificationsCountByClassId(int classId) =>
@@ -346,17 +342,15 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public int GetTotalNotificationReadEntriesForClassId(int classId)
         {
-            return (from rs in _context.ClassNotificationReadStatuses.AsNoTracking()
-                    join n in _context.ClassNotifications.AsNoTracking() on rs.NotificationId equals n.Id
-                    where n.ClassId == classId
+            return (from rs in _context.NotificationReads.AsNoTracking()
+                    
                     select rs).Count();
         }
 
         public int GetReadCountForClassId(int classId)
         {
-            return (from rs in _context.ClassNotificationReadStatuses.AsNoTracking()
-                    join n in _context.ClassNotifications.AsNoTracking() on rs.NotificationId equals n.Id
-                    where n.ClassId == classId && rs.IsRead == true
+            return (from rs in _context.NotificationReads.AsNoTracking()
+                    
                     select rs).Count();
         }
 
@@ -383,14 +377,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public int GetReadCountForNotification(int notificationId)
         {
-            return _context.ClassNotificationReadStatuses.AsNoTracking()
-                .Count(rs => rs.NotificationId == notificationId && rs.IsRead == true);
+            return _context.NotificationReads.AsNoTracking()
+                .Count();
         }
 
         public int GetTotalRecipientsForNotification(int notificationId)
         {
-            return _context.ClassNotificationReadStatuses.AsNoTracking()
-                .Count(rs => rs.NotificationId == notificationId);
+            return _context.NotificationReads.AsNoTracking()
+                .Count();
         }
 
         // additional helper

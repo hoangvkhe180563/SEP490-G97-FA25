@@ -93,6 +93,16 @@ public partial class AppUser
 
     public virtual ICollection<LlmHistory> LlmHistories { get; set; } = new List<LlmHistory>();
 
+    public virtual ICollection<Notification> NotificationCreatedByNavigations { get; set; } = new List<Notification>();
+
+    public virtual ICollection<NotificationGroupMember> NotificationGroupMembers { get; set; } = new List<NotificationGroupMember>();
+
+    public virtual ICollection<NotificationGroup> NotificationGroups { get; set; } = new List<NotificationGroup>();
+
+    public virtual ICollection<NotificationRead> NotificationReads { get; set; } = new List<NotificationRead>();
+
+    public virtual ICollection<Notification> NotificationTargetUsers { get; set; } = new List<Notification>();
+
     public virtual ICollection<QAConversation> QAConversationStudents { get; set; } = new List<QAConversation>();
 
     public virtual ICollection<QAConversation> QAConversationTeachers { get; set; } = new List<QAConversation>();

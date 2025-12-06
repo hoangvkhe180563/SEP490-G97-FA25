@@ -57,6 +57,7 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<ProfileService>();
             services.AddScoped<SubscriptionService>();
             services.AddScoped<QuestionService>();
+            services.AddScoped<NotificationService>();
             services.AddScoped<ISignalRNotifier, NoOpSignalRNotifier>();
             services.AddHostedService<ImageModerationBackgroundService>();
 

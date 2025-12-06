@@ -39,7 +39,5 @@ public partial class ClassNotification
 
     public virtual ICollection<ClassNotificationFile> ClassNotificationFiles { get; set; } = new List<ClassNotificationFile>();
 
-    public virtual ICollection<ClassNotificationReadStatus> ClassNotificationReadStatuses { get; set; } = new List<ClassNotificationReadStatus>();
-
     public virtual ICollection<NotificationSubmission> NotificationSubmissions { get; set; } = new List<NotificationSubmission>();
 }

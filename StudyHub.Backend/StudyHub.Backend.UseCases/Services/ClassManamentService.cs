@@ -624,7 +624,7 @@ namespace StudyHub.Backend.UseCases.Services
         private List<(int Year, int Month, string Ym)> GenerateLastNMonths(int n)
         {
             if (n <= 0) n = 12;
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             var list = new List<(int, int, string)>(n);
             // produce ascending order from oldest -> newest
             for (int i = n - 1; i >= 0; i--)

@@ -132,11 +132,7 @@ export const EditClassModal: React.FC<Props> = ({ open, classItem, onClose }) =>
     if (found) return found.fullname;
     // fallback to any name present on classItem
     return (
-      classItem?.instructorName ??
-      classItem?.instructor?.fullname ??
-      classItem?.instructor?.name ??
-      classItem?.raw?.instructorName ??
-      null
+      classItem?.instructorName 
     );
   }, [selectedTeacherId, teachersFromStore, classItem]);
 
