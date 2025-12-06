@@ -202,7 +202,7 @@ const EditCourse: React.FC = () => {
     if (!name || !name.trim())
       fieldErrors.name = "Tiêu đề khóa học là bắt buộc.";
     if (!information || !information.trim())
-      fieldErrors.information = "Mô tả ngắn là bắt buộc."
+      fieldErrors.information = "Mô tả ngắn là bắt buộc.";
     else if (information.length > 1000)
       fieldErrors.information = "Độ dài mô tả khóa học không quá 1000 ký tự.";
 
@@ -235,7 +235,7 @@ const EditCourse: React.FC = () => {
     let startDate: Date | null = null;
     let endDate: Date | null = null;
     if (hasStart) {
-      startDate = parse(startAt, 'yyyy-mm-dd', new Date());
+      startDate = parse(startAt, "yyyy-mm-dd", new Date());
       if (isNaN(startDate.getTime()))
         fieldErrors.startAt = "Ngày bắt đầu không hợp lệ.";
     }
@@ -1165,9 +1165,12 @@ const EditCourse: React.FC = () => {
                               {/* === Right: Action buttons === */}
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-[#8A8A8A] mr-3">
-                                  {l.type === "Video"
+                                  {((l.type || "") as string).toLowerCase() ===
+                                  "video"
                                     ? "Video"
-                                    : l.type === "Reading"
+                                    : (
+                                        (l.type || "") as string
+                                      ).toLowerCase() === "reading"
                                     ? "Đọc"
                                     : "Kiểm tra"}
                                 </span>
