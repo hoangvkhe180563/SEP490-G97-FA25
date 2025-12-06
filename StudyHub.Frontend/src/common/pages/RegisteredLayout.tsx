@@ -100,9 +100,11 @@ const RegisteredLayout = (props: IRegisteredLayoutProps) => {
           )}
         </Sidebar>
       )}
-      <main className="flex-1 bg-gray-50">
-        <Outlet />
-      </main>
+      <div className="flex-1 bg-gray-50 overflow-y-auto">
+        <main className="scroll-smooth">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };

@@ -199,13 +199,13 @@ export class QuestionService {
           questions: []
         };
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error importExcel: ", error);
+      return {
+        errorMessages: error.response.data,
+        questions: []
+      };
     }
-    return {
-      errorMessages: ["Không kết nối được CSDL!"],
-      questions: []
-    };
   }
 
   getQuestionDashboardOverview = async (managerId: string): Promise<QuestionOverviewResponse> => {
