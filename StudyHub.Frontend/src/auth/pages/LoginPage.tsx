@@ -35,6 +35,15 @@ export default function LoginPage() {
     getGoogleRedirectURL,
     googleRedirectURL,
   } = useAuthStore();
+
+  // Clear success login message after 3 seconds
+  React.useEffect(() => {
+    if (!loginMessage) return;
+    const t = setTimeout(() => {
+      useAuthStore.setState({ loginMessage: "" });
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [loginMessage]);
   const { setActivateFormOpen } = useAuthStore();
 
   const form = useForm<LoginValues>({
@@ -114,7 +123,12 @@ export default function LoginPage() {
       <ActivateFormModal />
       <div className="max-w-md w-full space-y-8">
         <div>
-          <img className="w-50 h-25 mx-auto cursor-pointer" onClick={() => navigate("/")} src="/StudyHubLogo.png" alt="Logo Studyhub" />
+          <img
+            className="w-50 h-25 mx-auto cursor-pointer"
+            onClick={() => navigate("/")}
+            src="/StudyHubLogo.png"
+            alt="Logo Studyhub"
+          />
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Đăng nhập
           </h2>
