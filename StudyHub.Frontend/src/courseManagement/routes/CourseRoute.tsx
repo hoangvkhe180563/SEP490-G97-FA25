@@ -13,6 +13,7 @@ import { Outlet, type RouteObject } from "react-router-dom";
 import RequireRole from "@/common/components/RequireRole";
 import ApproveCourses from "../pages/teacher/ApproveCourses";
 import { ROLES } from "@/common/constants/Roles";
+import ProtectedRoute from "@/common/components/ProtectedRoute";
 
 // --- TEACHER ROUTES (Đường dẫn con cho /teacher) ---
 const teacherCourseRoutes: RouteObject[] = [
@@ -20,101 +21,117 @@ const teacherCourseRoutes: RouteObject[] = [
     // path="courses" element={<CourseListTeacher />}
     path: CourseRouteConfig.TEACHER.COURSES,
     element: (
-      <RequireRole
-        allowedRoles={[
-          ROLES.SUBJECT_TEACHER,
-          ROLES.HOMEROOM_TEACHER,
-          ROLES.HEAD_TEACHER,
-          ROLES.QNA_TEACHER,
-        ]}
-      >
-        <CourseListTeacher />
-      </RequireRole>
+      <ProtectedRoute>
+        <RequireRole
+          allowedRoles={[
+            ROLES.SUBJECT_TEACHER,
+            ROLES.HOMEROOM_TEACHER,
+            ROLES.HEAD_TEACHER,
+            ROLES.QNA_TEACHER,
+          ]}
+        >
+          <CourseListTeacher />
+        </RequireRole>
+      </ProtectedRoute>
     ),
   },
   {
     // path="courses/:id" element={<CourseDetailTeacher />}
     path: CourseRouteConfig.TEACHER.COURSE_DETAIL,
     element: (
-      <RequireRole
-        allowedRoles={[
-          ROLES.SUBJECT_TEACHER,
-          ROLES.HOMEROOM_TEACHER,
-          ROLES.HEAD_TEACHER,
-          ROLES.QNA_TEACHER,
-        ]}
-      >
-        <CourseDetailTeacher />
-      </RequireRole>
+      <ProtectedRoute>
+        <RequireRole
+          allowedRoles={[
+            ROLES.SUBJECT_TEACHER,
+            ROLES.HOMEROOM_TEACHER,
+            ROLES.HEAD_TEACHER,
+            ROLES.QNA_TEACHER,
+          ]}
+        >
+          <CourseDetailTeacher />
+        </RequireRole>
+      </ProtectedRoute>
     ),
   },
   {
     // path="add-course" element={<AddCourse />}
     path: CourseRouteConfig.TEACHER.ADD_COURSE,
     element: (
-      <RequireRole
-        allowedRoles={[ROLES.SUBJECT_TEACHER, ROLES.HOMEROOM_TEACHER]}
-      >
-        <AddCourse />
-      </RequireRole>
+      <ProtectedRoute>
+        <RequireRole
+          allowedRoles={[ROLES.SUBJECT_TEACHER, ROLES.HOMEROOM_TEACHER]}
+        >
+          <AddCourse />
+        </RequireRole>
+      </ProtectedRoute>
     ),
   },
   {
     // path="edit-course" element={<EditCourse />}
     path: CourseRouteConfig.TEACHER.EDIT_COURSE,
     element: (
-      <RequireRole
-        allowedRoles={[ROLES.SUBJECT_TEACHER, ROLES.HOMEROOM_TEACHER]}
-      >
-        <EditCourse />
-      </RequireRole>
+      <ProtectedRoute>
+        <RequireRole
+          allowedRoles={[ROLES.SUBJECT_TEACHER, ROLES.HOMEROOM_TEACHER]}
+        >
+          <EditCourse />
+        </RequireRole>
+      </ProtectedRoute>
     ),
   },
   {
     // path="approved-courses" element={<ApprovedCourses />}
     path: CourseRouteConfig.TEACHER.APPROVED_COURSES,
     element: (
-      <RequireRole allowedRoles={[ROLES.HEAD_TEACHER]}>
-        <ApproveCourses />
-      </RequireRole>
+      <ProtectedRoute>
+        <RequireRole allowedRoles={[ROLES.HEAD_TEACHER]}>
+          <ApproveCourses />
+        </RequireRole>
+      </ProtectedRoute>
     ),
   },
   {
     // path="add-lecture" element={<AddLecture />}
     path: CourseRouteConfig.TEACHER.ADD_LECTURE,
     element: (
-      <RequireRole
-        allowedRoles={[ROLES.SUBJECT_TEACHER, ROLES.HOMEROOM_TEACHER]}
-      >
-        <AddLecture />
-      </RequireRole>
+      <ProtectedRoute>
+        <RequireRole
+          allowedRoles={[ROLES.SUBJECT_TEACHER, ROLES.HOMEROOM_TEACHER]}
+        >
+          <AddLecture />
+        </RequireRole>
+      </ProtectedRoute>
     ),
   },
   {
     // path="edit-lecture" element={<EditLecture />}
     path: CourseRouteConfig.TEACHER.EDIT_LECTURE,
     element: (
-      <RequireRole
-        allowedRoles={[ROLES.SUBJECT_TEACHER, ROLES.HOMEROOM_TEACHER]}
-      >
-        <EditLecture />
-      </RequireRole>
+      <ProtectedRoute>
+        <RequireRole
+          allowedRoles={[ROLES.SUBJECT_TEACHER, ROLES.HOMEROOM_TEACHER]}
+        >
+          <EditLecture />
+        </RequireRole>
+      </ProtectedRoute>
     ),
   },
   {
     // path="lecture/:id" element={<LectureDetails />}
     path: CourseRouteConfig.TEACHER.LECTURE_DETAIL,
     element: (
-      <RequireRole
-        allowedRoles={[
-          ROLES.SUBJECT_TEACHER,
-          ROLES.HOMEROOM_TEACHER,
-          ROLES.HEAD_TEACHER,
-          ROLES.QNA_TEACHER,
-        ]}
-      >
-        <LectureDetails />
-      </RequireRole>
+      <ProtectedRoute>
+        <RequireRole
+          allowedRoles={[
+            ROLES.SUBJECT_TEACHER,
+            ROLES.HOMEROOM_TEACHER,
+            ROLES.HEAD_TEACHER,
+            ROLES.QNA_TEACHER,
+          ]}
+        >
+          <LectureDetails />
+        </RequireRole>
+      </ProtectedRoute>
     ),
   },
 ];

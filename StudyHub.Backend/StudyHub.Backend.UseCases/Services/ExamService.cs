@@ -235,7 +235,7 @@ namespace StudyHub.Backend.UseCases.Services
                     case QuestionType.TextInput:
                         {
                             TextInputQuestion? tiq = questions[i] as TextInputQuestion;
-                            string studentAnswer = answer.JsonAnswers;
+                            string studentAnswer = answer.JsonAnswers.Replace("\"", "");
                             if (studentAnswer.ToLower().Trim() == tiq.CorrectAnswer.ToLower().Trim())
                             {
                                 corrects++;

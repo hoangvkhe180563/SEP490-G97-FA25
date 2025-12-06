@@ -7,6 +7,14 @@ import { useAuthStore } from "../stores/useAuthStore";
 import { useLocationStore } from "../stores/useLocationStore";
 import { Input } from "@/common/components/ui/input";
 import { Button } from "@/common/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/common/components/ui/select";
 import type { City } from "../interfaces/city";
 import type { Commune } from "../interfaces/commune";
 import type { School } from "../interfaces/school";
@@ -69,15 +77,19 @@ export default function RegisterPage() {
     },
   });
 
-  const { handleSubmit, control, setValue } = form;
+  const { handleSubmit, control, setValue, watch } = form;
+  const communeVal = watch("communeId");
+  const schoolVal = watch("schoolId");
 
   // when user focuses city select, fetch cities if empty
   const ensureCities = async () => {
     if (!cities || cities.length === 0) await fetchCities();
   };
 
-  const onCityChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = Number(e.target.value);
+  const [cityId, setCityId] = React.useState<number | null>(null);
+
+  const onCityChange = async (val: string) => {
+    const id = Number(val);
     // reset selected commune id
     setValue("communeId", 0);
     if (id) {
@@ -89,16 +101,16 @@ export default function RegisterPage() {
     }
   };
 
-  const onCommuneChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = Number(e.target.value);
-    setValue("communeId", id);
-    if (id) await fetchSchools(id);
+  const onCommuneChange = async (val: string) => {
+    const id = Number(val);
+    setValue("communeId", id && !isNaN(id) ? id : 0);
+    if (id && !isNaN(id)) await fetchSchools(id);
     else await fetchSchools(0);
   };
 
-  const onSchoolChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = Number(e.target.value);
-    setValue("schoolId", id);
+  const onSchoolChange = async (val: string) => {
+    const id = Number(val);
+    setValue("schoolId", id && !isNaN(id) ? id : undefined);
   };
 
   const onSubmit = async (data: RegisterValues) => {
@@ -235,35 +247,49 @@ export default function RegisterPage() {
                 <label className="block text-sm font-medium text-gray-700">
                   Tỉnh / Thành phố
                 </label>
-                <select
-                  onFocus={ensureCities}
-                  onChange={onCityChange}
-                  className="mt-1 block w-full rounded border-gray-300 py-2 px-3"
+                <Select
+                  onOpenChange={(open) => {
+                    if (open) ensureCities();
+                  }}
+                  onValueChange={onCityChange}
+                  value={cityId ? String(cityId) : undefined}
                 >
-                  <option value="">Chọn tỉnh</option>
-                  {cities?.map((c: City) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full mt-1">
+                    <SelectValue placeholder="Chọn tỉnh" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {cities?.map((c: City) => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Xã / Phường
                 </label>
-                <select
-                  onChange={onCommuneChange}
-                  className="mt-1 block w-full rounded border-gray-300 py-2 px-3"
+                <Select
+                  onValueChange={onCommuneChange}
+                  value={communeVal ? String(communeVal) : undefined}
                 >
-                  <option value="">Chọn xã</option>
-                  {communes?.map((c: Commune) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full mt-1">
+                    <SelectValue placeholder="Chọn xã" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {communes?.map((c: Commune) => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid grid-cols-1 gap-4">
@@ -271,17 +297,23 @@ export default function RegisterPage() {
                 <label className="block text-sm font-medium text-gray-700">
                   Trường
                 </label>
-                <select
-                  onChange={onSchoolChange}
-                  className="mt-1 block w-full rounded border-gray-300 py-2 px-3"
+                <Select
+                  onValueChange={onSchoolChange}
+                  value={schoolVal ? String(schoolVal) : undefined}
                 >
-                  <option value="">Chọn trường (tùy chọn)</option>
-                  {schools?.map((s: School) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full mt-1">
+                    <SelectValue placeholder="Chọn trường (tùy chọn)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {schools?.map((s: School) => (
+                        <SelectItem key={s.id} value={String(s.id)}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
