@@ -215,7 +215,7 @@ const CourseItem: React.FC<Props> = ({ course }) => {
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
-                      className="p-1.5 hover:bg-gray-100 rounded"
+                      className="p-1.5 hover:bg-sky-400 rounded"
                       title="Gửi yêu cầu chỉnh sửa"
                     >
                       <Edit className="w-4 h-4" />
