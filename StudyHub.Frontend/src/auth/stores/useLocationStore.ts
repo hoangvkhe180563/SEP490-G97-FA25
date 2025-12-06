@@ -2,7 +2,6 @@ import { create } from "zustand";
 import type { LocationState } from "../interfaces/stores";
 import { axiosInstance } from "@/lib/axios";
 import type { City } from "../interfaces/city";
-import type { Province } from "../interfaces/province";
 import type { Commune } from "../interfaces/commune";
 import type { School } from "../interfaces/school";
 import { devtools } from "zustand/middleware";
@@ -24,27 +23,12 @@ const useLocationStore = create<LocationState>()(
           set({ isLoading: false });
         }
       },
-      provinces: [],
-      fetchProvinces: async (id: number) => {
-        set({ isLoading: true });
-        try {
-          const response = await axiosInstance.get(
-            `/Location/cities/${id}/provinces`
-          );
-          const { data } = response;
-          set({ provinces: data });
-        } catch (error) {
-          console.log(error);
-        } finally {
-          set({ isLoading: false });
-        }
-      },
       communes: [],
       fetchCommunes: async (id: number) => {
         set({ isLoading: true });
         try {
           const response = await axiosInstance.get(
-            `/Location/provinces/${id}/communes`
+            `/Location/cities/${id}/communes`
           );
           const { data } = response;
           set({ communes: data });
@@ -70,12 +54,9 @@ const useLocationStore = create<LocationState>()(
         }
       },
       selectedCity: null,
-      selectedProvince: null,
       selectedCommune: null,
       selectedSchool: null,
       setSelectedCity: (city: City) => set({ selectedCity: city }),
-      setSelectedProvince: (province: Province) =>
-        set({ selectedProvince: province }),
       setSelectedCommune: (commune: Commune) =>
         set({ selectedCommune: commune }),
       setSelectedSchool: (school: School) => set({ selectedSchool: school }),

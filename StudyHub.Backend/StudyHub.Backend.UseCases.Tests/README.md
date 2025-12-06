@@ -63,4 +63,3 @@ dotnet test --list-tests
 
 - **xUnit** 2.9.2 - Test framework
 - **Moq** 4.20.72 - Mocking library
-- **Google.Apis.Sheets.v4** 1.72.0.3966 - Google Sheets API

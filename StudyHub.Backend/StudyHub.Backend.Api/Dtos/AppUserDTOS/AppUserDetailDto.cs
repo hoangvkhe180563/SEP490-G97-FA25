@@ -23,7 +23,6 @@ namespace StudyHub.Backend.Api.Dtos.AppUserDTOS
         public string? UpdatedAt { get; set; }
         public int? SchoolId { get; set; }
         public int? CityId { get; set; }
-        public int? ProvinceId { get; set; }
         public List<string> Roles { get; set; } = new();
         public int? CommuneId { get; set; }
         // Subjects assigned to the user (for teachers)

@@ -15,9 +15,7 @@ namespace StudyHub.Backend.UseCases.Services
 
         public List<City> GetAllCities() => _locationRepository.GetAllCities();
 
-        public List<Province> GetProvincesByCityId(sbyte cityId) => _locationRepository.GetProvincesByCityId(cityId);
-
-        public List<Commune> GetCommunesByProvinceId(short provinceId) => _locationRepository.GetCommunesByProvinceId(provinceId);
+        public List<Commune> GetCommunesByCityId(sbyte cityId) => _locationRepository.GetCommunesByCityId(cityId);
 
         public List<School> GetAllSchools() => _locationRepository.GetAllSchools();
 
@@ -26,12 +24,9 @@ namespace StudyHub.Backend.UseCases.Services
         public School? GetSchoolById(int? schoolId) => _locationRepository.GetSchoolById(schoolId);
 
         public Commune? GetCommuneById(int? communeId) => _locationRepository.GetCommuneById(communeId);
-        public Province? GetProvinceById(short? provinceId) => _locationRepository.GetProvinceById(provinceId);
-        public City? GetCityById(short? cityId) => _locationRepository.GetCityById(cityId);
-        public (Province? ProvinceName, City? CityName) GetProvinceAndCityByCommuneId(int? communeId)
-        {
-            var (province, city) = _locationRepository.GetProvinceAndCityByCommuneId(communeId);
-            return (province, city);
-        }
+
+        public City? GetCityById(sbyte? cityId) => _locationRepository.GetCityById(cityId);
+
+        public City? GetCityByCommuneId(int? communeId) => _locationRepository.GetCityByCommuneId(communeId);
     }
 }

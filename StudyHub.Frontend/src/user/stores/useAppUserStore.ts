@@ -132,10 +132,9 @@ export const useAppUserStore = create<AppUserState>()(
           // include address and phoneNumber when provided
           if (dto.address) formData.append("Address", dto.address);
           if (dto.phoneNumber) formData.append("PhoneNumber", dto.phoneNumber);
+          if (dto.dob) formData.append("Dob", dto.dob);
           if (dto.communeId)
             formData.append("CommuneId", String(dto.communeId));
-          if (dto.phoneNumber) formData.append("PhoneNumber", dto.phoneNumber);
-          if (dto.address) formData.append("Address", dto.address);
           if ((dto as any).schoolId)
             formData.append("SchoolId", String((dto as any).schoolId));
           if (dto.gender) formData.append("Gender", String(dto.gender));

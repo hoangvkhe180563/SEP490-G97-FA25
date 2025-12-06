@@ -8,7 +8,6 @@ import { useLocationStore } from "../stores/useLocationStore";
 import { Input } from "@/common/components/ui/input";
 import { Button } from "@/common/components/ui/button";
 import type { City } from "../interfaces/city";
-import type { Province } from "../interfaces/province";
 import type { Commune } from "../interfaces/commune";
 import type { School } from "../interfaces/school";
 import {
@@ -48,11 +47,9 @@ export default function RegisterPage() {
   } = useAuthStore();
   const {
     cities,
-    provinces,
     communes,
     schools,
     fetchCities,
-    fetchProvinces,
     fetchCommunes,
     fetchSchools,
     // we won't call the selected setters directly to avoid nullable typing mismatches
@@ -84,20 +81,9 @@ export default function RegisterPage() {
     // reset selected commune id
     setValue("communeId", 0);
     if (id) {
-      await fetchProvinces(id);
+      await fetchCommunes(id);
     } else {
-      // clear provinces/communes by fetching with invalid id (backend should return empty)
-      await fetchProvinces(0);
-      await fetchCommunes(0);
-      await fetchSchools(0);
-    }
-  };
-
-  const onProvinceChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = Number(e.target.value);
-    setValue("communeId", 0);
-    if (id) await fetchCommunes(id);
-    else {
+      // clear communes/schools by fetching with invalid id (backend should return empty)
       await fetchCommunes(0);
       await fetchSchools(0);
     }
@@ -132,7 +118,12 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 bg-[url('/bg-auth.png')] bg-[length:100%_100%] bg-no-repeat">
       <div className="max-w-2xl w-full space-y-8">
         <div>
-          <img className="w-50 h-25 mx-auto cursor-pointer" onClick={() => navigate("/")} src="/StudyHubLogo.png" alt="Logo Studyhub" />
+          <img
+            className="w-50 h-25 mx-auto cursor-pointer"
+            onClick={() => navigate("/")}
+            src="/StudyHubLogo.png"
+            alt="Logo Studyhub"
+          />
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Đăng ký
           </h2>
@@ -239,7 +230,7 @@ export default function RegisterPage() {
                 )}
               />
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Tỉnh / Thành phố
@@ -253,23 +244,6 @@ export default function RegisterPage() {
                   {cities?.map((c: City) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Huyện / Quận
-                </label>
-                <select
-                  onChange={onProvinceChange}
-                  className="mt-1 block w-full rounded border-gray-300 py-2 px-3"
-                >
-                  <option value="">Chọn huyện</option>
-                  {provinces?.map((p: Province) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
                     </option>
                   ))}
                 </select>
