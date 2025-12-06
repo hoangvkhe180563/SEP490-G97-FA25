@@ -31,7 +31,7 @@ const saveState = (state: any) => {
 
 export const useOwnedDocuments = (creatorId: string, pageSize: number = 18) => {
   const {
-    documents: storeDocuments = [],
+    ownedDocuments: storeDocuments = [],
     categories,
     subjects,
     fetchOwnedDocuments,

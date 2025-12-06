@@ -75,9 +75,6 @@ const CourseItem: React.FC<Props> = ({ course }) => {
 
   const status = STATUS_MAP[statusKey];
 
-  const formatDate = (date?: string | null) =>
-    date ? new Date(date).toLocaleDateString("vi-VN") : "-";
-
   const handleDeleteOrClose = async () => {
     try {
       if (course.status === "Nháp") {
@@ -182,17 +179,17 @@ const CourseItem: React.FC<Props> = ({ course }) => {
 
         {/* --- Ngày tạo --- */}
         <td className="px-3 py-2 text-sm text-gray-700 align-middle">
-          {formatDate(course.createdAt)}
+          {course.createdAt}
         </td>
 
         {/* --- Ngày bắt đầu --- */}
         <td className="px-3 py-2 text-sm text-gray-700 align-middle">
-          {formatDate(course.startAt)}
+          {course.startAt}
         </td>
 
         {/* --- Ngày kết thúc --- */}
         <td className="px-3 py-2 text-sm text-gray-700 align-middle">
-          {formatDate(course.endAt)}
+          {course.endAt}
         </td>
 
         {/* --- Hành động --- */}
@@ -218,7 +215,7 @@ const CourseItem: React.FC<Props> = ({ course }) => {
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
-                      className="p-1.5 hover:bg-gray-100 rounded"
+                      className="p-1.5 hover:bg-sky-400 rounded"
                       title="Gửi yêu cầu chỉnh sửa"
                     >
                       <Edit className="w-4 h-4" />

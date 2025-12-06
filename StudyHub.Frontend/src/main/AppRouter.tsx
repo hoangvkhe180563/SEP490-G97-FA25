@@ -88,7 +88,7 @@ const AppRouter = () => {
       path: RouteConfig.USER,
       element: (
         <ProtectedRoute>
-          <RegisteredLayout user={user} />,
+          <RegisteredLayout user={user} />
         </ProtectedRoute>
       ),
       children: userRoutes,

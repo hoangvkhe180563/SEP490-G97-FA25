@@ -1,0 +1,15 @@
+services:
+  studyhub-frontend:
+    container_name: studyhub-frontend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app # Mount thư mục hiện tại vào container để hot reload
+      - /app/node_modules # Giữ node_modules của container, không bị ghi đè bởi máy host
+    environment:
+      - CHOKIDAR_USEPOLLING=true # Giúp hot reload hoạt động tốt hơn trên một số hệ điều hành (Windows/WSL)
+    stdin_open: true
+    tty: true

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import type {
@@ -18,8 +18,23 @@ import {
   CollapsibleContent,
 } from "@/common/components/ui/collapsible";
 import { Button } from "@/common/components/ui/button";
-import { Edit2, ArrowLeft } from "lucide-react";
+import { ArrowLeft, Edit } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/common/components/ui/alert-dialog";
+import { formatISO } from "date-fns";
+import { AppDialog } from "@/courseManagement/components/AppDialog";
+import type { DialogProps } from "@/courseManagement/components/AppDialog";
 
 import { formatDateTime } from "@/courseManagement/utils/formatDate";
 
@@ -34,6 +49,13 @@ const CourseDetail: React.FC = () => {
   const fetchCourseById = useCourseStore((s) => s.fetchCourseById);
 
   const authUser = useAuthStore((s) => s.user);
+  const updateCourse = useCourseStore((s) => s.updateCourse);
+  const [requestedSent, setRequestedSent] = useState(false);
+  const [dialog, setDialog] = useState<DialogProps>({
+    open: false,
+    title: "",
+    message: "",
+  });
 
   useEffect(() => {
     if (courseId) {
@@ -94,16 +116,95 @@ const CourseDetail: React.FC = () => {
 
         {/* === Buttons === */}
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() =>
-              isOwner && navigate(`/course/teacher/edit-course/${courseId}`)
-            }
-            disabled={!isOwner}
-            aria-disabled={!isOwner}
-          >
-            <Edit2 className="mr-2" /> Chỉnh sửa
-          </Button>
+          {isOwner &&
+            !(
+              (selectedCourse as any).status === "Mở" &&
+              (selectedCourse as any).isApproved === false
+            ) &&
+            !((selectedCourse as any).status === "Chỉnh sửa") &&
+            ((selectedCourse as any).status === "Mở" &&
+            (selectedCourse as any).isApproved === true &&
+            !requestedSent ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    className="p-1.5 hover:bg-sky-500 rounded"
+                    title="Gửi yêu cầu chỉnh sửa"
+                  >
+                    <Edit className="w-4 h-4" /> Chỉnh sửa
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Gửi yêu cầu chỉnh sửa</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Khóa học đang ở trạng thái "Mở". Bạn có muốn gửi yêu cầu
+                      chỉnh sửa tới trưởng bộ môn không? Sau khi gửi, khóa học
+                      sẽ được đánh dấu là <strong> "Yêu cầu chỉnh sửa" </strong>{" "}
+                      và biểu tượng chỉnh sửa sẽ bị ẩn.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Hủy</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-amber-600 hover:bg-amber-700 text-white"
+                      onClick={async () => {
+                        try {
+                          await fetchCourseById(courseId);
+                          const selected =
+                            useCourseStore.getState().selectedCourse;
+                          if (!selected) {
+                            setDialog({
+                              open: true,
+                              title: "Lỗi",
+                              message:
+                                "Không tìm thấy khóa học. Vui lòng thử lại.",
+                              showCancel: false,
+                            });
+                            return;
+                          }
+
+                          const dto: any = {
+                            ...selected,
+                            status: "Chỉnh sửa",
+                            updatedAt: formatISO(new Date()),
+                            updatedBy: authUser?.id ?? selected.updatedBy,
+                            isApproved: false,
+                          };
+
+                          await updateCourse(Number(selected.id), dto);
+                          setRequestedSent(true);
+                          setDialog({
+                            open: true,
+                            title: "Yêu cầu đã gửi",
+                            message: "Yêu cầu chỉnh sửa đã được gửi.",
+                            showCancel: false,
+                          });
+                        } catch (err) {
+                          console.error("Gửi yêu cầu thất bại:", err);
+                          setDialog({
+                            open: true,
+                            title: "Lỗi",
+                            message: "Gửi yêu cầu thất bại! Vui lòng thử lại.",
+                            showCancel: false,
+                          });
+                        }
+                      }}
+                    >
+                      Gửi yêu cầu
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : (
+              <Link
+                to={`/course/teacher/edit-course/${selectedCourse?.id}`}
+                title="Chỉnh sửa"
+                className="p-1.5 hover:bg-sky-500 rounded"
+              >
+                <Edit className="w-4 h-4" /> Chỉnh sửa
+              </Link>
+            ))}
         </div>
       </div>
 
@@ -281,6 +382,7 @@ const CourseDetail: React.FC = () => {
             </Card>
           </div>
         </aside>
+        <AppDialog dialog={dialog} setDialog={setDialog} />
       </div>
     </div>
   );

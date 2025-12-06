@@ -9,7 +9,7 @@ import { BLANK_PLACEHOLDER, EXAM_TYPE } from '@/exam/constants/Constants';
 import type { Exam } from '@/exam/interfaces/models/Exam';
 import type { Question } from '@/exam/interfaces/models/Question';
 import { ExamService } from '@/exam/services/ExamService';
-import { getFormattedDateTime } from '@/exam/utils/ExamUtils';
+import { getFormattedDateTime, isTimeSpanInvalid } from '@/exam/utils/ExamUtils';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -81,6 +81,7 @@ const UpdateExam = () => {
       }
     };
     fetchExam();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user]);
 
   const handleSubmit = async () => {
@@ -91,7 +92,7 @@ const UpdateExam = () => {
     setLoading(true);
 
     if (!examTitle || !examDescription || !examDuration) {
-      toast.error("Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi.");
+      toast.error("Vui lòng điền đầy đủ thông tin và thêm câu hỏi.");
       setLoading(false);
       return;
     }
@@ -102,10 +103,16 @@ const UpdateExam = () => {
       return;
     }
 
-    if (closeTime && closeTime < openTime) {
-      toast.error("Ngày bắt đầu phải trước ngày kết thúc!");
-      setLoading(false);
-      return;
+    if (closeTime) {
+      if (closeTime < openTime) {
+        toast.error("Ngày bắt đầu phải trước ngày kết thúc!");
+        setLoading(false);
+        return;
+      } else if (isTimeSpanInvalid(new Date(openTime), new Date(closeTime), parseInt(examDuration) + 5)) {
+        toast.error("Khoảng thời gian bài thi được mở phải lớn hơn thời gian làm bài ít nhất 5 phút!");
+        setLoading(false);
+        return;
+      }
     }
 
     // Basic validation for questions
@@ -143,7 +150,7 @@ const UpdateExam = () => {
             return;
           }
         } else if (q.type === EXAM_TYPE.FILL_IN_BLANK) {
-          const expectedBlanks = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+          const expectedBlanks = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
           if (expectedBlanks === 0) {
             toast.error(`Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
             setLoading(false);
@@ -172,10 +179,16 @@ const UpdateExam = () => {
           }
         }
       }
-    } else if (selectedSubjectId === 0 || selectedGrade === 0 || !Number(randomQuestions)) {
-      toast.error("Vui lòng điền số câu hỏi cần tạo!");
-      setLoading(false);
-      return;
+    } else {
+      if (!Number(randomQuestions)) {
+        toast.error("Vui lòng điền số câu hỏi cần tạo!");
+        setLoading(false);
+        return;
+      } else if (Number(randomQuestions) < 0) {
+        toast.error("Số câu hỏi phải > 0!");
+        setLoading(false);
+        return;
+      }
     }
 
     const examToUpdate: Exam = {
@@ -189,11 +202,13 @@ const UpdateExam = () => {
       showCorrectAnswers: showCorrectAnswers,
       isMultipleAttempts: isMultipleAttempts,
       openTime: new Date(openTime),
-      closeTime: closeTime ? new Date(closeTime) : undefined
+      closeTime: closeTime ? new Date(closeTime) : undefined,
+      subjectId: selectedSubjectId,
+      grade: selectedGrade
     };
 
     if (questions.length === 0) {
-      examToUpdate.noRandomQuestions = Number(randomQuestions) ?? 0;
+      examToUpdate.noRandomQuestions = Number(randomQuestions);
       examToUpdate.subjectId = selectedSubjectId;
       examToUpdate.grade = selectedGrade;
     }
@@ -321,7 +336,7 @@ const UpdateExam = () => {
       {questions.length !== 0 ? (
         <QuestionTemplate questions={questions} setQuestions={setQuestions} />
       ) : (
-        <RandomQuestionTemplate selectedSubjectId={selectedSubjectId} setSelectedSubjectId={setSelectedSubjectId} selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} selectedRandomQuestions={randomQuestions} setSelectedRandomQuestions={setRandomQuestions} />
+        <RandomQuestionTemplate selectedSubjectId={selectedSubjectId} selectedGrade={selectedGrade} selectedRandomQuestions={randomQuestions} setSelectedRandomQuestions={setRandomQuestions} />
       )}
 
       <div className="mt-10 text-center">

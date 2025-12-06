@@ -11,6 +11,7 @@ import DocumentList from "@/documentManagement/pages/DocumentList";
 import { Outlet, type RouteObject } from "react-router-dom";
 import RequireRole from "@/common/components/RequireRole";
 import DocumentDashboard from "../pages/manager/DocumentDashboard";
+import SchoolTeachersDocuments from "../pages/teacher/SchoolTeachersDocuments";
 import { ROLES } from "@/common/constants/Roles";
 import ProtectedRoute from "@/common/components/ProtectedRoute";
 
@@ -52,7 +53,7 @@ const teacherRoutes = [
   },
   {
     path: DocumentRouteConfig.TEACHER.DOCUMENTS,
-    element: <DocumentList />,
+    element: <SchoolTeachersDocuments />,
   },
 ];
 

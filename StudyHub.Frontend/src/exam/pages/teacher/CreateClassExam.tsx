@@ -2,6 +2,7 @@ import { useAuthStore } from '@/auth/stores/useAuthStore';
 import { Button } from '@/common/components/ui/button';
 import { Checkbox } from '@/common/components/ui/checkbox';
 import { Label } from '@/common/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/common/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/common/components/ui/tabs';
 import { useLoading } from '@/common/hooks/useLoading';
 import QuestionTemplate from '@/exam/components/QuestionTemplate';
@@ -9,8 +10,10 @@ import RandomQuestionTemplate from '@/exam/components/RandomQuestionTemplate';
 import { BLANK_PLACEHOLDER, EXAM_TYPE } from '@/exam/constants/Constants';
 import type { Exam } from '@/exam/interfaces/models/Exam';
 import type { Question } from '@/exam/interfaces/models/Question';
+import type { Subject } from '@/exam/interfaces/models/Subject';
 import { ExamService } from '@/exam/services/ExamService';
-import { getFormattedDateTime } from '@/exam/utils/ExamUtils';
+import { QuestionService } from '@/exam/services/QuestionService';
+import { isTimeSpanInvalid, getFormattedDateTime } from '@/exam/utils/ExamUtils';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -33,10 +36,12 @@ const CreateExam = () => {
   const [selectedTab, setSelectedTab] = useState<string>('new-questions');
   const [selectedSubjectId, setSelectedSubjectId] = useState<number>(0);
   const [selectedGrade, setSelectedGrade] = useState<number>(0);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [randomQuestions, setRandomQuestions] = useState<string>('');
   const [openTime, setOpenTime] = useState<string>(getFormattedDateTime(new Date()));
   const [closeTime, setCloseTime] = useState<string>('');
   const examService = new ExamService();
+  const questionService = new QuestionService();
 
   useEffect(() => {
     if (!user) {
@@ -52,15 +57,21 @@ const CreateExam = () => {
         setClassId(classIdQuery);
         const className = await examService.getClassName(classIdQuery);
         setClassName(className);
+        const grade = await examService.getClassGradeById(classIdQuery);
+        setSelectedGrade(grade);
+        const userSubjects = await questionService.getManagerSubjects(user.id);
+        setSubjects(userSubjects);
       } else {
         toast.error("Chưa có id của lớp để tạo bài kiểm tra!");
         navigate("/");
       }
     }
     fetchData().catch(console.error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const handleSubmit = async () => {
+    console.log(selectedSubjectId);
     if (!user) {
       toast.error("Chưa đăng nhập vui lòng thử lại!");
       return;
@@ -68,7 +79,7 @@ const CreateExam = () => {
     setLoading(true);
 
     if (!examTitle || !examDescription || !examDuration) {
-      toast.error("Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi.");
+      toast.error("Vui lòng điền đầy đủ thông tin và thêm câu hỏi.");
       setLoading(false);
       return;
     }
@@ -79,8 +90,20 @@ const CreateExam = () => {
       return;
     }
 
-    if (closeTime && closeTime < openTime) {
-      toast.error("Ngày bắt đầu phải trước ngày kết thúc!");
+    if (closeTime) {
+      if (closeTime < openTime) {
+        toast.error("Ngày bắt đầu phải trước ngày kết thúc!");
+        setLoading(false);
+        return;
+      } else if (isTimeSpanInvalid(new Date(openTime), new Date(closeTime), parseInt(examDuration) + 5)) {
+        toast.error("Khoảng thời gian bài thi được mở phải lớn hơn thời gian làm bài ít nhất 5 phút!");
+        setLoading(false);
+        return;
+      }
+    }
+
+    if (selectedSubjectId === 0) {
+      toast.error("Vui lòng chọn môn học!");
       setLoading(false);
       return;
     }
@@ -125,7 +148,7 @@ const CreateExam = () => {
             return;
           }
         } else if (q.type === EXAM_TYPE.FILL_IN_BLANK) {
-          const expectedBlanks = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
+          const expectedBlanks = (q.questionText.match(new RegExp(BLANK_PLACEHOLDER.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g')) || []).length;
           if (expectedBlanks === 0) {
             toast.error(`Câu hỏi điền khuyết "${q.questionText}" phải chứa ít nhất một placeholder '${BLANK_PLACEHOLDER}'.`);
             setLoading(false);
@@ -155,8 +178,12 @@ const CreateExam = () => {
         }
       }
     } else {
-      if (selectedSubjectId === 0 || selectedGrade === 0 || !Number(randomQuestions)) {
+      if (!Number(randomQuestions)) {
         toast.error("Vui lòng điền số câu hỏi cần tạo!");
+        setLoading(false);
+        return;
+      } else if (Number(randomQuestions) < 0) {
+        toast.error("Số câu hỏi phải > 0!");
         setLoading(false);
         return;
       }
@@ -180,13 +207,13 @@ const CreateExam = () => {
       isMultipleAttempts: isMultipleAttempts,
       classId: classId,
       openTime: new Date(openTime),
-      closeTime: closeTime ? new Date(closeTime) : undefined
+      closeTime: closeTime ? new Date(closeTime) : undefined,
+      subjectId: selectedSubjectId,
+      grade: selectedGrade
     };
 
     if (selectedTab === 'bank-questions') {
-      newExam.noRandomQuestions = Number(randomQuestions) ?? 0;
-      newExam.subjectId = selectedSubjectId;
-      newExam.grade = selectedGrade;
+      newExam.noRandomQuestions = Number(randomQuestions);
     }
 
     try {
@@ -287,6 +314,24 @@ const CreateExam = () => {
           required
         />
       </div>
+      <div className="mb-6">
+        <label htmlFor="examDuration" className="block text-gray-700 text-lg font-bold mb-2">
+          Môn học <span className='text-red-500'>*</span>
+        </label>
+        <Select value={selectedSubjectId ? selectedSubjectId.toString() : ""} onValueChange={val => setSelectedSubjectId(Number(val))}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Chọn môn học" />
+          </SelectTrigger>
+          <SelectContent>
+            {
+              subjects.map((subject, index) => (
+                <SelectItem key={index} value={subject.id.toString()}>{subject.name}</SelectItem>
+              ))
+            }
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="flex items-center gap-3 py-3">
         <Checkbox id="multipleTimes" checked={isMultipleAttempts} onCheckedChange={(value: boolean) => setIsMultipleAttempts(value)} />
         <Label htmlFor="multipleTimes">Cho phép thi nhiều lần</Label>
@@ -318,7 +363,7 @@ const CreateExam = () => {
           <QuestionTemplate questions={questions} setQuestions={setQuestions} />
         </TabsContent>
         <TabsContent value='bank-questions'>
-          <RandomQuestionTemplate selectedSubjectId={selectedSubjectId} setSelectedSubjectId={setSelectedSubjectId} selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} selectedRandomQuestions={randomQuestions} setSelectedRandomQuestions={setRandomQuestions} />
+          <RandomQuestionTemplate selectedSubjectId={selectedSubjectId} selectedGrade={selectedGrade} selectedRandomQuestions={randomQuestions} setSelectedRandomQuestions={setRandomQuestions} />
         </TabsContent>
       </Tabs>
 
