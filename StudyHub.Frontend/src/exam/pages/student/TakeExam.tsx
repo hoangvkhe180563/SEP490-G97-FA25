@@ -198,6 +198,7 @@ const TakeExam = () => {
   };
 
   const handleBackupExamResult = async (isSubmission: boolean) => {
+    if (isSubmitted) return;
     const currentStudentAnswers = studentAnswersRef.current;
     const currentCheatTimes = cheatTimesRef.current;
     const currentExamResult = examResultRef.current;

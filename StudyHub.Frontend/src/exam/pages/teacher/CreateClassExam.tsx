@@ -13,7 +13,7 @@ import type { Question } from '@/exam/interfaces/models/Question';
 import type { Subject } from '@/exam/interfaces/models/Subject';
 import { ExamService } from '@/exam/services/ExamService';
 import { QuestionService } from '@/exam/services/QuestionService';
-import { getFormattedDateTime } from '@/exam/utils/ExamUtils';
+import { isTimeSpanInvalid, getFormattedDateTime } from '@/exam/utils/ExamUtils';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -90,10 +90,16 @@ const CreateExam = () => {
       return;
     }
 
-    if (closeTime && closeTime < openTime) {
-      toast.error("Ngày bắt đầu phải trước ngày kết thúc!");
-      setLoading(false);
-      return;
+    if (closeTime) {
+      if (closeTime < openTime) {
+        toast.error("Ngày bắt đầu phải trước ngày kết thúc!");
+        setLoading(false);
+        return;
+      } else if (isTimeSpanInvalid(new Date(openTime), new Date(closeTime), parseInt(examDuration) + 5)) {
+        toast.error("Khoảng thời gian bài thi được mở phải lớn hơn thời gian làm bài ít nhất 5 phút!");
+        setLoading(false);
+        return;
+      }
     }
 
     if (selectedSubjectId === 0) {

@@ -15,3 +15,12 @@ export function getFormattedDateTime (dateInput: Date | string) {
   const minutes = date.getMinutes().toString().padStart(2, '0');
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
+
+export function isTimeSpanInvalid(openTime: Date, closeTime: Date, durationInMinutes: number): boolean {
+  if (openTime > closeTime) {
+    return false;
+  }
+  const differenceInMilliseconds = Math.abs(closeTime.getTime() - openTime.getTime());
+  const differenceInMinutes = differenceInMilliseconds / (1000 * 60);
+  return differenceInMinutes < durationInMinutes;
+}
