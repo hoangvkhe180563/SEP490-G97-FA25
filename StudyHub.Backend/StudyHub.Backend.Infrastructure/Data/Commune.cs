@@ -9,11 +9,11 @@ public partial class Commune
 
     public string Name { get; set; } = null!;
 
-    public short ProvinceId { get; set; }
+    public sbyte CityId { get; set; }
 
     public virtual ICollection<AppUser> AppUsers { get; set; } = new List<AppUser>();
 
-    public virtual Province Province { get; set; } = null!;
+    public virtual City City { get; set; } = null!;
 
     public virtual ICollection<School> Schools { get; set; } = new List<School>();
 }

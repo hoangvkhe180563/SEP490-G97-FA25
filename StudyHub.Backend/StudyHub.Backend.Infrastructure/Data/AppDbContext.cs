@@ -93,8 +93,6 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<Progress> Progresses { get; set; }
 
-    public virtual DbSet<Province> Provinces { get; set; }
-
     public virtual DbSet<QAConversation> QAConversations { get; set; }
 
     public virtual DbSet<QAConversationFile> QAConversationFiles { get; set; }
@@ -465,12 +463,12 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("communes");
 
-            entity.HasIndex(e => e.ProvinceId, "ProvinceId");
+            entity.HasIndex(e => e.CityId, "CityId");
 
             entity.Property(e => e.Name).HasMaxLength(100);
 
-            entity.HasOne(d => d.Province).WithMany(p => p.Communes)
-                .HasForeignKey(d => d.ProvinceId)
+            entity.HasOne(d => d.City).WithMany(p => p.Communes)
+                .HasForeignKey(d => d.CityId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("communes_ibfk_1");
         });
@@ -1156,22 +1154,6 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Lesson).WithMany(p => p.Progresses)
                 .HasForeignKey(d => d.LessonId)
                 .HasConstraintName("progress_ibfk_2");
-        });
-
-        modelBuilder.Entity<Province>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PRIMARY");
-
-            entity.ToTable("provinces");
-
-            entity.HasIndex(e => e.CityId, "CityId");
-
-            entity.Property(e => e.Name).HasMaxLength(100);
-
-            entity.HasOne(d => d.City).WithMany(p => p.Provinces)
-                .HasForeignKey(d => d.CityId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("provinces_ibfk_1");
         });
 
         modelBuilder.Entity<QAConversation>(entity =>

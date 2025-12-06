@@ -63,6 +63,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Username = d.Username,
                 Fullname = d.Fullname,
                 Dob = d.Dob,
+                PhoneNumber = d.PhoneNumber,
                 IsVerified = d.IsVerified,
                 SchoolId = d.SchoolId,
                 TransferId = d.TransferId,

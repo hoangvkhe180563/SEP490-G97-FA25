@@ -43,7 +43,6 @@ const schema = z
     password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
     confirmPassword: z.string(),
     username: z.string().min(1, "Tên đăng nhập là bắt buộc"),
-    phone: z.string().optional(),
     dob: z
       .string()
       .optional()
@@ -52,7 +51,6 @@ const schema = z
       }),
     communeId: z.union([z.string(), z.number()]).optional(),
     cityId: z.string().optional(),
-    provinceId: z.string().optional(),
     schoolId: z.string().optional(),
     fullname: z.string().optional(),
     address: z.string().optional(),
@@ -86,11 +84,9 @@ const CreateAccount: React.FC = () => {
   const { getAppRoles, appRoles } = useAppRoleStore();
   const {
     fetchCities,
-    fetchProvinces,
     fetchCommunes,
     fetchSchools,
     cities,
-    provinces,
     communes,
     schools,
   } = useLocationStore();
@@ -107,7 +103,6 @@ const CreateAccount: React.FC = () => {
       phoneNumber: "",
       fullname: "",
       cityId: undefined,
-      provinceId: undefined,
       communeId: undefined,
       schoolId: undefined,
       gender: undefined,
@@ -327,32 +322,13 @@ const CreateAccount: React.FC = () => {
     const id = Number(value || 0);
     // reset downstream values (use undefined to clear controlled Select values)
     setValue("cityId", id ? String(id) : undefined);
-    setValue("provinceId", undefined);
-    setValue("communeId", undefined);
-    setValue("schoolId", undefined);
-    if (id) {
-      await fetchProvinces(id);
-      await fetchCommunes(0);
-      await fetchSchools(0);
-      setValue("provinceId", undefined);
-      setValue("communeId", undefined);
-      setValue("schoolId", undefined);
-    } else {
-      await fetchProvinces(0);
-      await fetchCommunes(0);
-      await fetchSchools(0);
-    }
-  };
-
-  const onProvinceChange = async (value?: string) => {
-    const id = Number(value || 0);
-    setValue("provinceId", id ? String(id) : undefined);
-    // clear downstream values
     setValue("communeId", undefined);
     setValue("schoolId", undefined);
     if (id) {
       await fetchCommunes(id);
       await fetchSchools(0);
+      setValue("communeId", undefined);
+      setValue("schoolId", undefined);
     } else {
       await fetchCommunes(0);
       await fetchSchools(0);
@@ -838,47 +814,13 @@ const CreateAccount: React.FC = () => {
             <div className="col-span-2">
               <FormField
                 control={control}
-                name="provinceId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Huyện / Quận</FormLabel>
-                    <FormControl>
-                      <Select
-                        key={`province-${watch("cityId") || "empty"}`}
-                        onValueChange={(v) => {
-                          field.onChange(v);
-                          onProvinceChange(v);
-                        }}
-                        value={field.value ? String(field.value) : undefined}
-                      >
-                        <SelectTrigger className="w-full mt-1">
-                          <SelectValue placeholder="Chọn huyện / quận" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {provinces.map((p: any) => (
-                            <SelectItem key={p.id} value={String(p.id)}>
-                              {p.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="col-span-2">
-              <FormField
-                control={control}
                 name="communeId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Phường / Xã</FormLabel>
                     <FormControl>
                       <Select
-                        key={`commune-${watch("provinceId") || "empty"}`}
+                        key={`commune-${watch("cityId") || "empty"}`}
                         onValueChange={(v) => {
                           onCommuneChange(v);
                           field.onChange(v);

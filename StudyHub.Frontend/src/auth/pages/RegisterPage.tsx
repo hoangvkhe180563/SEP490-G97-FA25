@@ -16,7 +16,6 @@ import {
   SelectValue,
 } from "@/common/components/ui/select";
 import type { City } from "../interfaces/city";
-import type { Province } from "../interfaces/province";
 import type { Commune } from "../interfaces/commune";
 import type { School } from "../interfaces/school";
 import {
@@ -56,11 +55,9 @@ export default function RegisterPage() {
   } = useAuthStore();
   const {
     cities,
-    provinces,
     communes,
     schools,
     fetchCities,
-    fetchProvinces,
     fetchCommunes,
     fetchSchools,
     // we won't call the selected setters directly to avoid nullable typing mismatches
@@ -90,29 +87,15 @@ export default function RegisterPage() {
   };
 
   const [cityId, setCityId] = React.useState<number | null>(null);
-  const [provinceId, setProvinceId] = React.useState<number | null>(null);
 
   const onCityChange = async (val: string) => {
     const id = Number(val);
     // reset selected commune id
     setValue("communeId", 0);
-    setCityId(id && !isNaN(id) ? id : null);
-    if (id && !isNaN(id)) {
-      await fetchProvinces(id);
+    if (id) {
+      await fetchCommunes(id);
     } else {
-      // clear provinces/communes by fetching with invalid id (backend should return empty)
-      await fetchProvinces(0);
-      await fetchCommunes(0);
-      await fetchSchools(0);
-    }
-  };
-
-  const onProvinceChange = async (val: string) => {
-    const id = Number(val);
-    setValue("communeId", 0);
-    setProvinceId(id && !isNaN(id) ? id : null);
-    if (id && !isNaN(id)) await fetchCommunes(id);
-    else {
+      // clear communes/schools by fetching with invalid id (backend should return empty)
       await fetchCommunes(0);
       await fetchSchools(0);
     }
@@ -259,7 +242,7 @@ export default function RegisterPage() {
                 )}
               />
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Tỉnh / Thành phố
@@ -279,29 +262,6 @@ export default function RegisterPage() {
                       {cities?.map((c: City) => (
                         <SelectItem key={c.id} value={String(c.id)}>
                           {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Huyện / Quận
-                </label>
-                <Select
-                  onValueChange={onProvinceChange}
-                  value={provinceId ? String(provinceId) : undefined}
-                >
-                  <SelectTrigger className="w-full mt-1">
-                    <SelectValue placeholder="Chọn huyện" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {provinces?.map((p: Province) => (
-                        <SelectItem key={p.id} value={String(p.id)}>
-                          {p.name}
                         </SelectItem>
                       ))}
                     </SelectGroup>

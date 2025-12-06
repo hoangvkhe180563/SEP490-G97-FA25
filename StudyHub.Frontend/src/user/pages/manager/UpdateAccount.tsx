@@ -67,7 +67,6 @@ const schema = z.object({
   fullname: z.string().optional(),
   communeId: z.union([z.string(), z.number()]).optional(),
   cityId: z.string().optional(),
-  provinceId: z.string().optional(),
   schoolId: z.string().optional(),
   roleIds: z.array(z.string()).min(1, "Phải chọn ít nhất một vai trò"),
   subjectIds: z.array(z.union([z.string(), z.number()])).optional(),
@@ -100,11 +99,9 @@ const UpdateAccount: React.FC = () => {
   const { getAppRoles, appRoles } = useAppRoleStore();
   const {
     fetchCities,
-    fetchProvinces,
     fetchCommunes,
     fetchSchools,
     cities,
-    provinces,
     communes,
     schools,
   } = useLocationStore();
@@ -121,7 +118,6 @@ const UpdateAccount: React.FC = () => {
     username: "",
     fullname: "",
     cityId: undefined,
-    provinceId: undefined,
     communeId: undefined,
     schoolId: undefined,
     roleIds: [] as string[],
@@ -301,8 +297,7 @@ const UpdateAccount: React.FC = () => {
         const data = await getAppUserById(id);
         const user = data?.data ?? data;
         if (user) {
-          if (user.cityId) await fetchProvinces(Number(user.cityId));
-          if (user.provinceId) await fetchCommunes(Number(user.provinceId));
+          if (user.cityId) await fetchCommunes(Number(user.cityId));
           if (user.communeId) await fetchSchools(Number(user.communeId));
 
           const normalizeGender = (() => {
@@ -333,10 +328,9 @@ const UpdateAccount: React.FC = () => {
             fullname: user.fullname ?? user.username ?? "",
             dob: (user as any)?.dob
               ? useDobStore.getState().isoToDisplay((user as any).dob) ??
-              undefined
+                undefined
               : undefined,
             cityId: user.cityId ? String(user.cityId) : undefined,
-            provinceId: user.provinceId ? String(user.provinceId) : undefined,
             communeId: user.communeId ? String(user.communeId) : undefined,
             address: user.address ?? "",
             phoneNumber: user.phoneNumber ?? "",
@@ -374,27 +368,10 @@ const UpdateAccount: React.FC = () => {
   const onCityChange = async (value?: string) => {
     const cityId = Number(value || 0);
     setValue("cityId", cityId ? String(cityId) : undefined);
-    setValue("provinceId", undefined);
     setValue("communeId", undefined);
     setValue("schoolId", undefined);
     if (cityId) {
-      await fetchProvinces(cityId);
-      await fetchCommunes(0);
-      await fetchSchools(0);
-    } else {
-      await fetchProvinces(0);
-      await fetchCommunes(0);
-      await fetchSchools(0);
-    }
-  };
-
-  const onProvinceChange = async (value?: string) => {
-    const provId = Number(value || 0);
-    setValue("provinceId", provId ? String(provId) : undefined);
-    setValue("communeId", undefined);
-    setValue("schoolId", undefined);
-    if (provId) {
-      await fetchCommunes(provId);
+      await fetchCommunes(cityId);
       await fetchSchools(0);
     } else {
       await fetchCommunes(0);
@@ -715,10 +692,10 @@ const UpdateAccount: React.FC = () => {
                         {field.value === "1"
                           ? "Nam"
                           : field.value === "0"
-                            ? "Nữ"
-                            : field.value === "2"
-                              ? "Khác"
-                              : "Chọn giới tính"}
+                          ? "Nữ"
+                          : field.value === "2"
+                          ? "Khác"
+                          : "Chọn giới tính"}
                       </span>
                     </SelectTrigger>
                     <SelectContent>
@@ -772,37 +749,6 @@ const UpdateAccount: React.FC = () => {
                       {(cities || []).map((c: any) => (
                         <SelectItem key={c.id} value={String(c.id)}>
                           {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="provinceId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Huyện / Quận</FormLabel>
-                <FormControl>
-                  <Select
-                    onValueChange={(v) => {
-                      field.onChange(v);
-                      onProvinceChange(v);
-                    }}
-                    value={field.value ? String(field.value) : undefined}
-                  >
-                    <SelectTrigger className="w-full mt-1">
-                      <SelectValue placeholder="Chọn huyện / quận" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(provinces || []).map((p: any) => (
-                        <SelectItem key={p.id} value={String(p.id)}>
-                          {p.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1085,8 +1031,8 @@ const UpdateAccount: React.FC = () => {
                   {isLoading
                     ? "Đang tiến hành..."
                     : getValues("status")
-                      ? "Có, tôi chắc chắn"
-                      : "Có, kích hoạt"}
+                    ? "Có, tôi chắc chắn"
+                    : "Có, kích hoạt"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
