@@ -49,20 +49,6 @@ namespace StudyHub.Backend.Api.Controllers
             return msg == string.Empty ? Ok("Cập nhật thành công!") : BadRequest(msg);
         }
 
-        [HttpGet("list")]
-        public IActionResult GetLandingPageList()
-        {
-            var landingPages = _service.GetLandingPageList();
-            if (landingPages.Count == 0)
-            {
-                return NotFound("Không có danh sách trang chủ!");
-            }
-            else
-            {
-                return Ok(landingPages.Select(lp => lp.ToLandingPageListItem()).ToList());
-            }
-        }
-
         [HttpGet("{schoolId:int}/address")]
         public IActionResult GetSchoolAddress(int schoolId)
         {

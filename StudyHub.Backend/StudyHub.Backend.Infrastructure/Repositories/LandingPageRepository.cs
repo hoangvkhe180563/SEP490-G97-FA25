@@ -330,25 +330,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return false;
         }
 
-        public List<Domain.Entities.LandingPage> GetLandingPages()
-        {
-            try
-            {
-                var landingPages = _context.LandingPages.Include(lp => lp.School).Select(lp => new Domain.Entities.LandingPage
-                {
-                    SchoolId = lp.SchoolId,
-                    SchoolName = lp.School.Name,
-                    SchoolLogoUrl = lp.SchoolLogoUrl,
-                }).ToList();
-                return landingPages;
-            }
-            catch (Exception ex)
-            {
-                new InfrastructureException("LandingPageRepository", "GetLandingPages failed. Inner error: " + ex.Message).LogError();
-            }
-            return [];
-        }
-
         public string GetSchoolAddress(int schoolId)
         {
             try
