@@ -56,6 +56,8 @@ export default function PostComposer({
   const [isExpanded, setIsExpanded] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isEmpty, setIsEmpty] = useState(true);
+  const [titleError, setTitleError] = useState("");
+  const [contentError, setContentError] = useState("");
 
   const [showYoutubeModal, setShowYoutubeModal] = useState(false);
   const [ytQuery, setYtQuery] = useState("");
@@ -72,9 +74,13 @@ export default function PostComposer({
   const [linkPreview, setLinkPreview] = useState<{ title?: string; thumbnail?: string; domain?: string } | null>(null);
 
   const updateEmptyState = () => {
-    const titleText = titleRef.current?.textContent?.trim() ?? "";
-    const contentText = editorRef.current?.textContent?.trim() ?? "";
+    const titleText = titleRef.current?.textContent?. trim() ??  "";
+    const contentText = editorRef.current?.textContent?. trim() ?? "";
     setIsEmpty(titleText.length === 0 && contentText.length === 0);
+    
+    // Clear errors when user types
+    if (titleText.length > 0) setTitleError("");
+    if (contentText.length > 0) setContentError("");
   };
 
   const exec = (cmd: string, value?: string) => {
@@ -85,7 +91,7 @@ export default function PostComposer({
 
   const insertUnorderedListWithMarker = () => {
     const html =
-      '<ul style="list-style-type: disc; list-style-position: outside; padding-left: 1.2rem;"><li><br></li></ul>';
+      '<ul style="list-style-type: disc; list-style-position: outside; padding-left: 1. 2rem;"><li><br></li></ul>';
     document.execCommand("insertHTML", false, html);
     editorRef.current?.focus();
     updateEmptyState();
@@ -105,13 +111,28 @@ export default function PostComposer({
   };
 
   const handlePost = async () => {
-    const html = editorRef.current?.innerHTML.trim() ?? "";
+    const html = editorRef.current?.innerHTML. trim() ?? "";
     const titleHtml = titleRef.current?.innerHTML.trim() ?? "";
 
-    if (!titleHtml || titleHtml === "<br>" || titleHtml === "") {
+    let hasError = false;
+
+    if (! titleHtml || titleHtml === "<br>" || titleHtml === "") {
+      setTitleError("Tiêu đề là bắt buộc");
       titleRef.current?.focus();
-      return;
+      hasError = true;
+    } else {
+      setTitleError("");
     }
+
+    if (isEmpty || !html || html === "<br>" || html === "") {
+      setContentError("Nội dung là bắt buộc");
+      if (! hasError) editorRef.current?.focus();
+      hasError = true;
+    } else {
+      setContentError("");
+    }
+
+    if (hasError) return;
 
     const filesFromAttachments = attachments
       .filter((a) => a.type === "file")
@@ -129,8 +150,8 @@ export default function PostComposer({
 
     await onPost(
       html,
-      filesFromAttachments.length ? filesFromAttachments : undefined,
-      linksToSend.length ? linksToSend : undefined,
+      filesFromAttachments. length ?  filesFromAttachments : undefined,
+      linksToSend. length ? linksToSend : undefined,
       titleHtml
     );
 
@@ -139,6 +160,8 @@ export default function PostComposer({
     setAttachments([]);
     setIsExpanded(false);
     setIsEmpty(true);
+    setTitleError("");
+    setContentError("");
   };
 
   const handleCancel = () => {
@@ -147,13 +170,15 @@ export default function PostComposer({
     setIsExpanded(false);
     setAttachments([]);
     setIsEmpty(true);
+    setTitleError("");
+    setContentError("");
   };
 
   const handleFocus = () => {
     setIsExpanded(true);
     setTimeout(() => {
       const titleText = titleRef.current?.textContent?.trim() ?? "";
-      if (!titleText) titleRef.current?.focus();
+      if (! titleText) titleRef.current?.focus();
       else editorRef.current?.focus();
     }, 0);
   };
@@ -179,7 +204,7 @@ export default function PostComposer({
       let domain: string | undefined = undefined;
       try {
         const u = new URL(url, window.location.href);
-        domain = u.hostname.replace(/^www\./, "");
+        domain = u.hostname. replace(/^www\./, "");
       } catch {
         domain = undefined;
       }
@@ -203,7 +228,7 @@ export default function PostComposer({
       const title =
         getMeta(["og:title"]) ||
         getMeta(["twitter:title"]) ||
-        (doc.querySelector("title")?.textContent ?? undefined) ||
+        (doc.querySelector("title")?.textContent ??  undefined) ||
         url;
       const thumbnail = getMeta(["og:image"]) || getMeta(["twitter:image"]) || undefined;
 
@@ -211,8 +236,8 @@ export default function PostComposer({
       return { title, thumbnail, domain };
     } catch (err: any) {
       setLinkError(
-        "Không lấy được metadata trang (có thể do CORS). Sẽ dùng URL làm tiêu đề. " +
-          (err?.message ?? String(err))
+        "Không lấy được metadata trang (có thể do CORS).  Sẽ dùng URL làm tiêu đề.  " +
+          (err?. message ??  String(err))
       );
       setLinkPreview({ title: url, domain: undefined });
       return { title: url, thumbnail: undefined, domain: undefined };
@@ -226,7 +251,7 @@ export default function PostComposer({
     if (!val) return;
     let url = val;
     try {
-      const u = new URL(val, window.location.href);
+      const u = new URL(val, window. location.href);
       url = u.href;
     } catch {
       // keep as-is
@@ -239,18 +264,18 @@ export default function PostComposer({
       preview = { title: url, thumbnail: undefined, domain: undefined };
     }
 
-    const display = preview?.title ?? url;
+    const display = preview?. title ?? url;
     const safeHtml = `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(display)}</a><p><br></p>`;
-    document.execCommand("insertHTML", false, safeHtml);
+    document. execCommand("insertHTML", false, safeHtml);
     editorRef.current?.focus();
     updateEmptyState();
 
     const attachment: Attachment = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      id: `${Date.now()}-${Math. random().toString(36).slice(2, 9)}`,
       type: "link",
       url,
-      title: preview?.title ?? url,
-      thumbnail: preview?.thumbnail,
+      title: preview?.title ??  url,
+      thumbnail: preview?. thumbnail,
       domain: preview?.domain,
     };
     setAttachments((prev) => [...prev, attachment]);
@@ -260,14 +285,12 @@ export default function PostComposer({
     s
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
+      . replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;");
 
   // --- NEW: determine fallback avatar from auth store if avatarUrl prop missing ---
   const { user } = useAuthStore();
-  const fallbackAvatar =
-    avatarUrl 
-  ;
+  const fallbackAvatar = avatarUrl;
 
   // track if avatar image fails to load and fall back to initials
   const [imgBroken, setImgBroken] = useState(false);
@@ -282,7 +305,7 @@ export default function PostComposer({
         <div className="flex space-x-3">
           <div>
             <Avatar>
-              {!imgBroken && fallbackAvatar ? (
+              {! imgBroken && fallbackAvatar ? (
                 <AvatarImage
                   src={fallbackAvatar}
                   alt="avatar"
@@ -295,7 +318,7 @@ export default function PostComposer({
                         .split(/\s+/)
                         .map((p: string) => p.charAt(0))
                         .slice(0, 2)
-                        .join("")
+                        . join("")
                         .toUpperCase()
                     : "U"}
                 </AvatarFallback>
@@ -304,7 +327,7 @@ export default function PostComposer({
           </div>
 
           <div className="flex-1">
-            {!isExpanded ? (
+            {! isExpanded ?  (
               <div
                 onClick={handleFocus}
                 className="min-h-[48px] bg-gray-50 rounded-xl px-3 py-3 text-sm text-gray-500 cursor-text hover:bg-gray-100 transition-colors flex items-center"
@@ -320,7 +343,9 @@ export default function PostComposer({
                     suppressContentEditableWarning
                     onInput={updateEmptyState}
                     data-placeholder="Tiêu đề (bắt buộc)"
-                    className="min-h-[36px] bg-gray-50 rounded-xl p-2 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white empty:before:content-[attr(data-placeholder)] empty:before:text-gray-500 empty:before:opacity-70"
+                    className={`min-h-[36px] bg-gray-50 rounded-xl p-2 text-sm text-gray-800 outline-none focus:ring-2 ${
+                      titleError ? "focus:ring-red-500 border border-red-500" : "focus:ring-blue-400"
+                    } focus:bg-white empty:before:content-[attr(data-placeholder)] empty:before:text-gray-500 empty:before:opacity-70`}
                     style={{
                       wordBreak: "break-word",
                       whiteSpace: "nowrap",
@@ -328,6 +353,9 @@ export default function PostComposer({
                       textOverflow: "ellipsis",
                     }}
                   />
+                  {titleError && (
+                    <p className="text-xs text-red-600 mt-1">{titleError}</p>
+                  )}
                 </div>
 
                 <div className="relative">
@@ -336,24 +364,29 @@ export default function PostComposer({
                     contentEditable
                     suppressContentEditableWarning
                     onInput={updateEmptyState}
-                    data-placeholder="Nội dung mô tả... (có thể định dạng)"
-                    className="min-h-[100px] bg-gray-50 rounded-xl p-3 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white empty:before:content-[attr(data-placeholder)] empty:before:text-gray-500 empty:before:opacity-70"
+                    data-placeholder="Nội dung mô tả...  (có thể định dạng)"
+                    className={`min-h-[100px] bg-gray-50 rounded-xl p-3 text-sm text-gray-800 outline-none focus:ring-2 ${
+                      contentError ? "focus:ring-red-500 border border-red-500" : "focus:ring-blue-400"
+                    } focus:bg-white empty:before:content-[attr(data-placeholder)] empty:before:text-gray-500 empty:before:opacity-70`}
                     style={{
                       wordBreak: "break-word",
                       whiteSpace: "pre-wrap",
                     }}
                   />
+                  {contentError && (
+                    <p className="text-xs text-red-600 mt-1">{contentError}</p>
+                  )}
                 </div>
 
                 {attachments.length > 0 && (
                   <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
                     <p className="text-xs font-medium text-gray-700 mb-2">📎 File đính kèm:</p>
                     <div className="space-y-2">
-                      {attachments.map((att, index) => (
+                      {attachments. map((att, index) => (
                         <div key={att.id} className="flex items-center justify-between bg-white rounded px-3 py-2 text-sm">
                           <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded overflow-hidden bg-gray-100 flex items-center justify-center flex-shrink-0">
-                              {att.type === "youtube" ? (
+                              {att.type === "youtube" ?  (
                                 att.thumbnail ? (
                                   <img src={att.thumbnail} alt={att.title} className="w-full h-full object-cover" />
                                 ) : (
@@ -368,11 +401,11 @@ export default function PostComposer({
                               ) : (
                                 (() => {
                                   const file = att.file;
-                                  if (file.type.startsWith("image/")) {
+                                  if (file. type.startsWith("image/")) {
                                     const src = URL.createObjectURL(file);
                                     return <img src={src} alt={file.name} className="w-full h-full object-cover" />;
                                   }
-                                  const ext = (att.file.name.split(".").pop() || "").toUpperCase();
+                                  const ext = (att.file.name.split("."). pop() || "").toUpperCase();
                                   return <div className="text-xs text-gray-700 font-medium">{ext || "FILE"}</div>;
                                 })()
                               )}
@@ -386,7 +419,7 @@ export default function PostComposer({
                                 {att.type === "youtube"
                                   ? "YouTube"
                                   : att.type === "link"
-                                  ? att.domain ?? (() => { try { return new URL(att.url).hostname.replace(/^www\./, "") } catch { return att.url } })()
+                                  ? att.domain ??  (() => { try { return new URL(att.url).hostname. replace(/^www\./, "") } catch { return att.url } })()
                                   : att.file.type
                                   ? att.file.type
                                   : "File"}
@@ -417,7 +450,7 @@ export default function PostComposer({
                     <Button variant="ghost" size="sm" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec("underline")} className="underline">U</Button>
                     <Button variant="ghost" size="sm" onMouseDown={(e)=>e.preventDefault()} onClick={() => exec("strikeThrough")}>S</Button>
                     <Button variant="ghost" size="sm" onMouseDown={(e)=>e.preventDefault()} onClick={insertUnorderedListWithMarker}>•</Button>
-                    <Button variant="ghost" size="sm" onMouseDown={(e)=>e.preventDefault()} onClick={insertOrderedListWithMarker}>1.</Button>
+                    <Button variant="ghost" size="sm" onMouseDown={(e)=>e.preventDefault()} onClick={insertOrderedListWithMarker}>1. </Button>
 
                     <div style={{ width: 1, height: 20, background: "#e5e7eb" }} className="mx-1" />
 
@@ -428,7 +461,7 @@ export default function PostComposer({
 
                   <div className="flex items-center space-x-2">
                     <Button variant="ghost" size="sm" onClick={handleCancel}>Hủy</Button>
-                    <Button size="sm" onClick={handlePost} disabled={isEmpty}>
+                    <Button size="sm" onClick={handlePost}>
                       Đăng
                     </Button>
                   </div>
@@ -443,7 +476,7 @@ export default function PostComposer({
                       type="file"
                       multiple
                       onChange={(e) => {
-                        const newFiles = Array.from(e.target.files ?? []).map((f) => ({
+                        const newFiles = Array.from(e. target.files ??  []). map((f) => ({
                           id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
                           type: "file" as const,
                           file: f,
@@ -467,28 +500,28 @@ export default function PostComposer({
       </motion.div>
 
       {/* Link Dialog */}
-      <Dialog open={showLinkModal} onOpenChange={(val) => !val && setShowLinkModal(false)}>
+      <Dialog open={showLinkModal} onOpenChange={(val) => ! val && setShowLinkModal(false)}>
         <DialogContent className="sm:max-w-2xl w-full">
           <DialogHeader>
             <DialogTitle>Chèn liên kết</DialogTitle>
-            <DialogDescription>Dán link để lấy preview hoặc chèn ngay.</DialogDescription>
+            <DialogDescription>Dán link để lấy preview hoặc chèn ngay. </DialogDescription>
           </DialogHeader>
 
           <div className="p-4">
             <div className="flex gap-2">
-              <Input value={linkQuery} onChange={(e)=>setLinkQuery(e.target.value)} onKeyDown={(e)=>{ if(e.key==="Enter") fetchLinkPreview(linkQuery); }} placeholder="Dán link ở đây..." />
+              <Input value={linkQuery} onChange={(e)=>setLinkQuery(e. target.value)} onKeyDown={(e)=>{ if(e.key==="Enter") fetchLinkPreview(linkQuery); }} placeholder="Dán link ở đây..." />
               <Button onClick={()=>fetchLinkPreview(linkQuery)}>Lấy preview</Button>
-              <Button variant="outline" onClick={async ()=>{ if(!linkQuery.trim()) return; await insertLinkEmbed(linkQuery); setShowLinkModal(false); }}>Chèn (URL)</Button>
+              <Button variant="outline" onClick={async ()=>{ if(! linkQuery. trim()) return; await insertLinkEmbed(linkQuery); setShowLinkModal(false); }}>Chèn (URL)</Button>
             </div>
 
             <div className="mt-4">
               {linkLoading && <div className="text-sm text-gray-500">Đang lấy preview...</div>}
               {linkError && <div className="text-sm text-red-500">{linkError}</div>}
 
-              {!linkLoading && linkPreview && (
+              {! linkLoading && linkPreview && (
                 <div className="flex items-start gap-3 border rounded p-2">
                   <div className="w-28 h-16 bg-gray-100 overflow-hidden rounded">
-                    {linkPreview.thumbnail ? <img src={linkPreview.thumbnail} alt={linkPreview.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-500">No image</div>}
+                    {linkPreview. thumbnail ?  <img src={linkPreview.thumbnail} alt={linkPreview.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-500">No image</div>}
                   </div>
                   <div className="flex-1">
                     <div className="text-sm font-medium text-gray-800 truncate">{linkPreview.title}</div>
@@ -500,7 +533,7 @@ export default function PostComposer({
                 </div>
               )}
 
-              {!linkLoading && !linkPreview && !linkError && <div className="text-sm text-gray-400 mt-2">Chưa có preview. Dán link và nhấn "Lấy preview" hoặc "Chèn (URL)".</div>}
+              {! linkLoading && !linkPreview && ! linkError && <div className="text-sm text-gray-400 mt-2">Chưa có preview.  Dán link và nhấn "Lấy preview" hoặc "Chèn (URL)". </div>}
             </div>
           </div>
 

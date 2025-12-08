@@ -1,14 +1,14 @@
 ﻿using Microsoft.AspNetCore.Http;
 using StudyHub.Backend.Api.Services;
 using StudyHub.Backend.Domain.Entities;
+using StudyHub.Backend.Domain.Entities.Notifications;
 using StudyHub.Backend.UseCases.Repositories;
+using StudyHub.Backend.UseCases.Repositories.Notifications;
 using StudyHub.Backend.UseCases.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace StudyHub.Backend.UseCases.Services
@@ -19,20 +19,37 @@ namespace StudyHub.Backend.UseCases.Services
         private readonly ICloudinaryRepository _fileStorage;
         private readonly IAppUserRepository _userRepository;
         private readonly SmtpEmailService _emailService;
-        public ClassNotificationService(IClassNotificationRepository classRepository, ICloudinaryRepository fileStorage, IAppUserRepository userRepository, SmtpEmailService emailService)
+
+        // NEW: phục vụ tạo notification hệ thống + group
+        private readonly NotificationService _notificationService;
+        private readonly INotificationOfClassRepository _notificationClassRepo;
+
+        public ClassNotificationService(
+            IClassNotificationRepository classRepository,
+            ICloudinaryRepository fileStorage,
+            IAppUserRepository userRepository,
+            SmtpEmailService emailService,
+            NotificationService notificationService,
+            INotificationOfClassRepository notificationClassRepo)
         {
             _repo = classRepository;
             _fileStorage = fileStorage;
             _userRepository = userRepository;
             _emailService = emailService;
+            _notificationService = notificationService;
+            _notificationClassRepo = notificationClassRepo;
         }
+
         // Notifications
         public List<ClassNotification> GetNotifications(int classId) => _repo.GetNotifications(classId);
         public ClassNotification CreateNotification(ClassNotification notification) => _repo.CreateNotification(notification);
         public ClassNotification EditNotification(ClassNotification notification) => _repo.EditNotification(notification);
         public ClassNotification GetNotification(int notificationId) => _repo.GetNotification(notificationId);
         public bool DeleteNotification(int notificationId) => _repo.DeleteNotification(notificationId);
-        public bool DeleteNotificationFileById(int classNotificationFileId)=>_repo.DeleteNotificationFileById(classNotificationFileId);
+        public bool DeleteNotificationFileById(int classNotificationFileId) => _repo.DeleteNotificationFileById(classNotificationFileId);
+
+        // Lấy danh sách thành viên lớp
+        public List<Guid> GetMemberIdsByClass(int classId) => _repo.GetMemberIdsByClass(classId);
 
         // Comments & files
         public ClassNotificationComment CreateComment(ClassNotificationComment comment) => _repo.CreateComment(comment);
@@ -40,7 +57,8 @@ namespace StudyHub.Backend.UseCases.Services
 
         public ClassNotificationFile CreateNotificationFile(ClassNotificationFile file) => _repo.CreateNotificationFile(file);
         public List<ClassNotificationFile> GetFilesByNotification(int notificationId) => _repo.GetFilesByNotification(notificationId);
-        public bool DeleteNotificationFile(int classNotificationId)=> _repo.DeleteNotificationFile(classNotificationId);
+        public bool DeleteNotificationFile(int classNotificationId) => _repo.DeleteNotificationFile(classNotificationId);
+
         // Submissions lifecycle: submit files for an assignment notification
         public async Task<(int SubmissionId, List<SubmissionFile> Files, bool IsResubmit)?> SubmitNotificationWithFilesAsync(int notificationId, string? appUserId, List<IFormFile>? files)
         {
@@ -115,16 +133,51 @@ namespace StudyHub.Backend.UseCases.Services
         public int GetMemberClassCount(int classID) => _repo.GetMemberClassCount(classID);
         public bool GradeSubmission(int notificationId, int submissionId, decimal score, Guid gradedBy, string feedback)
         {
-            // Validate the submission belongs to notificationId for safety
             var submissions = _repo.GetSubmissionsByNotificationId(notificationId);
             if (submissions == null || !submissions.Any(s => s.Id == submissionId))
             {
                 return false;
             }
-
-            // Use repository to grade
             return _repo.GradeSubmission(score, submissionId, gradedBy, feedback);
         }
-        public int GetTotalUnreadNotifications(int classID, Guid userID, string type)=> _repo.GetTotalUnreadNotifications(classID, userID, type);
+
+        public int GetTotalUnreadNotifications(int classID, Guid userID, string type) => _repo.GetTotalUnreadNotifications(classID, userID, type);
+
+        // NEW: Tạo notification hệ thống cho lớp và seed unread, trả về groupId + notification đã lưu
+        public async Task<(int GroupId, Notification Saved, IEnumerable<Guid> MemberIds)?> CreateSystemNotificationForClassAsync(
+            int classId,
+            string title,
+            string body,
+            Guid actorId,
+            CancellationToken ct = default)
+        {
+            var memberIds = GetMemberIdsByClass(classId) ?? new List<Guid>();
+            if (actorId != Guid.Empty && !memberIds.Contains(actorId))
+            {
+                memberIds.Add(actorId);
+            }
+
+            var groupId = await _notificationClassRepo.EnsureMemberGroupAsync(classId, memberIds, actorId, ct);
+
+            var sysNotif = new Notification
+            {
+                Title = title,
+                Body = body,
+                TargetType = "Group",
+                TargetGroupId = groupId,
+                Priority = "Normal",
+                IsActive = true,
+                CreatedAt = DateTime.Now,
+                CreatedBy = actorId
+            };
+            var saved = await _notificationService.SendNotificationAsync(sysNotif, ct);
+
+            if (memberIds.Any())
+            {
+                await _notificationService.SeedUnreadAsync(saved.Id, memberIds, ct);
+            }
+
+            return (groupId, saved, memberIds);
+        }
     }
 }

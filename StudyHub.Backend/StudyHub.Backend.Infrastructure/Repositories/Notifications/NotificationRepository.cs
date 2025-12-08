@@ -59,7 +59,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
                 Priority = n.Priority,
                 IsActive = n.IsActive,
                 ExpiresAt = n.ExpiresAt,
-                CreatedAt = n.CreatedAt == default ? DateTime.UtcNow : n.CreatedAt,
+                CreatedAt = n.CreatedAt == default ? DateTime.Now : n.CreatedAt,
                 CreatedBy = n.CreatedBy,
                 Metadata = n.Metadata
             };
@@ -100,7 +100,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
                 Name = g.Name,
                 Description = g.Description,
                 CreatedBy = g.CreatedBy,
-                CreatedAt = g.CreatedAt == default ? DateTime.UtcNow : g.CreatedAt
+                CreatedAt = g.CreatedAt == default ? DateTime.Now : g.CreatedAt
             };
         }
         #endregion
@@ -249,7 +249,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
                         UserId = userId,
                         IsRead = true,
                         ReadAt = readAt,
-                        DeliveredAt = DateTime.UtcNow
+                        DeliveredAt = DateTime.Now
                     }).ToList();
 
                 if (toAdd.Any())
@@ -318,7 +318,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
             {
                 GroupId = groupId,
                 UserId = userId,
-                AddedAt = DateTime.UtcNow
+                AddedAt = DateTime.Now
             };
             await _context.NotificationGroupMembers.AddAsync(gm, ct);
             await _context.SaveChangesAsync(ct);
@@ -357,19 +357,49 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
 
             return groupIds.ToHashSet();
         }
+        public async Task SeedUnreadForUsersAsync(Guid notificationId, IEnumerable<Guid> userIds, CancellationToken ct = default)
+        {
+            var ids = userIds?.Distinct().ToList() ?? new List<Guid>();
+            if (!ids.Any()) return;
 
-        public List<Domain.Entities.AppUser>? GetUsersByRoleAndSchool(string roleName, int? schoolId)
+            // Lấy các bản ghi đã tồn tại để tránh trùng
+            var existing = await _context.NotificationReads
+                .Where(r => r.NotificationId == notificationId && ids.Contains(r.UserId))
+                .Select(r => r.UserId)
+                .ToListAsync(ct);
+
+            var now = DateTime.Now;
+            var toAdd = ids
+                .Where(id => !existing.Contains(id))
+                .Select(id => new NotificationRead
+                {
+                    NotificationId = notificationId,
+                    UserId = id,
+                    IsRead = false,
+                    DeliveredAt = now
+                })
+                .ToList();
+
+            if (toAdd.Any())
+            {
+                await _context.NotificationReads.AddRangeAsync(toAdd, ct);
+                await _context.SaveChangesAsync(ct);
+            }
+        }
+        public List<Domain.Entities.AppUser> GetUsersByRoleAndSchool(string roleName, int? schoolId)
         {
             if (!schoolId.HasValue) return new List<Domain.Entities.AppUser>();
 
-            var dataUsers = _context.AppUsers
+            var norm = roleName?.Trim().ToLower() ?? "";
+
+            var users = _context.AppUsers
                 .Include(u => u.Roles)
                 .Where(u => u.SchoolId == schoolId &&
-                            u.Roles != null &&
-                            u.Roles.Any(r => string.Equals(r.Name, roleName, StringComparison.OrdinalIgnoreCase)))
+                            u.Roles.Any(r => r.Name.ToLower() == norm))
+                .AsNoTracking()
                 .ToList();
 
-            return dataUsers.Select(MapUserDataToDomain).ToList();
+            return users.Select(MapUserDataToDomain).ToList();
         }
 
         private Domain.Entities.AppUser MapUserDataToDomain(Data.AppUser d)

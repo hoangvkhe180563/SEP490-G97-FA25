@@ -1,22 +1,20 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using StudyHub.Backend.Domain.Entities;
-using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
-    public class ClassNotificationRepository: IClassNotificationRepository
+    public class ClassNotificationRepository : IClassNotificationRepository
     {
         private readonly Data.AppDbContext _context;
-        public ClassNotificationRepository (Data.AppDbContext context)
+        public ClassNotificationRepository(Data.AppDbContext context)
         {
             _context = context;
         }
+
         // === Notifications ===
         public List<ClassNotification> GetNotifications(int classId)
         {
@@ -165,23 +163,25 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             file.Id = ent.Id;
             return file;
         }
-        public bool DeleteNotificationFile(int  classNotificationId)
+
+        public bool DeleteNotificationFile(int classNotificationId)
         {
-            var files=_context.ClassNotificationFiles.Where(c=>c.NotificationId==classNotificationId);
-            if(!files.Any()) {return false;}
+            var files = _context.ClassNotificationFiles.Where(c => c.NotificationId == classNotificationId);
+            if (!files.Any()) { return false; }
             _context.ClassNotificationFiles.RemoveRange(files);
             _context.SaveChanges();
             return true;
         }
+
         public bool DeleteNotificationFileById(int classNotificationFileId)
         {
             var files = _context.ClassNotificationFiles.FirstOrDefault(c => c.Id == classNotificationFileId);
-            if (files==null) { return false; }
+            if (files == null) { return false; }
             _context.ClassNotificationFiles.RemoveRange(files);
             _context.SaveChanges();
             return true;
         }
-        
+
         public List<ClassNotificationFile> GetFilesByNotification(int notificationId)
         {
             return _context.ClassNotificationFiles
@@ -312,18 +312,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 SubmissionStatus = s.SubmissionStatus
             };
         }
+
         public bool GradeSubmission(decimal score, int notificationSubmissionId, Guid gradeBy, string feedback)
         {
-            var submission = _context.NotificationSubmissions.FirstOrDefault(a=>a.Id == notificationSubmissionId);
+            var submission = _context.NotificationSubmissions.FirstOrDefault(a => a.Id == notificationSubmissionId);
             if (submission == null) return false;
             submission.Score = score;
-            submission.GradedAt= DateTime.Now;
+            submission.GradedAt = DateTime.Now;
             submission.GradedBy = gradeBy;
             submission.Feedback = feedback;
             _context.NotificationSubmissions.Update(submission);
             _context.SaveChanges();
             return true;
-
         }
 
         public SubmissionFile AddSubmissionFile(SubmissionFile file)
@@ -366,17 +366,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
             var classEntity = _context.AppUserClasses
                 .Include(c => c.User)
-                .Where(c => c.ClassId == classId && c.User.Roles.Any(r => r.Name.Contains("Student") && c.Status.Equals("joined")))
+                .Where(c => c.ClassId == classId && c.User.Roles.Any(r => r.Name.Contains("Student")) && c.Status.Equals("joined"))
                 .GroupBy(a => a.UserId)
                 .ToList();
 
             return classEntity.Count();
         }
+
         public int GetTotalUnreadNotifications(int classID, Guid userID, string type)
         {
             var query = _context.ClassNotifications
                 .AsNoTracking()
-                .AsQueryable();
+                .Where(n => n.DeletedAt == null);
 
             if (classID > 0)
             {
@@ -388,20 +389,26 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 query = query.Where(n => n.Type == type);
             }
 
-            query = query.Where(n => n.DeletedAt == null);
-
-           
+            // Đếm những notification chưa có bản ghi read của user (IsRead = true)
             var unreadCount = query.Count(n =>
-                !_context.NotificationReads
-                    .Any(r =>  r.IsRead));
+                !_context.NotificationReads.Any(r => r.IsRead));
 
             return unreadCount;
         }
 
-
         public int GetMemberClassCount(int classID)
         {
-            return _context.AppUserClasses.Where(a => a.ClassId == classID&& a.Status.Equals("joined")).Count();
+            return _context.AppUserClasses.Where(a => a.ClassId == classID && a.Status.Equals("joined")).Count();
+        }
+
+        // NEW: danh sách thành viên lớp (để tạo group/broadcast)
+        public List<Guid> GetMemberIdsByClass(int classId)
+        {
+            return _context.AppUserClasses
+                .Where(c => c.ClassId == classId && c.Status == "joined")
+                .Select(c => c.UserId)
+                .Distinct()
+                .ToList();
         }
     }
 }

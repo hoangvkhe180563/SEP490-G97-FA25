@@ -24,18 +24,15 @@ namespace StudyHub.Backend.Api.Hubs
 
             try
             {
-                // Thử lấy user từ AuthService
                 var user = _authService.GetCurrentUser();
                 if (user != null)
                 {
-                    var userId = user.Id;
-                    await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
-                    Console.WriteLine($"✅ User {userId} joined notification group");
+                    await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{user.Id}");
+                    Console.WriteLine($"✅ User {user.Id} joined notification group");
                 }
             }
             catch (Exception ex)
             {
-                // Nếu không có claims, thử lấy từ Context trực tiếp
                 Console.WriteLine($"⚠️ AuthService failed: {ex.Message}");
 
                 var userIdClaim = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
@@ -62,6 +59,13 @@ namespace StudyHub.Backend.Api.Hubs
             await base.OnDisconnectedAsync(exception);
         }
 
+        // Cho phép client chủ động join nhóm user khi cần
+        public async Task JoinUser(Guid userId)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
+            Console.WriteLine($"✅ Joined user group: user_{userId}");
+        }
+
         public async Task JoinGroup(int groupId)
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, $"group_{groupId}");
@@ -72,6 +76,24 @@ namespace StudyHub.Backend.Api.Hubs
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"group_{groupId}");
             Console.WriteLine($"✅ Left group: group_{groupId}");
+        }
+
+        // Hub method để forward NotificationCreated tới đúng user group (hoặc caller)
+        public async Task NotificationCreated(object payload)
+        {
+            // Lấy userId từ claims để gửi vào group user_{id}
+            var userIdClaim = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                              ?? Context.User?.FindFirst("sub")?.Value
+                              ?? Context.User?.FindFirst("id")?.Value;
+
+            if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out var userId))
+            {
+                await Clients.Group($"user_{userId}").SendAsync("NotificationCreated", payload);
+                return;
+            }
+
+            // fallback: gửi về chính connection hiện tại
+            await Clients.Caller.SendAsync("NotificationCreated", payload);
         }
     }
 }

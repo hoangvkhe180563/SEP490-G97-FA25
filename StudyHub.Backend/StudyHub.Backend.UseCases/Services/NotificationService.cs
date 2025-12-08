@@ -88,7 +88,8 @@ namespace StudyHub.Backend.UseCases.Services
 
             return result;
         }
-
+        public async Task SeedUnreadAsync(Guid notificationId, IEnumerable<Guid> userIds, CancellationToken ct = default)
+            => await _repo.SeedUnreadForUsersAsync(notificationId, userIds, ct);
         public async Task<int> GetUnreadCountAsync(Guid userId, CancellationToken ct = default)
         {
             var now = DateTime.Now;

@@ -86,7 +86,7 @@ namespace StudyHub.Backend.UseCases.Services
         private List<AppUser> GetSchoolAdmins(int? schoolId)
         {
             if (!schoolId.HasValue) return new List<AppUser>();
-            return _notificationRepository.GetUsersByRoleAndSchool("SchoolAdmin", schoolId) ?? new List<AppUser>();
+            return _notificationRepository.GetUsersByRoleAndSchool("School Admin", schoolId) ?? new List<AppUser>();
         }
 
         private List<AppUser> GetHomeroomTeachers(int? schoolId)
@@ -95,8 +95,9 @@ namespace StudyHub.Backend.UseCases.Services
             return _notificationRepository.GetUsersByRoleAndSchool("Homeroom Teacher", schoolId) ?? new List<AppUser>();
         }
 
-        // Trả về (groupId, maintainerIds, notifications) để controller broadcast
-        public async Task<(int GroupId, List<Guid> MaintainerIds, Notification GroupNotif, Notification ActorNotif)?> PrepareNotificationsAsync(Class cls, Guid actorUserId, bool isCreate, CancellationToken ct = default)
+  
+        public async Task<(int GroupId, List<Guid> MaintainerIds, Notification GroupNotif, Notification? ActorNotif)?> PrepareNotificationsAsync(
+            Class cls, Guid actorUserId, bool isCreate, CancellationToken ct = default)
         {
             var actor = _userRepository.GetById(actorUserId);
             if (actor == null || !actor.SchoolId.HasValue) return null;
@@ -106,6 +107,7 @@ namespace StudyHub.Backend.UseCases.Services
             var homerooms = GetHomeroomTeachers(schoolId);
             var maintainers = admins.Concat(homerooms).DistinctBy(u => u.Id).ToList();
             var maintainerIds = maintainers.Select(u => u.Id).ToList();
+            var actorInGroup = maintainerIds.Contains(actorUserId);
 
             var groupId = await _notificationOfClassRepository.EnsureMaintainerGroupAsync(schoolId, maintainerIds, actorUserId, ct);
 
@@ -121,19 +123,25 @@ namespace StudyHub.Backend.UseCases.Services
                 CreatedBy = actorUserId
             };
             var savedGroup = await _notificationService.SendNotificationAsync(notifGroup, ct);
+            await _notificationService.SeedUnreadAsync(savedGroup.Id, maintainerIds, ct);
 
-            var notifActor = new Notification
+            Notification? savedActor = null;
+            if (!actorInGroup)
             {
-                Title = isCreate ? "Tạo lớp thành công" : "Cập nhật lớp thành công",
-                Body = $"Lớp: {cls.Name}",
-                TargetType = "User",
-                TargetUserId = actorUserId,
-                Priority = "Normal",
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = actorUserId
-            };
-            var savedActor = await _notificationService.SendNotificationAsync(notifActor, ct);
+                var notifActor = new Notification
+                {
+                    Title = isCreate ? "Tạo lớp thành công" : "Cập nhật lớp thành công",
+                    Body = $"Lớp: {cls.Name}",
+                    TargetType = "User",
+                    TargetUserId = actorUserId,
+                    Priority = "Normal",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = actorUserId
+                };
+                savedActor = await _notificationService.SendNotificationAsync(notifActor, ct);
+                await _notificationService.SeedUnreadAsync(savedActor.Id, new[] { actorUserId }, ct);
+            }
 
             return (groupId, maintainerIds, savedGroup, savedActor);
         }

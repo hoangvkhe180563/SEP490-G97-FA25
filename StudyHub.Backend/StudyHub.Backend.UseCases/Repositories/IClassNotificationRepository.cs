@@ -1,9 +1,6 @@
 ﻿using StudyHub.Backend.Domain.Entities;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace StudyHub.Backend.UseCases.Repositories
 {
@@ -36,6 +33,10 @@ namespace StudyHub.Backend.UseCases.Repositories
         int GetMemberCountByNotification(int notificationId);
         int GetMemberClassCount(int classID);
         bool GradeSubmission(decimal score, int notificationSubmissionId, Guid gradeBy, string feedback);
+
         int GetTotalUnreadNotifications(int classID, Guid userID, string type);
+
+        // NEW: danh sách thành viên lớp (để tạo group/broadcast)
+        List<Guid> GetMemberIdsByClass(int classId);
     }
 }

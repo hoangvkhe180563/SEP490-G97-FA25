@@ -30,37 +30,28 @@ const ListNotifications: React.FC = () => {
   const [includeRead, setIncludeRead] = useState(true);
 
   const unreadIds = useMemo(
-    () => items.filter((n) => !(n.read?.isRead ??  false)).map((n) => n.id),
+    () => items.filter((n) => !(n.read?.isRead ?? false)).map((n) => n.id),
     [items]
   );
 
   useEffect(() => {
-  // Start SignalR connection
-  startNotification();
+    // Start SignalR + fetch initial
+    startNotification();
+    reset();
+    fetchNotifications({ includeRead, reset: true });
+    fetchUnreadCount();
 
-  // Initial fetch
-  reset();
-  fetchNotifications({ includeRead, reset: true });
-  fetchUnreadCount();
-
-  // Cleanup
-  return () => {
-    stopNotification();
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []); // Chỉ chạy 1 lần khi mount
-
-useEffect(() => {
-  // Re-fetch khi toggle includeRead
-  reset();
-  fetchNotifications({ includeRead, reset: true });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [includeRead]); // Chỉ phụ thuộc includeRead
+    return () => {
+      stopNotification();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     // Re-fetch khi toggle includeRead
     reset();
     fetchNotifications({ includeRead, reset: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [includeRead]);
 
   const handleMarkAll = async () => {
@@ -69,7 +60,7 @@ useEffect(() => {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col gap-4 p-4 w-full h-full overflow-y-auto">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-xl font-semibold">Thông báo</h2>

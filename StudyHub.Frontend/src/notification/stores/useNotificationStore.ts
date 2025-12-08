@@ -2,45 +2,62 @@ import { axiosInstance } from "@/lib/axios";
 import { create } from "zustand";
 import type { HubConnection } from "@microsoft/signalr";
 import { toast } from "react-hot-toast";
-import { createClassConnection } from "@/lib/signalR";
+import { createNotificationConnection } from "@/lib/signalR"; // hub thông báo user
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-import type { NotificationState, NotificationItem } from "@/notification/interfaces/notification";
+import type { NotificationState, NotificationItem, NotificationFetchOptions } from "@/notification/interfaces/notification";
 
 export interface NotificationPayload {
   id?: string;
   Id?: string;
-  classId?: string;
-  ClassId?: string;
   title?: string;
   Title?: string;
+  body?: string;
+  Body?: string;
+  targetType?: string;
+  TargetType?: string;
+  targetUserId?: string;
+  TargetUserId?: string;
+  targetGroupId?: number | string;
+  TargetGroupId?: number | string;
+  createdAt?: string;
+  CreatedAt?: string;
   createdBy?: string;
   appUserId?: string;
   AppUserId?: string;
+  isRead?: boolean;
+  readAt?: string;
+  metadata?: any;
+  priority?: string;
+  Priority?: string;
   [key: string]: any;
 }
 
-// Mở rộng NotificationState (from interface/notification.ts) cho hub class
-type ClassNotificationState = NotificationState & {
+type UserNotificationState = NotificationState & {
   connection: HubConnection | null;
-  unreadCountByClass: Record<string, number>;
   addNewNotificationListener: (fn: (payload: NotificationPayload) => void) => void;
   removeNewNotificationListener: (fn: (payload: NotificationPayload) => void) => void;
   connect: () => Promise<void>;
-  joinClass: (classId: string) => Promise<void>;
-  leaveClass: (classId: string) => Promise<void>;
-  markAllAsRead: (classId: string) => Promise<void>;
+  disconnect: () => Promise<void>;
+  markAllAsRead: () => Promise<void>;
 };
 
-export const useNotificationStore = create<ClassNotificationState>((set, get) => {
+export const useNotificationStore = create<UserNotificationState>()((set, get) => {
   const listeners: Set<(payload: NotificationPayload) => void> = new Set();
-  const recentNotificationIds: Set<string> = new Set();
+  const recentIds: Set<string> = new Set();
 
-  // helper: cập nhật unreadCount (tổng) từ map
-  const recalcTotal = (map: Record<string, number>) =>
-    Object.values(map || {}).reduce((sum, v) => sum + (Number.isFinite(v) ? Number(v) : 0), 0);
+  const recalcUnread = (items: NotificationItem[]) =>
+    items.filter((n) => !(n.read?.isRead ?? false)).length;
+
+  const normalizeApiItem = (n: any): NotificationItem => ({
+    ...n,
+    read: {
+      ...(n.read ?? {}),
+      isRead: n.isRead ?? n.read?.isRead ?? false,
+      readAt: n.readAt ?? n.read?.readAt,
+    },
+  });
 
   return {
-    // NotificationState fields
     items: [] as NotificationItem[],
     unreadCount: 0,
     isLoading: false,
@@ -61,52 +78,123 @@ export const useNotificationStore = create<ClassNotificationState>((set, get) =>
         hasMore: true,
         offset: 0,
       }),
+
     startNotification: async () => {
-      // dùng hub class, tương đương connect()
       await get().connect();
       set({ isNotificationConnected: true });
     },
+
     stopNotification: async () => {
+      await get().disconnect();
+      set({ isNotificationConnected: false });
+    },
+
+    fetchNotifications: async (opts?: NotificationFetchOptions) => {
+      const includeRead = opts?.includeRead ?? false;
+      const reset = opts?.reset ?? false;
+
+      if (reset) {
+        set({ isLoading: true, error: null, offset: 0 });
+      } else {
+        set({ isLoadingMore: true, error: null });
+      }
+
+      const limit = get().limit;
+      const offset = reset ? 0 : get().offset;
+
+      try {
+        const res = await axiosInstance.get<NotificationItem[]>("/notification/me", {
+          params: { includeRead, limit, offset },
+        });
+        const fetched = (res.data ?? []).map(normalizeApiItem);
+        set((state) => {
+          const merged = reset ? fetched : [...state.items, ...fetched];
+          return {
+            items: merged,
+            offset: reset ? fetched.length : state.offset + fetched.length,
+            hasMore: fetched.length === limit,
+            isLoading: false,
+            isLoadingMore: false,
+            unreadCount: recalcUnread(merged),
+            error: null,
+          };
+        });
+      } catch (err: any) {
+        set({
+          isLoading: false,
+          isLoadingMore: false,
+          error: err?.message ?? "Fetch notifications failed",
+        });
+      }
+    },
+
+    fetchUnreadCount: async () => {
+      try {
+        const res = await axiosInstance.get<{ Unread: number }>("/notification/me/unread-count");
+        set({ unreadCount: Number(res.data?.Unread ?? 0) });
+      } catch (err) {
+        console.warn("fetchUnreadCount failed", err);
+      }
+    },
+
+    markRead: async (id: string) => {
+      try {
+        await axiosInstance.post(`/notification/${id}/mark-read`);
+        set((state) => {
+          const next = state.items.map((n) =>
+            n.id === id ? { ...n, read: { ...(n.read ?? {}), isRead: true } } : n
+          );
+          return { items: next, unreadCount: recalcUnread(next) };
+        });
+      } catch (err) {
+        console.warn("markRead failed", err);
+      }
+    },
+
+    markReadBulk: async (ids: string[]) => {
+      if (!ids?.length) return;
+      try {
+        await axiosInstance.post(`/notification/mark-read-bulk`, { ids });
+        set((state) => {
+          const setIds = new Set(ids);
+          const next = state.items.map((n) =>
+            setIds.has(n.id) ? { ...n, read: { ...(n.read ?? {}), isRead: true } } : n
+          );
+          return { items: next, unreadCount: recalcUnread(next) };
+        });
+      } catch (err) {
+        console.warn("markReadBulk failed", err);
+      }
+    },
+
+    loadMore: async () => {
+      if (!get().hasMore || get().isLoadingMore) return;
+      await get().fetchNotifications({ includeRead: true, reset: false });
+    },
+
+    joinGroup: async (groupId: number) => {
       const conn = get().connection;
       if (conn) {
         try {
-          await conn.stop();
-        } catch {
-          /* ignore */
+          await conn.invoke("JoinGroup", groupId);
+        } catch (err) {
+          console.error("JoinGroup invoke failed", err);
         }
       }
-      set({ connection: null, isNotificationConnected: false });
-    },
-    joinGroup: async (groupId: number) => {
-      await get().joinClass(String(groupId));
-    },
-    leaveGroup: async (groupId: number) => {
-      await get().leaveClass(String(groupId));
-    },
-    fetchNotifications: async () => {
-      // không triển khai danh sách chi tiết trong hub class; giữ items rỗng
-      return;
-    },
-    fetchUnreadCount: async () => {
-      // có thể gọi API khác nếu cần; hiện tính tổng từ map
-      set((state) => ({ unreadCount: recalcTotal(state.unreadCountByClass) }));
-    },
-    markRead: async (id: string) => {
-      // không có API mark read từng thông báo ở hub class; bỏ qua
-      return;
-    },
-    markReadBulk: async () => {
-      // không áp dụng
-      return;
-    },
-    loadMore: async () => {
-      // không áp dụng
-      return;
     },
 
-    // Extended fields
+    leaveGroup: async (groupId: number) => {
+      const conn = get().connection;
+      if (conn) {
+        try {
+          await conn.invoke("LeaveGroup", groupId);
+        } catch (err) {
+          console.error("LeaveGroup invoke failed", err);
+        }
+      }
+    },
+
     connection: null,
-    unreadCountByClass: {},
 
     addNewNotificationListener: (fn) => {
       listeners.add(fn);
@@ -119,73 +207,35 @@ export const useNotificationStore = create<ClassNotificationState>((set, get) =>
     connect: async () => {
       if (get().connection) return;
 
-      const connection = createClassConnection();
+      const connection = createNotificationConnection();
 
-      connection.on("NewNotification", (classId: string) => {
-        try {
-          set((state) => {
-            const nextMap = {
-              ...state.unreadCountByClass,
-              [String(classId)]: (state.unreadCountByClass[String(classId)] || 0) + 1,
-            };
-            return {
-              unreadCountByClass: nextMap,
-              unreadCount: recalcTotal(nextMap),
-            };
-          });
-        } catch (err) {
-          console.error("NewNotification handler error", err);
-        }
-      });
-
-      connection.on("NewNotificationFull", (payload: NotificationPayload) => {
+      connection.on("NotificationCreated", (payload: NotificationPayload) => {
         try {
           if (!payload) return;
           const id = String(payload.id ?? payload.Id ?? "");
-          const cid = String(payload.classId ?? payload.ClassId ?? "");
-
-          if (!id) {
-            listeners.forEach((fn) => {
-              try {
-                fn(payload);
-              } catch (e) {
-                console.error("notification listener error", e);
-              }
-            });
-            set((state) => {
-              const nextMap = {
-                ...state.unreadCountByClass,
-                [cid]: (state.unreadCountByClass[cid] || 0) + 1,
-              };
-              return { unreadCountByClass: nextMap, unreadCount: recalcTotal(nextMap) };
-            });
-            return;
+          if (id) {
+            if (recentIds.has(id)) return;
+            recentIds.add(id);
+            if (recentIds.size > 200) {
+              const first = recentIds.values().next().value;
+              if (first) recentIds.delete(first);
+            }
           }
 
-          if (recentNotificationIds.has(id)) {
-            set((state) => {
-              const nextMap = {
-                ...state.unreadCountByClass,
-                [cid]: (state.unreadCountByClass[cid] || 0) + 1,
-              };
-              return { unreadCountByClass: nextMap, unreadCount: recalcTotal(nextMap) };
-            });
-            return;
-          }
-          recentNotificationIds.add(id);
-          if (recentNotificationIds.size > 200) {
-            const it = recentNotificationIds.values();
-            const first = it.next().value;
-            if (first) recentNotificationIds.delete(first);
-          }
-
-          set((state) => {
-            const nextMap = {
-              ...state.unreadCountByClass,
-              [cid]: (state.unreadCountByClass[cid] || 0) + 1,
-            };
-            return { unreadCountByClass: nextMap, unreadCount: recalcTotal(nextMap) };
-          });
+          const item: NotificationItem = {
+            id: id || crypto.randomUUID(),
+            title: payload.title ?? payload.Title ?? "Thông báo mới",
+            body: payload.body ?? payload.Body ?? "",
+            targetType: payload.targetType ?? payload.TargetType,
+            targetUserId: payload.targetUserId ?? payload.TargetUserId,
+            targetGroupId: payload.targetGroupId ?? payload.TargetGroupId,
+            priority: payload.priority ?? payload.Priority,
+            isActive: true,
+            createdAt: payload.createdAt ?? payload.CreatedAt ?? new Date().toISOString(),
+            createdBy: payload.createdBy ?? payload.appUserId ?? payload.AppUserId,
+            metadata: payload.metadata,
+            read: { isRead: payload.isRead ?? false, readAt: payload.readAt },
+          };
 
           listeners.forEach((fn) => {
             try {
@@ -195,67 +245,43 @@ export const useNotificationStore = create<ClassNotificationState>((set, get) =>
             }
           });
 
-          const currentUser = useAuthStore.getState().user;
-          const createdBy = String(payload.createdBy ?? payload.appUserId ?? payload.AppUserId ?? "");
-          if (currentUser && String(currentUser.id) === createdBy) return;
-
-          try {
-            const title = payload.title ?? payload.Title ?? "Thông báo mới";
-            toast.success(`📢 Lớp ${cid} có thông báo mới: ${title}`);
-          } catch (tErr) {
-            console.warn("toast error", tErr);
-          }
-        } catch (err) {
-          console.error("NewNotificationFull handler error", err);
-        }
-      });
-
-      connection.on("KickedFromClass", async (classId: string) => {
-        console.warn(`🚫 You were kicked from class ${classId}`);
-        try {
-          await get().leaveClass(classId);
-        } catch (e) {
-          console.warn("leaveClass after kicked failed", e);
-        }
-        set((state) => {
-          const copy = { ...state.unreadCountByClass };
-          delete copy[classId];
-          return { unreadCountByClass: copy, unreadCount: recalcTotal(copy) };
-        });
-        toast.error(`Bạn đã bị xoá khỏi lớp ${classId}`);
-      });
-
-      connection.on("NotificationCountUpdated", (payload: any) => {
-        try {
-          const classId = String(payload?.classId ?? payload?.ClassId ?? "");
-          const unread = Number(payload?.unreadCount ?? payload?.UnreadCount ?? 0);
           set((state) => {
-            const nextMap = { ...state.unreadCountByClass, [classId]: unread };
-            return { unreadCountByClass: nextMap, unreadCount: recalcTotal(nextMap) };
+            const nextItems = [item, ...state.items];
+            return {
+              items: nextItems,
+              unreadCount: recalcUnread(nextItems),
+            };
           });
+
+          const title = item.title ?? "Thông báo mới";
+          toast.success(`📢 ${title}`);
         } catch (err) {
-          console.error("NotificationCountUpdated handler error", err);
+          console.error("NotificationCreated handler error", err);
         }
       });
 
       connection.onreconnected(async () => {
-        try {
-          const classes = Object.keys(get().unreadCountByClass || {});
-          for (const cid of classes) {
-            try {
-              await get().joinClass(cid);
-            } catch (e) {
-              console.warn("rejoin class after reconnect failed", cid, e);
-            }
+        const user = useAuthStore.getState().user;
+        if (user?.id) {
+          try {
+            await connection.invoke("JoinUser", String(user.id));
+          } catch (e) {
+            console.warn("JoinUser after reconnect failed", e);
           }
-        } catch (e) {
-          console.warn("onreconnected handler error", e);
         }
       });
 
       try {
         await connection.start();
-        console.log("✅ Connected to SignalR (class notifications)");
+        const user = useAuthStore.getState().user;
+        if (user?.id) {
+          try {
+            await connection.invoke("JoinUser", String(user.id));
+          } catch (e) {
+            console.warn("JoinUser invoke failed", e);
+          }
+        }
+        console.log("✅ Connected to SignalR (user notifications)");
         set({ connection, isNotificationConnected: true });
       } catch (err) {
         console.error("SignalR start failed", err);
@@ -263,37 +289,27 @@ export const useNotificationStore = create<ClassNotificationState>((set, get) =>
       }
     },
 
-    joinClass: async (classId) => {
-      const connection = get().connection;
-      if (connection) {
+    disconnect: async () => {
+      const conn = get().connection;
+      if (conn) {
         try {
-          await connection.invoke("JoinClass", String(classId));
-        } catch (err) {
-          console.error("joinClass invoke failed", err);
+          await conn.stop();
+        } catch {
+          /* ignore */
         }
       }
+      set({ connection: null });
     },
 
-    leaveClass: async (classId) => {
-      const connection = get().connection;
-      if (connection) {
-        try {
-          await connection.invoke("LeaveClass", String(classId));
-        } catch (err) {
-          console.error("leaveClass invoke failed", err);
-        }
-      }
-    },
-
-    markAllAsRead: async (classId) => {
+    markAllAsRead: async () => {
       try {
-        await axiosInstance.post(`/Class/${classId}/notifications/read`);
+        await axiosInstance.post(`/notifications/read-all`);
       } catch (err) {
         console.warn("markAllAsRead API failed", err);
       }
       set((state) => {
-        const nextMap = { ...state.unreadCountByClass, [String(classId)]: 0 };
-        return { unreadCountByClass: nextMap, unreadCount: recalcTotal(nextMap) };
+        const next = state.items.map((n) => ({ ...n, read: { ...(n.read ?? {}), isRead: true } }));
+        return { items: next, unreadCount: 0 };
       });
     },
   };

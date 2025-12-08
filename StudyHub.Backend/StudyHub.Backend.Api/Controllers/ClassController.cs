@@ -122,17 +122,20 @@ namespace StudyHub.Backend.Api.Controllers
                     };
                     await _notificationHub.Clients.Groups(groupTargets).SendAsync("NotificationCreated", payloadGroup);
 
-                    var payloadActor = new
+                    if (actorNotif != null)
                     {
-                        id = actorNotif.Id,
-                        title = actorNotif.Title,
-                        body = actorNotif.Body,
-                        priority = actorNotif.Priority,
-                        targetType = actorNotif.TargetType,
-                        targetUserId = actorNotif.TargetUserId,
-                        createdAt = actorNotif.CreatedAt
-                    };
-                    await _notificationHub.Clients.Group($"user_{userGuid}").SendAsync("NotificationCreated", payloadActor);
+                        var payloadActor = new
+                        {
+                            id = actorNotif.Id,
+                            title = actorNotif.Title,
+                            body = actorNotif.Body,
+                            priority = actorNotif.Priority,
+                            targetType = actorNotif.TargetType,
+                            targetUserId = actorNotif.TargetUserId,
+                            createdAt = actorNotif.CreatedAt
+                        };
+                        await _notificationHub.Clients.Group($"user_{userGuid}").SendAsync("NotificationCreated", payloadActor);
+                    }
                 }
             }
             catch (Exception ex)
@@ -195,17 +198,20 @@ namespace StudyHub.Backend.Api.Controllers
                     };
                     await _notificationHub.Clients.Groups(groupTargets).SendAsync("NotificationCreated", payloadGroup);
 
-                    var payloadActor = new
+                    if (actorNotif != null)
                     {
-                        id = actorNotif.Id,
-                        title = actorNotif.Title,
-                        body = actorNotif.Body,
-                        priority = actorNotif.Priority,
-                        targetType = actorNotif.TargetType,
-                        targetUserId = actorNotif.TargetUserId,
-                        createdAt = actorNotif.CreatedAt
-                    };
-                    await _notificationHub.Clients.Group($"user_{userGuid}").SendAsync("NotificationCreated", payloadActor);
+                        var payloadActor = new
+                        {
+                            id = actorNotif.Id,
+                            title = actorNotif.Title,
+                            body = actorNotif.Body,
+                            priority = actorNotif.Priority,
+                            targetType = actorNotif.TargetType,
+                            targetUserId = actorNotif.TargetUserId,
+                            createdAt = actorNotif.CreatedAt
+                        };
+                        await _notificationHub.Clients.Group($"user_{userGuid}").SendAsync("NotificationCreated", payloadActor);
+                    }
                 }
             }
             catch (Exception ex)

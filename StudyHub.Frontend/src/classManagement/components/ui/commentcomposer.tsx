@@ -1,4 +1,4 @@
-// url=https://github.com/hoangvkhe180563/SEP490-G97-FA25/blob/main/StudyHub.Frontend/src/classManagement/components/ui/comment-composer.tsx
+// url=https://github.com/hoangvkhe180563/SEP490-G97-FA25/blob/main/StudyHub. Frontend/src/classManagement/components/ui/comment-composer.tsx
 import React, { useState } from "react";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 
@@ -13,57 +13,65 @@ type Props = {
   onSend: (text: string) => void;
 };
 
-const CommentComposer: React.FC<Props> = ({ avatarUrl, placeholder = "Viết bình luận...", onSend }) => {
+const CommentComposer: React. FC<Props> = ({ avatarUrl, placeholder = "Viết bình luận.. .", onSend }) => {
   const [text, setText] = useState("");
+  const [error, setError] = useState("");
   const { user } = useAuthStore();
-  const fallbackAvatar =
-    avatarUrl ;
+  const fallbackAvatar = avatarUrl;
 
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault();
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      setError("Nội dung bình luận là bắt buộc");
+      return;
+    }
+    setError("");
     onSend(trimmed);
     setText("");
   };
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setText(e.target.value);
+    if (e.target.value.trim()) {
+      setError("");
+    }
+  };
+
   return (
-    <form onSubmit={submit} className="flex items-start gap-3">
-      <Avatar>
-         { fallbackAvatar ? (
-                        <AvatarImage
-                          src={fallbackAvatar}
-                          alt="avatar"
-                         
-                        />
-                      ) : (
-                        <AvatarFallback>
-                          {(user as any)?.fullname
-                            ? String((user as any).fullname)
-                                .split(/\s+/)
-                                .map((p: string) => p.charAt(0))
-                                .slice(0, 2)
-                                .join("")
-                                .toUpperCase()
-                            : "U"}
-                        </AvatarFallback>
-                      )}
-      </Avatar>
+    <form onSubmit={submit} className="flex flex-col gap-1">
+      <div className="flex items-start gap-3">
+        <Avatar>
+          {fallbackAvatar ? (
+            <AvatarImage src={fallbackAvatar} alt="avatar" />
+          ) : (
+            <AvatarFallback>
+              {(user as any)?. fullname
+                ? String((user as any).fullname)
+                    .split(/\s+/)
+                    .map((p: string) => p.charAt(0))
+                    .slice(0, 2)
+                    . join("")
+                    .toUpperCase()
+                : "U"}
+            </AvatarFallback>
+          )}
+        </Avatar>
 
-      <div className="flex-1">
-        <Input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={placeholder}
-          className="min-h-[40px]"
-        />
-      </div>
+        <div className="flex-1">
+          <Input
+            value={text}
+            onChange={handleChange}
+            placeholder={placeholder}
+            className={`min-h-[40px] ${error ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+          />
+        </div>
 
-      <div>
-        <Button type="submit" disabled={!text.trim()}>
-          Gửi
-        </Button>
+        <div>
+          <Button type="submit">Gửi</Button>
+        </div>
       </div>
+      {error && <p className="text-xs text-red-600 ml-14">{error}</p>}
     </form>
   );
 };

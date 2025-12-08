@@ -688,6 +688,7 @@ namespace StudyHub.Backend.UseCases.Services
 
                 if (!Guid.TryParse(sub, out var userId)) return null;
 
+
                 return userId;
             }
             catch
