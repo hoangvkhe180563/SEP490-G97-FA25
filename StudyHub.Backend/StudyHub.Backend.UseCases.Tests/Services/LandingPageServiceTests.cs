@@ -340,7 +340,6 @@ namespace StudyHub.Backend.UseCases.Tests.Services
 
             // Assert
             Assert.Equal("Có lỗi xảy ra!", result);
-
             mockLandingPageRepo.Verify(r => r.UpdateLandingPageImages(landingPage.SchoolId, It.IsAny<List<string>>()), Times.Once);
             mockLandingPageRepo.Verify(r => r.UpdateLandingPage(landingPage), Times.Once);
         }
@@ -399,8 +398,6 @@ namespace StudyHub.Backend.UseCases.Tests.Services
             Assert.Equal("bannerUrl", landingPage.BannerUrl);
             Assert.Equal("logoUrl", landingPage.SchoolLogoUrl);
             Assert.Equal(new List<string> { "newImageUrl" }, landingPage.LandingPageImages);
-
-            // Kiểm tra danh sách ảnh được gửi vào UpdateLandingPageImages
             mockLandingPageRepo.Verify(r => r.UpdateLandingPageImages(
                 landingPage.SchoolId,
                 It.Is<List<string>>(lst =>
