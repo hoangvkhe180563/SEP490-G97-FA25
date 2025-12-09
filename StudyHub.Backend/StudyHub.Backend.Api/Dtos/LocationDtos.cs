@@ -12,18 +12,11 @@ namespace StudyHub.Backend.UseCases.Dtos
         public string Name { get; set; } = string.Empty;
     }
 
-    public class ProvinceDto
-    {
-        public short Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public sbyte CityId { get; set; }
-    }
-
     public class CommuneDto
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public short ProvinceId { get; set; }
+        public sbyte CityId { get; set; }
     }
 
     public class SchoolDto

@@ -1,7 +1,6 @@
 import type { AppUser } from "./app-user";
 import type { City } from "./city";
 import type { Commune } from "./commune";
-import type { Province } from "./province";
 import type { School } from "./school";
 
 interface AuthState {
@@ -68,18 +67,14 @@ interface LocationState {
   isLoading: boolean;
   cities: City[];
   fetchCities: () => Promise<void>;
-  provinces: Province[];
-  fetchProvinces: (id: number) => Promise<void>;
   communes: Commune[];
   fetchCommunes: (id: number) => Promise<void>;
   schools: School[];
   fetchSchools: (id: number) => Promise<void>;
   selectedCity: City | null;
-  selectedProvince: Province | null;
   selectedCommune: Commune | null;
   selectedSchool: School | null;
   setSelectedCity: (city: City) => void;
-  setSelectedProvince: (province: Province) => void;
   setSelectedCommune: (commune: Commune) => void;
   setSelectedSchool: (school: School) => void;
 }

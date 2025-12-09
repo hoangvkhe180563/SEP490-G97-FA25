@@ -62,7 +62,6 @@ const profileSchema = z
     fullname: z.string().optional(),
     communeId: z.union([z.string(), z.number()]).optional(),
     cityId: z.string().optional(),
-    provinceId: z.string().optional(),
     schoolId: z.string().optional(),
     oldPassword: z.string().optional(),
     newPassword: z.string().optional(),
@@ -92,11 +91,9 @@ export default function UpdateProfile() {
   const { user } = useAuthStore();
   const {
     fetchCities,
-    fetchProvinces,
     fetchCommunes,
     fetchSchools,
     cities,
-    provinces,
     communes,
     schools,
   } = useLocationStore();
@@ -124,7 +121,6 @@ export default function UpdateProfile() {
       dob: undefined,
       fullname: "",
       cityId: undefined,
-      provinceId: undefined,
       communeId: undefined,
       schoolId: undefined,
       oldPassword: undefined,
@@ -160,8 +156,7 @@ export default function UpdateProfile() {
       await getProfile();
       const user = useAppUserStore.getState().currentUser;
       if (!user) return;
-      if (user.cityId) await fetchProvinces(Number(user.cityId));
-      if (user.provinceId) await fetchCommunes(Number(user.provinceId));
+      if (user.cityId) await fetchCommunes(Number(user.cityId));
       if (user.communeId) await fetchSchools(Number(user.communeId));
 
       reset({
@@ -171,7 +166,6 @@ export default function UpdateProfile() {
         address: (user as any)?.address ?? "",
         phoneNumber: (user as any)?.phoneNumber ?? "",
         cityId: user.cityId ? String(user.cityId) : undefined,
-        provinceId: user.provinceId ? String(user.provinceId) : undefined,
         communeId: user.communeId ? String(user.communeId) : undefined,
         schoolId: user.schoolId ? String(user.schoolId) : undefined,
         dob: (user as any)?.dob
@@ -202,27 +196,10 @@ export default function UpdateProfile() {
   const onCityChange = async (value?: string) => {
     const cityId = Number(value || 0);
     setValue("cityId", cityId ? String(cityId) : undefined);
-    setValue("provinceId", undefined);
     setValue("communeId", undefined);
     setValue("schoolId", undefined);
     if (cityId) {
-      await fetchProvinces(cityId);
-      await fetchCommunes(0);
-      await fetchSchools(0);
-    } else {
-      await fetchProvinces(0);
-      await fetchCommunes(0);
-      await fetchSchools(0);
-    }
-  };
-
-  const onProvinceChange = async (value?: string) => {
-    const provId = Number(value || 0);
-    setValue("provinceId", provId ? String(provId) : undefined);
-    setValue("communeId", undefined);
-    setValue("schoolId", undefined);
-    if (provId) {
-      await fetchCommunes(provId);
+      await fetchCommunes(cityId);
       await fetchSchools(0);
     } else {
       await fetchCommunes(0);
@@ -556,37 +533,6 @@ export default function UpdateProfile() {
                         {(cities || []).map((c: any) => (
                           <SelectItem key={c.id} value={String(c.id)}>
                             {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="provinceId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Huyện / Quận</FormLabel>
-                  <FormControl>
-                    <Select
-                      onValueChange={(v) => {
-                        field.onChange(v);
-                        onProvinceChange(v);
-                      }}
-                      value={field.value ? String(field.value) : undefined}
-                    >
-                      <SelectTrigger className="w-full mt-1">
-                        <SelectValue placeholder="Chọn huyện / quận" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(provinces || []).map((p: any) => (
-                          <SelectItem key={p.id} value={String(p.id)}>
-                            {p.name}
                           </SelectItem>
                         ))}
                       </SelectContent>

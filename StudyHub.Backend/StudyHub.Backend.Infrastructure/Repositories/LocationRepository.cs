@@ -24,27 +24,15 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }).ToList();
         }
 
-        public List<DomainEntities.Province> GetProvincesByCityId(sbyte cityId)
-        {
-            return _context.Provinces
-                .Where(p => p.CityId == cityId)
-                .Select(p => new DomainEntities.Province
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    CityId = p.CityId
-                }).ToList();
-        }
-
-        public List<DomainEntities.Commune> GetCommunesByProvinceId(short provinceId)
+        public List<DomainEntities.Commune> GetCommunesByCityId(sbyte cityId)
         {
             return _context.Communes
-                .Where(c => c.ProvinceId == provinceId)
+                .Where(c => c.CityId == cityId)
                 .Select(c => new DomainEntities.Commune
                 {
                     Id = c.Id,
                     Name = c.Name,
-                    ProvinceId = c.ProvinceId
+                    CityId = c.CityId
                 }).ToList();
         }
 
@@ -68,9 +56,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 }).ToList();
         }
 
-        
 
-       
+
+
         public DomainEntities.School? GetSchoolById(int? schoolId)
         {
             var school = _context.Schools.Find(schoolId);
@@ -90,21 +78,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             {
                 Id = commune.Id,
                 Name = commune.Name,
-                ProvinceId = commune.ProvinceId
+                CityId = commune.CityId
             };
         }
-        public DomainEntities.Province? GetProvinceById(short? provinceId)
-        {
-            var province = _context.Provinces.Find(provinceId);
-            if (province == null) return null;
-            return new DomainEntities.Province
-            {
-                Id = province.Id,
-                Name = province.Name,
-                CityId = province.CityId
-            };
-        }
-        public DomainEntities.City? GetCityById(short? cityId)
+
+        public DomainEntities.City? GetCityById(sbyte? cityId)
         {
             var city = _context.Cities.Find(cityId);
             if (city == null) return null;
@@ -114,32 +92,20 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Name = city.Name
             };
         }
-        public (DomainEntities.Province?, DomainEntities.City?) GetProvinceAndCityByCommuneId(int? communeId)
+
+        public DomainEntities.City? GetCityByCommuneId(int? communeId)
         {
             var commune = _context.Communes.Find(communeId);
-            if (commune == null) return (null, null);
-            var province = _context.Provinces.Find(commune.ProvinceId);
-            DomainEntities.Province? provinceEntity = null;
-            DomainEntities.City? cityEntity = null;
-            if (province != null)
+            if (commune == null) return null;
+
+            var city = _context.Cities.Find(commune.CityId);
+            if (city == null) return null;
+
+            return new DomainEntities.City
             {
-                provinceEntity = new DomainEntities.Province
-                {
-                    Id = province.Id,
-                    Name = province.Name,
-                    CityId = province.CityId
-                };
-                var city = _context.Cities.Find(province.CityId);
-                if (city != null)
-                {
-                    cityEntity = new DomainEntities.City
-                    {
-                        Id = (sbyte)city.Id,
-                        Name = city.Name
-                    };
-                }
-            }
-            return (provinceEntity, cityEntity);
+                Id = (sbyte)city.Id,
+                Name = city.Name
+            };
         }
     }
 }

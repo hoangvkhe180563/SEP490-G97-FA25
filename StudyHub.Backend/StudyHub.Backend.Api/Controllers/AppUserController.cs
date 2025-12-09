@@ -159,9 +159,9 @@ namespace StudyHub.Backend.Api.Controllers
                 var roles = _roleService.GetRolesByUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
                 var school = _locationService.GetSchoolById(user.SchoolId);
                 var commune = _locationService.GetCommuneById(user.CommuneId);
-                var (province, city) = _locationService.GetProvinceAndCityByCommuneId(user.CommuneId);
+                var city = _locationService.GetCityByCommuneId(user.CommuneId);
 
-                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id, province?.Id);
+                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id);
                 return Ok(new { Success = true, Data = dto });
             }
             catch (Exception ex)
@@ -184,9 +184,9 @@ namespace StudyHub.Backend.Api.Controllers
                 var roles = _roleService.GetRolesByUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
                 var school = _locationService.GetSchoolById(user.SchoolId);
                 var commune = _locationService.GetCommuneById(user.CommuneId);
-                var (province, city) = _locationService.GetProvinceAndCityByCommuneId(user.CommuneId);
+                var city = _locationService.GetCityByCommuneId(user.CommuneId);
 
-                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id, province?.Id);
+                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id);
 
                 return Ok(new { Success = true, Data = dto });
             }
@@ -221,9 +221,9 @@ namespace StudyHub.Backend.Api.Controllers
                 var roles = _roleService.GetRolesByUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
                 var school = _locationService.GetSchoolById(user.SchoolId);
                 var commune = _locationService.GetCommuneById(user.CommuneId);
-                var (province, city) = _locationService.GetProvinceAndCityByCommuneId(user.CommuneId);
+                var city = _locationService.GetCityByCommuneId(user.CommuneId);
 
-                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id, province?.Id);
+                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id);
 
                 return Ok(new { Success = true, Data = dto });
             }
@@ -255,9 +255,9 @@ namespace StudyHub.Backend.Api.Controllers
                 var roles = _roleService.GetRolesByUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
                 var school = _locationService.GetSchoolById(user.SchoolId);
                 var commune = _locationService.GetCommuneById(user.CommuneId);
-                var (province, city) = _locationService.GetProvinceAndCityByCommuneId(user.CommuneId);
+                var city = _locationService.GetCityByCommuneId(user.CommuneId);
 
-                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id, province?.Id);
+                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id);
 
                 return Ok(new { Success = true, Data = dto });
             }
@@ -287,8 +287,8 @@ namespace StudyHub.Backend.Api.Controllers
                 var roles = _roleService.GetRolesByUser(user.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
                 var school = _locationService.GetSchoolById(user.SchoolId);
                 var commune = _locationService.GetCommuneById(user.CommuneId);
-                var (province, city) = _locationService.GetProvinceAndCityByCommuneId(user.CommuneId);
-                var dto = AppUserMapper.ToProfile(user, roles, school?.Id, commune?.Id, city?.Id, province?.Id);
+                var city = _locationService.GetCityByCommuneId(user.CommuneId);
+                var dto = AppUserMapper.ToProfile(user, roles, school?.Id, commune?.Id, city?.Id);
                 return Ok(new { Success = true, Data = dto });
             }
             catch (Exception ex)

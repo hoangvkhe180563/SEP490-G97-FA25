@@ -6,5 +6,5 @@ public class Commune
 
     public string Name { get; set; } = null!;
 
-    public short ProvinceId { get; set; }
+    public sbyte CityId { get; set; }
 }

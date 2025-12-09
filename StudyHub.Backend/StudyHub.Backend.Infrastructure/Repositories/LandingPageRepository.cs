@@ -341,12 +341,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 Data.Commune commune = _context.Communes.First(c => c.Id == communeId);
                 string communeName = commune.Name;
-                Data.Province province = _context.Provinces.First(p => p.Id == commune.ProvinceId);
-                string provinceName = province.Name;
-                Data.City city = _context.Cities.First(c => c.Id == province.CityId);
+                Data.City city = _context.Cities.First(c => c.Id == commune.CityId);
                 string cityName = city.Name;
 
-                return $"{school.Address}, Phường {communeName}, Quận {provinceName}, Thành phố {cityName}";
+                return $"{school.Address}, Phường {communeName}, Thành phố {cityName}";
             }
             catch (Exception ex)
             {
