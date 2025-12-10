@@ -389,16 +389,9 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
                   <DropdownMenuItem onSelect={handleDelete} className="flex items-center gap-2">
-                    <Trash2 className="w-4 h-4" /> Delete
+                    <Trash2 className="w-4 h-4" /> Xoá
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      alert("Dismiss student (chưa triển khai)");
-                    }}
-                    className="flex items-center gap-2 text-red-600"
-                  >
-                    Dismiss student
-                  </DropdownMenuItem>
+                  
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

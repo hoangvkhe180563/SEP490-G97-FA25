@@ -39,7 +39,7 @@ const isCloudinaryUrl = (u?: string) => {
   if (!u) return false;
   try {
     const url = new URL(u);
-    return url.hostname.endsWith("cloudinary.com");
+    return url. hostname.endsWith("cloudinary.com");
   } catch {
     return false;
   }
@@ -48,7 +48,7 @@ const isCloudinaryUrl = (u?: string) => {
 const makeCloudinaryFlAttachment = (u: string) => {
   try {
     const url = new URL(u);
-    const parts = url.pathname.split("/").filter(Boolean);
+    const parts = url.pathname.split("/"). filter(Boolean);
     const idx = parts.indexOf("upload");
     if (idx !== -1) {
       parts.splice(idx + 1, 0, "fl_attachment");
@@ -65,12 +65,12 @@ async function downloadUrl(
   fileUrl?: string,
   suggestedName?: string
 ): Promise<void> {
-  if (!fileUrl) return;
+  if (! fileUrl) return;
   try {
     let isCrossOrigin = false;
     try {
       const urlObj = new URL(String(fileUrl), window.location.href);
-      isCrossOrigin = urlObj.origin !== window.location.origin;
+      isCrossOrigin = urlObj.origin !== window. location.origin;
     } catch {
       isCrossOrigin = false;
     }
@@ -81,7 +81,7 @@ async function downloadUrl(
       credentials: isCrossOrigin ? "omit" : "include",
     });
 
-    if (!res.ok || (res as any).type === "opaque") {
+    if (! res.ok || (res as any).type === "opaque") {
       if (isCloudinaryUrl(String(fileUrl))) {
         window.open(
           makeCloudinaryFlAttachment(String(fileUrl)),
@@ -94,7 +94,7 @@ async function downloadUrl(
       return;
     }
 
-    const contentType = (res.headers.get("content-type") || "").toLowerCase();
+    const contentType = (res. headers.get("content-type") || "").toLowerCase();
     const blob = await res.blob();
 
     if (contentType.includes("text/html")) {
@@ -111,26 +111,26 @@ async function downloadUrl(
     }
 
     const contentDisposition = res.headers.get("content-disposition") || "";
-    let filename = suggestedName ?? "download";
+    let filename = suggestedName ??  "download";
     const fileNameMatch =
       contentDisposition.match(/filename\*=(?:UTF-8'')?([^;]+)/i) ||
-      contentDisposition.match(/filename="?([^";]+)"?/i);
+      contentDisposition. match(/filename="? ([^";]+)"?/i);
     if (fileNameMatch && fileNameMatch[1]) {
       try {
         filename = decodeURIComponent(
           fileNameMatch[1].replace(/(^['"]|['"]$)/g, "")
         );
       } catch {
-        filename = fileNameMatch[1].replace(/(^['"]|['"]$)/g, "");
+        filename = fileNameMatch[1]. replace(/(^['"]|['"]$)/g, "");
       }
     } else {
       try {
         const urlObj = new URL(String(fileUrl), window.location.href);
         const last = urlObj.pathname.split("/").filter(Boolean).pop();
         if (last) filename = decodeURIComponent(last);
-        if (!/\./.test(filename) && contentType.includes("image/")) {
+        if (!/\. /.test(filename) && contentType.includes("image/")) {
           const ext = contentType.split("/")[1] || "png";
-          filename = `${filename || "image"}.${ext.split(";")[0]}`;
+          filename = `${filename || "image"}.${ext. split(";")[0]}`;
         }
       } catch {
         /* empty */
@@ -167,8 +167,8 @@ const deriveUrlFromFile = (f: any): string | undefined => {
     (f as any).fileUrl,
     (f as any).file_url,
     (f as any).url,
-    (f as any).Url,
-    (f as any).FileUrl,
+    (f as any). Url,
+    (f as any). FileUrl,
     (f as any).path,
     (f as any).link,
   ];
@@ -184,20 +184,20 @@ const deriveUrlFromFile = (f: any): string | undefined => {
 const detectFileType = (
   fileOrName: File | string | undefined
 ): FilePreview["type"] => {
-  if (!fileOrName) return "other";
+  if (! fileOrName) return "other";
   const t =
-    typeof fileOrName === "string" ? "" : (fileOrName as File).type ?? "";
+    typeof fileOrName === "string" ? "" : (fileOrName as File).type ??  "";
   if (typeof fileOrName === "string") {
     const lower = fileOrName.toLowerCase();
     if (/\.(png|jpe?g|gif|webp|bmp|svg)$/.test(lower)) return "image";
-    if (/\.pdf$/.test(lower)) return "pdf";
+    if (/\. pdf$/.test(lower)) return "pdf";
     return "other";
   } else {
     if (/image\/(jpeg|png|webp|gif|bmp|svg)/i.test(t)) return "image";
     if (
       /pdf/i.test(t) ||
       ((fileOrName as File).name &&
-        (fileOrName as File).name.toLowerCase().endsWith(".pdf"))
+        (fileOrName as File).name. toLowerCase().endsWith(".pdf"))
     )
       return "pdf";
     return "other";
@@ -208,15 +208,15 @@ const EditClassworkForm: React.FC = () => {
   // ---------- Stable hooks & state ----------
   const params = useParams<{ id?: string; classworkId?: string }>();
   const location = useLocation();
-  const id = params.id ?? "";
+  const id = params. id ?? "";
 
   const classworkIdResolved =
     params.classworkId ??
     (() => {
       try {
-        const segments = location.pathname.split("/").filter(Boolean);
-        const idx = segments.findIndex((s) => s.toLowerCase() === "classwork");
-        if (idx !== -1 && segments.length > idx + 1) return segments[idx + 1];
+        const segments = location.pathname.split("/"). filter(Boolean);
+        const idx = segments.findIndex((s) => s. toLowerCase() === "classwork");
+        if (idx !== -1 && segments. length > idx + 1) return segments[idx + 1];
         return undefined;
       } catch {
         return undefined;
@@ -272,15 +272,15 @@ const EditClassworkForm: React.FC = () => {
     setErrors((s) => ({ ...s, [field]: message }));
   const clearFieldError = (field: string) =>
     setErrors((s) => {
-      if (!s[field]) return s;
+      if (! s[field]) return s;
       const next = { ...s };
       delete next[field];
       return next;
     });
 
   // ---------- Refs to guard one-time fetches / prefill ----------
-  const initialFetchedRef = useRef<string | null>(null); // guards getClassInfo/getClassWorks once per id
-  const prefillFetchedRef = useRef<string | null>(null); // guards prefill once per classworkId
+  const initialFetchedRef = useRef<string | null>(null);
+  const prefillFetchedRef = useRef<string | null>(null);
   const getClassWorksCalledForPrefillRef = useRef<string | null>(null);
 
   // ---------- showAlert helper ----------
@@ -295,7 +295,7 @@ const EditClassworkForm: React.FC = () => {
       window.clearTimeout(alertTimeoutRef.current);
       alertTimeoutRef.current = null;
     }
-    setAlert({ title, message, variant, link: link ?? null });
+    setAlert({ title, message, variant, link: link ??  null });
     if (durationMs > 0) {
       alertTimeoutRef.current = window.setTimeout(() => {
         setAlert(null);
@@ -317,13 +317,12 @@ const EditClassworkForm: React.FC = () => {
     if (role !== "teacher") {
       navigate(`/class/${role}/${id}`);
     }
-    // only depends on role and id; navigate stable from router
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, id]);
 
   // ---------- Initial load: ensure class info + works fetched once per id ----------
   useEffect(() => {
-    if (!id) return;
+    if (! id) return;
     if (initialFetchedRef.current === id) return;
     initialFetchedRef.current = id;
 
@@ -347,18 +346,13 @@ const EditClassworkForm: React.FC = () => {
   }, [id]);
 
   // ---------- Prefill when editing: guarded to run once per classworkId ----------
-  // Strategy:
-  //  - Try fill from store immediately (works array).
-  //  - If not found, call getClassWorks once for this id and use returned value (if any).
-  //  - Also listen to works length changes indirectly by depending on worksLength below so if store updates later,
-  //    we try to prefill from store (only once).
-  const worksLength = (currentClass?.data?.works ?? []).length;
+  const worksLength = (currentClass?.data?.works ??  []).length;
   useEffect(() => {
     if (!isEdit || !classworkIdResolved) return;
     if (prefillFetchedRef.current === String(classworkIdResolved)) return;
 
     const fillFromTarget = (target: any) => {
-      setTitle(target.title ?? "");
+      setTitle(target.title ??  "");
       setDescription(target.description ?? "");
       setInstructionsHtml(
         (target as any).instructionsHtml ?? target.description ?? ""
@@ -366,41 +360,41 @@ const EditClassworkForm: React.FC = () => {
       if (target.deadline) {
         const d = new Date(target.deadline);
         const tzOffset = d.getTimezoneOffset() * 60000;
-        const localISO = formatISO(new Date(d.getTime() - tzOffset)).slice(
+        const localISO = formatISO(new Date(d.getTime() - tzOffset)). slice(
           0,
           -1
         );
-        setDeadline(localISO.slice(0, 16));
+        setDeadline(localISO. slice(0, 16));
       } else {
         setDeadline("");
       }
-      setMaxScore((target as any).maxScore ?? (target as any).max_score ?? "");
+      setMaxScore((target as any).maxScore ?? (target as any).max_score ??  "");
       setGradeType((target as any).gradeType ?? "points");
       setAllowSubmission((target as any).allowSubmission ?? true);
 
       const existingLinks: any[] = target.links || [];
       const normLinks = existingLinks
-        .map((l: any) => ({ title: l.title ?? "", url: l.url ?? "" }))
+        .map((l: any) => ({ title: l.title ??  "", url: l.url ?? "" }))
         .filter((x: LinkItem) => !!x.url);
       setLinks(normLinks);
 
-      const existingFiles = (target.files ?? []) as any[];
+      const existingFiles = (target. files ??  []) as any[];
       const safeExistingFiles = Array.isArray(existingFiles)
         ? existingFiles.filter((f) => f != null)
         : [];
 
-      const existingPreviews: FilePreview[] = safeExistingFiles.map(
+      const existingPreviews: FilePreview[] = safeExistingFiles. map(
         (f: any) => {
           const url = deriveUrlFromFile(f);
-          const name = f?.fileName;
-          const type = detectFileType(url ?? name);
+          const name = f?. fileName;
+          const type = detectFileType(url ??  name);
           return {
-            id: `existing-${f?.id ?? Math.random().toString(36).slice(2, 8)}`,
+            id: `existing-${f?. id ??  Math.random(). toString(36). slice(2, 8)}`,
             url: url ?? undefined,
             type,
             existing: true,
             fileId: f?.id,
-            fileName: String(name ?? "file"),
+            fileName: String(name ??  "file"),
           } as FilePreview;
         }
       );
@@ -430,7 +424,7 @@ const EditClassworkForm: React.FC = () => {
       return;
     }
 
-    // 2) If not in store and we haven't called getClassWorks specifically for prefill, do it once.
+    // 2) If not in store and we haven't called getClassWorks specifically for prefill, do it once. 
     if (getClassWorksCalledForPrefillRef.current !== id) {
       getClassWorksCalledForPrefillRef.current = id;
       (async () => {
@@ -447,23 +441,19 @@ const EditClassworkForm: React.FC = () => {
                 return;
               }
             }
-            // if maybe not returned array, we rely on store update below (worksLength change)
           }
         } catch (err) {
           console.warn("[AddEditClasswork] getClassWorks prefill failed", err);
         }
       })();
     }
-
-    // 3) If store later updates (worksLength changes), this effect will re-run and try store again.
-    // Note: we don't poll or delay here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, classworkIdResolved, worksLength]);
 
   // ---------- ensure class info is loaded once per id (guarded) ----------
   const fetchedClassInfoRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!id) return;
+    if (! id) return;
     if (fetchedClassInfoRef.current === id) return;
     fetchedClassInfoRef.current = id;
     (async () => {
@@ -480,7 +470,7 @@ const EditClassworkForm: React.FC = () => {
   useEffect(() => {
     return () => {
       filePreviews.forEach((p) => {
-        if (p.url && !p.existing) {
+        if (p.url && ! p.existing) {
           try {
             URL.revokeObjectURL(p.url);
           } catch {
@@ -492,7 +482,7 @@ const EditClassworkForm: React.FC = () => {
   }, [filePreviews]);
 
   // ---------- helpers used by handlers ----------
-  const handleCancel = () => navigate(`/class/${role}/${id}?tab=exercise`);
+  const handleCancel = () => navigate(`/class/${role}/${id}? tab=exercise`);
 
   const postCreateNotification = async (fd: FormData) => {
     const endpoints = ["/ClassNotification", "/api/ClassNotification"];
@@ -503,33 +493,33 @@ const EditClassworkForm: React.FC = () => {
         return res;
       } catch (err: any) {
         lastError = err;
-        if (err?.response?.status === 404) continue;
+        if (err?. response?.status === 404) continue;
         if (err?.response) break;
       }
     }
-    throw lastError ?? new Error("Failed to call create notification endpoint");
+    throw lastError ??  new Error("Failed to call create notification endpoint");
   };
 
   // Helper: attempt to download existing preview URLs and convert to File objects
   const convertExistingPreviewsToFiles = async (): Promise<void> => {
     if (!filePreviews || filePreviews.length === 0) return;
     const needsFetch = filePreviews.filter(
-      (p) => p.existing && p.url && !p.file
+      (p) => p.existing && p.url && !p. file
     );
-    if (needsFetch.length === 0) return;
+    if (needsFetch. length === 0) return;
 
     const updated = await Promise.all(
       filePreviews.map(async (p) => {
-        if (!(p.existing && p.url && !p.file)) return p;
+        if (!(p.existing && p.url && !p. file)) return p;
         try {
           const res = await axiosInstance.get(p.url, { responseType: "blob" });
           const blob = res.data as Blob;
-          const nameFromUrl = p.url!.split("/").pop()?.split("?")[0];
-          const name = p.fileName ?? nameFromUrl ?? `file-${Date.now()}`;
+          const nameFromUrl = p.url! .split("/").pop()?. split("?")[0];
+          const name = p.fileName ??  nameFromUrl ??  `file-${Date.now()}`;
           const file = new File([blob], name, {
             type: blob.type || "application/octet-stream",
           });
-          return { ...p, file, existing: false };
+          return { ... p, file, existing: false };
         } catch (err) {
           console.warn(
             "Failed to fetch existing file preview for re-upload:",
@@ -544,7 +534,38 @@ const EditClassworkForm: React.FC = () => {
     setFilePreviews(updated);
   };
 
-  // ---------- save handler (unchanged logic but uses guarded fetches) ----------
+  // NEW: Validate deadline real-time
+  const validateDeadline = (deadlineValue: string) => {
+    if (!deadlineValue || deadlineValue.trim() === "") {
+      clearFieldError("deadline");
+      return true;
+    }
+
+    const selected = new Date(deadlineValue);
+    const now = new Date();
+    
+    if (isNaN(selected.getTime())) {
+      setFieldError("deadline", "Ngày không hợp lệ");
+      return false;
+    }
+    
+    if (selected. getTime() <= now.getTime()) {
+      setFieldError("deadline", "Hạn nộp phải lớn hơn thời điểm hiện tại");
+      return false;
+    }
+
+    clearFieldError("deadline");
+    return true;
+  };
+
+  // NEW: Handle deadline change with validation
+  const handleDeadlineChange = (e: React. ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDeadline(value);
+    validateDeadline(value);
+  };
+
+  // ---------- save handler ----------
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setLoading(true);
@@ -552,7 +573,7 @@ const EditClassworkForm: React.FC = () => {
 
     try {
       let hasError = false;
-      if (!title || title.trim().length === 0) {
+      if (!title || title.trim(). length === 0) {
         setFieldError("title", "Tiêu đề không được để trống");
         hasError = true;
       }
@@ -560,27 +581,23 @@ const EditClassworkForm: React.FC = () => {
       if (maxScore === "" || maxScore === null || maxScore === undefined) {
         setFieldError("maxScore", "Điểm tối đa là bắt buộc");
         hasError = true;
-      } else if (typeof maxScore === "number" && maxScore < 0) {
-        setFieldError("maxScore", "Điểm tối đa phải lớn hơn hoặc bằng 0");
+      } else if (typeof maxScore === "number" && maxScore <= 0) {
+        setFieldError("maxScore", "Điểm tối đa phải lớn hơn 0");
         hasError = true;
       }
 
-      if (!id || Number(id) <= 0) {
+      if (! id || Number(id) <= 0) {
         showAlert("ClassId không hợp lệ", "Lỗi", "destructive");
         setLoading(false);
         return;
       }
 
-      if (deadline && deadline.trim() !== "") {
-        const selected = new Date(deadline);
-        const now = new Date();
-        if (isNaN(selected.getTime()) || selected.getTime() <= now.getTime()) {
-          setFieldError("deadline", "Hạn nộp phải lớn hơn thời điểm hiện tại");
-          hasError = true;
-        }
+      // Validate deadline
+      if (!validateDeadline(deadline)) {
+        hasError = true;
       }
 
-      const createdBy = user?.id ?? localStorage.getItem("currentUserId") ?? "";
+      const createdBy = user?.id ??  localStorage.getItem("currentUserId") ?? "";
       if (!createdBy) {
         showAlert("Thiếu thông tin người dùng", "Lỗi", "destructive");
         setLoading(false);
@@ -595,25 +612,25 @@ const EditClassworkForm: React.FC = () => {
         await convertExistingPreviewsToFiles();
 
         const newFiles = filePreviews
-          .filter((p) => !p.existing && p.file) // chỉ file mới upload
+          .filter((p) => ! p.existing && p.file)
           .map((p) => p.file!) as File[];
 
         const keptExistingFileIdsRaw = filePreviews
-          .filter((p) => p.existing && p.fileId != null) // file existing giữ lại
+          .filter((p) => p. existing && p.fileId != null)
           .map((p) => Number(p.fileId))
-          .filter((v) => Number.isFinite(v));
+          .filter((v) => Number. isFinite(v));
 
         const payload: any = {
           id: Number(classworkIdResolved),
           classId: Number(id),
           title: title.trim(),
-          description: description?.trim() ?? "",
-          deadline: deadline ? formatISO(new Date(deadline)) : null,
+          description: description?. trim() ?? "",
+          deadline: deadline ?  formatISO(new Date(deadline)) : null,
           maxScore: maxScore === "" ? null : Number(maxScore),
-          gradeType: gradeType ?? null,
+          gradeType: gradeType ??  null,
           allowSubmission: !!allowSubmission,
-          instructionsHtml: instructionsHtml ?? null,
-          files: newFiles.length > 0 ? newFiles : undefined,
+          instructionsHtml: instructionsHtml ??  null,
+          files: newFiles. length > 0 ? newFiles : undefined,
           keptExistingFileIds:
             keptExistingFileIdsRaw.length > 0
               ? keptExistingFileIdsRaw
@@ -627,7 +644,7 @@ const EditClassworkForm: React.FC = () => {
 
         const edited = await editClasswork(payload);
 
-        if (!edited) {
+        if (! edited) {
           showAlert("Không thể cập nhật bài tập", "Lỗi", "destructive");
           setLoading(false);
           return;
@@ -646,26 +663,26 @@ const EditClassworkForm: React.FC = () => {
       fd.append("ClassId", String(Number(id)));
       fd.append("Type", "classwork");
       fd.append("Title", title.trim());
-      fd.append("Description", description?.trim() ?? "");
+      fd.append("Description", description?. trim() ?? "");
       fd.append("CreatedBy", createdBy);
       if (deadline) fd.append("Deadline", formatISO(new Date(deadline)));
       if (maxScore !== "") fd.append("MaxScore", String(maxScore));
       if (gradeType) fd.append("GradeType", gradeType);
       fd.append("AllowSubmission", String(allowSubmission));
-      if (instructionsHtml) fd.append("InstructionsHtml", instructionsHtml);
+      if (instructionsHtml) fd. append("InstructionsHtml", instructionsHtml);
 
       if (filePreviews.length > 0) {
         for (const p of filePreviews) {
-          if (!p.existing && p.file) fd.append("Files", p.file, p.file.name);
+          if (! p.existing && p.file) fd.append("Files", p.file, p.file.name);
         }
       }
 
       if (links.length > 0) fd.append("LinksJson", JSON.stringify(links));
 
       const res = await postCreateNotification(fd);
-      const raw = res?.data ?? null;
-      if (!raw || raw.success === false) {
-        const msg = raw?.message ?? "Tạo thông báo thất bại";
+      const raw = res?. data ??  null;
+      if (! raw || raw.success === false) {
+        const msg = raw?.message ??  "Tạo thông báo thất bại";
         showAlert(msg, "Lỗi", "destructive");
         setLoading(false);
         return;
@@ -677,21 +694,21 @@ const EditClassworkForm: React.FC = () => {
     } catch (err: any) {
       console.error("Save error", err);
       const msg =
-        err?.response?.data?.message ?? err?.message ?? "Lỗi khi lưu bài tập";
+        err?.response?.data?. message ?? err?.message ?? "Lỗi khi lưu bài tập";
       showAlert(msg, "Lỗi", "destructive");
     } finally {
       setLoading(false);
     }
   };
 
-  // ---------- file selection / preview logic (unchanged) ----------
+  // ---------- file selection / preview logic ----------
   const handleFiles = (files: File[]) => {
-    if (!files || files.length === 0) return;
+    if (! files || files.length === 0) return;
     setFilePreviews((prev) => {
       const existingKeep = prev.slice();
       const existingSignatures = new Set<string>();
       for (const p of existingKeep) {
-        const name = p.file?.name ?? p.fileName ?? "";
+        const name = p.file?.name ??  p.fileName ?? "";
         const size = p.file?.size ?? 0;
         existingSignatures.add(`${name}:${size}`);
       }
@@ -707,7 +724,7 @@ const EditClassworkForm: React.FC = () => {
         const tp = detectFileType(f);
         const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
         const url = URL.createObjectURL(f);
-        newPreviews.push({ id, file: f, url, type: tp });
+        newPreviews. push({ id, file: f, url, type: tp });
       }
 
       return [...existingKeep, ...newPreviews];
@@ -715,7 +732,7 @@ const EditClassworkForm: React.FC = () => {
   };
 
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files ? Array.from(e.target.files) : [];
+    const selected = e.target.files ?  Array.from(e.target. files) : [];
     if (selected.length > 0) handleFiles(selected);
     e.currentTarget.value = "";
   };
@@ -726,7 +743,7 @@ const EditClassworkForm: React.FC = () => {
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const dtFiles = e.dataTransfer.files
-      ? Array.from(e.dataTransfer.files)
+      ? Array.from(e. dataTransfer.files)
       : [];
     if (dtFiles.length > 0) handleFiles(dtFiles);
   };
@@ -737,14 +754,14 @@ const EditClassworkForm: React.FC = () => {
   const removeFile = (id: string) => {
     setFilePreviews((prev) => {
       const toRemove = prev.find((p) => p.id === id);
-      if (!toRemove) return prev;
+      if (! toRemove) return prev;
       if (toRemove.existing) {
         if (toRemove.fileId !== undefined)
           setRemovedExistingFileIds((s) => [
             ...s,
             toRemove.fileId as number | string,
           ]);
-        return prev.filter((p) => p.id !== id);
+        return prev. filter((p) => p.id !== id);
       } else {
         if (toRemove.url)
           try {
@@ -768,7 +785,7 @@ const EditClassworkForm: React.FC = () => {
 
   const addLink = () => {
     clearFieldError("linkUrl");
-    if (!linkUrl || !validateUrl(linkUrl)) {
+    if (!linkUrl || ! validateUrl(linkUrl)) {
       setFieldError(
         "linkUrl",
         "URL không hợp lệ (cần bắt đầu bằng http:// hoặc https://)"
@@ -787,10 +804,10 @@ const EditClassworkForm: React.FC = () => {
     setLinks((prev) => prev.filter((_, i) => i !== index));
 
   // ---------- derived values & rendering helpers ----------
-  const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
+  const classInfo: ClassInfo | null = currentClass?. data?. classInfo ?? null;
   const inputClass = (base = "", field?: string) => {
     const err = field ? errors[field] : undefined;
-    return `${base} ${err ? "border-red-500 ring-1 ring-red-200" : ""}`.trim();
+    return `${base} ${err ?  "border-red-500 ring-1 ring-red-500" : ""}`. trim();
   };
 
   return (
@@ -834,7 +851,7 @@ const EditClassworkForm: React.FC = () => {
                         <span>{alert.message}</span>
                         {alert.link && (
                           <a
-                            href={alert.link.url}
+                            href={alert.link. url}
                             target="_blank"
                             rel="noreferrer"
                             className="text-blue-600 underline ml-2"
@@ -864,13 +881,13 @@ const EditClassworkForm: React.FC = () => {
               <Input
                 value={title}
                 onChange={(e) => {
-                  setTitle(e.target.value);
+                  setTitle(e. target.value);
                   if (errors.title) clearFieldError("title");
                 }}
                 placeholder="Tiêu đề"
                 className={inputClass("mt-2", "title")}
-                aria-invalid={!!errors.title}
-                aria-describedby={errors.title ? "err-title" : undefined}
+                aria-invalid={!! errors.title}
+                aria-describedby={errors.title ?  "err-title" : undefined}
               />
               {errors.title && (
                 <div id="err-title" className="text-red-600 text-sm mt-1">
@@ -925,13 +942,13 @@ const EditClassworkForm: React.FC = () => {
                         className="bg-white border rounded p-2 flex items-start gap-2"
                       >
                         <div className="w-16 h-16 flex items-center justify-center bg-slate-100 rounded overflow-hidden shrink-0">
-                          {p.type === "image" && p.url ? (
+                          {p.type === "image" && p.url ?  (
                             <img
                               src={p.url}
-                              alt={p.fileName ?? p.file?.name ?? "file"}
+                              alt={p.fileName ??  p.file?.name ??  "file"}
                               className="w-full h-full object-cover"
                             />
-                          ) : p.type === "pdf" ? (
+                          ) : p.type === "pdf" ?  (
                             <div className="text-slate-600 text-lg">📄 PDF</div>
                           ) : (
                             <div className="text-slate-600 text-xl">📎</div>
@@ -944,8 +961,8 @@ const EditClassworkForm: React.FC = () => {
                               : p.file?.name ?? "file"}
                           </div>
                           <div className="text-xs text-slate-400 mt-1">
-                            {!p.existing && p.file
-                              ? `${(p.file.size / 1024).toFixed(0)} KB`
+                            {! p.existing && p.file
+                              ? `${(p.file. size / 1024).toFixed(0)} KB`
                               : ""}
                           </div>
                         </div>
@@ -1006,7 +1023,7 @@ const EditClassworkForm: React.FC = () => {
                       placeholder="https://example.com"
                       value={linkUrl}
                       onChange={(e) => {
-                        setLinkUrl(e.target.value);
+                        setLinkUrl(e.target. value);
                         if (errors.linkUrl) clearFieldError("linkUrl");
                       }}
                       className={inputClass("", "linkUrl")}
@@ -1067,13 +1084,10 @@ const EditClassworkForm: React.FC = () => {
               <Input
                 type="datetime-local"
                 value={deadline}
-                onChange={(e) => {
-                  setDeadline(e.target.value);
-                  if (errors.deadline) clearFieldError("deadline");
-                }}
+                onChange={handleDeadlineChange}
                 className={inputClass("mt-2", "deadline")}
                 aria-invalid={!!errors.deadline}
-                aria-describedby={errors.deadline ? "err-deadline" : undefined}
+                aria-describedby={errors. deadline ? "err-deadline" : undefined}
               />
               {errors.deadline && (
                 <div id="err-deadline" className="text-red-600 text-sm mt-1">
@@ -1099,11 +1113,11 @@ const EditClassworkForm: React.FC = () => {
                 min={0}
                 className={inputClass("mt-2", "maxScore")}
                 aria-invalid={!!errors.maxScore}
-                aria-describedby={errors.maxScore ? "err-maxScore" : undefined}
+                aria-describedby={errors. maxScore ? "err-maxScore" : undefined}
               />
               {errors.maxScore && (
                 <div id="err-maxScore" className="text-red-600 text-sm mt-1">
-                  {errors.maxScore}
+                  {errors. maxScore}
                 </div>
               )}
             </div>
@@ -1123,17 +1137,7 @@ const EditClassworkForm: React.FC = () => {
               <Label>Cho phép nộp bài</Label>
               <Switch
                 checked={allowSubmission}
-                onCheckedChange={(v) => setAllowSubmission(!!v)}
-              />
-            </div>
-
-            <div>
-              <Label>Hướng dẫn chi tiết (HTML)</Label>
-              <Textarea
-                value={instructionsHtml}
-                onChange={(e) => setInstructionsHtml(e.target.value)}
-                placeholder="Hướng dẫn chi tiết (HTML hoặc plain text)"
-                className="mt-2 min-h-[120px]"
+                onCheckedChange={(v) => setAllowSubmission(!! v)}
               />
             </div>
           </Card>
