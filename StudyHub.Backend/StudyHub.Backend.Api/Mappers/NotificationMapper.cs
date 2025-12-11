@@ -14,7 +14,7 @@ namespace StudyHub.Backend.Api.Mappers
                 Id = n.Id,
                 Title = n.Title,
                 Body = n.Body,
-                LinkUrl = n.LinkUrl,
+                
                 TargetType = n.TargetType,
                 TargetRoleId = n.TargetRoleId,
                 TargetGroupId = n.TargetGroupId,
@@ -37,7 +37,7 @@ namespace StudyHub.Backend.Api.Mappers
                 Id = Guid.NewGuid(),
                 Title = dto.Title,
                 Body = dto.Body,
-                LinkUrl = dto.LinkUrl,
+                
                 TargetType = dto.TargetType,
                 TargetRoleId = dto.TargetRoleId,
                 TargetGroupId = dto.TargetGroupId,

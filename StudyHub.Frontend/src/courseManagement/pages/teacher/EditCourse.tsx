@@ -45,7 +45,7 @@ import type {
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-import { formatISO } from "date-fns";
+import { formatISO, parse } from "date-fns";
 import { formatDateTime } from "@/courseManagement/utils/formatDate";
 
 const EditCourse: React.FC = () => {
@@ -81,7 +81,7 @@ const EditCourse: React.FC = () => {
   const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
   const [name, setName] = useState("");
   const [information, setInformation] = useState("");
-  const [price, setPrice] = useState<number | undefined>(undefined);
+  const [price, setPrice] = useState<number | null>(null);
   const [subjectId, setSubjectId] = useState<number | "">("");
   const [gradeId, setGradeId] = useState<number | "">("");
   const [status, setStatus] = useState<string>("");
@@ -154,7 +154,7 @@ const EditCourse: React.FC = () => {
       if (mounted) {
         setName("");
         setInformation("");
-        setPrice(undefined);
+        setPrice(null);
         setSubjectId("");
         setGradeId("");
         setStatus("");
@@ -203,6 +203,8 @@ const EditCourse: React.FC = () => {
       fieldErrors.name = "Tiêu đề khóa học là bắt buộc.";
     if (!information || !information.trim())
       fieldErrors.information = "Mô tả ngắn là bắt buộc.";
+    else if (information.length > 1000)
+      fieldErrors.information = "Độ dài mô tả khóa học không quá 1000 ký tự.";
 
     if (price === undefined || Number.isNaN(price) || Number(price) < 0)
       fieldErrors.price =
@@ -233,7 +235,7 @@ const EditCourse: React.FC = () => {
     let startDate: Date | null = null;
     let endDate: Date | null = null;
     if (hasStart) {
-      startDate = new Date(startAt);
+      startDate = parse(startAt, "yyyy-mm-dd", new Date());
       if (isNaN(startDate.getTime()))
         fieldErrors.startAt = "Ngày bắt đầu không hợp lệ.";
     }
@@ -1163,9 +1165,12 @@ const EditCourse: React.FC = () => {
                               {/* === Right: Action buttons === */}
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-[#8A8A8A] mr-3">
-                                  {l.type === "Video"
+                                  {((l.type || "") as string).toLowerCase() ===
+                                  "video"
                                     ? "Video"
-                                    : l.type === "Reading"
+                                    : (
+                                        (l.type || "") as string
+                                      ).toLowerCase() === "reading"
                                     ? "Đọc"
                                     : "Kiểm tra"}
                                 </span>
@@ -1403,13 +1408,18 @@ const EditCourse: React.FC = () => {
                       </Label>
                       <Input
                         type="number"
-                        value={price || ""}
+                        value={price === null ? "" : price}
                         onChange={(e) => {
-                          setPrice(Number(e.target.value));
+                          const value = e.target.value;
+                          if (value === "") {
+                            setPrice(null);
+                          } else {
+                            setPrice(parseFloat(value));
+                          }
                           if (errors.price)
                             setErrors((s) => ({ ...s, price: "" }));
                         }}
-                        placeholder="0"
+                        placeholder="Nhập giá"
                         className={
                           errors.price
                             ? "border-red-500 ring-1 ring-red-500"

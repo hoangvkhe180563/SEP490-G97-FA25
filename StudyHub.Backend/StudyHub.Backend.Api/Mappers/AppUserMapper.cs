@@ -10,7 +10,7 @@ namespace StudyHub.Backend.Api.Mappers
     {
 
         // Map a domain AppUser to API AppUserDetailDto. The caller should provide role names and school/commune names if available.
-        public static AppUserDetailDto ToAppUserDetail(Domain.Entities.AppUser user, IEnumerable<string>? roles = null, int? schoolId = null, int? communeId = null, int? cityId = null, int? provinceId = null)
+        public static AppUserDetailDto ToAppUserDetail(Domain.Entities.AppUser user, IEnumerable<string>? roles = null, int? schoolId = null, int? communeId = null, int? cityId = null)
         {
             return new AppUserDetailDto
             {
@@ -28,7 +28,6 @@ namespace StudyHub.Backend.Api.Mappers
                 UpdatedAt = user.UpdatedAt?.ToString("yyyy/MM/dd"),
                 SchoolId = schoolId,
                 CityId = cityId,
-                ProvinceId = provinceId,
                 Roles = roles?.ToList() ?? new List<string>(),
                 CommuneId = communeId
                 ,
@@ -36,7 +35,7 @@ namespace StudyHub.Backend.Api.Mappers
             };
         }
 
-        public static ProfileResponse ToProfile(Domain.Entities.AppUser user, IEnumerable<string>? roles = null, int? schoolId = null, int? communeId = null, int? cityId = null, int? provinceId = null)
+        public static ProfileResponse ToProfile(Domain.Entities.AppUser user, IEnumerable<string>? roles = null, int? schoolId = null, int? communeId = null, int? cityId = null)
         {
             return new ProfileResponse
             {
@@ -53,7 +52,6 @@ namespace StudyHub.Backend.Api.Mappers
                 UpdatedAt = user.UpdatedAt?.ToString("yyyy/MM/dd"),
                 SchoolId = schoolId,
                 CityId = cityId,
-                ProvinceId = provinceId,
                 Roles = roles?.ToList() ?? new List<string>(),
                 CommuneId = communeId,
                 Subjects = user.Subjects?.Select(s => new SubjectDto { Id = s.Id, Name = s.Name })?.ToList() ?? new List<SubjectDto>()

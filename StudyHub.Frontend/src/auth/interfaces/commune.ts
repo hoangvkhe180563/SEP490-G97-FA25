@@ -1,6 +1,6 @@
 interface Commune {
   id: number;
   name: string;
-  provinceId: number;
+  cityId: number;
 }
 export type { Commune };

@@ -29,7 +29,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
                 Id = d.Id,
                 Title = d.Title,
                 Body = d.Body,
-                LinkUrl = d.LinkUrl,
                 TargetType = d.TargetType,
                 TargetRoleId = d.TargetRoleId,
                 TargetGroupId = d.TargetGroupId,
@@ -51,7 +50,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
                 Id = n.Id == Guid.Empty ? Guid.NewGuid() : n.Id,
                 Title = n.Title,
                 Body = n.Body,
-                LinkUrl = n.LinkUrl,
                 TargetType = n.TargetType,
                 TargetRoleId = n.TargetRoleId,
                 TargetGroupId = n.TargetGroupId,
@@ -131,7 +129,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
 
                 exist.Title = notification.Title;
                 exist.Body = notification.Body;
-                exist.LinkUrl = notification.LinkUrl;
                 exist.TargetType = notification.TargetType;
                 exist.TargetRoleId = notification.TargetRoleId;
                 exist.TargetGroupId = notification.TargetGroupId;

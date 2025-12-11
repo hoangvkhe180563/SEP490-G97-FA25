@@ -223,7 +223,7 @@ const TeacherConversationList: React.FC = () => {
         </div>
 
         <ScrollArea className="rounded-lg border w-full">
-          <div className="space-y-3 pr-2 max-h-[calc(100vh-220px)]">
+          <div className="space-y-3 pr-2 max-h-[calc(100vh-220px)] w-78">
             {filteredStudents.map((s) => (
               <Card
                 key={s.id}
@@ -256,7 +256,7 @@ const TeacherConversationList: React.FC = () => {
                         : "bg-gray-100 text-gray-600 border-gray-200"
                     }`}
                   >
-                    {s.isOnline ? "Online" : "Offline"}
+                    {s.isOnline ? "Trực tuyến" : "Ngoại tuyến"}
                   </Badge>
                   <div className="text-xs text-muted-foreground mt-1">
                     {formatLastOnline(s.lastAt)}

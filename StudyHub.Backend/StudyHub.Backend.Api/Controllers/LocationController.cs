@@ -27,22 +27,12 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(cities);
         }
 
-        // GET: api/location/cites/1/provinces
-        [HttpGet("cities/{cityId}/provinces")]
-        public IActionResult GetProvincesByCityId(sbyte cityId)
+        // GET: api/location/cities/1/communes
+        [HttpGet("cities/{cityId}/communes")]
+        public IActionResult GetCommunesByCityId(sbyte cityId)
         {
-            var provinces = _locationService.GetProvincesByCityId(cityId)
-                .Select(p => new ProvinceDto { Id = p.Id, Name = p.Name, CityId = p.CityId })
-                .ToList();
-            return Ok(provinces);
-        }
-
-        // GET: api/location/communes?provinceId=1
-        [HttpGet("provinces/{provinceId}/communes")]
-        public IActionResult GetCommunesByProvinceId(short provinceId)
-        {
-            var communes = _locationService.GetCommunesByProvinceId(provinceId)
-                .Select(c => new CommuneDto { Id = c.Id, Name = c.Name, ProvinceId = c.ProvinceId })
+            var communes = _locationService.GetCommunesByCityId(cityId)
+                .Select(c => new CommuneDto { Id = c.Id, Name = c.Name, CityId = c.CityId })
                 .ToList();
             return Ok(communes);
         }
@@ -57,7 +47,7 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(schools);
         }
 
-        //GET: api/location/schools?communeId=1
+        //GET: api/location/communes/1/schools
         [HttpGet("communes/{communeId}/schools")]
         public IActionResult GetSchoolsByCommuneId(int communeId)
         {

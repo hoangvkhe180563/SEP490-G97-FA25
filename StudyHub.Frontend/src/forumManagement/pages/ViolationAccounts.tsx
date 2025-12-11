@@ -3,11 +3,7 @@ import { Card, CardContent, CardHeader } from "@/common/components/ui/card";
 import { Input } from "@/common/components/ui/input";
 import { Button } from "@/common/components/ui/button";
 import { Badge } from "@/common/components/ui/badge";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/common/components/ui/avatar";
+
 import {
   Select,
   SelectContent,
@@ -311,14 +307,6 @@ const ViolationAccounts = () => {
                       <TableRow key={user.userId}>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Avatar className="w-8 h-8">
-                              {user.userAvatar ? (
-                                <AvatarImage src={user.userAvatar} />
-                              ) : null}
-                              <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs">
-                                {user.userName.substring(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
                             <div className="font-medium">{user.userName}</div>
                           </div>
                         </TableCell>

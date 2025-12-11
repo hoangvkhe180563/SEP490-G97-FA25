@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import toast from "react-hot-toast";
-import { AlertCircle, Download, Inbox, Loader2 } from "lucide-react";
+import { AlertCircle, Download, Inbox, Loader2, Upload } from "lucide-react";
 import { Input } from "@/common/components/ui/input";
 import {
   Select,
@@ -27,14 +27,7 @@ import type { AppUser } from "@/user/interfaces/app-user";
 import { Link } from "react-router-dom";
 import { useAppRoleStore } from "@/user/stores/useRoleStore";
 
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/common/components/ui/pagination";
+import { Paging } from "@/common/components/Paging";
 
 const AccountList = () => {
   const [search, setSearch] = useState("");
@@ -439,6 +432,7 @@ const AccountList = () => {
           className="ml-2 flex items-center gap-2"
           onClick={() => exportTemplate?.(1000)}
         >
+          <Download className="w-4 h-4" />
           Mẫu Import
         </Button>
 
@@ -547,7 +541,7 @@ const AccountList = () => {
             inputRef?.current?.click();
           }}
         >
-          Import
+          <Upload className="w-4 h-4" /> Import
         </Button>
         <Button className="bg-black text-white flex items-center gap-2">
           <Link to="/user/manager/add-account">+ Thêm tài khoản</Link>
@@ -801,43 +795,11 @@ const AccountList = () => {
           Hiển thị từ {start} đến {end} trong {total} kết quả
         </span>
         <div>
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (currentPage > 1) setPage(currentPage - 1);
-                  }}
-                />
-              </PaginationItem>
-              {Array.from({ length: meta?.totalPages ?? 0 }).map((_, i) => (
-                <PaginationItem key={i}>
-                  <PaginationLink
-                    href="#"
-                    isActive={i + 1 === currentPage}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setPage(i + 1);
-                    }}
-                  >
-                    {i + 1}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if ((meta?.page ?? currentPage) < (meta?.totalPages ?? 1))
-                      setPage((meta?.page ?? currentPage) + 1);
-                  }}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+          <Paging
+            currentPage={currentPage}
+            totalPages={meta?.totalPages ?? 0}
+            onPageChange={(p) => setPage(p)}
+          />
         </div>
       </div>
     </div>

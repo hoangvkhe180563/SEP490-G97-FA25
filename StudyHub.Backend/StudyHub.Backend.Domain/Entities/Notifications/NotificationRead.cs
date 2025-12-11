@@ -13,6 +13,8 @@ namespace StudyHub.Backend.Domain.Entities.Notifications
         public Guid UserId { get; set; }
 
         public bool IsRead { get; set; }
+        public string? LinkUrl { get; set; }
+
 
         public DateTime? ReadAt { get; set; }
 

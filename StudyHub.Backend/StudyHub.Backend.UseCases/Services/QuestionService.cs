@@ -21,12 +21,17 @@ namespace StudyHub.Backend.UseCases.Services
 
         public List<string> AddCommonQuestions(List<Question> questions)
         {
+            if (questions.Count == 0)
+            {
+                return [];
+            }
             List<string> questionObjectIds = _questionRepo.AddManyQuestions(questions);
             return questionObjectIds;
         }
 
         public bool DeleteCommonQuestion(string questionObjectId)
         {
+            if (string.IsNullOrWhiteSpace(questionObjectId) || questionObjectId.Length < 24) return false;
             var question = _questionRepo.GetQuestionById(questionObjectId);
             if (question == null)
             {
@@ -49,11 +54,13 @@ namespace StudyHub.Backend.UseCases.Services
 
         public List<Subject> GetManagerSubjects(Guid managerId)
         {
+            if (managerId == Guid.Empty) return [];
             return _questionManagerRepo.GetSubjectsByManagerId(managerId);
         }
 
         public Question? GetQuestionById(string id)
         {
+            if (string.IsNullOrWhiteSpace(id) || id.Length < 24) return null;
             return _questionRepo.GetQuestionById(id);
         }
 
@@ -298,6 +305,7 @@ namespace StudyHub.Backend.UseCases.Services
 
         public List<QuestionDetailOverviewDto> GetQuestionDetailOverview(Guid managerId)
         {
+            if (managerId == Guid.Empty) return [];
             List<Subject> subjects = GetManagerSubjects(managerId);
             var questions = _questionRepo.GetCommonQuestionsBySubjects(subjects.Select(s => (int)s.Id).ToList());
             return questions.Select(q => new QuestionDetailOverviewDto

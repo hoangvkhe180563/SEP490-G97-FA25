@@ -514,19 +514,8 @@ const ViolationRecords = () => {
                       <TableRow key={violation.id}>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Avatar className="w-8 h-8">
-                              {violation.userAvatar ? (
-                                <AvatarImage src={violation.userAvatar} />
-                              ) : (
-                                <AvatarFallback className="bg-gradient-to-br bg-sky-400 hover:bg-sky-500 text-white text-xs">
-                                  {violation.userName
-                                    ?.substring(0, 2)
-                                    .toUpperCase()}
-                                </AvatarFallback>
-                              )}
-                            </Avatar>
                             <div>
-                              <div className="font-medium text-sm">
+                              <div className="font-medium text-sm ">
                                 {violation.userName}
                               </div>
                             </div>
@@ -539,7 +528,7 @@ const ViolationRecords = () => {
                                 <div className="text-xs text-gray-500">
                                   Bài viết
                                 </div>
-                                <p className="text-sm font-medium truncate">
+                                <p className="text-sm font-medium truncate max-w-[120px]">
                                   {violation.postTitle}
                                 </p>
                               </>
@@ -549,7 +538,7 @@ const ViolationRecords = () => {
                                 <div className="text-xs text-gray-500">
                                   Bình luận
                                 </div>
-                                <p className="text-sm truncate">
+                                <p className="text-sm truncate max-w-[120px]">
                                   {violation.commentContent}
                                 </p>
                               </>

@@ -62,13 +62,13 @@ const AccountImportPreviewModal: React.FC<Props> = ({
       />
       <div className="relative max-w-5xl w-full bg-white rounded-lg shadow-lg p-4 z-10 max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold">Preview Import</h3>
+          <h3 className="text-lg font-semibold">Xem trước Import</h3>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={onConfirmUpload}>
-              Upload corrected file
+              Tải lên tệp dữ liệu
             </Button>
             <Button variant="ghost" onClick={onClose}>
-              Close
+              Đóng
             </Button>
           </div>
         </div>

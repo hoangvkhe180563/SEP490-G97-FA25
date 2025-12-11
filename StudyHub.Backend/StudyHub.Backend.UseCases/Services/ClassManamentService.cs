@@ -22,15 +22,16 @@ namespace StudyHub.Backend.UseCases.Services
         // helper: whether a class belongs to a schoolId (based on CreatedBy -> user's SchoolId)
         private bool ClassBelongsToSchool(int classId, int schoolId)
         {
+            // GetClassCreatedByUserId returns a Guid (non-nullable). Treat Guid.Empty as "not found".
             var createdBy = _repo.GetClassCreatedByUserId(classId);
-            if (createdBy == null) return false;
+            if (createdBy == Guid.Empty) return false;
+
             var userSchool = _repo.GetUserSchoolId(createdBy);
             return userSchool.HasValue && userSchool.Value == schoolId;
         }
+
         public School GetSchool(Guid userGuid)
         {
-
-
             var appUser = _userRepo.GetById(userGuid);
             if (appUser == null)
                 return null;
@@ -41,14 +42,18 @@ namespace StudyHub.Backend.UseCases.Services
             var school = _repo.GetSchoolByID(appUser.SchoolId);
             return school;
         }
+
         public (List<Class> Classes, int TotalItems, int Page, int Limit, int TotalPages) GetClassesPaged(string? query, string? status, Guid memberid, int page = 1, int limit = 10)
         {
             var appUser = _userRepo.GetById(memberid);
-            
-            var allClasses = GetAllClassBySchooldID(appUser.SchoolId);
+
+            var allClasses = GetAllClassBySchooldID(appUser?.SchoolId);
+
+            // ensure allClasses is never null
+            allClasses = allClasses ?? new List<Class>();
 
             var filtered = allClasses
-                .Where(c => (string.IsNullOrEmpty(query) || c.Name.Contains(query, StringComparison.OrdinalIgnoreCase)) && c.DeletedAt == null)
+                .Where(c => (string.IsNullOrEmpty(query) || (c?.Name?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false)) && c.DeletedAt == null)
                 .ToList();
 
             int totalItems = filtered.Count;
@@ -59,19 +64,23 @@ namespace StudyHub.Backend.UseCases.Services
 
             return (paged, totalItems, page, limit, totalPages);
         }
+
         public List<Class> GetAllClassBySchooldID(int? schoolID)
         {
-            var classes = _repo.GetAllClasses();
+            var classes = _repo.GetAllClasses() ?? Enumerable.Empty<Class>();
             List<Class> result = new List<Class>();
             foreach (var clazz in classes)
             {
-                if (_userRepo.GetById(clazz.CreatedBy)!=null&&_userRepo.GetById(clazz.CreatedBy).SchoolId == schoolID)
+                if (clazz == null) continue;
+                var user = _userRepo.GetById(clazz.CreatedBy);
+                if (user != null && user.SchoolId == schoolID)
                 {
                     result.Add(clazz);
                 }
             }
             return result;
         }
+
         // Overview as tuple of primitives (optional schoolId)
         public (int TotalUsers, int TotalClasses, int TotalAssignments, int TotalAnnouncements) GetOverviewPrimitives(int? schoolId = null)
         {
@@ -86,7 +95,7 @@ namespace StudyHub.Backend.UseCases.Services
 
             // school-scoped counts: users with that school, classes created by users from that school, notifications for those classes
             var usersInSchool = _repo.GetUserCountBySchoolId(schoolId.Value);
-            var allClassIds = _repo.GetAllClassIds();
+            var allClassIds = _repo.GetAllClassIds() ?? Enumerable.Empty<int>();
             var classesForSchool = allClassIds.Where(cid => ClassBelongsToSchool(cid, schoolId.Value)).ToList();
             var classesCount = classesForSchool.Count;
 
@@ -104,7 +113,7 @@ namespace StudyHub.Backend.UseCases.Services
         // Classes by grade: optional schoolId
         public IReadOnlyList<(int Grade, int Count)> GetClassesByGradePrimitives(int? schoolId = null)
         {
-            var grades = _repo.GetAllGrades();
+            var grades = _repo.GetAllGrades() ?? Enumerable.Empty<sbyte>();
             var list = new List<(int Grade, int Count)>();
             foreach (var g in grades)
             {
@@ -116,7 +125,7 @@ namespace StudyHub.Backend.UseCases.Services
                 else
                 {
                     // count classes with grade==g AND class belongs to school
-                    var ids = _repo.GetClassIdsByGrade(g);
+                    var ids = _repo.GetClassIdsByGrade(g) ?? Enumerable.Empty<int>();
                     int cnt = ids.Count(cid => ClassBelongsToSchool(cid, schoolId.Value));
                     list.Add((g, cnt));
                 }
@@ -127,7 +136,7 @@ namespace StudyHub.Backend.UseCases.Services
         // Students per class: optional schoolId, optional limit
         public IReadOnlyList<(int ClassId, string ClassName, int Students)> GetStudentsPerClassPrimitives(int? limit = null, int? schoolId = null)
         {
-            var classIds = _repo.GetAllClassIds();
+            var classIds = _repo.GetAllClassIds() ?? Enumerable.Empty<int>();
             if (schoolId.HasValue)
                 classIds = classIds.Where(cid => ClassBelongsToSchool(cid, schoolId.Value)).ToList();
 
@@ -149,7 +158,7 @@ namespace StudyHub.Backend.UseCases.Services
         // Role counts - optional filter by school (count users in role who have SchoolId)
         public IReadOnlyList<(string RoleName, int Count)> GetRoleCountsPrimitives(int? schoolId = null)
         {
-            var roleNames = _repo.GetAllRoleNames();
+            var roleNames = _repo.GetAllRoleNames() ?? Enumerable.Empty<string>();
             var list = new List<(string RoleName, int Count)>();
             foreach (var role in roleNames)
             {
@@ -185,7 +194,7 @@ namespace StudyHub.Backend.UseCases.Services
         // Announcements by type: optional schoolId
         public IReadOnlyList<(string Type, int Count)> GetAnnouncementsByTypePrimitives(int? schoolId = null)
         {
-            var types = _repo.GetAnnouncementTypes();
+            var types = _repo.GetAnnouncementTypes() ?? Enumerable.Empty<string>();
             var list = new List<(string Type, int Count)>();
             foreach (var t in types)
             {
@@ -195,7 +204,7 @@ namespace StudyHub.Backend.UseCases.Services
                 else
                 {
                     // sum per class in school
-                    var classIds = _repo.GetAllClassIds().Where(cid => ClassBelongsToSchool(cid, schoolId.Value));
+                    var classIds = (_repo.GetAllClassIds() ?? Enumerable.Empty<int>()).Where(cid => ClassBelongsToSchool(cid, schoolId.Value));
                     foreach (var cid in classIds) cnt += _repo.GetAnnouncementCountByTypeByClass(t, cid);
                 }
                 list.Add((t, cnt));
@@ -208,11 +217,11 @@ namespace StudyHub.Backend.UseCases.Services
         {
             if (!schoolId.HasValue) return GetReadRatesPrimitivesRaw();
             // compute for classes in school
-            var types = _repo.GetAnnouncementTypes();
+            var types = _repo.GetAnnouncementTypes() ?? Enumerable.Empty<string>();
             var list = new List<(string Key, double Percent)>();
             long total = 0;
             long read = 0;
-            var classIds = _repo.GetAllClassIds().Where(cid => ClassBelongsToSchool(cid, schoolId.Value));
+            var classIds = (_repo.GetAllClassIds() ?? Enumerable.Empty<int>()).Where(cid => ClassBelongsToSchool(cid, schoolId.Value));
             // overall: sum rs for notifications that belong to those classes
             foreach (var cid in classIds)
             {
@@ -243,7 +252,7 @@ namespace StudyHub.Backend.UseCases.Services
             var read = _repo.GetTotalNotificationReadReadEntries();
             double overallPct = total == 0 ? 0.0 : ((double)read / total) * 100.0;
 
-            var types = _repo.GetAnnouncementTypes();
+            var types = _repo.GetAnnouncementTypes() ?? Enumerable.Empty<string>();
             var list = new List<(string Key, double Percent)> { ("Overall", Math.Round(overallPct, 2)) };
 
             foreach (var t in types)
@@ -260,7 +269,7 @@ namespace StudyHub.Backend.UseCases.Services
         // Top active classes: optional schoolId
         public IReadOnlyList<(int ClassId, string ClassName, double ActivityScore, int NotificationsCount, int SubmissionsCount, int CommentsCount)> GetTopActiveClassesPrimitives(int top = 10, int? schoolId = null)
         {
-            var classIds = _repo.GetAllClassIds();
+            var classIds = _repo.GetAllClassIds() ?? Enumerable.Empty<int>();
             if (schoolId.HasValue)
                 classIds = classIds.Where(cid => ClassBelongsToSchool(cid, schoolId.Value)).ToList();
 
@@ -281,10 +290,10 @@ namespace StudyHub.Backend.UseCases.Services
         // Submission rate: optional schoolId
         public double GetSubmissionRatePrimitives(int? schoolId = null)
         {
-            var notifIds = _repo.GetNotificationIdsForClasswork();
+            var notifIds = _repo.GetNotificationIdsForClasswork() ?? Enumerable.Empty<int>();
             if (!notifIds.Any()) return 0.0;
             long expected = 0;
-            var classIds = _repo.GetAllClassIds();
+            var classIds = _repo.GetAllClassIds() ?? Enumerable.Empty<int>();
             if (schoolId.HasValue)
                 classIds = classIds.Where(cid => ClassBelongsToSchool(cid, schoolId.Value)).ToList();
 
@@ -310,25 +319,34 @@ namespace StudyHub.Backend.UseCases.Services
         // Score distribution optional schoolId
         public IReadOnlyList<(string Range, int Count, double Pct)> GetScoreDistributionPrimitives(int? schoolId = null)
         {
-            var scores = _repo.GetAllGradedScores();
+            var scores = _repo.GetAllGradedScores() ?? Enumerable.Empty<double>();
             if (schoolId.HasValue)
             {
                 // filter submissions by notification's class belonging to school
-                var notifIds = _repo.GetAllNotificationIds();
+                var notifIds = _repo.GetNotificationIdsForClasswork() ?? Enumerable.Empty<int>();
                 var allowedNotifIds = notifIds.Where(nid =>
                 {
                     var cid = _repo.GetClassIdForNotification(nid);
                     return ClassBelongsToSchool(cid, schoolId.Value);
-                }).ToHashSet();
+                }).ToList();
 
-                scores = _repo.GetAllGradedScoresByNotificationIds(allowedNotifIds).ToList();
+                if (!allowedNotifIds.Any())
+                {
+                    scores = Enumerable.Empty<double>();
+                }
+                else
+                {
+                    scores = _repo.GetAllGradedScoresByNotificationIds(allowedNotifIds) ?? Enumerable.Empty<double>();
+                }
             }
 
-            var c90 = scores.Count(s => s >= 90);
-            var c80 = scores.Count(s => s >= 80 && s < 90);
-            var c70 = scores.Count(s => s >= 70 && s < 80);
-            var c0 = scores.Count(s => s < 70);
-            var total = scores.Count;
+            var scoreList = (scores ?? Enumerable.Empty<double>()).ToList();
+            var total = scoreList.Count;
+
+            var c90 = scoreList.Count(s => s >= 90);
+            var c80 = scoreList.Count(s => s >= 80 && s < 90);
+            var c70 = scoreList.Count(s => s >= 70 && s < 80);
+            var c0 = scoreList.Count(s => s < 70);
 
             var list = new List<(string, int, double)>
             {
@@ -342,10 +360,10 @@ namespace StudyHub.Backend.UseCases.Services
         }
 
         // Most interactive assignments with optional schoolId
-        public IReadOnlyList<(int NotificationId,string CreateBy, string Title, int SubmissionsCount)> GetMostInteractiveAssignmentsPrimitives(int top = 10, int? schoolId = null)
+        public IReadOnlyList<(int NotificationId, string CreateBy, string Title, int SubmissionsCount)> GetMostInteractiveAssignmentsPrimitives(int top = 10, int? schoolId = null)
         {
-            var ids = _repo.GetNotificationIdsForClasswork();
-            var list = new List<(int,string, string, int)>();
+            var ids = _repo.GetNotificationIdsForClasswork() ?? Enumerable.Empty<int>();
+            var list = new List<(int, string, string, int)>();
             foreach (var id in ids)
             {
                 var notifClassId = _repo.GetClassIdForNotification(id);
@@ -357,7 +375,8 @@ namespace StudyHub.Backend.UseCases.Services
                 list.Add((id, creatorName, title, subs));
             }
 
-            return list.OrderByDescending(x => x.Item3).Take(top).ToList();
+            // Order by submissions descending (most interactive first)
+            return list.OrderByDescending(x => x.Item4).ThenBy(x => x.Item3).Take(top).ToList();
         }
 
         // Monthly aggregates with optional schoolId
@@ -384,7 +403,7 @@ namespace StudyHub.Backend.UseCases.Services
                 {
                     try
                     {
-                        var classIds = _repo.GetAllClassIds().Where(cid => ClassBelongsToSchool(cid, schoolId.Value));
+                        var classIds = (_repo.GetAllClassIds() ?? Enumerable.Empty<int>()).Where(cid => ClassBelongsToSchool(cid, schoolId.Value));
                         var sum = 0;
                         foreach (var cid in classIds) sum += _repo.GetClassworkCountForYearMonthByClass(y, m, cid);
                         result.Add((ym, sum));
@@ -422,7 +441,7 @@ namespace StudyHub.Backend.UseCases.Services
                 {
                     try
                     {
-                        var classIds = _repo.GetAllClassIds().Where(cid => ClassBelongsToSchool(cid, schoolId.Value));
+                        var classIds = (_repo.GetAllClassIds() ?? Enumerable.Empty<int>()).Where(cid => ClassBelongsToSchool(cid, schoolId.Value));
                         var sum = 0;
                         foreach (var cid in classIds) sum += _repo.GetNotificationCountForYearMonthByClass(y, m, cid);
                         result.Add((ym, sum));
@@ -460,7 +479,7 @@ namespace StudyHub.Backend.UseCases.Services
                 {
                     try
                     {
-                        var classIds = _repo.GetAllClassIds().Where(cid => ClassBelongsToSchool(cid, schoolId.Value));
+                        var classIds = (_repo.GetAllClassIds() ?? Enumerable.Empty<int>()).Where(cid => ClassBelongsToSchool(cid, schoolId.Value));
                         var sum = 0;
                         foreach (var cid in classIds) sum += _repo.GetSubmissionCountForYearMonthByClass(y, m, cid);
                         result.Add((ym, sum));
@@ -515,7 +534,7 @@ namespace StudyHub.Backend.UseCases.Services
         // Class stats optional schoolId
         public IReadOnlyList<(int ClassId, string ClassName, int StudentsCount, double SubmissionRate, double ReadRate, int ClassworksCount, int NotificationsCount, int TotalSubmissions)> GetClassStatsPrimitives(int? schoolId = null)
         {
-            var classIds = _repo.GetAllClassIds();
+            var classIds = _repo.GetAllClassIds() ?? Enumerable.Empty<int>();
             if (schoolId.HasValue)
                 classIds = classIds.Where(cid => ClassBelongsToSchool(cid, schoolId.Value)).ToList();
 
@@ -547,7 +566,7 @@ namespace StudyHub.Backend.UseCases.Services
         // Top read notifications optional schoolId
         public IReadOnlyList<(int NotificationId, string Title, string CreatedBy, int ReadsCount, int IgnoredCount, int TotalRecipients, int SubmissionsCount)> GetTopReadNotificationsPrimitives(int top = 10, int? schoolId = null)
         {
-            var notifIds = _repo.GetAllNotificationIds() ?? new List<int>();
+            var notifIds = _repo.GetAllNotificationIds() ?? Enumerable.Empty<int>();
             var result = new List<(int NotificationId, string Title, string CreatedBy, int ReadsCount, int IgnoredCount, int TotalRecipients, int SubmissionsCount)>();
 
             foreach (var id in notifIds)
@@ -569,7 +588,7 @@ namespace StudyHub.Backend.UseCases.Services
 
         public IReadOnlyList<(int NotificationId, string Title, string CreatedBy, int ReadsCount, int IgnoredCount, int TotalRecipients, int SubmissionsCount)> GetMostIgnoredNotificationsPrimitives(int top = 10, int? schoolId = null)
         {
-            var notifIds = _repo.GetAllNotificationIds() ?? new List<int>();
+            var notifIds = _repo.GetAllNotificationIds() ?? Enumerable.Empty<int>();
             var result = new List<(int NotificationId, string Title, string CreatedBy, int ReadsCount, int IgnoredCount, int TotalRecipients, int SubmissionsCount)>();
 
             foreach (var id in notifIds)
@@ -591,7 +610,7 @@ namespace StudyHub.Backend.UseCases.Services
 
         public (int? ClassId, string ClassName, int NotificationsCount, int SubmissionsCount, int CommentsCount)? GetClassWithMostNotificationsPrimitives(int? schoolId = null)
         {
-            var classIds = _repo.GetAllClassIds() ?? new List<int>();
+            var classIds = _repo.GetAllClassIds() ?? Enumerable.Empty<int>();
             if (schoolId.HasValue)
                 classIds = classIds.Where(cid => ClassBelongsToSchool(cid, schoolId.Value)).ToList();
 

@@ -14,7 +14,6 @@ namespace StudyHub.Backend.Domain.Entities.Notifications
 
         public string? Body { get; set; }
 
-        public string? LinkUrl { get; set; }
 
         public string TargetType { get; set; } = null!;
 

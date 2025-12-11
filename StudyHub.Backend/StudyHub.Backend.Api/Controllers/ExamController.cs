@@ -106,7 +106,7 @@ namespace StudyHub.Backend.Api.Controllers
             var examEntity = examDto.ToExamEntity();
             if (examDto.QuestionObjectIds.Count != 0)
             {
-                bool isQuestionsUpdated = _service.UpdateExamQuestions(examEntity.Id, examDto.QuestionObjectIds);
+                bool isQuestionsUpdated = _service.UpdateMySQLExamQuestions(examEntity.Id, examDto.QuestionObjectIds);
                 if (!isQuestionsUpdated)
                 {
                     return Conflict("Cập nhật câu hỏi thất bại!");
@@ -125,7 +125,7 @@ namespace StudyHub.Backend.Api.Controllers
                 return BadRequest("Các câu hỏi phải có ít nhất 1 câu trả lời đúng!");
             }
             List<Question> questionEntities = questions.Select(q => q.ToQuestionEntity()).ToList();
-            List<string> questionObjectIds = _service.UpdateExamQuestions(examId, questionEntities);
+            List<string> questionObjectIds = _service.UpdateMongoDbExamQuestions(examId, questionEntities);
             return Ok(questionObjectIds);
         }
 

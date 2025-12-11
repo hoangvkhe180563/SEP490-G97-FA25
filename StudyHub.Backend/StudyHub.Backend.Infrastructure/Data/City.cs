@@ -9,5 +9,5 @@ public partial class City
 
     public string Name { get; set; } = null!;
 
-    public virtual ICollection<Province> Provinces { get; set; } = new List<Province>();
+    public virtual ICollection<Commune> Communes { get; set; } = new List<Commune>();
 }

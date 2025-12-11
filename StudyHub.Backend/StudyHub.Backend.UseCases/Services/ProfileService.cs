@@ -126,7 +126,7 @@ namespace StudyHub.Backend.UseCases.Services
             foreach (var kv in strengthGroups)
             {
                 var avg = kv.Value.Average();
-                var norm = avg > 1 ? (double)(avg / 100m) : (double)avg;
+                var norm = avg > 1 ? (double)(avg / 10m) : (double)avg;
                 var name = subjectMap.ContainsKey(kv.Key) ? subjectMap[kv.Key] : kv.Key.ToString();
                 strengthBySub[name] = (float)Math.Round(norm, 3);
             }

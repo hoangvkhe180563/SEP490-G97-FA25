@@ -9,7 +9,7 @@ import { BLANK_PLACEHOLDER, EXAM_TYPE } from '@/exam/constants/Constants';
 import type { Exam } from '@/exam/interfaces/models/Exam';
 import type { Question } from '@/exam/interfaces/models/Question';
 import { ExamService } from '@/exam/services/ExamService';
-import { getFormattedDateTime } from '@/exam/utils/ExamUtils';
+import { getFormattedDateTime, isTimeSpanInvalid } from '@/exam/utils/ExamUtils';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -103,10 +103,16 @@ const UpdateExam = () => {
       return;
     }
 
-    if (closeTime && closeTime < openTime) {
-      toast.error("Ngày bắt đầu phải trước ngày kết thúc!");
-      setLoading(false);
-      return;
+    if (closeTime) {
+      if (closeTime < openTime) {
+        toast.error("Ngày bắt đầu phải trước ngày kết thúc!");
+        setLoading(false);
+        return;
+      } else if (isTimeSpanInvalid(new Date(openTime), new Date(closeTime), parseInt(examDuration) + 5)) {
+        toast.error("Khoảng thời gian bài thi được mở phải lớn hơn thời gian làm bài ít nhất 5 phút!");
+        setLoading(false);
+        return;
+      }
     }
 
     // Basic validation for questions

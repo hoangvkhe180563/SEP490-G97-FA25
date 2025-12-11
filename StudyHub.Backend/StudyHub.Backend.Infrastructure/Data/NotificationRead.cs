@@ -13,6 +13,8 @@ public partial class NotificationRead
 
     public DateTime? ReadAt { get; set; }
 
+    public string? LinkUrl { get; set; }
+
     public DateTime DeliveredAt { get; set; }
 
     public virtual Notification Notification { get; set; } = null!;

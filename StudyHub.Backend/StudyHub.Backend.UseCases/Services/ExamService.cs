@@ -11,7 +11,7 @@ namespace StudyHub.Backend.UseCases.Services
         private readonly IAnswerRepository _answerRepo;
         private readonly IExamRepository _examRepo;
         private readonly IExamResultRepository _examResultRepo;
-        public ExamService(IQuestionRepository questionRepo, IExamRepository examRepo, IExamResultRepository examResultRepo, IAnswerRepository answerRepo)
+        public ExamService(IExamRepository examRepo, IExamResultRepository examResultRepo, IQuestionRepository questionRepo, IAnswerRepository answerRepo)
         {
             _questionRepo = questionRepo;
             _examRepo = examRepo;
@@ -21,11 +21,13 @@ namespace StudyHub.Backend.UseCases.Services
 
         public List<Exam> GetAllClassExamsByStudent(Guid studentId)
         {
+            if (studentId == Guid.Empty) return [];
             return _examRepo.GetAllClassExamsByStudent(studentId);
         }
 
         public List<Exam> GetAllClassExams(int classId)
         {
+            if (classId <= 0) return [];
             return _examRepo.GetAllClassExams(classId);
         }
 
@@ -78,12 +80,12 @@ namespace StudyHub.Backend.UseCases.Services
             return _examRepo.UpdateExam(examEntity);
         }
 
-        public bool UpdateExamQuestions(int examId, List<string> questionObjectIds)
+        public bool UpdateMySQLExamQuestions(int examId, List<string> questionObjectIds)
         {
             return _examRepo.UpdateExamQuestions(examId, questionObjectIds);
         }
 
-        public List<string> UpdateExamQuestions(int examId, List<Question> questions)
+        public List<string> UpdateMongoDbExamQuestions(int examId, List<Question> questions)
         {
             List<string> objectIdsFromDb = _examRepo.GetExamQuestionObjectIds(examId);
             List<string> objectIdsFromApi = questions.Select(x => x.Id).ToList();
@@ -171,6 +173,10 @@ namespace StudyHub.Backend.UseCases.Services
 
         public bool UpdateExamPaper(string resultObjectId, List<ExamAnswer> answers)
         {
+            if (string.IsNullOrWhiteSpace(resultObjectId) || resultObjectId.Length < 24 || answers.Count == 0)
+            {
+                return false;
+            }
             return _answerRepo.UpdateManyAnswers(resultObjectId, answers);
         }
 
@@ -181,11 +187,13 @@ namespace StudyHub.Backend.UseCases.Services
 
         public bool? CheckIfResultIsSubmitted(string resultId)
         {
+            if (string.IsNullOrWhiteSpace(resultId)) return null;
             return _examResultRepo.CheckIfResultIsSubmitted(resultId);
         }
 
         public bool SubmitExamResult(string resultId)
         {
+            if (string.IsNullOrWhiteSpace(resultId) || resultId.Length < 24) return false;
             DateTime submissionTime = DateTime.Now;
 
             //1. get all the answers of the exam paper
@@ -235,7 +243,7 @@ namespace StudyHub.Backend.UseCases.Services
                     case QuestionType.TextInput:
                         {
                             TextInputQuestion? tiq = questions[i] as TextInputQuestion;
-                            string studentAnswer = answer.JsonAnswers;
+                            string studentAnswer = answer.JsonAnswers.Replace("\"", "");
                             if (studentAnswer.ToLower().Trim() == tiq.CorrectAnswer.ToLower().Trim())
                             {
                                 corrects++;
@@ -358,6 +366,7 @@ namespace StudyHub.Backend.UseCases.Services
 
         public List<Question> GenerateRandomQuestions(int examId)
         {
+            if (examId <= 0) return [];
             var exam = _examRepo.GetExamById(examId);
             if (exam == null || exam.NoRandomQuestions == null || exam.SubjectId == null || exam.Grade == null)
             {
@@ -369,11 +378,13 @@ namespace StudyHub.Backend.UseCases.Services
 
         public int GetCourseIdByLessonId(int lessonId)
         {
+            if (lessonId <= 0) return 0;
             return _examRepo.GetCourseIdByLessonId(lessonId);
         }
 
         public string GetLatestResultIdByLessonId(int lessonId, Guid studentId)
         {
+            if (lessonId <= 0 || studentId == Guid.Empty) return string.Empty;
             var exam = _examRepo.GetLessonExam(lessonId);
             if (exam == null) return string.Empty;
 
@@ -385,6 +396,7 @@ namespace StudyHub.Backend.UseCases.Services
 
         public dynamic? CheckLessonStatus(int lessonId, Guid studentId)
         {
+            if (lessonId <= 0 || studentId == Guid.Empty) return null;
             var exam = _examRepo.GetLessonExam(lessonId);
             if (exam == null) return null;
 
@@ -409,6 +421,7 @@ namespace StudyHub.Backend.UseCases.Services
 
         public ExamResult? GetProcessingExamResult(int examId, Guid studentId)
         {
+            if (examId <= 0 || studentId == Guid.Empty) return null;
             var results = _examResultRepo.GetResultsByExamIdAndStudentId(examId, studentId);
             var latestResult = results.FirstOrDefault(result => result.SubmissionTime == null);
             if (latestResult == null)

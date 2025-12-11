@@ -27,7 +27,6 @@ interface CurrentUser {
   updatedAt: string;
   schoolId: number;
   cityId: number;
-  provinceId: number;
   communeId: number;
   roles?: string[];
   subjects?: string[];

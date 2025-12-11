@@ -67,6 +67,7 @@ const DetailedClassTeacher: React.FC = () => {
 
   const [documents, setDocuments] = useState<DocumentDto[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
+  // notifications state is held here so we can update it when child edits a post
   const [notifications, setNotifications] = useState<ClassNotification[]>([]);
   const [classMemberCount, setClassMemberCount] = useState<number | null>(null);
 
@@ -84,7 +85,6 @@ const DetailedClassTeacher: React.FC = () => {
     const t = searchParams.get("tab");
     if (t) setActiveTab(t);
     else setActiveTab("notifications");
-     
   }, [searchParams]);
 
   // fetch class info
@@ -131,6 +131,7 @@ const DetailedClassTeacher: React.FC = () => {
       mounted = false;
     };
   }, [id, getDocumentsByClassId]);
+
   const DocumentPreviewCard: React.FC<{ doc: DocumentDto; role: string }> = ({ doc, role }) => {
     const navigateLocal = useNavigate();
     const isImage = !!(doc.fileType && /jpg|jpeg|png|gif|bmp|webp/i.test(String(doc.fileType)));
@@ -437,6 +438,7 @@ const DetailedClassTeacher: React.FC = () => {
       const payload = { classId: Number(id), title: titleToSend, description: content, files, links, createdBy };
       const created = await createNotification(payload);
       if (created) {
+        // update local notifications state so new notifications are shown immediately
         setNotifications((prev) => [created, ...(prev ?? [])]);
         if (typeof getClassInfo === "function") await getClassInfo(Number(id));
       }
@@ -494,10 +496,20 @@ const DetailedClassTeacher: React.FC = () => {
             </div>
 
             <TabsContent value="notifications">
-              <NotificationsTab classId={id} notifications={notifications} onPost={handlePost} isTeacher={role === "teacher"} />
+              {/* Pass onNotificationsChange to allow NotificationsTab/PostCard to update the parent list immediately */}
+              <NotificationsTab
+                classId={id}
+                notifications={notifications}
+                onPost={handlePost}
+                isTeacher={role === "teacher"}
+                onNotificationsChange={(next) => {
+                  // ensure we update parent state when children notify of changes
+                  setNotifications(next);
+                }}
+              />
             </TabsContent>
 
-            <TabsContent value="exercise">
+             <TabsContent value="exercise">
               <ExerciseTab
                 works={worksFromStore}
                 role={role as "teacher" | "student"}
@@ -511,6 +523,19 @@ const DetailedClassTeacher: React.FC = () => {
                 memberCounts={memberCounts}
                 classDefaultCount={classMemberCount ?? (students?.length ?? null)}
                 navigateToEdit={(wid) => navigate(`/class/${role}/${id}/classwork/${wid}/edit`)}
+                onRemoveWork={async (workId: number) => {
+                  try {
+                    if (typeof getClassWorks === "function") {
+                      await getClassWorks(Number(id));
+                      if (typeof getClassInfo === "function") await getClassInfo(Number(id));
+                      
+                    } else {
+                      // fallback: force a re-render by toggling consolidatedFetchedRef to null
+                    }
+                  } catch (err) {
+                    console.error("onRemoveWork handler failed", err);
+                  }
+                }}
               />
             </TabsContent>
 
