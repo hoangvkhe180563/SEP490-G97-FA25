@@ -235,7 +235,7 @@ const EditCourse: React.FC = () => {
     let startDate: Date | null = null;
     let endDate: Date | null = null;
     if (hasStart) {
-      startDate = parse(startAt, 'yyyy-mm-dd', new Date());
+      startDate = parse(startAt, "yyyy-mm-dd", new Date());
       if (isNaN(startDate.getTime()))
         fieldErrors.startAt = "Ngày bắt đầu không hợp lệ.";
     }
@@ -1236,10 +1236,7 @@ const EditCourse: React.FC = () => {
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between w-full">
-                    <CardTitle>
-                      Hình thu nhỏ khóa học{" "}
-                      <span className="text-red-600">*</span>
-                    </CardTitle>
+                    <CardTitle>Hình thu nhỏ khóa học </CardTitle>
 
                     <Popover>
                       <PopoverTrigger asChild>

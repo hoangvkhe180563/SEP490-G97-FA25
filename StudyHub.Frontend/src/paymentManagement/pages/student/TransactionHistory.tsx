@@ -486,7 +486,7 @@ const TransactionHistory: React.FC = () => {
                                   onRequestRefund(t);
                                 }}
                               >
-                                Yêu cầu rút tiền
+                                Yêu cầu hoàn tiền
                               </Button>
                             ) : (
                               <div className="text-gray-400">—</div>
