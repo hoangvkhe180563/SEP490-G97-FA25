@@ -29,12 +29,6 @@ namespace StudyHub.Backend.UseCases.Services
             return landingPage;
         }
 
-        public List<LandingPage> GetLandingPageList()
-        {
-            var landingPages = _repo.GetLandingPages();
-            return landingPages;
-        }
-
         public string GetSchoolAddress(int schoolId)
         {
             return _repo.GetSchoolAddress(schoolId);
@@ -42,6 +36,10 @@ namespace StudyHub.Backend.UseCases.Services
 
         public LandingPage? GetSchoolLandingPage(int schoolId)
         {
+            if (schoolId <= 0)
+            {
+                return null;
+            }
             var landingPage = _repo.GetLandingPage(schoolId);
             var teachers = _repo.GetFeaturedTeachers(schoolId);
             var documents = _repo.GetFeaturedDocuments(schoolId);

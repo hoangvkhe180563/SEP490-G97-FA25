@@ -190,7 +190,7 @@ const FlairManagement = () => {
     setActionLoading(false);
 
     if (result?.success) {
-      toast.success("Tạo flair thành công");
+      toast.success("Tạo thẻ thành công");
       setShowCreateDialog(false);
       setFormData({ name: "", description: "", isProtected: false });
       loadFlairs();
@@ -202,7 +202,7 @@ const FlairManagement = () => {
   const handleUpdate = async () => {
     if (!selectedFlair) return;
     if (!formData.name.trim()) {
-      toast.error("Vui lòng nhập tên flair");
+      toast.error("Vui lòng nhập tên thẻ");
       return;
     }
 
@@ -215,7 +215,7 @@ const FlairManagement = () => {
     setActionLoading(false);
 
     if (result?.success) {
-      toast.success("Cập nhật flair thành công");
+      toast.success("Cập nhật thẻ thành công");
       setShowEditDialog(false);
       setSelectedFlair(null);
       setFormData({ name: "", description: "", isProtected: false });
@@ -231,9 +231,7 @@ const FlairManagement = () => {
     setActionLoading(false);
 
     if (result?.success) {
-      toast.success(
-        flair.status ? "Đã vô hiệu hóa flair" : "Đã kích hoạt flair"
-      );
+      toast.success(flair.status ? "Đã vô hiệu hóa thẻ" : "Đã kích hoạt thẻ");
       loadFlairs();
     } else {
       toast.error(result?.message || "Có lỗi xảy ra");
@@ -248,7 +246,7 @@ const FlairManagement = () => {
     setActionLoading(false);
 
     if (result?.success) {
-      toast.success("Xóa flair thành công");
+      toast.success("Xóa thẻ thành công");
       setShowDeleteDialog(false);
       setSelectedFlair(null);
       loadFlairs();
@@ -262,7 +260,7 @@ const FlairManagement = () => {
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Quản lý Flair</h1>
+            <h1 className="text-3xl font-bold">Quản lý thẻ</h1>
             <p className="text-gray-600 mt-1">
               Quản lý các loại bài viết trong forum
             </p>
@@ -275,7 +273,7 @@ const FlairManagement = () => {
             }}
           >
             <Plus className="w-4 h-4" />
-            Tạo Flair mới
+            Tạo thẻ mới
           </Button>
         </div>
 
@@ -362,7 +360,7 @@ const FlairManagement = () => {
               </div>
 
               <div className="text-sm text-gray-600">
-                Tìm thấy <strong>{filteredAndSortedFlairs.length}</strong> flair
+                Tìm thấy <strong>{filteredAndSortedFlairs.length}</strong> thẻ
               </div>
             </div>
           </CardHeader>
@@ -376,7 +374,7 @@ const FlairManagement = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Tên Flair</TableHead>
+                      <TableHead>Tên thẻ</TableHead>
                       <TableHead>Mô tả</TableHead>
                       <TableHead>Kiểm duyệt vi phạm</TableHead>
                       <TableHead>Trạng thái</TableHead>
@@ -462,9 +460,7 @@ const FlairManagement = () => {
               </>
             ) : (
               <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">
-                  Không tìm thấy flair nào
-                </p>
+                <p className="text-gray-500 text-lg">Không tìm thấy thẻ nào</p>
                 <Button
                   variant="ghost"
                   className="mt-4"
@@ -481,16 +477,16 @@ const FlairManagement = () => {
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tạo Flair mới</DialogTitle>
+            <DialogTitle>Tạo thẻ mới</DialogTitle>
             <DialogDescription>
               Tạo loại bài viết mới cho forum
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Tên Flair *</label>
+              <label className="text-sm font-medium">Tên thẻ *</label>
               <Input
-                placeholder="Nhập tên flair..."
+                placeholder="Nhập tên thẻ..."
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
@@ -513,7 +509,7 @@ const FlairManagement = () => {
                   Kiểm duyệt vi phạm
                 </label>
                 <p className="text-sm text-gray-500">
-                  Bài viết với flair này sẽ bị pending nếu vi phạm quy tắc
+                  Bài viết với thẻ này sẽ phải chờ xét duyệt
                 </p>
               </div>
               <Switch
@@ -536,7 +532,7 @@ const FlairManagement = () => {
               {actionLoading && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               )}
-              Tạo Flair
+              Tạo thẻ
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -547,12 +543,12 @@ const FlairManagement = () => {
           {selectedFlair && (
             <>
               <DialogHeader>
-                <DialogTitle>Chỉnh sửa Flair</DialogTitle>
-                <DialogDescription>Cập nhật thông tin flair</DialogDescription>
+                <DialogTitle>Chỉnh sửa thẻ</DialogTitle>
+                <DialogDescription>Cập nhật thông tin thẻ</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Tên Flair *</label>
+                  <label className="text-sm font-medium">Tên thẻ *</label>
                   <Input
                     value={formData.name}
                     onChange={(e) =>
@@ -611,7 +607,7 @@ const FlairManagement = () => {
           <DialogHeader>
             <DialogTitle>Xác nhận xóa</DialogTitle>
             <DialogDescription>
-              Bạn có chắc chắn muốn xóa flair "{selectedFlair?.name}"? Hành động
+              Bạn có chắc chắn muốn xóa thẻ "{selectedFlair?.name}"? Hành động
               này không thể hoàn tác.
             </DialogDescription>
           </DialogHeader>
