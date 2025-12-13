@@ -39,7 +39,17 @@ const CourseContentItem: React.FC<{
             {title}
           </div>
           {subtitle && (
-            <div className="text-sm text-gray-500 line-clamp-3">{subtitle}</div>
+            <div
+              className="text-sm text-gray-500"
+              style={{
+                display: "-webkit-box",
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {subtitle}
+            </div>
           )}
         </div>
 
@@ -68,21 +78,35 @@ const CourseContentItem: React.FC<{
         isPreview ? "border-blue-200 bg-blue-50/50" : ""
       }`}
     >
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        {/* Icon: Thêm shrink-0 để icon không bị bóp méo khi màn hình nhỏ */}
+        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
           {isCompleted ? (
             <Check className="w-4 h-4 text-green-600" />
           ) : (
             <Play className="w-4 h-4 text-gray-600" />
           )}
         </div>
+
         <div>
-          <div className="font-medium text-gray-800">{title}</div>
-          {subtitle && <div className="text-sm text-gray-500">{subtitle}</div>}
+          <div className="font-medium text-gray-800 truncate">{title}</div>
+
+          {subtitle && (
+            <div
+              className="text-sm text-gray-500"
+              style={{
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {subtitle}
+            </div>
+          )}
         </div>
       </div>
-
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0 ml-4">
         {isPreview && (
           <Button
             variant="ghost"

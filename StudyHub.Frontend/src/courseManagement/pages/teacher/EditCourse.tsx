@@ -1236,10 +1236,7 @@ const EditCourse: React.FC = () => {
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between w-full">
-                    <CardTitle>
-                      Hình thu nhỏ khóa học{" "}
-                      <span className="text-red-600">*</span>
-                    </CardTitle>
+                    <CardTitle>Hình thu nhỏ khóa học </CardTitle>
 
                     <Popover>
                       <PopoverTrigger asChild>
