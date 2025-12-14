@@ -8,7 +8,7 @@
 
         public string SubjectName { get; set; }
         public sbyte Grade { get; set; }
-
+        public DateTime CreateAt { get; set; }
         public string InstructorName { get; set; }
         public string Description { get; set; }
 

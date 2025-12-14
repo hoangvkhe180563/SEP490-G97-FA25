@@ -22,6 +22,8 @@ import { useMessageStore } from "@/qaManagement/stores/useMessageStore";
 import NotFound from "@/common/pages/NotFound";
 import recommendationRoutes from "@/recommend/routes/RecommendationRoutes";
 import ProtectedRoute from "@/common/components/ProtectedRoute";
+import notificationRoutes from "@/notification/routes/NotificationRoutes";
+import { useNotificationStore } from "@/notification/stores/useNotificationStore";
 
 const AppRouter = () => {
   const { user, checkAuth, isAuthenticated, isCheckingAuth } = useAuthStore();
@@ -29,6 +31,8 @@ const AppRouter = () => {
   const { startPaymentConnection, stopPaymentConnection } = usePaymentStore();
   const { startRead, stopRead } = useConversationStore();
   const { startChat, stopChat } = useMessageStore();
+  const { startNotification, stopNotification } = useNotificationStore();
+
 
   useEffect(() => {
     checkAuth();
@@ -43,6 +47,7 @@ const AppRouter = () => {
         await startPaymentConnection();
         await startRead?.();
         await startChat?.();
+        await startNotification?.();
       } catch (err) {
         // non-fatal
         console.warn("startPresence failed", err);
@@ -55,6 +60,7 @@ const AppRouter = () => {
         stopPaymentConnection();
         stopRead?.();
         stopChat?.();
+        stopNotification?.();
       } catch (err) {
         /* ignore */
       }
@@ -112,6 +118,15 @@ const AppRouter = () => {
         </ProtectedRoute>
       ),
       children: classRoutes,
+    },
+     {
+      path: RouteConfig.NOTIFICATION,
+      element: (
+        <ProtectedRoute>
+          <RegisteredLayout user={user} />
+        </ProtectedRoute>
+      ),
+      children: notificationRoutes,
     },
     {
       path: RouteConfig.DOCUMENT_MANAGEMENT,

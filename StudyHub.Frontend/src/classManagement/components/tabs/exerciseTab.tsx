@@ -1,10 +1,11 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
 import React, { useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/common/components/ui/button";
 import { Card } from "@/common/components/ui/card";
 import type { ClassWork } from "@/classManagement/interfaces/class";
 import { isPastDeadline } from "@/classManagement/utils/dateutil";
+import useClassStore from "@/classManagement/stores/useClassStore";
+import { Trash2 } from "lucide-react";
 
 type Props = {
   works: ClassWork[];
@@ -19,6 +20,10 @@ type Props = {
   memberCounts?: Record<number, number | null>;
   classDefaultCount?: number | null;
   navigateToEdit?: (workId: number) => void;
+
+  // NEW: callback to inform parent that a work/notification was removed
+  // If provided, ExerciseTab will call this so the parent can update its state/store.
+  onRemoveWork?: (workId: number) => Promise<void> | void;
 };
 
 const normalizeFiles = (rawFiles: any[], workId: number) => {
@@ -248,10 +253,16 @@ const ExerciseTab: React.FC<Props> = ({
   memberCounts = {},
   classDefaultCount = null,
   navigateToEdit,
+  onRemoveWork,
 }) => {
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+  const [removedIds, setRemovedIds] = useState<number[]>([]);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // store action for deleting notifications (as requested)
+  const deleteNotification = useClassStore((s) => (s as any).deleteNotification);
 
   const uniqWorks = useMemo(() => {
     const map = new Map<number, ClassWork>();
@@ -297,6 +308,42 @@ const ExerciseTab: React.FC<Props> = ({
     }
   };
 
+  const handleDelete = async (w: ClassWork, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    if (!window.confirm("Bạn có chắc muốn xoá mục này?")) return;
+    try {
+      setDeletingId(w.id);
+      // call store deleteNotification as requested (note: this API deletes ClassNotification by id)
+      const ok = await deleteNotification(w.id);
+      if (ok) {
+        // Prefer to notify parent (so parent updates canonical list). If parent does not provide onRemoveWork,
+        // fall back to hiding locally with removedIds (local UI-only).
+        if (typeof onRemoveWork === "function") {
+          try {
+            await onRemoveWork(w.id);
+          } catch (err) {
+            // if parent's callback fails, still hide locally
+            setRemovedIds((prev) => [...prev, w.id]);
+          }
+        } else {
+          setRemovedIds((prev) => [...prev, w.id]);
+        }
+      } else {
+        // eslint-disable-next-line no-alert
+        alert("Xoá thất bại");
+      }
+    } catch (err) {
+      console.error("delete failed", err);
+      // eslint-disable-next-line no-alert
+      alert("Xoá thất bại");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div>
       <div className="flex justify-end mb-4">
@@ -317,6 +364,7 @@ const ExerciseTab: React.FC<Props> = ({
         ) : (
           <div className="space-y-4">
             {uniqWorks.map((w) => {
+              if (removedIds.includes(w.id)) return null; // hide deleted ones locally
               const past = !!w.deadline && isPastDeadline(w.deadline);
               const submission = submissionCounts[w.id] ?? "—";
               const members = (memberCounts[w.id] ?? null) !== null ? memberCounts[w.id] : (classDefaultCount !== null ? classDefaultCount : "—");
@@ -338,7 +386,7 @@ const ExerciseTab: React.FC<Props> = ({
                       <div className="font-medium text-slate-800 mt-1">{w.deadline ? new Date(w.deadline).toLocaleString() : "Không xác định"}</div>
                       {past && <div className="mt-2 text-xs text-red-600 font-semibold">Đã quá hạn</div>}
                       {role === "teacher" && (
-                        <div className="mt-3">
+                        <div className="mt-3 flex items-center justify-end gap-2">
                           <Button
                             type="button"
                             aria-label={`Sửa bài tập ${w.title}`}
@@ -362,6 +410,19 @@ const ExerciseTab: React.FC<Props> = ({
                             disabled={past}
                           >
                             ✏️ Sửa
+                          </Button>
+
+                          <Button
+                            type="button"
+                            aria-label={`Xóa bài tập ${w.title}`}
+                            onClick={(e) => void handleDelete(w, e)}
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600"
+                            disabled={deletingId === w.id}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span className="ml-2">{deletingId === w.id ? "Đang xoá..." : "Xoá"}</span>
                           </Button>
                         </div>
                       )}

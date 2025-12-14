@@ -1,4 +1,4 @@
-// Modifications in ClassList component: fetch unread counts for visible classItems and pass to ClassCard
+// Modifications in ClassList component: only ClassList adjusted so non-homeroom users won't see edit/create
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import ClassCard from "@/classManagement/components/ui/classcard";
@@ -75,6 +75,23 @@ const ClassList: React.FC = () => {
   const coarseRole = mapToCoarseRole(user?.roles);
   const userRole: UserRole = (coarseRole === "student" ? "student" : userRoleFromPath) as UserRole;
 
+  // Determine if the current logged-in user is a Homeroom Teacher.
+  // We normalize role strings and check common variants to be robust across backends.
+  const isHomeroomTeacher = useMemo(() => {
+    if (!user?.roles || !Array.isArray(user.roles)) return false;
+    return user.roles.some((r: any) => {
+      if (!r) return false;
+      const s = String(r).toLowerCase().replace(/[\s-_]/g, "");
+      // check common possibilities: "homeroomteacher", "homeroom", "homeroom_teacher", "homeroom teacher"
+      return s === "homeroomteacher" || s === "homeroom" || s === "homeroomteacherrole" || s.includes("homeroom");
+    });
+  }, [user?.roles]);
+
+  // We keep the internal userRole (used for navigation) unchanged,
+  // but pass a restricted role to ClassCard so that ClassCard's internal logic
+  // (which shows edit only for 'teacher') will not show edit for non-homeroom users.
+  const cardUserRole: UserRole = isHomeroomTeacher ? "teacher" : "student";
+
   const buildQuery = () => {
     const params = new URLSearchParams();
     if (query.trim()) params.append("query", query.trim());
@@ -143,6 +160,11 @@ const ClassList: React.FC = () => {
 
   const handleMenu = (action: "viewClassworks" | "viewStudents" | "edit", id: number | string) => {
     if (action === "edit") {
+      // Only allow editing if current user is a Homeroom Teacher
+      if (!isHomeroomTeacher) {
+        // silently ignore or optionally show a toast/alert — here we just ignore.
+        return;
+      }
       const item = classItems.find((c) => c.id === id);
       if (item) {
         setEditing({ ...item });
@@ -159,6 +181,8 @@ const ClassList: React.FC = () => {
   };
 
   const handleCreate = async (payload: { title: string; description?: string; grade?: number | null }) => {
+    // Only allow creation if current user is Homeroom Teacher
+    if (!isHomeroomTeacher) return;
     // pass createdBy from auth store
     const created = await addClass({ ...payload, createdBy: currentUserId, grade: payload.grade ?? undefined });
     if (created) {
@@ -224,7 +248,7 @@ const ClassList: React.FC = () => {
                 <SelectItem value="all">Tất cả khối</SelectItem>
                 {availableGrades.length === 0 ? (
                   // If no grades available show a disabled placeholder
-                  <SelectItem value="all">Không có khối</SelectItem>
+                  <SelectItem value="-1">Không có khối</SelectItem>
                 ) : (
                   availableGrades.map((g) => (
                     <SelectItem key={g} value={String(g)}>
@@ -238,7 +262,11 @@ const ClassList: React.FC = () => {
         </div>
 
         <div className="mt-3 sm:mt-0 ml-auto">
-          {userRole === "teacher" && (
+          {/*
+            ONLY show create button to Homeroom Teachers.
+            Previously this showed for any 'teacher' coarse role; now restricted.
+          */}
+          {isHomeroomTeacher && (
             <Button onClick={() => setShowCreate(true)} className="text-lg">
               + Tạo lớp học
             </Button>
@@ -283,7 +311,8 @@ const ClassList: React.FC = () => {
                   id={c.id}
                   title={c.grade ? `${c.title} • Khối ${c.grade}` : c.title}
                   teacher={c.teacher}
-                  userRole={userRole}
+                  // pass a restricted role to the card so it won't show edit when user is not homeroom teacher
+                  userRole={cardUserRole}
                   onView={handleView}
                   onMenu={handleMenu}
                   grade={c.grade ?? null}

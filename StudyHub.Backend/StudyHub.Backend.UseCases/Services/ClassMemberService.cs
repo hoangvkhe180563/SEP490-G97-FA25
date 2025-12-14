@@ -1,396 +1,446 @@
-﻿using Microsoft.AspNetCore.Http;
-using OfficeOpenXml;
-using StudyHub.Backend.Api.Services;
-using StudyHub.Backend.Domain.Entities;
-using StudyHub.Backend.UseCases.Repositories;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
+﻿    using Microsoft.AspNetCore.Http;
+    using OfficeOpenXml;
+    using StudyHub.Backend.Api.Services;
+    using StudyHub.Backend.Domain.Entities;
+    using StudyHub.Backend.UseCases.Repositories;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Net;
+    using System.Reflection;
+    using System.Text;
+    using System.Threading.Tasks;
 
-namespace StudyHub.Backend.UseCases.Services
-{
-    public class ClassMemberService
+    namespace StudyHub.Backend.UseCases.Services
     {
-        private readonly IClassRepository _classRepository;
-        private readonly IClassMemberRepository _classMemberRepository;
-        private readonly ICloudinaryRepository _fileStorage;
-        private readonly IAppUserRepository _userRepository;
-        private readonly SmtpEmailService _emailService;
-        private static bool _epplusLicenseInitialized = false;
-        private static readonly object _epplusLicenseInitLock = new object();
-        public ClassMemberService(IClassMemberRepository classRepository, ICloudinaryRepository fileStorage, IAppUserRepository userRepository, SmtpEmailService emailService, IClassRepository classes)
+        public class ClassMemberService
         {
-            _classMemberRepository = classRepository;
-            _fileStorage = fileStorage;
-            _userRepository = userRepository;
-            _emailService = emailService;
-            _classRepository = classes;
-        }
-        public List<AppUserClass> GetClassMembers(int id) => _classMemberRepository.GetClassMembers(id);
-
-
-        // Invite flow moved to service. Accept simple primitives (no Api DTOs) so use-cases project doesn't reference Api project.
-        public async Task<List<object>> InviteByEmailsAsync(int classId, List<string> emails, string role, string? message, string baseFrontendUrl)
-        {
-            var cls = _classRepository.GetClassById(classId);
-            if (cls == null) throw new ArgumentException("Không tìm thấy lớp học.");
-
-            if (emails == null || emails.Count == 0)
-                throw new ArgumentException("Cần cung cấp ít nhất một email để mời.");
-
-            var results = new List<object>();
-
-            foreach (var raw in emails.Select(e => e?.Trim()).Where(e => !string.IsNullOrWhiteSpace(e)).Distinct(StringComparer.OrdinalIgnoreCase))
+            private readonly IClassRepository _classRepository;
+            private readonly IClassMemberRepository _classMemberRepository;
+            private readonly ICloudinaryRepository _fileStorage;
+            private readonly IAppUserRepository _userRepository;
+            private readonly SmtpEmailService _emailService;
+            private static bool _epplusLicenseInitialized = false;
+            private static readonly object _epplusLicenseInitLock = new object();
+            public ClassMemberService(IClassMemberRepository classRepository, ICloudinaryRepository fileStorage, IAppUserRepository userRepository, SmtpEmailService emailService, IClassRepository classes)
             {
-                var email = raw!;
-                var user = _userRepository.GetByEmail(email);
-
-                if (user != null)
-                {
-                    var invited = _classMemberRepository.InviteMember(user.Id, classId);
-                    var acceptUrl = $"{baseFrontendUrl}/class/{role.ToLower()}/{classId}/invite/confirm";
-                    try
-                    {
-                        await _emailService.SendClassInvitationEmailAsync(email, cls.Name ?? "Class", acceptUrl, inviterName: _userRepository.GetById(cls.CreatedBy)?.Fullname ?? "", customMessage: message);
-                    }
-                    catch
-                    {
-                        // swallow email errors
-                    }
-                    results.Add(new { email, existingAccount = true, invited });
-                }
-                else
-                {
-                    var registerUrl = $"{baseFrontendUrl}/register?email={WebUtility.UrlEncode(email)}&redirect=/class/{classId}";
-                    try
-                    {
-                        await _emailService.SendClassInvitationEmailAsync(email, cls.Name ?? "Class", registerUrl, inviterName: _userRepository.GetById(cls.CreatedBy)?.Fullname ?? "", customMessage: message);
-                    }
-                    catch
-                    {
-                    }
-                    results.Add(new { email, existingAccount = false, invited = false });
-                }
+                _classMemberRepository = classRepository;
+                _fileStorage = fileStorage;
+                _userRepository = userRepository;
+                _emailService = emailService;
+                _classRepository = classes;
             }
+            public List<AppUserClass> GetClassMembers(int id) => _classMemberRepository.GetClassMembers(id);
 
-            return results;
-        }
-        private static void EnsureEpplusLicense()
-        {
-            if (_epplusLicenseInitialized) return;
 
-            lock (_epplusLicenseInitLock)
+            // Invite flow moved to service. Accept simple primitives (no Api DTOs) so use-cases project doesn't reference Api project.
+            public async Task<List<object>> InviteByEmailsAsync(int classId, List<string> emails, string role, string? message, string baseFrontendUrl)
             {
-                if (_epplusLicenseInitialized) return;
+                var cls = _classRepository.GetClassById(classId);
+                if (cls == null) throw new ArgumentException("Không tìm thấy lớp học.");
 
-                try
+                if (emails == null || emails.Count == 0)
+                    throw new ArgumentException("Cần cung cấp ít nhất một email để mời.");
+
+                var results = new List<object>();
+
+                foreach (var raw in emails.Select(e => e?.Trim()).Where(e => !string.IsNullOrWhiteSpace(e)).Distinct(StringComparer.OrdinalIgnoreCase))
                 {
-                    var excelPackageType = typeof(ExcelPackage);
+                    var email = raw!;
+                    var user = _userRepository.GetByEmail(email);
 
-                    // Try EPPlus 8+ static property: ExcelPackage.License
-                    var licenseProp = excelPackageType.GetProperty("License", BindingFlags.Static | BindingFlags.Public);
-                    if (licenseProp != null)
+                    if (user != null)
                     {
-                        var licensePropType = licenseProp.PropertyType;
-
-                        object valueToSet = null;
-
-                        // If the License property is an enum, parse NonCommercial
-                        if (licensePropType.IsEnum)
+                        var invited = _classMemberRepository.InviteMember(user.Id, classId);
+                        var acceptUrl = $"{baseFrontendUrl}/class/{role.ToLower()}/{classId}/invite/confirm";
+                        try
                         {
-                            try
-                            {
-                                valueToSet = Enum.Parse(licensePropType, "NonCommercial");
-                            }
-                            catch
-                            {
-                                valueToSet = null;
-                            }
+                            await _emailService.SendClassInvitationEmailAsync(email, cls.Name ?? "Class", acceptUrl, inviterName: _userRepository.GetById(cls.CreatedBy)?.Fullname ?? "", customMessage: message);
                         }
-                        else
+                        catch
                         {
-                            // Try static field or property named "NonCommercial" on the license type
-                            var staticField = licensePropType.GetField("NonCommercial", BindingFlags.Static | BindingFlags.Public);
-                            if (staticField != null)
-                            {
-                                valueToSet = staticField.GetValue(null);
-                            }
-                            else
-                            {
-                                var staticProp = licensePropType.GetProperty("NonCommercial", BindingFlags.Static | BindingFlags.Public);
-                                if (staticProp != null)
-                                {
-                                    valueToSet = staticProp.GetValue(null);
-                                }
-                            }
+                            // swallow email errors
                         }
-
-                        // If we found a candidate, set it
-                        if (valueToSet != null)
-                        {
-                            licenseProp.SetValue(null, valueToSet);
-                        }
+                        results.Add(new { email, existingAccount = true, invited });
                     }
                     else
                     {
-                        // Fallback for older EPPlus versions: ExcelPackage.LicenseContext = LicenseContext.NonCommercial
-                        var lcProp = excelPackageType.GetProperty("LicenseContext", BindingFlags.Static | BindingFlags.Public);
-                        if (lcProp != null && lcProp.PropertyType.IsEnum)
+                        var registerUrl = $"{baseFrontendUrl}/register?email={WebUtility.UrlEncode(email)}&redirect=/class/{classId}";
+                        try
                         {
-                            try
+                            await _emailService.SendClassInvitationEmailAsync(email, cls.Name ?? "Class", registerUrl, inviterName: _userRepository.GetById(cls.CreatedBy)?.Fullname ?? "", customMessage: message);
+                        }
+                        catch
+                        {
+                        }
+                        results.Add(new { email, existingAccount = false, invited = false });
+                    }
+                }
+
+                return results;
+            }
+            private static void EnsureEpplusLicense()
+            {
+                if (_epplusLicenseInitialized) return;
+
+                lock (_epplusLicenseInitLock)
+                {
+                    if (_epplusLicenseInitialized) return;
+
+                    try
+                    {
+                        var excelPackageType = typeof(ExcelPackage);
+
+                        // Try EPPlus 8+ static property: ExcelPackage.License
+                        var licenseProp = excelPackageType.GetProperty("License", BindingFlags.Static | BindingFlags.Public);
+                        if (licenseProp != null)
+                        {
+                            var licensePropType = licenseProp.PropertyType;
+
+                            object valueToSet = null;
+
+                            // If the License property is an enum, parse NonCommercial
+                            if (licensePropType.IsEnum)
                             {
-                                var lcValue = Enum.Parse(lcProp.PropertyType, "NonCommercial");
-                                lcProp.SetValue(null, lcValue);
+                                try
+                                {
+                                    valueToSet = Enum.Parse(licensePropType, "NonCommercial");
+                                }
+                                catch
+                                {
+                                    valueToSet = null;
+                                }
                             }
-                            catch
+                            else
                             {
-                                // ignore
+                                // Try static field or property named "NonCommercial" on the license type
+                                var staticField = licensePropType.GetField("NonCommercial", BindingFlags.Static | BindingFlags.Public);
+                                if (staticField != null)
+                                {
+                                    valueToSet = staticField.GetValue(null);
+                                }
+                                else
+                                {
+                                    var staticProp = licensePropType.GetProperty("NonCommercial", BindingFlags.Static | BindingFlags.Public);
+                                    if (staticProp != null)
+                                    {
+                                        valueToSet = staticProp.GetValue(null);
+                                    }
+                                }
+                            }
+
+                            // If we found a candidate, set it
+                            if (valueToSet != null)
+                            {
+                                licenseProp.SetValue(null, valueToSet);
                             }
                         }
                         else
                         {
-                            // As a last resort, try the known API (compile-time) - harmless when available
-                            try
+                            // Fallback for older EPPlus versions: ExcelPackage.LicenseContext = LicenseContext.NonCommercial
+                            var lcProp = excelPackageType.GetProperty("LicenseContext", BindingFlags.Static | BindingFlags.Public);
+                            if (lcProp != null && lcProp.PropertyType.IsEnum)
                             {
-                                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                                try
+                                {
+                                    var lcValue = Enum.Parse(lcProp.PropertyType, "NonCommercial");
+                                    lcProp.SetValue(null, lcValue);
+                                }
+                                catch
+                                {
+                                    // ignore
+                                }
                             }
-                            catch
+                            else
                             {
-                                // ignore if not available
+                                // As a last resort, try the known API (compile-time) - harmless when available
+                                try
+                                {
+                                    ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                                }
+                                catch
+                                {
+                                    // ignore if not available
+                                }
                             }
                         }
+                    }
+                    catch
+                    {
+                        // If anything fails, don't crash the app here. EPPlus will raise a clear exception when used if license isn't set.
+                    }
+                    finally
+                    {
+                        _epplusLicenseInitialized = true;
+                    }
+                }
+            }
+
+            public async Task<List<object>> InviteByExcelAsync(int classId, IFormFile file, string role, string? message, string baseFrontendUrl)
+            {
+                var cls = _classRepository.GetClassById(classId);
+                if (cls == null) throw new ArgumentException("Không tìm thấy lớp học.");
+
+                if (file == null || file.Length == 0)
+                    throw new ArgumentException("File không hợp lệ hoặc trống.");
+
+                // Optional server-side size guard (adjust as needed)
+                const long maxBytes = 10 * 1024 * 1024; // 10 MB
+                if (file.Length > maxBytes)
+                    throw new ArgumentException($"Kích thước file vượt quá giới hạn ({maxBytes / (1024 * 1024)} MB).");
+
+                // Ensure EPPlus license is configured once
+                EnsureEpplusLicense();
+
+                // Read file into memory (beware large files)
+                using var ms = new MemoryStream();
+                await file.CopyToAsync(ms);
+                ms.Position = 0;
+
+                // In case older API is present, ensure LicenseContext is set too (safe no-op)
+                try
+                {
+                    ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                }
+                catch
+                {
+                    // ignore if property not available in this EPPlus build
+                }
+
+                using var package = new ExcelPackage(ms);
+                var workbook = package.Workbook;
+                if (workbook == null || workbook.Worksheets.Count == 0)
+                    throw new ArgumentException("File Excel không có sheets.");
+
+                var sheet = workbook.Worksheets.First();
+
+                // Build header map (header names -> column index)
+                var headerRow = 1;
+                var maxCol = sheet.Dimension?.End.Column ?? 1;
+                var maxRow = sheet.Dimension?.End.Row ?? 1;
+
+                var headerMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                for (int c = 1; c <= maxCol; c++)
+                {
+                    var txt = sheet.Cells[headerRow, c].Text?.Trim();
+                    if (!string.IsNullOrWhiteSpace(txt))
+                    {
+                        headerMap[txt.ToLowerInvariant()] = c;
+                    }
+                }
+
+                // Helper to find a column index by a set of possible header keys
+                int? FindColumn(params string[] keys)
+                {
+                    foreach (var k in keys)
+                    {
+                        if (headerMap.TryGetValue(k.ToLowerInvariant(), out var col)) return col;
+                    }
+                    foreach (var kv in headerMap)
+                    {
+                        foreach (var k in keys)
+                        {
+                            if (kv.Key.IndexOf(k.ToLowerInvariant(), StringComparison.OrdinalIgnoreCase) >= 0)
+                                return kv.Value;
+                        }
+                    }
+                    return null;
+                }
+
+                // Acceptable header variants (Vietnamese & English)
+                var emailKeys = new[] { "email", "e-mail", "email address", "emailaddress", "địa chỉ email", "địa chỉ email", "địa chỉ", "mail" };
+                var nameKeys = new[] { "họ và tên", "họ tên", "ho ten", "fullname", "full name", "name", "tên", "ten" };
+
+                var emailCol = FindColumn(emailKeys) ?? 0;
+                var nameCol = FindColumn(nameKeys);
+
+                var headerPresent = headerMap.Count > 0;
+
+                // If headers present but missing email/name -> validate failure
+                var missingHeaders = new List<string>();
+                if (headerPresent)
+                {
+                    if (emailCol == 0) missingHeaders.Add("Email");
+                    if (nameCol == null) missingHeaders.Add("Họ và tên");
+                    if (missingHeaders.Count > 0)
+                    {
+                        // If headers present but missing required ones, reject with clear message
+                        throw new ArgumentException($"File thiếu cột bắt buộc: {string.Join(", ", missingHeaders)}. Vui lòng đảm bảo file có header 'Email' và 'Họ và tên' (có thể bằng tiếng Việt hoặc tiếng Anh).");
+                    }
+                }
+                else
+                {
+                    // No headers: assume col 1 = email, col 2 = name (if present)
+                    emailCol = 1;
+                    if (nameCol == null && maxCol >= 2) nameCol = 2;
+                }
+
+                if (emailCol == 0) emailCol = 1; // final fallback
+
+                // Prepare regex for basic email validation
+                var emailRegex = new System.Text.RegularExpressions.Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                var rawRows = new List<Dictionary<string, string>>();
+                var emails = new List<(string email, int row)>();
+                var invalidRows = new List<object>();
+
+                var startRow = headerPresent ? headerRow + 1 : headerRow;
+                var lastRow = maxRow;
+
+                // Optional row limit to protect server (adjust as needed)
+                const int maxRows = 5000;
+                if (lastRow - startRow + 1 > maxRows)
+                    throw new ArgumentException($"Số lượng hàng vượt quá giới hạn ({maxRows}). Vui lòng chia nhỏ file.");
+
+                for (int r = startRow; r <= lastRow; r++)
+                {
+                    string GetCell(int? colIndex)
+                    {
+                        if (colIndex == null || colIndex == 0) return string.Empty;
+                        return sheet.Cells[r, colIndex.Value].Text?.Trim() ?? string.Empty;
+                    }
+
+                    var rowEmail = GetCell(emailCol);
+                    var rowName = GetCell(nameCol);
+
+                    // Skip completely empty rows
+                    if (string.IsNullOrWhiteSpace(rowEmail) && string.IsNullOrWhiteSpace(rowName))
+                        continue;
+
+                    // If email cell empty, scan for a candidate in the row
+                    if (string.IsNullOrWhiteSpace(rowEmail))
+                    {
+                        for (int c = 1; c <= maxCol; c++)
+                        {
+                            var candidate = sheet.Cells[r, c].Text?.Trim() ?? "";
+                            if (!string.IsNullOrWhiteSpace(candidate) && candidate.Contains("@"))
+                            {
+                                rowEmail = candidate;
+                                break;
+                            }
+                        }
+                    }
+
+                    var item = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["email"] = rowEmail ?? "",
+                        ["name"] = rowName ?? ""
+                    };
+
+                    // Validate
+                    var reasons = new List<string>();
+                    if (string.IsNullOrWhiteSpace(item["email"]))
+                    {
+                        reasons.Add("Thiếu email");
+                    }
+                    else if (!emailRegex.IsMatch(item["email"]))
+                    {
+                        reasons.Add("Email không hợp lệ");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(item["name"]))
+                    {
+                        reasons.Add("Thiếu họ và tên");
+                    }
+
+                    if (reasons.Count > 0)
+                    {
+                        invalidRows.Add(new { row = r, email = item["email"], name = item["name"], reasons });
+                        continue; // skip adding to emails/rawRows for processing
+                    }
+
+                    rawRows.Add(item);
+                    emails.Add((item["email"], r));
+                }
+
+                if (emails.Count == 0)
+                {
+                    // If no valid emails found, include invalidRows details in message
+                    var details = invalidRows.Count > 0
+                        ? $" Một số hàng không hợp lệ: {invalidRows.Count} hàng."
+                        : "";
+                    throw new ArgumentException($"Không tìm thấy email hợp lệ trong file.{details}");
+                }
+
+                // Deduplicate emails preserving order and also track duplicates found
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var distinctEmails = new List<string>();
+                var duplicateRows = new List<object>();
+                foreach (var (email, row) in emails)
+                {
+                    var t = email.Trim();
+                    if (!seen.Add(t))
+                    {
+                        duplicateRows.Add(new { row, email = t });
+                    }
+                    else
+                    {
+                        distinctEmails.Add(t);
+                    }
+                }
+
+                // Call existing invite logic
+                var serviceResults = await InviteByEmailsAsync(classId, distinctEmails, role, message, baseFrontendUrl);
+
+                // Map service results by email (best-effort)
+                var resultByEmail = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    foreach (var obj in serviceResults)
+                    {
+                        if (obj == null) continue;
+                        string emailKey = null;
+                        if (obj is System.Collections.IDictionary dict)
+                        {
+                            foreach (var k in dict.Keys)
+                            {
+                                var ks = k?.ToString() ?? "";
+                                if (ks.Equals("email", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    emailKey = dict[k]?.ToString();
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            var objType = obj.GetType();
+                            var prop = objType.GetProperty("email", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
+                                    ?? objType.GetProperty("Email", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                            if (prop != null)
+                                emailKey = prop.GetValue(obj)?.ToString();
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(emailKey) && !resultByEmail.ContainsKey(emailKey))
+                            resultByEmail[emailKey] = obj;
                     }
                 }
                 catch
                 {
-                    // If anything fails, don't crash the app here. EPPlus will raise a clear exception when used if license isn't set.
+                    // ignore mapping errors
                 }
-                finally
+
+                // Build merged results per input row
+                var merged = new List<object>();
+
+                foreach (var row in rawRows)
                 {
-                    _epplusLicenseInitialized = true;
-                }
-            }
-        }
+                    var e = row.ContainsKey("email") ? row["email"] : "";
+                    object svc = null;
+                    if (!string.IsNullOrWhiteSpace(e) && resultByEmail.TryGetValue(e, out var found)) svc = found;
 
-        public async Task<List<object>> InviteByExcelAsync(int classId, IFormFile file, string role, string? message, string baseFrontendUrl)
-        {
-            var cls = _classRepository.GetClassById(classId);
-            if (cls == null) throw new ArgumentException("Không tìm thấy lớp học.");
-
-            if (file == null || file.Length == 0)
-                throw new ArgumentException("File không hợp lệ hoặc trống.");
-
-            // Optional server-side size guard (adjust as needed)
-            const long maxBytes = 10 * 1024 * 1024; // 10 MB
-            if (file.Length > maxBytes)
-                throw new ArgumentException($"Kích thước file vượt quá giới hạn ({maxBytes / (1024 * 1024)} MB).");
-
-            // Ensure EPPlus license is configured once
-            EnsureEpplusLicense();
-
-            // Read file into memory (beware large files)
-            using var ms = new MemoryStream();
-            await file.CopyToAsync(ms);
-            ms.Position = 0;
-
-            // In case older API is present, ensure LicenseContext is set too (safe no-op)
-            try
-            {
-                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-            }
-            catch
-            {
-                // ignore if property not available in this EPPlus build
-            }
-
-            using var package = new ExcelPackage(ms);
-            var workbook = package.Workbook;
-            if (workbook == null || workbook.Worksheets.Count == 0)
-                throw new ArgumentException("File Excel không có sheets.");
-
-            var sheet = workbook.Worksheets.First();
-
-            // Build header map (header names -> column index)
-            var headerRow = 1;
-            var maxCol = sheet.Dimension?.End.Column ?? 1;
-            var maxRow = sheet.Dimension?.End.Row ?? 1;
-
-            var headerMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            for (int c = 1; c <= maxCol; c++)
-            {
-                var txt = sheet.Cells[headerRow, c].Text?.Trim();
-                if (!string.IsNullOrWhiteSpace(txt))
-                {
-                    headerMap[txt.ToLowerInvariant()] = c;
-                }
-            }
-
-            // Helper to find a column index by a set of possible header keys
-            int? FindColumn(params string[] keys)
-            {
-                foreach (var k in keys)
-                {
-                    if (headerMap.TryGetValue(k.ToLowerInvariant(), out var col)) return col;
-                }
-                foreach (var kv in headerMap)
-                {
-                    foreach (var k in keys)
+                    merged.Add(new
                     {
-                        if (kv.Key.IndexOf(k.ToLowerInvariant(), StringComparison.OrdinalIgnoreCase) >= 0)
-                            return kv.Value;
-                    }
-                }
-                return null;
-            }
-
-            // Acceptable header variants (Vietnamese & English)
-            var emailKeys = new[] { "email", "e-mail", "email address", "emailaddress", "địa chỉ email", "địa chỉ email", "địa chỉ", "mail" };
-            var nameKeys = new[] { "họ và tên", "họ tên", "ho ten", "fullname", "full name", "name", "tên", "ten" };
-
-            var emailCol = FindColumn(emailKeys) ?? 0;
-            var nameCol = FindColumn(nameKeys);
-
-            var headerPresent = headerMap.Count > 0;
-
-            // If headers present but missing email/name -> validate failure
-            var missingHeaders = new List<string>();
-            if (headerPresent)
-            {
-                if (emailCol == 0) missingHeaders.Add("Email");
-                if (nameCol == null) missingHeaders.Add("Họ và tên");
-                if (missingHeaders.Count > 0)
-                {
-                    // If headers present but missing required ones, reject with clear message
-                    throw new ArgumentException($"File thiếu cột bắt buộc: {string.Join(", ", missingHeaders)}. Vui lòng đảm bảo file có header 'Email' và 'Họ và tên' (có thể bằng tiếng Việt hoặc tiếng Anh).");
-                }
-            }
-            else
-            {
-                // No headers: assume col 1 = email, col 2 = name (if present)
-                emailCol = 1;
-                if (nameCol == null && maxCol >= 2) nameCol = 2;
-            }
-
-            if (emailCol == 0) emailCol = 1; // final fallback
-
-            // Prepare regex for basic email validation
-            var emailRegex = new System.Text.RegularExpressions.Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-            var rawRows = new List<Dictionary<string, string>>();
-            var emails = new List<(string email, int row)>();
-            var invalidRows = new List<object>();
-
-            var startRow = headerPresent ? headerRow + 1 : headerRow;
-            var lastRow = maxRow;
-
-            // Optional row limit to protect server (adjust as needed)
-            const int maxRows = 5000;
-            if (lastRow - startRow + 1 > maxRows)
-                throw new ArgumentException($"Số lượng hàng vượt quá giới hạn ({maxRows}). Vui lòng chia nhỏ file.");
-
-            for (int r = startRow; r <= lastRow; r++)
-            {
-                string GetCell(int? colIndex)
-                {
-                    if (colIndex == null || colIndex == 0) return string.Empty;
-                    return sheet.Cells[r, colIndex.Value].Text?.Trim() ?? string.Empty;
+                        input = row,
+                        result = svc
+                    });
                 }
 
-                var rowEmail = GetCell(emailCol);
-                var rowName = GetCell(nameCol);
-
-                // Skip completely empty rows
-                if (string.IsNullOrWhiteSpace(rowEmail) && string.IsNullOrWhiteSpace(rowName))
-                    continue;
-
-                // If email cell empty, scan for a candidate in the row
-                if (string.IsNullOrWhiteSpace(rowEmail))
+                // Include service results for emails that may not have had full input rows
+                foreach (var svc in serviceResults)
                 {
-                    for (int c = 1; c <= maxCol; c++)
-                    {
-                        var candidate = sheet.Cells[r, c].Text?.Trim() ?? "";
-                        if (!string.IsNullOrWhiteSpace(candidate) && candidate.Contains("@"))
-                        {
-                            rowEmail = candidate;
-                            break;
-                        }
-                    }
-                }
-
-                var item = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["email"] = rowEmail ?? "",
-                    ["name"] = rowName ?? ""
-                };
-
-                // Validate
-                var reasons = new List<string>();
-                if (string.IsNullOrWhiteSpace(item["email"]))
-                {
-                    reasons.Add("Thiếu email");
-                }
-                else if (!emailRegex.IsMatch(item["email"]))
-                {
-                    reasons.Add("Email không hợp lệ");
-                }
-
-                if (string.IsNullOrWhiteSpace(item["name"]))
-                {
-                    reasons.Add("Thiếu họ và tên");
-                }
-
-                if (reasons.Count > 0)
-                {
-                    invalidRows.Add(new { row = r, email = item["email"], name = item["name"], reasons });
-                    continue; // skip adding to emails/rawRows for processing
-                }
-
-                rawRows.Add(item);
-                emails.Add((item["email"], r));
-            }
-
-            if (emails.Count == 0)
-            {
-                // If no valid emails found, include invalidRows details in message
-                var details = invalidRows.Count > 0
-                    ? $" Một số hàng không hợp lệ: {invalidRows.Count} hàng."
-                    : "";
-                throw new ArgumentException($"Không tìm thấy email hợp lệ trong file.{details}");
-            }
-
-            // Deduplicate emails preserving order and also track duplicates found
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var distinctEmails = new List<string>();
-            var duplicateRows = new List<object>();
-            foreach (var (email, row) in emails)
-            {
-                var t = email.Trim();
-                if (!seen.Add(t))
-                {
-                    duplicateRows.Add(new { row, email = t });
-                }
-                else
-                {
-                    distinctEmails.Add(t);
-                }
-            }
-
-            // Call existing invite logic
-            var serviceResults = await InviteByEmailsAsync(classId, distinctEmails, role, message, baseFrontendUrl);
-
-            // Map service results by email (best-effort)
-            var resultByEmail = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                foreach (var obj in serviceResults)
-                {
-                    if (obj == null) continue;
                     string emailKey = null;
-                    if (obj is System.Collections.IDictionary dict)
+                    if (svc is System.Collections.IDictionary dict)
                     {
                         foreach (var k in dict.Keys)
                         {
@@ -404,117 +454,67 @@ namespace StudyHub.Backend.UseCases.Services
                     }
                     else
                     {
-                        var objType = obj.GetType();
+                        var objType = svc.GetType();
                         var prop = objType.GetProperty("email", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
                                 ?? objType.GetProperty("Email", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                        if (prop != null)
-                            emailKey = prop.GetValue(obj)?.ToString();
+                        if (prop != null) emailKey = prop.GetValue(svc)?.ToString();
                     }
 
-                    if (!string.IsNullOrWhiteSpace(emailKey) && !resultByEmail.ContainsKey(emailKey))
-                        resultByEmail[emailKey] = obj;
-                }
-            }
-            catch
-            {
-                // ignore mapping errors
-            }
-
-            // Build merged results per input row
-            var merged = new List<object>();
-
-            foreach (var row in rawRows)
-            {
-                var e = row.ContainsKey("email") ? row["email"] : "";
-                object svc = null;
-                if (!string.IsNullOrWhiteSpace(e) && resultByEmail.TryGetValue(e, out var found)) svc = found;
-
-                merged.Add(new
-                {
-                    input = row,
-                    result = svc
-                });
-            }
-
-            // Include service results for emails that may not have had full input rows
-            foreach (var svc in serviceResults)
-            {
-                string emailKey = null;
-                if (svc is System.Collections.IDictionary dict)
-                {
-                    foreach (var k in dict.Keys)
+                    if (string.IsNullOrWhiteSpace(emailKey) || !rawRows.Any(r => string.Equals(r.GetValueOrDefault("email"), emailKey, StringComparison.OrdinalIgnoreCase)))
                     {
-                        var ks = k?.ToString() ?? "";
-                        if (ks.Equals("email", StringComparison.OrdinalIgnoreCase))
+                        merged.Add(new
                         {
-                            emailKey = dict[k]?.ToString();
-                            break;
-                        }
+                            input = (object?)null,
+                            result = svc
+                        });
                     }
                 }
-                else
-                {
-                    var objType = svc.GetType();
-                    var prop = objType.GetProperty("email", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
-                            ?? objType.GetProperty("Email", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                    if (prop != null) emailKey = prop.GetValue(svc)?.ToString();
-                }
 
-                if (string.IsNullOrWhiteSpace(emailKey) || !rawRows.Any(r => string.Equals(r.GetValueOrDefault("email"), emailKey, StringComparison.OrdinalIgnoreCase)))
+                // Prepare summary as first element: total rows examined, valid processed, invalid rows, duplicates
+                var summary = new
                 {
-                    merged.Add(new
-                    {
-                        input = (object?)null,
-                        result = svc
-                    });
-                }
+                    totalRows = lastRow - startRow + 1,
+                    processed = merged.Count,
+                    invalidCount = invalidRows.Count,
+                    invalidRows,
+                    duplicateCount = duplicateRows.Count,
+                    duplicateRows,
+                    note = "Chỉ xử lý 2 trường: Email và Họ và tên. Những hàng không hợp lệ sẽ được bỏ qua."
+                };
+
+                // Return summary + merged list
+                var output = new List<object> { summary };
+                output.AddRange(merged);
+                return output;
+            }
+            // Helpers for confirm/kick with string parsing (controller can call these)
+            public bool? ConfirmMemberFromString(int classId, string userId)
+            {
+                if (!Guid.TryParse(userId, out var userGuid)) return null;
+                var cls = _classRepository.GetClassById(classId);
+                if (cls == null) return false;
+                return _classMemberRepository.ConfirmMember(userGuid, classId);
+            }
+            public bool? DeclineMemberFromString(int classId, string userId)
+            {
+                if (!Guid.TryParse(userId, out var userGuid)) return null;
+                var cls = _classRepository.GetClassById(classId);
+                if (cls == null) return false;
+                return _classMemberRepository.DeclineMember(userGuid, classId);
             }
 
-            // Prepare summary as first element: total rows examined, valid processed, invalid rows, duplicates
-            var summary = new
+            public bool? KickMemberFromString(int classId, string userId)
             {
-                totalRows = lastRow - startRow + 1,
-                processed = merged.Count,
-                invalidCount = invalidRows.Count,
-                invalidRows,
-                duplicateCount = duplicateRows.Count,
-                duplicateRows,
-                note = "Chỉ xử lý 2 trường: Email và Họ và tên. Những hàng không hợp lệ sẽ được bỏ qua."
-            };
-
-            // Return summary + merged list
-            var output = new List<object> { summary };
-            output.AddRange(merged);
-            return output;
-        }
-        // Helpers for confirm/kick with string parsing (controller can call these)
-        public bool? ConfirmMemberFromString(int classId, string userId)
-        {
-            if (!Guid.TryParse(userId, out var userGuid)) return null;
-            var cls = _classRepository.GetClassById(classId);
-            if (cls == null) return false;
-            return _classMemberRepository.ConfirmMember(userGuid, classId);
-        }
-        public bool? DeclineMemberFromString(int classId, string userId)
-        {
-            if (!Guid.TryParse(userId, out var userGuid)) return null;
-            var cls = _classRepository.GetClassById(classId);
-            if (cls == null) return false;
-            return _classMemberRepository.DeclineMember(userGuid, classId);
-        }
-
-        public bool? KickMemberFromString(int classId, string userId)
-        {
-            if (!Guid.TryParse(userId, out var userGuid)) return null;
-            var cls = _classRepository.GetClassById(classId);
-            if (cls == null) return false;
-            return _classMemberRepository.KickMember(userGuid, classId);
-        }
-        public List<Class> GetAllClassByUserId(Guid userid) => _classRepository.GetAllClassByUserId(userid);
+                if (!Guid.TryParse(userId, out var userGuid)) return null;
+                var cls = _classRepository.GetClassById(classId);
+                if (cls == null) return false;
+                return _classMemberRepository.KickMember(userGuid, classId);
+            }
+            public List<Class> GetAllClassByUserId(Guid userid) => _classRepository.GetAllClassByUserId(userid);
 
 
-        public bool InviteMember(Guid userId, int classId) => _classMemberRepository.InviteMember(userId, classId);
-        public bool ConfirmMember(Guid userId, int classId) => _classMemberRepository.ConfirmMember(userId, classId);
-        public bool KickMember(Guid userId, int classId) => _classMemberRepository.KickMember(userId, classId);
+            public bool InviteMember(Guid userId, int classId) => _classMemberRepository.InviteMember(userId, classId);
+            public bool ConfirmMember(Guid userId, int classId) => _classMemberRepository.ConfirmMember(userId, classId);
+            public bool KickMember(Guid userId, int classId) => _classMemberRepository.KickMember(userId, classId);
+        }
     }
-}
