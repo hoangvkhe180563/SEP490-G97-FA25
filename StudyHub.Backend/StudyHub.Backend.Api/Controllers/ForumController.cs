@@ -1699,7 +1699,10 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpPost("mute-user/{userId:guid}")]
-        public async Task<IActionResult> MuteUser(Guid userId, [FromQuery] int schoolId, [FromQuery] int days = 7)
+        public async Task<IActionResult> MuteUser(
+       Guid userId,
+       [FromQuery] int schoolId,
+       [FromQuery] int minutes = 10080)
         {
             try
             {
@@ -1719,7 +1722,11 @@ namespace StudyHub.Backend.Api.Controllers
                     return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
                 }
 
-                var muteUntil = DateTime.UtcNow.AddDays(days);
+                var muteUntil = DateTime.Now.AddMinutes(minutes);
+
+                _logger.LogInformation("Muting user: Now={Now}, Minutes={Minutes}, MuteUntil={MuteUntil}",
+                    DateTime.Now, minutes, muteUntil);
+
                 var result = await _moderationService.MuteUserAsync(userId, schoolId, muteUntil);
 
                 if (!result)
@@ -1730,7 +1737,7 @@ namespace StudyHub.Backend.Api.Controllers
                 _logger.LogInformation("Moderator {ModeratorId} muted user {UserId} until {MuteUntil}",
                     currentUser.Id, userId, muteUntil);
 
-                return Ok(new { success = true, message = $"Đã cấm người dùng trong {days} ngày" });
+                return Ok(new { success = true, message = $"Đã cấm người dùng trong {minutes} phút" });
             }
             catch (Exception ex)
             {
@@ -1738,7 +1745,39 @@ namespace StudyHub.Backend.Api.Controllers
                 return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
             }
         }
+        [HttpPost("check-unmute/{userId:guid}")]
+        public async Task<IActionResult> CheckUnmute(Guid userId, [FromQuery] int schoolId)
+        {
+            try
+            {
+                var currentUser = _authService.GetCurrentUser();
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
 
+                var isMuted = await _moderationService.IsUserMutedAsync(userId.ToString(), schoolId);
+
+                var status = await _moderationService.GetUserForumStatusAsync(userId, schoolId);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        IsMuted = isMuted,
+                        Now = DateTime.Now,
+                        MuteUntil = status?.MuteUntil,
+                        Comparison = status?.MuteUntil <= DateTime.Now
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking unmute");
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra" });
+            }
+        }
         [HttpPost("unmute-user/{userId:guid}")]
         public async Task<IActionResult> UnmuteUser(Guid userId, [FromQuery] int schoolId)
         {

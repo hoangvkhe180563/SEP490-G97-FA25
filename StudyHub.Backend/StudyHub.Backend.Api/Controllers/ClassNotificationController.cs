@@ -12,7 +12,6 @@ using StudyHub.Backend.UseCases.Services;
 using StudyHub.Backend.UseCases.Utils;
 using System;
 using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace StudyHub.Backend.Api.Controllers
@@ -25,16 +24,23 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly AppUserService _aUserService;
         private readonly ICloudinaryRepository _fileStorage;
         private readonly IHubContext<ClassNotificationHub> _hubContext;
+        private readonly IHubContext<NotificationHub> _notificationHub; // chỉ gửi hub, logic tạo notif hệ thống nằm ở service
+        private readonly ClassService _classService; // để lấy tên lớp
+
         public ClassNotificationController(
             ClassNotificationService service,
             AppUserService aUserService,
             ICloudinaryRepository fileStorage,
-            IHubContext<ClassNotificationHub> hubContext)
+            IHubContext<ClassNotificationHub> hubContext,
+            IHubContext<NotificationHub> notificationHub,
+            ClassService classService)
         {
             _service = service;
             _aUserService = aUserService;
             _fileStorage = fileStorage;
             _hubContext = hubContext;
+            _notificationHub = notificationHub;
+            _classService = classService;
         }
 
         //
@@ -44,7 +50,7 @@ namespace StudyHub.Backend.Api.Controllers
         // GET: /api/ClassNotification/class/{classId}
         [HttpGet("class/{classId}")]
         public IActionResult GetByClass(int classId)
-        {   
+        {
             var notifications = _service.GetNotifications(classId)
                 .Select(n => n.ToNotificationDto())
                 .ToList();
@@ -52,7 +58,6 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(new { success = true, message = "Lấy danh sách thông báo thành công.", data = notifications });
         }
 
-     
         [HttpPost]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> Create([FromForm] CreateNotificationDto dto)
@@ -65,7 +70,7 @@ namespace StudyHub.Backend.Api.Controllers
                     return BadRequest(new { success = false, message = "ClassId không hợp lệ." });
 
                 var notificationEntity = new ClassNotification
-                {   
+                {
                     ClassId = dto.ClassId,
                     Type = dto.Type ?? "notification",
                     Title = dto.Title.Trim(),
@@ -79,12 +84,11 @@ namespace StudyHub.Backend.Api.Controllers
                     InstructionsHtml = dto.InstructionsHtml
                 };
 
-                // create base notification (no files yet)
                 var createdNoti = _service.CreateNotification(notificationEntity);
                 if (createdNoti == null)
                     return StatusCode(500, new { success = false, message = "Không tạo được thông báo." });
 
-                // If files provided, upload and persist file records
+                // Upload files nếu có
                 if (dto.Files != null && dto.Files.Any())
                 {
                     foreach (var formFile in dto.Files)
@@ -92,7 +96,6 @@ namespace StudyHub.Backend.Api.Controllers
                         if (formFile == null || formFile.Length == 0) continue;
                         try
                         {
-                            // upload file via cloudinary repository (service's file storage)
                             var uploadedUrl = await _fileStorage.UploadFileAsync(formFile, FileConstants.ClassNotificationUploadPAth);
                             if (!string.IsNullOrWhiteSpace(uploadedUrl))
                             {
@@ -107,58 +110,249 @@ namespace StudyHub.Backend.Api.Controllers
                                 _service.CreateNotificationFile(fileEntity);
                             }
                         }
-                        catch
-                        {
-                            // ignore file upload failures for other files
-                        }
+                        catch { }
                     }
                 }
-                // If files provided, upload and persist file records
+                // Upload links nếu có
                 if (dto.Links != null && dto.Links.Any())
                 {
                     foreach (var link in dto.Links)
                     {
-                        if (link == null ) continue;
+                        if (link == null) continue;
                         try
                         {
-                                var fileEntity = new ClassNotificationFile
-                                {
-                                    NotificationId = createdNoti.Id,
-                                    FileName = link.Title,
-                                    FileUrl = link.Url,
-                                    ThumbnailUrl = null,
-                                };
-                                _service.CreateNotificationFile(fileEntity);
+                            var fileEntity = new ClassNotificationFile
+                            {
+                                NotificationId = createdNoti.Id,
+                                FileName = link.Title,
+                                FileUrl = link.Url,
+                                ThumbnailUrl = null,
+                            };
+                            _service.CreateNotificationFile(fileEntity);
                         }
-                        catch
-                        {
-                            // ignore file upload failures for other files
-                        }
+                        catch { }
                     }
                 }
 
                 var files = _service.GetFilesByNotification(createdNoti.Id);
                 var response = createdNoti.ToNotificationDto(_aUserService.GetUserById(createdNoti.CreatedBy), files.Select(f => f.ToFileDto()).ToList(), null);
+
+                // Tạo notification hệ thống + seed unread (trong service), controller chỉ gửi hub
+                try
+                {
+                    Guid actorId = dto.CreatedBy;
+                    var actor = _aUserService.GetUserById(actorId);
+                    var actorName = actor?.Fullname ?? "Người dùng";
+
+                    var cls = _classService.GetClassById(createdNoti.ClassId);
+                    var className = cls?.Name ?? $"lớp {createdNoti.ClassId}";
+
+                    var isClasswork = createdNoti.Type != null &&
+                                      createdNoti.Type.Equals("classwork", StringComparison.OrdinalIgnoreCase);
+
+                    var displayTitle = isClasswork
+                        ? $"{actorName} đã giao bài tập cho {className}"
+                        : $"{actorName} đã thông báo tới {className}";
+
+                    var body = createdNoti.Title;
+
+                    var sys = await _service.CreateSystemNotificationForClassAsync(
+                        createdNoti.ClassId,
+                        displayTitle,
+                        body,
+                        actorId,
+                        HttpContext.RequestAborted);
+
+                    if (sys.HasValue)
+                    {
+                        var (groupId, saved, memberIds) = sys.Value;
+                        var targets = (memberIds ?? Array.Empty<Guid>()).Select(id => $"user_{id}").ToList();
+                        targets.Add($"group_{groupId}");
+
+                        var payload = new
+                        {
+                            id = saved.Id,
+                            title = saved.Title,
+                            body = saved.Body,
+                            priority = saved.Priority,
+                            targetType = saved.TargetType,
+                            targetGroupId = saved.TargetGroupId,
+                            createdAt = saved.CreatedAt,
+                            createdBy = saved.CreatedBy,
+                            isRead = false
+                        };
+                        await _notificationHub.Clients.Groups(targets)
+                            .SendAsync("NotificationCreated", payload, HttpContext.RequestAborted);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Broadcast class notification failed: {ex.Message}");
+                }
+
+                // Legacy broadcast (giữ nếu frontend cũ dùng ClassNotificationHub)
                 try
                 {
                     await _hubContext.Clients.Group($"class_{createdNoti.ClassId}")
                         .SendAsync("NewNotification", createdNoti.ClassId, createdNoti.Title);
 
-                    try
-                    {
-                        await _hubContext.Clients.Group($"class_{createdNoti.ClassId}")
-                            .SendAsync("NewNotificationFull", response);
-                    }
-                    catch
-                    {
-                        // ignore if full payload fails
-                    }
+                    await _hubContext.Clients.Group($"class_{createdNoti.ClassId}")
+                        .SendAsync("NewNotificationFull", response);
                 }
-                catch
-                {
-                    // ignore hub broadcast failures to not break the API flow
-                }
+                catch { }
+
                 return Ok(new { success = true, message = "Tạo thông báo thành công.", data = response });
+            }
+            catch (ArgumentException aex)
+            {
+                return BadRequest(new { success = false, message = aex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = $"Lỗi server: {ex.Message}", error = ex.ToString() });
+            }
+        }
+
+        //
+        // ---------- CLASSWORK / ASSIGNMENT endpoints (compat) ----------
+        //
+
+        [HttpPut("/api/Classwork/{id}")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> EditClasswork(int id, [FromForm] EditClassworkDto dto)
+        {
+            try
+            {
+                var noti = _service.GetNotification(id);
+                if (noti == null) return NotFound(new { success = false, message = "Không tìm thấy classwork" });
+
+                if (!string.IsNullOrWhiteSpace(dto.Title)) noti.Title = dto.Title.Trim();
+                noti.Description = dto.Description ?? noti.Description;
+                noti.Deadline = dto.Deadline ?? noti.Deadline;
+                noti.UpdatedAt = DateTime.Now;
+
+                if (dto.MaxScore.HasValue) noti.MaxScore = dto.MaxScore.Value;
+                if (!string.IsNullOrWhiteSpace(dto.GradeType)) noti.GradeType = dto.GradeType;
+                noti.AllowSubmission = dto.AllowSubmission;
+                if (!string.IsNullOrWhiteSpace(dto.InstructionsHtml)) noti.InstructionsHtml = dto.InstructionsHtml;
+
+                var res = _service.EditNotification(noti);
+                if (res == null) return StatusCode(500, new { success = false, message = "Cập nhật thất bại" });
+
+                var existingFiles = _service.GetFilesByNotification(res.Id) ?? new System.Collections.Generic.List<ClassNotificationFile>();
+                var keptIds = (dto.KeptFileIds ?? Array.Empty<int>()).ToHashSet();
+                var toRemove = existingFiles.Where(f => !keptIds.Contains(f.Id)).ToList();
+                if (toRemove.Any())
+                {
+                    foreach (var fileToRemove in toRemove)
+                    {
+                        try { _service.DeleteNotificationFileById(fileToRemove.Id); } catch { }
+                    }
+                }
+
+                if (dto.Files != null && dto.Files.Any())
+                {
+                    foreach (var formFile in dto.Files)
+                    {
+                        if (formFile == null || formFile.Length == 0) continue;
+                        try
+                        {
+                            var uploadedUrl = await _fileStorage.UploadFileAsync(formFile, FileConstants.ClassNotificationUploadPAth);
+                            if (!string.IsNullOrWhiteSpace(uploadedUrl))
+                            {
+                                var fileEntity = new ClassNotificationFile
+                                {
+                                    NotificationId = res.Id,
+                                    FileName = formFile.FileName,
+                                    FileUrl = uploadedUrl,
+                                    ThumbnailUrl = null,
+                                    FileType = formFile.ContentType
+                                };
+                                _service.CreateNotificationFile(fileEntity);
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                if (dto.Links != null && dto.Links.Any())
+                {
+                    foreach (var link in dto.Links)
+                    {
+                        if (link == null) continue;
+                        try
+                        {
+                            var fileEntity = new ClassNotificationFile
+                            {
+                                NotificationId = res.Id,
+                                FileName = link.Title,
+                                FileUrl = link.Url,
+                                ThumbnailUrl = null,
+                                FileType = null
+                            };
+                            _service.CreateNotificationFile(fileEntity);
+                        }
+                        catch { }
+                    }
+                }
+
+                var files = _service.GetFilesByNotification(res.Id);
+                var response = res.ToNotificationDto(_aUserService.GetUserById(res.CreatedBy), files.Select(f => f.ToFileDto()).ToList(), null);
+
+                // Tạo notification hệ thống qua service, controller chỉ gửi hub
+                try
+                {
+                    var actor = _aUserService.GetUserById(res.CreatedBy);
+                    var actorName = actor?.Fullname ?? "Người dùng";
+
+                    var cls = _classService.GetClassById(res.ClassId);
+                    var className = cls?.Name ?? $"lớp {res.ClassId}";
+
+                    var sys = await _service.CreateSystemNotificationForClassAsync(
+                        res.ClassId,
+                        $"{actorName} đã cập nhật bài tập cho {className}",
+                        $"{actorName} - {res.Title}",
+                        res.CreatedBy,
+                        HttpContext.RequestAborted);
+
+                    if (sys.HasValue)
+                    {
+                        var (groupId, saved, memberIds) = sys.Value;
+                        var targets = (memberIds ?? Array.Empty<Guid>()).Select(id => $"user_{id}").ToList();
+                        targets.Add($"group_{groupId}");
+
+                        var payload = new
+                        {
+                            id = saved.Id,
+                            title = saved.Title,
+                            body = saved.Body,
+                            priority = saved.Priority,
+                            targetType = saved.TargetType,
+                            targetGroupId = saved.TargetGroupId,
+                            createdAt = saved.CreatedAt,
+                            createdBy = saved.CreatedBy,
+                            isRead = false
+                        };
+                        await _notificationHub.Clients.Groups(targets)
+                            .SendAsync("NotificationCreated", payload, HttpContext.RequestAborted);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Broadcast classwork notification failed: {ex.Message}");
+                }
+
+                // Legacy broadcasts
+                try
+                {
+                    await _hubContext.Clients.Group($"class_{res.ClassId}")
+                        .SendAsync("UpdatedNotification", response);
+                    await _hubContext.Clients.Group($"class_{res.ClassId}")
+                        .SendAsync("NewNotification", res.ClassId, res.Title);
+                }
+                catch { }
+
+                return Ok(new { success = true, message = "Đã update", data = response });
             }
             catch (ArgumentException aex)
             {
@@ -223,12 +417,7 @@ namespace StudyHub.Backend.Api.Controllers
             return NotFound(new { success = false, message = "Notification not found or cannot be deleted" });
         }
 
-        //
-        // ---------- CLASSWORK / ASSIGNMENT endpoints (backwards-compatible routes) ----------
-        // Keep the old /api/Classwork/* routes for compatibility with existing frontend.
-        //
-
-        // Get classworks (assignments) for a class -- backwards compatible path
+        // ---------- CLASSWORK compat routes ----------
         [HttpGet("/api/Classwork/class/{classId}")]
         public IActionResult GetClassworksByClass(int classId)
         {
@@ -244,134 +433,11 @@ namespace StudyHub.Backend.Api.Controllers
                     deadline = n.Deadline,
                     maxScore = n.MaxScore,
                     allowSubmission = n.AllowSubmission,
-                    files= _service.GetFilesByNotification(n.Id)
+                    files = _service.GetFilesByNotification(n.Id)
                 })
                 .ToList();
 
             return Ok(new { success = true, message = "Danh sách classworks.", classes = classworks });
-        }
-
-
-
-        [HttpPut("/api/Classwork/{id}")]
-        [Consumes("multipart/form-data")]
-        public async Task<IActionResult> EditClasswork(int id, [FromForm] EditClassworkDto dto)
-        {
-            try
-            {
-                var noti = _service.GetNotification(id);
-                if (noti == null) return NotFound(new { success = false, message = "Không tìm thấy classwork" });
-
-                if (!string.IsNullOrWhiteSpace(dto.Title)) noti.Title = dto.Title.Trim();
-                noti.Description = dto.Description ?? noti.Description;
-                noti.Deadline = dto.Deadline ?? noti.Deadline;
-                noti.UpdatedAt = DateTime.UtcNow;
-
-                if (dto.MaxScore.HasValue) noti.MaxScore = dto.MaxScore.Value;
-                if (!string.IsNullOrWhiteSpace(dto.GradeType)) noti.GradeType = dto.GradeType;
-                noti.AllowSubmission = dto.AllowSubmission;
-                if (!string.IsNullOrWhiteSpace(dto.InstructionsHtml)) noti.InstructionsHtml = dto.InstructionsHtml;
-
-                var res = _service.EditNotification(noti);
-                if (res == null) return StatusCode(500, new { success = false, message = "Cập nhật thất bại" });
-
-               
-                var existingFiles = _service.GetFilesByNotification(res.Id) ?? new List<ClassNotificationFile>();
-
-                var keptIds = (dto.KeptFileIds ?? Array.Empty<int>()).ToHashSet();
-
-                var toRemove = existingFiles.Where(f => !keptIds.Contains(f.Id)).ToList();
-
-                if (toRemove.Any())
-                {
-                    foreach (var fileToRemove in toRemove)
-                    {
-                        try
-                        {
-                            _service.DeleteNotificationFileById(fileToRemove.Id);
-                        }
-                        catch
-                        {
-                        }
-                    }
-                }
-
-                if (dto.Files != null && dto.Files.Any())
-                {
-                    foreach (var formFile in dto.Files)
-                    {
-                        if (formFile == null || formFile.Length == 0) continue;
-                        try
-                        {
-                            var uploadedUrl = await _fileStorage.UploadFileAsync(formFile, FileConstants.ClassNotificationUploadPAth);
-                            if (!string.IsNullOrWhiteSpace(uploadedUrl))
-                            {
-                                var fileEntity = new ClassNotificationFile
-                                {
-                                    NotificationId = res.Id,
-                                    FileName = formFile.FileName,
-                                    FileUrl = uploadedUrl,
-                                    ThumbnailUrl = null,
-                                    FileType = formFile.ContentType
-                                };
-                                _service.CreateNotificationFile(fileEntity);
-                            }
-                        }
-                        catch
-                        {
-                        }
-                    }
-                }
-
-                if (dto.Links != null && dto.Links.Any())
-                {
-                    foreach (var link in dto.Links)
-                    {
-                        if (link == null) continue;
-                        try
-                        {
-                            var fileEntity = new ClassNotificationFile
-                            {
-                                NotificationId = res.Id,
-                                FileName = link.Title,
-                                FileUrl = link.Url,
-                                ThumbnailUrl = null,
-                                FileType = null
-                            };
-                            _service.CreateNotificationFile(fileEntity);
-                        }
-                        catch
-                        {
-                        }
-                    }
-                }
-
-               
-
-                var files = _service.GetFilesByNotification(res.Id);
-                var response = res.ToNotificationDto(_aUserService.GetUserById(res.CreatedBy), files.Select(f => f.ToFileDto()).ToList(), null);
-
-                try
-                {
-                    await _hubContext.Clients.Group($"class_{res.ClassId}")
-                        .SendAsync("UpdatedNotification", response);
-                    await _hubContext.Clients.Group($"class_{res.ClassId}")
-                        .SendAsync("NewNotification", res.ClassId, res.Title);
-                }
-                catch
-                {
-                }
-
-                return Ok(new { success = true, message = "Đã update", data = response });
-            }
-            catch (ArgumentException aex)
-            {
-                return BadRequest(new { success = false, message = aex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = $"Lỗi server: {ex.Message}", error = ex.ToString() });
-            }
         }
 
         [HttpGet("/api/Classwork/{id}/detail")]
@@ -382,10 +448,9 @@ namespace StudyHub.Backend.Api.Controllers
 
             var submissions = _service.GetSubmissionsByNotificationId(id);
             var file = _service.GetFilesByNotification(id);
-            return Ok(new { success = true, data = noti, submissions = submissions, files=file });
+            return Ok(new { success = true, data = noti, submissions = submissions, files = file });
         }
 
-        // Submit assignment (multipart/form-data) - old route
         [HttpPost("/api/Classwork/{id}/submit")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> SubmitClasswork(int id, [FromForm] SubmitClassworkDto dto)
@@ -413,7 +478,6 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
-        // Get a single user's submission for an assignment (old route)
         [HttpGet("/api/Classwork/submission")]
         public IActionResult GetSubmission([FromQuery] int classworkID, [FromQuery] Guid userid)
         {
@@ -421,27 +485,28 @@ namespace StudyHub.Backend.Api.Controllers
             if (submit == null) return NotFound(new { success = false, message = "Không tìm thấy submission" });
 
             var files = _service.GetSubmissionFiles(submit.Id);
-            Guid gradeby = submit.GradedBy?? Guid.Empty;
+            Guid gradeby = submit.GradedBy ?? Guid.Empty;
             var user = _aUserService.GetUserById(gradeby);
-            return Ok(new { success = true, data = submit.ToSubmissionDto(files,user) });
+            return Ok(new { success = true, data = submit.ToSubmissionDto(files, user) });
         }
+
         [HttpGet("/api/Classwork/{classworkId}/submissions")]
-        public IActionResult GetSubmissionsByClassworkID( int classworkId)
+        public IActionResult GetSubmissionsByClassworkID(int classworkId)
         {
             var submit = _service.GetSubmissionsByNotificationId(classworkId);
             if (submit == null) return NotFound(new { success = false, message = "Không tìm thấy submission" });
-            List<SubmissionFileDto> result=new List<SubmissionFileDto>();
-            foreach(NotificationSubmission sub in submit)
+            System.Collections.Generic.List<SubmissionFileDto> result = new System.Collections.Generic.List<SubmissionFileDto>();
+            foreach (NotificationSubmission sub in submit)
             {
                 var files = _service.GetSubmissionFiles(sub.Id);
                 Guid gradeby = sub.GradedBy ?? Guid.Empty;
                 var user = _aUserService.GetUserById(gradeby);
                 result.Add(sub.ToSubmissionDto(files, user));
-
             }
-           
+
             return Ok(new { success = true, data = result });
         }
+
         [HttpGet("/api/Classwork/submissioncount/{classworkID}")]
         public IActionResult GetSubmissionCount(int classworkID)
         {
@@ -462,6 +527,7 @@ namespace StudyHub.Backend.Api.Controllers
             var numberMember = _service.GetMemberClassCount(classID);
             return Ok(numberMember);
         }
+
         [HttpPost("{notificationId}/submissions/{submissionId}/grade")]
         public IActionResult GradeSubmission(int notificationId, int submissionId, [FromBody] GradeSubmissionRequest dto)
         {
@@ -473,14 +539,12 @@ namespace StudyHub.Backend.Api.Controllers
 
             try
             {
-                // Use service which validates that submission belongs to notification
                 var ok = _service.GradeSubmission(notificationId, submissionId, dto.Score, dto.GradedBy, dto.Feedback ?? "");
                 if (!ok) return NotFound(new { success = false, message = "Submission not found or cannot be graded." });
 
-                // Optionally return updated submission for frontend convenience
                 var refreshed = _service.GetSubmissionsByNotificationId(notificationId).FirstOrDefault(s => s.Id == submissionId);
                 var files = refreshed != null ? _service.GetSubmissionFiles(refreshed.Id) : new System.Collections.Generic.List<SubmissionFile>();
-                var submissionDto = refreshed?.ToSubmissionDto(files,null);
+                var submissionDto = refreshed?.ToSubmissionDto(files, null);
 
                 return Ok(new { success = true, message = "Chấm điểm thành công.", data = submissionDto });
             }
@@ -489,16 +553,13 @@ namespace StudyHub.Backend.Api.Controllers
                 return StatusCode(500, new { success = false, message = $"Lỗi khi chấm điểm: {ex.Message}", error = ex.ToString() });
             }
         }
+
         [HttpGet("class/{classId}/unread-count")]
         public IActionResult GetUnreadCount(int classId, [FromQuery] Guid userId, [FromQuery] string? type = null)
         {
             try
             {
-               
-
                 var typeArg = type ?? string.Empty;
-
-                // Gọi service
                 var total = _service.GetTotalUnreadNotifications(classId, userId, typeArg);
 
                 return Ok(new { success = true, data = new { classId = classId, unread = total } });

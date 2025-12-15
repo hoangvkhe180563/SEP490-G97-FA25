@@ -15,7 +15,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
             //Arrange
             var mockLandingPageRepo = new Mock<ILandingPageRepository>();
             var mockCloudinaryRepo = new Mock<ICloudinaryRepository>();
-            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object);
+            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object, null!);
             var landingPageData = new LandingPage
             {
                 SchoolId = 0,
@@ -44,7 +44,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
             //Arrange
             var mockLandingPageRepo = new Mock<ILandingPageRepository>();
             var mockCloudinaryRepo = new Mock<ICloudinaryRepository>();
-            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object);
+            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object, null!);
             int schoolId = 1;
             string expectedAddress = "123 Đường A, Phường B, Thành phố C";
             mockLandingPageRepo.Setup(r => r.GetSchoolAddress(schoolId))
@@ -63,7 +63,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
             //Arrange
             var mockLandingPageRepo = new Mock<ILandingPageRepository>();
             var mockCloudinaryRepo = new Mock<ICloudinaryRepository>();
-            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object);
+            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object, null!);
             int schoolId = 0;
             mockLandingPageRepo.Setup(r => r.GetSchoolAddress(schoolId))
                 .Returns(string.Empty);
@@ -81,7 +81,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
             //Arrange
             var mockLandingPageRepo = new Mock<ILandingPageRepository>();
             var mockCloudinaryRepo = new Mock<ICloudinaryRepository>();
-            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object);
+            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object, null!);
             int schoolId = 1;
             var landingPageData = new LandingPage
             {
@@ -134,7 +134,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
             //Arrange
             var mockLandingPageRepo = new Mock<ILandingPageRepository>();
             var mockCloudinaryRepo = new Mock<ICloudinaryRepository>();
-            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object);
+            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object, null!);
             int schoolId = 0;
             mockLandingPageRepo.Setup(r => r.GetLandingPage(schoolId)).Returns((LandingPage)null!);
 
@@ -156,7 +156,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
             var mockLandingPageRepo = new Mock<ILandingPageRepository>();
             var mockCloudinaryRepo = new Mock<ICloudinaryRepository>();
             var mockBannerFile = new Mock<IFormFile>();
-            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object);
+            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object, null!);
             var landingPage = new LandingPage { SchoolId = 1 };
             var bannerFile = mockBannerFile.Object;
 
@@ -188,7 +188,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
             var mockLandingPageRepo = new Mock<ILandingPageRepository>();
             var mockCloudinaryRepo = new Mock<ICloudinaryRepository>();
             var mockLogoFile = new Mock<IFormFile>();
-            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object);
+            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object, null!);
             var landingPage = new LandingPage { SchoolId = 1 };
             var logoFile = mockLogoFile.Object;
 
@@ -223,7 +223,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
             var mockCloudinaryRepo = new Mock<ICloudinaryRepository>();
             var mockLogoImageFile1 = new Mock<IFormFile>();
             var mockLogoImageFile2 = new Mock<IFormFile>();
-            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object);
+            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object, null!);
             var landingPage = new LandingPage { SchoolId = 1 };
             var newFile1 = mockLogoImageFile1.Object;
             var newFile2 = mockLogoImageFile2.Object;
@@ -266,7 +266,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
             var mockLandingPageRepo = new Mock<ILandingPageRepository>();
             var mockCloudinaryRepo = new Mock<ICloudinaryRepository>();
             var mockNewFile = new Mock<IFormFile>();
-            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object);
+            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object, null!);
             var landingPage = new LandingPage { SchoolId = 1 };
             var newFile = mockNewFile.Object;
 
@@ -310,7 +310,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
             var mockLandingPageRepo = new Mock<ILandingPageRepository>();
             var mockCloudinaryRepo = new Mock<ICloudinaryRepository>();
             var mockNewFile = new Mock<IFormFile>();
-            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object);
+            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object, null!);
             var landingPage = new LandingPage { SchoolId = 1 };
             var newFile = mockNewFile.Object;
 
@@ -353,7 +353,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
             var mockBannerFile = new Mock<IFormFile>();
             var mockLogoFile = new Mock<IFormFile>();
             var mockImageFile = new Mock<IFormFile>();
-            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object);
+            var landingPageService = new LandingPageService(mockLandingPageRepo.Object, mockCloudinaryRepo.Object, null!);
             var landingPage = new LandingPage { SchoolId = 1 };
             var bannerFile = mockBannerFile.Object;
             var logoFile = mockLogoFile.Object;

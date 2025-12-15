@@ -1,16 +1,30 @@
 import { axiosInstance } from "@/lib/axios";
 import { create } from "zustand";
 import * as signalR from "@microsoft/signalr";
+import type { HubConnection } from "@microsoft/signalr";
 import { toast } from "react-hot-toast";
 import { createClassConnection } from "@/lib/signalR";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 
-interface NotificationState {
-  connection: signalR.HubConnection | null;
+export interface NotificationPayload {
+  id?: string;
+  Id?: string;
+  classId?: string;
+  ClassId?: string;
+  title?: string;
+  Title?: string;
+  createdBy?: string;
+  appUserId?: string;
+  AppUserId?: string;
+  [key: string]: any;
+}
+
+export interface NotificationState {
+  connection: HubConnection | null;
   unreadCount: Record<string, number>; // classId -> số thông báo chưa đọc
 
-  addNewNotificationListener: (fn: (payload: any) => void) => void;
-  removeNewNotificationListener: (fn: (payload: any) => void) => void;
+  addNewNotificationListener: (fn: (payload: NotificationPayload) => void) => void;
+  removeNewNotificationListener: (fn: (payload: NotificationPayload) => void) => void;
 
   connect: () => Promise<void>;
   joinClass: (classId: string) => Promise<void>;
@@ -20,7 +34,7 @@ interface NotificationState {
 
 export const useNotificationStore = create<NotificationState>((set, get) => {
   // in-memory list of registered listeners for NewNotificationFull payloads
-  const listeners: Set<(payload: any) => void> = new Set();
+  const listeners: Set<(payload: NotificationPayload) => void> = new Set();
   // dedupe set for recently seen notification ids (avoid duplicate toast)
   const recentNotificationIds: Set<string> = new Set();
 
@@ -57,11 +71,11 @@ export const useNotificationStore = create<NotificationState>((set, get) => {
       });
 
       // Full payload: use as single source of truth for showing toast and appending
-      connection.on("NewNotificationFull", (payload: any) => {
+      connection.on("NewNotificationFull", (payload: NotificationPayload) => {
         try {
           if (!payload) return;
-          const id = String(payload?.id ?? payload?.Id ?? "");
-          const cid = String(payload?.classId ?? payload?.ClassId ?? "");
+          const id = String(payload.id ?? payload.Id ?? "");
+          const cid = String(payload.classId ?? payload.ClassId ?? "");
           if (!id) {
             // fallback: if no id, still notify listeners but avoid toast
             listeners.forEach((fn) => {
@@ -95,7 +109,6 @@ export const useNotificationStore = create<NotificationState>((set, get) => {
           recentNotificationIds.add(id);
           // keep recent set bounded to avoid memory growth
           if (recentNotificationIds.size > 200) {
-            // remove oldest entry (simple strategy)
             const it = recentNotificationIds.values();
             const first = it.next().value;
             if (first) recentNotificationIds.delete(first);
@@ -120,7 +133,9 @@ export const useNotificationStore = create<NotificationState>((set, get) => {
 
           // toast: avoid showing toast for the creator themselves (they already see local UI)
           const currentUser = useAuthStore.getState().user;
-          const createdBy = String(payload?.createdBy ?? payload?.appUserId ?? payload?.AppUserId ?? "");
+          const createdBy = String(
+            payload.createdBy ?? payload.appUserId ?? payload.AppUserId ?? ""
+          );
           if (currentUser && String(currentUser.id) === createdBy) {
             // creator: skip toast to avoid duplicate confirmation
             return;
@@ -128,7 +143,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => {
 
           // show toast for other users (new notification)
           try {
-            const title = payload?.title ?? payload?.Title ?? "Thông báo mới";
+            const title = payload.title ?? payload.Title ?? "Thông báo mới";
             toast.success(`📢 Lớp ${cid} có thông báo mới: ${title}`);
           } catch (tErr) {
             console.warn("toast error", tErr);

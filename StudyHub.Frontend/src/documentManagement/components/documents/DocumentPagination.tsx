@@ -1,4 +1,3 @@
-// StudyHub.Frontend/src/documentManagement/components/documents/DocumentPagination.tsx
 import {
   Pagination,
   PaginationContent,

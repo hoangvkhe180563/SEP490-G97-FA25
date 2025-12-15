@@ -5,7 +5,7 @@ import MultipleFilesCommand from '../components/MultipleFilesCommand';
 import type { IDocumentItem } from '../interfaces/IDocumentItem'
 import { UiManagementService } from '../services/UiManagementService';
 import type { ICourseItem } from '../interfaces/ICourseItem';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Input } from '@/common/components/ui/input';
 import type { ILandingPageUpdateService } from '../interfaces/ILandingPageUpdateService';
 import { Textarea } from '@/common/components/ui/textarea';
@@ -96,6 +96,7 @@ const LandingPageEdit = () => {
     }
 
     fetchData().catch(console.error).finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const handleDocumentSelect = (item: IDocumentItem) => {
@@ -236,10 +237,6 @@ const LandingPageEdit = () => {
     }
   };
 
-  const handleCancel = () => {
-    location.href = `/ui/school-landing`
-  };
-
   return (
     <div className="w-full h-full overflow-y-auto">
       <div className='max-w-3xl mx-auto my-12 p-8 rounded-lg shadow-xl border border-gray-200'>
@@ -364,9 +361,11 @@ const LandingPageEdit = () => {
         <div className='w-full flex justify-between mt-12 pt-6 border-t border-gray-200'>
           <Button variant="outline" className='px-6' onClick={() => location.reload()}><Repeat /> Đặt lại</Button>
           <div className="flex gap-4">
-            <Button variant="outline" className="px-6" onClick={handleCancel}>
-              Hủy bỏ thay đổi
-            </Button>
+            <Link to={'/ui/school-landing'}>
+              <Button variant="outline" className="px-6">
+                Hủy bỏ thay đổi
+              </Button>
+            </Link>
             <Button className="px-6 bg-gray-800 hover:bg-gray-700 text-white" onClick={handleSave}>
               Lưu thay đổi
             </Button>

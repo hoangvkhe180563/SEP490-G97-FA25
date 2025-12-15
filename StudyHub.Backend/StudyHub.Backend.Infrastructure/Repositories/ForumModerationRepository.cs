@@ -144,7 +144,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.Severity = rule.Severity;
                 entity.ViolationScore = rule.ViolationScore;
                 entity.Description = rule.Description;
-                entity.UpdatedAt = DateTime.Now;
+                entity.UpdatedAt = DateTime.UtcNow;
                 entity.UpdatedBy = rule.UpdatedBy;
 
                 await _context.SaveChangesAsync();
@@ -183,7 +183,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (entity == null) return false;
 
                 entity.IsActive = !entity.IsActive;
-                entity.UpdatedAt = DateTime.Now;
+                entity.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
                 return true;
@@ -299,7 +299,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     throw new InvalidOperationException("Pattern not found");
 
                 entity.Pattern = pattern.Pattern;
-                entity.UpdatedAt = DateTime.Now;
+                entity.UpdatedAt = DateTime.UtcNow;
                 entity.UpdatedBy = pattern.UpdatedBy;
 
                 await _context.SaveChangesAsync();
@@ -338,7 +338,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (entity == null) return false;
 
                 entity.IsActive = !entity.IsActive;
-                entity.UpdatedAt = DateTime.Now;
+                entity.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
                 return true;
@@ -429,7 +429,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     existing.TotalViolationScore = status.TotalViolationScore;
                     existing.IsMute = status.IsMute;
                     existing.MuteUntil = status.MuteUntil;
-                    existing.UpdatedAt = DateTime.Now;
+                    existing.UpdatedAt = DateTime.UtcNow;
                 }
                 else
                 {
@@ -440,7 +440,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         TotalViolationScore = status.TotalViolationScore,
                         IsMute = status.IsMute,
                         MuteUntil = status.MuteUntil,
-                        CreatedAt = DateTime.Now
+                        CreatedAt = DateTime.UtcNow
                     };
 
                     _context.UserForumStatuses.Add(entity);
@@ -471,14 +471,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         SchoolId = schoolId,
                         TotalViolationScore = 100 - score,
                         IsMute = false,
-                        CreatedAt = DateTime.Now
+                        CreatedAt = DateTime.UtcNow
                     };
                     _context.UserForumStatuses.Add(status);
                 }
                 else
                 {
                     status.TotalViolationScore -= score;
-                    status.UpdatedAt = DateTime.Now;
+                    status.UpdatedAt = DateTime.UtcNow;
                 }
 
                 await _context.SaveChangesAsync();
@@ -501,7 +501,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (status == null) return false;
 
                 status.TotalViolationScore = 100;
-                status.UpdatedAt = DateTime.Now;
+                status.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
                 return true;
@@ -529,7 +529,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                         TotalViolationScore = 0,
                         IsMute = true,
                         MuteUntil = muteUntil,
-                        CreatedAt = DateTime.Now
+                        CreatedAt = DateTime.UtcNow
                     };
                     _context.UserForumStatuses.Add(status);
                 }
@@ -537,7 +537,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     status.IsMute = true;
                     status.MuteUntil = muteUntil;
-                    status.UpdatedAt = DateTime.Now;
+                    status.UpdatedAt = DateTime.UtcNow;
                 }
 
                 await _context.SaveChangesAsync();
@@ -561,7 +561,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 status.IsMute = false;
                 status.MuteUntil = null;
-                status.UpdatedAt = DateTime.Now;
+                status.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
                 return true;
@@ -582,7 +582,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
                 if (status == null) return false;
 
-                if (status.IsMute && status.MuteUntil.HasValue && status.MuteUntil.Value < DateTime.Now)
+                if (status.IsMute && status.MuteUntil.HasValue && status.MuteUntil.Value <= DateTime.Now)
                 {
                     status.IsMute = false;
                     status.MuteUntil = null;
@@ -750,7 +750,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (entity == null || entity.SourceType != "report" || entity.ViolationScore > 0)
                     return false;
 
-                entity.DeletedAt = DateTime.Now;
+                entity.DeletedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
                 return true;
@@ -893,7 +893,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 var entity = await _context.ViolationRecords.FindAsync(recordId);
                 if (entity == null) return false;
 
-                entity.DeletedAt = DateTime.Now;
+                entity.DeletedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
                 return true;
@@ -1074,7 +1074,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (entity == null) return false;
 
                 entity.Status = true;
-                entity.UpdatedAt = DateTime.Now;
+                entity.UpdatedAt = DateTime.UtcNow;
                 entity.UpdatedBy = moderatorId;
 
                 var userId = entity.UserId;
@@ -1099,7 +1099,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 if (entity == null) return false;
 
                 entity.Status = false;
-                entity.UpdatedAt = DateTime.Now;
+                entity.UpdatedAt = DateTime.UtcNow;
                 entity.UpdatedBy = moderatorId;
 
                 await _context.SaveChangesAsync();
@@ -1301,14 +1301,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     {
                         dbQuery = dbQuery.Where(s =>
                             s.IsMute == true &&
-                            (s.MuteUntil == null || s.MuteUntil > DateTime.Now));
+                            (s.MuteUntil == null || s.MuteUntil > DateTime.UtcNow));
                     }
                     else
                     {
                         dbQuery = dbQuery.Where(s =>
                             s.IsMute == false ||
                             s.IsMute == null ||
-                            (s.IsMute == true && s.MuteUntil.HasValue && s.MuteUntil.Value <= DateTime.Now));
+                            (s.IsMute == true && s.MuteUntil.HasValue && s.MuteUntil.Value <= DateTime.UtcNow));
                     }
                 }
 

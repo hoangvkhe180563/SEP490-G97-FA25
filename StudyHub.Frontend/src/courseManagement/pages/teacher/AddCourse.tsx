@@ -81,7 +81,7 @@ const AddCourse: React.FC = () => {
     const newErrors: Record<string, string> = {};
     if (!title || !title.trim()) newErrors.title = "Tên khóa học là bắt buộc.";
     if (!description || !String(description).trim())
-      newErrors.description = "Mô tả khóa học là bắt buộc."
+      newErrors.description = "Mô tả khóa học là bắt buộc.";
     else if (description.length > 1000)
       newErrors.description = "Độ dài mô tả khóa học không quá 1000 ký tự.";
     if (!SubjectId) newErrors.subjectId = "Vui lòng chọn môn học.";
@@ -308,10 +308,11 @@ const AddCourse: React.FC = () => {
                       }}
                     >
                       <SelectTrigger
-                        className={`w-full ${errors.subjectId
+                        className={`w-full ${
+                          errors.subjectId
                             ? "border-red-500 ring-1 ring-red-500"
                             : ""
-                          }`}
+                        }`}
                       >
                         <SelectValue placeholder="Chọn môn học" />
                       </SelectTrigger>
@@ -343,10 +344,11 @@ const AddCourse: React.FC = () => {
                       }}
                     >
                       <SelectTrigger
-                        className={`w-full ${errors.grade
+                        className={`w-full ${
+                          errors.grade
                             ? "border-red-500 ring-1 ring-red-500"
                             : ""
-                          }`}
+                        }`}
                       >
                         <SelectValue placeholder="Chọn khối lớp" />
                       </SelectTrigger>
@@ -380,10 +382,11 @@ const AddCourse: React.FC = () => {
                         if (errors.startAt)
                           setErrors((s) => ({ ...s, startAt: "" }));
                       }}
-                      className={`w-full ${errors.startAt
+                      className={`w-full ${
+                        errors.startAt
                           ? "border-red-500 ring-1 ring-red-500"
                           : ""
-                        }`}
+                      }`}
                     />
                     {errors.startAt && (
                       <div className="text-sm text-red-600 mt-1">
@@ -404,8 +407,9 @@ const AddCourse: React.FC = () => {
                         if (errors.endAt)
                           setErrors((s) => ({ ...s, endAt: "" }));
                       }}
-                      className={`w-full ${errors.endAt ? "border-red-500 ring-1 ring-red-500" : ""
-                        }`}
+                      className={`w-full ${
+                        errors.endAt ? "border-red-500 ring-1 ring-red-500" : ""
+                      }`}
                     />
                     {errors.endAt && (
                       <div className="text-sm text-red-600 mt-1">
@@ -428,7 +432,6 @@ const AddCourse: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <Label className="font-semibold text-base text-gray-800">
                       Hình thu nhỏ khóa học{" "}
-                      <span className="text-red-600">*</span>
                     </Label>
 
                     <Popover>
@@ -467,10 +470,11 @@ const AddCourse: React.FC = () => {
                   {/* Vùng xem trước ảnh */}
                   <div
                     className={`mt-3 relative flex items-center justify-center rounded-xl border-2 border-dashed 
-                                ${thumbnailPreview
-                        ? "border-transparent"
-                        : "border-gray-300"
-                      } 
+                                ${
+                                  thumbnailPreview
+                                    ? "border-transparent"
+                                    : "border-gray-300"
+                                } 
                                 bg-gray-50 hover:bg-gray-100 transition h-52 overflow-hidden`}
                   >
                     {thumbnailPreview ? (
@@ -636,10 +640,11 @@ const AddCourse: React.FC = () => {
                     }}
                   >
                     <SelectTrigger
-                      className={`w-full ${errors.difficulty
+                      className={`w-full ${
+                        errors.difficulty
                           ? "border-red-500 ring-1 ring-red-500"
                           : ""
-                        }`}
+                      }`}
                     >
                       <SelectValue placeholder="Chọn độ khó" />
                     </SelectTrigger>
@@ -669,10 +674,11 @@ const AddCourse: React.FC = () => {
                     }}
                   >
                     <SelectTrigger
-                      className={`w-full ${errors.length
+                      className={`w-full ${
+                        errors.length
                           ? "border-red-500 ring-1 ring-red-500"
                           : ""
-                        }`}
+                      }`}
                     >
                       <SelectValue placeholder="Chọn độ dài" />
                     </SelectTrigger>
@@ -701,10 +707,11 @@ const AddCourse: React.FC = () => {
                     }}
                   >
                     <SelectTrigger
-                      className={`w-full ${errors.status
+                      className={`w-full ${
+                        errors.status
                           ? "border-red-500 ring-1 ring-red-500"
                           : ""
-                        }`}
+                      }`}
                     >
                       <SelectValue placeholder="Chọn trạng thái" />
                     </SelectTrigger>

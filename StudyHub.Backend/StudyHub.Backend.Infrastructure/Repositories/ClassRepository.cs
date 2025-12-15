@@ -104,7 +104,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 .Select(r => r.Id)
                 .ToList();
 
-            var teachers = _context.AppUsers
+            var teachers = _context.AppUsers.Include(a=>a.Roles)
                 .Where(u => u.Roles.Any(role => teacherRoleIds.Contains(role.Id)))
                 .ToList();
 
@@ -129,7 +129,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     IsLoginWithGoogle = u.IsLoginWithGoogle,
                     RefreshToken = u.RefreshToken,
                     Status = u.Status,
-                    RefreshTokenExpire = u.RefreshTokenExpire
+                    RefreshTokenExpire = u.RefreshTokenExpire,
+                    Roles=u.Roles.Select(a=>new AppRole
+                    {
+                        Id = a.Id,
+                        Name=a.Name
+
+                    }).ToList(),
                 })
                 .ToList();
         }
@@ -165,6 +171,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             clas.Grade = classEntity.Grade;
             clas.UpdatedAt = classEntity.UpdatedAt;
             clas.UpdatedBy = classEntity.UpdatedBy;
+            clas.CreatedBy = classEntity.CreatedBy;
 
             _context.Classes.Update(clas);
             _context.SaveChanges();
@@ -242,6 +249,34 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     "GetClassByUserId failed: " + ex.Message).LogError();
                 return new List<Class>();
             }
+        }
+
+        public bool HasTeacher(Guid? userid, int classID)
+        {
+           var teacher = _context.AppUserClasses.FirstOrDefault(a=>a.UserId == userid&&a.ClassId==classID);
+            return teacher != null;
+        }
+        public Class DeleteClass(Class classID)
+        {
+            var classes = _context.Classes.FirstOrDefault(a => a.Id == classID.Id);
+            if (classes == null) { return null; }
+            classes.DeletedAt = DateTime.Now;
+            classes.UpdatedBy = classID.UpdatedBy;
+            classes.UpdatedAt = classID.CreatedAt;
+
+            _context.Classes.Update(classes);
+            _context.SaveChanges();
+            return new Class
+            {
+                Id = classID.Id,
+                Name = classes.Name,
+                Grade = classes.Grade,
+                Description= classes.Description,
+                CreatedAt= classes.CreatedAt,
+                UpdatedAt = classes.UpdatedAt,
+                DeletedAt = classes.DeletedAt
+                
+            };
         }
     }
 }

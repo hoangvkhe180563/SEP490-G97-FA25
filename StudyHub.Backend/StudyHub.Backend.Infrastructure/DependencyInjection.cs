@@ -5,8 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Repositories;
 using StudyHub.Backend.Infrastructure.Repositories.Exam;
+using StudyHub.Backend.Infrastructure.Repositories.Notifications;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Repositories.Exam;
+using StudyHub.Backend.UseCases.Repositories.Notifications;
 
 namespace StudyHub.Backend.Infrastructure
 {
@@ -33,6 +35,7 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
             services.AddScoped<IProgressRepository, ProgressRepository>();
             services.AddScoped<IClassRepository, ClassRepository>();
+            services.AddScoped<IClassManagementRepository, ClassManagementRepository>();
             services.AddScoped<IClassMemberRepository, ClassMemberRepository>();
             services.AddScoped<IClassNotificationRepository, ClassNotificationRepository>();
             services.AddScoped<IAppRoleRepository, AppRoleRepositoy>();
@@ -52,6 +55,8 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
             services.AddScoped<IElasticSearchDocument, ElasticSearchDocumentRepository>();
             services.AddScoped<IElasticSearchCourse, ElasticSearchCourseRepository>();
+            services.AddScoped<INotificationRepository, NotificationRepository>();
+            services.AddScoped<INotificationOfClassRepository, NotificationOfClassRepository>();
 
             services.AddScoped<ICloudinaryRepository>(provider =>
             {

@@ -60,7 +60,12 @@ namespace StudyHub.Backend.Api.Services
                 IsBodyHtml = true
             };
 
-            using var client = new SmtpClient(host, port);
+            using var client = new SmtpClient(host, port)
+            {
+                EnableSsl = true,
+                UseDefaultCredentials = false,
+
+            };
             if (!string.IsNullOrEmpty(user)) client.Credentials = new System.Net.NetworkCredential(user, pass);
             await client.SendMailAsync(message);
         }
@@ -113,7 +118,12 @@ namespace StudyHub.Backend.Api.Services
                 IsBodyHtml = true
             };
 
-            using var client = new SmtpClient(host, port);
+            using var client = new SmtpClient(host, port)
+            {
+                EnableSsl = true,
+                UseDefaultCredentials = false,
+
+            };
             if (!string.IsNullOrEmpty(user)) client.Credentials = new System.Net.NetworkCredential(user, pass);
             await client.SendMailAsync(message);
         }
@@ -169,7 +179,12 @@ namespace StudyHub.Backend.Api.Services
                 IsBodyHtml = true
             };
 
-            using var client = new SmtpClient(host, port);
+            using var client = new SmtpClient(host, port)
+            {
+                EnableSsl = true,
+                UseDefaultCredentials = false,
+
+            };
             if (!string.IsNullOrEmpty(user)) client.Credentials = new System.Net.NetworkCredential(user, pass);
             await client.SendMailAsync(message);
         }
@@ -278,7 +293,11 @@ namespace StudyHub.Backend.Api.Services
                 IsBodyHtml = true
             };
 
-            using var client = new System.Net.Mail.SmtpClient(host, port);
+            using var client = new SmtpClient(host, port)
+            {
+                EnableSsl = true,
+                UseDefaultCredentials = false,
+            };
             if (!string.IsNullOrEmpty(user)) client.Credentials = new System.Net.NetworkCredential(user, pass);
             await client.SendMailAsync(message);
         }

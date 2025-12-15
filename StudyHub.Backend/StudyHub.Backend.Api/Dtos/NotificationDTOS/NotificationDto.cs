@@ -1,0 +1,23 @@
+﻿namespace StudyHub.Backend.Api.Dtos.NotificationDTOS
+{
+    public class NotificationDto
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = null!;
+        public string? Body { get; set; }
+        public string? LinkUrl { get; set; }
+        public string TargetType { get; set; } = null!;
+        public Guid? TargetRoleId { get; set; }
+        public int? TargetGroupId { get; set; }
+        public Guid? TargetUserId { get; set; }
+        public string Priority { get; set; } = null!;
+        public bool? IsActive { get; set; }
+        public DateTime? ExpiresAt { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public Guid CreatedBy { get; set; }
+
+        // read status for the requesting user (business)
+        public bool IsRead { get; set; }
+        public DateTime? ReadAt { get; set; }
+    }
+}
