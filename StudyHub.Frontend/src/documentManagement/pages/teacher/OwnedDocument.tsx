@@ -38,7 +38,6 @@ import {
 import { useOwnedDocuments } from "@/documentManagement/hooks/useOwnedDocuments";
 import OwnedDocumentItem from "@/documentManagement/components/OwnedDocumentItem";
 import OwnedDocumentListItem from "@/documentManagement/components/OwnedDocumentListItem";
-import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination";
 import type {
   FilterSidebarProps,
   DocumentHeaderProps,
@@ -47,6 +46,7 @@ import type {
 } from "@/documentManagement/interfaces/document";
 import { Check } from "lucide-react";
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
+import { Paging } from "@/common/components/Paging";
 const ITEMS_PER_PAGE = 12;
 
 function FilterBar({
@@ -1001,10 +1001,6 @@ export default function OwnedDocument() {
     });
   };
 
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-  };
-
   return (
     <div className="flex h-screen bg-white overflow-hidden flex-col">
       <div className="fixed top-4 right-4 z-50 space-y-2">
@@ -1053,15 +1049,10 @@ export default function OwnedDocument() {
         )}
       </div>
       <div className="bg-white border-t border-slate-200 px-4 flex-shrink-0">
-        <DocumentPagination
-          pagination={{
-            currentPage,
-            totalPages,
-            totalCount,
-            pageSize: ITEMS_PER_PAGE,
-          }}
-          onPageChange={handlePageChange}
-        />
+        <Paging
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage} />
       </div>
     </div>
   );

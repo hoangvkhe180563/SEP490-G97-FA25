@@ -20,8 +20,8 @@ import {
 } from "@/common/components/ui/select";
 import { Search, ChevronDown, FileText } from "lucide-react";
 import { useSchoolTeachersDocuments } from "@/documentManagement/hooks/useSchoolTeachersDocuments";
-import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination";
 import type { FilterSidebarProps } from "@/documentManagement/interfaces/document";
+import { Paging } from "@/common/components/Paging";
 
 const ITEMS_PER_PAGE = 15;
 
@@ -379,7 +379,7 @@ export default function SchoolTeachersDocuments() {
   }
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden flex-col">
+    <div className="flex h-full bg-white overflow-hidden flex-col">
       <div className="bg-white border-b border-slate-200 px-4 py-3 flex-shrink-0">
         <div className="flex items-center justify-between gap-4">
           <div className="relative flex-1 max-w-xl">
@@ -467,15 +467,10 @@ export default function SchoolTeachersDocuments() {
       </ScrollArea>
 
       <div className="bg-white border-t border-slate-200 px-4 flex-shrink-0">
-        <DocumentPagination
-          pagination={{
-            currentPage,
-            totalPages,
-            totalCount,
-            pageSize: ITEMS_PER_PAGE,
-          }}
-          onPageChange={setCurrentPage}
-        />
+        <Paging
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage} />
       </div>
     </div>
   );
