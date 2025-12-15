@@ -112,7 +112,11 @@ const CourseList: React.FC = () => {
   const currentPage = page ?? 1;
 
   return (
-    <div className={`p-4 mx-auto w-full h-full overflow-y-auto scrollbar-hide ${authUser ? '' : 'mt-[65px]'}`}>
+    <div
+      className={`p-4 mx-auto w-full h-full overflow-y-auto scrollbar-hide ${
+        authUser ? "" : "mt-[65px]"
+      }`}
+    >
       <div className="mb-4">
         <div className="text-2xl font-normal text-[#171717]">
           Tất cả các khóa học

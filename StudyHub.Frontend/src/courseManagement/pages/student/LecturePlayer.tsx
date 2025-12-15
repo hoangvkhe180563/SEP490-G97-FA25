@@ -823,6 +823,18 @@ const LecturePlayer: React.FC = () => {
     submitInteractiveResponse,
   ]);
 
+  // Log progress to console at most once per second for debugging
+  const _progressLogLastRef = useRef<number>(0);
+  useEffect(() => {
+    const now = Date.now();
+    if (now - _progressLogLastRef.current >= 1000) {
+      _progressLogLastRef.current = now;
+      console.log(
+        `LecturePlayer progress: lessonId=${lessonId} progress=${_localProgress}% time=${_currentTime}s`
+      );
+    }
+  }, [_localProgress, _currentTime, lessonId]);
+
   const handleStartExam = async () => {
     if (!authUser) {
       return;
@@ -857,7 +869,10 @@ const LecturePlayer: React.FC = () => {
                 const blankCount = (
                   q.questionText.match(
                     new RegExp(
-                      BLANK_PLACEHOLDER.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&"),
+                      BLANK_PLACEHOLDER.replace(
+                        /[-/\\^$*+?.()|[\]{}]/g,
+                        "\\$&"
+                      ),
                       "g"
                     )
                   ) || []
@@ -1053,8 +1068,9 @@ const LecturePlayer: React.FC = () => {
                     if (isEmbed || (!isMp4 && src.startsWith("http"))) {
                       const isYouTubeEmbed = /youtube|youtu\.be/.test(lower);
                       if (isYouTubeEmbed) {
-                        const elId = `yt-player-${selectedLesson?.id ?? "unknown"
-                          }`;
+                        const elId = `yt-player-${
+                          selectedLesson?.id ?? "unknown"
+                        }`;
                         return <div id={elId} className="w-full h-full" />;
                       }
 
@@ -1167,8 +1183,8 @@ const LecturePlayer: React.FC = () => {
                           const bgCls = isCorrectOpt
                             ? "bg-green-50 border border-green-200"
                             : isChosenWrong
-                              ? "bg-red-50 border border-red-200"
-                              : "bg-gray-100 hover:bg-gray-200";
+                            ? "bg-red-50 border border-red-200"
+                            : "bg-gray-100 hover:bg-gray-200";
                           return (
                             <button
                               key={idx}

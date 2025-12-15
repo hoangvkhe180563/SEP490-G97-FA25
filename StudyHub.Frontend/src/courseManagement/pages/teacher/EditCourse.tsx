@@ -30,6 +30,7 @@ import {
   Pencil,
   Loader2,
   HelpCircle,
+  Calendar,
 } from "lucide-react";
 import {
   Popover,
@@ -45,7 +46,9 @@ import type {
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-import { formatISO, parse } from "date-fns";
+import { formatISO, parse, format } from "date-fns";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
 import { formatDateTime } from "@/courseManagement/utils/formatDate";
 
 const EditCourse: React.FC = () => {
@@ -92,6 +95,16 @@ const EditCourse: React.FC = () => {
   const [length, setLength] = useState<"" | "Short" | "Medium" | "Long">("");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
+  const [startOpen, setStartOpen] = useState(false);
+  const [endOpen, setEndOpen] = useState(false);
+  const [selectedStart, setSelectedStart] = useState<Date | undefined>(
+    undefined
+  );
+  const [selectedEnd, setSelectedEnd] = useState<Date | undefined>(undefined);
+  const [modalPostOpen, setModalPostOpen] = useState(false);
+  const [selectedModalPost, setSelectedModalPost] = useState<Date | undefined>(
+    undefined
+  );
   const [saving, setSaving] = useState(false);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
@@ -126,6 +139,22 @@ const EditCourse: React.FC = () => {
 
   useEffect(() => {
     modalChapterRef.current = modalChapter;
+  }, [modalChapter]);
+
+  // sync modal selected post date when modalChapter changes
+  useEffect(() => {
+    if (!modalChapter) {
+      setSelectedModalPost(undefined);
+      return;
+    }
+    const pd = (modalChapter as any).postDate ?? null;
+    if (pd) {
+      const d = pd instanceof Date ? pd : new Date(pd);
+      if (!isNaN(d.getTime())) setSelectedModalPost(d);
+      else setSelectedModalPost(undefined);
+    } else {
+      setSelectedModalPost(undefined);
+    }
   }, [modalChapter]);
 
   const chaptersLen = chaptersFromStore ? chaptersFromStore.length : 0;
@@ -177,14 +206,27 @@ const EditCourse: React.FC = () => {
       setIsFeatured((selectedCourse as any).isFeatured ?? false);
       setStartAt(
         selectedCourse.startAt
-          ? formatISO(new Date(selectedCourse.startAt)).slice(0, 10)
+          ? format(new Date(selectedCourse.startAt), "dd/MM/yyyy")
           : ""
       );
       setEndAt(
         selectedCourse.endAt
-          ? formatISO(new Date(selectedCourse.endAt)).slice(0, 10)
+          ? format(new Date(selectedCourse.endAt), "dd/MM/yyyy")
           : ""
       );
+      // set selected date objects for pickers
+      try {
+        if (selectedCourse.startAt) {
+          const s = new Date(selectedCourse.startAt);
+          if (!isNaN(s.getTime())) setSelectedStart(s);
+        }
+        if (selectedCourse.endAt) {
+          const e = new Date(selectedCourse.endAt);
+          if (!isNaN(e.getTime())) setSelectedEnd(e);
+        }
+      } catch (e) {
+        /* ignore */
+      }
       setDifficulty((selectedCourse as any).difficulty ?? "Beginner");
       setLength((selectedCourse as any).length ?? "Short");
     }
@@ -235,14 +277,28 @@ const EditCourse: React.FC = () => {
     let startDate: Date | null = null;
     let endDate: Date | null = null;
     if (hasStart) {
-      startDate = parse(startAt, "yyyy-mm-dd", new Date());
-      if (isNaN(startDate.getTime()))
+      try {
+        startDate = parse(startAt, "dd/MM/yyyy", new Date());
+        if (isNaN(startDate.getTime())) {
+          const alt = new Date(startAt);
+          if (!isNaN(alt.getTime())) startDate = alt;
+          else fieldErrors.startAt = "Ngày bắt đầu không hợp lệ.";
+        }
+      } catch (e) {
         fieldErrors.startAt = "Ngày bắt đầu không hợp lệ.";
+      }
     }
     if (hasEnd) {
-      endDate = new Date(endAt);
-      if (isNaN(endDate.getTime()))
+      try {
+        endDate = parse(endAt, "dd/MM/yyyy", new Date());
+        if (isNaN(endDate.getTime())) {
+          const alt = new Date(endAt);
+          if (!isNaN(alt.getTime())) endDate = alt;
+          else fieldErrors.endAt = "Ngày kết thúc không hợp lệ.";
+        }
+      } catch (e) {
         fieldErrors.endAt = "Ngày kết thúc không hợp lệ.";
+      }
     }
     if (startDate && endDate && startDate > endDate)
       fieldErrors.endAt = "Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc.";
@@ -611,17 +667,25 @@ const EditCourse: React.FC = () => {
           "Ngày đăng phần không hợp lệ.";
       } else {
         if (startAt) {
-          const s = new Date(startAt);
-          if (!isNaN(s.getTime()) && pd < s) {
-            modalFieldErrors[`chapter-${errorIndex}-postDate`] =
-              "Ngày đăng phần phải lớn hơn hoặc bằng ngày bắt đầu khóa học.";
+          try {
+            const s = parse(startAt, "dd/MM/yyyy", new Date());
+            if (!isNaN(s.getTime()) && pd < s) {
+              modalFieldErrors[`chapter-${errorIndex}-postDate`] =
+                "Ngày đăng phần phải lớn hơn hoặc bằng ngày bắt đầu khóa học.";
+            }
+          } catch (e) {
+            /* ignore */
           }
         }
         if (endAt) {
-          const e = new Date(endAt);
-          if (!isNaN(e.getTime()) && pd > e) {
-            modalFieldErrors[`chapter-${errorIndex}-postDate`] =
-              "Ngày đăng phần phải nhỏ hơn hoặc bằng ngày kết thúc khóa học.";
+          try {
+            const e = parse(endAt, "dd/MM/yyyy", new Date());
+            if (!isNaN(e.getTime()) && pd > e) {
+              modalFieldErrors[`chapter-${errorIndex}-postDate`] =
+                "Ngày đăng phần phải nhỏ hơn hoặc bằng ngày kết thúc khóa học.";
+            }
+          } catch (e) {
+            /* ignore */
           }
         }
       }
@@ -817,8 +881,12 @@ const EditCourse: React.FC = () => {
                     chapters: chaptersPayload,
                     isFeatured: isFeatured,
                     status: status ?? null,
-                    startAt: startAt ? formatISO(new Date(startAt)) : null,
-                    endAt: endAt ? formatISO(new Date(endAt)) : null,
+                    startAt: startAt
+                      ? formatISO(parse(startAt, "dd/MM/yyyy", new Date()))
+                      : null,
+                    endAt: endAt
+                      ? formatISO(parse(endAt, "dd/MM/yyyy", new Date()))
+                      : null,
                     updatedAt: formatISO(new Date()),
                     updatedBy: authUser?.id,
                     isApproved:
@@ -1000,20 +1068,51 @@ const EditCourse: React.FC = () => {
                       <Label className="text-sm font-medium">
                         Ngày bắt đầu <span className="text-red-600">*</span>
                       </Label>
-                      <Input
-                        type="date"
-                        value={startAt}
-                        onChange={(e) => {
-                          setStartAt(e.target.value);
-                          if (errors.startAt)
-                            setErrors((s) => ({ ...s, startAt: "" }));
-                        }}
-                        className={`w-full ${
-                          errors.startAt
-                            ? "border-red-500 ring-1 ring-red-500"
-                            : ""
-                        }`}
-                      />
+                      <div className="relative">
+                        <Input
+                          placeholder="dd/MM/yyyy"
+                          value={startAt}
+                          readOnly
+                          onClick={() => {
+                            setStartOpen((s) => !s);
+                            if (errors.startAt)
+                              setErrors((s) => ({ ...s, startAt: "" }));
+                          }}
+                          className={`w-full ${
+                            errors.startAt
+                              ? "border-red-500 ring-1 ring-red-500"
+                              : ""
+                          }`}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => setStartOpen((s) => !s)}
+                          className="absolute right-2 top-2 p-1"
+                          aria-label="Open calendar"
+                        >
+                          <Calendar size={16} />
+                        </button>
+
+                        {startOpen && (
+                          <div className="absolute z-50 mt-2 bg-white rounded-md shadow p-2">
+                            <DayPicker
+                              mode="single"
+                              selected={selectedStart}
+                              onSelect={(d) => {
+                                if (d) {
+                                  setSelectedStart(d);
+                                  const s = format(d, "dd/MM/yyyy");
+                                  setStartAt(s);
+                                  if (errors.startAt)
+                                    setErrors((s) => ({ ...s, startAt: "" }));
+                                }
+                                setStartOpen(false);
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
                       {errors.startAt && (
                         <div className="text-sm text-red-600 mt-1">
                           {errors.startAt}
@@ -1025,20 +1124,50 @@ const EditCourse: React.FC = () => {
                       <Label className="text-sm font-medium">
                         Ngày kết thúc <span className="text-red-600">*</span>
                       </Label>
-                      <Input
-                        type="date"
-                        value={endAt}
-                        onChange={(e) => {
-                          setEndAt(e.target.value);
-                          if (errors.endAt)
-                            setErrors((s) => ({ ...s, endAt: "" }));
-                        }}
-                        className={`w-full ${
-                          errors.endAt
-                            ? "border-red-500 ring-1 ring-red-500"
-                            : ""
-                        }`}
-                      />
+                      <div className="relative">
+                        <Input
+                          placeholder="dd/MM/yyyy"
+                          value={endAt}
+                          readOnly
+                          onClick={() => {
+                            setEndOpen((s) => !s);
+                            if (errors.endAt)
+                              setErrors((s) => ({ ...s, endAt: "" }));
+                          }}
+                          className={`w-full ${
+                            errors.endAt
+                              ? "border-red-500 ring-1 ring-red-500"
+                              : ""
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEndOpen((s) => !s)}
+                          className="absolute right-2 top-2 p-1"
+                          aria-label="Open calendar"
+                        >
+                          <Calendar size={16} />
+                        </button>
+
+                        {endOpen && (
+                          <div className="absolute z-50 mt-2 bg-white rounded-md shadow p-2">
+                            <DayPicker
+                              mode="single"
+                              selected={selectedEnd}
+                              onSelect={(d) => {
+                                if (d) {
+                                  setSelectedEnd(d);
+                                  const s = format(d, "dd/MM/yyyy");
+                                  setEndAt(s);
+                                  if (errors.endAt)
+                                    setErrors((s) => ({ ...s, endAt: "" }));
+                                }
+                                setEndOpen(false);
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
                       {errors.endAt && (
                         <div className="text-sm text-red-600 mt-1">
                           {errors.endAt}
@@ -1660,45 +1789,83 @@ const EditCourse: React.FC = () => {
                     <Label>
                       Ngày đăng <span className="text-red-600">*</span>
                     </Label>
-                    <Input
-                      type="date"
-                      value={
-                        (modalChapter as any).postDate
-                          ? formatISO(
-                              new Date((modalChapter as any).postDate)
-                            ).slice(0, 10)
-                          : ""
-                      }
-                      onChange={(e) => {
-                        setModalChapter({
-                          ...modalChapter,
-                          postDate: e.target.value
-                            ? new Date(e.target.value)
-                            : null,
-                        });
-                        const modalIndex = chaptersLocal.findIndex(
-                          (c) => c.id === modalChapter.id
-                        );
-                        if (modalIndex >= 0) {
-                          const key = `chapter-${modalIndex}-postDate`;
-                          if (errors[key])
-                            setErrors((s) => ({ ...s, [key]: "" }));
+                    <div className="relative">
+                      <Input
+                        placeholder="dd/MM/yyyy"
+                        value={
+                          (modalChapter as any).postDate
+                            ? format(
+                                new Date((modalChapter as any).postDate),
+                                "dd/MM/yyyy"
+                              )
+                            : ""
                         }
-                      }}
-                      disabled={modalChapterMode === "view"}
-                      className={(() => {
-                        const modalIndex = chaptersLocal.findIndex(
-                          (c) => c.id === modalChapter.id
-                        );
-                        const key =
-                          modalIndex >= 0
-                            ? `chapter-${modalIndex}-postDate`
-                            : null;
-                        return key && errors[key]
-                          ? "border-red-500 ring-1 ring-red-500"
-                          : "";
-                      })()}
-                    />
+                        readOnly
+                        onClick={() => {
+                          if (modalChapterMode === "view") return;
+                          setModalPostOpen((s) => !s);
+                          const modalIndex = chaptersLocal.findIndex(
+                            (c) => c.id === modalChapter.id
+                          );
+                          if (modalIndex >= 0) {
+                            const key = `chapter-${modalIndex}-postDate`;
+                            if (errors[key])
+                              setErrors((s) => ({ ...s, [key]: "" }));
+                          }
+                        }}
+                        disabled={modalChapterMode === "view"}
+                        className={(() => {
+                          const modalIndex = chaptersLocal.findIndex(
+                            (c) => c.id === modalChapter.id
+                          );
+                          const key =
+                            modalIndex >= 0
+                              ? `chapter-${modalIndex}-postDate`
+                              : null;
+                          return key && errors[key]
+                            ? "border-red-500 ring-1 ring-red-500"
+                            : "";
+                        })()}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (modalChapterMode === "view") return;
+                          setModalPostOpen((s) => !s);
+                        }}
+                        className="absolute right-2 top-2 p-1"
+                        aria-label="Open calendar"
+                      >
+                        <Calendar size={16} />
+                      </button>
+
+                      {modalPostOpen && modalChapterMode !== "view" && (
+                        <div className="absolute z-50 mt-2 bg-white rounded-md shadow p-2">
+                          <DayPicker
+                            mode="single"
+                            selected={selectedModalPost}
+                            onSelect={(d) => {
+                              if (d) {
+                                setSelectedModalPost(d);
+                                setModalChapter({
+                                  ...modalChapter,
+                                  postDate: d,
+                                });
+                                const modalIndex = chaptersLocal.findIndex(
+                                  (c) => c.id === modalChapter.id
+                                );
+                                if (modalIndex >= 0) {
+                                  const key = `chapter-${modalIndex}-postDate`;
+                                  if (errors[key])
+                                    setErrors((s) => ({ ...s, [key]: "" }));
+                                }
+                              }
+                              setModalPostOpen(false);
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
                     {(() => {
                       const modalIndex = chaptersLocal.findIndex(
                         (c) => c.id === modalChapter.id
