@@ -374,7 +374,7 @@ export default function DocumentViewer() {
     window.addEventListener("resize", calculateFlipbookSize);
 
     return () => window.removeEventListener("resize", calculateFlipbookSize);
-  }, [viewMode, isSidebarOpen]); 
+  }, [viewMode, isSidebarOpen]);
   useEffect(() => {
     const loadThumbnails = async () => {
       const start = Math.max(0, currentPage - 5);

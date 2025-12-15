@@ -75,7 +75,7 @@ interface ViolationState {
   muteUser: (
     userId: string,
     schoolId: number,
-    days?: number
+    minutes?: number
   ) => Promise<boolean>;
   unmuteUser: (userId: string, schoolId: number) => Promise<boolean>;
   reset: () => void;
@@ -231,10 +231,14 @@ export const useViolationStore = create<ViolationState>((set, get) => ({
     }
   },
 
-  muteUser: async (userId: string, schoolId: number, days: number = 7) => {
+  muteUser: async (
+    userId: string,
+    schoolId: number,
+    minutes: number = 10080
+  ) => {
     try {
       const response = await axiosInstance.post(
-        `/Forum/mute-user/${userId}?schoolId=${schoolId}&days=${days}`
+        `/Forum/mute-user/${userId}?schoolId=${schoolId}&minutes=${minutes}`
       );
 
       if (response.data?.success) {
