@@ -88,6 +88,8 @@ const TakeExam = () => {
         const fetchedQuestions = await examService.getExamQuestionsByResultId(fetchedResult.id);
         setExam(fetchedExam);
         setTimeLeft(fetchedExam.duration * 60);
+        const timeLeftInMilliseconds = new Date(fetchedResult.finishTime).getTime() - new Date().getTime();
+        setTimeLeft(Math.round(timeLeftInMilliseconds / 1000));
         setQuestions(fetchedQuestions);
 
         setStudentAnswers(_ => {
@@ -102,7 +104,12 @@ const TakeExam = () => {
         });
 
         setExamResult(fetchedResult);
-        backupInterval = setInterval(handleBackupExamResult, 30000);
+        backupInterval = setInterval(() => {
+          if (!location.href.includes("/exam/student/take-exam")) {
+            clearInterval(backupInterval);
+          }
+          handleBackupExamResult(false);
+        }, 30000);
       } catch (err) {
         console.error("Failed to fetch exam:", err);
         toast.error("Không thể tải bài kiểm tra.");
