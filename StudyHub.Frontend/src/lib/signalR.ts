@@ -14,6 +14,13 @@ export function createClassConnection() {
     .withAutomaticReconnect()
     .build();
 }
+export function createNotificationConnection() {
+  const base = hubBase();
+  return new signalR.HubConnectionBuilder()
+    .withUrl(`${base}/hubs/notification`, { withCredentials: true })
+    .withAutomaticReconnect()
+    .build();
+}
 export function createPresenceConnection() {
   const base = hubBase();
   return new signalR.HubConnectionBuilder()

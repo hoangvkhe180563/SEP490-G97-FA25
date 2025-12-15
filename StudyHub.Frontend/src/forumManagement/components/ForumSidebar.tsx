@@ -97,12 +97,6 @@ export const ForumSidebar = ({
     <div className="space-y-4">
       {showStats && (
         <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-sky-600" />
-              <h3 className="font-bold text-lg">Thống kê</h3>
-            </div>
-          </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-4">
               <div className="text-center">
@@ -142,11 +136,17 @@ export const ForumSidebar = ({
                     {userStatus ? userStatus.totalViolationScore : "..."}
                   </div>
                 </div>
-                <div className="text-sm text-gray-600">Điểm của tôi</div>
+                <div className="text-sm text-gray-600">Uy tín của tôi</div>
                 {userStatus?.isMute && userStatus.muteUntil && (
                   <div className="text-xs text-red-600 font-medium mt-1">
-                    Bạn đã bị mute đến{" "}
-                    {new Date(userStatus.muteUntil).toLocaleDateString("vi-VN")}
+                    Bạn đã bị cấm tương tác đến{" "}
+                    {new Date(userStatus.muteUntil).toLocaleString("vi-VN", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </div>
                 )}
               </div>

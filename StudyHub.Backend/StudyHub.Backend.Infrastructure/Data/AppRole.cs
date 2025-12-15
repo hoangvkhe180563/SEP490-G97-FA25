@@ -11,5 +11,7 @@ public partial class AppRole
 
     public virtual ICollection<AppPolicy> AppPolicies { get; set; } = new List<AppPolicy>();
 
+    public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+
     public virtual ICollection<AppUser> Users { get; set; } = new List<AppUser>();
 }

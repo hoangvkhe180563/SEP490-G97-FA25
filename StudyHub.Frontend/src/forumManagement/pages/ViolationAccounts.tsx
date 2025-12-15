@@ -41,6 +41,7 @@ import DocumentPagination from "@/documentManagement/components/documents/Docume
 import { useViolationStore } from "../stores/useViolationStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { toast } from "sonner";
+import { axiosInstance } from "@/lib/axios";
 
 const ViolationAccounts = () => {
   const { user } = useAuthStore();
@@ -61,31 +62,36 @@ const ViolationAccounts = () => {
   const [sortBy, setSortBy] = useState("score-desc");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
-
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     action: "mute" | "unmute";
     userId: string;
     userName: string;
-    days: number;
-  }>({ open: false, action: "mute", userId: "", userName: "", days: 7 });
+    minutes: number;
+  }>({ open: false, action: "mute", userId: "", userName: "", minutes: 5 });
 
   const handleMuteClick = (userId: string, userName: string) => {
-    setConfirmDialog({ open: true, action: "mute", userId, userName, days: 7 });
+    setConfirmDialog({
+      open: true,
+      action: "mute",
+      userId,
+      userName,
+      minutes: 5,
+    });
   };
 
   const handleConfirmAction = async () => {
-    const { action, userId, days } = confirmDialog;
+    const { action, userId, minutes } = confirmDialog;
 
     const success =
       action === "mute"
-        ? await muteUser(userId, schoolId, days)
+        ? await muteUser(userId, schoolId, minutes)
         : await unmuteUser(userId, schoolId);
 
     if (success) {
       toast.success(
         action === "mute"
-          ? `Đã cấm người dùng trong ${days} ngày`
+          ? `Đã cấm người dùng trong ${minutes} phút`
           : "Đã bỏ cấm người dùng"
       );
     } else {
@@ -97,7 +103,7 @@ const ViolationAccounts = () => {
       action: "mute",
       userId: "",
       userName: "",
-      days: 7,
+      minutes: 5,
     });
   };
 
@@ -171,12 +177,16 @@ const ViolationAccounts = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString("vi-VN", {
+    const date = new Date(dateString);
+    // ❌ XÓA: const localDate = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+    // ✅ THÊM: Trình duyệt tự động chuyển UTC sang local time
+    return date.toLocaleString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "Asia/Ho_Chi_Minh", // Đảm bảo dùng múi giờ VN
     });
   };
 
@@ -198,14 +208,24 @@ const ViolationAccounts = () => {
       action: "unmute",
       userId,
       userName,
-      days: 7,
+      minutes: 5,
     });
   };
 
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, muteFilter, scoreFilter, sortBy]);
-
+  const handleCheckUnmute = async (userId: string) => {
+    try {
+      const response = await axiosInstance.post(
+        `/Forum/check-unmute/${userId}?schoolId=${schoolId}`
+      );
+      console.log("Check unmute result:", response.data);
+      toast.info(JSON.stringify(response.data.data, null, 2));
+    } catch (error) {
+      console.error("Error checking unmute:", error);
+    }
+  };
   return (
     <div className="w-full h-full overflow-auto p-6 bg-gray-50">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -262,8 +282,8 @@ const ViolationAccounts = () => {
                     <SelectValue placeholder="Sắp xếp" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="score-desc">Điểm cao nhất</SelectItem>
-                    <SelectItem value="score-asc">Điểm thấp nhất</SelectItem>
+                    <SelectItem value="score-desc">Uy tín cao nhất</SelectItem>
+                    <SelectItem value="score-asc">Uy tín thấp nhất</SelectItem>
                     <SelectItem value="newest">Mới nhất</SelectItem>
                     <SelectItem value="oldest">Cũ nhất</SelectItem>
                   </SelectContent>
@@ -295,7 +315,7 @@ const ViolationAccounts = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Người dùng</TableHead>
-                      <TableHead>Điểm vi phạm</TableHead>
+                      <TableHead>Điểm uy tín</TableHead>
                       <TableHead>Mức độ</TableHead>
                       <TableHead>Trạng thái</TableHead>
                       <TableHead>Cấm đến</TableHead>
@@ -360,18 +380,28 @@ const ViolationAccounts = () => {
                                     Cấm người dùng
                                   </DropdownMenuItem>
                                 ) : (
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      handleUnmuteClick(
-                                        user.userId,
-                                        user.userName
-                                      )
-                                    }
-                                    className="text-green-400"
-                                  >
-                                    <Unlock className="w-4 h-4 mr-2" />
-                                    Bỏ cấm
-                                  </DropdownMenuItem>
+                                  <>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleUnmuteClick(
+                                          user.userId,
+                                          user.userName
+                                        )
+                                      }
+                                      className="text-green-400"
+                                    >
+                                      <Unlock className="w-4 h-4 mr-2" />
+                                      Bỏ cấm
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleCheckUnmute(user.userId)
+                                      }
+                                      className="text-blue-400"
+                                    >
+                                      Check Unmute
+                                    </DropdownMenuItem>
+                                  </>
                                 )}
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -422,11 +452,11 @@ const ViolationAccounts = () => {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Số ngày cấm:</label>
                     <Select
-                      value={confirmDialog.days.toString()}
+                      value={confirmDialog.minutes.toString()}
                       onValueChange={(value) =>
                         setConfirmDialog({
                           ...confirmDialog,
-                          days: parseInt(value),
+                          minutes: parseInt(value),
                         })
                       }
                     >
@@ -434,13 +464,14 @@ const ViolationAccounts = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1">1 ngày</SelectItem>
-                        <SelectItem value="3">3 ngày</SelectItem>
-                        <SelectItem value="7">7 ngày</SelectItem>
-                        <SelectItem value="14">14 ngày</SelectItem>
-                        <SelectItem value="30">30 ngày</SelectItem>
-                        <SelectItem value="90">90 ngày</SelectItem>
-                        <SelectItem value="365">1 năm</SelectItem>
+                        <SelectItem value="5">5 phút</SelectItem>
+                        <SelectItem value="1440">1 ngày</SelectItem>
+                        <SelectItem value="4320">3 ngày</SelectItem>
+                        <SelectItem value="10080">7 ngày</SelectItem>
+                        <SelectItem value="20160">14 ngày</SelectItem>
+                        <SelectItem value="43200">30 ngày</SelectItem>
+                        <SelectItem value="129600">90 ngày</SelectItem>
+                        <SelectItem value="525600">1 năm</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

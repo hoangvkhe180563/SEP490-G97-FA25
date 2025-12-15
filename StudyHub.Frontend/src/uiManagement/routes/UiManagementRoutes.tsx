@@ -5,6 +5,9 @@ import Homepage from "../pages/Homepage";
 import SchoolHomepage from "../pages/SchoolHomepage";
 import RequireRole from "@/common/components/RequireRole";
 import { ROLES } from "@/common/constants/Roles";
+import ListSchools from "../pages/ListSchools";
+import AddSchool from "../pages/AddSchool";
+import EditSchool from "../pages/EditSchool";
 
 const uiManagementRoutes: RouteObject[] = [
   {
@@ -23,6 +26,18 @@ const uiManagementRoutes: RouteObject[] = [
       </RequireRole>
     ),
   },
+  {
+    path: UiManagementRouteConfig.SCHOOL.LIST,
+    element: <ListSchools />
+  },
+  {
+    path: UiManagementRouteConfig.SCHOOL.ADD,
+    element: <AddSchool />
+  },
+  {
+    path: UiManagementRouteConfig.SCHOOL.EDIT,
+    element: <EditSchool />
+  }
 ];
 
 export default uiManagementRoutes;

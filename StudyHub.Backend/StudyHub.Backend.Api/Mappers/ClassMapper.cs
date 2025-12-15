@@ -19,6 +19,8 @@ namespace StudyHub.Backend.Api.Mappers
             InstructorName = t?.Fullname ?? "Không rõ",
             Description = c.Description,
             Grade = c.Grade,
+            CreateAt=c.CreatedAt,
+
         };
 
         public static Class ToEntity(this CreateClassDto dto)

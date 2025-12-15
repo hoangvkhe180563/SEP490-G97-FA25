@@ -24,6 +24,7 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<DocumentCategoryService>();
             services.AddScoped<LocationService>();
             services.AddScoped<ClassService>();
+            services.AddScoped<ClassManagementService>();
             services.AddScoped<ClassNotificationService>();
             services.AddScoped<ClassMemberService>();
             services.AddScoped<LandingPageService>();
@@ -56,6 +57,7 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<ProfileService>();
             services.AddScoped<SubscriptionService>();
             services.AddScoped<QuestionService>();
+            services.AddScoped<NotificationService>();
             services.AddScoped<ISignalRNotifier, NoOpSignalRNotifier>();
             services.AddHostedService<ImageModerationBackgroundService>();
 

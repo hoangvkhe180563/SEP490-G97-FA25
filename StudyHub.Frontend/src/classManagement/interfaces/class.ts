@@ -185,7 +185,7 @@ export interface ClassState {
   getClasses: (query: string, memberUserId?: string) => Promise<GetClassesResponse | null>;
   addClass: (payload: { title: string; description?: string; createdBy: string ; grade:number|undefined}) => Promise<any | null>;
   getAllSubjects: () => Promise<Subject[]>;
-  updateClass: (payload: { id: number; title: string; description?: string; updateBy?: string, grade?:number|undefined }) => Promise<any | null>;
+  updateClass: (payload: { id: number; title: string; description?: string; updateBy?: string, grade?:number|undefined,createdBy:string|null }) => Promise<any | null>;
 
 
   getClassInfo: (id: number) => Promise<ClassDetailResponse | null>;
@@ -210,7 +210,20 @@ export interface ClassState {
   importMembers: (classId: number, formData: FormData) => Promise<any | null>;
   getClassWorks: (classId: number) => Promise<ClassWork[] | null>;
   createClasswork: (payload: { classId: number; title: string; description?: string; deadline?: string }) => Promise<ClassWork | null>;
-  editClasswork: (payload: { id: number; classId: number; title: string; description?: string; deadline?: string }) => Promise<ClassWork | null>;
+  editClasswork: (payload: {
+  id: number;
+  classId?: number;
+  title: string;
+  description?: string;
+  deadline?: string | null;
+  maxScore?: number | null;
+  gradeType?: string | null;
+  allowSubmission?: boolean | null;
+  instructionsHtml?: string | null;
+  files?: File[] | null;
+  links?: Array<{ url: string; title?: string }> | null;
+  keptExistingFileIds?: Array<number | string> | null; // <-- thêm
+}) => Promise<any>;
   submitClasswork: (classworkId: number, appUserId: string, files: File[], links?: LinkPayload[]) => Promise<any | null>;
   getClassworkSubmissions: (classworkId: number) => Promise<ClassworkSubmission[] | null>;
   getClassworkDetail: (classworkId: number) => Promise<ClassWork | null>;
