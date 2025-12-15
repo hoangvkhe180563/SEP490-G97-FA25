@@ -33,6 +33,14 @@ import {
   Calendar,
 } from "lucide-react";
 import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/common/components/ui/breadcrumb";
+import {
   Popover,
   PopoverTrigger,
   PopoverContent,
@@ -780,9 +788,22 @@ const EditCourse: React.FC = () => {
   return (
     <div className="bg-white h-full">
       <div className="max-w-[1200px] mx-auto px-8 py-6 h-full flex flex-col">
-        <div className="text-sm text-[#525252] mb-3">
-          Khóa học / Chỉnh sửa khóa học
-        </div>
+        <Breadcrumb>
+          <BreadcrumbList className="text-[#525252] mb-3">
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <a href="/course/teacher/courses">Khóa học</a>
+              </BreadcrumbLink>
+              <BreadcrumbSeparator />
+            </BreadcrumbItem>
+
+            <BreadcrumbItem>
+              <BreadcrumbPage>
+                {selectedCourse?.name ?? "Chỉnh sửa khóa học"}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
 
         {/* Page Header */}
         <div className="flex items-center justify-between mb-6">

@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  useNavigate,
+  useParams,
+  useSearchParams,
+  Link,
+} from "react-router-dom";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { Input } from "@/common/components/ui/input";
 import { Textarea } from "@/common/components/ui/textarea";
@@ -20,6 +25,14 @@ import {
   HelpCircle,
   Calendar,
 } from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/common/components/ui/breadcrumb";
 import {
   Popover,
   PopoverTrigger,
@@ -1129,9 +1142,29 @@ const EditLecture: React.FC = () => {
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-6 h-full flex flex-col">
       {/* Breadcrumb */}
-      <div className="text-sm text-[#525252] mb-3">
-        Bài giảng / Chỉnh sửa bài giảng
-      </div>
+      <Breadcrumb>
+        <BreadcrumbList className="text-[#525252] mb-3">
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/course/teacher/courses">Khóa học</Link>
+            </BreadcrumbLink>
+            <BreadcrumbSeparator />
+          </BreadcrumbItem>
+
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to={`/course/teacher/edit-course/${selectedCourseId}`}>
+                Chỉnh sửa khóa học
+              </Link>
+            </BreadcrumbLink>
+            <BreadcrumbSeparator />
+          </BreadcrumbItem>
+
+          <BreadcrumbItem>
+            <BreadcrumbPage>Chỉnh sửa bài giảng</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">

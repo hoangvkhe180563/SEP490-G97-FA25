@@ -20,6 +20,14 @@ import {
 import { Button } from "@/common/components/ui/button";
 import { ArrowLeft, BookOpen, Edit, Layers } from "lucide-react";
 import { Link } from "react-router-dom";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/common/components/ui/breadcrumb";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import {
   AlertDialog,
@@ -82,9 +90,22 @@ const CourseDetail: React.FC = () => {
         >
           <ArrowLeft className="w-4 h-4 text-[#525252]" />
         </Button>
-        <div className="text-sm text-[#525252] mb-3">
-          Khóa học / Chi tiết khóa học
-        </div>
+        <Breadcrumb>
+          <BreadcrumbList className="text-[#525252] mb-3">
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to="/course/teacher/courses">Khóa học</Link>
+              </BreadcrumbLink>
+              <BreadcrumbSeparator />
+            </BreadcrumbItem>
+
+            <BreadcrumbItem>
+              <BreadcrumbPage>
+                {selectedCourse?.name ?? "Chi tiết khóa học"}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
 
       {/* === Course Header === */}

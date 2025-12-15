@@ -10,9 +10,17 @@ import type {
   LessonListDto,
   Question,
 } from "@/courseManagement/interfaces/types";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import { Check, HelpCircle, NotebookPen, X } from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/common/components/ui/breadcrumb";
 import {
   Popover,
   PopoverTrigger,
@@ -962,9 +970,31 @@ const LecturePlayer: React.FC = () => {
                 >
                   ←
                 </Button>
-                <div className="text-sm text-gray-500 mb-2">
-                  Khóa học của tôi / Khóa học
-                </div>
+                <Breadcrumb>
+                  <BreadcrumbList className="text-sm text-gray-500 mb-2">
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild>
+                        <Link to="/course/student/courses">Khóa học</Link>
+                      </BreadcrumbLink>
+                      <BreadcrumbSeparator />
+                    </BreadcrumbItem>
+
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild>
+                        <Link to={`/course/student/courses/${cid}`}>
+                          Chi tiết khóa học
+                        </Link>
+                      </BreadcrumbLink>
+                      <BreadcrumbSeparator />
+                    </BreadcrumbItem>
+
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>
+                        {selectedLesson?.name || "tên bài học"}
+                      </BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </BreadcrumbList>
+                </Breadcrumb>
                 <div className="flex items-center gap-3">
                   <h1 className="text-3xl md:text-4xl font-extrabold leading-tight tracking-tight">
                     {selectedLesson?.name ?? "Lecture"}

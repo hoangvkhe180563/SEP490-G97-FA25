@@ -24,6 +24,14 @@ import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
 import { ArrowLeft, Loader2, Upload, HelpCircle, Calendar } from "lucide-react";
 import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/common/components/ui/breadcrumb";
+import {
   Popover,
   PopoverTrigger,
   PopoverContent,
@@ -243,10 +251,20 @@ const AddCourse: React.FC = () => {
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-6 h-full flex flex-col">
       <div>
-        {/* Breadcrumb */}
-        <div className="text-sm text-[#525252] mb-3">
-          Khóa học / Thêm khóa học
-        </div>
+        <Breadcrumb>
+          <BreadcrumbList className="text-[#525252] mb-3">
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <a href="/course/teacher/courses">Khóa học</a>
+              </BreadcrumbLink>
+              <BreadcrumbSeparator />
+            </BreadcrumbItem>
+
+            <BreadcrumbItem>
+              <BreadcrumbPage>Thêm khóa học</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
 
         {/* Page Header */}
         <div className="flex items-center justify-between mb-6">
