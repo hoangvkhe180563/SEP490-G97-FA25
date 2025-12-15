@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import DOMPurify from "dompurify";
 import CommentComposer from "@/classManagement/components/ui/commentcomposer";
 import useClassStore from "@/classManagement/stores/useClassStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import type { ClassNotificationFile } from "@/classManagement/interfaces/class";
 
 /* shadcn components */
 import { Card } from "@/common/components/ui/card";
@@ -15,9 +16,17 @@ import {
   DropdownMenuItem,
 } from "@/common/components/ui/dropdown-menu";
 import { Separator } from "@/common/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/common/components/ui/dialog";
 import { format, formatISO } from "date-fns";
 /* icons */
-import { MoreHorizontal, Trash2 } from "lucide-react";
+import { MoreHorizontal, Trash2, Edit } from "lucide-react";
 
 export type PostComment = {
   id: number | string;
@@ -29,20 +38,14 @@ export type PostComment = {
   createdAt?: string;
 };
 
-export type PostFile = {
-  id: number | string;
-  fileName: string;
-  fileUrl: string;
-};
-
 export type Post = {
   id: number | string;
-  classId?: number;
+  classId: number;
   title?: string;
   description?: string; // may contain HTML (bold/italic)
-  createdBy?: number | string;
-  createdAt?: string;
-  files?: PostFile[];
+  createdBy: string;
+  createdAt: string;
+  files: ClassNotificationFile[]|undefined;
   comments?: PostComment[];
   avatarImage?: string | null | undefined;
   authorName?: string | null | undefined;
@@ -98,21 +101,37 @@ const makeCloudinaryFlAttachment = (u: string) => {
   }
 };
 
-const PostCard: React.FC<{ post: Post }> = ({ post }) => {
-  const [showComments, setShowComments] = useState(false);
+const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = ({ post, onUpdate }) => {
+  // local copy of the post so we can update UI immediately after edit
+  const [localPost, setLocalPost] = useState<Post>(post);
+
+  // keep local comments separate (optimistic comments)
   const [localComments, setLocalComments] = useState<PostComment[]>(post.comments ?? []);
+  const [showComments, setShowComments] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // track downloading state per file id
+  // downloading state per file id
   const [downloading, setDownloading] = useState<Record<string, boolean>>({});
 
+  // --- Editing modal state & handlers ---
+  const [editOpen, setEditOpen] = useState(false);
+  const editTitleRef = useRef<HTMLDivElement | null>(null);
+  const editDescRef = useRef<HTMLDivElement | null>(null);
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  // kept existing file ids (init from incoming post, will reset when opening modal)
+  const [keptExistingFileIds, setKeptExistingFileIds] = useState<Array<number | string>>(
+    () => (post.files ?? []).map((f) => f.id)
+  );
+  const [editing, setEditing] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // sync localPost when parent prop changes (but keep optimistic comments)
   useEffect(() => {
-    // update local comments when parent prop changes,
-    // but merge with any optimistic comments that may not exist on server yet.
+    setLocalPost(post);
+    // merge comments while preserving optimistic ones that start with temp-
     setLocalComments((prev) => {
       const server = post.comments ?? [];
-      // keep any optimistic temp comments from prev (temp- prefix)
       const temp = prev.filter((c) => String(c.id).startsWith("temp-"));
       const merged = [...server];
       for (const t of temp) {
@@ -120,10 +139,32 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       }
       return merged;
     });
-  }, [post.comments]);
+    // reset kept ids to new incoming post files
+    setKeptExistingFileIds((post.files ?? []).map((f) => f.id));
+  }, [post]);
+
+  // reset editable fields when opening the edit modal
+  useEffect(() => {
+    if (editOpen) {
+      setKeptExistingFileIds((localPost.files ?? []).map((f) => f.id));
+      setNewFiles([]);
+      setTimeout(() => {
+        if (editTitleRef.current) editTitleRef.current.innerHTML = localPost.title ?? "";
+        if (editDescRef.current) editDescRef.current.innerHTML = localPost.description ?? "";
+      }, 0);
+    }
+  }, [editOpen, localPost.title, localPost.description, localPost.files]);
+
+  const toggleKeepFile = (fid: number | string) => {
+    setKeptExistingFileIds((prev) =>
+      prev.some((x) => String(x) === String(fid)) ? prev.filter((x) => String(x) !== String(fid)) : [...prev, fid]
+    );
+  };
 
   const addComment = useClassStore((s) => s.addComment);
   const deleteNotification = useClassStore((s) => s.deleteNotification);
+  // store method used for edit (classwork/posts share same handler)
+  const editClasswork = useClassStore((s) => (s as any).editClasswork);
 
   const { user } = useAuthStore();
   const currentUserId = user?.id ?? "unknown-user";
@@ -133,11 +174,11 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
 
   // Resolve avatar for the post author with fallbacks:
   const authorAvatar =
-    post.avatarImage ??
-    (String(post.createdBy) === String(currentUserId) ? currentUserAvatar : undefined);
+    localPost.avatarImage ??
+    (String(localPost.createdBy) === String(currentUserId) ? currentUserAvatar : undefined);
 
   const avatarFallbackText = () => {
-    const name = (post as any).authorName ?? (post as any).createdByName ?? post.title ?? "";
+    const name = (localPost as any).authorName ?? (localPost as any).createdByName ?? localPost.title ?? "";
     if (!name) return "U";
     const parts = String(name).trim().split(/\s+/);
     if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
@@ -147,12 +188,12 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   // helper to scroll comments container
   const scrollCommentsToBottom = () => {
     try {
-      const el = document.querySelector(`#post-${post.id} .comments-list`) as HTMLElement | null;
+      const el = document.querySelector(`#post-${localPost.id} .comments-list`) as HTMLElement | null;
       if (el) {
         el.scrollTop = el.scrollHeight;
       }
       // focus input if visible
-      const input = document.querySelector(`#post-${post.id} input`) as HTMLInputElement | null;
+      const input = document.querySelector(`#post-${localPost.id} input`) as HTMLInputElement | null;
       if (input) input.focus();
     } catch {
       // ignore
@@ -160,7 +201,6 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   };
 
   const handleSendComment = async (textContent: string) => {
-    // comment composer sends plain text; convert to minimal html (escape)
     const htmlContent = textContent
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
@@ -171,7 +211,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     const tempId = `temp-${Date.now()}`;
     const optimistic: PostComment = {
       id: tempId,
-      notificationId: typeof post.id === "number" ? post.id : Number(post.id),
+      notificationId: typeof localPost.id === "number" ? localPost.id : Number(localPost.id),
       userId: currentUserId,
       userFullname: currentUserFullname,
       content: htmlContent,
@@ -179,36 +219,29 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       createdAt: formatISO(new Date()),
     };
 
-    // optimistic UI: append comment locally without triggering parent reload
     setLocalComments((c) => [...c, optimistic]);
     setShowComments(true);
-
-    // ensure UI shows the new comment
     setTimeout(scrollCommentsToBottom, 50);
 
     try {
       const created = await addComment({
-        notificationId: post.id,
+        notificationId: localPost.id,
         content: htmlContent,
         userId: currentUserId,
       });
 
       if (created) {
-        // ensure created has avatar + fullname (fallback to current user if server omitted them)
         const patched = {
           ...(created as any),
           avatarUrl: (created as any)?.avatarUrl ?? currentUserAvatar ?? null,
           userFullname: (created as any)?.userFullname ?? currentUserFullname,
         } as PostComment;
 
-        // replace optimistic comment with patched server comment
         setLocalComments((prev) =>
           prev.map((c) => (String(c.id) === String(tempId) ? patched : c))
         );
-        // scroll to newly inserted server comment
         setTimeout(scrollCommentsToBottom, 50);
       } else {
-        // server returned falsy - mark optimistic as pending id
         setLocalComments((prev) =>
           prev.map((c) =>
             String(c.id) === String(tempId) ? { ...c, id: `pending-${Date.now()}` } : c
@@ -217,7 +250,6 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       }
     } catch (err) {
       console.error("Failed to send comment", err);
-      // remove optimistic comment on error
       setLocalComments((prev) => prev.filter((c) => String(c.id) !== String(tempId)));
     }
   };
@@ -229,7 +261,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     setIsDeleted(true);
 
     try {
-      const ok = await deleteNotification(post.id);
+      const ok = await deleteNotification(localPost.id);
       if (!ok) {
         setIsDeleted(false);
         console.error("Xóa thông báo thất bại");
@@ -255,13 +287,12 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     }
   };
 
-  // Improved programmatic download with cross-origin handling + Cloudinary fl_attachment fallback
-  const downloadFile = async (file: PostFile) => {
+  // Programmatic download (unchanged, adapted type)
+  const downloadFile = async (file: ClassNotificationFile) => {
     const key = String(file.id ?? file.fileUrl ?? file.fileName ?? Date.now());
     setDownloading((d) => ({ ...d, [key]: true }));
 
     try {
-      // detect cross-origin
       let isCrossOrigin = false;
       try {
         const urlObj = new URL(String(file.fileUrl), window.location.href);
@@ -273,13 +304,11 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       const fetchOptions: RequestInit = {
         method: "GET",
         mode: "cors",
-        // For public CDNs like Cloudinary we must NOT include credentials (cookies) else CORS will fail.
         credentials: isCrossOrigin ? "omit" : "include",
       };
 
       const res = await fetch(String(file.fileUrl), fetchOptions);
 
-      // If fetch failed (non-2xx) -> try cloudinary fl_attachment (if cloudinary) or open in new tab
       if (!res.ok) {
         if (isCloudinaryUrl(String(file.fileUrl))) {
           window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
@@ -289,7 +318,6 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
         return;
       }
 
-      // If response is opaque (no CORS headers) we cannot read headers or blob reliably -> fallback
       if ((res as any).type === "opaque") {
         if (isCloudinaryUrl(String(file.fileUrl))) {
           window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
@@ -302,7 +330,6 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       const contentType = (res.headers.get("content-type") || "").toLowerCase();
       const blob = await res.blob();
 
-      // If server returned HTML (likely an error/redirect page) -> fallback
       if (contentType.includes("text/html")) {
         if (isCloudinaryUrl(String(file.fileUrl))) {
           window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
@@ -312,22 +339,18 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
         return;
       }
 
-      // Try to extract filename from Content-Disposition header if present
       const contentDisposition = res.headers.get("content-disposition") || "";
       let filename = file.fileName ?? "download";
       const fileNameMatch =
-        // filename*=UTF-8''encoded or filename="..." or filename=...
         contentDisposition.match(/filename\*=(?:UTF-8'')?([^;]+)/i) ||
         contentDisposition.match(/filename="?([^";]+)"?/i);
       if (fileNameMatch && fileNameMatch[1]) {
         try {
-          // decodeURIComponent for RFC5987 style
           filename = decodeURIComponent(fileNameMatch[1].replace(/(^['"]|['"]$)/g, ""));
         } catch {
           filename = fileNameMatch[1].replace(/(^['"]|['"]$)/g, "");
         }
       } else {
-        // try to infer from URL path
         try {
           const urlObj = new URL(String(file.fileUrl), window.location.href);
           const pathName = urlObj.pathname;
@@ -348,7 +371,6 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (err) {
       console.warn("Programmatic download failed, falling back to opening in new tab", err);
-      // fallback to cloudinary fl_attachment when possible
       if (isCloudinaryUrl(String(file.fileUrl))) {
         window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
       } else {
@@ -359,25 +381,113 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
     }
   };
 
+  // submit edited data and update local UI immediately on success
+  const handleEditSubmit = async () => {
+    setEditError(null);
+    if (!editClasswork) {
+      setEditError("Chức năng chỉnh sửa không khả dụng.");
+      return;
+    }
+
+    const titleHtml = editTitleRef.current?.innerHTML.trim() ?? "";
+    const descHtml = editDescRef.current?.innerHTML.trim() ?? "";
+
+    if (!titleHtml || titleHtml === "<br>" || titleHtml === "") {
+      setEditError("Tiêu đề là bắt buộc");
+      return;
+    }
+    if (!descHtml || descHtml === "<br>" || descHtml === "") {
+      setEditError("Nội dung là bắt buộc");
+      return;
+    }
+
+    setEditing(true);
+    try {
+      const payload: any = {
+        id: Number(localPost.id) || localPost.id,
+        classId: localPost.classId,
+        title: titleHtml,
+        description: descHtml,
+        files: newFiles.length ? newFiles : null,
+        keptExistingFileIds: Array.isArray(keptExistingFileIds) && keptExistingFileIds.length ? keptExistingFileIds : null,
+      };
+
+      const res = await editClasswork(payload);
+      if (!res) {
+        setEditError("Sửa thất bại");
+        setEditing(false);
+        return;
+      }
+
+      // editClasswork returns raw.data or raw; try to extract updated object
+      const updated = (res as any)?.data ?? (res as any) ?? null;
+
+      // Build updated files list for UI:
+      let updatedFiles: ClassNotificationFile[] | undefined = undefined;
+      if (Array.isArray(updated?.files) && updated.files.length >= 0) {
+        // assume server supplies files in compatible shape
+        updatedFiles = updated.files.map((f: any) => {
+          return {
+            id: Number(f.id ?? f.fileId ?? f.id ?? 0),
+            fileName: f.fileName ?? f.name ?? f.title ?? String(f.id ?? ""),
+            fileUrl: f.fileUrl ?? f.url ?? f.path ?? "#",
+          } as ClassNotificationFile;
+        });
+      } else {
+        // if server did not return files, derive from keptExistingFileIds + newFiles
+        const existingKept = (localPost.files ?? []).filter((f) =>
+          Array.isArray(keptExistingFileIds) ? keptExistingFileIds.some((k) => String(k) === String(f.id)) : true
+        );
+        const newFilePlaceholders = newFiles.map((f, i) => ({
+          id: -(Date.now() + i), // negative id as placeholder
+          fileName: f.name,
+          fileUrl: "#",
+        })) as ClassNotificationFile[];
+        updatedFiles = [...existingKept, ...newFilePlaceholders];
+      }
+
+      // Build updated post object for UI and parent callback
+      const updatedPost: Post = {
+        ...localPost,
+        title: updated?.title ?? payload.title,
+        description: updated?.description ?? payload.description,
+        files: updatedFiles,
+      };
+
+      // Update local post so UI reflects changes immediately
+      setLocalPost(updatedPost);
+
+      // notify parent (so lists like notifications in parent can update instantly)
+      try {
+        if (typeof onUpdate === "function") onUpdate(updatedPost);
+      } catch {
+        // ignore callback errors
+      }
+
+      // close modal
+      setEditOpen(false);
+    } catch (err) {
+      console.error("Edit failed", err);
+      setEditError("Sửa thất bại");
+    } finally {
+      setEditing(false);
+    }
+  };
+
   return (
     <Card className="p-4">
-      {/* add id to the container so we can query inside for scrolling/focusing */}
-      <div id={`post-${post.id}`} className="flex items-start gap-4">
+      <div id={`post-${localPost.id}`} className="flex items-start gap-4">
         <Avatar>
-          {authorAvatar ? (
-            <AvatarImage src={authorAvatar} alt="avatar" />
-          ) : (
-            <AvatarFallback>{avatarFallbackText()}</AvatarFallback>
-          )}
+          {authorAvatar ? <AvatarImage src={authorAvatar} alt="avatar" /> : <AvatarFallback>{avatarFallbackText()}</AvatarFallback>}
         </Avatar>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <div>
               <div className="font-medium text-gray-800">
-                {(post as any).authorName ?? (post as any).createdByName ?? ""}
+                {(localPost as any).authorName ?? (localPost as any).createdByName ?? ""}
               </div>
-              <div className="text-xs text-gray-400">{formatTimestamp(post.createdAt)}</div>
+              <div className="text-xs text-gray-400">{formatTimestamp(localPost.createdAt)}</div>
             </div>
 
             <div>
@@ -388,33 +498,31 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem onSelect={handleDelete} className="flex items-center gap-2">
-                    <Trash2 className="w-4 h-4" /> Delete
-                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={() => {
-                      alert("Dismiss student (chưa triển khai)");
+                      setMenuOpen(false);
+                      setEditOpen(true);
                     }}
-                    className="flex items-center gap-2 text-red-600"
+                    className="flex items-center gap-2"
                   >
-                    Dismiss student
+                    <Edit className="w-4 h-4" /> Chỉnh sửa
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onSelect={handleDelete} className="flex items-center gap-2">
+                    <Trash2 className="w-4 h-4" /> Xoá
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
 
-          {post.title && <div className="mt-3 text-gray-800 font-semibold">{post.title}</div>}
+          {localPost.title && <div className="mt-3 text-gray-800 font-semibold">{localPost.title}</div>}
 
-          {/* Render description as sanitized HTML to preserve bold/italic/links */}
-          <div
-            className="mt-1 text-gray-600"
-            dangerouslySetInnerHTML={{ __html: safeHtml(post.description) }}
-          />
+          <div className="mt-1 text-gray-600" dangerouslySetInnerHTML={{ __html: safeHtml(localPost.description) }} />
 
-          {post.files && post.files.length > 0 && (
+          {localPost.files && localPost.files.length > 0 && (
             <div className="mt-3 bg-gray-50 border rounded p-3 space-y-2">
-              {post.files.map((file) => {
+              {localPost.files.map((file) => {
                 const key = String(file.id ?? file.fileUrl ?? file.fileName);
                 return (
                   <div key={key} className="flex items-center justify-between bg-white rounded p-2 border">
@@ -431,17 +539,10 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {/* View: open in new tab */}
-                      <a
-                        href={file.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center px-3 py-1 text-sm rounded bg-slate-100 hover:bg-slate-200"
-                      >
+                      <a href={file.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center px-3 py-1 text-sm rounded bg-slate-100 hover:bg-slate-200">
                         Xem
                       </a>
 
-                      {/* Download: programmatic download with fallback */}
                       <button
                         type="button"
                         onClick={() => downloadFile(file)}
@@ -465,7 +566,6 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
               variant="ghost"
               size="sm"
               onClick={() => {
-                // toggle comments visibility; if opening, scroll and focus
                 setShowComments((prev) => {
                   const next = !prev;
                   if (next) setTimeout(scrollCommentsToBottom, 50);
@@ -481,14 +581,10 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
             </Button>
           </div>
 
-          {/* Show composer and list only when user opened comments */}
           {showComments && (
             <>
               <div className="mt-4">
-                <CommentComposer
-                  onSend={(text) => handleSendComment(text)}
-                  avatarUrl={currentUserAvatar}
-                />
+                <CommentComposer onSend={(text) => handleSendComment(text)} avatarUrl={currentUserAvatar} />
               </div>
 
               {localComments.length > 0 && (
@@ -496,23 +592,13 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
                   {localComments.map((c) => (
                     <div key={c.id} className="flex gap-3 items-start">
                       <Avatar>
-                        {c.avatarUrl ? (
-                          <AvatarImage src={c.avatarUrl} alt="avatar" />
-                        ) : (
-                          <AvatarFallback>
-                            {((c.userFullname || "U").charAt(0) || "U").toUpperCase()}
-                          </AvatarFallback>
-                        )}
+                        {c.avatarUrl ? <AvatarImage src={c.avatarUrl} alt="avatar" /> : <AvatarFallback>{((c.userFullname || "U").charAt(0) || "U").toUpperCase()}</AvatarFallback>}
                       </Avatar>
                       <div className="text-sm">
                         <div className="font-medium">
-                          {c.userFullname}{" "}
-                          <span className="text-gray-400 text-xs ml-2">{formatTimestamp(c.createdAt)}</span>
+                          {c.userFullname} <span className="text-gray-400 text-xs ml-2">{formatTimestamp(c.createdAt)}</span>
                         </div>
-                        <div
-                          className="text-gray-700 mt-1"
-                          dangerouslySetInnerHTML={{ __html: safeHtml(c.content) }}
-                        />
+                        <div className="text-gray-700 mt-1" dangerouslySetInnerHTML={{ __html: safeHtml(c.content) }} />
                       </div>
                     </div>
                   ))}
@@ -522,6 +608,111 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
           )}
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={(val) => !val && setEditOpen(false)}>
+        <DialogContent className="sm:max-w-2xl w-full">
+          <DialogHeader>
+            <DialogTitle>Chỉnh sửa thông báo</DialogTitle>
+            <DialogDescription>Chỉnh sửa tiêu đề, nội dung và file đính kèm.</DialogDescription>
+          </DialogHeader>
+
+          <div className="p-3 space-y-3">
+            <div>
+              <div className="text-xs text-gray-600 mb-1">Tiêu đề  <span className="text-red-600 ml-1">*</span></div>
+              <div
+                ref={editTitleRef}
+                contentEditable
+                suppressContentEditableWarning
+                className="min-h-[40px] bg-gray-50 rounded p-2 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-blue-400"
+                style={{ wordBreak: "break-word" }}
+              />
+            </div>
+
+            <div>
+              <div className="text-xs text-gray-600 mb-1">Nội dung  <span className="text-red-600 ml-1">*</span></div>
+              <div
+                ref={editDescRef}
+                contentEditable
+                suppressContentEditableWarning
+                className="min-h-[120px] bg-gray-50 rounded p-3 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-blue-400"
+                style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+              />
+            </div>
+
+            <div>
+              <div className="text-xs text-gray-600 mb-2">File hiện có</div>
+              {(localPost.files ?? []).length === 0 && <div className="text-sm text-gray-500">Không có file nào.</div>}
+              <div className="space-y-2">
+                {(localPost.files ?? []).map((f) => {
+                  const kept = keptExistingFileIds.some((x) => String(x) === String(f.id));
+                  return (
+                    <div key={String(f.id)} className="flex items-center justify-between bg-white rounded p-2 border">
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm text-sky-600 truncate max-w-xs">{f.fileName}</div>
+                        <div className="text-xs text-gray-400">{kept ? "Giữ" : "Đã xóa"}</div>
+                      </div>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => toggleKeepFile(f.id)}
+                          className={`text-sm px-3 py-1 rounded ${kept ? "bg-yellow-50" : "bg-gray-50"} border`}
+                        >
+                          {kept ? "Bỏ chọn" : "Giữ lại"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs text-gray-600 mb-1">Thêm file mới</div>
+              <input
+                type="file"
+                multiple
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  setNewFiles((prev) => [...prev, ...files]);
+                  (e.target as HTMLInputElement).value = "";
+                }}
+              />
+              {newFiles.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  {newFiles.map((f, i) => (
+                    <div key={`${f.name}-${i}`} className="flex items-center justify-between bg-white rounded p-2 border">
+                      <div className="text-sm truncate max-w-xs">{f.name}</div>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => setNewFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="text-sm px-3 py-1 rounded bg-gray-50 border"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {editError && <div className="text-sm text-red-600">{editError}</div>}
+          </div>
+
+          <DialogFooter>
+            <div className="flex items-center justify-end gap-2 w-full">
+              <Button variant="ghost" onClick={() => setEditOpen(false)} disabled={editing}>
+                Hủy
+              </Button>
+              <Button onClick={handleEditSubmit} disabled={editing}>
+                {editing ? "Đang lưu..." : "Lưu"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

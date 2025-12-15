@@ -126,5 +126,5 @@ app.MapHub<UserPresenseHub>("/hubs/user-presense");
 app.MapHub<ForumHub>("/hubs/forum");
 app.MapHub<PaymentHub>("/hubs/payment");
 app.MapHub<QAReadHub>("/hubs/qa-read");
-
+app.MapHub<NotificationHub>("/hubs/notification");
 app.Run();

@@ -7,5 +7,6 @@
         public string? Description { get; set; }
         public sbyte Grade { get; set; }
         public Guid? UpdatedBy { get; set; }
+        public Guid CreateBy { get; set; }
     }
 }

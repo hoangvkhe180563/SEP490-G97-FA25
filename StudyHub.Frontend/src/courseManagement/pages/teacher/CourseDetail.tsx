@@ -200,7 +200,7 @@ const CourseDetail: React.FC = () => {
               <Link
                 to={`/course/teacher/edit-course/${selectedCourse?.id}`}
                 title="Chỉnh sửa"
-                className="p-1.5 hover:bg-sky-500 rounded"
+                className="flex items-center gap-2 p-1.5 hover:bg-sky-500 rounded whitespace-nowrap text-sm font-medium transition-colors"
               >
                 <Edit className="w-4 h-4" /> Chỉnh sửa
               </Link>

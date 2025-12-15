@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
 import { formatISO, parseISO } from "date-fns";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
@@ -195,20 +194,25 @@ export const useClassStore = create<ClassState>()(
         }
       },
 
+      // This is the updateClass function inside your class store (updated)
       updateClass: async (payload: {
         id: number;
         title: string;
         description?: string;
         grade: number;
         updatedBy?: string;
+        createdBy?: string;
       }) => {
         set({ isLoading: true, success: false, message: "" });
         try {
           const body: Record<string, any> = {
             name: payload.title,
             description: payload.description ?? "",
-            updatedBy: payload.updatedBy,
+            // only include updatedBy if provided (avoid sending sentinel)
+            ...(payload.updatedBy ? { updatedBy: payload.updatedBy } : {}),
             grade: payload.grade,
+            // include createdBy only when provided
+            createBy: payload.createdBy,
           };
 
           const endpoints = [`/Class/${encodeURIComponent(payload.id)}`];
@@ -402,24 +406,24 @@ export const useClassStore = create<ClassState>()(
       importMembers: async (classId: number, formData: FormData) => {
         set({ isLoading: true, success: false, message: "" });
         try {
-          const endpoints = 
-           
-            `/ClassMember/invite-excel?classId=${encodeURIComponent(classId)}`;
+          const endpoints = `/ClassMember/invite-excel?classId=${encodeURIComponent(
+            classId
+          )}`;
 
           let res: any = null;
           let lastError: any = null;
 
-            try {
-              // Do NOT set Content-Type manually; axios/browser will set multipart boundary
-              res = await axiosInstance.post(endpoints, formData);
-            } catch (err: any) {
-              lastError = err;
-              console.error(`[importMembers] POST ${endpoints} failed:`, {
-                message: err?.message,
-                status: err?.response?.status,
-                responseData: err?.response?.data,
-              });
-              // If 404, try next variant; otherwise break and return error info
+          try {
+            // Do NOT set Content-Type manually; axios/browser will set multipart boundary
+            res = await axiosInstance.post(endpoints, formData);
+          } catch (err: any) {
+            lastError = err;
+            console.error(`[importMembers] POST ${endpoints} failed:`, {
+              message: err?.message,
+              status: err?.response?.status,
+              responseData: err?.response?.data,
+            });
+            // If 404, try next variant; otherwise break and return error info
           }
 
           if (!res) {
@@ -1302,74 +1306,18 @@ export const useClassStore = create<ClassState>()(
       }) => {
         set({ isLoading: true, message: "" });
         try {
-          // Safety: if this is an edit and caller didn't pass keptExistingFileIds,
-          // try to fetch the current file ids for this classwork so we don't accidentally remove them.
-          let keptIdsToUse: Array<number | string> | null = null;
-          if (Array.isArray(payload.keptExistingFileIds)) {
-            keptIdsToUse = payload.keptExistingFileIds;
-          } else {
-            // attempt to fetch current files for this classwork (best-effort)
-            try {
-              const readCandidates = [
-                `/api/Classwork/${payload.id}`,
-                `/Classwork/${payload.id}`,
-              ];
-              for (const rurl of readCandidates) {
-                try {
-                  const getRes = await axiosInstance.get(rurl);
-                  const raw = getRes?.data ?? null;
-                  // Try to find files array in common places (data.files, files, data.data.files)
-                  const filesCandidate = raw?.files;
-                  if (
-                    Array.isArray(filesCandidate) &&
-                    filesCandidate.length > 0
-                  ) {
-                    const ids = filesCandidate
-                      .map((f: any) => {
-                        if (f == null) return null;
-                        return f.id;
-                      })
-                      .filter((x: any) => x != null)
-                      .map((x: any) => Number(x));
-                    keptIdsToUse = ids;
-                    break;
-                  }
-                  // some APIs return { data: { ...notificationDto... } }
-                  const notificationDto = raw?.data ?? raw;
-                  const candidateFiles = notificationDto?.files;
-                  if (
-                    Array.isArray(candidateFiles) &&
-                    candidateFiles.length > 0
-                  ) {
-                    const ids = candidateFiles
-                      .map((f: any) => f.id ?? f.fileId ?? f.file_id ?? null)
-                      .filter((x: any) => x != null)
-                      .map((x: any) => Number(x));
-                    keptIdsToUse = ids;
-                    break;
-                  }
-                } catch {
-                  // try next candidate
-                  continue;
-                }
-              }
-            } catch (err) {
-              // best-effort, ignore errors
-              console.debug(
-                "Could not preload existing file ids for edit (will rely on provided keptExistingFileIds)",
-                err
-              );
-            }
-          }
-
-          // If payload explicitly provided keptExistingFileIds (even empty array), use as-is.
-          if (Array.isArray(payload.keptExistingFileIds)) {
-            keptIdsToUse = payload.keptExistingFileIds;
-          }
+          const keptIdsToUse = Array.isArray(payload.keptExistingFileIds)
+            ? payload.keptExistingFileIds
+                .map((x) => Number(x))
+                .filter((x) => Number.isFinite(x))
+            : [];
 
           const form = new FormData();
+          form.append("Type", "classwork");
+          if (payload.classId !== undefined && payload.classId !== null) {
+            form.append("ClassId", String(payload.classId));
+          }
 
-          // Basic fields
           form.append("Title", payload.title ?? "");
           if (payload.description !== undefined)
             form.append("Description", payload.description ?? "");
@@ -1402,7 +1350,6 @@ export const useClassStore = create<ClassState>()(
           )
             form.append("InstructionsHtml", payload.instructionsHtml);
 
-          // Links as JSON (server expects LinksJson)
           if (
             payload.links &&
             Array.isArray(payload.links) &&
@@ -1410,127 +1357,67 @@ export const useClassStore = create<ClassState>()(
           ) {
             try {
               form.append("LinksJson", JSON.stringify(payload.links));
-            } catch {
-              // ignore
-            }
+            // eslint-disable-next-line no-empty
+            } catch {}
           }
-
-          // Files (only new uploads)
-          if (
-            payload.files &&
-            Array.isArray(payload.files) &&
-            payload.files.length > 0
-          ) {
+          if (Array.isArray(payload.files) && payload.files.length > 0) {
             for (const f of payload.files) {
               if (!f) continue;
               form.append("Files", f, f.name);
             }
           }
 
-          if (Array.isArray(keptIdsToUse) && keptIdsToUse.length > 0) {
+          // CHỈ append KeptFileIds khi có giá trị hợp lệ
+          if (keptIdsToUse.length > 0) {
             for (const fid of keptIdsToUse) {
               form.append("KeptFileIds", String(fid));
             }
-          } else if (Array.isArray(keptIdsToUse) && keptIdsToUse.length === 0) {
-            // form.append("KeptFileIds", "");
           }
 
-          if (payload.classId !== undefined && payload.classId !== null) {
-            form.append("ClassId", String(payload.classId));
-          }
-
-          try {
-            for (const pair of (form as any).entries()) {
-              const [k, v] = pair as [string, any];
-              if (v instanceof File) {
-                console.debug(
-                  "FormData:",
-                  k,
-                  "=> File:",
-                  v.name,
-                  v.size,
-                  v.type
-                );
-              } else {
-                console.debug("FormData:", k, "=>", v);
-              }
-            }
-          } catch (dbgErr) {
-            console.debug("Failed to iterate FormData for debug", dbgErr);
-          }
-
-          const candidates = [
-            `/api/Classwork/${payload.id}`, // matches controller attribute
-            `/Classwork/${payload.id}`, // if axiosInstance.baseURL already includes /api
-          ];
-
-          let lastError: any = null;
-          for (const url of candidates) {
-            try {
-              const res = await axiosInstance.put(url, form);
-              const raw = res?.data ?? null;
-
-              if (!raw || raw.success === false) {
-                set({
-                  isLoading: false,
-                  success: false,
-                  message: raw?.message ?? "Sửa bài tập thất bại",
-                });
-                return null;
-              }
-
-              set({
-                isLoading: false,
-                success: true,
-                message: raw.message ?? "Sửa bài tập thành công",
-              });
-              return raw.data ?? raw;
-            } catch (err: any) {
-              lastError = err;
-              const status = err?.response?.status;
-              console.warn(
-                `editClasswork attempt to ${url} failed:`,
-                status,
-                err?.response?.data ?? err?.message
+          // Debug log để xem FormData gửi đi
+          console.log("[editClasswork] Sending FormData:");
+          for (const [key, val] of (form as any).entries()) {
+            if (val instanceof File) {
+              console.log(
+                `  ${key}: File(${val.name}, ${val.size} bytes, ${val.type})`
               );
-              // If 404 try next candidate
-              if (status === 404) continue;
-              // For other statuses, surface server response
-              if (err?.response?.data) {
-                console.error("Server response data:", err.response.data);
-              } else {
-                console.error("Error message:", err.message);
-              }
-              set({
-                isLoading: false,
-                success: false,
-                message: "Sửa bài tập thất bại",
-              });
-              return null;
+            } else {
+              console.log(`  ${key}: ${val}`);
             }
           }
 
-          // all candidates failed
-          console.error("editClasswork: all URL candidates failed", lastError);
-          if (lastError?.response?.data)
-            console.error("Last server response:", lastError.response.data);
-          set({
-            isLoading: false,
-            success: false,
-            message: "Sửa bài tập thất bại (route not found)",
-          });
-          return null;
-        } catch (err: any) {
-          console.error("editClasswork error:", err);
-          if (err?.response?.data) {
-            console.error("Server response data:", err.response.data);
-          } else if (err?.message) {
-            console.error("Error message:", err.message);
+          const url = `/Classwork/${payload.id}`;
+          const res = await axiosInstance.put(url, form);
+          const raw = res?.data ?? null;
+
+          if (!raw || raw.success === false) {
+            set({
+              isLoading: false,
+              success: false,
+              message: raw?.message ?? raw?.title ?? "Sửa bài tập thất bại",
+            });
+            return null;
           }
+
+          set({
+            isLoading: false,
+            success: true,
+            message: raw.message ?? "Sửa bài tập thành công",
+          });
+          return raw.data ?? raw;
+        } catch (err: any) {
+          console.error(
+            "[editClasswork] error response data:",
+            err?.response?.data
+          );
+          console.error("[editClasswork] error full:", err);
           set({
             isLoading: false,
             success: false,
-            message: "Sửa bài tập thất bại",
+            message:
+              err?.response?.data?.message ??
+              err?.response?.data?.title ??
+              "Sửa bài tập thất bại",
           });
           return null;
         } finally {

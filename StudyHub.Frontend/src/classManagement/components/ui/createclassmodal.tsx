@@ -1,6 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
 import React, { useEffect, useState } from "react";
 import { useClassStore } from "@/classManagement/stores/useClassStore";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
+import useAllClassManagementStore from "@/classManagement/stores/useAllClassManagementStore";
 
 /* shadcn components */
 import {
@@ -16,12 +17,18 @@ import { Button } from "@/common/components/ui/button";
 import { Input } from "@/common/components/ui/input";
 import { Textarea } from "@/common/components/ui/textarea";
 import { Label } from "@/common/components/ui/label";
-import { X } from "lucide-react";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/common/components/ui/select";
 
 export const CreateClassModal: React.FC<{
   open: boolean;
   onClose: () => void;
-  onCreate: (payload: { title: string; description?: string; createdBy?: string; grade?: number | null }) => Promise<void>;
+  onCreate: (payload: { title: string; description?: string; createdBy?: string; grade?: number | null; homeroomTeacherId?: string | null }) => Promise<void>;
 }> = ({ open, onClose, onCreate }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -30,7 +37,15 @@ export const CreateClassModal: React.FC<{
 
   const [submitting, setSubmitting] = useState(false);
 
-  const { subjects, getAllSubjects } = useClassStore();
+  const { getAllSubjects } = useClassStore();
+  const { user } = useAuthStore();
+
+  // homeroom teachers (from store)
+  const getAllHomeroomTeachers = useAllClassManagementStore((s) => s.getAllHomeroomTeachers);
+  const teachersFromStore = useAllClassManagementStore((s) => s.homeroomTeachers);
+  const teachersLoadingFromStore = useAllClassManagementStore((s) => s.isLoading);
+
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
 
   // validation errors (use shadcn-style error messages)
   const [errors, setErrors] = useState<{ title?: string; grade?: string }>({});
@@ -38,12 +53,42 @@ export const CreateClassModal: React.FC<{
   // toast state
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Determine if current user is School Admin
+  const isSchoolAdmin = (() => {
+    if (!user?.roles || !Array.isArray(user.roles)) return false;
+    return user.roles.some((r: any) => {
+      if (!r) return false;
+      const s = String(r).toLowerCase().replace(/[\s-_]/g, "");
+      return s === "schooladmin" || s.includes("schooladmin") || String(r).toLowerCase() === "school admin";
+    });
+  })();
+
   // only fetch subjects when modal opens
   useEffect(() => {
     if (open) {
       getAllSubjects?.();
     }
   }, [open, getAllSubjects]);
+
+  // fetch homeroom teachers from store when modal opens and user is School Admin
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!open || !isSchoolAdmin) return;
+      try {
+        await getAllHomeroomTeachers();
+        if (!cancelled) {
+          // no-op; teachersFromStore is read via hook
+        }
+      } catch (err) {
+        console.error("getAllHomeroomTeachers error:", err);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, isSchoolAdmin, getAllHomeroomTeachers]);
 
   // reset fields when modal closed
   useEffect(() => {
@@ -54,6 +99,7 @@ export const CreateClassModal: React.FC<{
       setSubmitting(false);
       setSuccessMsg(null);
       setErrors({});
+      setSelectedTeacherId(null);
     }
   }, [open]);
 
@@ -94,11 +140,15 @@ export const CreateClassModal: React.FC<{
         return Number.isFinite(n) ? n : null;
       })();
 
+      // If a homeroom teacher is selected, pass its id into createdBy field per request.
+      const createdByValue = selectedTeacherId ?? undefined;
+
       await onCreate({
         title: title.trim(),
         description: description.trim() || undefined,
         grade: grade,
-      });
+        createdBy: createdByValue,
+      } as any);
 
       // show success toast, then close modal shortly after
       setSuccessMsg("Tạo lớp thành công");
@@ -106,7 +156,7 @@ export const CreateClassModal: React.FC<{
       setTimeout(() => {
         setSuccessMsg(null);
         onClose();
-      }, 1500);
+      }, 1200);
     } catch (err) {
       // Optionally show error handling here
       console.error("CreateClassModal onCreate error:", err);
@@ -129,7 +179,8 @@ export const CreateClassModal: React.FC<{
               <DialogTitle>Tạo lớp học</DialogTitle>
               {/* single close control */}
               <DialogClose asChild>
-               
+                {/* empty - close button markup is handled by DialogClose consumer if needed */}
+                <button className="sr-only" aria-hidden />
               </DialogClose>
             </div>
             <DialogDescription className="text-sm text-slate-500">
@@ -197,6 +248,36 @@ export const CreateClassModal: React.FC<{
                 </div>
               )}
             </div>
+
+            {/* Show homeroom teacher select only for School Admin */}
+            {isSchoolAdmin && (
+              <div>
+                <Label className="text-sm">Giáo viên chủ nhiệm</Label>
+                <Select
+                  value={selectedTeacherId ?? ""}
+                  onValueChange={(val) => setSelectedTeacherId(val === "_none" ? null : val)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={teachersLoadingFromStore ? "Đang tải..." : "Chọn giáo viên chủ nhiệm (tùy chọn)"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {/* sentinel values used instead of empty string */}
+                    <SelectItem value="_none">Không chọn</SelectItem>
+                    {teachersLoadingFromStore ? (
+                      <SelectItem value="_loading">Đang tải...</SelectItem>
+                    ) : teachersFromStore.length === 0 ? (
+                      <SelectItem value="_none_empty">Không có giáo viên</SelectItem>
+                    ) : (
+                      teachersFromStore.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.fullname}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="flex justify-end gap-2">

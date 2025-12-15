@@ -3,14 +3,23 @@ import DetailedClassTeacher from "@/classManagement/pages/teacher/DetailedClassT
 import ClassRouteConfig from "@/classManagement/constants/ClassRouteConfig";
 import { Outlet, type RouteObject } from "react-router-dom";
 import RequireRole from "@/common/components/RequireRole";
-import ClassworkDetail from "../pages/ClassworkDetail";
+
+import AddEditClassworkForm from "../pages/teacher/EditClasswork";
+import ClassworkDetail from "../pages/student/ClassworkDetail";
+
 import ConfirmInvite from "../pages/ConfirmInvite";
 import ClassRedirect from "../components/redirect/ClassRedirect";
-import ClassworkSubmissionsPage from "../pages/ClassSubmission";
+import ClassworkSubmissionsPage from "../pages/teacher/ClassSubmission";
 import ClassDocumentsPage from "@/classManagement/pages/ClassDocument";
-import AddClasswork from "../pages/AddClasswork";
-import EditClassworkForm from "../pages/EditClasswork";
+
+import AddClasswork from "../pages/teacher/AddClasswork";
+import EditClassworkForm from "../pages/teacher/EditClasswork";
+import DashboardPage from "../pages/manager/ClassDashboard";
+import { m } from "framer-motion";
+
 import { ROLES } from "@/common/constants/Roles";
+import ClassListManagement from "../pages/manager/ClassManagement";
+
 
 const teacherClassRoutes = [
   {
@@ -69,7 +78,17 @@ const studentClassRoutes = [
     element: <ClassDocumentsPage />,
   },
 ];
+const managerClassRoutes = [
 
+  {
+    path: ClassRouteConfig.MANAGER.CLASS_DASHBOARD,
+    element: <DashboardPage />,
+  },
+   {
+    path: ClassRouteConfig.MANAGER.CLASS_MANAGEMENT,
+    element: <ClassListManagement />,
+  },
+];
 const classRoutes: RouteObject[] = [
   {
     path: ClassRouteConfig.TEACHER.INDEX,
@@ -90,6 +109,15 @@ const classRoutes: RouteObject[] = [
       </RequireRole>
     ),
     children: studentClassRoutes,
+  },
+   {
+    path: ClassRouteConfig.MANAGER.INDEX,
+    element: (
+      <RequireRole allowedRoles={["School Admin"]}>
+        <Outlet />
+      </RequireRole>
+    ),
+    children: managerClassRoutes,
   },
   {
     path: "",

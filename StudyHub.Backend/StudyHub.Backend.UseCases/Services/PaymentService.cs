@@ -25,10 +25,7 @@ namespace StudyHub.Backend.UseCases.Services
             _userRepo.UpdateUser(user);
             return user.Wallet;
         }
-
-        /// <summary>
-        /// Credit wallet by AppUserId (useful for refunds)
-        /// </summary>
+       
         public long? CreditWalletByUserId(Guid userId, long amount)
         {
             var user = _userRepo.GetById(userId);
@@ -39,11 +36,7 @@ namespace StudyHub.Backend.UseCases.Services
             _userRepo.UpdateUser(user);
             return user.Wallet;
         }
-
-        /// <summary>
-        /// Debit the user's wallet by amount. Returns new balance on success,
-        /// returns -1 if insufficient funds, or null if user not found.
-        /// </summary>
+       
         public long? DebitWalletByUserId(Guid userId, long amount)
         {
             var user = _userRepo.GetById(userId);

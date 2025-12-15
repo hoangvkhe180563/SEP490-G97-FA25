@@ -28,7 +28,7 @@ import { Book, Download, Eye, Trash } from "lucide-react";
  * - Handles new file uploads (previews using object URLs)
  * - Posts FormData to /ClassNotification (or fallback) to create the classwork
  *
- * Use this component when you want a dedicated "Add" page separate from edit.
+ * Use this component when you want a dedicated "Add" page separate from edit. 
  */
 
 type LinkItem = { title: string; url: string };
@@ -44,7 +44,7 @@ const isCloudinaryUrl = (u?: string) => {
   if (!u) return false;
   try {
     const url = new URL(u);
-    return url.hostname.endsWith("cloudinary.com");
+    return url. hostname.endsWith("cloudinary.com");
   } catch {
     return false;
   }
@@ -53,7 +53,7 @@ const isCloudinaryUrl = (u?: string) => {
 const makeCloudinaryFlAttachment = (u: string) => {
   try {
     const url = new URL(u);
-    const parts = url.pathname.split("/").filter(Boolean);
+    const parts = url.pathname.split("/"). filter(Boolean);
     const idx = parts.indexOf("upload");
     if (idx !== -1) {
       parts.splice(idx + 1, 0, "fl_attachment");
@@ -72,7 +72,7 @@ async function downloadUrl(fileUrl?: string, suggestedName?: string): Promise<vo
     let isCrossOrigin = false;
     try {
       const urlObj = new URL(String(fileUrl), window.location.href);
-      isCrossOrigin = urlObj.origin !== window.location.origin;
+      isCrossOrigin = urlObj. origin !== window.location.origin;
     } catch {
       isCrossOrigin = false;
     }
@@ -87,7 +87,7 @@ async function downloadUrl(fileUrl?: string, suggestedName?: string): Promise<vo
       if (isCloudinaryUrl(String(fileUrl))) {
         window.open(makeCloudinaryFlAttachment(String(fileUrl)), "_blank", "noopener,noreferrer");
       } else {
-        window.open(String(fileUrl), "_blank", "noopener,noreferrer");
+        window. open(String(fileUrl), "_blank", "noopener,noreferrer");
       }
       return;
     }
@@ -105,24 +105,24 @@ async function downloadUrl(fileUrl?: string, suggestedName?: string): Promise<vo
     }
 
     const contentDisposition = res.headers.get("content-disposition") || "";
-    let filename = suggestedName ?? "download";
+    let filename = suggestedName ??  "download";
     const fileNameMatch =
       contentDisposition.match(/filename\*=(?:UTF-8'')?([^;]+)/i) ||
-      contentDisposition.match(/filename="?([^";]+)"?/i);
+      contentDisposition.match(/filename="? ([^";]+)"?/i);
     if (fileNameMatch && fileNameMatch[1]) {
       try {
-        filename = decodeURIComponent(fileNameMatch[1].replace(/(^['"]|['"]$)/g, ""));
+        filename = decodeURIComponent(fileNameMatch[1]. replace(/(^['"]|['"]$)/g, ""));
       } catch {
-        filename = fileNameMatch[1].replace(/(^['"]|['"]$)/g, "");
+        filename = fileNameMatch[1]. replace(/(^['"]|['"]$)/g, "");
       }
     } else {
       try {
         const urlObj = new URL(String(fileUrl), window.location.href);
         const last = urlObj.pathname.split("/").filter(Boolean).pop();
         if (last) filename = decodeURIComponent(last);
-        if (!/\./.test(filename) && contentType.includes("image/")) {
+        if (!/\. /. test(filename) && contentType.includes("image/")) {
           const ext = contentType.split("/")[1] || "png";
-          filename = `${filename || "image"}.${ext.split(";")[0]}`;
+          filename = `${filename || "image"}.${ext. split(";")[0]}`;
         }
       } catch { /* empty */ }
     }
@@ -146,14 +146,14 @@ async function downloadUrl(fileUrl?: string, suggestedName?: string): Promise<vo
 }
 
 const detectFileType = (fileOrName: File | string | undefined): FilePreview["type"] => {
-  if (!fileOrName) return "other";
+  if (! fileOrName) return "other";
   if (typeof fileOrName === "string") {
     const lower = fileOrName.toLowerCase();
     if (/\.(png|jpe?g|gif|webp|bmp|svg)$/.test(lower)) return "image";
-    if (/\.pdf$/.test(lower)) return "pdf";
+    if (/\. pdf$/.test(lower)) return "pdf";
     return "other";
   } else {
-    if (/image\/(jpeg|png|webp|gif|bmp|svg)/i.test(fileOrName.type)) return "image";
+    if (/image\/(jpeg|png|webp|gif|bmp|svg)/i.test(fileOrName. type)) return "image";
     if (/pdf/i.test(fileOrName.type) || fileOrName.name.toLowerCase().endsWith(".pdf")) return "pdf";
     return "other";
   }
@@ -201,7 +201,7 @@ const AddClasswork: React.FC = () => {
     setErrors((s) => ({ ...s, [field]: message }));
   const clearFieldError = (field: string) =>
     setErrors((s) => {
-      if (!s[field]) return s;
+      if (! s[field]) return s;
       const next = { ...s };
       delete next[field];
       return next;
@@ -245,7 +245,7 @@ const AddClasswork: React.FC = () => {
 
   // ensure class info (optional)
   useEffect(() => {
-    if (!id) return;
+    if (! id) return;
     (async () => {
       try {
         if (typeof getClassInfo === "function") await getClassInfo(Number(id));
@@ -257,7 +257,7 @@ const AddClasswork: React.FC = () => {
   }, [id]);
 
   // helpers
-  const handleCancel = () => navigate(`/class/${role}/${id}?tab=exercise`);
+  const handleCancel = () => navigate(`/class/${role}/${id}? tab=exercise`);
 
   const postCreateNotification = async (fd: FormData) => {
     const endpoints = ["/ClassNotification", "/api/ClassNotification"];
@@ -268,11 +268,42 @@ const AddClasswork: React.FC = () => {
         return res;
       } catch (err: any) {
         lastError = err;
-        if (err?.response?.status === 404) continue;
+        if (err?. response?.status === 404) continue;
         if (err?.response) break;
       }
     }
-    throw lastError ?? new Error("Failed to call create notification endpoint");
+    throw lastError ??  new Error("Failed to call create notification endpoint");
+  };
+
+  // NEW: Validate deadline real-time
+  const validateDeadline = (deadlineValue: string) => {
+    if (!deadlineValue || deadlineValue.trim() === "") {
+      clearFieldError("deadline");
+      return true;
+    }
+
+    const selected = new Date(deadlineValue);
+    const now = new Date();
+    
+    if (isNaN(selected.getTime())) {
+      setFieldError("deadline", "Ngày không hợp lệ");
+      return false;
+    }
+    
+    if (selected. getTime() <= now.getTime()) {
+      setFieldError("deadline", "Hạn nộp phải lớn hơn thời điểm hiện tại");
+      return false;
+    }
+
+    clearFieldError("deadline");
+    return true;
+  };
+
+  // NEW: Handle deadline change with validation
+  const handleDeadlineChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDeadline(value);
+    validateDeadline(value);
   };
 
   // convert and send (CREATE only)
@@ -283,7 +314,7 @@ const AddClasswork: React.FC = () => {
 
     try {
       let hasError = false;
-      if (!title || title.trim().length === 0) {
+      if (!title || title.trim(). length === 0) {
         setFieldError("title", "Tiêu đề không được để trống");
         hasError = true;
       }
@@ -291,27 +322,23 @@ const AddClasswork: React.FC = () => {
       if (maxScore === "" || maxScore === null || maxScore === undefined) {
         setFieldError("maxScore", "Điểm tối đa là bắt buộc");
         hasError = true;
-      } else if (typeof maxScore === "number" && maxScore < 0) {
-        setFieldError("maxScore", "Điểm tối đa phải lớn hơn hoặc bằng 0");
+      } else if (typeof maxScore === "number" && maxScore <= 0) {
+        setFieldError("maxScore", "Điểm tối đa phải lớn hơn 0");
         hasError = true;
       }
 
-      if (!id || Number(id) <= 0) {
+      if (! id || Number(id) <= 0) {
         showAlert("ClassId không hợp lệ", "Lỗi", "destructive");
         setLoading(false);
         return;
       }
 
-      if (deadline && deadline.trim() !== "") {
-        const selected = new Date(deadline);
-        const now = new Date();
-        if (isNaN(selected.getTime()) || selected.getTime() <= now.getTime()) {
-          setFieldError("deadline", "Hạn nộp phải lớn hơn thời điểm hiện tại");
-          hasError = true;
-        }
+      // Validate deadline
+      if (!validateDeadline(deadline)) {
+        hasError = true;
       }
 
-      const createdBy = user?.id ?? localStorage.getItem("currentUserId") ?? "";
+      const createdBy = user?.id ??  localStorage.getItem("currentUserId") ?? "";
       if (!createdBy) {
         showAlert("Thiếu thông tin người dùng", "Lỗi", "destructive");
         setLoading(false);
@@ -325,14 +352,14 @@ const AddClasswork: React.FC = () => {
       const fd = new FormData();
       fd.append("ClassId", String(Number(id)));
       fd.append("Type", "classwork");
-      fd.append("Title", title.trim());
-      fd.append("Description", description?.trim() ?? "");
+      fd.append("Title", title. trim());
+      fd.append("Description", description?. trim() ??  "");
       fd.append("CreatedBy", createdBy);
       if (deadline) fd.append("Deadline", formatISO(new Date(deadline)));
       if (maxScore !== "") fd.append("MaxScore", String(maxScore));
       if (gradeType) fd.append("GradeType", gradeType);
       fd.append("AllowSubmission", String(allowSubmission));
-      if (instructionsHtml) fd.append("InstructionsHtml", instructionsHtml);
+      if (instructionsHtml) fd. append("InstructionsHtml", instructionsHtml);
 
       if (filePreviews.length > 0) {
         for (const p of filePreviews) {
@@ -343,8 +370,8 @@ const AddClasswork: React.FC = () => {
       if (links.length > 0) fd.append("LinksJson", JSON.stringify(links));
 
       const res = await postCreateNotification(fd);
-      const raw = res?.data ?? null;
-      if (!raw || raw.success === false) {
+      const raw = res?. data ??  null;
+      if (! raw || raw.success === false) {
         const msg = raw?.message ?? "Tạo thông báo thất bại";
         showAlert(msg, "Lỗi", "destructive");
         setLoading(false);
@@ -362,7 +389,7 @@ const AddClasswork: React.FC = () => {
       navigate(`/class/${role}/${id}?tab=exercise`);
     } catch (err: any) {
       console.error("Save error", err);
-      const msg = err?.response?.data?.message ?? err?.message ?? "Lỗi khi lưu bài tập";
+      const msg = err?.response?.data?. message ?? err?.message ?? "Lỗi khi lưu bài tập";
       showAlert(msg, "Lỗi", "destructive");
     } finally {
       setLoading(false);
@@ -371,7 +398,7 @@ const AddClasswork: React.FC = () => {
 
   // file handling (new files only)
   const handleFiles = (files: File[]) => {
-    if (!files || files.length === 0) return;
+    if (! files || files.length === 0) return;
     setFilePreviews((prev) => {
       const existingSignatures = new Set(prev.map((p) => `${p.file.name}:${p.file.size}`));
       const newPreviews: FilePreview[] = [];
@@ -382,26 +409,26 @@ const AddClasswork: React.FC = () => {
         const tp = detectFileType(f);
         const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
         const url = URL.createObjectURL(f);
-        newPreviews.push({ id, file: f, url, type: tp });
+        newPreviews. push({ id, file: f, url, type: tp });
       }
-      return [...prev, ...newPreviews];
+      return [... prev, ...newPreviews];
     });
   };
 
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files ? Array.from(e.target.files) : [];
+    const selected = e.target.files ?  Array.from(e.target. files) : [];
     if (selected.length > 0) handleFiles(selected);
     e.currentTarget.value = "";
   };
 
   const openFileDialog = () => { if (fileInputRef.current) fileInputRef.current.click(); };
-  const onDrop = (e: React.DragEvent) => { e.preventDefault(); const dtFiles = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : []; if (dtFiles.length > 0) handleFiles(dtFiles); };
+  const onDrop = (e: React.DragEvent) => { e.preventDefault(); const dtFiles = e.dataTransfer.files ?  Array.from(e.dataTransfer.files) : []; if (dtFiles.length > 0) handleFiles(dtFiles); };
   const onDragOver = (e: React.DragEvent) => { e.preventDefault(); };
 
   const removeFile = (id: string) => {
     setFilePreviews((prev) => {
       const toRemove = prev.find((p) => p.id === id);
-      if (!toRemove) return prev;
+      if (! toRemove) return prev;
       try { URL.revokeObjectURL(toRemove.url); } catch { /* empty */ }
       return prev.filter((p) => p.id !== id);
     });
@@ -413,7 +440,7 @@ const AddClasswork: React.FC = () => {
 
   const addLink = () => {
     clearFieldError("linkUrl");
-    if (!linkUrl || !validateUrl(linkUrl)) { setFieldError("linkUrl", "URL không hợp lệ (cần bắt đầu bằng http:// hoặc https://)"); return; }
+    if (!linkUrl || ! validateUrl(linkUrl)) { setFieldError("linkUrl", "URL không hợp lệ (cần bắt đầu bằng http:// hoặc https://)"); return; }
     setLinks((prev) => [...prev, { title: linkTitle || linkUrl, url: linkUrl }]);
     setLinkTitle(""); setLinkUrl("");
   };
@@ -421,8 +448,8 @@ const AddClasswork: React.FC = () => {
   const removeLink = (index: number) => setLinks((prev) => prev.filter((_, i) => i !== index));
 
   // derived values & helpers
-  const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
-  const inputClass = (base = "", field?: string) => { const err = field ? errors[field] : undefined; return `${base} ${err ? "border-red-500 ring-1 ring-red-200" : ""}`.trim(); };
+  const classInfo: ClassInfo | null = currentClass?. data?. classInfo ?? null;
+  const inputClass = (base = "", field?: string) => { const err = field ? errors[field] : undefined; return `${base} ${err ?  "border-red-500 ring-1 ring-red-500" : ""}`.trim(); };
 
   // cleanup objectURLs on unmount
   useEffect(() => {
@@ -472,7 +499,7 @@ const AddClasswork: React.FC = () => {
                         <span>{alert.message}</span>
                         {alert.link && (
                           <a
-                            href={alert.link.url}
+                            href={alert.link. url}
                             target="_blank"
                             rel="noreferrer"
                             className="text-blue-600 underline ml-2"
@@ -546,7 +573,7 @@ const AddClasswork: React.FC = () => {
                     {filePreviews.map((p) => (
                       <div key={p.id} className="bg-white border rounded p-2 flex items-start gap-2">
                         <div className="w-16 h-16 flex items-center justify-center bg-slate-100 rounded overflow-hidden shrink-0">
-                          {p.type === "image" && p.url ? (
+                          {p.type === "image" && p.url ?  (
                             <img src={p.url} alt={p.file.name} className="w-full h-full object-cover" />
                           ) : p.type === "pdf" ? (
                             <div className="text-slate-600 text-lg">📄 PDF</div>
@@ -555,7 +582,7 @@ const AddClasswork: React.FC = () => {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">{p.file.name}</div>
+                          <div className="font-medium text-sm truncate">{p. file.name}</div>
                           <div className="text-xs text-slate-400 mt-1">{`${(p.file.size / 1024).toFixed(0)} KB`}</div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
@@ -587,7 +614,7 @@ const AddClasswork: React.FC = () => {
                 <Label>Thêm liên kết</Label>
                 <div className="grid grid-cols-12 gap-2 items-start mt-2">
                   <div className="col-span-5">
-                    <Input placeholder="Tiêu đề (tùy chọn)" value={linkTitle} onChange={(e) => setLinkTitle(e.target.value)} />
+                    <Input placeholder="Tiêu đề (tùy chọn)" value={linkTitle} onChange={(e) => setLinkTitle(e. target.value)} />
                   </div>
                   <div className="col-span-6">
                     <Input
@@ -596,7 +623,7 @@ const AddClasswork: React.FC = () => {
                       onChange={(e) => { setLinkUrl(e.target.value); if (errors.linkUrl) clearFieldError("linkUrl"); }}
                       className={inputClass("", "linkUrl")}
                       aria-invalid={!!errors.linkUrl}
-                      aria-describedby={errors.linkUrl ? "err-linkUrl" : undefined}
+                      aria-describedby={errors.linkUrl ?  "err-linkUrl" : undefined}
                     />
                     {errors.linkUrl && <div id="err-linkUrl" className="text-red-600 text-sm mt-1">{errors.linkUrl}</div>}
                   </div>
@@ -632,7 +659,7 @@ const AddClasswork: React.FC = () => {
               <Input
                 type="datetime-local"
                 value={deadline}
-                onChange={(e) => { setDeadline(e.target.value); if (errors.deadline) clearFieldError("deadline"); }}
+                onChange={handleDeadlineChange}
                 className={inputClass("mt-2", "deadline")}
                 aria-invalid={!!errors.deadline}
                 aria-describedby={errors.deadline ? "err-deadline" : undefined}
@@ -650,27 +677,24 @@ const AddClasswork: React.FC = () => {
                 min={0}
                 className={inputClass("mt-2", "maxScore")}
                 aria-invalid={!!errors.maxScore}
-                aria-describedby={errors.maxScore ? "err-maxScore" : undefined}
+                aria-describedby={errors. maxScore ? "err-maxScore" : undefined}
               />
               {errors.maxScore && <div id="err-maxScore" className="text-red-600 text-sm mt-1">{errors.maxScore}</div>}
             </div>
 
             <div>
               <Label>Loại điểm</Label>
-              <select value={gradeType} onChange={(e) => setGradeType(e.target.value)} className="w-full border rounded px-3 py-2 mt-2">
+              <select value={gradeType} onChange={(e) => setGradeType(e. target.value)} className="w-full border rounded px-3 py-2 mt-2">
                 <option value="points">Points</option>
               </select>
             </div>
 
             <div className="flex items-center justify-between">
               <Label>Cho phép nộp bài</Label>
-              <Switch checked={allowSubmission} onCheckedChange={(v) => setAllowSubmission(!!v)} />
+              <Switch checked={allowSubmission} onCheckedChange={(v) => setAllowSubmission(!! v)} />
             </div>
 
-            <div>
-              <Label>Hướng dẫn chi tiết (HTML)</Label>
-              <Textarea value={instructionsHtml} onChange={(e) => setInstructionsHtml(e.target.value)} placeholder="Hướng dẫn chi tiết (HTML hoặc plain text)" className="mt-2 min-h-[120px]" />
-            </div>
+           
           </Card>
         </aside>
       </div>
