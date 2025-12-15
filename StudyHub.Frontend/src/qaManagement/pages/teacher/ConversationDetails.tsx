@@ -310,7 +310,7 @@ const ConversationDetails: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full ">
+    <div className="flex flex-col h-screen">
       <header className="flex items-center gap-4 p-4 border-b">
         <div className="relative">
           <Avatar className="h-10 w-10 border border-gray-300">
