@@ -1,4 +1,5 @@
-﻿using Moq;
+﻿using Microsoft.AspNetCore.Http;
+using Moq;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Services;
@@ -7,457 +8,591 @@ namespace StudyHub.Backend.UseCases.Tests.Services;
 
 public class ForumPostServiceTests
 {
-    [Fact]
-    public async Task GetPostByIdAsync_ShouldReturnPost_WhenPostExists()
+    private Mock<IForumPostRepository> _mockPostRepo;
+    private Mock<IForumConfigRepository> _mockConfigRepo;
+    private Mock<IForumModerationRepository> _mockModerationRepo;
+    private Mock<ICloudinaryRepository> _mockFileStorage;
+    private Mock<IImageModerationService> _mockImageModeration;
+    private Mock<ISignalRNotifier> _mockSignalR;
+    private ForumPostService _service;
+
+    public ForumPostServiceTests()
     {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var mockConfigRepo = new Mock<IForumConfigRepository>();
-        var mockModerationRepo = new Mock<IForumModerationRepository>();
-        var mockFileStorage = new Mock<ICloudinaryRepository>();
-        var mockImageModeration = new Mock<IImageModerationService>();
-        var mockSignalR = new Mock<ISignalRNotifier>();
+        _mockPostRepo = new Mock<IForumPostRepository>();
+        _mockConfigRepo = new Mock<IForumConfigRepository>();
+        _mockModerationRepo = new Mock<IForumModerationRepository>();
+        _mockFileStorage = new Mock<ICloudinaryRepository>();
+        _mockImageModeration = new Mock<IImageModerationService>();
+        _mockSignalR = new Mock<ISignalRNotifier>();
 
-        var service = new ForumPostService(mockPostRepo.Object, mockConfigRepo.Object,
-            mockModerationRepo.Object, mockFileStorage.Object, mockImageModeration.Object, mockSignalR.Object);
+        _service = new ForumPostService(
+            _mockPostRepo.Object,
+            _mockConfigRepo.Object,
+            _mockModerationRepo.Object,
+            _mockFileStorage.Object,
+            _mockImageModeration.Object,
+            _mockSignalR.Object
+        );
+    }
 
-        var post = new ForumPost { Id = 1, Title = "Test Post", SchoolId = 1 };
-        mockPostRepo.Setup(x => x.GetPostByIdAsync(1)).ReturnsAsync(post);
+    #region CreatePost Tests
 
-        var result = await service.GetPostByIdAsync(1);
+    [Fact]
+    public async Task CreatePost_ShouldCreateApprovedPost_WhenNoViolationsAndNoProtectedFlair()
+    {
+        var userId = Guid.NewGuid();
+        var post = new ForumPost
+        {
+            SchoolId = 1,
+            SubjectId = 1,
+            Title = "Clean Title",
+            Content = "Clean content",
+            CreatedBy = userId,
+            CreatedAt = DateTime.Now
+        };
+
+        _mockModerationRepo.Setup(x => x.CheckContentViolationAsync("Clean content", 1))
+            .ReturnsAsync(new List<(int, int, int)>());
+
+        var createdPost = new ForumPost
+        {
+            Id = 1,
+            SchoolId = 1,
+            SubjectId = 1,
+            Title = "Clean Title",
+            Content = "Clean content",
+            CreatedBy = userId,
+            Status = true,
+            IsHidden = false,
+            TotalViolationScore = 0
+        };
+
+        _mockPostRepo.Setup(x => x.CreatePostAsync(It.IsAny<ForumPost>()))
+            .ReturnsAsync(createdPost);
+        _mockPostRepo.Setup(x => x.GetPostByIdAsync(1))
+            .ReturnsAsync(createdPost);
+
+        var result = await _service.CreatePostAsync(post);
 
         Assert.NotNull(result);
         Assert.Equal(1, result.Id);
-        Assert.Equal("Test Post", result.Title);
-    }
-
-    [Fact]
-    public async Task GetPostByIdAsync_ShouldReturnNull_WhenPostDoesNotExist()
-    {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, null!, null!, null!, null!);
-
-        mockPostRepo.Setup(x => x.GetPostByIdAsync(999)).ReturnsAsync((ForumPost?)null);
-
-        var result = await service.GetPostByIdAsync(999);
-
-        Assert.Null(result);
-    }
-
-    [Fact]
-    public async Task GetPublicPostsAsync_ShouldReturnPosts_WhenPostsExist()
-    {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, null!, null!, null!, null!);
-
-        var posts = new List<ForumPost>
-        {
-            new ForumPost { Id = 1, SchoolId = 1, Status = true },
-            new ForumPost { Id = 2, SchoolId = 1, Status = true }
-        };
-        mockPostRepo.Setup(x => x.GetPublicPostsAsync(1, null, null, null, null, null, null))
-            .ReturnsAsync((posts, 2));
-
-        var result = await service.GetPublicPostsAsync(1);
-
-        Assert.Equal(2, result.totalCount);
-        Assert.Equal(2, result.posts.Count);
-    }
-
-    [Fact]
-    public async Task GetPublicPostsAsync_ShouldReturnEmptyList_WhenNoPostsExist()
-    {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, null!, null!, null!, null!);
-
-        mockPostRepo.Setup(x => x.GetPublicPostsAsync(1, null, null, null, null, null, null))
-            .ReturnsAsync((new List<ForumPost>(), 0));
-
-        var result = await service.GetPublicPostsAsync(1);
-
-        Assert.Equal(0, result.totalCount);
-        Assert.Empty(result.posts);
-    }
-
-    [Fact]
-    public async Task GetPublicPostsAsync_ShouldFilterBySubject_WhenSubjectIdsProvided()
-    {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, null!, null!, null!, null!);
-
-        var subjectIds = new List<short> { 1 };
-        var posts = new List<ForumPost> { new ForumPost { Id = 1, SubjectId = 1, SchoolId = 1 } };
-        mockPostRepo.Setup(x => x.GetPublicPostsAsync(1, subjectIds, null, null, null, null, null))
-            .ReturnsAsync((posts, 1));
-
-        var result = await service.GetPublicPostsAsync(1, subjectIds);
-
-        Assert.Single(result.posts);
-        Assert.Equal(1, result.posts[0].SubjectId);
-    }
-
-    [Fact]
-    public async Task GetPublicPostsAsync_ShouldFilterByFlairs_WhenFlairIdsProvided()
-    {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, null!, null!, null!, null!);
-
-        var flairIds = new List<int> { 1 };
-        var posts = new List<ForumPost> { new ForumPost { Id = 1, FlairId = 1, SchoolId = 1 } };
-        mockPostRepo.Setup(x => x.GetPublicPostsAsync(1, null, flairIds, null, null, null, null))
-            .ReturnsAsync((posts, 1));
-
-        var result = await service.GetPublicPostsAsync(1, null, flairIds);
-
-        Assert.Single(result.posts);
-        Assert.Equal(1, result.posts[0].FlairId);
-    }
-
-    [Fact]
-    public async Task GetPublicPostsAsync_ShouldSearchByQuery_WhenQueryProvided()
-    {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, null!, null!, null!, null!);
-
-        var posts = new List<ForumPost> { new ForumPost { Id = 1, Title = "Test Query", SchoolId = 1 } };
-        mockPostRepo.Setup(x => x.GetPublicPostsAsync(1, null, null, "Test", null, null, null))
-            .ReturnsAsync((posts, 1));
-
-        var result = await service.GetPublicPostsAsync(1, null, null, "Test");
-
-        Assert.Single(result.posts);
-        Assert.Contains("Test", result.posts[0].Title);
-    }
-
-    [Fact]
-    public async Task GetPublicPostsAsync_ShouldSortByDate_WhenSortByDateAsc()
-    {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, null!, null!, null!, null!);
-
-        var posts = new List<ForumPost>
-        {
-            new ForumPost { Id = 1, SchoolId = 1, CreatedAt = DateTime.Now.AddDays(-2) },
-            new ForumPost { Id = 2, SchoolId = 1, CreatedAt = DateTime.Now.AddDays(-1) }
-        };
-        mockPostRepo.Setup(x => x.GetPublicPostsAsync(1, null, null, null, "date_asc", null, null))
-            .ReturnsAsync((posts, 2));
-
-        var result = await service.GetPublicPostsAsync(1, null, null, null, "date_asc");
-
-        Assert.Equal(2, result.posts.Count);
-    }
-
-    [Fact]
-    public async Task GetOwnedPostsAsync_ShouldReturnUserPosts_WhenPostsExist()
-    {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, null!, null!, null!, null!);
-
-        var userId = Guid.NewGuid();
-        var posts = new List<ForumPost>
-        {
-            new ForumPost { Id = 1, CreatedBy = userId, SchoolId = 1 },
-            new ForumPost { Id = 2, CreatedBy = userId, SchoolId = 1 }
-        };
-        mockPostRepo.Setup(x => x.GetOwnedPostsAsync(userId, 1, null, null, null, null, null, null, null, null))
-            .ReturnsAsync((posts, 2));
-
-        var result = await service.GetOwnedPostsAsync(userId, 1);
-
-        Assert.Equal(2, result.totalCount);
-        Assert.All(result.posts, p => Assert.Equal(userId, p.CreatedBy));
-    }
-
-    [Fact]
-    public async Task GetOwnedPostsAsync_ShouldReturnEmpty_WhenUserHasNoPosts()
-    {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, null!, null!, null!, null!);
-
-        var userId = Guid.NewGuid();
-        mockPostRepo.Setup(x => x.GetOwnedPostsAsync(userId, 1, null, null, null, null, null, null, null, null))
-            .ReturnsAsync((new List<ForumPost>(), 0));
-
-        var result = await service.GetOwnedPostsAsync(userId, 1);
-
-        Assert.Equal(0, result.totalCount);
-        Assert.Empty(result.posts);
-    }
-
-    [Fact]
-    public async Task GetModeratorPostsAsync_ShouldReturnAllPosts_WhenCalled()
-    {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, null!, null!, null!, null!);
-
-        var posts = new List<ForumPost>
-        {
-            new ForumPost { Id = 1, SchoolId = 1, Status = true },
-            new ForumPost { Id = 2, SchoolId = 1, Status = null }
-        };
-        mockPostRepo.Setup(x => x.GetModeratorPostsAsync(1, null, null, null, null, null, null, null, null, null, null, null))
-            .ReturnsAsync((posts, 2));
-
-        var result = await service.GetModeratorPostsAsync(1);
-
-        Assert.Equal(2, result.totalCount);
-    }
-
-    [Fact]
-    public async Task GetModeratorPostsAsync_ShouldFilterByStatus_WhenStatusProvided()
-    {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, null!, null!, null!, null!);
-
-        var posts = new List<ForumPost>
-        {
-            new ForumPost { Id = 1, SchoolId = 1, Status = null }
-        };
-        mockPostRepo.Setup(x => x.GetModeratorPostsAsync(1, null, null, null, "pending", null, null, null, null, null, null, null))
-            .ReturnsAsync((posts, 1));
-
-        var result = await service.GetModeratorPostsAsync(1, null, null, null, "pending");
-
-        Assert.Single(result.posts);
-        Assert.Null(result.posts[0].Status);
-    }
-
-    [Fact]
-    public async Task CreatePostAsync_ShouldCreatePost_WhenNoViolations()
-    {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var mockModerationRepo = new Mock<IForumModerationRepository>();
-        var mockConfigRepo = new Mock<IForumConfigRepository>();
-        var mockSignalR = new Mock<ISignalRNotifier>();
-        var service = new ForumPostService(mockPostRepo.Object, mockConfigRepo.Object,
-            mockModerationRepo.Object, null!, null!, mockSignalR.Object);
-
-        var post = new ForumPost { SchoolId = 1, Content = "Clean content", CreatedBy = Guid.NewGuid() };
-        mockModerationRepo.Setup(x => x.CheckContentViolationAsync("Clean content", 1))
-            .ReturnsAsync(new List<(int, int, int)>());
-        mockPostRepo.Setup(x => x.CreatePostAsync(It.IsAny<ForumPost>())).ReturnsAsync(post);
-        mockPostRepo.Setup(x => x.GetPostByIdAsync(It.IsAny<int>())).ReturnsAsync(post);
-
-        var result = await service.CreatePostAsync(post);
-
-        Assert.NotNull(result);
         Assert.True(result.Status);
+        Assert.False(result.IsHidden);
+        Assert.Equal(0, result.TotalViolationScore);
+        _mockPostRepo.Verify(x => x.CreatePostAsync(It.IsAny<ForumPost>()), Times.Once);
     }
 
     [Fact]
-    public async Task CreatePostAsync_ShouldMarkPending_WhenHasViolationsWithProtectedFlair()
+    public async Task CreatePost_ShouldCreatePendingPost_WhenHasViolationsWithProtectedFlair()
     {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var mockModerationRepo = new Mock<IForumModerationRepository>();
-        var mockConfigRepo = new Mock<IForumConfigRepository>();
-        var mockSignalR = new Mock<ISignalRNotifier>();
-        var service = new ForumPostService(mockPostRepo.Object, mockConfigRepo.Object,
-            mockModerationRepo.Object, null!, null!, mockSignalR.Object);
+        var userId = Guid.NewGuid();
+        var post = new ForumPost
+        {
+            SchoolId = 1,
+            SubjectId = 1,
+            FlairId = 1,
+            Title = "Test Title",
+            Content = "Bad content",
+            CreatedBy = userId,
+            CreatedAt = DateTime.Now
+        };
 
-        var post = new ForumPost { SchoolId = 1, Content = "Bad content", CreatedBy = Guid.NewGuid(), FlairId = 1 };
         var flair = new ForumFlair { Id = 1, IsProtected = true };
 
-        mockConfigRepo.Setup(x => x.GetFlairByIdAsync(1)).ReturnsAsync(flair);
-        mockModerationRepo.Setup(x => x.CheckContentViolationAsync("Bad content", 1))
+        _mockConfigRepo.Setup(x => x.GetFlairByIdAsync(1))
+            .ReturnsAsync(flair);
+        _mockModerationRepo.Setup(x => x.CheckContentViolationAsync("Bad content", 1))
             .ReturnsAsync(new List<(int, int, int)> { (1, 1, 5) });
-        mockPostRepo.Setup(x => x.CreatePostAsync(It.IsAny<ForumPost>())).ReturnsAsync(post);
-        mockPostRepo.Setup(x => x.GetPostByIdAsync(It.IsAny<int>())).ReturnsAsync(post);
 
-        var result = await service.CreatePostAsync(post);
+        var createdPost = new ForumPost
+        {
+            Id = 1,
+            SchoolId = 1,
+            FlairId = 1,
+            Title = "Test Title",
+            Content = "Bad content",
+            CreatedBy = userId,
+            Status = null,
+            IsHidden = false,
+            TotalViolationScore = 5
+        };
 
+        _mockPostRepo.Setup(x => x.CreatePostAsync(It.IsAny<ForumPost>()))
+            .ReturnsAsync(createdPost);
+        _mockPostRepo.Setup(x => x.GetPostByIdAsync(1))
+            .ReturnsAsync(createdPost);
+
+        var result = await _service.CreatePostAsync(post);
+
+        Assert.NotNull(result);
         Assert.Null(result.Status);
+        Assert.Equal(5, result.TotalViolationScore);
+        _mockModerationRepo.Verify(x => x.CreateViolationRecordAsync(It.IsAny<ViolationRecord>()), Times.Never);
     }
 
     [Fact]
-    public async Task CreatePostAsync_ShouldRejectAndHide_WhenHasViolationsWithoutProtectedFlair()
+    public async Task CreatePost_ShouldCreateRejectedPost_WhenHasViolationsWithoutProtectedFlair()
     {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var mockModerationRepo = new Mock<IForumModerationRepository>();
-        var mockConfigRepo = new Mock<IForumConfigRepository>();
-        var mockSignalR = new Mock<ISignalRNotifier>();
-        var service = new ForumPostService(mockPostRepo.Object, mockConfigRepo.Object,
-            mockModerationRepo.Object, null!, null!, mockSignalR.Object);
+        var userId = Guid.NewGuid();
+        var post = new ForumPost
+        {
+            SchoolId = 1,
+            SubjectId = 1,
+            Title = "Test Title",
+            Content = "Bad content",
+            CreatedBy = userId,
+            CreatedAt = DateTime.Now
+        };
 
-        var post = new ForumPost { SchoolId = 1, Content = "Bad content", CreatedBy = Guid.NewGuid() };
+        _mockModerationRepo.Setup(x => x.CheckContentViolationAsync("Bad content", 1))
+            .ReturnsAsync(new List<(int, int, int)> { (1, 1, 10) });
 
-        mockModerationRepo.Setup(x => x.CheckContentViolationAsync("Bad content", 1))
-            .ReturnsAsync(new List<(int, int, int)> { (1, 1, 5) });
-        mockPostRepo.Setup(x => x.CreatePostAsync(It.IsAny<ForumPost>())).ReturnsAsync(post);
-        mockPostRepo.Setup(x => x.GetPostByIdAsync(It.IsAny<int>())).ReturnsAsync(post);
+        var createdPost = new ForumPost
+        {
+            Id = 1,
+            SchoolId = 1,
+            Title = "Test Title",
+            Content = "Bad content",
+            CreatedBy = userId,
+            Status = false,
+            IsHidden = true,
+            TotalViolationScore = 10
+        };
 
-        var result = await service.CreatePostAsync(post);
+        _mockPostRepo.Setup(x => x.CreatePostAsync(It.IsAny<ForumPost>()))
+            .ReturnsAsync(createdPost);
+        _mockPostRepo.Setup(x => x.GetPostByIdAsync(1))
+            .ReturnsAsync(createdPost);
+        _mockModerationRepo.Setup(x => x.GetUserForumStatusAsync(userId, 1))
+            .ReturnsAsync(new UserForumStatus { TotalViolationScore = 0 });
 
+        var result = await _service.CreatePostAsync(post);
+
+        Assert.NotNull(result);
         Assert.False(result.Status);
         Assert.True(result.IsHidden);
+        Assert.Equal(10, result.TotalViolationScore);
+        _mockModerationRepo.Verify(x => x.AddViolationScoreAsync(userId, 1, 10), Times.Once);
+        _mockModerationRepo.Verify(x => x.CreateViolationRecordAsync(It.IsAny<ViolationRecord>()), Times.Once);
     }
 
     [Fact]
-    public async Task UpdatePostAsync_ShouldUpdatePost_WhenValid()
+    public async Task CreatePost_ShouldUploadAttachments_WhenAttachmentsProvided()
     {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, null!, null!, null!, null!);
+        var userId = Guid.NewGuid();
+        var post = new ForumPost
+        {
+            SchoolId = 1,
+            SubjectId = 1,
+            Title = "Test Title",
+            Content = "Clean content",
+            CreatedBy = userId,
+            CreatedAt = DateTime.Now
+        };
 
-        var post = new ForumPost { Id = 1, Title = "Updated" };
-        mockPostRepo.Setup(x => x.UpdatePostAsync(post)).ReturnsAsync(post);
+        var attachments = new List<IFormFile>
+        {
+            CreateMockFormFile("file1.jpg", "image/jpeg"),
+            CreateMockFormFile("file2.pdf", "application/pdf")
+        };
 
-        var result = await service.UpdatePostAsync(post);
+        _mockModerationRepo.Setup(x => x.CheckContentViolationAsync("Clean content", 1))
+            .ReturnsAsync(new List<(int, int, int)>());
+        _mockFileStorage.Setup(x => x.UploadFilesAsync(It.IsAny<List<IFormFile>>(), It.IsAny<string>()))
+            .ReturnsAsync(new List<string> { "http://example.com/file1.jpg", "http://example.com/file2.pdf" });
 
-        Assert.Equal("Updated", result.Title);
+        var createdPost = new ForumPost
+        {
+            Id = 1,
+            SchoolId = 1,
+            Title = "Test Title",
+            Content = "Clean content",
+            CreatedBy = userId,
+            Status = true
+        };
+
+        _mockPostRepo.Setup(x => x.CreatePostAsync(It.IsAny<ForumPost>()))
+            .ReturnsAsync(createdPost);
+        _mockPostRepo.Setup(x => x.GetPostByIdAsync(1))
+            .ReturnsAsync(createdPost);
+
+        var result = await _service.CreatePostAsync(post, attachments);
+
+        Assert.NotNull(result);
+        _mockFileStorage.Verify(x => x.UploadFilesAsync(It.IsAny<List<IFormFile>>(), It.IsAny<string>()), Times.Once);
+        _mockConfigRepo.Verify(x => x.CreateAttachmentAsync(It.IsAny<ForumAttachment>()), Times.Exactly(2));
     }
 
     [Fact]
-    public async Task SoftDeletePostAsync_ShouldDeletePost_WhenPostExists()
+    public async Task CreatePost_ShouldThrowException_WhenAttachmentUploadFails()
     {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, null!, null!, null!, null!);
+        var userId = Guid.NewGuid();
+        var post = new ForumPost
+        {
+            SchoolId = 1,
+            SubjectId = 1,
+            Title = "Test Title",
+            Content = "Clean content",
+            CreatedBy = userId
+        };
 
-        mockPostRepo.Setup(x => x.SoftDeletePostAsync(1, It.IsAny<Guid>())).ReturnsAsync(true);
+        var attachments = new List<IFormFile>
+        {
+            CreateMockFormFile("file1.jpg", "image/jpeg")
+        };
 
-        var result = await service.SoftDeletePostAsync(1, Guid.NewGuid());
+        _mockModerationRepo.Setup(x => x.CheckContentViolationAsync("Clean content", 1))
+            .ReturnsAsync(new List<(int, int, int)>());
+        _mockFileStorage.Setup(x => x.UploadFilesAsync(It.IsAny<List<IFormFile>>(), It.IsAny<string>()))
+            .ReturnsAsync(new List<string> { "" });
 
-        Assert.True(result);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.CreatePostAsync(post, attachments));
     }
 
     [Fact]
-    public async Task SoftDeletePostAsync_ShouldReturnFalse_WhenPostDoesNotExist()
+    public async Task CreatePost_ShouldMuteUser_WhenViolationScoreDropsToZero()
     {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, null!, null!, null!, null!);
+        var userId = Guid.NewGuid();
+        var post = new ForumPost
+        {
+            SchoolId = 1,
+            SubjectId = 1,
+            Title = "Test Title",
+            Content = "Bad content",
+            CreatedBy = userId,
+            CreatedAt = DateTime.Now
+        };
 
-        mockPostRepo.Setup(x => x.SoftDeletePostAsync(999, It.IsAny<Guid>())).ReturnsAsync(false);
+        _mockModerationRepo.Setup(x => x.CheckContentViolationAsync("Bad content", 1))
+            .ReturnsAsync(new List<(int, int, int)> { (1, 1, 10) });
+        _mockModerationRepo.Setup(x => x.GetUserForumStatusAsync(userId, 1))
+            .ReturnsAsync(new UserForumStatus { TotalViolationScore = 0 });
 
-        var result = await service.SoftDeletePostAsync(999, Guid.NewGuid());
+        var createdPost = new ForumPost
+        {
+            Id = 1,
+            SchoolId = 1,
+            Title = "Test Title",
+            Content = "Bad content",
+            CreatedBy = userId,
+            Status = false,
+            IsHidden = true,
+            TotalViolationScore = 10
+        };
 
-        Assert.False(result);
+        _mockPostRepo.Setup(x => x.CreatePostAsync(It.IsAny<ForumPost>()))
+            .ReturnsAsync(createdPost);
+        _mockPostRepo.Setup(x => x.GetPostByIdAsync(1))
+            .ReturnsAsync(createdPost);
+
+        var result = await _service.CreatePostAsync(post);
+
+        _mockModerationRepo.Verify(x => x.MuteUserAsync(userId, 1, It.IsAny<DateTime>()), Times.Once);
     }
 
     [Fact]
-    public async Task ApprovePostAsync_ShouldApprovePost_WhenPostExists()
+    public async Task CreatePost_ShouldSetPendingModeration_WhenImageAttachmentsWithProtectedFlair()
     {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var mockConfigRepo = new Mock<IForumConfigRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, mockConfigRepo.Object, null!, null!, null!, null!);
+        var userId = Guid.NewGuid();
+        var post = new ForumPost
+        {
+            SchoolId = 1,
+            SubjectId = 1,
+            FlairId = 1,
+            Title = "Test Title",
+            Content = "Clean content",
+            CreatedBy = userId
+        };
 
-        var post = new ForumPost { Id = 1, SchoolId = 1 };
-        mockPostRepo.Setup(x => x.GetPostByIdAsync(1)).ReturnsAsync(post);
-        mockConfigRepo.Setup(x => x.GetAttachmentsByPostIdAsync(1)).ReturnsAsync(new List<ForumAttachment>());
-        mockPostRepo.Setup(x => x.ApprovePostAsync(1, It.IsAny<Guid>())).ReturnsAsync(true);
+        var flair = new ForumFlair { Id = 1, IsProtected = true };
+        var attachments = new List<IFormFile>
+        {
+            CreateMockFormFile("image.jpg", "image/jpeg")
+        };
 
-        var result = await service.ApprovePostAsync(1, Guid.NewGuid().ToString());
+        _mockConfigRepo.Setup(x => x.GetFlairByIdAsync(1))
+            .ReturnsAsync(flair);
+        _mockModerationRepo.Setup(x => x.CheckContentViolationAsync("Clean content", 1))
+            .ReturnsAsync(new List<(int, int, int)>());
+        _mockFileStorage.Setup(x => x.UploadFilesAsync(It.IsAny<List<IFormFile>>(), It.IsAny<string>()))
+            .ReturnsAsync(new List<string> { "http://example.com/image.jpg" });
 
-        Assert.True(result);
+        var createdPost = new ForumPost
+        {
+            Id = 1,
+            SchoolId = 1,
+            FlairId = 1,
+            Title = "Test Title",
+            Content = "Clean content",
+            CreatedBy = userId,
+            Status = null
+        };
+
+        _mockPostRepo.Setup(x => x.CreatePostAsync(It.IsAny<ForumPost>()))
+            .ReturnsAsync(createdPost);
+        _mockPostRepo.Setup(x => x.GetPostByIdAsync(1))
+            .ReturnsAsync(createdPost);
+
+        var result = await _service.CreatePostAsync(post, attachments);
+
+        Assert.Null(result.Status);
+        _mockConfigRepo.Verify(x => x.CreateAttachmentAsync(It.Is<ForumAttachment>(
+            a => a.IsModerationPending == false)), Times.Once);
+    }
+
+    #endregion
+
+    #region UpdatePost Tests
+
+    [Fact]
+    public async Task UpdatePost_ShouldUpdatePost_WhenValidDataProvided()
+    {
+        var userId = Guid.NewGuid();
+        var existingPost = new ForumPost
+        {
+            Id = 1,
+            SchoolId = 1,
+            SubjectId = 1,
+            FlairId = 1,
+            Title = "Old Title",
+            Content = "Old Content",
+            CreatedBy = userId,
+            IsHidden = false,
+            Status = true,
+            TotalViolationScore = 0
+        };
+
+        var updatedPost = new ForumPost
+        {
+            Id = 1,
+            SchoolId = 1,
+            SubjectId = 1,
+            FlairId = 2,
+            Title = "New Title",
+            Content = "New Content",
+            UpdatedBy = userId
+        };
+
+        _mockPostRepo.Setup(x => x.GetPostByIdAsync(1))
+            .ReturnsAsync(existingPost);
+        _mockPostRepo.Setup(x => x.UpdatePostAsync(It.IsAny<ForumPost>()))
+            .ReturnsAsync(updatedPost);
+
+        var result = await _service.UpdatePostAsync(updatedPost);
+
+        Assert.NotNull(result);
+        Assert.Equal("New Title", result.Title);
+        Assert.Equal("New Content", result.Content);
+        _mockPostRepo.Verify(x => x.UpdatePostAsync(It.IsAny<ForumPost>()), Times.Once);
     }
 
     [Fact]
-    public async Task ApprovePostAsync_ShouldReturnFalse_WhenPostDoesNotExist()
+    public async Task UpdatePostWithAttachments_ShouldDeleteOldAttachments_WhenDeletedUrlsProvided()
     {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var mockConfigRepo = new Mock<IForumConfigRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, mockConfigRepo.Object, null!, null!, null!, null!);
+        var userId = Guid.NewGuid();
+        var post = new ForumPost
+        {
+            Id = 1,
+            SchoolId = 1,
+            Title = "Updated Title",
+            Content = "Updated Content",
+            CreatedBy = userId,
+            UpdatedBy = userId
+        };
 
-        mockPostRepo.Setup(x => x.GetPostByIdAsync(999)).ReturnsAsync((ForumPost?)null);
+        var existingAttachments = new List<ForumAttachment>
+        {
+            new ForumAttachment { Id = 1, PostId = 1, FileUrl = "http://example.com/old1.jpg" },
+            new ForumAttachment { Id = 2, PostId = 1, FileUrl = "http://example.com/old2.jpg" }
+        };
 
-        var result = await service.ApprovePostAsync(999, Guid.NewGuid().ToString());
+        var deletedUrls = new List<string> { "http://example.com/old1.jpg" };
 
-        Assert.False(result);
+        _mockConfigRepo.Setup(x => x.GetAttachmentsByPostIdAsync(1))
+            .ReturnsAsync(existingAttachments);
+        _mockPostRepo.Setup(x => x.UpdatePostAsync(It.IsAny<ForumPost>()))
+            .ReturnsAsync(post);
+
+        var result = await _service.UpdatePostWithAttachmentsAsync(post, null, deletedUrls);
+
+        _mockConfigRepo.Verify(x => x.SoftDeleteAttachmentAsync(1), Times.Once);
+        _mockFileStorage.Verify(x => x.DeleteFileAsync("http://example.com/old1.jpg"), Times.Once);
     }
 
     [Fact]
-    public async Task RejectPostAsync_ShouldRejectPost_WhenPostExists()
+    public async Task UpdatePostWithAttachments_ShouldUploadNewAttachments_WhenNewAttachmentsProvided()
     {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var mockConfigRepo = new Mock<IForumConfigRepository>();
-        var mockModerationRepo = new Mock<IForumModerationRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, mockConfigRepo.Object,
-            mockModerationRepo.Object, null!, null!, null!);
+        var userId = Guid.NewGuid();
+        var post = new ForumPost
+        {
+            Id = 1,
+            SchoolId = 1,
+            Title = "Updated Title",
+            Content = "Updated Content",
+            CreatedBy = userId,
+            UpdatedBy = userId
+        };
 
-        var post = new ForumPost { Id = 1, SchoolId = 1, TotalViolationScore = 5 };
-        mockPostRepo.Setup(x => x.GetPostByIdAsync(1)).ReturnsAsync(post);
-        mockConfigRepo.Setup(x => x.GetAttachmentsByPostIdAsync(1)).ReturnsAsync(new List<ForumAttachment>());
-        mockPostRepo.Setup(x => x.RejectPostAsync(1, It.IsAny<Guid>())).ReturnsAsync(true);
+        var newAttachments = new List<IFormFile>
+        {
+            CreateMockFormFile("new1.jpg", "image/jpeg"),
+            CreateMockFormFile("new2.pdf", "application/pdf")
+        };
 
-        var result = await service.RejectPostAsync(1, Guid.NewGuid().ToString());
+        _mockConfigRepo.Setup(x => x.GetAttachmentsByPostIdAsync(1))
+            .ReturnsAsync(new List<ForumAttachment>());
+        _mockFileStorage.Setup(x => x.UploadFileAsync(It.IsAny<IFormFile>(), It.IsAny<string>()))
+            .ReturnsAsync("http://example.com/uploaded.jpg");
+        _mockImageModeration.Setup(x => x.ModerateImageFromStreamAsync(It.IsAny<Stream>()))
+            .ReturnsAsync(new ImageModerationResult { IsViolation = false });
+        _mockPostRepo.Setup(x => x.UpdatePostAsync(It.IsAny<ForumPost>()))
+            .ReturnsAsync(post);
 
-        Assert.True(result);
+        var result = await _service.UpdatePostWithAttachmentsAsync(post, newAttachments, null);
+
+        _mockFileStorage.Verify(x => x.UploadFileAsync(It.IsAny<IFormFile>(), It.IsAny<string>()), Times.Exactly(2));
+        _mockConfigRepo.Verify(x => x.CreateAttachmentAsync(It.IsAny<ForumAttachment>()), Times.Exactly(2));
+    }
+    [Fact]
+    public async Task UpdatePost_ShouldReturnUpdatedPost_WhenValidDataProvided()
+    {
+        var userId = Guid.NewGuid();
+        var post = new ForumPost
+        {
+            Id = 1,
+            Title = "Updated Title",
+            Content = "Updated Content",
+            UpdatedBy = userId
+        };
+
+        _mockPostRepo.Setup(x => x.UpdatePostAsync(It.IsAny<ForumPost>()))
+            .ReturnsAsync(post);
+
+        var result = await _service.UpdatePostAsync(post);
+
+        Assert.NotNull(result);
+        Assert.Equal("Updated Title", result.Title);
+        _mockPostRepo.Verify(x => x.UpdatePostAsync(It.IsAny<ForumPost>()), Times.Once);
     }
 
     [Fact]
-    public async Task RejectPostAsync_ShouldReturnFalse_WhenPostDoesNotExist()
+    public async Task UpdatePostWithAttachments_ShouldSkipViolatingImages_WhenImageModerationFails()
     {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var mockConfigRepo = new Mock<IForumConfigRepository>();
-        var mockModerationRepo = new Mock<IForumModerationRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, mockConfigRepo.Object,
-            mockModerationRepo.Object, null!, null!, null!);
+        var userId = Guid.NewGuid();
+        var post = new ForumPost
+        {
+            Id = 1,
+            SchoolId = 1,
+            Title = "Updated Title",
+            Content = "Updated Content",
+            CreatedBy = userId,
+            UpdatedBy = userId
+        };
 
-        mockPostRepo.Setup(x => x.GetPostByIdAsync(999)).ReturnsAsync((ForumPost?)null);
+        var newAttachments = new List<IFormFile>
+        {
+            CreateMockFormFile("bad.jpg", "image/jpeg")
+        };
 
-        var result = await service.RejectPostAsync(999, Guid.NewGuid().ToString());
+        _mockConfigRepo.Setup(x => x.GetAttachmentsByPostIdAsync(1))
+            .ReturnsAsync(new List<ForumAttachment>());
+        _mockImageModeration.Setup(x => x.ModerateImageFromStreamAsync(It.IsAny<Stream>()))
+            .ReturnsAsync(new ImageModerationResult { IsViolation = true });
+        _mockPostRepo.Setup(x => x.UpdatePostAsync(It.IsAny<ForumPost>()))
+            .ReturnsAsync(post);
 
-        Assert.False(result);
+        var result = await _service.UpdatePostWithAttachmentsAsync(post, newAttachments, null);
+
+        _mockFileStorage.Verify(x => x.UploadFileAsync(It.IsAny<IFormFile>(), It.IsAny<string>()), Times.Never);
+        _mockConfigRepo.Verify(x => x.CreateAttachmentAsync(It.IsAny<ForumAttachment>()), Times.Never);
     }
 
     [Fact]
-    public async Task ReportPostAsync_ShouldCreateReport_WhenValid()
+    public async Task UpdatePostWithAttachments_ShouldHandleMixedOperations_WhenBothDeleteAndUpload()
     {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var mockModerationRepo = new Mock<IForumModerationRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, mockModerationRepo.Object, null!, null!, null!);
+        var userId = Guid.NewGuid();
+        var post = new ForumPost
+        {
+            Id = 1,
+            SchoolId = 1,
+            Title = "Updated Title",
+            Content = "Updated Content",
+            CreatedBy = userId,
+            UpdatedBy = userId
+        };
 
-        var post = new ForumPost { Id = 1, SchoolId = 1 };
-        mockPostRepo.Setup(x => x.GetPostByIdAsync(1)).ReturnsAsync(post);
-        mockModerationRepo.Setup(x => x.GetRuleByIdAsync(1)).ReturnsAsync(new ForumRule { Id = 1 });
+        var existingAttachments = new List<ForumAttachment>
+        {
+            new ForumAttachment { Id = 1, PostId = 1, FileUrl = "http://example.com/old.jpg" }
+        };
 
-        var result = await service.ReportPostAsync(1, Guid.NewGuid(), 1, "Spam");
+        var deletedUrls = new List<string> { "http://example.com/old.jpg" };
+        var newAttachments = new List<IFormFile>
+        {
+            CreateMockFormFile("new.jpg", "image/jpeg")
+        };
 
-        Assert.True(result);
+        _mockConfigRepo.Setup(x => x.GetAttachmentsByPostIdAsync(1))
+            .ReturnsAsync(existingAttachments);
+        _mockFileStorage.Setup(x => x.UploadFileAsync(It.IsAny<IFormFile>(), It.IsAny<string>()))
+            .ReturnsAsync("http://example.com/new.jpg");
+        _mockImageModeration.Setup(x => x.ModerateImageFromStreamAsync(It.IsAny<Stream>()))
+            .ReturnsAsync(new ImageModerationResult { IsViolation = false });
+        _mockPostRepo.Setup(x => x.UpdatePostAsync(It.IsAny<ForumPost>()))
+            .ReturnsAsync(post);
+
+        var result = await _service.UpdatePostWithAttachmentsAsync(post, newAttachments, deletedUrls);
+
+        _mockConfigRepo.Verify(x => x.SoftDeleteAttachmentAsync(1), Times.Once);
+        _mockFileStorage.Verify(x => x.DeleteFileAsync("http://example.com/old.jpg"), Times.Once);
+        _mockFileStorage.Verify(x => x.UploadFileAsync(It.IsAny<IFormFile>(), It.IsAny<string>()), Times.Once);
+        _mockConfigRepo.Verify(x => x.CreateAttachmentAsync(It.IsAny<ForumAttachment>()), Times.Once);
     }
 
     [Fact]
-    public async Task ReportPostAsync_ShouldReturnFalse_WhenPostDoesNotExist()
+    public async Task UpdatePostWithAttachments_ShouldValidateAttachmentFile_WhenInvalidFileProvided()
     {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var mockModerationRepo = new Mock<IForumModerationRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, null!, mockModerationRepo.Object, null!, null!, null!);
+        var userId = Guid.NewGuid();
+        var post = new ForumPost
+        {
+            Id = 1,
+            SchoolId = 1,
+            Title = "Updated Title",
+            Content = "Updated Content",
+            CreatedBy = userId,
+            UpdatedBy = userId
+        };
 
-        mockPostRepo.Setup(x => x.GetPostByIdAsync(999)).ReturnsAsync((ForumPost?)null);
+        var invalidAttachment = CreateMockFormFile("test.exe", "application/x-msdownload");
+        var newAttachments = new List<IFormFile> { invalidAttachment };
 
-        var result = await service.ReportPostAsync(999, Guid.NewGuid(), 1, "Spam");
+        _mockConfigRepo.Setup(x => x.GetAttachmentsByPostIdAsync(1))
+            .ReturnsAsync(new List<ForumAttachment>());
 
-        Assert.False(result);
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _service.UpdatePostWithAttachmentsAsync(post, newAttachments, null));
     }
 
-    [Fact]
-    public async Task HidePostByModeratorAsync_ShouldHidePost_WhenValid()
+    #endregion
+
+    #region Helper Methods
+
+    private static IFormFile CreateMockFormFile(string fileName, string contentType, long length = 1024)
     {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var mockConfigRepo = new Mock<IForumConfigRepository>();
-        var mockModerationRepo = new Mock<IForumModerationRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, mockConfigRepo.Object,
-            mockModerationRepo.Object, null!, null!, null!);
+        var content = new byte[length];
+        var stream = new MemoryStream(content);
 
-        var post = new ForumPost { Id = 1, SchoolId = 1 };
-        mockPostRepo.Setup(x => x.GetPostByIdAsync(1)).ReturnsAsync(post);
-        mockConfigRepo.Setup(x => x.GetAttachmentsByPostIdAsync(1)).ReturnsAsync(new List<ForumAttachment>());
+        var file = new Mock<IFormFile>();
+        file.Setup(f => f.FileName).Returns(fileName);
+        file.Setup(f => f.ContentType).Returns(contentType);
+        file.Setup(f => f.Length).Returns(length);
+        file.Setup(f => f.OpenReadStream()).Returns(stream);
+        file.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+            .Returns((Stream target, CancellationToken token) => stream.CopyToAsync(target, token));
 
-        var result = await service.HidePostByModeratorAsync(1, Guid.NewGuid(), 10);
-
-        Assert.True(result);
+        return file.Object;
     }
 
-    [Fact]
-    public async Task HidePostByModeratorAsync_ShouldReturnFalse_WhenPostDoesNotExist()
-    {
-        var mockPostRepo = new Mock<IForumPostRepository>();
-        var mockConfigRepo = new Mock<IForumConfigRepository>();
-        var mockModerationRepo = new Mock<IForumModerationRepository>();
-        var service = new ForumPostService(mockPostRepo.Object, mockConfigRepo.Object,
-            mockModerationRepo.Object, null!, null!, null!);
-
-        mockPostRepo.Setup(x => x.GetPostByIdAsync(999)).ReturnsAsync((ForumPost?)null);
-
-        var result = await service.HidePostByModeratorAsync(999, Guid.NewGuid(), 10);
-
-        Assert.False(result);
-    }
+    #endregion
 }

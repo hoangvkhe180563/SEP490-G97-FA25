@@ -3,8 +3,6 @@ import DetailedClassTeacher from "@/classManagement/pages/teacher/DetailedClassT
 import ClassRouteConfig from "@/classManagement/constants/ClassRouteConfig";
 import { Outlet, type RouteObject } from "react-router-dom";
 import RequireRole from "@/common/components/RequireRole";
-
-import AddEditClassworkForm from "../pages/teacher/EditClasswork";
 import ClassworkDetail from "../pages/student/ClassworkDetail";
 
 import ConfirmInvite from "../pages/ConfirmInvite";
@@ -15,8 +13,6 @@ import ClassDocumentsPage from "@/classManagement/pages/ClassDocument";
 import AddClasswork from "../pages/teacher/AddClasswork";
 import EditClassworkForm from "../pages/teacher/EditClasswork";
 import DashboardPage from "../pages/manager/ClassDashboard";
-import { m } from "framer-motion";
-
 import { ROLES } from "@/common/constants/Roles";
 import ClassListManagement from "../pages/manager/ClassManagement";
 
