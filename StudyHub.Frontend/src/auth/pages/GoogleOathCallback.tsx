@@ -21,10 +21,14 @@ const GoogleOathCallback: React.FC = () => {
     : handlerGoogleCallbackMessage
     ? "text-green-600"
     : "text-red-600";
+  const googleCallBackedRef = React.useRef(false);
 
   React.useEffect(() => {
     // If error present, nothing to do — let UI show it
-    if (!code && !error) return;
+    if (!code && !error && !state) return;
+
+    if (googleCallBackedRef.current) return;
+    googleCallBackedRef.current = true;
 
     const run = async () => {
       await handleGoogleCallback(

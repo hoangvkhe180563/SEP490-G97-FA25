@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useRecommendStore } from "../stores/useRecommendStore";
 import LlmSidebar from "./LlmSidebar";
 
-import { Wand2, RefreshCw } from "lucide-react";
+import { Wand2, RefreshCw, Hourglass } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -14,6 +14,13 @@ import {
 import { Badge } from "@/common/components/ui/badge";
 import { Textarea } from "@/common/components/ui/textarea";
 import { Button } from "@/common/components/ui/button";
+import { Checkbox } from "@/common/components/ui/checkbox";
+import { Label } from "@/common/components/ui/label";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/common/components/ui/tooltip";
 
 const hints = [
   'Muốn củng cố "đại số" và "phương trình"',
@@ -24,6 +31,7 @@ const hints = [
 const LLMInputForm: React.FC = () => {
   const [text, setText] = useState("");
   const [selectedHint, setSelectedHint] = useState<string | null>(null);
+  const [generateExplanation, setGenerateExplanation] = useState<boolean>(true);
   // use store via getState when needed to coordinate create->recommend->update flow
   const nav = useNavigate();
 
@@ -40,6 +48,9 @@ const LLMInputForm: React.FC = () => {
 
       // navigate to dedicated LLM result page using path param
       nav(`/recommend/student/llm/${historyId}`);
+
+      // If user opted out, skip calling the AI and updating history
+      if (!generateExplanation) return;
 
       // call recommend LLM and after it completes update history response
       const store = useRecommendStore.getState();
@@ -143,6 +154,41 @@ const LLMInputForm: React.FC = () => {
                 placeholder="Ví dụ: Tôi muốn củng cố đại số, nhất là phần phương trình để chuẩn bị thi vào 10..."
                 className="bg-white/80 dark:bg-slate-900/60 border border-slate-300/60 dark:border-slate-700/60"
               />
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center">
+                        <Checkbox
+                          id="generateExplanation"
+                          checked={generateExplanation}
+                          onCheckedChange={(v: boolean) =>
+                            setGenerateExplanation(Boolean(v))
+                          }
+                        />
+                        <Label
+                          htmlFor="generateExplanation"
+                          className="text-sm cursor-pointer ml-2"
+                        >
+                          Tạo câu giải thích bằng AI
+                        </Label>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <div className="flex items-center gap-2">
+                        <Hourglass className="h-4 w-4" />
+                        <span>
+                          Chọn sẽ mất thời gian để AI tạo ra lời giải thích hơn
+                        </span>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="text-xs text-slate-500">
+                  Bật để AI phân tích và lưu kết quả
+                </div>
+              </div>
 
               {/* Buttons */}
               <div className="flex items-center justify-end gap-3">
