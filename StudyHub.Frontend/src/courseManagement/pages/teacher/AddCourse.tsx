@@ -1,4 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
+import { format, parse } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import {
@@ -19,7 +22,15 @@ import {
 } from "@/common/components/ui/select";
 import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
-import { ArrowLeft, Loader2, Upload, HelpCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Upload, HelpCircle, Calendar } from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/common/components/ui/breadcrumb";
 import {
   Popover,
   PopoverTrigger,
@@ -61,6 +72,12 @@ const AddCourse: React.FC = () => {
   const [length, setLength] = useState<"" | "Short" | "Medium" | "Long">("");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
+  const [startOpen, setStartOpen] = useState(false);
+  const [endOpen, setEndOpen] = useState(false);
+  const [selectedStart, setSelectedStart] = useState<Date | undefined>(
+    undefined
+  );
+  const [selectedEnd, setSelectedEnd] = useState<Date | undefined>(undefined);
 
   const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
 
@@ -75,6 +92,36 @@ const AddCourse: React.FC = () => {
 
   useEffect(() => {
     load();
+  }, []);
+
+  // initialize date pickers if values already present (accept dd/MM/yyyy or ISO)
+  useEffect(() => {
+    if (startAt) {
+      try {
+        const d = parse(String(startAt), "dd/MM/yyyy", new Date());
+        if (!isNaN(d.getTime())) setSelectedStart(d);
+        else {
+          const d2 = new Date(startAt);
+          if (!isNaN(d2.getTime())) setSelectedStart(d2);
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
+    if (endAt) {
+      try {
+        const d = parse(String(endAt), "dd/MM/yyyy", new Date());
+        if (!isNaN(d.getTime())) setSelectedEnd(d);
+        else {
+          const d2 = new Date(endAt);
+          if (!isNaN(d2.getTime())) setSelectedEnd(d2);
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCreate = async () => {
@@ -112,17 +159,31 @@ const AddCourse: React.FC = () => {
     if (!startAt || !String(startAt).trim()) {
       newErrors.startAt = "Vui lòng chọn Ngày bắt đầu.";
     } else {
-      startDate = new Date(startAt);
-      if (isNaN(startDate.getTime()))
+      try {
+        startDate = parse(String(startAt), "dd/MM/yyyy", new Date());
+        if (isNaN(startDate.getTime())) {
+          const alt = new Date(startAt);
+          if (!isNaN(alt.getTime())) startDate = alt;
+          else newErrors.startAt = "Ngày bắt đầu không hợp lệ.";
+        }
+      } catch (e) {
         newErrors.startAt = "Ngày bắt đầu không hợp lệ.";
+      }
     }
 
     if (!endAt || !String(endAt).trim()) {
       newErrors.endAt = "Vui lòng chọn Ngày kết thúc.";
     } else {
-      endDate = new Date(endAt);
-      if (isNaN(endDate.getTime()))
+      try {
+        endDate = parse(String(endAt), "dd/MM/yyyy", new Date());
+        if (isNaN(endDate.getTime())) {
+          const alt = new Date(endAt);
+          if (!isNaN(alt.getTime())) endDate = alt;
+          else newErrors.endAt = "Ngày kết thúc không hợp lệ.";
+        }
+      } catch (e) {
         newErrors.endAt = "Ngày kết thúc không hợp lệ.";
+      }
     }
 
     if (startDate && endDate && startDate.getTime() > endDate.getTime()) {
@@ -190,10 +251,20 @@ const AddCourse: React.FC = () => {
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-6 h-full flex flex-col">
       <div>
-        {/* Breadcrumb */}
-        <div className="text-sm text-[#525252] mb-3">
-          Khóa học / Thêm khóa học
-        </div>
+        <Breadcrumb>
+          <BreadcrumbList className="text-[#525252] mb-3">
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <a href="/course/teacher/courses">Khóa học</a>
+              </BreadcrumbLink>
+              <BreadcrumbSeparator />
+            </BreadcrumbItem>
+
+            <BreadcrumbItem>
+              <BreadcrumbPage>Thêm khóa học</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
 
         {/* Page Header */}
         <div className="flex items-center justify-between mb-6">
@@ -374,20 +445,51 @@ const AddCourse: React.FC = () => {
                     <Label className="text-sm font-medium">
                       Ngày bắt đầu <span className="text-red-600">*</span>
                     </Label>
-                    <Input
-                      type="date"
-                      value={startAt}
-                      onChange={(e) => {
-                        setStartAt(e.target.value);
-                        if (errors.startAt)
-                          setErrors((s) => ({ ...s, startAt: "" }));
-                      }}
-                      className={`w-full ${
-                        errors.startAt
-                          ? "border-red-500 ring-1 ring-red-500"
-                          : ""
-                      }`}
-                    />
+                    <div className="relative">
+                      <Input
+                        placeholder="dd/MM/yyyy"
+                        value={startAt}
+                        readOnly
+                        onClick={() => {
+                          setStartOpen((s) => !s);
+                          if (errors.startAt)
+                            setErrors((s) => ({ ...s, startAt: "" }));
+                        }}
+                        className={`w-full ${
+                          errors.startAt
+                            ? "border-red-500 ring-1 ring-red-500"
+                            : ""
+                        }`}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => setStartOpen((s) => !s)}
+                        className="absolute right-2 top-2 p-1"
+                        aria-label="Open calendar"
+                      >
+                        <Calendar size={16} />
+                      </button>
+
+                      {startOpen && (
+                        <div className="absolute z-50 mt-2 bg-white rounded-md shadow p-2">
+                          <DayPicker
+                            mode="single"
+                            selected={selectedStart}
+                            onSelect={(d) => {
+                              if (d) {
+                                setSelectedStart(d);
+                                const s = format(d, "dd/MM/yyyy");
+                                setStartAt(s);
+                                if (errors.startAt)
+                                  setErrors((s) => ({ ...s, startAt: "" }));
+                              }
+                              setStartOpen(false);
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
                     {errors.startAt && (
                       <div className="text-sm text-red-600 mt-1">
                         {errors.startAt}
@@ -399,18 +501,50 @@ const AddCourse: React.FC = () => {
                     <Label className="text-sm font-medium">
                       Ngày kết thúc <span className="text-red-600">*</span>
                     </Label>
-                    <Input
-                      type="date"
-                      value={endAt}
-                      onChange={(e) => {
-                        setEndAt(e.target.value);
-                        if (errors.endAt)
-                          setErrors((s) => ({ ...s, endAt: "" }));
-                      }}
-                      className={`w-full ${
-                        errors.endAt ? "border-red-500 ring-1 ring-red-500" : ""
-                      }`}
-                    />
+                    <div className="relative">
+                      <Input
+                        placeholder="dd/MM/yyyy"
+                        value={endAt}
+                        readOnly
+                        onClick={() => {
+                          setEndOpen((s) => !s);
+                          if (errors.endAt)
+                            setErrors((s) => ({ ...s, endAt: "" }));
+                        }}
+                        className={`w-full ${
+                          errors.endAt
+                            ? "border-red-500 ring-1 ring-red-500"
+                            : ""
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEndOpen((s) => !s)}
+                        className="absolute right-2 top-2 p-1"
+                        aria-label="Open calendar"
+                      >
+                        <Calendar size={16} />
+                      </button>
+
+                      {endOpen && (
+                        <div className="absolute z-50 mt-2 bg-white rounded-md shadow p-2">
+                          <DayPicker
+                            mode="single"
+                            selected={selectedEnd}
+                            onSelect={(d) => {
+                              if (d) {
+                                setSelectedEnd(d);
+                                const s = format(d, "dd/MM/yyyy");
+                                setEndAt(s);
+                                if (errors.endAt)
+                                  setErrors((s) => ({ ...s, endAt: "" }));
+                              }
+                              setEndOpen(false);
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
                     {errors.endAt && (
                       <div className="text-sm text-red-600 mt-1">
                         {errors.endAt}
