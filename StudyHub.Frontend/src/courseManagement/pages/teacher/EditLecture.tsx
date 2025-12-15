@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  useNavigate,
+  useParams,
+  useSearchParams,
+  Link,
+} from "react-router-dom";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { Input } from "@/common/components/ui/input";
 import { Textarea } from "@/common/components/ui/textarea";
@@ -12,7 +17,22 @@ import {
 } from "@/common/components/ui/select";
 import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
-import { ArrowLeft, Loader2, Upload, X, HelpCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  Upload,
+  X,
+  HelpCircle,
+  Calendar,
+} from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/common/components/ui/breadcrumb";
 import {
   Popover,
   PopoverTrigger,
@@ -25,8 +45,9 @@ import { AppDialog } from "@/courseManagement/components/AppDialog";
 import type { Exam, Question } from "@/courseManagement/interfaces/types";
 import { EXAM_TYPE } from "@/courseManagement/constants/ExamType";
 import courseApi from "@/courseManagement/services/courseService";
-// Checkbox removed; embed is default
-import { formatISO } from "date-fns";
+import { parse, format } from "date-fns";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
 import QuestionTemplate from "@/exam/components/QuestionTemplate";
 import RandomQuestionTemplate from "@/exam/components/RandomQuestionTemplate";
 
@@ -57,6 +78,8 @@ const EditLecture: React.FC = () => {
   const [duration, setDuration] = useState("");
   const [description, setDescription] = useState("");
   const [postDate, setPostDate] = useState("");
+  const [postOpen, setPostOpen] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<Date | undefined>(undefined);
   const [isPreview, setIsPreview] = useState(false);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number>(0);
   const [selectedGrade, setSelectedGrade] = useState<number>(0);
@@ -81,6 +104,7 @@ const EditLecture: React.FC = () => {
 
   // Resource (file) states
   const [resourceFile, setResourceFile] = useState<File | null>(null);
+  const [resourceFileName, setResourceFileName] = useState<string | null>(null);
   const [resourceUploading, setResourceUploading] = useState(false);
   const [resourceUrl, setResourceUrl] = useState<string | null>(null);
   const [resourceId, setResourceId] = useState<number | null>(null);
@@ -158,8 +182,16 @@ const EditLecture: React.FC = () => {
         setDuration(l.duration ?? "");
         setDescription(l.description ?? "");
         setPostDate(
-          l.postDate ? formatISO(new Date(l.postDate)).slice(0, 10) : ""
+          l.postDate ? format(new Date(l.postDate), "dd/MM/yyyy") : ""
         );
+        if (l.postDate) {
+          try {
+            const d = new Date(l.postDate);
+            if (!isNaN(d.getTime())) setSelectedPost(d);
+          } catch (e) {
+            /* ignore */
+          }
+        }
         setIsPreview(!!l.isPreview);
 
         if (l.type === "Exam") {
@@ -173,7 +205,7 @@ const EditLecture: React.FC = () => {
                 };
               })
             );
-            setRandomQuestions(exam.noRandomQuestions?.toString() ?? '');
+            setRandomQuestions(exam.noRandomQuestions?.toString() ?? "");
             setExamId(exam.id);
           } else {
             console.error("failed to get exam with lesson " + lessonId);
@@ -221,7 +253,7 @@ const EditLecture: React.FC = () => {
             if (!selectedChapterId) setSelectedChapterId(String(l.chapterId));
 
             //hoàng fetch exam để lấy subject id và lớp
-            if (l.type === 'Exam') {
+            if (l.type === "Exam") {
               const course = await courseApi.getCourseById(ch.courseId);
               setSelectedSubjectId(course.subjectId);
               setSelectedGrade(course.grade);
@@ -276,13 +308,13 @@ const EditLecture: React.FC = () => {
                   q.type === "text" || q.type === "mc"
                     ? q.type
                     : q.type && String(q.type).toLowerCase().includes("text")
-                      ? "text"
-                      : "mc",
+                    ? "text"
+                    : "mc",
                 options: Array.isArray(q.options)
                   ? q.options
                   : q.options
-                    ? JSON.parse(JSON.stringify(q.options))
-                    : undefined,
+                  ? JSON.parse(JSON.stringify(q.options))
+                  : undefined,
                 correctIndex:
                   typeof q.correctIndex === "number" ? q.correctIndex : null,
                 correctAnswer: q.correctAnswer ?? null,
@@ -317,13 +349,13 @@ const EditLecture: React.FC = () => {
                     q.type === "text" || q.type === "mc"
                       ? q.type
                       : q.type && String(q.type).toLowerCase().includes("text")
-                        ? "text"
-                        : "mc",
+                      ? "text"
+                      : "mc",
                   options: Array.isArray(q.options)
                     ? q.options
                     : q.options
-                      ? JSON.parse(JSON.stringify(q.options))
-                      : undefined,
+                    ? JSON.parse(JSON.stringify(q.options))
+                    : undefined,
                   correctIndex:
                     typeof q.correctIndex === "number" ? q.correctIndex : null,
                   correctAnswer: q.correctAnswer ?? null,
@@ -432,6 +464,11 @@ const EditLecture: React.FC = () => {
 
       setResourceUrl(createdOrUpdated?.url ?? url);
       setResourceId(createdOrUpdated?.id ?? resourceId ?? null);
+      // preserve selected filename if present, otherwise extract from URL
+      setResourceFileName(
+        (prev) =>
+          prev ?? (resourceFile ? resourceFile.name : getFileNameFromUrl(url))
+      );
       setResourceFile(null);
       setDialog({
         open: true,
@@ -460,6 +497,19 @@ const EditLecture: React.FC = () => {
     }
     if (/^\d+(\.\d+)?$/.test(t)) return Number(t);
     return NaN;
+  };
+
+  // helper: extract filename from a URL (remove query string and decode)
+  const getFileNameFromUrl = (url?: string | null) => {
+    if (!url) return "";
+    try {
+      const path = String(url).split("?")[0];
+      const parts = path.split("/");
+      const raw = parts[parts.length - 1] || path;
+      return decodeURIComponent(raw);
+    } catch {
+      return String(url);
+    }
   };
 
   // Small inline editor component to create an interactive question (same UI as AddLecture)
@@ -493,12 +543,12 @@ const EditLecture: React.FC = () => {
       try {
         setTimeLabel(
           initial.timeLabel ??
-          ((): any => {
-            const s = Number(initial.timeSec) || 0;
-            const m = Math.floor(s / 60);
-            const sec = Math.floor(s % 60);
-            return `${m}:${sec.toString().padStart(2, "0")}`;
-          })()
+            ((): any => {
+              const s = Number(initial.timeSec) || 0;
+              const m = Math.floor(s / 60);
+              const sec = Math.floor(s % 60);
+              return `${m}:${sec.toString().padStart(2, "0")}`;
+            })()
         );
         setQuestionText(initial.question ?? "");
         setQtype(initial.type ?? "mc");
@@ -584,8 +634,9 @@ const EditLecture: React.FC = () => {
 
     return (
       <div
-        className={`border rounded p-3 bg-white ${type === "video" ? "" : "hidden"
-          } `}
+        className={`border rounded p-3 bg-white ${
+          type === "video" ? "" : "hidden"
+        } `}
       >
         <div className="grid grid-cols-12 gap-2 items-start">
           <div className="col-span-2">
@@ -712,6 +763,7 @@ const EditLecture: React.FC = () => {
     setResourceUrl(null);
     setResourceId(null);
     setResourceFile(null);
+    setResourceFileName(null);
   };
 
   // === Save (Update) ===
@@ -868,13 +920,38 @@ const EditLecture: React.FC = () => {
     if (duration && !Number.isNaN(Number(duration)) && Number(duration) <= 0)
       fieldErrors.duration = "Thời lượng phải là số dương (lớn hơn 0).";
 
-    if (postDate && isNaN(new Date(postDate).getTime()))
-      fieldErrors.postDate = "Ngày đăng không hợp lệ.";
+    if (postDate) {
+      try {
+        const lecTmp = parse(postDate, "dd/MM/yyyy", new Date());
+        if (isNaN(lecTmp.getTime())) {
+          const alt = new Date(postDate);
+          if (isNaN(alt.getTime()))
+            fieldErrors.postDate = "Ngày đăng không hợp lệ.";
+        }
+      } catch (e) {
+        fieldErrors.postDate = "Ngày đăng không hợp lệ.";
+      }
+    }
 
     if (postDate && chapterPostDate) {
-      const lec = new Date(postDate);
-      const chd = new Date(chapterPostDate);
-      if (!isNaN(lec.getTime()) && !isNaN(chd.getTime())) {
+      let lec: Date | null = null;
+      try {
+        const tmp = parse(postDate, "dd/MM/yyyy", new Date());
+        lec = !isNaN(tmp.getTime()) ? tmp : new Date(postDate);
+      } catch (e) {
+        lec = new Date(postDate);
+      }
+      let chd: Date | null = null;
+      try {
+        chd = new Date(chapterPostDate as any);
+        if (isNaN(chd.getTime())) {
+          const tmp2 = parse(String(chapterPostDate), "dd/MM/yyyy", new Date());
+          chd = !isNaN(tmp2.getTime()) ? tmp2 : null;
+        }
+      } catch (e) {
+        chd = null;
+      }
+      if (lec && chd && !isNaN(lec.getTime()) && !isNaN(chd.getTime())) {
         if (lec.getTime() < chd.getTime())
           fieldErrors.postDate =
             "Ngày đăng bài giảng không thể nhỏ hơn ngày bắt đầu của chương.";
@@ -984,21 +1061,23 @@ const EditLecture: React.FC = () => {
         readingContent: type !== "video" ? readingContent : null,
         duration,
         description,
-        postDate: new Date(postDate),
+        postDate: postDate
+          ? parse(postDate, "dd/MM/yyyy", new Date())
+          : new Date(),
         isPreview,
         ResourceId: resourceId ?? null,
         // include interactive questions when saving
         interactiveQuestions:
           interactiveQuestions && interactiveQuestions.length
             ? interactiveQuestions.map((q) => ({
-              timeSec: q.timeSec,
-              question: q.question,
-              type: q.type,
-              options: q.options ?? null,
-              correctIndex:
-                typeof q.correctIndex === "number" ? q.correctIndex : null,
-              correctAnswer: q.correctAnswer ?? null,
-            }))
+                timeSec: q.timeSec,
+                question: q.question,
+                type: q.type,
+                options: q.options ?? null,
+                correctIndex:
+                  typeof q.correctIndex === "number" ? q.correctIndex : null,
+                correctAnswer: q.correctAnswer ?? null,
+              }))
             : null,
       };
 
@@ -1020,9 +1099,11 @@ const EditLecture: React.FC = () => {
         questions: questions,
         showAnswers: true,
         showCorrectAnswers: true,
-        openTime: new Date(postDate),
+        openTime: postDate
+          ? parse(postDate, "dd/MM/yyyy", new Date())
+          : new Date(),
         subjectId: selectedSubjectId,
-        grade: selectedGrade
+        grade: selectedGrade,
       };
 
       if (questions.length === 0) {
@@ -1061,9 +1142,29 @@ const EditLecture: React.FC = () => {
   return (
     <div className="max-w-[1200px] mx-auto px-8 py-6 h-full flex flex-col">
       {/* Breadcrumb */}
-      <div className="text-sm text-[#525252] mb-3">
-        Bài giảng / Chỉnh sửa bài giảng
-      </div>
+      <Breadcrumb>
+        <BreadcrumbList className="text-[#525252] mb-3">
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/course/teacher/courses">Khóa học</Link>
+            </BreadcrumbLink>
+            <BreadcrumbSeparator />
+          </BreadcrumbItem>
+
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to={`/course/teacher/edit-course/${selectedCourseId}`}>
+                Chỉnh sửa khóa học
+              </Link>
+            </BreadcrumbLink>
+            <BreadcrumbSeparator />
+          </BreadcrumbItem>
+
+          <BreadcrumbItem>
+            <BreadcrumbPage>Chỉnh sửa bài giảng</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -1083,8 +1184,8 @@ const EditLecture: React.FC = () => {
               {type === "video"
                 ? "Video"
                 : type === "reading"
-                  ? "Tài liệu đọc"
-                  : "Bài kiểm tra"}
+                ? "Tài liệu đọc"
+                : "Bài kiểm tra"}
               )
             </h1>
             <p className="text-sm text-[#525252]">
@@ -1171,8 +1272,9 @@ const EditLecture: React.FC = () => {
                 }}
               >
                 <SelectTrigger
-                  className={`w-full ${errors.chapter ? "border-red-500 ring-1 ring-red-500" : ""
-                    }`}
+                  className={`w-full ${
+                    errors.chapter ? "border-red-500 ring-1 ring-red-500" : ""
+                  }`}
                 >
                   <SelectValue placeholder="Chọn chương" />
                 </SelectTrigger>
@@ -1263,22 +1365,56 @@ const EditLecture: React.FC = () => {
             </div>
             <div className="space-y-4">
               <Label>Ngày đăng</Label>
-              <Input
-                type="date"
-                value={postDate}
-                onChange={(e) => {
-                  setPostDate(e.target.value);
-                  setErrors((prev) => {
-                    if (!prev || !prev.postDate) return prev;
-                    const c = { ...prev };
-                    delete c.postDate;
-                    return c;
-                  });
-                }}
-                className={
-                  errors.postDate ? "border-red-500 ring-1 ring-red-500" : ""
-                }
-              />
+              <div className="relative">
+                <Input
+                  placeholder="dd/MM/yyyy"
+                  value={postDate}
+                  readOnly
+                  onClick={() => {
+                    setPostOpen((s) => !s);
+                    setErrors((prev) => {
+                      if (!prev || !prev.postDate) return prev;
+                      const c = { ...prev };
+                      delete c.postDate;
+                      return c;
+                    });
+                  }}
+                  className={
+                    errors.postDate ? "border-red-500 ring-1 ring-red-500" : ""
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={() => setPostOpen((s) => !s)}
+                  className="absolute right-2 top-2 p-1"
+                  aria-label="Open calendar"
+                >
+                  <Calendar size={16} />
+                </button>
+
+                {postOpen && (
+                  <div className="absolute z-50 mt-2 bg-white rounded-md shadow p-2">
+                    <DayPicker
+                      mode="single"
+                      selected={selectedPost}
+                      onSelect={(d) => {
+                        if (d) {
+                          setSelectedPost(d);
+                          const s = format(d, "dd/MM/yyyy");
+                          setPostDate(s);
+                          setErrors((prev) => {
+                            if (!prev || !prev.postDate) return prev;
+                            const c = { ...prev };
+                            delete c.postDate;
+                            return c;
+                          });
+                        }
+                        setPostOpen(false);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
               {errors.postDate && (
                 <div className="text-sm text-rose-600 mt-1">
                   {errors.postDate}
@@ -1340,6 +1476,7 @@ const EditLecture: React.FC = () => {
                         const f = e.target.files && e.target.files[0];
                         if (f) {
                           setResourceFile(f);
+                          setResourceFileName(f.name);
                           setErrors((prev) => {
                             if (!prev || !prev.resourceFile) return prev;
                             const c = { ...prev };
@@ -1381,7 +1518,7 @@ const EditLecture: React.FC = () => {
                           rel="noreferrer"
                           className="text-blue-600 hover:underline break-all"
                         >
-                          {resourceUrl}
+                          {resourceFileName || getFileNameFromUrl(resourceUrl)}
                         </a>
                       </p>
                     </div>
@@ -1542,10 +1679,11 @@ const EditLecture: React.FC = () => {
                           <div className="text-xs text-gray-500">
                             {q.type === "mc"
                               ? `MC — ${q.options?.length ?? 0} lựa chọn`
-                              : `Text${q.correctAnswer
-                                ? ` — đáp án: ${q.correctAnswer}`
-                                : ""
-                              }`}
+                              : `Text${
+                                  q.correctAnswer
+                                    ? ` — đáp án: ${q.correctAnswer}`
+                                    : ""
+                                }`}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1625,10 +1763,11 @@ const EditLecture: React.FC = () => {
             </Label>
             <div
               ref={quillRef}
-              className={`bg-white rounded-md min-h-[250px] p-2 ${errors.readingContent
-                ? "border border-red-500 ring-1 ring-red-500"
-                : ""
-                }`}
+              className={`bg-white rounded-md min-h-[250px] p-2 ${
+                errors.readingContent
+                  ? "border border-red-500 ring-1 ring-red-500"
+                  : ""
+              }`}
             />
             {errors.readingContent && (
               <div className="text-sm text-rose-600 mt-1">
