@@ -1,7 +1,7 @@
 using StudyHub.Backend.Infrastructure.Data;
+using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories;
 using DomainPayment = StudyHub.Backend.Domain.Entities.PaymentInfo;
-using DataPayment = StudyHub.Backend.Infrastructure.Data.PaymentInfo;
 
 namespace StudyHub.Backend.Infrastructure.Repositories
 {
@@ -40,6 +40,30 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             _context.PaymentInfos.Update(existing);
             _context.SaveChanges();
             return true;
+        }
+
+        public bool AddPaymentInfo(DomainPayment info)
+        {
+            try
+            {
+                var paymentInfoData = new PaymentInfo()
+                {
+                    SchoolId = info.SchoolId,
+                    AccountName = info.AccountName,
+                    AccountBank = info.AccountBank,
+                    AccountNumber = info.AccountNumber,
+                    ExchangeRate = info.ExchangeRate,
+                    QrcodeUrl = info.QrcodeUrl,
+                };
+                _context.PaymentInfos.Add(paymentInfoData);
+                _context.SaveChanges();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("PaymentInfoRepository", "AddPaymentInfo failed. Inner error: " + ex.Message).LogError();
+            }
+            return false;
         }
     }
 }
