@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, type JSX } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { Button } from "@/common/components/ui/button";
@@ -15,6 +15,14 @@ import {
   CardTitle,
 } from "@/common/components/ui/card";
 import { ArrowLeft, File } from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/common/components/ui/breadcrumb";
 import type { CourseListDto } from "@/courseManagement/types/api";
 import type { Question } from "@/courseManagement/interfaces/types";
 import courseApi from "@/courseManagement/services/courseService";
@@ -173,11 +181,39 @@ const LectureDetails: React.FC = () => {
         >
           <ArrowLeft className="w-4 h-4 text-[#525252]" />
         </Button>
-        <div className="text-sm text-[#525252]">
-          {selectedCourse?.name || "Khóa học"} /{" "}
-          {currentChapter?.name || "Chương"} /{" "}
-          {currentLesson?.name || "Bài học"}
-        </div>
+
+        <Breadcrumb>
+          <BreadcrumbList className="text-[#525252]">
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to="/course/teacher/courses">Khóa học</Link>
+              </BreadcrumbLink>
+              <BreadcrumbSeparator />
+            </BreadcrumbItem>
+
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to={`/course/teacher/edit-course/${selectedCourse?.id}`}>
+                  {selectedCourse?.name || "Khóa học"}
+                </Link>
+              </BreadcrumbLink>
+              <BreadcrumbSeparator />
+            </BreadcrumbItem>
+
+            <BreadcrumbItem>
+              <span className="text-foreground font-normal">
+                {currentChapter?.name || "Chương"}
+              </span>
+              <BreadcrumbSeparator />
+            </BreadcrumbItem>
+
+            <BreadcrumbItem>
+              <BreadcrumbPage>
+                {currentLesson?.name || "Bài học"}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
 
       {/* === Title + Info === */}

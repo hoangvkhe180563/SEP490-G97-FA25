@@ -12,6 +12,19 @@ const LectureResources: React.FC = () => {
   const getLessonResource = useLectureStore((s: any) => s.getLessonResource);
   const [resources, setResources] = useState<{ id: number; url: string }[]>([]);
 
+  // helper: extract filename from url (last path segment), decode and strip query
+  const getFileNameFromUrl = (url?: string | null) => {
+    if (!url) return "";
+    try {
+      const path = String(url).split("?")[0];
+      const parts = path.split("/");
+      const raw = parts[parts.length - 1] || path;
+      return decodeURIComponent(raw);
+    } catch {
+      return String(url);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -101,7 +114,7 @@ const LectureResources: React.FC = () => {
                     rel="noreferrer"
                     className="text-blue-600 hover:underline wrap-anywhere"
                   >
-                    {r.url}
+                    {getFileNameFromUrl(r.url)}
                   </a>
                 </li>
               ))}

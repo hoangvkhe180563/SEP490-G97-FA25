@@ -35,10 +35,10 @@ import {
 } from "lucide-react";
 import { Separator } from "@/common/components/ui/separator";
 import { format, formatISO } from "date-fns";
-import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination";
 import { Dialog, DialogContent } from "@/common/components/ui/dialog";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
+import { Paging } from "@/common/components/Paging";
 
 const TransactionList: React.FC = () => {
   const [userId, setUserId] = useState("");
@@ -561,16 +561,9 @@ const TransactionList: React.FC = () => {
                     } trong tổng số ${total} kết quả`
                   : "Không tìm thấy kết quả nào"}
               </span>
-
-              <DocumentPagination
-                pagination={{
-                  currentPage: page ?? 1,
-                  totalPages:
-                    totalPages ??
-                    Math.max(1, Math.ceil((total || 0) / (limit || 5))),
-                  totalCount: total ?? 0,
-                  pageSize: limit ?? 5,
-                }}
+              <Paging
+                currentPage={page ?? 1}
+                totalPages={totalPages ?? 1}
                 onPageChange={(p: number) => goToPage(p)}
               />
             </div>
