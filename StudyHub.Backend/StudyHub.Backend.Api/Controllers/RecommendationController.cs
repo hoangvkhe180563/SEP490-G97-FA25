@@ -152,25 +152,28 @@ namespace StudyHub.Backend.Api.Controllers
                     request.TopK ?? 30);
                 var courseExplaination = string.Empty;
                 var documentExplaination = string.Empty;
-                // Step 5: Generate explanation cho top 5
-                if (courseRecommendations.Count > 0)
+                if (request.isGenerateExplanation)
                 {
-                    var (content, promptTokens, completionTokens) = await _llmService.GenerateCourseExplanationWithUsageAsync(
-                        profile,
-                        courseRecommendations.Take(5).ToList());
-                    courseExplaination = content;
-                    totalPromptTokens += promptTokens;
-                    totalResponseTokens += completionTokens;
-                }
-                // Step 6: Generate explanation cho top 5 document 
-                if (documentRecomendations.Count > 0)
-                {
-                    var (content, promptTokens, completionTokens) = await _llmService.GenerateDocumentExplanationWithUsageAsync(
-                        profile,
-                        documentRecomendations.Take(5).ToList());
-                    documentExplaination = content;
-                    totalPromptTokens += promptTokens;
-                    totalResponseTokens += completionTokens;
+                    // Step 5: Generate explanation cho top 5
+                    if (courseRecommendations.Count > 0)
+                    {
+                        var (content, promptTokens, completionTokens) = await _llmService.GenerateCourseExplanationWithUsageAsync(
+                            profile,
+                            courseRecommendations.Take(5).ToList());
+                        courseExplaination = content;
+                        totalPromptTokens += promptTokens;
+                        totalResponseTokens += completionTokens;
+                    }
+                    // Step 6: Generate explanation cho top 5 document 
+                    if (documentRecomendations.Count > 0)
+                    {
+                        var (content, promptTokens, completionTokens) = await _llmService.GenerateDocumentExplanationWithUsageAsync(
+                            profile,
+                            documentRecomendations.Take(5).ToList());
+                        documentExplaination = content;
+                        totalPromptTokens += promptTokens;
+                        totalResponseTokens += completionTokens;
+                    }
                 }
                 return Ok(new LLMRecommendationResponse
                 {

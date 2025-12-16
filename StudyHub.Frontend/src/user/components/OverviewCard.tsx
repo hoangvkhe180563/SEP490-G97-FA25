@@ -129,7 +129,7 @@ const OverviewCard: React.FC = () => {
   useEffect(() => {
     // Set default end datetimes and fetch initial overview, but do not auto-fill
     // the "start" date inputs — users must pick start dates explicitly.
-    fetchOverview(period, range).catch(() => { });
+    fetchOverview(period, range).catch(() => {});
     // store initial values after mount so reset can restore them
     initialRef.current = {
       retentionStart,
@@ -158,11 +158,11 @@ const OverviewCard: React.FC = () => {
 
   const pieData = Array.isArray(rawRoles)
     ? rawRoles.map((r: any) => ({
-      name:
-        (r && (r.role || r.roleName || r.name || r.key)) ??
-        String(r?.id ?? ""),
-      value: Number(r?.count ?? r?.value ?? 0),
-    }))
+        name:
+          (r && (r.role || r.roleName || r.name || r.key)) ??
+          String(r?.id ?? ""),
+        value: Number(r?.count ?? r?.value ?? 0),
+      }))
     : [];
 
   const tooltipFormatter = (value: any, name?: string) => {
@@ -236,7 +236,7 @@ const OverviewCard: React.FC = () => {
                           Tài khoản vô hiệu hóa
                         </div>
                         <div className="text-3xl font-bold mt-2">
-                          {overview?.inactiveCount ?? "—"}
+                          {overview?.inactiveCount?.toFixed(2) ?? "—"}
                         </div>
                       </div>
                     </CardContent>
@@ -254,7 +254,7 @@ const OverviewCard: React.FC = () => {
                           Tỷ lệ tài khoản bị khóa
                         </div>
                         <div className="text-3xl font-bold mt-2">
-                          {overview?.inactiveRate ?? "—"}%
+                          {overview?.inactiveRate?.toFixed(2) ?? "—"}%
                         </div>
                       </div>
                     </CardContent>
@@ -287,9 +287,9 @@ const OverviewCard: React.FC = () => {
                         </div>
                         <div className="text-3xl font-bold mt-2">
                           {typeof overview?.averageLoginFrequency === "number"
-                            ? (overview.averageLoginFrequency as number).toFixed(
-                              2
-                            )
+                            ? (
+                                overview.averageLoginFrequency as number
+                              ).toFixed(2)
                             : "—"}
                         </div>
                       </div>
@@ -643,8 +643,8 @@ const OverviewCard: React.FC = () => {
                     {typeof overview?.averageLogin?.averagePerUser === "number"
                       ? overview.averageLogin.averagePerUser.toFixed(2)
                       : overview?.averageLoginFrequency
-                        ? (overview.averageLoginFrequency as number).toFixed(2)
-                        : "—"}
+                      ? (overview.averageLoginFrequency as number).toFixed(2)
+                      : "—"}
                   </span>
                 </div>
                 <div className="text-xs text-slate-500 mb-2">

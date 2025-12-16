@@ -154,7 +154,6 @@ export const useAuthStore = create<AuthState>()(
           set({
             verifyEmailError: axiosMessageErrorHandler(error),
           });
-          console.log(error);
         } finally {
           set({ isLoading: false });
         }
@@ -382,6 +381,7 @@ axiosInstance.interceptors.response.use(
       "/auth/logout",
       "/auth/signup",
       "/auth/forgot-password",
+      "/auth/verify-email",
       "/auth/reset-password",
       "/auth/send-verification",
       "/auth/google",
@@ -395,6 +395,8 @@ axiosInstance.interceptors.response.use(
       }
       return Promise.reject(error);
     }
+
+    console.log("Attempting token refresh due to 401 response...");
 
     // Đánh dấu đã retry
     originalRequest._retry = true;

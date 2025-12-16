@@ -226,44 +226,6 @@ const QaOverview: React.FC = () => {
           </div>
         </Card>
       </div>
-
-      <div>
-        <h3 className="font-medium">Top học sinh</h3>
-        <div className="overflow-x-auto">
-          {isLoadingOverview ? (
-            <div className="space-y-2 mt-2">
-              <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-4 w-1/3" />
-              <Skeleton className="h-4 w-2/3" />
-            </div>
-          ) : (
-            <table className="min-w-full divide-y divide-gray-200 mt-2">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">
-                    Học sinh
-                  </th>
-                  <th className="px-3 py-2 text-right text-sm font-medium text-gray-700">
-                    Số câu hỏi
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {overview?.topStudents?.map((s) => (
-                  <tr key={s.userId}>
-                    <td className="px-3 py-2 text-sm">
-                      {s.fullName ?? s.userId}
-                    </td>
-                    <td className="px-3 py-2 text-sm text-right">
-                      {s.totalQuestions}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
     </div>
   );
 };

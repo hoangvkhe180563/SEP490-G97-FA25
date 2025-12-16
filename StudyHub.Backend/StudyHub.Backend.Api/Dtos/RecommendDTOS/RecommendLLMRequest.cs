@@ -8,5 +8,7 @@ namespace StudyHub.Backend.Api.Dtos.RecommendDTOS
         public UserPreferenceProfile? Profile { get; set; }
         //public List<ChatMessage> ConversationHistory { get; set; } = new();
         public int? TopK { get; set; }
+
+        public bool isGenerateExplanation { get; set; } = false;
     }
 }
