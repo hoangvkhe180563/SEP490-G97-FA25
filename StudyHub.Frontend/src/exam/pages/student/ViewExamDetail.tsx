@@ -236,11 +236,11 @@ const ViewExamDetail = () => {
                 </p>
               </div>
               <div>
-                <Link to={`/exam/results/${r.id}`}>
+                {r.submissionTime && <Link to={`/exam/results/${r.id}`}>
                   <Button className="px-3 py-1 bg-green-600 text-white hover:bg-green-700">
                     Xem chi tiết
                   </Button>
-                </Link>
+                </Link>}
               </div>
             </div>
           ))}
