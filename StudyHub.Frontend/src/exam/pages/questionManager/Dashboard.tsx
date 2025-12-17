@@ -9,12 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/common/components/ui
 import { useAuthStore } from '@/auth/stores/useAuthStore';
 import { useLoading } from '@/common/hooks/useLoading';
 import { QuestionService } from '@/exam/services/QuestionService';
-import { ROLES } from '@/common/constants/Roles';
 import type { Subject } from '@/exam/interfaces/models/Subject';
-import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
 import type { QuestionOverviewResponse } from '@/exam/interfaces/responses/QuestionOverviewResponse';
 import type { QuestionDetailOverviewResponse } from '@/exam/interfaces/responses/QuestionDetailOverviewResponse';
+import { ROLES } from '@/common/constants/Roles';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -22,7 +20,6 @@ export default function Dashboard() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [overview, setOverview] = useState<QuestionOverviewResponse>();
   const [details, setDetails] = useState<QuestionDetailOverviewResponse[]>([]);
-  const navigate = useNavigate();
   const { user } = useAuthStore();
   const { setLoading } = useLoading();
   const questionService = new QuestionService();
@@ -32,16 +29,15 @@ export default function Dashboard() {
       return;
     }
 
-    if (!user.roles.some(r => r === ROLES.QUESTION_MANAGER || r === ROLES.SCHOOL_ADMIN)) {
-      toast.error("Bạn không có quyền truy cập!");
-      navigate("/ui/school-landing");
-      return;
-    }
-
     const fetchData = async () => {
       setLoading(true);
-      const subjects = await questionService.getManagerSubjects(user.id);
-      setSubjects(subjects);
+      if (user.roles.includes(ROLES.SCHOOL_ADMIN)) {
+        const subjects = await questionService.getAllSubjects();
+        setSubjects(subjects);
+      } else {
+        const subjects = await questionService.getManagerSubjects(user.id);
+        setSubjects(subjects);
+      }
       const overviewRes = await questionService.getQuestionDashboardOverview(user.id);
       setOverview(overviewRes);
       const detailRes = await questionService.getQuestionStatistics(user.id);
@@ -79,7 +75,6 @@ export default function Dashboard() {
   const subjectStats = useMemo(() => {
     const counts: Record<string, number> = {};
     details.forEach(detail => {
-      console.log(detail.subjectId);
       const subjectName = subjects.find(subject => subject.id === detail.subjectId)?.name ?? '';
       counts[subjectName] = (counts[subjectName] || 0) + 1;
     });

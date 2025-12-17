@@ -97,11 +97,16 @@ const TakeExam = () => {
           fetchedQuestions.forEach((q, index) => {
             const answerEntry = fetchedResult.answers.find(a => a.questionId === q.questionObjectId);
             if (answerEntry) {
-              newAnswers[index + 1] = JSON.parse(answerEntry.jsonAnswers);
+              let answer = answerEntry.jsonAnswers;
+              if (q.type === EXAM_TYPE.TEXT_INPUT && !parseInt(answer)) {
+                answer = JSON.parse(answer);
+              }
+              newAnswers[index + 1] = q.type === EXAM_TYPE.TEXT_INPUT ? answer : JSON.parse(answer);
             }
           });
           return newAnswers;
         });
+        setCheatTimes(fetchedResult.cheatTimes);
 
         setExamResult(fetchedResult);
         backupInterval = setInterval(() => {
@@ -130,7 +135,7 @@ const TakeExam = () => {
         setTimeLeft((prevTime) => prevTime - 1);
       }, 1000);
       return () => clearInterval(timer);
-    } else if (timeLeft === 0 && !isSubmitted) {
+    } else if (timeLeft <= 0 && !isSubmitted) {
       handleSubmitExam();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -213,6 +218,7 @@ const TakeExam = () => {
 
     const answeredQuestions = currentQuestions.map((q, index) => {
       const studentAns = currentStudentAnswers[index + 1];
+      console.log(studentAns);
 
       return {
         questionId: q.questionObjectId ?? '',
@@ -258,31 +264,32 @@ const TakeExam = () => {
   }
 
   return (
-    <div id="examScreen" className="bg-white w-full h-full flex flex-col">
-      <div className="w-full bg-blue-900 px-8 py-3 flex justify-between font-black">
-        <div className="text-xs text-white">
-          <p>{user?.fullname}</p>
-          <p className="py-2 line-clamp-1">
-            Bài thi: {exam.title} &nbsp;&nbsp;
-            Mô tả: {exam.description}
-          </p>
+    <div id="examScreen" className="bg-white w-full h-screen flex flex-col">
+      <div>
+        <div className="w-full bg-blue-900 px-8 py-3 flex justify-between font-black">
+          <div className="text-xs text-white">
+            <div className="overflow-hidden space-y-2">
+              <p className='line-clamp-1'>Bài thi: {exam.title}</p>
+              <p className='line-clamp-1'>Mô tả: {exam.description}</p>
+            </div>
+          </div>
+          <div className="flex items-center text-white gap-3">
+            <Clock />
+            <span className="text-lg">{formatTime(timeLeft)}</span>
+            <Button className="bg-white hover:bg-slate-200 text-blue-800 active:translate-y-[2px] font-bold text-xs" onClick={handleSubmitExam} disabled={isSubmitted || timeLeft === 0}>{isSubmitted ? 'Đã nộp bài' : 'Nộp bài'}</Button>
+            <Button variant="ghost" size="icon" asChild className="hover:bg-transparent hover:text-slate-400" onClick={() => document.body.requestFullscreen()}>
+              <Maximize className="size-10" />
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center text-white gap-3">
-          <Clock />
-          <span className="text-lg">{formatTime(timeLeft)}</span>
-          <Button className="bg-white hover:bg-slate-200 text-blue-800 active:translate-y-[2px] font-bold text-xs" onClick={handleSubmitExam} disabled={isSubmitted || timeLeft === 0}>{isSubmitted ? 'Đã nộp bài' : 'Nộp bài'}</Button>
-          <Button variant="ghost" size="icon" asChild className="hover:bg-transparent hover:text-slate-400" onClick={() => document.body.requestFullscreen()}>
-            <Maximize className="size-10" />
-          </Button>
-        </div>
-      </div>
 
-      <div className="px-8 py-3 w-full border-b border-gray-400">
-        <div className="flex justify-end items-center space-x-4">
-          <Button className="bg-blue-500 hover:bg-blue-700" onClick={() => handleBackupExamResult(false)}>Lưu</Button>
+        <div className="px-8 py-3 w-full border-b border-gray-400">
+          <div className="flex justify-end items-center space-x-4">
+            <Button className="bg-blue-500 hover:bg-blue-700" onClick={() => handleBackupExamResult(false)}>Lưu</Button>
+          </div>
         </div>
       </div>
-      <div className="px-6 py-6 space-y-3 flex-1 overflow-y-auto">
+      <div className="px-6 py-6 pb-5 space-y-3 flex-1 overflow-y-auto">
         {questions.map((question, index) => (
           <div key={question.questionObjectId} id={`q${index + 1}`} tabIndex={0} className="bg-gray-50 p-6 rounded-lg shadow-sm border border-gray-200 transition-all focus-within:ring-2 focus-within:ring-blue-500">
             <p className="text-lg font-semibold mb-3 text-gray-800">
@@ -295,7 +302,7 @@ const TakeExam = () => {
                   const id = `q${index + 1}-${optIndex}`;
 
                   return <div key={id} className="flex items-center gap-3">
-                    <RadioGroupItem className="data-[state=checked]:bg-blue-800" id={id} value={id} disabled={isSubmitted} onClick={() => handleAnswerChange(index + 1, optIndex, question.type)} />
+                    <RadioGroupItem className="data-[state=checked]:bg-blue-800" id={id} value={id} disabled={isSubmitted} onClick={() => handleAnswerChange(index + 1, optIndex, question.type)} checked={optIndex === studentAnswers[index + 1]} />
                     <label className="m-0" htmlFor={id}>{option}</label>
                   </div>
                 }
@@ -309,7 +316,7 @@ const TakeExam = () => {
                   const id = `q${index + 1}-${optIndex}`;
 
                   return <div key={id} className="flex items-center gap-3">
-                    <Checkbox id={id} value={id} className="data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white" disabled={isSubmitted} onClick={() => handleAnswerChange(index + 1, optIndex, question.type)} />
+                    <Checkbox id={id} value={id} className="data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white" disabled={isSubmitted} onClick={() => handleAnswerChange(index + 1, optIndex, question.type)} checked={studentAnswers[index + 1].includes(optIndex)} />
                     <label className="m-0" htmlFor={id}>{option}</label>
                   </div>
                 })}
@@ -363,43 +370,45 @@ const TakeExam = () => {
           </div>
         ))}
       </div>
-      <div className="px-3 py-3 flex gap-3">
-        {
-          Object.keys(studentAnswers).length > 0 && questions.map((q, index) => {
-            let hasAnswered = false;
-            switch (q.type) {
-              case EXAM_TYPE.SINGLE_CHOICE:
-                hasAnswered = studentAnswers[index + 1] !== -1;
-                break;
-              case EXAM_TYPE.MULTI_CHOICE:
-                hasAnswered = studentAnswers[index + 1].length !== 0;
-                break;
-              case EXAM_TYPE.TEXT_INPUT:
-                hasAnswered = studentAnswers[index + 1] !== '';
-                break;
-              case EXAM_TYPE.FILL_IN_BLANK:
-                hasAnswered = studentAnswers[index + 1].every((ans: string) => ans !== '');
-                break;
-              case EXAM_TYPE.MATCHING: {
-                const matchingAnswers = studentAnswers[index + 1] || {};
-                const termsCount = q.terms?.length || 0;
-                hasAnswered = Object.keys(matchingAnswers).length === termsCount &&
-                  Object.values(matchingAnswers).every((val: any) => val !== -1);
-                break;
+      <div className="bg-white border-t border-gray-200 px-3 py-3 flex gap-3">
+        <div className="container mx-auto flex flex-wrap gap-3">
+          {
+            Object.keys(studentAnswers).length > 0 && questions.map((q, index) => {
+              let hasAnswered = false;
+              switch (q.type) {
+                case EXAM_TYPE.SINGLE_CHOICE:
+                  hasAnswered = studentAnswers[index + 1] !== -1;
+                  break;
+                case EXAM_TYPE.MULTI_CHOICE:
+                  hasAnswered = studentAnswers[index + 1].length !== 0;
+                  break;
+                case EXAM_TYPE.TEXT_INPUT:
+                  hasAnswered = studentAnswers[index + 1] !== '';
+                  break;
+                case EXAM_TYPE.FILL_IN_BLANK:
+                  hasAnswered = studentAnswers[index + 1].every((ans: string) => ans !== '');
+                  break;
+                case EXAM_TYPE.MATCHING: {
+                  const matchingAnswers = studentAnswers[index + 1] || {};
+                  const termsCount = q.terms?.length || 0;
+                  hasAnswered = Object.keys(matchingAnswers).length === termsCount &&
+                    Object.values(matchingAnswers).every((val: any) => val !== -1);
+                  break;
+                }
               }
-            }
 
-            if (hasAnswered) {
-              return <Button key={index} tabIndex={-1} className="size-9 px-2 py-2 rounded-full text-center bg-green-500 hover:bg-green-700 text-black leading-5" onClick={() => location.hash = `#q${index + 1}`}>
-                {index + 1}
-              </Button>
-            } else {
-              return <Button key={index} tabIndex={-1} className="size-9 px-2 py-2 rounded-full text-center bg-gray-300 hover:bg-gray-500 text-black leading-5" onClick={() => location.hash = `#q${index + 1}`}>
-                {index + 1}
-              </Button>
-            }
-          })
-        }
+              if (hasAnswered) {
+                return <Button key={index} tabIndex={-1} className="size-9 px-2 py-2 rounded-full text-center bg-green-500 hover:bg-green-700 text-black leading-5" onClick={() => location.hash = `#q${index + 1}`}>
+                  {index + 1}
+                </Button>
+              } else {
+                return <Button key={index} tabIndex={-1} className="size-9 px-2 py-2 rounded-full text-center bg-gray-300 hover:bg-gray-500 text-black leading-5" onClick={() => location.hash = `#q${index + 1}`}>
+                  {index + 1}
+                </Button>
+              }
+            })
+          }
+        </div>
       </div>
       <AlertDialog open={cheatDialogOpen} onOpenChange={setCheatDialogOpen}>
         <AlertDialogContent>
