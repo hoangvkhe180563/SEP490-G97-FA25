@@ -10,9 +10,17 @@ import type {
   LessonListDto,
   Question,
 } from "@/courseManagement/interfaces/types";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
-import { Check, HelpCircle, NotebookPen, X } from "lucide-react";
+import { ArrowLeft, Check, HelpCircle, Info, NotebookPen, X } from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/common/components/ui/breadcrumb";
 import {
   Popover,
   PopoverTrigger,
@@ -38,7 +46,6 @@ import { EXAM_TYPE } from "@/courseManagement/constants/ExamType";
 import { BLANK_PLACEHOLDER } from "@/exam/constants/Constants";
 import { calculateFinishTime } from "@/exam/utils/ExamUtils";
 import { useLoading } from "@/common/hooks/useLoading";
-// Progress UI removed for Video lessons; keep setters used by auto-complete logic
 
 const LecturePlayer: React.FC = () => {
   const params = useParams();
@@ -823,6 +830,18 @@ const LecturePlayer: React.FC = () => {
     submitInteractiveResponse,
   ]);
 
+  // Log progress to console at most once per second for debugging
+  const _progressLogLastRef = useRef<number>(0);
+  useEffect(() => {
+    const now = Date.now();
+    if (now - _progressLogLastRef.current >= 1000) {
+      _progressLogLastRef.current = now;
+      console.log(
+        `LecturePlayer progress: lessonId=${lessonId} progress=${_localProgress}% time=${_currentTime}s`
+      );
+    }
+  }, [_localProgress, _currentTime, lessonId]);
+
   const handleStartExam = async () => {
     if (!authUser) {
       return;
@@ -857,7 +876,10 @@ const LecturePlayer: React.FC = () => {
                 const blankCount = (
                   q.questionText.match(
                     new RegExp(
-                      BLANK_PLACEHOLDER.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&"),
+                      BLANK_PLACEHOLDER.replace(
+                        /[-/\\^$*+?.()|[\]{}]/g,
+                        "\\$&"
+                      ),
                       "g"
                     )
                   ) || []
@@ -940,16 +962,38 @@ const LecturePlayer: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   onClick={() => navigate(`/course/student/courses/${cid}`)}
                   className="w-9 h-9 mb-3 p-0 flex items-center justify-center"
                   aria-label="Go back"
                 >
-                  ←
+                  <ArrowLeft />
                 </Button>
-                <div className="text-sm text-gray-500 mb-2">
-                  Khóa học của tôi / Khóa học
-                </div>
+                <Breadcrumb>
+                  <BreadcrumbList className="text-sm text-gray-500 mb-2">
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild>
+                        <Link to="/course/student/courses">Khóa học</Link>
+                      </BreadcrumbLink>
+                      <BreadcrumbSeparator />
+                    </BreadcrumbItem>
+
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild>
+                        <Link to={`/course/student/courses/${cid}`}>
+                          Chi tiết khóa học
+                        </Link>
+                      </BreadcrumbLink>
+                      <BreadcrumbSeparator />
+                    </BreadcrumbItem>
+
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>
+                        {selectedLesson?.name || "tên bài học"}
+                      </BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </BreadcrumbList>
+                </Breadcrumb>
                 <div className="flex items-center gap-3">
                   <h1 className="text-3xl md:text-4xl font-extrabold leading-tight tracking-tight">
                     {selectedLesson?.name ?? "Lecture"}
@@ -1134,6 +1178,22 @@ const LecturePlayer: React.FC = () => {
                 >
                   <NotebookPen /> Xem kết quả
                 </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost">
+                      <Info />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-140">
+                    <div className="gap-4">
+                      <b>Lưu ý: </b>
+                      <ul>
+                        <li>Bạn được phép làm bài tối đa 3 lần mỗi 8 tiếng.</li>
+                        <li>Bạn phải đạt đủ <b>80%</b> số điểm bài làm mới được sang bài tiếp theo.</li>
+                      </ul>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             ) : (
               <div className="bg-black w-full aspect-video rounded-lg mb-4 flex items-center justify-center text-white overflow-hidden shadow-lg">

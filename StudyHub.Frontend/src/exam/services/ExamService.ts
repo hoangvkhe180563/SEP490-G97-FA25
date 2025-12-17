@@ -178,7 +178,7 @@ export class ExamService {
             studentId: item.studentId,
             studentName: item.studentName,
             finishTime: new Date(item.finishTime),
-            submissionTime: new Date(item.submissionTime),
+            submissionTime: item.submissionTime ? new Date(item.submissionTime) : null,
             score: item.score,
             cheatTimes: item.cheatTimes
           }
@@ -264,7 +264,7 @@ export class ExamService {
             studentId: item.studentId,
             studentName: item.studentName,
             examId: item.examId,
-            submissionTime: new Date(item.submissionTime),
+            submissionTime: item.submissionTime ? new Date(item.submissionTime) : null,
             score: item.score,
             cheatTimes: item.cheatTimes
           }

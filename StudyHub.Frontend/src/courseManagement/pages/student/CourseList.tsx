@@ -15,7 +15,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/common/components/ui/select";
-import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination";
+import { Paging } from "@/common/components/Paging";
 
 const CourseList: React.FC = () => {
   const courses = useCourseStore((s) => s.courses);
@@ -112,7 +112,11 @@ const CourseList: React.FC = () => {
   const currentPage = page ?? 1;
 
   return (
-    <div className={`p-4 mx-auto w-full h-full overflow-y-auto scrollbar-hide ${authUser ? '' : 'mt-[65px]'}`}>
+    <div
+      className={`p-4 mx-auto w-full h-full overflow-y-auto scrollbar-hide ${
+        authUser ? "" : "mt-[65px]"
+      }`}
+    >
       <div className="mb-4">
         <div className="text-2xl font-normal text-[#171717]">
           Tất cả các khóa học
@@ -264,27 +268,29 @@ const CourseList: React.FC = () => {
                 })}
           </div>
 
-          <div className="flex items-center justify-between mt-4">
-            <span className="text-sm text-gray-600">
-              {total > 0
-                ? `Hiển thị từ ${
-                    (currentPage - 1) * effectivePageSize + 1
-                  } đến ${Math.min(
-                    total,
-                    (currentPage - 1) * effectivePageSize + courses.length
-                  )} trong tổng số ${total} kết quả`
-                : "Không tìm thấy kết quả nào"}
-            </span>
+          <div className="flex flex-row items-center justify-between mt-6 py-4 border-t border-gray-100 w-full">
+            {/* Phần thông báo bên trái */}
+            <div className="flex-1">
+              <span className="text-sm text-gray-600 leading-none">
+                {total > 0
+                  ? `Hiển thị từ ${
+                      (currentPage - 1) * effectivePageSize + 1
+                    } đến ${Math.min(
+                      total,
+                      (currentPage - 1) * effectivePageSize + courses.length
+                    )} trong tổng số ${total} kết quả`
+                  : "Không tìm thấy kết quả nào"}
+              </span>
+            </div>
 
-            <DocumentPagination
-              pagination={{
-                currentPage: currentPage,
-                totalPages: Math.max(1, Math.ceil(total / effectivePageSize)),
-                totalCount: total,
-                pageSize: effectivePageSize,
-              }}
-              onPageChange={(p: number) => goPage(p)}
-            />
+            {/* Phần phân trang bên phải */}
+            <div className="flex-shrink-0">
+              <Paging
+                currentPage={currentPage}
+                totalPages={Math.max(1, Math.ceil(total / effectivePageSize))}
+                onPageChange={(p: number) => goPage(p)}
+              />
+            </div>
           </div>
         </section>
       </div>

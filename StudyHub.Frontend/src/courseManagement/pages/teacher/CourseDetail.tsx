@@ -18,8 +18,16 @@ import {
   CollapsibleContent,
 } from "@/common/components/ui/collapsible";
 import { Button } from "@/common/components/ui/button";
-import { ArrowLeft, Edit } from "lucide-react";
+import { ArrowLeft, BookOpen, Edit, Layers } from "lucide-react";
 import { Link } from "react-router-dom";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/common/components/ui/breadcrumb";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import {
   AlertDialog,
@@ -82,9 +90,22 @@ const CourseDetail: React.FC = () => {
         >
           <ArrowLeft className="w-4 h-4 text-[#525252]" />
         </Button>
-        <div className="text-sm text-[#525252] mb-3">
-          Khóa học / Chi tiết khóa học
-        </div>
+        <Breadcrumb>
+          <BreadcrumbList className="text-[#525252] mb-3">
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to="/course/teacher/courses">Khóa học</Link>
+              </BreadcrumbLink>
+              <BreadcrumbSeparator />
+            </BreadcrumbItem>
+
+            <BreadcrumbItem>
+              <BreadcrumbPage>
+                {selectedCourse?.name ?? "Chi tiết khóa học"}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
 
       {/* === Course Header === */}
@@ -108,8 +129,22 @@ const CourseDetail: React.FC = () => {
             <div className="text-lg font-medium">
               {selectedCourse?.name ?? "Course"}
             </div>
-            <div className="text-sm text-[#737373] mt-1 line-clamp-3">
-              {selectedCourse?.information ?? ""}
+            <div className="flex items-center gap-5 mt-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <Layers className="h-4 w-4" />
+                <span>{selectedCourse?.chapters?.length || 0} chương</span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <BookOpen className="h-4 w-4" />
+                <span>
+                  {selectedCourse?.chapters?.reduce(
+                    (sum, c) => sum + (c.lessons?.length || 0),
+                    0
+                  )}{" "}
+                  bài học
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -216,7 +251,7 @@ const CourseDetail: React.FC = () => {
               <CardTitle>Mô tả khóa học</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-[#404040]">
+              <p className="text-sm text-[#404040] whitespace-pre-line">
                 {selectedCourse?.information ?? ""}
               </p>
             </CardContent>

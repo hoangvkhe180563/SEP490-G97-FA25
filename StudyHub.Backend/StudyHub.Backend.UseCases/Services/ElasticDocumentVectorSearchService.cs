@@ -259,6 +259,8 @@ namespace StudyHub.Backend.UseCases.Services
 
             filters.Add(f => f.Term(t => t.Field(fd => fd.IsInClass).Value(false)));
 
+            filters.Add(f => f.Terms(t => t.Field(fd => fd.Grade).Terms(profile.Grade)));
+
             if (schoolId < 1)
             {
                 filters.Add(f => f.Bool(b => b.MustNot(m => m.Exists(e => e.Field(fd => fd.SchoolId)))));
