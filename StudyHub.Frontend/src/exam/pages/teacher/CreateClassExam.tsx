@@ -78,7 +78,7 @@ const CreateExam = () => {
     }
     setLoading(true);
 
-    if (!examTitle || !examDescription || !examDuration) {
+    if (!examTitle.trim() || !examDescription.trim() || !examDuration) {
       toast.error("Vui lòng điền đầy đủ thông tin và thêm câu hỏi.");
       setLoading(false);
       return;

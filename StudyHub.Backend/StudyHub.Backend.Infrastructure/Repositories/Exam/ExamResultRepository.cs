@@ -50,7 +50,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Exam
                         StudentId = r.StudentId,
                         StudentName = r.Student.Fullname ?? "",
                         FinishTime = r.FinishTime,
-                        SubmissionTime = r.SubmissionTime.GetValueOrDefault(),
+                        SubmissionTime = r.SubmissionTime,
                         CheatTimes = r.CheatTimes,
                         Score = r.Score
                     })

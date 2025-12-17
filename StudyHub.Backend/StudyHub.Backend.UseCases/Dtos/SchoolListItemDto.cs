@@ -1,6 +1,6 @@
 ﻿namespace StudyHub.Backend.UseCases.Dtos
 {
-    public class SchoolDto
+    public class SchoolListItemDto
     {
         public int SchoolId { get; set; }
         public string SchoolName { get; set; } = string.Empty;
