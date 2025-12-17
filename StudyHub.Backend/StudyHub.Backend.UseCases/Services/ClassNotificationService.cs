@@ -143,41 +143,6 @@ namespace StudyHub.Backend.UseCases.Services
 
         public int GetTotalUnreadNotifications(int classID, Guid userID, string type) => _repo.GetTotalUnreadNotifications(classID, userID, type);
 
-        // NEW: Tạo notification hệ thống cho lớp và seed unread, trả về groupId + notification đã lưu
-        public async Task<(int GroupId, Notification Saved, IEnumerable<Guid> MemberIds)?> CreateSystemNotificationForClassAsync(
-            int classId,
-            string title,
-            string body,
-            Guid actorId,
-            CancellationToken ct = default)
-        {
-            var memberIds = GetMemberIdsByClass(classId) ?? new List<Guid>();
-            if (actorId != Guid.Empty && !memberIds.Contains(actorId))
-            {
-                memberIds.Add(actorId);
-            }
-
-            var groupId = await _notificationClassRepo.EnsureMemberGroupAsync(classId, memberIds, actorId, ct);
-
-            var sysNotif = new Notification
-            {
-                Title = title,
-                Body = body,
-                TargetType = "Group",
-                TargetGroupId = groupId,
-                Priority = "Normal",
-                IsActive = true,
-                CreatedAt = DateTime.Now,
-                CreatedBy = actorId
-            };
-            var saved = await _notificationService.SendNotificationAsync(sysNotif, ct);
-
-            if (memberIds.Any())
-            {
-                await _notificationService.SeedUnreadAsync(saved.Id, memberIds, ct);
-            }
-
-            return (groupId, saved, memberIds);
-        }
+        
     }
 }

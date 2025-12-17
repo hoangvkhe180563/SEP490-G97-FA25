@@ -34,12 +34,22 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
             return await EnsureGroupAsync(name, desc, userIds, createdBy, ct);
         }
 
-        private async Task<int> EnsureGroupAsync(string name, string description, IEnumerable<Guid> userIds, Guid createdBy, CancellationToken ct)
+        private async Task<int> EnsureGroupAsync(
+    string name,
+    string description,
+    IEnumerable<Guid> userIds,
+    Guid createdBy,
+    CancellationToken ct)
         {
-            var normalizedName = name.Trim();
-            var group = await _context.NotificationGroups
-                .FirstOrDefaultAsync(g => g.Name == normalizedName, ct);
+            var normalizedName = name.Trim().ToLowerInvariant();
 
+            using var tx = await _context.Database.BeginTransactionAsync(ct);
+
+            // 1️⃣ Tìm group theo name (normalized)
+            var group = await _context.NotificationGroups
+                .FirstOrDefaultAsync(g => g.Name.ToLower() == normalizedName, ct);
+
+            // 2️⃣ Nếu chưa có thì tạo
             if (group == null)
             {
                 group = new Data.NotificationGroup
@@ -55,41 +65,35 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
 
             var groupId = group.Id;
 
-            // Đồng bộ thành viên
+            // 3️⃣ Add members (KHÔNG auto remove)
             var distinctUserIds = userIds?.Distinct().ToList() ?? new List<Guid>();
-
-            var existingMembers = await _context.NotificationGroupMembers
-                .Where(m => m.GroupId == groupId)
-                .ToListAsync(ct);
-
-            var existingIds = existingMembers.Select(m => m.UserId).ToHashSet();
-
-            var toAdd = distinctUserIds.Where(id => !existingIds.Contains(id)).ToList();
-            var toRemove = existingMembers.Where(m => !distinctUserIds.Contains(m.UserId)).ToList();
-
-            if (toAdd.Any())
+            if (distinctUserIds.Any())
             {
-                var now = DateTime.UtcNow;
-                var newMembers = toAdd.Select(id => new Data.NotificationGroupMember
+                var existingIds = await _context.NotificationGroupMembers
+                    .Where(m => m.GroupId == groupId)
+                    .Select(m => m.UserId)
+                    .ToListAsync(ct);
+
+                var toAdd = distinctUserIds
+                    .Where(id => !existingIds.Contains(id))
+                    .Select(id => new Data.NotificationGroupMember
+                    {
+                        GroupId = groupId,
+                        UserId = id,
+                        AddedAt = DateTime.UtcNow
+                    })
+                    .ToList();
+
+                if (toAdd.Any())
                 {
-                    GroupId = groupId,
-                    UserId = id,
-                    AddedAt = now
-                });
-                await _context.NotificationGroupMembers.AddRangeAsync(newMembers, ct);
+                    await _context.NotificationGroupMembers.AddRangeAsync(toAdd, ct);
+                    await _context.SaveChangesAsync(ct);
+                }
             }
 
-            if (toRemove.Any())
-            {
-                _context.NotificationGroupMembers.RemoveRange(toRemove);
-            }
-
-            if (toAdd.Any() || toRemove.Any())
-            {
-                await _context.SaveChangesAsync(ct);
-            }
-
+            await tx.CommitAsync(ct);
             return groupId;
         }
+
     }
 }

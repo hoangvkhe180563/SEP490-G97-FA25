@@ -34,6 +34,6 @@ namespace StudyHub.Backend.UseCases.Repositories.Notifications
         List<AppUser>? GetUsersByRoleAndSchool(string roleName, int? schoolId);
         Task<HashSet<Guid>> GetUserRoleIdsAsync(Guid userId, CancellationToken ct = default);
         Task<HashSet<int>> GetUserGroupIdsAsync(Guid userId, CancellationToken ct = default);
-        Task SeedUnreadForUsersAsync(Guid notificationId, IEnumerable<Guid> userIds, CancellationToken ct = default);
+        Task SeedUnreadForUsersAsync(Guid notificationId, IEnumerable<Guid> userIds, string? linkurl, CancellationToken ct = default);
     }
 }

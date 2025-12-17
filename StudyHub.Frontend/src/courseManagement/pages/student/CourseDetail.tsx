@@ -56,8 +56,7 @@ const CourseDetail: React.FC = () => {
   const [contentTypes, setContentTypes] = useState({
     video: false,
     reading: false,
-    assignment: false,
-    quiz: false,
+    exam: false,
   });
   const [durationFilter, setDurationFilter] = useState<string>("all");
 
@@ -235,17 +234,14 @@ const CourseDetail: React.FC = () => {
 
     // content type filter
     const ct = contentTypes;
-    const anyContentTypeSelected =
-      ct.video || ct.reading || ct.assignment || ct.quiz;
+    const anyContentTypeSelected = ct.video || ct.reading || ct.exam;
     if (anyContentTypeSelected) {
       const t = (ls.type || "").toLowerCase();
       if (ct.video && t === "video") {
         // ok
       } else if (ct.reading && (t === "reading" || ls.readingContent)) {
         // ok
-      } else if (ct.assignment && t === "assignment") {
-        // ok
-      } else if (ct.quiz && t === "quiz") {
+      } else if (ct.exam && t === "exam") {
         // ok
       } else {
         return false;
@@ -637,8 +633,7 @@ const CourseDetail: React.FC = () => {
                   setContentTypes({
                     video: false,
                     reading: false,
-                    assignment: false,
-                    quiz: false,
+                    exam: false,
                   });
                   setDurationFilter("all");
                 }}

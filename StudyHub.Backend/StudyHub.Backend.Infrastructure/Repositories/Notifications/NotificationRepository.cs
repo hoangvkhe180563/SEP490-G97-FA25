@@ -72,6 +72,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
                 UserId = r.UserId,
                 IsRead = r.IsRead,
                 ReadAt = r.ReadAt,
+                LinkUrl = r.LinkUrl,
                 DeliveredAt = r.DeliveredAt
             };
         }
@@ -354,7 +355,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
 
             return groupIds.ToHashSet();
         }
-        public async Task SeedUnreadForUsersAsync(Guid notificationId, IEnumerable<Guid> userIds, CancellationToken ct = default)
+        public async Task SeedUnreadForUsersAsync(Guid notificationId, IEnumerable<Guid> userIds,string? linkurl, CancellationToken ct = default)
         {
             var ids = userIds?.Distinct().ToList() ?? new List<Guid>();
             if (!ids.Any()) return;
@@ -372,6 +373,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
                 {
                     NotificationId = notificationId,
                     UserId = id,
+                    LinkUrl=linkurl,
                     IsRead = false,
                     DeliveredAt = now
                 })

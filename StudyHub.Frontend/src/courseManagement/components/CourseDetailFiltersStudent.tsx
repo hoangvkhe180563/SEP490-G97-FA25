@@ -10,8 +10,7 @@ type ProgressFilters = {
 type ContentTypes = {
   video: boolean;
   reading: boolean;
-  assignment: boolean;
-  quiz: boolean;
+  exam: boolean;
 };
 
 type Stats = {
@@ -74,7 +73,7 @@ const CourseNavSidebar: React.FC<Props> = ({
   const contentTypeItems: { key: keyof ContentTypes; label: string }[] = [
     { key: "video", label: "Video" },
     { key: "reading", label: "Tài liệu đọc" },
-    { key: "assignment", label: "Bài kiểm tra" },
+    { key: "exam", label: "Bài kiểm tra" },
   ];
 
   const durationItems = [
@@ -101,7 +100,7 @@ const CourseNavSidebar: React.FC<Props> = ({
     <aside className="space-y-6">
       <div className="bg-white rounded-md p-4 shadow-sm">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-medium">Điều hướng khóa học</h4>
+          <h4 className="text-sm font-medium">Lọc khóa học</h4>
         </div>
 
         <div className="text-sm text-gray-600 mb-2">Bộ lọc tiến độ</div>

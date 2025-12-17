@@ -20,8 +20,51 @@ export const NotificationCard: React.FC<Props> = ({ item, onMarkRead }) => {
   const variant = priorityColor[item.priority?.toLowerCase?.() ?? ""] ?? "outline";
   const createdAt = item.createdAt ? new Date(item.createdAt) : null;
 
+  const link = item.linkUrl ?? (item.metadata && (item.metadata.linkUrl ?? item.metadata.LinkUrl)) ?? null;
+
+  const handleOpenLink = (e?: React.MouseEvent) => {
+    // nếu gọi từ button/link con, cho phép mặc định xử lý
+    try {
+      if (!isRead && onMarkRead) {
+        onMarkRead(item.id);
+      }
+    } catch {
+      // ignore
+    }
+
+    if (!link) return;
+
+    // nếu là đường dẫn nội bộ (bắt đầu bằng '/'), chuyển trong cùng tab
+    if (String(link).startsWith("/")) {
+      window.location.assign(String(link));
+    } else {
+      // mở ở tab mới cho url đầy đủ
+      try {
+        window.open(String(link), "_blank", "noopener,noreferrer");
+      } catch {
+        // fallback
+        window.location.assign(String(link));
+      }
+    }
+    // ngăn hành vi mặc định nếu cần
+    e?.preventDefault();
+  };
+
+  const handleKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleOpenLink();
+    }
+  };
+
   return (
-    <Card className={isRead ? "bg-muted/40" : ""}>
+    <Card
+      className={`group ${isRead ? "bg-muted/40" : "hover:shadow-md"} cursor-pointer`}
+      role={link ? "button" : undefined}
+      tabIndex={link ? 0 : undefined}
+      onClick={() => handleOpenLink()}
+      onKeyDown={handleKey}
+    >
       <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-2">
         <div className="space-y-1">
           <CardTitle className="text-base font-semibold">{item.title}</CardTitle>
@@ -30,23 +73,25 @@ export const NotificationCard: React.FC<Props> = ({ item, onMarkRead }) => {
           </CardDescription>
         </div>
         <Badge variant={variant} className="capitalize">
-          {item.priority}
+          {item.priority ?? "Normal"}
         </Badge>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-foreground">{item.body}</p>
-        {item.linkUrl && (
-          <a
-            href={item.linkUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm text-primary hover:underline"
-          >
-            Xem chi tiết
-          </a>
-        )}
+
+        {/* Nếu vẫn muốn nút/anchor riêng cho link (vừa để click vừa để copy target),
+            giữ onClick trên toàn thẻ nhưng anchor vẫn có thể dừng propagation nếu cần */}
+        
+
         {!isRead && onMarkRead && (
-          <Button variant="outline" size="sm" onClick={() => onMarkRead(item.id)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMarkRead(item.id);
+            }}
+          >
             Đánh dấu đã đọc
           </Button>
         )}
