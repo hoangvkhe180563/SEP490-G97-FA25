@@ -247,7 +247,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
                 landingPageNewFiles: new List<IFormFile> { newFile1, newFile2 });
 
             // Assert
-            Assert.Equal("Không tải được logo trường!", result);
+            Assert.Equal("Không tải được ảnh giới thiệu trường!", result);
 
             mockCloudinaryRepo.Verify(
                 c => c.UploadFileAsync(newFile1, FileConstants.LandingPageImagesUploadPath),

@@ -754,7 +754,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
 
             // Assert
             Assert.False(result);
-            _mockAnswerRepo.Verify(x => x.UpdateManyAnswers(It.IsAny<string>(), It.IsAny<List<ExamAnswer>>()), Times.Never);
+            _mockAnswerRepo.Verify(x => x.UpdateManyAnswers(It.IsAny<string>(), It.IsAny<List<ExamAnswer>>(), false), Times.Never);
         }
 
         [Fact]
@@ -769,7 +769,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
 
             // Assert
             Assert.False(result);
-            _mockAnswerRepo.Verify(x => x.UpdateManyAnswers(It.IsAny<string>(), It.IsAny<List<ExamAnswer>>()), Times.Never);
+            _mockAnswerRepo.Verify(x => x.UpdateManyAnswers(It.IsAny<string>(), It.IsAny<List<ExamAnswer>>(), false), Times.Never);
         }
 
         [Fact]
@@ -784,7 +784,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
 
             // Assert
             Assert.False(result);
-            _mockAnswerRepo.Verify(x => x.UpdateManyAnswers(It.IsAny<string>(), It.IsAny<List<ExamAnswer>>()), Times.Never);
+            _mockAnswerRepo.Verify(x => x.UpdateManyAnswers(It.IsAny<string>(), It.IsAny<List<ExamAnswer>>(), false), Times.Never);
         }
 
         [Fact]
@@ -797,14 +797,14 @@ namespace StudyHub.Backend.UseCases.Tests.Services
                 new ExamAnswer { QuestionId = "q1", JsonAnswers = "A", IsCorrect = true }
             };
 
-            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(validId, answers)).Returns(true);
+            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(validId, answers, false)).Returns(true);
 
             // Act
             var result = _service.UpdateExamPaper(validId, answers);
 
             // Assert
             Assert.True(result);
-            _mockAnswerRepo.Verify(x => x.UpdateManyAnswers(validId, answers), Times.Once);
+            _mockAnswerRepo.Verify(x => x.UpdateManyAnswers(validId, answers, false), Times.Once);
         }
 
         [Fact]
@@ -1267,7 +1267,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
             // 3. Mocks
             _mockAnswerRepo.Setup(x => x.GetAnswersByResultId(resultId, true, false)).Returns(answers);
             _mockQuestionRepo.Setup(x => x.GetManyQuestionsById(It.IsAny<List<string>>())).Returns(questions);
-            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(resultId, answers)).Returns(true);
+            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(resultId, answers, true)).Returns(true);
             _mockExamResultRepo.Setup(x => x.SubmitExam(It.IsAny<ExamResult>())).Returns(true);
             _mockExamRepo.Setup(x => x.GetExamIdByResultId(resultId)).Returns(examId);
             _mockExamRepo.Setup(x => x.GetExamById(examId)).Returns(new Exam
@@ -1311,7 +1311,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
 
             _mockAnswerRepo.Setup(x => x.GetAnswersByResultId(resultId, true, false)).Returns(answers);
             _mockQuestionRepo.Setup(x => x.GetManyQuestionsById(It.IsAny<List<string>>())).Returns(questions);
-            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(resultId, answers)).Returns(true);
+            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(resultId, answers, true)).Returns(true);
             _mockExamResultRepo.Setup(x => x.SubmitExam(It.IsAny<ExamResult>())).Returns(true);
             _mockExamRepo.Setup(x => x.GetExamIdByResultId(resultId)).Returns(1);
             _mockExamRepo.Setup(x => x.GetExamById(1)).Returns(new Exam {
@@ -1359,7 +1359,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
 
             _mockAnswerRepo.Setup(x => x.GetAnswersByResultId(resultId, true, false)).Returns(answers);
             _mockQuestionRepo.Setup(x => x.GetManyQuestionsById(It.IsAny<List<string>>())).Returns(new List<Question> { q1 });
-            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(resultId, answers)).Returns(true);
+            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(resultId, answers, true)).Returns(true);
             _mockExamResultRepo.Setup(x => x.SubmitExam(It.IsAny<ExamResult>())).Returns(true);
             _mockExamRepo.Setup(x => x.GetExamIdByResultId(resultId)).Returns(1);
             _mockExamRepo.Setup(x => x.GetExamById(1)).Returns(
@@ -1396,7 +1396,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
 
             _mockAnswerRepo.Setup(x => x.GetAnswersByResultId(resultId, true, false)).Returns(answers);
             _mockQuestionRepo.Setup(x => x.GetManyQuestionsById(It.IsAny<List<string>>())).Returns(new List<Question> { q1 });
-            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(resultId, answers)).Returns(true);
+            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(resultId, answers, true)).Returns(true);
             _mockExamResultRepo.Setup(x => x.SubmitExam(It.IsAny<ExamResult>())).Returns(true);
 
             _mockExamRepo.Setup(x => x.GetExamIdByResultId(resultId)).Returns(examId);
@@ -1437,7 +1437,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
 
             _mockAnswerRepo.Setup(x => x.GetAnswersByResultId(resultId, true, false)).Returns(answers);
             _mockQuestionRepo.Setup(x => x.GetManyQuestionsById(It.IsAny<List<string>>())).Returns(new List<Question> { q1 });
-            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(resultId, answers)).Returns(true);
+            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(resultId, answers, true)).Returns(true);
             _mockExamResultRepo.Setup(x => x.SubmitExam(It.IsAny<ExamResult>())).Returns(true);
 
             _mockExamRepo.Setup(x => x.GetExamIdByResultId(resultId)).Returns(examId);
@@ -1477,7 +1477,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
             _mockQuestionRepo.Setup(x => x.GetManyQuestionsById(It.IsAny<List<string>>())).Returns(questions);
 
             // Fail here
-            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(resultId, answers)).Returns(false);
+            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(resultId, answers, true)).Returns(false);
 
             // Act
             var result = _service.SubmitExamResult(resultId);
@@ -1498,7 +1498,7 @@ namespace StudyHub.Backend.UseCases.Tests.Services
 
             _mockAnswerRepo.Setup(x => x.GetAnswersByResultId(resultId, true, false)).Returns(answers);
             _mockQuestionRepo.Setup(x => x.GetManyQuestionsById(It.IsAny<List<string>>())).Returns(questions);
-            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(resultId, answers)).Returns(true);
+            _mockAnswerRepo.Setup(x => x.UpdateManyAnswers(resultId, answers, true)).Returns(true);
 
             // Fail here
             _mockExamResultRepo.Setup(x => x.SubmitExam(It.IsAny<ExamResult>())).Returns(false);
