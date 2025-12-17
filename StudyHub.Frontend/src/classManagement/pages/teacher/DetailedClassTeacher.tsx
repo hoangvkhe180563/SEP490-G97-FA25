@@ -132,7 +132,7 @@ const DetailedClassTeacher: React.FC = () => {
     };
   }, [id, getDocumentsByClassId]);
 
-  const DocumentPreviewCard: React.FC<{ doc: DocumentDto; role: string }> = ({ doc, role }) => {
+  const DocumentPreviewCard: React.FC<{ doc: DocumentDto; role: string }> = ({ doc }) => {
     const navigateLocal = useNavigate();
     const isImage = !!(doc.fileType && /jpg|jpeg|png|gif|bmp|webp/i.test(String(doc.fileType)));
     const isPdf = !!(doc.fileType && /pdf/i.test(String(doc.fileType)));
@@ -343,6 +343,7 @@ const DetailedClassTeacher: React.FC = () => {
     if (!hasTeacher && !hasStudents && !hasParents) {
       getClassMembers(Number(id));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeTab,
     id,
@@ -354,6 +355,7 @@ const DetailedClassTeacher: React.FC = () => {
     if (!id || activeTab !== "exercise") return;
     const hasWorks = (currentClass?.data?.works ?? []).length > 0;
     if (!hasWorks) getClassWorks(Number(id));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, id, getClassWorks]);
 
   // fetchCountsForWork: fetch submission count and try to fetch accurate member count for a work (best-effort)
@@ -426,6 +428,7 @@ const DetailedClassTeacher: React.FC = () => {
         console.warn("Prefetch per-work counts failed", err);
       }
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, id, fetchCountsForWork, getMemberCount, classMemberCount]);
 
   // handlers (notifications / others)
@@ -544,7 +547,7 @@ const DetailedClassTeacher: React.FC = () => {
             </TabsContent>
 
             <TabsContent value="exam">
-              <ClassExams classId={id} isTeacher={role === "teacher"} />
+              <ClassExams classId={id} isTeacher={role === "teacher"} userId={user?.id ?? ''} />
             </TabsContent>
           </Tabs>
         </div>

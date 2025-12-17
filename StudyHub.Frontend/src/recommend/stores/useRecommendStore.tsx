@@ -4,6 +4,13 @@ import type {
   RecommendationResponse,
   LLMRecommendationResponse,
   LLMProfile,
+  StudentQuestionStatsDto,
+  DateCountDto,
+  HourCountDto,
+  SubjectCountDto,
+  TokenSummaryDto,
+  DateTokenDto,
+  UserTokenDto,
 } from "../interfaces/recommend";
 
 type RecommendState = {

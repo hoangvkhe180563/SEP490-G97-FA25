@@ -320,7 +320,7 @@ namespace StudyHub.Backend.UseCases.Services
             decimal score = ((decimal)corrects / questions.Count) * 10;
 
             //4. update answer to exam paper (MongoDB)
-            bool isAnswerUpdated = _answerRepo.UpdateManyAnswers(resultId, answers);
+            bool isAnswerUpdated = _answerRepo.UpdateManyAnswers(resultId, answers, true);
             if (!isAnswerUpdated)
             {
                 new UseCaseException("ExamService", "SubmitExamResult error: Correct answers are not updated!").LogError();
