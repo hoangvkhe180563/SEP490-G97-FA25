@@ -11,9 +11,6 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:6789
-      - ConnectionStrings__DefaultConnection=Server=mysql;Database=studyhub;Uid=studyhub_user;Pwd=123456;Port=3306;
-      - ConnectionStrings__MongoDb=mongodb://studyhub_user:123456@mongodb:27017/studyhub?authSource=admin
-      - Elasticsearch__Url=http://elasticsearch:9200
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:9.2.1
