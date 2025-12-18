@@ -23,61 +23,94 @@ namespace StudyHub.Backend.UseCases.Services
         private readonly ICloudinaryRepository _cloudinary;
         private readonly AuthService _authService;
         private const int SALT_ROUNDS = 12; // BCrypt salt rounds for hashing
+        private readonly LocationService _locationService;
 
-        public AppUserService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, IConfiguration configuration, StudyHub.Backend.UseCases.Repositories.ICloudinaryRepository cloudinary, AuthService authService)
+        public AppUserService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, IConfiguration configuration, StudyHub.Backend.UseCases.Repositories.ICloudinaryRepository cloudinary, AuthService authService, LocationService locationService)
         {
             _userRepository = userRepository;
             _roleRepository = roleRepository;
             _configuration = configuration;
             _cloudinary = cloudinary;
             _authService = authService;
+            _locationService = locationService;
         }
 
         // Export all accounts to an Excel file (EPPlus)
         public byte[] ExportAccountsToExcel()
         {
-            var users = _userRepository.GetAllUsers();
+            // Determine whether current user is Admin; admins export all accounts, others export only their school
+            List<AppUser> users;
+            try
+            {
+                var currentUser = _authService.GetCurrentUser();
+                var importerRoles = _roleRepository.GetRolesForUser(currentUser.Id);
+                var isAdmin = importerRoles != null && importerRoles.Any(r => string.Equals(r.Name, "Admin", StringComparison.OrdinalIgnoreCase));
+                if (isAdmin)
+                {
+                    users = _userRepository.GetAllUsers();
+                }
+                else
+                {
+                    // use GetAppUsersBySearchAndFilter to filter by schoolId and get all rows
+                    var (uList, _, _, _, _) = _userRepository.GetAppUsersBySearchAndFilter(null, null, null, 1, int.MaxValue, currentUser.Id, currentUser.SchoolId);
+                    users = uList ?? new List<AppUser>();
+                }
+            }
+            catch
+            {
+                users = _userRepository.GetAllUsers();
+            }
 
             using (var pkg = new ExcelPackage())
             {
                 var ws = pkg.Workbook.Worksheets.Add("Tất cả tài khoả");
                 var lists = pkg.Workbook.Worksheets.Add("Danh sách điền");
                 // headers (Vietnamese for user-facing template)
-                ws.Cells[1, 1].Value = "Email";
-                ws.Cells[1, 2].Value = "Tên người dùng";
-                ws.Cells[1, 3].Value = "Họ và tên";
-                ws.Cells[1, 4].Value = "Trạng thái";
-                ws.Cells[1, 5].Value = "Vai trò";
-                ws.Cells[1, 6].Value = "Ngày tạo";
-                ws.Cells[1, 7].Value = "Số điện thoại";
-                ws.Cells[1, 8].Value = "Địa chỉ";
-                ws.Cells[1, 9].Value = "Mật khẩu";
-                ws.Cells[1, 10].Value = "Ngày sinh";
-                ws.Cells[1, 11].Value = "Giới tính"; // Nam / Nữ
+                ws.Cells[1, 1].Value = "Trường";
+                ws.Cells[1, 2].Value = "Email";
+                ws.Cells[1, 3].Value = "Tên người dùng";
+                ws.Cells[1, 4].Value = "Họ và tên";
+                ws.Cells[1, 5].Value = "Trạng thái";
+                ws.Cells[1, 6].Value = "Vai trò";
+                ws.Cells[1, 7].Value = "Ngày tạo";
+                ws.Cells[1, 8].Value = "Số điện thoại";
+                ws.Cells[1, 9].Value = "Địa chỉ";
+                ws.Cells[1, 10].Value = "Mật khẩu";
+                ws.Cells[1, 11].Value = "Ngày sinh";
+                ws.Cells[1, 12].Value = "Giới tính"; // Nam / Nữ
+                ws.Cells[1, 12].Value = "Trường";
 
                 int row = 2;
                 foreach (var u in users)
                 {
                     var roles = _roleRepository.GetRolesForUser(u.Id).Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList();
                     ws.Cells[row, 1].Value = u.Email;
-                    ws.Cells[row, 2].Value = u.Username;
-                    ws.Cells[row, 3].Value = u.Fullname;
-                    ws.Cells[row, 4].Value = u.Status == true ? "Có hiệu lực" : "Vô hiệu hoá";
-                    ws.Cells[row, 5].Value = string.Join(", ", roles);
+                    // School first
+                    try { ws.Cells[row, 1].Value = _locationService.GetSchoolById(u.SchoolId)?.Name; } catch { }
+                    ws.Cells[row, 2].Value = u.Email;
+                    ws.Cells[row, 3].Value = u.Username;
+                    ws.Cells[row, 4].Value = u.Fullname;
+                    ws.Cells[row, 5].Value = u.Status == true ? "Có hiệu lực" : "Vô hiệu hoá";
+                    ws.Cells[row, 6].Value = string.Join(", ", roles);
                     // CreatedAt and Dob as date values with desired format
-                    ws.Cells[row, 6].Value = u.CreatedAt;
-                    ws.Cells[row, 7].Value = u.PhoneNumber;
-                    ws.Cells[row, 8].Value = u.Address;
-                    // Dob may be DateOnly? or DateTime? attempt to format if available
+                    ws.Cells[row, 7].Value = u.CreatedAt;
+                    ws.Cells[row, 8].Value = u.PhoneNumber;
+                    ws.Cells[row, 9].Value = u.Address;
+                    // Dob may be DateOnly? or DateTime? attempt to format if available (now column 11)
                     try
                     {
                         if (u.Dob.HasValue)
                         {
-                            ws.Cells[row, 10].Value = DateTime.Parse(u.Dob.Value.ToString());
+                            ws.Cells[row, 11].Value = DateTime.Parse(u.Dob.Value.ToString());
                         }
                     }
                     catch { }
-                    // Gender: store as 1 (true) or 0 (false)
+                    // Gender (now column 12)
+                    try
+                    {
+                        ws.Cells[row, 12].Value = (u.Gender == true) ? "Nam" : "Nữ";
+                    }
+                    catch { ws.Cells[row, 12].Value = "0"; }
                     try
                     {
                         ws.Cells[row, 11].Value = (u.Gender == true) ? "Nam" : "Nữ";
@@ -122,30 +155,30 @@ namespace StudyHub.Backend.UseCases.Services
                 // Apply validations and formats on main sheet
                 if (lastDataRow >= 2)
                 {
-                    // Status validation
-                    var statusVal = ws.DataValidations.AddListValidation(ws.Cells[2, 4, lastDataRow, 4].Address);
+                    // Status validation (now column 5)
+                    var statusVal = ws.DataValidations.AddListValidation(ws.Cells[2, 5, lastDataRow, 5].Address);
                     statusVal.Formula.ExcelFormula = "'Danh sách điền'!$A$1:$A$2";
                     statusVal.ShowErrorMessage = true;
 
-                    ws.Cells[1, 5].AddComment("Ví dụ:\n1) Một vai trò: Subject Teacher\n2) Nhiều vai trò: Subject Teacher, Homeroom Teacher\nHoặc dùng ';' để phân tách các vai trò.", "System");
+                    ws.Cells[1, 6].AddComment("Ví dụ:\n1) Một vai trò: Subject Teacher\n2) Nhiều vai trò: Subject Teacher, Homeroom Teacher\nHoặc dùng ';' để phân tách các vai trò.", "System");
 
-                    // Gender validation
-                    var genderVal = ws.DataValidations.AddListValidation(ws.Cells[2, 11, lastDataRow, 11].Address);
+                    // Gender validation (now column 12)
+                    var genderVal = ws.DataValidations.AddListValidation(ws.Cells[2, 12, lastDataRow, 12].Address);
                     genderVal.Formula.ExcelFormula = "'Danh sách điền'!$C$1:$C$2";
                     genderVal.ShowErrorMessage = true;
 
-                    // Date formats
+                    // Date formats (CreatedAt now col7, Dob now col11)
                     for (int r2 = 2; r2 <= lastDataRow; r2++)
                     {
-                        ws.Cells[r2, 6].Style.Numberformat.Format = "dd/MM/yyyy";
-                        ws.Cells[r2, 10].Style.Numberformat.Format = "dd/MM/yyyy";
+                        ws.Cells[r2, 7].Style.Numberformat.Format = "dd/MM/yyyy";
+                        ws.Cells[r2, 11].Style.Numberformat.Format = "dd/MM/yyyy";
                     }
                 }
 
                 // Comments
-                ws.Cells[1, 6].AddComment("Date format: dd/MM/yyyy. E.g., 23/10/2014", "System");
-                ws.Cells[1, 10].AddComment("Date format: dd/MM/yyyy. E.g., 23/10/2014", "System");
-                ws.Cells[1, 7].AddComment("Định dạng theo số điện thoại Việt Nam: 0XXXXXXXXX or +84XXXXXXXXX", "System");
+                ws.Cells[1, 7].AddComment("Date format: dd/MM/yyyy. E.g., 23/10/2014", "System");
+                ws.Cells[1, 11].AddComment("Date format: dd/MM/yyyy. E.g., 23/10/2014", "System");
+                ws.Cells[1, 8].AddComment("Định dạng theo số điện thoại Việt Nam: 0XXXXXXXXX or +84XXXXXXXXX", "System");
 
                 // Hide lists sheet
                 lists.Hidden = eWorkSheetHidden.Hidden;
@@ -165,46 +198,81 @@ namespace StudyHub.Backend.UseCases.Services
 
             using (var pkg = new ExcelPackage())
             {
-                // Main sheet
+                // 1. Main sheet
                 var ws = pkg.Workbook.Worksheets.Add("Mẫu Import");
-                // Hidden lists sheet
+                // 2. Hidden lists sheet
                 var lists = pkg.Workbook.Worksheets.Add("Danh sách điền");
 
-                // Headers
-                ws.Cells[1, 1].Value = "Email";
-                ws.Cells[1, 2].Value = "Tên người dùng";
-                ws.Cells[1, 3].Value = "Họ và tên";
-                ws.Cells[1, 4].Value = "Trạng thái";
-                ws.Cells[1, 5].Value = "Vai trò";
-                ws.Cells[1, 6].Value = "Ngày tạo";
-                ws.Cells[1, 7].Value = "Số điện thoại";
-                ws.Cells[1, 8].Value = "Địa chỉ";
-                ws.Cells[1, 9].Value = "Mật khẩu";
-                ws.Cells[1, 10].Value = "Ngày sinh";
-                ws.Cells[1, 11].Value = "Giới tính";
+                // --- HEADERS ---
+                ws.Cells[1, 1].Value = "Trường";
+                ws.Cells[1, 2].Value = "Email";
+                ws.Cells[1, 3].Value = "Tên người dùng";
+                ws.Cells[1, 4].Value = "Họ và tên";
+                ws.Cells[1, 5].Value = "Trạng thái";
+                ws.Cells[1, 6].Value = "Vai trò";
+                ws.Cells[1, 7].Value = "Ngày tạo";
+                ws.Cells[1, 8].Value = "Số điện thoại";
+                ws.Cells[1, 9].Value = "Địa chỉ";
+                ws.Cells[1, 10].Value = "Mật khẩu";
+                ws.Cells[1, 11].Value = "Ngày sinh";
+                ws.Cells[1, 12].Value = "Giới tính";
 
-                // Example row (hàng 2) — người dùng có thể copy nhanh mẫu này
-                // Try to use real role names from DB; pick first two if available
+                // --- EXAMPLE ROW (Row 2) ---
                 var exampleRolesList = roles.Take(2).Select(r => r.Name).Where(n => !string.IsNullOrEmpty(n)).ToList();
                 var exampleRoles = exampleRolesList.Any() ? string.Join(", ", exampleRolesList) : "Subject Teacher, Homeroom Teacher";
-                ws.Cells[2, 1].Value = "example@example.com";
-                ws.Cells[2, 2].Value = "example.user";
-                ws.Cells[2, 3].Value = "Nguyễn Văn A";
-                ws.Cells[2, 4].Value = "Có hiệu lực";
-                ws.Cells[2, 5].Value = exampleRoles;
-                ws.Cells[2, 6].Value = DateTime.Now.ToString("dd/MM/yyyy");
-                ws.Cells[2, 7].Value = "0912345678";
-                ws.Cells[2, 8].Value = "123 Đường Lê Lợi";
-                ws.Cells[2, 10].Value = "01/01/1990";
-                ws.Cells[2, 11].Value = "Nam";
 
-                // Fill Lists sheet
-                // Status list (A)
+                ws.Cells[2, 1].Value = "THPT Hà Nội";
+                ws.Cells[2, 2].Value = "example@example.com";
+                ws.Cells[2, 3].Value = "example.user";
+                ws.Cells[2, 4].Value = "Nguyễn Văn A";
+                ws.Cells[2, 5].Value = "Có hiệu lực";
+                ws.Cells[2, 6].Value = exampleRoles;
+                ws.Cells[2, 7].Value = DateTime.Now.ToString("dd/MM/yyyy");
+                ws.Cells[2, 8].Value = "0912345678";
+                ws.Cells[2, 9].Value = "123 Đường Lê Lợi";
+                ws.Cells[2, 10].Value = "Password123"; // Ví dụ mật khẩu
+                ws.Cells[2, 11].Value = "01/01/1990";
+                ws.Cells[2, 12].Value = "Nam";
+
+                // --- PREPARE HIDDEN LISTS ---
+
+                // A. Status list
                 lists.Cells[1, 1].Value = "Trạng thái";
                 lists.Cells[2, 1].Value = "Có hiệu lực";
                 lists.Cells[3, 1].Value = "Vô hiệu hoá";
 
-                // Instructions sheet (visible) - tiếng Việt
+                // B. Roles list
+                lists.Cells[1, 2].Value = "Vai trò";
+                int roleRow = 2;
+                foreach (var r in roles)
+                {
+                    lists.Cells[roleRow++, 2].Value = r.Name;
+                }
+                if (roleRow == 2) // fallback if empty
+                {
+                    lists.Cells[2, 2].Value = "External Student";
+                    roleRow++;
+                }
+
+                // C. Gender list
+                lists.Cells[1, 3].Value = "Giới tính";
+                lists.Cells[2, 3].Value = "Nam";
+                lists.Cells[3, 3].Value = "Nữ";
+
+                // D. Schools list
+                lists.Cells[1, 4].Value = "Trường";
+                int schoolListRow = 2;
+
+                var schoolsForList = _locationService.GetAllSchools();
+                if (schoolsForList != null && schoolsForList.Any())
+                {
+                    foreach (var s in schoolsForList)
+                    {
+                        lists.Cells[schoolListRow++, 4].Value = s.Name;
+                    }
+                }
+
+                // --- INSTRUCTIONS SHEET ---
                 var instr = pkg.Workbook.Worksheets.Add("Hướng dẫn");
                 instr.Cells[1, 1].Value = "Hướng dẫn import";
                 instr.Cells[2, 1].Value = "- Mục đích: Sử dụng file này để chuẩn bị dữ liệu tài khoản trước khi import.";
@@ -215,74 +283,63 @@ namespace StudyHub.Backend.UseCases.Services
                 instr.Cells[7, 1].Value = "- SĐT: định dạng Việt Nam, ví dụ: 0912345678 hoặc +84912345678";
                 instr.Column(1).AutoFit();
 
-                // Roles list (B)
-                lists.Cells[1, 2].Value = "Vai trò";
-                int roleRow = 2;
-                foreach (var r in roles)
-                {
-                    lists.Cells[roleRow++, 2].Value = r.Name;
-                }
-                if (roleRow == 1) // ensure at least one entry
-                {
-                    lists.Cells[1, 2].Value = "External Student";
-                    roleRow = 2;
-                }
-
-                // Gender list (C)
-                lists.Cells[1, 3].Value = "Giới tính";
-                lists.Cells[2, 3].Value = "Nam";
-                lists.Cells[3, 3].Value = "Nữ";
-
-                // For rows, add formats and validations
+                // --- VALIDATIONS & FORMATTING ---
                 int startRow = 2;
                 int endRow = startRow + rows - 1;
 
-                // Status validation -> lists!$A$1:$A$2
-                var statusValidation = ws.DataValidations.AddListValidation(ws.Cells[startRow, 4, endRow, 4].Address);
-                statusValidation.Formula.ExcelFormula = "'Danh sách điền'!$A$1:$A$2";
-                statusValidation.ShowErrorMessage = true;
 
-                // Note: Excel cannot natively append multiple selections; users should separate with commas or semicolons.
-                ws.Cells[1, 5].AddComment("Ví dụ:\n1) Một vai trò: Subject Teacher\n2) Nhiều vai trò: Subject Teacher, Homeroom Teacher\nHoặc dùng ';' để phân tách các vai trò.", "System");
-
-                // CreatedAt & Dob formatting (dd/MM/yyyy)
-                for (int r = startRow; r <= endRow; r++)
-                {
-                    ws.Cells[r, 6].Style.Numberformat.Format = "dd/MM/yyyy";
-                    ws.Cells[r, 10].Style.Numberformat.Format = "dd/MM/yyyy";
-                }
-
-                // Phone number validation (custom) - allow either leading 0 + 10 digits or +84 + 9 digits
-                // Formula uses SUBSTITUTE to strip spaces
-                var phoneFormula = "OR(AND(LEFT(SUBSTITUTE(G2,\" \" ,\"\"),1)=\"0\",LEN(SUBSTITUTE(G2,\" \" ,\"\"))=10),AND(LEFT(SUBSTITUTE(G2,\" \" ,\"\"),3)=\"+84\",LEN(SUBSTITUTE(G2,\" \" ,\"\"))=12))";
-                var phoneValidation = ws.DataValidations.AddCustomValidation(ws.Cells[startRow, 7, endRow, 7].Address);
-                phoneValidation.Formula.ExcelFormula = phoneFormula;
-                phoneValidation.ShowErrorMessage = true;
-                phoneValidation.Error = "Số điện thoại phải là số điện thoại Việt Nam (e.g. 0912345678 or +84912345678)";
-
-                // Email validation (basic) - require '@' and '.' characters
-                var emailFormula = "AND(ISNUMBER(FIND(\"@\",A2)),ISNUMBER(FIND(\".\",A2)))";
-                var emailValidation = ws.DataValidations.AddCustomValidation(ws.Cells[startRow, 1, endRow, 1].Address);
+                // 2. Validation Email (Cột 2) -> Custom Formula (Check @ and .)
+                // Formula applies to B2 relative
+                var emailFormula = "AND(ISNUMBER(FIND(\"@\",B2)),ISNUMBER(FIND(\".\",B2)))";
+                var emailValidation = ws.DataValidations.AddCustomValidation(ws.Cells[startRow, 2, endRow, 2].Address);
                 emailValidation.Formula.ExcelFormula = emailFormula;
                 emailValidation.ShowErrorMessage = true;
-                emailValidation.Error = "Nhập đúng định dạng email";
+                emailValidation.Error = "Nhập đúng định dạng email (ví dụ: abc@domain.com)";
 
-                // Gender validation -> lists!$C$1:$C$2
-                var genderValidation = ws.DataValidations.AddListValidation(ws.Cells[startRow, 11, endRow, 11].Address);
-                genderValidation.Formula.ExcelFormula = "'Danh sách điền'!$C$1:$C$2";
+                // 3. Validation Trạng thái (Cột 5) -> List A
+                var statusValidation = ws.DataValidations.AddListValidation(ws.Cells[startRow, 5, endRow, 5].Address);
+                statusValidation.Formula.ExcelFormula = "'Danh sách điền'!$A$2:$A$3";
+                statusValidation.ShowErrorMessage = true;
+                statusValidation.Error = "Vui lòng chọn trạng thái từ danh sách.";
+
+                // 4. Comment cho Vai trò (Cột 6)
+                ws.Cells[1, 6].AddComment("Ví dụ:\n1) Một vai trò: Subject Teacher\n2) Nhiều vai trò: Subject Teacher, Homeroom Teacher\nHoặc dùng ';' để phân tách.", "System");
+
+                // 5. Format ngày tháng (Cột 7: Ngày tạo & Cột 11: Ngày sinh)
+                for (int r = startRow; r <= endRow; r++)
+                {
+                    ws.Cells[r, 7].Style.Numberformat.Format = "dd/MM/yyyy";  // Cột 7: Ngày tạo
+                    ws.Cells[r, 11].Style.Numberformat.Format = "dd/MM/yyyy"; // Cột 11: Ngày sinh
+                }
+
+                // Comment Header cho cột ngày
+                ws.Cells[1, 7].AddComment("Định dạng ngày: dd/MM/yyyy. Vd: 23/10/2024", "System");
+                ws.Cells[1, 11].AddComment("Định dạng ngày: dd/MM/yyyy. Vd: 01/01/1990", "System");
+
+                // 6. Validation Số điện thoại (Cột 8) -> Custom Formula
+                // Cột 8 là cột H. Logic: 10 số bắt đầu bằng 0 HOẶC 12 ký tự bắt đầu bằng +84
+                var phoneFormula = "OR(AND(LEFT(SUBSTITUTE(H2,\" \" ,\"\"),1)=\"0\",LEN(SUBSTITUTE(H2,\" \" ,\"\"))=10),AND(LEFT(SUBSTITUTE(H2,\" \" ,\"\"),3)=\"+84\",LEN(SUBSTITUTE(H2,\" \" ,\"\"))=12))";
+                var phoneValidation = ws.DataValidations.AddCustomValidation(ws.Cells[startRow, 8, endRow, 8].Address);
+                phoneValidation.Formula.ExcelFormula = phoneFormula;
+                phoneValidation.ShowErrorMessage = true;
+                phoneValidation.Error = "SĐT phải là số Việt Nam (Vd: 0912345678 hoặc +84912345678)";
+
+                ws.Cells[1, 8].AddComment("Đinh dạng: 0XXXXXXXXX hoặc +84XXXXXXXXX", "System");
+                ws.Cells[1, 2].AddComment("Nhập vào đúng định dạng email.", "System"); // Comment cho Email (Cột 2)
+
+                // 7. Validation Giới tính (Cột 12) -> List C
+                var genderValidation = ws.DataValidations.AddListValidation(ws.Cells[startRow, 12, endRow, 12].Address);
+                genderValidation.Formula.ExcelFormula = "'Danh sách điền'!$C$2:$C$3";
                 genderValidation.ShowErrorMessage = true;
+                genderValidation.Error = "Chọn Nam hoặc Nữ";
 
-                // Add explanatory comments for certain columns
-                ws.Cells[1, 1].AddComment("Nhập vào đúng định dạng email.", "System");
-                ws.Cells[1, 6].AddComment("Định dạng ngày: dd/MM/yyyy. E.g., 23/10/2014", "System");
-                ws.Cells[1, 10].AddComment("Định dạng ngày: dd/MM/yyyy. E.g., 23/10/2014", "System");
-                ws.Cells[1, 7].AddComment("Đinh dạng số điện thoại Việt Nam: 0XXXXXXXXX or +84XXXXXXXXX", "System");
+                // --- FINALIZE ---
 
                 // Freeze header row
                 ws.View.FreezePanes(2, 1);
 
-                // Auto-fit
-                ws.Cells[1, 1, endRow, 10].AutoFitColumns();
+                // Auto-fit columns
+                ws.Cells[1, 1, endRow, 12].AutoFitColumns();
 
                 // Hide lists sheet
                 lists.Hidden = eWorkSheetHidden.Hidden;
@@ -291,13 +348,12 @@ namespace StudyHub.Backend.UseCases.Services
             }
         }
 
-        // Import accounts from Excel provided as byte[] (API should convert uploads to base64 and send DTO)
         public ImportResultDto ImportAccountsFromExcel(byte[] fileBytes, string? originalFileName = null)
         {
             var result = new ImportResultDto();
             if (fileBytes == null || fileBytes.Length == 0)
             {
-                result.Errors.Add("File không tìm thấy hoặc không có");
+                result.Errors.Add("File không tìm thấy hoặc không có dữ liệu");
                 return result;
             }
 
@@ -311,222 +367,244 @@ namespace StudyHub.Backend.UseCases.Services
                     return result;
                 }
 
-                int row = 2; // assume header in row 1
+                // --- LẤY THÔNG TIN TRƯỜNG CỦA NGƯỜI ĐANG IMPORT ---
+                var currentUser = _authService.GetCurrentUser();
+                string? currentSchoolName = null;
+                bool isImporterAdmin = false;
+                try
+                {
+                    if (currentUser.SchoolId.HasValue)
+                    {
+                        currentSchoolName = _locationService.GetSchoolById(currentUser.SchoolId.Value)?.Name;
+                    }
+                    try
+                    {
+                        var importerRoles = _roleRepository.GetRolesForUser(currentUser.Id);
+                        if (importerRoles != null && importerRoles.Any(r => string.Equals(r.Name, "Admin", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            isImporterAdmin = true;
+                        }
+                    }
+                    catch { isImporterAdmin = false; }
+                }
+                catch { currentSchoolName = null; }
+
+                // Helper chuẩn hóa chuỗi (bỏ dấu, lowercase, bỏ khoảng trắng) để so sánh
+                static string NormalizeTextLocal(string? s)
+                {
+                    if (string.IsNullOrEmpty(s)) return string.Empty;
+                    var normalized = s.Normalize(NormalizationForm.FormD);
+                    var sb = new StringBuilder();
+                    foreach (var ch in normalized)
+                    {
+                        var uc = CharUnicodeInfo.GetUnicodeCategory(ch);
+                        if (uc != UnicodeCategory.NonSpacingMark) sb.Append(ch);
+                    }
+                    return sb.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant().Replace(" ", "");
+                }
+
                 var usersWithRoles = new List<(AppUser user, IEnumerable<Guid>? roleIds, int Row)>();
+
+                // Dictionary để check trùng lặp nội bộ trong file
                 var emailRows = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
                 var usernameRows = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+
+                int row = 2; // Bắt đầu từ dòng 2
+
                 while (true)
                 {
-                    var email = ws.Cells[row, 1].Text?.Trim();
-                    if (string.IsNullOrEmpty(email)) break; // stop on empty email
+                    // Kiểm tra Email (Cột 2) để xác định dòng có dữ liệu
+                    var email = ws.Cells[row, 2].Text?.Trim();
+                    if (string.IsNullOrEmpty(email)) break;
+
                     result.TotalRows++;
 
-                    // collect for in-sheet duplicate detection
-                    if (!string.IsNullOrEmpty(email))
-                    {
-                        if (!emailRows.ContainsKey(email)) emailRows[email] = new List<int>();
-                        emailRows[email].Add(row);
-                    }
+                    // Check trùng email nội bộ
+                    if (!emailRows.ContainsKey(email)) emailRows[email] = new List<int>();
+                    emailRows[email].Add(row);
 
-                    var usernameForDup = ws.Cells[row, 2].Text?.Trim();
-                    if (!string.IsNullOrEmpty(usernameForDup))
-                    {
-                        if (!usernameRows.ContainsKey(usernameForDup)) usernameRows[usernameForDup] = new List<int>();
-                        usernameRows[usernameForDup].Add(row);
-                    }
+                    // Lấy Username (Cột 3)
+                    var username = ws.Cells[row, 3].Text?.Trim();
+                    var usernameForDupCheck = string.IsNullOrEmpty(username) ? email : username;
+                    if (!usernameRows.ContainsKey(usernameForDupCheck)) usernameRows[usernameForDupCheck] = new List<int>();
+                    usernameRows[usernameForDupCheck].Add(row);
+
+                    // Lấy dữ liệu các cột
+                    var schoolName = ws.Cells[row, 1].Text?.Trim();     // Col 1: Trường
+                    var fullname = ws.Cells[row, 4].Text?.Trim();     // Col 4: Họ tên
+                    var statusText = ws.Cells[row, 5].Text?.Trim();     // Col 5: Trạng thái
+                    var rolesText = ws.Cells[row, 6].Text?.Trim();     // Col 6: Vai trò
+                    var createdAtText = ws.Cells[row, 7].Text?.Trim();  // Col 7: Ngày tạo
+                    var phone = ws.Cells[row, 8].Text?.Trim();     // Col 8: SĐT
+                    var address = ws.Cells[row, 9].Text?.Trim();     // Col 9: Địa chỉ
+                    var passwordRaw = ws.Cells[row, 10].Text?.Trim();   // Col 10: Mật khẩu
+                    var dobText = ws.Cells[row, 11].Text?.Trim();    // Col 11: Ngày sinh
+                    var genderText = ws.Cells[row, 12].Text?.Trim();    // Col 12: Giới tính
 
                     var rowFieldErrors = new Dictionary<string, List<string>>();
 
                     try
                     {
-                        var username = ws.Cells[row, 2].Text?.Trim();
-                        var fullname = ws.Cells[row, 3].Text?.Trim();
-                        var statusText = ws.Cells[row, 4].Text?.Trim();
-                        var rolesText = ws.Cells[row, 5].Text?.Trim();
-                        var createdAtText = ws.Cells[row, 6].Text?.Trim();
-                        var phone = ws.Cells[row, 7].Text?.Trim();
-                        var address = ws.Cells[row, 8].Text?.Trim();
-                        var passwordHashCell = ws.Cells[row, 9].Text?.Trim();
-                        var dobText = ws.Cells[row, 10].Text?.Trim();
-                        var genderText = ws.Cells[row, 11].Text?.Trim();
-
-                        // helper: remove diacritics and normalize
-                        static string NormalizeText(string? s)
+                        // 1. VALIDATE TRƯỜNG (SCHOOL CHECK) - YÊU CẦU 1
+                        // Nếu người import thuộc một trường cụ thể (và không phải Admin), bắt buộc file excel phải nhập đúng trường đó
+                        if (!isImporterAdmin && !string.IsNullOrEmpty(currentSchoolName))
                         {
-                            if (string.IsNullOrEmpty(s)) return string.Empty;
-                            var normalized = s.Normalize(NormalizationForm.FormD);
-                            var sb = new StringBuilder();
-                            foreach (var ch in normalized)
+                            var normalizedCell = NormalizeTextLocal(schoolName);
+                            var normalizedCurrent = NormalizeTextLocal(currentSchoolName);
+
+                            if (string.IsNullOrEmpty(normalizedCell))
                             {
-                                var uc = CharUnicodeInfo.GetUnicodeCategory(ch);
-                                if (uc != UnicodeCategory.NonSpacingMark) sb.Append(ch);
+                                if (!rowFieldErrors.ContainsKey("School")) rowFieldErrors["School"] = new List<string>();
+                                rowFieldErrors["School"].Add($"Hàng {row}: Vui lòng điền tên trường '{currentSchoolName}' vào cột Trường.");
                             }
-                            return sb.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant().Replace(" ", "");
+                            else if (!string.Equals(normalizedCell, normalizedCurrent, StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (!rowFieldErrors.ContainsKey("School")) rowFieldErrors["School"] = new List<string>();
+                                rowFieldErrors["School"].Add($"Hàng {row}: Tên trường '{schoolName}' không khớp. Bạn chỉ có quyền import vào trường '{currentSchoolName}'.");
+                            }
                         }
 
-                        // Validate email uniqueness
+                        // 2. Validate Email (DB Check)
                         var existingByEmail = _userRepository.GetByEmail(email);
                         if (existingByEmail != null)
                         {
                             if (!rowFieldErrors.ContainsKey("Email")) rowFieldErrors["Email"] = new List<string>();
-                            rowFieldErrors["Email"].Add($"Hàng {row}: Email '{email}' đã tồn tại");
+                            rowFieldErrors["Email"].Add($"Hàng {row}: Email '{email}' đã tồn tại trong hệ thống.");
                         }
 
-                        // Validate username uniqueness
+                        // 3. Validate Username (DB Check)
                         if (!string.IsNullOrEmpty(username))
                         {
                             var existingByUsername = _userRepository.GetByUsername(username);
                             if (existingByUsername != null)
                             {
                                 if (!rowFieldErrors.ContainsKey("Username")) rowFieldErrors["Username"] = new List<string>();
-                                rowFieldErrors["Username"].Add($"Hàng {row}: Tên người dùng '{username}' đã tồn tại");
+                                rowFieldErrors["Username"].Add($"Hàng {row}: Username '{username}' đã tồn tại trong hệ thống.");
                             }
                         }
 
-                        // Resolve roles and validate combinations
+                        // 4. VALIDATE ROLES - YÊU CẦU 2 (Cấm ADMIN & EXTERNAL STUDENT)
                         List<Guid> roleIds = new List<Guid>();
-                        var roleNames = new List<string>();
+                        var roleNames = new List<string>(); // Để check logic mâu thuẫn bên dưới
                         if (!string.IsNullOrEmpty(rolesText))
                         {
-                            var rnList = rolesText.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(r => r.Trim()).Where(r => !string.IsNullOrEmpty(r)).ToList();
+                            var rnList = rolesText.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                                                  .Select(r => r.Trim())
+                                                  .Where(r => !string.IsNullOrEmpty(r))
+                                                  .ToList();
 
-                            // Check for duplicate role names in the same cell (case-insensitive)
-                            var dupes = rnList.GroupBy(x => x, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
-                            if (dupes.Any())
-                            {
-                                if (!rowFieldErrors.ContainsKey("RoleIds")) rowFieldErrors["RoleIds"] = new List<string>();
-                                rowFieldErrors["RoleIds"].Add($"Hàng {row}: Danh sách vai trò không được chứa trùng lặp: {string.Join(", ", dupes)}");
-                            }
-
-                            // Resolve roles (use distinct values)
                             var distinctRoles = rnList.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
                             foreach (var rn in distinctRoles)
                             {
-                                var role = _roleRepository.GetRoleByName(rn ?? "");
+                                // --- CHECK CẤM ROLE ADMIN & EXTERNAL STUDENT (skip when importer is Admin) ---
+                                if (!isImporterAdmin && (string.Equals(rn, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                                    string.Equals(rn, "External Student", StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    if (!rowFieldErrors.ContainsKey("RoleIds")) rowFieldErrors["RoleIds"] = new List<string>();
+                                    rowFieldErrors["RoleIds"].Add($"Hàng {row}: Không được phép import vai trò '{rn}'.");
+                                    continue; // Bỏ qua việc tìm ID role này
+                                }
+                                // ------------------------------------------------
+
+                                var role = _roleRepository.GetRoleByName(rn);
                                 if (role != null)
                                 {
                                     roleIds.Add(role.Id);
-                                    if (!string.IsNullOrEmpty(role.Name)) roleNames.Add(role.Name);
+                                    roleNames.Add(role.Name);
                                 }
                                 else
                                 {
                                     if (!rowFieldErrors.ContainsKey("RoleIds")) rowFieldErrors["RoleIds"] = new List<string>();
-                                    rowFieldErrors["RoleIds"].Add($"Hàng {row}: Vai trò '{rn}' không tồn tại");
+                                    rowFieldErrors["RoleIds"].Add($"Hàng {row}: Vai trò '{rn}' không tồn tại trong hệ thống.");
                                 }
                             }
                         }
 
+                        // Validate Logic Roles (Mâu thuẫn vai trò)
                         if (roleNames.Any())
                         {
-                            bool hasExternal = roleNames.Any(n => string.Equals(n, "External Student", StringComparison.OrdinalIgnoreCase));
-                            bool hasSchool = roleNames.Any(n => string.Equals(n, "School Student", StringComparison.OrdinalIgnoreCase));
-                            if (hasExternal && hasSchool)
-                            {
-                                if (!rowFieldErrors.ContainsKey("RoleIds")) rowFieldErrors["RoleIds"] = new List<string>();
-                                rowFieldErrors["RoleIds"].Add($"Hàng {row}: Không thể thêm cùng lúc vai trò External Student và School Studen");
-                            }
+                            var studentRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "School Student" }; // External Student đã bị chặn ở trên
+                            var managerRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Teacher", "Manager", "Moderator", "Subject Teacher", "Homeroom Teacher" };
 
-                            var studentRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "External Student", "School Student" };
-                            var managerRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Teacher", "Manager", "Admin", "Moderator" };
                             bool hasStudent = roleNames.Any(n => studentRoles.Contains(n));
-                            bool hasManager = roleNames.Any(role => managerRoles.Any(keyword => role.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
+                            bool hasManager = roleNames.Any(role => managerRoles.Any(m => role.Contains(m, StringComparison.OrdinalIgnoreCase)));
+
                             if (hasStudent && hasManager)
                             {
                                 if (!rowFieldErrors.ContainsKey("RoleIds")) rowFieldErrors["RoleIds"] = new List<string>();
-                                rowFieldErrors["RoleIds"].Add($"Hàng {row}: Học sinh không thể cùng với vai trò quản lí (Teacher/Manager/Admin/Moderator)");
+                                rowFieldErrors["RoleIds"].Add($"Hàng {row}: Không thể gán vai trò Học sinh cùng với Quản lý/Giáo viên.");
                             }
                         }
 
-                        // Parse CreatedAt
+                        // 5. Validate CreatedAt
                         DateTime? createdAt = null;
                         if (!string.IsNullOrEmpty(createdAtText))
                         {
-                            // expect dd/MM/yyyy from user (e.g., 13/10/2014)
-                            if (DateTime.TryParseExact(createdAtText, new[] { "dd/MM/yyyy", "d/M/yyyy" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedCreated))
-                            {
-                                createdAt = parsedCreated;
-                            }
-                            else if (DateTime.TryParse(createdAtText, out var parsedAny))
-                            {
-                                createdAt = parsedAny;
-                            }
+                            if (DateTime.TryParseExact(createdAtText, new[] { "dd/MM/yyyy", "d/M/yyyy" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+                                createdAt = parsed;
                             else
                             {
                                 if (!rowFieldErrors.ContainsKey("CreatedAt")) rowFieldErrors["CreatedAt"] = new List<string>();
-                                rowFieldErrors["CreatedAt"].Add($"Hàng {row}: Ngày tạo '{createdAtText}' không phải là ngày hợp lệ (mong đợi dd/MM/yyyy)");
+                                rowFieldErrors["CreatedAt"].Add($"Hàng {row}: Ngày tạo sai định dạng (yêu cầu dd/MM/yyyy).");
                             }
                         }
 
-                        // Parse Dob: prefer explicit dd/MM/yyyy (e.g. 23/10/2014), then fall back to other parses
+                        // 6. Validate Dob
                         DateOnly? dob = null;
                         if (!string.IsNullOrEmpty(dobText))
                         {
-                            // Try exact dd/MM/yyyy formats first (user locale)
-                            if (DateOnly.TryParseExact(dobText, new[] { "dd/MM/yyyy", "d/M/yyyy" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dobExact))
-                            {
-                                dob = dobExact;
-                            }
-                            else if (DateOnly.TryParse(dobText, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d1))
-                            {
-                                dob = d1;
-                            }
-                            else if (DateTime.TryParseExact(dobText, new[] { "dd/MM/yyyy", "d/M/yyyy" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dtExact))
-                            {
-                                dob = DateOnly.FromDateTime(dtExact);
-                            }
+                            if (DateOnly.TryParseExact(dobText, new[] { "dd/MM/yyyy", "d/M/yyyy" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dExact))
+                                dob = dExact;
                             else if (DateTime.TryParse(dobText, out var dt))
-                            {
                                 dob = DateOnly.FromDateTime(dt);
-                            }
                             else
                             {
                                 if (!rowFieldErrors.ContainsKey("Dob")) rowFieldErrors["Dob"] = new List<string>();
-                                rowFieldErrors["Dob"].Add($"Hàng {row}: Ngày sinh '{dobText}' không phải là ngày hợp lệ (mong đợi dd/MM/yyyy)");
+                                rowFieldErrors["Dob"].Add($"Hàng {row}: Ngày sinh sai định dạng (yêu cầu dd/MM/yyyy).");
                             }
                         }
 
-                        // Parse Gender (accept "Nam"/"Nữ" in Vietnamese or 1/0)
-                        bool? genderBool = null;
-                        if (!string.IsNullOrEmpty(genderText))
-                        {
-                            var normGender = NormalizeText(genderText);
-                            if (normGender.Contains("nam") || normGender == "1") genderBool = true;
-                            else if (normGender.Contains("nu") || normGender == "0") genderBool = false;
-                            else if (int.TryParse(genderText, out var gi) && (gi == 0 || gi == 1)) genderBool = (gi == 1);
-                            else
-                            {
-                                if (!rowFieldErrors.ContainsKey("Gender")) rowFieldErrors["Gender"] = new List<string>();
-                                rowFieldErrors["Gender"].Add($"Hàng {row}: Giới tính '{genderText}' không hợp lệ (mong đợi Nam/Nữ hoặc 1/0)");
-                            }
-                        }
-
-                        // Validate Status (accept Vietnamese text)
-                        bool? statusBool = null;
-                        if (!string.IsNullOrEmpty(statusText))
-                        {
-                            var normStatus = NormalizeText(statusText);
-                            if (normStatus.Contains("cohieu") || normStatus.Contains("cohieuluc") || normStatus.Contains("active")) statusBool = true;
-                            else if (normStatus.Contains("vohieu") || normStatus.Contains("vohieuhua") || normStatus.Contains("inactive")) statusBool = false;
-                            else
-                            {
-                                if (!rowFieldErrors.ContainsKey("Status")) rowFieldErrors["Status"] = new List<string>();
-                                rowFieldErrors["Status"].Add($"Hàng {row}: Trạng thái '{statusText}' không hợp lệ (mong đợi 'Có hiệu lực' hoặc 'Vô hiệu hoá')");
-                            }
-                        }
-
-                        // Validate phone number (Vietnam format)
+                        // 7. Validate Phone (VN)
                         if (!string.IsNullOrEmpty(phone))
                         {
                             var phoneNorm = phone.Replace(" ", "").Trim();
-                            var phoneRegex = new Regex("^(\\+84|0)(3|5|7|8|9)\\d{8}$");
+                            var phoneRegex = new Regex(@"^(\+84|0)(3|5|7|8|9)\d{8}$");
                             if (!phoneRegex.IsMatch(phoneNorm))
                             {
                                 if (!rowFieldErrors.ContainsKey("PhoneNumber")) rowFieldErrors["PhoneNumber"] = new List<string>();
-                                rowFieldErrors["PhoneNumber"].Add($"Hàng {row}: Số điện thoại '{phone}' không phải là số điện thoại Việt Nam");
+                                rowFieldErrors["PhoneNumber"].Add($"Hàng {row}: SĐT không hợp lệ (VN).");
                             }
                         }
 
-                        // If any row-level validation errors, record them and skip creation
+                        // 8. Validate Gender / Status
+                        bool? genderBool = null;
+                        if (!string.IsNullOrEmpty(genderText))
+                        {
+                            var gNorm = NormalizeTextLocal(genderText);
+                            if (gNorm.Contains("nam") || gNorm == "1") genderBool = true;
+                            else if (gNorm.Contains("nu") || gNorm == "0") genderBool = false;
+                            else
+                            {
+                                if (!rowFieldErrors.ContainsKey("Gender")) rowFieldErrors["Gender"] = new List<string>();
+                                rowFieldErrors["Gender"].Add($"Hàng {row}: Giới tính không hợp lệ.");
+                            }
+                        }
+
+                        bool? statusBool = null;
+                        if (!string.IsNullOrEmpty(statusText))
+                        {
+                            var sNorm = NormalizeTextLocal(statusText);
+                            if (sNorm.Contains("cohieu") || sNorm == "active") statusBool = true;
+                            else if (sNorm.Contains("vohieu") || sNorm == "inactive") statusBool = false;
+                            else
+                            {
+                                if (!rowFieldErrors.ContainsKey("Status")) rowFieldErrors["Status"] = new List<string>();
+                                rowFieldErrors["Status"].Add($"Hàng {row}: Trạng thái không hợp lệ.");
+                            }
+                        }
+
+                        // --- TỔNG HỢP LỖI DÒNG ---
                         if (rowFieldErrors.Any())
                         {
                             result.Failed++;
@@ -539,8 +617,25 @@ namespace StudyHub.Backend.UseCases.Services
                             continue;
                         }
 
-                        // prepare user
-                        var user = new AppUser
+                        // --- TẠO OBJECT USER ---
+                        // Determine assigned SchoolId: if importer is Admin, allow using the 'Trường' column value
+                        int? assignedSchoolId = currentUser.SchoolId;
+                        if (isImporterAdmin && !string.IsNullOrEmpty(schoolName))
+                        {
+                            try
+                            {
+                                var allSchools = _locationService.GetAllSchools();
+                                if (allSchools != null)
+                                {
+                                    var target = allSchools.FirstOrDefault(s => NormalizeTextLocal(s.Name) == NormalizeTextLocal(schoolName));
+                                    if (target != null) assignedSchoolId = target.Id;
+                                    else assignedSchoolId = null; // leave null if not found
+                                }
+                            }
+                            catch { assignedSchoolId = null; }
+                        }
+
+                        var newUser = new AppUser
                         {
                             Id = Guid.NewGuid(),
                             Email = email,
@@ -551,79 +646,60 @@ namespace StudyHub.Backend.UseCases.Services
                             Status = statusBool ?? true,
                             PhoneNumber = phone,
                             Address = address,
+                            Gender = genderBool ?? true,
+                            SchoolId = assignedSchoolId // Gán SchoolId (Admin importer may set via Trường column)
                         };
 
-                        // PasswordHash handling
-                        if (!string.IsNullOrEmpty(passwordHashCell)) user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(passwordHashCell, SALT_ROUNDS);
+                        if (dob.HasValue) newUser.Dob = dob.Value;
+
+                        if (!string.IsNullOrEmpty(passwordRaw))
+                            newUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(passwordRaw, SALT_ROUNDS);
                         else
-                        {
-                            var defaultPw = _configuration["DefaultImportPassword"] ?? "12345";
-                            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultPw, SALT_ROUNDS);
-                        }
+                            newUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(_configuration["DefaultImportPassword"] ?? "12345", SALT_ROUNDS);
 
-                        if (dob.HasValue) user.Dob = dob.Value;
-                        if (genderBool.HasValue) user.Gender = genderBool.Value;
-
-                        // add to bulk list; actual database insert will occur after validation of all rows
-                        usersWithRoles.Add((user, roleIds.Count > 0 ? roleIds : null, row));
+                        usersWithRoles.Add((newUser, roleIds.Count > 0 ? roleIds : null, row));
                     }
                     catch (Exception ex)
                     {
                         result.Failed++;
                         if (!result.FieldErrors.ContainsKey("_general")) result.FieldErrors["_general"] = new List<string>();
-                        result.FieldErrors["_general"].Add($"Hàng {row}: {ex.Message}");
+                        result.FieldErrors["_general"].Add($"Hàng {row}: Lỗi - {ex.Message}");
                     }
 
                     row++;
                 }
 
-                // detect duplicate emails/usernames inside the uploaded worksheet
+                // --- CHECK TRÙNG LẶP TRONG FILE ---
                 foreach (var kv in emailRows.Where(kv => kv.Value.Count > 1))
                 {
                     var emailKey = kv.Key;
                     var rows = kv.Value;
-                    foreach (var r in rows)
-                    {
-                        if (!result.FieldErrors.ContainsKey("Email")) result.FieldErrors["Email"] = new List<string>();
-                        var otherRows = string.Join(", ", rows.Where(x => x != r));
-                        result.FieldErrors["Email"].Add($"Hàng {r}: Email '{emailKey}' đã bị lặp trong file vừa tải lên (đồng thời trong hàng: {otherRows})");
+                    if (!result.FieldErrors.ContainsKey("Email")) result.FieldErrors["Email"] = new List<string>();
+                    result.FieldErrors["Email"].Add($"Email '{emailKey}' bị trùng tại các hàng: {string.Join(", ", rows)}");
 
-                        // if this row was scheduled for create (no other validation errors), remove it and count as failed
-                        var found = usersWithRoles.Where(u => u.Row == r).ToList();
-                        foreach (var f in found)
-                        {
-                            usersWithRoles.Remove(f);
-                            result.Failed++;
-                        }
-                    }
+                    var found = usersWithRoles.Where(u => rows.Contains(u.Row)).ToList();
+                    foreach (var f in found) { usersWithRoles.Remove(f); result.Failed++; }
                 }
 
                 foreach (var kv in usernameRows.Where(kv => kv.Value.Count > 1))
                 {
-                    var usernameKey = kv.Key;
+                    var userKey = kv.Key;
                     var rows = kv.Value;
-                    foreach (var r in rows)
-                    {
-                        if (!result.FieldErrors.ContainsKey("Username")) result.FieldErrors["Username"] = new List<string>();
-                        var otherRows = string.Join(", ", rows.Where(x => x != r));
-                        result.FieldErrors["Username"].Add($"Hàng {r}: Tên người dùng '{usernameKey}' đã bị lặp trong file vừa tải lên (đồng thời trong hàng: {otherRows})");
+                    if (!result.FieldErrors.ContainsKey("Username")) result.FieldErrors["Username"] = new List<string>();
+                    result.FieldErrors["Username"].Add($"Username '{userKey}' bị trùng tại các hàng: {string.Join(", ", rows)}");
 
-                        var found = usersWithRoles.Where(u => u.Row == r).ToList();
-                        foreach (var f in found)
-                        {
-                            usersWithRoles.Remove(f);
-                            result.Failed++;
-                        }
+                    var found = usersWithRoles.Where(u => rows.Contains(u.Row)).ToList();
+                    foreach (var f in found)
+                    {
+                        if (usersWithRoles.Contains(f)) { usersWithRoles.Remove(f); result.Failed++; }
                     }
                 }
 
-                // After processing all rows, if there are any field errors, throw so API returns 400
                 if (result.FieldErrors.Any())
                 {
                     throw new InvalidImportFieldException(result.FieldErrors);
                 }
 
-                // No validation errors — create users in bulk
                 if (usersWithRoles.Any())
                 {
                     _userRepository.CreateUsersWithRoles(usersWithRoles.Select(u => (u.user, u.roleIds)));
@@ -634,12 +710,12 @@ namespace StudyHub.Backend.UseCases.Services
             return result;
         }
 
-        public PagedResult<AppUserListDto> GetAppUsers(string? status, string? role, string? search, int page, int limit)
+        public PagedResult<AppUserListDto> GetAppUsers(string? status, string? role, string? search, int page, int limit, int? schoolId = null)
         {
 
             var myUserId = _authService.GetCurrentUser().Id;
 
-            var (users, total, totalPages, pageResult, limitResult) = _userRepository.GetAppUsersBySearchAndFilter(status, role, search, page, limit, myUserId);
+            var (users, total, totalPages, pageResult, limitResult) = _userRepository.GetAppUsersBySearchAndFilter(status, role, search, page, limit, myUserId, schoolId);
 
             var items = new List<AppUserListDto>();
             foreach (var u in users)
@@ -653,6 +729,7 @@ namespace StudyHub.Backend.UseCases.Services
                     Username = u.Username,
                     Fullname = u.Fullname,
                     Avatar = u.Avatar,
+                    SchoolName = _locationService.GetSchoolById(u.SchoolId)?.Name,
                     Status = (u.Status == true) ? "Active" : "Inactive",
                     CreatedAt = u.CreatedAt.ToString("yyyy/MM/dd"),
                     Roles = roles,

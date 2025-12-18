@@ -21,7 +21,12 @@ namespace StudyHub.Backend.Api.Mappers
                 SubjectIds = result.SubjectIds ?? new List<short>(),
                 SchoolId = result.User.SchoolId,
                 IsLoginWithGoogle = result.User.IsLoginWithGoogle,
-                TransferId = result.User.TransferId
+                TransferId = result.User.TransferId,
+                SchoolName = result.SchoolName,
+                CommuneId = result.CommuneId,
+                CommuneName = result.CommuneName,
+                CityId = result.CityId,
+                CityName = result.CityName
             };
         }
     }

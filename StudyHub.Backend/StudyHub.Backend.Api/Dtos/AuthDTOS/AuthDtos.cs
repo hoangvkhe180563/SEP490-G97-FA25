@@ -92,6 +92,12 @@ namespace StudyHub.Backend.Api.Dtos.AuthDTOS
         public int? TransferId { get; set; }
 
         public long Wallet { get; set; }
+        // Resolved location names to save extra client lookups
+        public string? SchoolName { get; set; }
+        public int? CommuneId { get; set; }
+        public string? CommuneName { get; set; }
+        public int? CityId { get; set; }
+        public string? CityName { get; set; }
 
     }
 
