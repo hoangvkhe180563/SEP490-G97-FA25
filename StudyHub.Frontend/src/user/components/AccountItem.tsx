@@ -28,7 +28,10 @@ import toast from "react-hot-toast";
 import { ROLES } from "@/common/constants/Roles";
 
 const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
-  const { updateUserStatus } = useAppUserStore();
+  const { updateUserStatus, currentUser } = useAppUserStore();
+  const isViewerAdmin = (currentUser?.roles || []).some(
+    (r) => r === ROLES.ADMIN
+  );
 
   return (
     <TableRow>
@@ -84,6 +87,15 @@ const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
           </TooltipProvider>
         )}
       </TableCell>
+      {isViewerAdmin && (
+        <TableCell className="px-6 py-4 text-center">
+          {user.schoolName ? (
+            <span className="text-sm text-gray-700">{user.schoolName}</span>
+          ) : (
+            <span className="text-sm text-gray-500">-</span>
+          )}
+        </TableCell>
+      )}
       <TableCell className="px-6 py-4 text-center">
         {(() => {
           const roles = user.roles || [];

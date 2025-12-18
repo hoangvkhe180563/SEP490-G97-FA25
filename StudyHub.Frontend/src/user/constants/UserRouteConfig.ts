@@ -1,4 +1,10 @@
 const UserRouteConfig = {
+  ADMIN: {
+    INDEX: "admin",
+    ACCOUNT_LIST: "accounts",
+    ADD_ACCOUNT: "add-account",
+    UPDATE_ACCOUNT: "update-account/:id",
+  },
   MANAGER: {
     INDEX: "manager",
     PROFILE: "profile",
