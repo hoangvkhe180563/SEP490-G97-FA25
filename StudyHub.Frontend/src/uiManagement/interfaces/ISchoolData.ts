@@ -1,4 +1,5 @@
 export interface ISchoolData {
+  id?: number;
   schoolName: string;
   communeId: number;
   banner: File | null;
@@ -13,5 +14,21 @@ export interface ISchoolData {
   accountNumber: string;
   accountBank: string;
   exchangeRate: number;
-  //qr code: on backend
+}
+
+export interface ISchoolFormData {
+  schoolName: string;
+  communeId: number;
+  cityId: number;
+  bannerUrl: string;
+  logoUrl: string;
+  description: string;
+  address: string;
+  landingPageImages: string[];
+  featuredDocumentIds: number[];
+  featuredCourseIds: number[];
+  accountName: string;
+  accountNumber: string;
+  accountBank: string;
+  exchangeRate: number;
 }

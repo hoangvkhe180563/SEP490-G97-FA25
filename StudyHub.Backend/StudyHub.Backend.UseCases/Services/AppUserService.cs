@@ -901,6 +901,7 @@ namespace StudyHub.Backend.UseCases.Services
                 Address = address,
                 PhoneNumber = phoneNumber,
                 SchoolId = schoolId == 0 ? null : schoolId,
+                IsVerified = true
             };
             if (errors.Count > 0)
             {

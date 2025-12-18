@@ -104,7 +104,7 @@ const DocumentCard: React.FC<{ doc: DocumentRecommendation }> = ({ doc }) => {
             <article
               onClick={() => {
                 try {
-                  navigate(`/document/student/details/${doc.id}`);
+                  navigate(`/document/details/${doc.id}`);
                 } catch {
                   /* ignore */
                 }

@@ -90,23 +90,11 @@ export default function LoginPage() {
     const identifier = data.identifier.trim();
     const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
     if (emailRegex.test(identifier)) {
-      await login("", identifier, data.password, (user) => {
-        if (user) {
-          if (user.schoolId !== null) {
-            navigate(`/ui/school-landing`);
-            return;
-          }
-        }
+      await login("", identifier, data.password, (_) => {
         navigate("/ui/landing");
       });
     } else {
-      await login(identifier, "", data.password, (user) => {
-        if (user) {
-          if (user.schoolId !== null) {
-            navigate(`/ui/school-landing`);
-            return;
-          }
-        }
+      await login(identifier, "", data.password, (_) => {
         navigate("/ui/landing");
       });
     }

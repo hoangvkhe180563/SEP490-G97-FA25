@@ -4,6 +4,13 @@ import type {
   RecommendationResponse,
   LLMRecommendationResponse,
   LLMProfile,
+  StudentQuestionStatsDto,
+  DateCountDto,
+  HourCountDto,
+  SubjectCountDto,
+  TokenSummaryDto,
+  DateTokenDto,
+  UserTokenDto,
 } from "../interfaces/recommend";
 
 type RecommendState = {
@@ -16,7 +23,8 @@ type RecommendState = {
   fetchRecommendLLM: (
     userMessage?: string,
     profile?: LLMProfile,
-    topK?: number
+    topK?: number,
+    isGenerateExplanation?: boolean
   ) => Promise<LLMRecommendationResponse | null>;
   createLlmHistory: (inputText?: string) => Promise<any>;
   updateLlmHistoryResponse: (
@@ -132,13 +140,16 @@ export const useRecommendStore = create<RecommendState>((set: any) => ({
   fetchRecommendLLM: async (
     userMessage?: string,
     profile?: LLMProfile,
-    topK = 30
+    topK = 30,
+    isGenerateExplanation = false
   ) => {
     set({ llmLoading: true, error: null });
     try {
       const body: any = { topK };
       if (userMessage) body.userMessage = userMessage;
       if (profile) body.profile = profile;
+      if (isGenerateExplanation)
+        body.isGenerateExplanation = isGenerateExplanation;
 
       const { data } = await axiosInstance.post<LLMRecommendationResponse>(
         "/Recommendation/recommend-llm",

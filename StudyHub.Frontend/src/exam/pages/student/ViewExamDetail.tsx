@@ -54,8 +54,6 @@ const ViewExamDetail = () => {
       try {
         setLoading(true);
         const [fetchedExam, results] = await Promise.all([
-          examService.getExamById(Number(id)),
-          examService.getResultsByStudentAndExamId(user.id, Number(id)),
           examService.getExamById(Number(id), true),
           examService.getResultsByStudentAndExamId(user.id, Number(id)),
         ]);
@@ -84,6 +82,11 @@ const ViewExamDetail = () => {
     setLoading(true);
     if (!user) {
       toast.error("Vui lòng đăng nhập");
+      return;
+    }
+    const existingResult = await examService.getProcessingResult(Number(id), user.id);
+    if (existingResult) {
+      navigate(`/exam/student/take-exam/${exam.id}`);
       return;
     }
 
@@ -224,20 +227,20 @@ const ViewExamDetail = () => {
               <div>
                 <p className="font-semibold">Học sinh: {r.studentName}</p>
                 <p className="text-sm text-gray-600">
-                  Nộp lúc: <b>{r.submissionTime?.toLocaleString("vi-VN")}</b>
+                  Nộp lúc: <b>{r.submissionTime ? r.submissionTime.toLocaleString("vi-VN") : "(Chưa nộp)"}</b>
                 </p>
-                <p className="text-sm text-gray-700">Điểm: {r.score}</p>
+                <p className="text-sm text-gray-700">Điểm: {r.submissionTime ? r.score : "(Chưa nộp)"}</p>
                 <p className="text-sm text-gray-700">
                   Số lần chuyển tab/thu nhỏ màn hình:{" "}
                   <span className="text-red-600">{r.cheatTimes}</span>
                 </p>
               </div>
               <div>
-                <Link to={`/exam/results/${r.id}`}>
+                {r.submissionTime && <Link to={`/exam/results/${r.id}`}>
                   <Button className="px-3 py-1 bg-green-600 text-white hover:bg-green-700">
                     Xem chi tiết
                   </Button>
-                </Link>
+                </Link>}
               </div>
             </div>
           ))}

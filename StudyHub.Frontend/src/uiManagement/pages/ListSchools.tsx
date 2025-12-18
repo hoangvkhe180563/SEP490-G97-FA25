@@ -108,9 +108,11 @@ export default function ListSchools() {
                       {school.description}
                     </p>
 
-                    <Button variant="outline" className="w-full mt-auto">
-                      <Pencil /> Chỉnh sửa
-                    </Button>
+                    <Link to={`/ui/schools/edit/${school.id}`}>
+                      <Button variant="outline" className="w-full mt-auto">
+                        <Pencil /> Chỉnh sửa
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               </Card>
