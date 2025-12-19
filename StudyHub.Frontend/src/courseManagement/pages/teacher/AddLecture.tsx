@@ -909,7 +909,7 @@ const AddLecture: React.FC = () => {
         showAnswers: true,
         showCorrectAnswers: true,
         lessonId: created.id,
-        openTime: postDate ? new Date(postDate) : new Date(),
+        openTime: postDate ? parse(postDate, "dd/MM/yyyy", new Date()) : new Date(),
         subjectId: selectedSubjectId,
         grade: selectedGrade,
       };

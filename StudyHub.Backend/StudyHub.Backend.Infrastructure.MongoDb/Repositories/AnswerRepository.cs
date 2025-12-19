@@ -81,11 +81,22 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
             return [];
         }
 
-        public bool UpdateManyAnswers(string resultObjectId, List<ExamAnswer> answers)
+        public bool UpdateManyAnswers(string resultObjectId, List<ExamAnswer> answers, bool isSubmission)
         {
             try
             {
                 List<Answer> answerList = answers.Select(a => a.ToAnswerData()).ToList();
+                if (!isSubmission)
+                {
+                    List<ExamAnswer> originalAnswers = GetAnswersByResultId(resultObjectId, true, true);
+                    for (int i = 0; i < answerList.Count; i++)
+                    {
+                        var answer = answerList[i];
+                        var originalAnswer = originalAnswers.First(a => a.QuestionId == answer.QuestionId.ToString());
+
+                        answer.IsCorrect = originalAnswer.IsCorrect;
+                    }
+                }
 
                 var update = Builders<Result>.Update
                                 .Set(q => q.Answers, answerList);

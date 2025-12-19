@@ -249,5 +249,6 @@ export interface ClassState {
   confirmMember: (classId: number, userId: string) => Promise<boolean>;
   declineMember: (classId: number, userId: string) => Promise<boolean>;
   getClassExams: (classId: number) => Promise<Exam[]>;
+  getStudentClassExams: (studentId: string) => Promise<Exam[]>;
   getUnreadCount: (classId: number, type?: string, userId?: string) => Promise<number>;
 }

@@ -1,52 +1,25 @@
 services:
   # 1. BACKEND API (.NET)
   backend-api:
-    image: studyhub-api
-    container_name: studyhub-api
     build:
       context: .
       dockerfile: StudyHub.Backend.Api/Dockerfile
+    container_name: studyhub-api
+    restart: always
     ports:
       - "6789:6789"
-    depends_on:
-      - mongo-db
-      - mysql-db
-      - elasticsearch
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:6789
 
-  # 2. MONGODB
-  mongo-db:
-    image: mongo:8.2.1
-    container_name: studyhub-mongo
-    restart: always
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-
-  # 3. MYSQL (Vì bạn có ConnectionStrings:value format kiểu SQL)
-  mysql-db:
-    image: mysql:8.0.43
-    container_name: studyhub-mysql
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: "123456"
-      MYSQL_DATABASE: "studyhub"
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-
-  # 4. ELASTICSEARCH
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:9.2.1
     container_name: studyhub-elastic
+    restart: always
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=false # Tắt bảo mật để chạy dev cho nhanh (http thay vì https)
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m" # Giới hạn RAM để không treo máy
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     mem_limit: 1g
     ulimits:
       memlock:
@@ -54,11 +27,8 @@ services:
         hard: -1
     ports:
       - "9200:9200"
-      - "9300:9300"
     volumes:
       - elastic_data:/usr/share/elasticsearch/data
 
 volumes:
-  mongo_data:
-  mysql_data:
   elastic_data:

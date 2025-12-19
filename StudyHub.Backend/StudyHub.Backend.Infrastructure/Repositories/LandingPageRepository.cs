@@ -345,7 +345,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 Data.City city = _context.Cities.First(c => c.Id == commune.CityId);
                 string cityName = city.Name;
 
-                return $"{school.Address}, Phường {communeName}, Thành phố {cityName}";
+                return $"{school.Address}, {communeName}, {cityName}";
             }
             catch (Exception ex)
             {
@@ -354,7 +354,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return string.Empty;
         }
 
-        public List<SchoolDto> GetSchoolList()
+        public List<SchoolListItemDto> GetSchoolList()
         {
             try
             {
@@ -364,10 +364,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     throw new Exception("Number of schools must equal to number of landing pages!");
                 }
-                List<SchoolDto> schoolList = new List<SchoolDto>();
+                List<SchoolListItemDto> schoolList = new List<SchoolListItemDto>();
                 for (int i = 0; i < schools.Count; i++)
                 {
-                    SchoolDto schoolData = new SchoolDto();
+                    SchoolListItemDto schoolData = new SchoolListItemDto();
                     schoolData.SchoolId = schools[i].Id;
                     schoolData.SchoolName = schools[i].Name;
                     schoolData.CommuneId = schools[i].CommuneId;
@@ -473,6 +473,49 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 new InfrastructureException("LandingPageRepository", "UpdateSchool failed. Inner error: " + ex.Message).LogError();
             }
             return false;
+        }
+
+        public Domain.Entities.School? GetSchoolById(int schoolId)
+        {
+            try
+            {
+                var schoolData = _context.Schools.FirstOrDefault(s => s.Id == schoolId);
+                if (schoolData == null) throw new Exception("School is null");
+
+                return new Domain.Entities.School
+                {
+                    Id = schoolData.Id,
+                    Name = schoolData.Name,
+                    Address = schoolData.Address,
+                    CommuneId = schoolData.CommuneId
+                };
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("LandingPageRepository", "GetSchoolById failed. Inner error: " + ex.Message).LogError();
+            }
+            return null;
+        }
+
+        public List<Domain.Entities.Document> GetAllDocumentsBySchool(int schoolId)
+        {
+            try
+            {
+                var documents = _context.Documents.Include(d => d.Subject).Where(d => d.SchoolId == schoolId && d.IsInClass == false && d.Status == true).ToList();
+                return documents.Select(document => new Domain.Entities.Document
+                {
+                    Id = document.Id,
+                    Name = document.Name,
+                    Subject = new Domain.Entities.Subject { Id = document.Subject.Id, Name = document.Subject.Name },
+                    Grade = document.Grade,
+                    IsFeatured = document.IsFeatured,
+                }).ToList();
+            }
+            catch (Exception ex)
+            {
+                new InfrastructureException("LandingPageRepository", "GetSchoolById failed. Inner error: " + ex.Message).LogError();
+            }
+            return [];
         }
     }
 }

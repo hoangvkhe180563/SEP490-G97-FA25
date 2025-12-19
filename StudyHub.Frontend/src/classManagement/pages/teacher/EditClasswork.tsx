@@ -3,7 +3,6 @@ import { useClassStore } from "@/classManagement/stores/useClassStore";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { mapToCoarseRole } from "@/classManagement/utils/roleutil";
-import type { ClassInfo } from "@/classManagement/interfaces/class";
 import type { UserRole } from "@/classManagement/components/ui/classcard";
 import { axiosInstance } from "@/lib/axios";
 
@@ -230,7 +229,6 @@ const EditClassworkForm: React.FC = () => {
   const role: UserRole = coarseRole === "student" ? "student" : "teacher";
 
   const {
-    createClasswork,
     editClasswork,
     getClassWorks,
     getClassInfo,
@@ -480,9 +478,6 @@ const EditClassworkForm: React.FC = () => {
       });
     };
   }, [filePreviews]);
-
-  // ---------- helpers used by handlers ----------
-  const handleCancel = () => navigate(`/class/${role}/${id}? tab=exercise`);
 
   const postCreateNotification = async (fd: FormData) => {
     const endpoints = ["/ClassNotification", "/api/ClassNotification"];
@@ -804,7 +799,6 @@ const EditClassworkForm: React.FC = () => {
     setLinks((prev) => prev.filter((_, i) => i !== index));
 
   // ---------- derived values & rendering helpers ----------
-  const classInfo: ClassInfo | null = currentClass?. data?. classInfo ?? null;
   const inputClass = (base = "", field?: string) => {
     const err = field ? errors[field] : undefined;
     return `${base} ${err ?  "border-red-500 ring-1 ring-red-500" : ""}`. trim();

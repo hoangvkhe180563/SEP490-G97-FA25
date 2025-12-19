@@ -5,23 +5,29 @@ import { Link } from "react-router-dom";
 import { Button } from "@/common/components/ui/button";
 import { Eye } from "lucide-react";
 
-const ClassExams = (props: { classId: string, isTeacher: boolean }) => {
+const ClassExams = (props: { classId: string, isTeacher: boolean, userId: string }) => {
   const [classExams, setClassExams] = useState<Exam[]>([]);
 
-  const { getClassExams } = useClassStore();
+  const { getClassExams, getStudentClassExams } = useClassStore();
 
   useEffect(() => {
     const classIdNumber = Number(props.classId)
-    if (!classIdNumber) {
+    if (!classIdNumber || !props.userId) {
       return;
     }
     
     const fetchData = async () => {
-      const examData = await getClassExams(classIdNumber);
-      setClassExams(examData);
+      if (props.isTeacher) {        
+        const examData = await getClassExams(classIdNumber);
+        setClassExams(examData);
+      } else {
+        const examData = await getStudentClassExams(props.userId);
+        setClassExams(examData);
+      }
     }
 
     fetchData().catch(console.error);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!Number(props.classId)) {

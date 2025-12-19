@@ -30,34 +30,6 @@ export class ExamService {
     return false;
   }
 
-  getStudentClassExams = async (studentId: string): Promise<Exam[]> => {
-    try {
-      const res = await axiosInstance.get("/exam/class/by-student/" + studentId);
-      if (res.status === 200) {
-        return res.data.map((item: any) => {
-          return {
-            id: item.id,
-            title: item.title,
-            description: item.description,
-            openTime: item.openTime,
-            closeTime: item.closeTime,
-            duration: item.duration,
-            createdBy: item.createdBy,
-            showAnswers: item.showAnswers,
-            showCorrectAnswers: item.showCorrectAnswers,
-            isMultipleAttempts: item.isMultipleAttempts,
-            totalQuestions: item.totalQuestions
-          }
-        });
-      } else {
-        throw new Error(`Status: ${res.status}`);
-      }
-    } catch (error) {
-      console.error("Error getStudentClassExams: ", error);
-    }
-    return [];
-  }
-
   getClassExams = async (classId: string): Promise<Exam[]> => {
     try {
       const res = await axiosInstance.get("/exam/class/" + classId);
@@ -178,7 +150,7 @@ export class ExamService {
             studentId: item.studentId,
             studentName: item.studentName,
             finishTime: new Date(item.finishTime),
-            submissionTime: new Date(item.submissionTime),
+            submissionTime: item.submissionTime ? new Date(item.submissionTime) : null,
             score: item.score,
             cheatTimes: item.cheatTimes
           }
@@ -264,7 +236,7 @@ export class ExamService {
             studentId: item.studentId,
             studentName: item.studentName,
             examId: item.examId,
-            submissionTime: new Date(item.submissionTime),
+            submissionTime: item.submissionTime ? new Date(item.submissionTime) : null,
             score: item.score,
             cheatTimes: item.cheatTimes
           }

@@ -26,16 +26,16 @@ import useAppUserExcelStore from "@/user/stores/useAppUserExcelStore";
 import type { AppUser } from "@/user/interfaces/app-user";
 import { Link } from "react-router-dom";
 import { useAppRoleStore } from "@/user/stores/useRoleStore";
+import { useLocationStore } from "@/user/stores/useLocationStore";
 
 import { Paging } from "@/common/components/Paging";
-import { useAuthStore } from "@/auth/stores/useAuthStore";
-import { ROLES } from "@/common/constants/Roles";
 
-const AccountList = () => {
+const AdminAccountList = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string | "all">("all");
   const [statusFilter, setStatusFilter] = useState<string | "all">("all");
+  const [schoolFilter, setSchoolFilter] = useState<string | "all">("all");
   const [page, setPage] = useState(1);
 
   const {
@@ -54,36 +54,30 @@ const AccountList = () => {
     importAccounts,
     uploadPreview,
   } = useAppUserExcelStore();
-  // import validation errors parsed into row -> messages
   const [importErrors, setImportErrors] = useState<Record<number, string[]>>(
     {}
   );
-  // import cell-level errors: row -> colIndex -> messages
   const [importCellErrors, setImportCellErrors] = useState<
     Record<number, Record<number, string[]>>
   >({});
   const [showImportErrors, setShowImportErrors] = useState(false);
 
-  // file input ref for reliable file picker
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // preview modal state
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewData, setPreviewData] = useState<{
     headers: string[];
     rows: string[][];
   } | null>(null);
-  console.log("Preview data:", previewData);
   const { appRoles, getAppRoles } = useAppRoleStore();
-  const { user } = useAuthStore();
-  // Map frontend status to backend expected values (Active/Inactive)
+  const { schools, fetchAllSchools } = useLocationStore();
+
   const statusColor: Record<AppUser["status"], string> = {
     Active:
       "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 focus:ring-green-300",
     Inactive: "bg-rose-100 text-rose-800 hover:bg-rose-200 focus:ring-rose-300",
   };
 
-  // Debounce search input
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
     return () => clearTimeout(t);
@@ -100,16 +94,13 @@ const AccountList = () => {
     let t = String(msg ?? "");
     if (fieldName) {
       const fn = normalize(fieldName);
-      // remove leading 'FieldName: ' or 'FieldName :' or 'FieldName -' if present in message
       const prefixPattern = new RegExp(
         "^\\s*" + escapeRegExp(fieldName) + "\\s*[:\\-\\s]+",
         "i"
       );
       if (prefixPattern.test(t)) t = t.replace(prefixPattern, "").trim();
-      // also try normalized check: if message starts with a normalized field token
       const tNorm = normalize(t);
       if (tNorm.startsWith(fn)) {
-        // remove the raw token from start
         t = t.replace(new RegExp("^\\s*" + fn + "[:\\-\\s]*", "i"), "").trim();
       }
     }
@@ -119,7 +110,6 @@ const AccountList = () => {
   const headerMatchIndex = (headers: string[], fieldName?: string) => {
     if (!fieldName) return -1;
     const fnNorm = normalize(fieldName);
-    // common token heuristics
     const usernameTokens = [
       "user",
       "username",
@@ -144,7 +134,6 @@ const AccountList = () => {
         fnNorm.includes(hhNorm)
       )
         return true;
-      // heuristics
       if (
         usernameTokens.some((t) => fnNorm.includes(t)) &&
         (hhNorm.includes("tendang") ||
@@ -195,7 +184,6 @@ const AccountList = () => {
         }
       }
     }
-    // also attempt a loose header scan: if any header contains any token from fnNorm
     for (let i = 0; i < headers.length; i++) {
       const hh = normalize(headers[i] || "");
       if (fnNorm.split(/[^a-z0-9]+/).some((tok) => tok && hh.includes(tok)))
@@ -238,7 +226,6 @@ const AccountList = () => {
 
   const guessIndexFromMessageContent = (msg: string, headers: string[]) => {
     const t = String(msg ?? "").toLowerCase();
-    // phone: look for at least 7 digits
     const phoneMatch = t.match(/\d{7,}/);
     if (phoneMatch) {
       for (let i = 0; i < headers.length; i++) {
@@ -251,21 +238,18 @@ const AccountList = () => {
           return i;
       }
     }
-    // email
     if (t.includes("@")) {
       for (let i = 0; i < headers.length; i++) {
         const hh = normalize(headers[i] || "");
         if (hh.includes("email")) return i;
       }
     }
-    // role keywords
     if (t.includes("vai trò") || t.includes("vaitro") || t.includes("role")) {
       for (let i = 0; i < headers.length; i++) {
         const hh = normalize(headers[i] || "");
         if (hh.includes("vaitro") || hh.includes("role")) return i;
       }
     }
-    // username
     if (
       t.includes("tên người dùng") ||
       t.includes("tendang") ||
@@ -294,16 +278,11 @@ const AccountList = () => {
       if (msg) return guessIndexFromMessageContent(msg, headers);
       return -1;
     }
-    // try direct header match first
     let idx = headerMatchIndex(headers, fieldName);
     if (idx >= 0) return idx;
-
-    // try keyword fallback
     const fnNorm = normalize(fieldName);
     idx = headerIndexByKeywords(headers, fnNorm);
     if (idx >= 0) return idx;
-
-    // try known translations map from server keys to Vietnamese header text
     const translations: Record<string, string> = {
       PhoneNumber: "Số điện thoại",
       Email: "Email",
@@ -317,8 +296,6 @@ const AccountList = () => {
       idx = headerMatchIndex(headers, t);
       if (idx >= 0) return idx;
     }
-
-    // final fallback: guess from message content
     if (msg) {
       idx = guessIndexFromMessageContent(msg, headers);
       if (idx >= 0) return idx;
@@ -326,29 +303,24 @@ const AccountList = () => {
     return -1;
   };
 
-  // Build query string for API call
   const query = useMemo(() => {
     const params = new URLSearchParams();
-    // role is expected as an int by the backend requirement; if 'all' skip
     if (roleFilter && roleFilter !== "all") params.set("role", roleFilter);
     if (statusFilter && statusFilter !== "all")
       params.set("status", statusFilter);
-    // manager: restrict to current user's school
-    if (user && typeof user.schoolId !== "undefined" && user.schoolId > 0) {
-      params.set("schoolId", String(user.schoolId));
-    }
+    if (schoolFilter && schoolFilter !== "all")
+      params.set("schoolId", schoolFilter);
     if (debouncedSearch) params.set("search", debouncedSearch);
     params.set("page", String(page));
     params.set("limit", "6");
     return params.toString();
-  }, [roleFilter, statusFilter, debouncedSearch, page, user]);
+  }, [roleFilter, statusFilter, schoolFilter, debouncedSearch, page]);
 
   useEffect(() => {
-    // Fetch when query changes
     filterAppUsers(query).catch(() => {});
-    // Fetch roles for the role filter dropdown
     getAppRoles().catch(() => {});
-  }, [query, filterAppUsers, getAppRoles]);
+    fetchAllSchools?.().catch(() => {});
+  }, [query, filterAppUsers, getAppRoles, fetchAllSchools]);
 
   const total = meta?.total ?? 0;
   const currentPage = meta?.page ?? page;
@@ -356,14 +328,12 @@ const AccountList = () => {
   const start = total === 0 ? 0 : (currentPage - 1) * limit + 1;
   const end = Math.min(currentPage * limit, total);
 
-  // Ensure message renders nicely whether it's a string, array, or object
   const formatMessage = (msg: unknown): string => {
     if (!msg && msg !== 0) return "";
     if (typeof msg === "string") return msg;
     if (Array.isArray(msg)) return msg.join(", ");
     if (typeof msg === "object") {
       try {
-        // If it's an object of validation errors, pick first values
         const vals = Object.values(msg as any)
           .flat?.()
           .filter((v: any) => v != null);
@@ -401,15 +371,31 @@ const AccountList = () => {
           <SelectContent>
             <SelectGroup>
               <SelectItem value="all">Tất cả vai trò</SelectItem>
-              {(appRoles || [])
-                .filter(
-                  (role) => String(role.name) !== String(ROLES.EXTERNAL_STUDENT)
-                )
-                .map((role) => (
-                  <SelectItem key={role.id} value={String(role.id)}>
-                    {role.name}
-                  </SelectItem>
-                ))}
+              {appRoles.map((role) => (
+                <SelectItem key={role.id} value={String(role.id)}>
+                  {role.name}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <Select
+          onValueChange={(v) => {
+            setSchoolFilter(v as string);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-48 bg-zinc-100 hover:bg-zinc-200 transition-all">
+            <SelectValue placeholder="Chọn trường" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="all">Tất cả trường</SelectItem>
+              {schools.map((s: any) => (
+                <SelectItem key={s.id} value={String(s.id)}>
+                  {s.name}
+                </SelectItem>
+              ))}
             </SelectGroup>
           </SelectContent>
         </Select>
@@ -456,9 +442,7 @@ const AccountList = () => {
           onChange={async (e) => {
             const f = e.target.files?.[0];
             if (!f) return;
-            // generate preview client-side and open modal for editing
             const p = await previewFile(f);
-            // clear previous errors when opening a new preview
             setImportErrors({});
             setImportCellErrors({});
             setShowImportErrors(false);
@@ -466,7 +450,6 @@ const AccountList = () => {
               setPreviewData(p);
               setShowPreviewModal(true);
             } else {
-              // fallback: directly call import and show errors
               const result = await importAccounts?.(f, (errors) => {
                 const rowMap: Record<number, string[]> = {};
                 const cellMap: Record<number, Record<number, string[]>> = {};
@@ -477,12 +460,10 @@ const AccountList = () => {
                       : [String(msgs)];
                     textMsgs.forEach((raw) => {
                       let t = String(raw ?? "");
-                      // try to extract row from key first
                       const rowMatch = k.match(/(\d+)/);
                       let row = rowMatch
                         ? parseInt(rowMatch[1], 10)
                         : undefined;
-                      // if not found, try to extract row from the message text (e.g., 'Hàng 2: ...')
                       if (row === undefined) {
                         const m2 = t.match(/(?:Hàng|Row)\s*(\d+)/i);
                         if (m2) {
@@ -494,19 +475,16 @@ const AccountList = () => {
                       }
                       if (row === undefined) row = 0;
 
-                      // determine field name: either encoded in key or key itself (if not numeric)
                       const fieldMatch =
                         k.match(/Row\s*\d+\s*[-:]?\s*(.+)$/i) ||
                         k.match(/(.+)[_\-.]\d+$/i);
                       let fieldName = fieldMatch ? fieldMatch[1].trim() : null;
                       if (!fieldName && !/\d+/.test(k)) fieldName = k.trim();
-                      // if still no fieldName, try to detect from message text
                       if (!fieldName) {
                         const d = detectFieldFromMessage(t);
                         if (d) fieldName = d;
                       }
 
-                      // clean message and try to map to a column by header heuristics
                       t = cleanMessage(t, fieldName || undefined);
                       if (fieldName && previewData) {
                         const idx = mapServerFieldToHeaderIndex(
@@ -547,7 +525,6 @@ const AccountList = () => {
         <Button
           className="bg-black text-white flex items-center gap-2"
           onClick={() => {
-            // reset input value to ensure onChange fires even for the same file
             if (inputRef?.current) inputRef.current.value = "";
             inputRef?.current?.click();
           }}
@@ -555,7 +532,7 @@ const AccountList = () => {
           <Upload className="w-4 h-4" /> Import
         </Button>
         <Button className="bg-black text-white flex items-center gap-2">
-          <Link to="/user/manager/add-account">+ Thêm tài khoản</Link>
+          <Link to="/user/admin/add-account">+ Thêm tài khoản</Link>
         </Button>
       </div>
       {showImportErrors && Object.keys(importErrors).length > 0 && (
@@ -568,7 +545,6 @@ const AccountList = () => {
               <button
                 className="text-sm text-rose-700 underline"
                 onClick={() => {
-                  // copy readable text to clipboard
                   const lines: string[] = [];
                   const rows = new Set<number>();
                   Object.keys(importErrors).forEach((k) => rows.add(Number(k)));
@@ -721,6 +697,9 @@ const AccountList = () => {
                 Vai trò
               </TableHead>
               <TableHead className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Trường
+              </TableHead>
+              <TableHead className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Môn học
               </TableHead>
               <TableHead className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -817,4 +796,4 @@ const AccountList = () => {
   );
 };
 
-export default AccountList;
+export default AdminAccountList;

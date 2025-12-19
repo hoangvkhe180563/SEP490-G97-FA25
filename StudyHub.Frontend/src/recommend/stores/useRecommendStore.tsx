@@ -9,8 +9,8 @@ import type {
   HourCountDto,
   SubjectCountDto,
   TokenSummaryDto,
-  UserTokenDto,
   DateTokenDto,
+  UserTokenDto,
 } from "../interfaces/recommend";
 
 type RecommendState = {

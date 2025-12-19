@@ -12,7 +12,7 @@ import type {
 } from "@/courseManagement/interfaces/types";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
-import { Check, HelpCircle, NotebookPen, X } from "lucide-react";
+import { ArrowLeft, Check, HelpCircle, Info, NotebookPen, X } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -46,7 +46,6 @@ import { EXAM_TYPE } from "@/courseManagement/constants/ExamType";
 import { BLANK_PLACEHOLDER } from "@/exam/constants/Constants";
 import { calculateFinishTime } from "@/exam/utils/ExamUtils";
 import { useLoading } from "@/common/hooks/useLoading";
-// Progress UI removed for Video lessons; keep setters used by auto-complete logic
 
 const LecturePlayer: React.FC = () => {
   const params = useParams();
@@ -963,12 +962,12 @@ const LecturePlayer: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   onClick={() => navigate(`/course/student/courses/${cid}`)}
                   className="w-9 h-9 mb-3 p-0 flex items-center justify-center"
                   aria-label="Go back"
                 >
-                  ←
+                  <ArrowLeft />
                 </Button>
                 <Breadcrumb>
                   <BreadcrumbList className="text-sm text-gray-500 mb-2">
@@ -1098,9 +1097,8 @@ const LecturePlayer: React.FC = () => {
                     if (isEmbed || (!isMp4 && src.startsWith("http"))) {
                       const isYouTubeEmbed = /youtube|youtu\.be/.test(lower);
                       if (isYouTubeEmbed) {
-                        const elId = `yt-player-${
-                          selectedLesson?.id ?? "unknown"
-                        }`;
+                        const elId = `yt-player-${selectedLesson?.id ?? "unknown"
+                          }`;
                         return <div id={elId} className="w-full h-full" />;
                       }
 
@@ -1180,6 +1178,22 @@ const LecturePlayer: React.FC = () => {
                 >
                   <NotebookPen /> Xem kết quả
                 </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost">
+                      <Info />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-140">
+                    <div className="gap-4">
+                      <b>Lưu ý: </b>
+                      <ul>
+                        <li>Bạn được phép làm bài tối đa 3 lần mỗi 8 tiếng.</li>
+                        <li>Bạn phải đạt đủ <b>80%</b> số điểm bài làm mới được sang bài tiếp theo.</li>
+                      </ul>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             ) : (
               <div className="bg-black w-full aspect-video rounded-lg mb-4 flex items-center justify-center text-white overflow-hidden shadow-lg">
@@ -1213,8 +1227,8 @@ const LecturePlayer: React.FC = () => {
                           const bgCls = isCorrectOpt
                             ? "bg-green-50 border border-green-200"
                             : isChosenWrong
-                            ? "bg-red-50 border border-red-200"
-                            : "bg-gray-100 hover:bg-gray-200";
+                              ? "bg-red-50 border border-red-200"
+                              : "bg-gray-100 hover:bg-gray-200";
                           return (
                             <button
                               key={idx}

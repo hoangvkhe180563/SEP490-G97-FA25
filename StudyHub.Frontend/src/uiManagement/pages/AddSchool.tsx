@@ -3,7 +3,7 @@ import { Input } from '@/common/components/ui/input';
 import { Label } from '@/common/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/common/components/ui/select';
 import { Textarea } from '@/common/components/ui/textarea';
-import { X } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { UiManagementService } from '../services/UiManagementService';
 import { useLoading } from '@/common/hooks/useLoading';
@@ -199,6 +199,13 @@ export default function AddSchool() {
 
   return (
     <div className="min-h-screen bg-white p-6 md:p-10 font-sans text-slate-900">
+      <Link to={`/ui/schools`}>
+        <Button variant='outline' className='flex items-center'>
+          <ArrowLeft />
+          <span>Quay lại</span>
+        </Button>
+      </Link>
+      <h2 className='py-6 text-3xl font-bold'>Thêm trường mới</h2>
       <div className="mx-auto max-w-4xl space-y-8">
 
         <form className="space-y-8">

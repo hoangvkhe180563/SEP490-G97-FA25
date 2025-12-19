@@ -89,16 +89,16 @@ const ViewExamHistory = () => {
             <div key={r.id} className="p-4 bg-gray-50 border rounded flex justify-between items-center">
               <div>
                 <p className="font-semibold">Học sinh: {r.studentName}</p>
-                <p className="text-sm text-gray-600">Nộp lúc: {r.submissionTime?.toLocaleString("vi-VN")}</p>
-                <p className="text-sm text-gray-700">Điểm: {r.score}</p>
+                <p className="text-sm text-gray-600">Nộp lúc: {r.submissionTime ? r.submissionTime.toLocaleString("vi-VN") : "(Chưa nộp)"}</p>
+                <p className="text-sm text-gray-700">Điểm: {r.submissionTime ? r.score : "(Chưa nộp)"}</p>
                 <p className="text-sm text-gray-700">Số lần chuyển tab/thu nhỏ màn hình: <span className='text-red-600'>{r.cheatTimes}</span></p>
               </div>
               <div>
-                <Link to={`/exam/results/${r.id}`}>
+                {r.submissionTime && <Link to={`/exam/results/${r.id}`}>
                   <Button className='px-3 py-1 bg-green-600 text-white hover:bg-green-700'>
                     Xem chi tiết
                   </Button>
-                </Link>
+                </Link>}
               </div>
             </div>
           ))}

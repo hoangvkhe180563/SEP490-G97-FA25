@@ -23,8 +23,7 @@ import { Input } from "@/common/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/common/components/ui/select";
 import { Label } from "@/common/components/ui/label";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ROLES } from "@/common/constants/Roles";
+import { Link, useSearchParams } from "react-router-dom";
 import { QuestionService } from "@/exam/services/QuestionService";
 import type { Subject } from "@/exam/interfaces/models/Subject";
 import type { Question } from "@/exam/interfaces/models/Question";
@@ -33,6 +32,7 @@ import { BLANK_PLACEHOLDER, EXAM_TYPE } from "@/exam/constants/Constants";
 import { useLoading } from "@/common/hooks/useLoading";
 import { getQuestionType } from "@/exam/utils/QuestionUtils";
 import { Paging } from "@/common/components/Paging";
+import { ROLES } from "@/common/constants/Roles";
 
 const TypeBadge = ({ type }: { type: number }) => {
   const styles: Record<number, string> = {
@@ -168,7 +168,6 @@ const QuestionDetailContent = ({ question }: { question: Question }) => {
 
 export default function ListQuestions() {
   const { user } = useAuthStore();
-  const navigate = useNavigate();
   const { setLoading } = useLoading();
   const [searchParams] = useSearchParams();
   const [subjectData, setSubjectData] = useState<Subject[]>([]);
@@ -191,9 +190,6 @@ export default function ListQuestions() {
     if (!user) {
       return;
     }
-    if (!user.roles.some(r => [ROLES.QUESTION_MANAGER, ROLES.SCHOOL_ADMIN].includes(r))) {
-      navigate("/");
-    }
     setLoading(true);
     const fetchData = async () => {
       const questionText = searchParams.get("questionText") ?? "";
@@ -210,9 +206,11 @@ export default function ListQuestions() {
       setGradeFilter(grade);
       setPage(page);
 
-      const subjectList = await questionService.getManagerSubjects(user.id);
-      if (subjectList.length === 0) {
-        return;
+      let subjectList: Subject[] = [];
+      if (user.roles.includes(ROLES.SCHOOL_ADMIN)) {
+        subjectList = await questionService.getAllSubjects();
+      } else {
+        subjectList = await questionService.getManagerSubjects(user.id);
       }
       setSubjectData(subjectList);
 
@@ -237,13 +235,13 @@ export default function ListQuestions() {
     if (searchQuery) {
       url.searchParams.set('questionText', searchQuery);
     }
-    if (typeFilter && typeFilter !== -1) {
+    if (typeFilter !== -1) {
       url.searchParams.set('questionType', typeFilter.toString());
     }
-    if (subjectFilter && subjectFilter !== 0) {
+    if (subjectFilter !== 0) {
       url.searchParams.set('subjectId', subjectFilter.toString());
     }
-    if (gradeFilter && gradeFilter !== 0) {
+    if (gradeFilter !== 0) {
       url.searchParams.set('grade', gradeFilter.toString());
     }
     const pageToUse = pageOverride ?? 1;
@@ -456,13 +454,15 @@ export default function ListQuestions() {
   };
 
   return (
-    <div className="p-6 h-full space-y-4 overflow-y-auto">
+    <div className="p-6 h-full space-y-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Ngân hàng câu hỏi</h2>
           <p className="text-sm text-muted-foreground">Các câu hỏi để cho vào bài kiểm tra.</p>
-          <p className="text-sm text-muted-foreground">Các môn học của bạn: <b>{subjectData.map(subject => subject.name).join(", ")}</b>.</p>
-          <p className="text-sm text-muted-foreground">Đang hiển thị danh sách câu hỏi môn: <b>{subjectData.find(subject => subject.id === Number(searchParams.get("subjectId") ?? subjectData[0].id))?.name}</b></p>
+          {(user && !user.roles.includes(ROLES.SCHOOL_ADMIN)) && (
+            <p className="text-sm text-muted-foreground">Các môn học của bạn: <b>{subjectData.map(subject => subject.name).join(", ")}</b>.</p>
+          )}
+          <p className="text-sm text-muted-foreground">Đang hiển thị danh sách câu hỏi môn: <b>{subjectData.find(subject => subject.id === Number(searchParams.get("subjectId") ?? subjectData[0].id))?.name}</b>{Number(searchParams.get("grade")) !== 0 && " lớp: " + searchParams.get("grade")}</p>
         </div>
         <Badge variant="secondary" className="px-3 py-1 text-sm">
           Tổng số câu hỏi: {totalQuestions}
@@ -694,7 +694,7 @@ export default function ListQuestions() {
                           onChange={(e) => handleChangeOption(index, e.target.value)}
                         />
                         <Button variant="ghost" onClick={() => handleRemoveOption(index)}>
-                          <X className="stroke-red-500"/>
+                          <X className="stroke-red-500" />
                         </Button>
                       </div>
                     ))}

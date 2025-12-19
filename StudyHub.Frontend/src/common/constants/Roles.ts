@@ -11,4 +11,5 @@ export const ROLES = {
   UI_MANAGER: "UI Manager",
   MODERATOR: "Moderator",
   SCHOOL_ADMIN: "School Admin",
+  ADMIN: "Admin",
 };

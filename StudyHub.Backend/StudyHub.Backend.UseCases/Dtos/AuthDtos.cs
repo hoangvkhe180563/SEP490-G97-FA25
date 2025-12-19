@@ -18,6 +18,14 @@ namespace StudyHub.Backend.UseCases.Dtos
         public List<int> ClassIds { get; set; } = new List<int>();
         // Session id created for this login - stored in DB and returned as cookie
         public Guid? SessionId { get; set; }
+        // Optional resolved location names to avoid extra lookups on the frontend
+
+        public int? SchoolId { get; set; }
+        public string? SchoolName { get; set; }
+        public int? CommuneId { get; set; }
+        public string? CommuneName { get; set; }
+        public int? CityId { get; set; }
+        public string? CityName { get; set; }
     }
 
 
