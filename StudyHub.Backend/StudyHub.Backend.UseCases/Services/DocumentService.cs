@@ -12,12 +12,18 @@ namespace StudyHub.Backend.UseCases.Services
         private readonly IDocumentRepository _repo;
         private readonly ICloudinaryRepository _fileStorage;
         private readonly ElasticDocumentVectorSearchService elasticDocumentVectorSearchService;
+        private readonly DocumentContentRAGService _ragService;
 
-        public DocumentService(IDocumentRepository repo, ICloudinaryRepository fileStorage, ElasticDocumentVectorSearchService elasticDocumentVectorSearchService)
+        public DocumentService(
+     IDocumentRepository repo,
+     ICloudinaryRepository fileStorage,
+     ElasticDocumentVectorSearchService elasticDocumentVectorSearchService,
+     DocumentContentRAGService ragService)
         {
             _repo = repo;
             _fileStorage = fileStorage;
             this.elasticDocumentVectorSearchService = elasticDocumentVectorSearchService;
+            _ragService = ragService;
         }
 
         public Document? GetDocumentById(int id) => _repo.GetDocumentById(id);
@@ -124,6 +130,32 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 throw new InvalidOperationException("Failed to index document in search index.");
             }
+
+            if (!imageExtensions.Contains(extension))
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        Console.WriteLine($"[RAG] Starting background indexing for document {created.Id}");
+                        var ragResult = await _ragService.IndexDocumentForRAGAsync(created.Id, created.DocumentUrl, created.Name);
+
+                        if (ragResult.Success)
+                        {
+                            Console.WriteLine($"[RAG] Successfully indexed document {created.Id}: {ragResult.TotalChunks} chunks in {ragResult.ProcessingTimeSeconds:F2}s");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[RAG] Failed to index document {created.Id}: {ragResult.ErrorMessage}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[RAG] Error indexing document {created.Id}: {ex.Message}");
+                    }
+                });
+            }
+
             return created;
         }
         public async Task<Document> SubmitForApproval(int id, Guid userId)
@@ -172,6 +204,8 @@ namespace StudyHub.Backend.UseCases.Services
             if (string.IsNullOrWhiteSpace(document.DocumentLevel))
                 throw new ArgumentException("DocumentLevel is required");
 
+            bool documentFileChanged = false;
+
             if (documentFile != null)
             {
                 ValidateDocumentFile(documentFile);
@@ -186,6 +220,8 @@ namespace StudyHub.Backend.UseCases.Services
                     document.DocumentUrl = await cloudService.UploadDocumentAsync(documentFile, FileConstants.DocumentUploadPath);
                 else
                     document.DocumentUrl = await _fileStorage.UploadFileAsync(documentFile, FileConstants.DocumentUploadPath);
+
+                documentFileChanged = true;
             }
             else
                 document.DocumentUrl = existingDocument.DocumentUrl;
@@ -245,6 +281,29 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 throw new InvalidOperationException("Failed to update document in search index.");
             }
+
+            if (documentFileChanged)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        Console.WriteLine($"[RAG] Re-indexing document {updated.Id} after update");
+                        await _ragService.DeleteDocumentIndexAsync(updated.Id);
+                        var ragResult = await _ragService.IndexDocumentForRAGAsync(updated.Id, updated.DocumentUrl, updated.Name);
+
+                        if (ragResult.Success)
+                        {
+                            Console.WriteLine($"[RAG] Successfully re-indexed document {updated.Id}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[RAG] Error re-indexing document {updated.Id}: {ex.Message}");
+                    }
+                });
+            }
+
             return updated;
         }
         public (List<Document> documents, int totalCount) GetSchoolTeachersDocuments(
@@ -534,6 +593,41 @@ int pageSize = 10)
             }
             return _repo.UpdateDocument(document);
         }
+
+        public async Task<RAGAnswer> AskDocumentQuestionAsync(int documentId, string question)
+        {
+            var document = _repo.GetDocumentById(documentId);
+            if (document == null)
+                throw new InvalidOperationException("Document not found");
+
+            return await _ragService.AskQuestionAsync(documentId, question, maxChunks: 5);
+        }
+
+        public async Task<RAGAnswer> ContinueDocumentConversationAsync(int documentId, string question, List<ConversationTurn> history)
+        {
+            var document = _repo.GetDocumentById(documentId);
+            if (document == null)
+                throw new InvalidOperationException("Document not found");
+
+            return await _ragService.ContinueConversationAsync(documentId, question, history, maxChunks: 5);
+        }
+
+        public async Task<RAGIndexingResult> ReindexDocumentForRAGAsync(int documentId)
+        {
+            var document = _repo.GetDocumentById(documentId);
+            if (document == null)
+                throw new InvalidOperationException("Document not found");
+
+            await _ragService.DeleteDocumentIndexAsync(documentId);
+
+            return await _ragService.IndexDocumentForRAGAsync(documentId, document.DocumentUrl, document.Name);
+        }
+
+        public async Task<DocumentIndexStats> GetDocumentRAGStatsAsync(int documentId)
+        {
+            return await _ragService.GetDocumentIndexStatsAsync(documentId);
+        }
+
         private string GetContentType(string filePath)
         {
             var extension = Path.GetExtension(filePath).ToLowerInvariant();

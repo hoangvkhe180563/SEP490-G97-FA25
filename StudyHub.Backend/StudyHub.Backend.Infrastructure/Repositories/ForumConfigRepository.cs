@@ -387,8 +387,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Take(limit)
                     .ToListAsync();
 
-                Console.WriteLine($"[GetPendingModerationAttachmentsAsync] Found {attachments.Count} attachments");
-
                 return attachments.Select(a => new ForumAttachment
                 {
                     Id = a.Id,

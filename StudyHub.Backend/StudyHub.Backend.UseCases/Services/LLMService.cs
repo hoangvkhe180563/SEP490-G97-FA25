@@ -363,6 +363,72 @@ namespace StudyHub.Backend.UseCases.Services
                 return (string.Empty, 0, 0);
             }
         }
+        public async Task<(string content, int promptTokens, int completionTokens)> GenerateResponseAsync(string prompt)
+        {
+            var model = (configuration["HuggingFace:LLMModel:Path"] ?? "") + ":" + (configuration["HuggingFace:LLMModel:InferenceProviderPath"] ?? "");
+            var apiKey = configuration["HuggingFace:ApiToken"] ?? string.Empty;
+
+            var request = new RestRequest();
+            request.Method = Method.Post;
+            if (!string.IsNullOrEmpty(apiKey)) request.AddHeader("Authorization", $"Bearer {apiKey}");
+            request.AddJsonBody(new
+            {
+                model,
+                messages = new[]{
+            new
+            {
+                role = "user",
+                content = prompt
+            }
+        },
+                temperature = 0.7,
+                top_p = 0.95,
+            });
+
+            var response = await _client.ExecuteAsync(request);
+
+            if (!response.IsSuccessful)
+            {
+                throw new Exception($"LLM API error: {response.Content}");
+            }
+
+            var resultJson = response.Content;
+            if (string.IsNullOrEmpty(resultJson)) throw new Exception("LLM API returned empty response.");
+
+            try
+            {
+                using var doc = JsonDocument.Parse(resultJson);
+                var root = doc.RootElement;
+
+                string content = string.Empty;
+                int promptTokens = 0;
+                int completionTokens = 0;
+
+                if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
+                {
+                    var first = choices[0];
+                    if (first.TryGetProperty("message", out var message) && message.TryGetProperty("content", out var contentProp))
+                    {
+                        content = contentProp.GetString() ?? string.Empty;
+                        content = content.Trim();
+                    }
+                }
+
+                if (root.TryGetProperty("usage", out var usage))
+                {
+                    if (usage.TryGetProperty("prompt_tokens", out var promptTok) && promptTok.ValueKind == JsonValueKind.Number)
+                        promptTokens = promptTok.GetInt32();
+                    if (usage.TryGetProperty("completion_tokens", out var compTok) && compTok.ValueKind == JsonValueKind.Number)
+                        completionTokens = compTok.GetInt32();
+                }
+
+                return (content, promptTokens, completionTokens);
+            }
+            catch
+            {
+                return (string.Empty, 0, 0);
+            }
+        }
 
         // Backwards-compatible wrapper that returns only the content
         public async Task<string> GenerateDocumentExplanationAsync(

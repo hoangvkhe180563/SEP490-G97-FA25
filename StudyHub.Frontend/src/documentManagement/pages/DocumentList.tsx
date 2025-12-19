@@ -150,7 +150,8 @@ const DocumentList = () => {
             <Paging
               currentPage={currentPage}
               totalPages={totalPages}
-              onPageChange={setCurrentPage} />
+              onPageChange={setCurrentPage}
+            />
           )}
         </>
       }

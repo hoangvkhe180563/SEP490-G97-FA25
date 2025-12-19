@@ -585,5 +585,215 @@ public IActionResult GetSchoolTeachersDocuments(
             var document = await _documentService.CancelEditRequest(dto.DocumentId, currentUser.Id);
             return Ok(new { success = true, data = document.ToDetailDto() });
         }
+        [HttpPost("{id:int}/ask")]
+        public async Task<IActionResult> AskQuestion(int id, [FromBody] AskQuestionRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Question))
+                return BadRequest(new { success = false, message = "Question is required" });
+
+            var document = _documentService.GetDocumentById(id);
+            if (document == null)
+                return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
+
+            try
+            {
+                var answer = await _documentService.AskDocumentQuestionAsync(id, request.Question);
+
+                var response = new
+                {
+                    question = answer.Question,
+                    answer = answer.Answer,
+                    confidence = answer.Confidence,
+                    sources = answer.SourceChunks.Select(c => new
+                    {
+                        pageNumber = c.PageNumber,
+                        content = c.Content.Length > 200 ? c.Content.Substring(0, 200) + "..." : c.Content,
+                        score = c.Score,
+                        characterStart = c.CharacterStart,
+                        characterEnd = c.CharacterEnd
+                    }).ToList(),
+                    tokenUsage = new
+                    {
+                        promptTokens = answer.PromptTokens,
+                        completionTokens = answer.CompletionTokens,
+                        totalTokens = answer.PromptTokens + answer.CompletionTokens
+                    }
+                };
+
+                return Ok(new { success = true, data = response });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id:int}/chat")]
+        public async Task<IActionResult> ChatWithDocument(int id, [FromBody] ChatWithDocumentRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Question))
+                return BadRequest(new { success = false, message = "Question is required" });
+
+            var document = _documentService.GetDocumentById(id);
+            if (document == null)
+                return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
+
+            try
+            {
+                var history = request.ConversationHistory?.Select(h => new ConversationTurn
+                {
+                    Question = h.Question,
+                    Answer = h.Answer,
+                    Timestamp = h.Timestamp
+                }).ToList() ?? new List<ConversationTurn>();
+
+                var answer = await _documentService.ContinueDocumentConversationAsync(id, request.Question, history);
+
+                var response = new
+                {
+                    question = answer.Question,
+                    answer = answer.Answer,
+                    confidence = answer.Confidence,
+                    sources = answer.SourceChunks.Select(c => new
+                    {
+                        pageNumber = c.PageNumber,
+                        content = c.Content.Length > 200 ? c.Content.Substring(0, 200) + "..." : c.Content,
+                        score = c.Score
+                    }).ToList(),
+                    tokenUsage = new
+                    {
+                        promptTokens = answer.PromptTokens,
+                        completionTokens = answer.CompletionTokens,
+                        totalTokens = answer.PromptTokens + answer.CompletionTokens
+                    }
+                };
+
+                return Ok(new { success = true, data = response });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id:int}/index-rag")]
+        public async Task<IActionResult> IndexDocumentForRAG(int id)
+        {
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            var document = _documentService.GetDocumentById(id);
+            if (document == null)
+                return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
+
+            if (document.CreatedBy != currentUser.Id)
+                return Forbid();
+
+            try
+            {
+                var result = await _documentService.ReindexDocumentForRAGAsync(id);
+
+                if (result.Success)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        message = "Đánh chỉ mục RAG thành công",
+                        data = new
+                        {
+                            documentId = result.DocumentId,
+                            documentName = result.DocumentName,
+                            totalChunks = result.TotalChunks,
+                            processingTimeSeconds = result.ProcessingTimeSeconds
+                        }
+                    });
+                }
+                else
+                {
+                    return StatusCode(500, new
+                    {
+                        success = false,
+                        message = $"Đánh chỉ mục thất bại: {result.ErrorMessage}"
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet("{id:int}/rag-stats")]
+        public async Task<IActionResult> GetRAGStats(int id)
+        {
+            var document = _documentService.GetDocumentById(id);
+            if (document == null)
+                return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
+
+            try
+            {
+                var stats = await _documentService.GetDocumentRAGStatsAsync(id);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        documentId = stats.DocumentId,
+                        totalChunks = stats.TotalChunks,
+                        totalPages = stats.TotalPages,
+                        totalCharacters = stats.TotalCharacters,
+                        lastIndexed = stats.LastIndexed,
+                        isIndexed = stats.TotalChunks > 0
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+        [HttpPost("init-rag-index")]
+        public async Task<IActionResult> InitRAGIndex()
+        {
+            try
+            {
+                var elasticContentService = HttpContext.RequestServices
+                    .GetRequiredService<ElasticDocumentContentService>();
+
+                var result = await elasticContentService.CreateIndexAsync();
+
+                if (result)
+                {
+                    return Ok(new { success = true, message = "RAG index created successfully" });
+                }
+                else
+                {
+                    return StatusCode(500, new { success = false, message = "Failed to create RAG index" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+        public class AskQuestionRequest
+        {
+            public string Question { get; set; } = string.Empty;
+        }
+
+        public class ChatWithDocumentRequest
+        {
+            public string Question { get; set; } = string.Empty;
+            public List<ConversationHistoryDto>? ConversationHistory { get; set; }
+        }
+
+        public class ConversationHistoryDto
+        {
+            public string Question { get; set; } = string.Empty;
+            public string Answer { get; set; } = string.Empty;
+            public DateTime Timestamp { get; set; }
+        }
     }
 }
