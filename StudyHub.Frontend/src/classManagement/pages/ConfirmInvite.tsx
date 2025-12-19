@@ -197,9 +197,7 @@ const ConfirmInvite: React.FC = () => {
             {actionLoading ? "Đang xử lý..." : "Từ chối"}
           </Button>
 
-          <div className="ml-auto text-xs text-slate-400">
-            {appUserId ? `Bạn đang xác nhận cho: ${appUserId}` : "Bạn chưa đăng nhập"}
-          </div>
+          
         </div>
 
         {!appUserId && (

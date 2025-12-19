@@ -336,11 +336,13 @@ const ClassworkSubmissionsPage: React.FC = () => {
   }
 
   const pickMember = async (m: ClassMemberDto) => {
+    console.debug("pickMember clicked for", m);
     setSelectedMember(m);
     setSelectedSubmission(null);
     setDetailLoading(true);
     setGradeValue("");
     setGradeFeedback("");
+
     try {
       const userId = normalizeUserId(m.userId ?? m.id ?? "");
       const s = await getSubmissionByUserAndClasswork(workId, userId);
@@ -358,8 +360,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
         }
 
         const fb =
-          s.feedback ??
-          "";
+          s.feedback ?? "";
         setGradeFeedback(typeof fb === "string" ? fb : String(fb ?? ""));
       } else {
         const fallback = submissionMap.get(userId) ?? null;
@@ -452,6 +453,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
     };
 
     try {
+      // Update local list optimistically so left tab reflects immediately
       setSubmissions((prev) => {
         const copy = prev ? [...prev] : [];
         const idxById = copy.findIndex(
@@ -473,6 +475,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
         return copy;
       });
 
+      // Update selectedSubmission shown on the right
       setSelectedSubmission((prev) =>
         prev &&
         (prev.id === optimisticSubmission.id ||
@@ -523,6 +526,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
         typeof serverFb === "string" ? serverFb : String(serverFb ?? "")
       );
 
+      // Ensure left list and selectedSubmission use server-final data
       setSubmissions((prev) => {
         const copy = prev ? [...prev] : [];
         const idxById = copy.findIndex(
@@ -566,13 +570,10 @@ const ClassworkSubmissionsPage: React.FC = () => {
             String(refreshedScore).trim() !== ""
           ) {
             const n = Number(refreshedScore);
-            setGradeValue(
-              Number.isFinite(n) ? n : (String(refreshedScore) as any)
-            );
+            setGradeValue(Number.isFinite(n) ? n : (String(refreshedScore) as any));
           }
           const refreshedFb =
-            (refreshed as any).feedback ??
-          "";
+            (refreshed as any).feedback ?? "";
           setGradeFeedback(
             typeof refreshedFb === "string"
               ? refreshedFb
@@ -638,11 +639,14 @@ const ClassworkSubmissionsPage: React.FC = () => {
     );
 
     return (
-      <Card
-        onClick={() => pickMember(member)}
-        className={`relative flex  justify-between cursor-pointer w-full h-full overflow-y-auto px-4 py-3 transition-colors ${
-          isSelected ? "bg-slate-100 shadow-sm" : "hover:bg-slate-50"
-        }`}
+      // Use button-like wrapper to ensure click always fires
+      <button
+        type="button"
+        onClick={() => {
+          console.debug("MemberRow click", member);
+          pickMember(member);
+        }}
+        className={`relative flex  justify-between cursor-pointer w-full h-full overflow-y-auto px-4 py-3 transition-colors text-left rounded-md border border-transparent ${isSelected ? "bg-slate-100 shadow-sm border-slate-200" : "hover:bg-slate-50"}`}
       >
         <div className="flex items-center gap-4 min-w-0">
           <div className="flex-shrink-0">
@@ -674,7 +678,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
             / {maxAllowedForThisWork}
           </div>
         </div>
-      </Card>
+      </button>
     );
   };
 

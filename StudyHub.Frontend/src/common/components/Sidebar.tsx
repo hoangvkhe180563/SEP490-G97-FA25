@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import {
   ChevronFirst,
@@ -26,6 +26,10 @@ import { toast } from "sonner";
 import { axiosInstance } from "@/lib/axios";
 import { Skeleton } from "./ui/skeleton";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+// Use notification store from notification feature
+import { useNotificationStore } from "@/notification/stores/useNotificationStore";
+import RouteConfig from "../constants/RouteConfig";
+
 interface ISidebarContextProps {
   expanded: boolean;
 }
@@ -38,11 +42,16 @@ export const Sidebar = (props: {
   const [showAppealModal, setShowAppealModal] = useState(false);
   const { createAppeal, isLoading } = useAppealStore();
   const { isCheckingAuth } = useAuthStore();
+  const { fetchUnreadCount } = useNotificationStore();
   const navigate = useNavigate();
+  useEffect(() => {
+    if (!props.user?.id) return;
+    fetchUnreadCount().catch(console.warn);
+  }, [props.user?.id, fetchUnreadCount]);
   const logout = async () => {
     await axiosInstance.post("/auth/logout").then((res) => {
       if (res.status === 200) {
-        location.href = '/';
+        location.href = "/";
       } else {
         console.error("Lỗi không logout được!");
       }
@@ -185,6 +194,12 @@ export const SidebarItem = (props: ISidebarItem) => {
   const { expanded } = useContext(SidebarContext);
   const location = useLocation();
 
+  // get unread count directly from notification store
+  const unreadCountRaw = useNotificationStore((s) => s.unreadCount);
+  const unreadCount = Number(unreadCountRaw ?? 0);
+  const displayCount = unreadCount > 99 ? "99+" : String(unreadCount);
+  const isNotifications = (props.text ?? "").toString().trim().toLowerCase() === "thông báo";
+
   return (
     <li>
       <Link
@@ -205,6 +220,13 @@ export const SidebarItem = (props: ISidebarItem) => {
         >
           {props.text}
         </span>
+
+        {/* Badge shown absolutely so it's visible even when collapsed */}
+        {isNotifications && unreadCount > 0 && (
+          <span className="absolute right-3 top-1/2 transform -translate-y-1/2 inline-flex items-center rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
+            {displayCount}
+          </span>
+        )}
 
         {!expanded && (
           <div
@@ -228,6 +250,15 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
     setIsOpen((curr) => !curr);
   };
 
+
+  const unreadCountRaw = useNotificationStore((s) => s.unreadCount);
+
+  
+
+  const unreadCount = Number(unreadCountRaw ?? 0);
+  const displayCount = unreadCount > 99 ? "99+" : String(unreadCount);
+  const isNotifications = props.link === RouteConfig.NOTIFICATION
+
   return (
     <div>
       <li
@@ -241,7 +272,15 @@ export const SidebarCollapsibleItem = (props: ISidebarItem) => {
           }`}
         >
           {props.text}
-        </span>
+        </span> 
+
+        {/* badge absolute so visible when collapsed */}
+        {isNotifications && unreadCount > 0 && (
+          <span className="absolute left-6 top-2 -translate-x-1/2 inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+              {displayCount}
+          </span>
+
+        )}
 
         {expanded && (
           <span className="ml-auto transition-transform">

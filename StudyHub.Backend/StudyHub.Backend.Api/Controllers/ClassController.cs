@@ -10,10 +10,15 @@ using StudyHub.Backend.Api.Mappers;
 using StudyHub.Backend.Api.Services;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Services;
+using StudyHub.Backend.UseCases.Utils;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Threading.Tasks;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -24,20 +29,24 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly ClassService _service;
         private readonly AppUserService _aUserService;
         private readonly ClassNotificationService _classNotificationService;
+        private readonly NotificationService _notificationService;
         private readonly IHubContext<NotificationHub> _notificationHub;
 
         public ClassController(
             ClassService service,
             AppUserService aUserService,
             ClassNotificationService classNotificationService,
+            NotificationService notificationService,
             IHubContext<NotificationHub> notificationHub
         )
         {
             _service = service;
             _aUserService = aUserService;
             _classNotificationService = classNotificationService;
+            _notificationService = notificationService;
             _notificationHub = notificationHub;
         }
+       
 
         [HttpGet]
         public IActionResult GetClasses(
@@ -99,48 +108,83 @@ namespace StudyHub.Backend.Api.Controllers
 
             var createdClass = _service.CreateClass(entity);
 
-            // Gửi thông báo & broadcast SignalR
+            
+
+            // prepare actor/class info
+            var actor = _aUserService.GetUserById(userGuid);
+            string updaterLink = "/class";
+          
+            var actorName = actor?.Fullname ?? "Người dùng";
+            var className = createdClass?.Name ?? $"lớp {createdClass.Id}";
+
+            // ---------------------------
             try
             {
-                var notifData = await _service.PrepareNotificationsAsync(createdClass, userGuid, isCreate: true);
-                if (notifData != null)
+                if (actor?.SchoolId != null)
                 {
-                    var (groupId, maintainerIds, groupNotif, actorNotif) = notifData.Value;
+                    // ensure maintainer group exists and get member ids
+                    var (maintainerGroupId, maintainerIds) = await _notificationService.EnsureCompositeGroupAsync(
+                        schoolId: actor.SchoolId.Value,
+                        roleNames: new[] { "School Admin", "Homeroom Teacher" },
+                        createdBy: userGuid,
+                        ct: HttpContext.RequestAborted
+                    );
 
-                    var groupTargets = maintainerIds.Select(id => $"user_{id}").ToList();
-                    groupTargets.Add($"group_{groupId}");
-
-                    var payloadGroup = new
+                    if (maintainerIds != null && maintainerIds.Any())
                     {
-                        id = groupNotif.Id,
-                        title = groupNotif.Title,
-                        body = groupNotif.Body,
-                        priority = groupNotif.Priority,
-                        targetType = groupNotif.TargetType,
-                        targetGroupId = groupNotif.TargetGroupId,
-                        createdAt = groupNotif.CreatedAt
-                    };
-                    await _notificationHub.Clients.Groups(groupTargets).SendAsync("NotificationCreated", payloadGroup);
+                        // Create + persist notification and seed per-user unread entries
+                        var savedMaint = await _notificationService.CreateAndSendNotificationToRecipientsAsync(
+                            title: $"Lớp {className} được tạo bởi {actorName}",
+                            body: $"{actorName} đã tạo lớp {className}",
+                            targetType: "Group",
+                            targetGroupId: maintainerGroupId,
+                            targetUserId: null,
+                            recipientUserIds: maintainerIds, // seed per-user so offline users have unread
+                            createdBy: userGuid,
+                            linkUrl: updaterLink,
+                            priority: "High",
+                            ct: HttpContext.RequestAborted);
 
-                    if (actorNotif != null)
-                    {
-                        var payloadActor = new
+                        // Build minimal payload
+                        var payload = new
                         {
-                            id = actorNotif.Id,
-                            title = actorNotif.Title,
-                            body = actorNotif.Body,
-                            priority = actorNotif.Priority,
-                            targetType = actorNotif.TargetType,
-                            targetUserId = actorNotif.TargetUserId,
-                            createdAt = actorNotif.CreatedAt
+                            id = savedMaint.Id,
+                            title = savedMaint.Title,
+                            body = savedMaint.Body,
+                            linkUrl = updaterLink,
+                            priority = savedMaint.Priority,
+                            targetType = savedMaint.TargetType,
+                            targetGroupId = savedMaint.TargetGroupId,
+                            createdAt = savedMaint.CreatedAt
                         };
-                        await _notificationHub.Clients.Group($"user_{userGuid}").SendAsync("NotificationCreated", payloadActor);
+
+                        // 1) Reliable immediate delivery: broadcast to each maintainer's user_{id} groups
+                        try
+                        {
+                            var userTargets = maintainerIds.Select(id => $"user_{id}").ToArray();
+                            await _notificationHub.Clients.Groups(userTargets).SendAsync("NotificationCreated", payload);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Broadcast to maintainer user groups failed: {ex}");
+                        }
+
+                        // 2) Optional: ask clients to join the persistent group so future group broadcasts work
+                        try
+                        {
+                            var userTargets = maintainerIds.Select(id => $"user_{id}").ToArray();
+                            await _notificationHub.Clients.Groups(userTargets).SendAsync("RequestJoinGroup", new { groupId = maintainerGroupId });
+                        }
+                        catch
+                        {
+                            // non-fatal
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Notification broadcast error: {ex.Message}");
+                Console.WriteLine($"Create/send maintainer notifications error: {ex}");
             }
 
             return CreatedAtAction(nameof(GetClasses), new { id = createdClass.Id }, createdClass.ToDetailDto());
@@ -175,48 +219,83 @@ namespace StudyHub.Backend.Api.Controllers
             var updated = _service.UpdateClassFromPrimitives(id, dto.Name, dto.Description, userGuid, dto.CreateBy);
             if (updated == null) return NotFound();
 
-            // Gửi thông báo & broadcast SignalR
+            
+            // prepare actor/class info
+            var actor = _aUserService.GetUserById(userGuid);
+            string updaterLink = "/class";
+
+
+            var actorName = actor?.Fullname ?? "Người dùng";
+            var className = updated?.Name ?? $"lớp {updated.Id}";
+
+            // ---------------------------
             try
             {
-                var notifData = await _service.PrepareNotificationsAsync(updated, userGuid, isCreate: false);
-                if (notifData != null)
+                if (actor?.SchoolId != null)
                 {
-                    var (groupId, maintainerIds, groupNotif, actorNotif) = notifData.Value;
+                    // ensure maintainer group exists and get member ids
+                    var (maintainerGroupId, maintainerIds) = await _notificationService.EnsureCompositeGroupAsync(
+                        schoolId: actor.SchoolId.Value,
+                        roleNames: new[] { "School Admin", "Homeroom Teacher" },
+                        createdBy: userGuid,
+                        ct: HttpContext.RequestAborted
+                    );
 
-                    var groupTargets = maintainerIds.Select(id => $"user_{id}").ToList();
-                    groupTargets.Add($"group_{groupId}");
-
-                    var payloadGroup = new
+                    if (maintainerIds != null && maintainerIds.Any())
                     {
-                        id = groupNotif.Id,
-                        title = groupNotif.Title,
-                        body = groupNotif.Body,
-                        priority = groupNotif.Priority,
-                        targetType = groupNotif.TargetType,
-                        targetGroupId = groupNotif.TargetGroupId,
-                        createdAt = groupNotif.CreatedAt
-                    };
-                    await _notificationHub.Clients.Groups(groupTargets).SendAsync("NotificationCreated", payloadGroup);
+                        // Create + persist notification and seed per-user unread entries
+                        var savedMaint = await _notificationService.CreateAndSendNotificationToRecipientsAsync(
+                            title: $"Lớp {className} được cập nhật bởi {actorName}",
+                            body: $"{actorName} đã cập nhật lớp {className}",
+                            targetType: "Group",
+                            targetGroupId: maintainerGroupId,
+                            targetUserId: null,
+                            recipientUserIds: maintainerIds, // seed per-user so offline users have unread
+                            createdBy: userGuid,
+                            linkUrl: updaterLink,
+                            priority: "High",
+                            ct: HttpContext.RequestAborted);
 
-                    if (actorNotif != null)
-                    {
-                        var payloadActor = new
+                        // Build minimal payload
+                        var payload = new
                         {
-                            id = actorNotif.Id,
-                            title = actorNotif.Title,
-                            body = actorNotif.Body,
-                            priority = actorNotif.Priority,
-                            targetType = actorNotif.TargetType,
-                            targetUserId = actorNotif.TargetUserId,
-                            createdAt = actorNotif.CreatedAt
+                            id = savedMaint.Id,
+                            title = savedMaint.Title,
+                            body = savedMaint.Body,
+                            linkUrl = updaterLink,
+                            priority = savedMaint.Priority,
+                            targetType = savedMaint.TargetType,
+                            targetGroupId = savedMaint.TargetGroupId,
+                            createdAt = savedMaint.CreatedAt
                         };
-                        await _notificationHub.Clients.Group($"user_{userGuid}").SendAsync("NotificationCreated", payloadActor);
+
+                        // 1) Reliable immediate delivery: broadcast to each maintainer's user_{id} groups
+                        try
+                        {
+                            var userTargets = maintainerIds.Select(id => $"user_{id}").ToArray();
+                            await _notificationHub.Clients.Groups(userTargets).SendAsync("NotificationCreated", payload);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Broadcast to maintainer user groups failed: {ex}");
+                        }
+
+                        // 2) Optional: ask clients to join the persistent group so future group broadcasts work
+                        try
+                        {
+                            var userTargets = maintainerIds.Select(id => $"user_{id}").ToArray();
+                            await _notificationHub.Clients.Groups(userTargets).SendAsync("RequestJoinGroup", new { groupId = maintainerGroupId });
+                        }
+                        catch
+                        {
+                            // non-fatal
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Notification broadcast error: {ex.Message}");
+                Console.WriteLine($"Create/send maintainer notifications error: {ex}");
             }
 
             return Ok(updated.ToDetailDto());

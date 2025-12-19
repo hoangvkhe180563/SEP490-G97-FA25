@@ -563,7 +563,7 @@ namespace StudyHub.Backend.UseCases.Services
             return list;
         }
 
-        // Top read notifications optional schoolId
+        // Top "interactive" notifications: order by comment count (most commented first)
         public IReadOnlyList<(int NotificationId, string Title, string CreatedBy, int ReadsCount, int IgnoredCount, int TotalRecipients, int SubmissionsCount)> GetTopReadNotificationsPrimitives(int top = 10, int? schoolId = null)
         {
             var notifIds = _repo.GetAllNotificationIds() ?? Enumerable.Empty<int>();
@@ -574,18 +574,22 @@ namespace StudyHub.Backend.UseCases.Services
                 var cid = _repo.GetClassIdForNotification(id);
                 if (schoolId.HasValue && !ClassBelongsToSchool(cid, schoolId.Value)) continue;
 
-                var reads = _repo.GetReadCountForNotification(id);
+                // Use comment count as the interaction metric
+                var comments = _repo.GetCommentsCountByNotificationId(id);
                 var total = _repo.GetTotalRecipientsForNotification(id);
                 var subs = _repo.GetSubmissionsCountByNotificationId(id);
                 var title = _repo.GetNotificationTitle(id) ?? string.Empty;
-                var ignored = Math.Max(0, total - reads);
+                var ignored = Math.Max(0, total - _repo.GetReadCountForNotification(id));
                 var creatorName = _repo.GetNotificationCreatedByName(id) ?? string.Empty;
-                result.Add((id, title, creatorName, reads, ignored, total, subs));
+                // NOTE: ReadsCount field reused to carry "comments count" (interaction)
+                result.Add((id, title, creatorName, comments, ignored, total, subs));
             }
 
+            // Order by comments (ReadsCount field) descending, then by submissions
             return result.OrderByDescending(x => x.ReadsCount).ThenByDescending(x => x.SubmissionsCount).Take(top).ToList();
         }
 
+        // Top read notifications (deprecated alias - keep for compatibility)
         public IReadOnlyList<(int NotificationId, string Title, string CreatedBy, int ReadsCount, int IgnoredCount, int TotalRecipients, int SubmissionsCount)> GetMostIgnoredNotificationsPrimitives(int top = 10, int? schoolId = null)
         {
             var notifIds = _repo.GetAllNotificationIds() ?? Enumerable.Empty<int>();
@@ -653,7 +657,25 @@ namespace StudyHub.Backend.UseCases.Services
             }
             return list;
         }
+        public IReadOnlyList<(int ClassId, string ClassName, double AvgScore, int Count)> GetAverageScorePerClassPrimitives(int? schoolId = null)
+        {
+            var raw = _repo.GetAverageScorePerClass() ?? new List<(int ClassId, double AvgScore, int Count)>();
 
+            var res = new List<(int ClassId, string ClassName, double AvgScore, int Count)>();
+            foreach (var item in raw)
+            {
+                var cid = item.ClassId;
+                if (schoolId.HasValue && !ClassBelongsToSchool(cid, schoolId.Value))
+                {
+                    continue;
+                }
+                var name = _repo.GetClassNameById(cid) ?? string.Empty;
+                res.Add((cid, name, item.AvgScore, item.Count));
+            }
+
+            // optional: order by AvgScore desc
+            return res.OrderByDescending(x => x.AvgScore).ToList();
+        }
         // --------------------------------------------------------------------
         // The rest of helpers remain unchanged (TryParseYearMonth etc.)
         // --------------------------------------------------------------------

@@ -15,6 +15,13 @@ import type {
   NotificationStatDto,
 } from "@/classManagement/interfaces/dashboard";
 
+type ClassAvgDto = {
+  classId: number;
+  className: string;
+  avgScore: number;
+  submissions: number;
+};
+
 type DashboardState = {
   // data
   overview: OverviewDto | null;
@@ -39,6 +46,9 @@ type DashboardState = {
   topReadNotifications: NotificationStatDto[];
   mostIgnoredNotifications: NotificationStatDto[];
   classWithMostNotifications: TopActiveClassDto | null;
+
+  // class averages
+  classAverages: ClassAvgDto[];
 
   // school info (from new endpoint)
   schoolName: string | null;
@@ -74,6 +84,9 @@ type DashboardState = {
 
   // new: get school name for current user
   fetchMySchool: () => Promise<string | null>;
+
+  // NEW: fetch class averages
+  fetchClassAverages: () => Promise<ClassAvgDto[] | null>;
 };
 
 export const useDashboardStore = create<DashboardState>()(
@@ -113,6 +126,9 @@ export const useDashboardStore = create<DashboardState>()(
       mostIgnoredNotifications: [],
       classWithMostNotifications: null,
 
+      // class averages
+      classAverages: [],
+
       // school name
       schoolName: null,
 
@@ -142,6 +158,8 @@ export const useDashboardStore = create<DashboardState>()(
           topReadNotifications: [],
           mostIgnoredNotifications: [],
           classWithMostNotifications: null,
+
+          classAverages: [],
 
           schoolName: null,
 
@@ -256,7 +274,7 @@ export const useDashboardStore = create<DashboardState>()(
           const arr = Array.isArray(raw) ? raw : [];
           const mapped = arr.map((r: any) => ({
             key: String(r.key ?? r.Key ?? r.label ?? r.Label ?? ""),
-            value: typeof r.value === "number" ? r.value : Number(r.Value ?? r.v ?? 0),
+            value: typeof r.value === "number" ? r.value : Number(r.Value ?? 0),
           })) as KeyValueDto[];
           set({ emailVerified: mapped, isLoading: false });
           return mapped;
@@ -373,7 +391,7 @@ export const useDashboardStore = create<DashboardState>()(
           const mapped = arr.map((r: any) => ({
             notificationId: typeof r.notificationId === "number" ? r.notificationId : Number(r.NotificationId ?? r.id ?? 0),
             title: String(r.title ?? r.Title ?? r.name ?? ""),
-            createdBy: String(r.createBy ),
+            createdBy: String(r.createBy),
             submissionsCount: typeof r.submissionsCount === "number" ? r.submissionsCount : Number(r.SubmissionsCount ?? r.interactions ?? 0),
           })) as AssignmentInteractionDto[];
           set({ mostInteractiveAssignments: mapped, isLoading: false });
@@ -466,7 +484,6 @@ export const useDashboardStore = create<DashboardState>()(
           const res = await axiosInstance.get<NotificationStatDto[]>(`${base}/top-read-notifications${qs}`);
           const raw = res && res.data ? res.data : [];
           const arr = Array.isArray(raw) ? raw : [];
-          // map to a stable client-side shape, supporting various casing
           const mapped = arr.map((r: any) => ({
             notificationId: typeof r.notificationId === "number" ? r.notificationId : Number(r.NotificationId ?? r.id ?? 0),
             title: String(r.title ?? r.Title ?? r.name ?? ""),
@@ -534,9 +551,7 @@ export const useDashboardStore = create<DashboardState>()(
           } else if (typeof raw === "string") {
             name = raw;
           } else if (typeof raw === "object") {
-            // possible shapes: { SchoolId, SchoolName } or { schoolId, schoolName } or just { name }
             name = (raw.schoolName ?? raw.SchoolName ?? raw.name ?? raw.Name ?? null) as string | null;
-            // if server returns just the name as top-level primitive property
             if (!name && typeof raw === "object") {
               const keys = Object.keys(raw);
               if (keys.length === 1) {
@@ -548,6 +563,28 @@ export const useDashboardStore = create<DashboardState>()(
 
           set({ schoolName: name, isLoading: false });
           return name;
+        } catch (err) {
+          handleError(err);
+          return null;
+        }
+      },
+
+      // NEW: fetch class averages
+      fetchClassAverages: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const res = await axiosInstance.get<any>(`${base}/avg-score-per-class`);
+          const raw = res && res.data ? res.data : null;
+          const payload = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : raw?.data ?? [];
+          const arr = Array.isArray(payload) ? payload : [];
+          const mapped: ClassAvgDto[] = arr.map((r: any) => ({
+            classId: typeof r.classId === "number" ? r.classId : Number(r.ClassId ?? r.classId ?? 0),
+            className: String(r.className ?? r.ClassName ?? r.name ?? ""),
+            avgScore: typeof r.avgScore === "number" ? r.avgScore : Number(r.AvgScore ?? r.avg ?? 0),
+            submissions: typeof r.submissions === "number" ? r.submissions : Number(r.submissionsCount ?? r.Count ?? r.count ?? 0),
+          }));
+          set({ classAverages: mapped, isLoading: false });
+          return mapped;
         } catch (err) {
           handleError(err);
           return null;

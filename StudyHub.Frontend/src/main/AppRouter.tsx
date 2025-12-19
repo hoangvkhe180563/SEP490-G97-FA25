@@ -31,7 +31,7 @@ const AppRouter = () => {
   const { startPaymentConnection, stopPaymentConnection } = usePaymentStore();
   const { startRead, stopRead } = useConversationStore();
   const { startChat, stopChat } = useMessageStore();
-  const { startNotification, stopNotification } = useNotificationStore();
+  const { startNotification, stopNotification, fetchUnreadCount } = useNotificationStore();
 
 
   useEffect(() => {
@@ -48,6 +48,7 @@ const AppRouter = () => {
         await startRead?.();
         await startChat?.();
         await startNotification?.();
+        await fetchUnreadCount();
       } catch (err) {
         // non-fatal
         console.warn("startPresence failed", err);
