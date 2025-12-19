@@ -8,6 +8,8 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:6789
+    dns:
+      - 8.8.8.8
     depends_on:
       elasticsearch:
         condition: service_healthy
