@@ -17,6 +17,9 @@ const AIQuestionTemplate = (props: { selectedSubjectId: number, selectedGrade: n
     if (prompt.trim().length === 0) {
       toast.error("Vui lòng nhập nội dung tạo câu hỏi!");
       return;
+    } else if (prompt.trim().length <= 10) {
+      toast.error("Nội dung câu hỏi phải ít nhất 10 ký tự!");
+      return;
     }
 
     setLoading(true);
