@@ -112,6 +112,7 @@ const UpdateAccount: React.FC = () => {
   const [preview, setPreview] = useState<string | undefined>(undefined);
   const [file, setFile] = useState<File | null>(null);
   const rolesRef = useRef<HTMLDivElement | null>(null);
+  const [loadedUser, setLoadedUser] = useState<any | null>(null);
 
   const initial = {
     email: "",
@@ -297,8 +298,7 @@ const UpdateAccount: React.FC = () => {
         const data = await getAppUserById(id);
         const user = data?.data ?? data;
         if (user) {
-          if (user.cityId) await fetchCommunes(Number(user.cityId));
-          if (user.communeId) await fetchSchools(Number(user.communeId));
+          setLoadedUser(user);
 
           const normalizeGender = (() => {
             const g = user.gender;
@@ -735,24 +735,19 @@ const UpdateAccount: React.FC = () => {
               <FormItem>
                 <FormLabel>Tỉnh / Thành phố</FormLabel>
                 <FormControl>
-                  <Select
-                    onValueChange={(v) => {
-                      field.onChange(v);
-                      onCityChange(v);
-                    }}
-                    value={field.value ? String(field.value) : undefined}
-                  >
-                    <SelectTrigger className="w-full mt-1">
-                      <SelectValue placeholder="Chọn tỉnh / thành" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(cities || []).map((c: any) => (
-                        <SelectItem key={c.id} value={String(c.id)}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div>
+                    <input type="hidden" {...field} />
+                    <Input
+                      readOnly
+                      value={
+                        (loadedUser && loadedUser.cityName) ||
+                        ((cities || []).find(
+                          (c: any) => String(c.id) === String(field.value)
+                        )?.name as any) ||
+                        ""
+                      }
+                    />
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -768,24 +763,19 @@ const UpdateAccount: React.FC = () => {
               <FormItem>
                 <FormLabel>Phường / Xã</FormLabel>
                 <FormControl>
-                  <Select
-                    onValueChange={(v) => {
-                      field.onChange(v);
-                      onCommuneChange(v);
-                    }}
-                    value={field.value ? String(field.value) : undefined}
-                  >
-                    <SelectTrigger className="w-full mt-1">
-                      <SelectValue placeholder="Chọn phường / xã" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(communes || []).map((c: any) => (
-                        <SelectItem key={c.id} value={String(c.id)}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div>
+                    <input type="hidden" {...field} />
+                    <Input
+                      readOnly
+                      value={
+                        (loadedUser && loadedUser.communeName) ||
+                        ((communes || []).find(
+                          (c: any) => String(c.id) === String(field.value)
+                        )?.name as any) ||
+                        ""
+                      }
+                    />
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -799,24 +789,19 @@ const UpdateAccount: React.FC = () => {
               <FormItem>
                 <FormLabel>Trường</FormLabel>
                 <FormControl>
-                  <Select
-                    onValueChange={(v) => {
-                      field.onChange(v);
-                      onSchoolChange(v);
-                    }}
-                    value={field.value ? String(field.value) : undefined}
-                  >
-                    <SelectTrigger className="w-full mt-1">
-                      <SelectValue placeholder="Chọn trường (tùy chọn)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(schools || []).map((s: any) => (
-                        <SelectItem key={s.id} value={String(s.id)}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div>
+                    <input type="hidden" {...field} />
+                    <Input
+                      readOnly
+                      value={
+                        (loadedUser && loadedUser.schoolName) ||
+                        ((schools || []).find(
+                          (s: any) => String(s.id) === String(field.value)
+                        )?.name as any) ||
+                        ""
+                      }
+                    />
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>

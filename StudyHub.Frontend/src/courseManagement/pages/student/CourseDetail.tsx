@@ -43,6 +43,7 @@ const CourseDetail: React.FC = () => {
   const chapters = useLectureStore((s) => s.chapters);
   const fetchChapters = useLectureStore((s) => s.fetchChapters);
   const fetchLessons = useLectureStore((s) => s.fetchLessons);
+  const fetchLesson = useLectureStore((s) => s.fetchLesson);
   // allow multiple chapters to be expanded at once
   const [expandedChapters, setExpandedChapters] = useState<Set<number>>(
     new Set()
@@ -765,9 +766,11 @@ const CourseDetail: React.FC = () => {
                                           onClick={() => {
                                             if (!isPreview && !enrollment)
                                               return;
-                                            navigate(
-                                              `/course/student/courses/${courseId}/lecture/${ls.id}`
-                                            );
+                                            fetchLesson(ls.id).then(() => {
+                                              navigate(
+                                                `/course/student/courses/${courseId}/lecture/${ls.id}`
+                                              );
+                                            })
                                           }}
                                         />
                                       );
@@ -791,9 +794,11 @@ const CourseDetail: React.FC = () => {
                                           onClick={() => {
                                             if (!isPreview && !enrollment)
                                               return;
-                                            navigate(
-                                              `/course/student/courses/${courseId}/lecture/${ls.id}`
-                                            );
+                                            fetchLesson(ls.id).then(() => {
+                                              navigate(
+                                                `/course/student/courses/${courseId}/lecture/${ls.id}`
+                                              );
+                                            })
                                           }}
                                         />
                                       );

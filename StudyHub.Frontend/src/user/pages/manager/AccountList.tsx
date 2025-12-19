@@ -28,6 +28,8 @@ import { Link } from "react-router-dom";
 import { useAppRoleStore } from "@/user/stores/useRoleStore";
 
 import { Paging } from "@/common/components/Paging";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { ROLES } from "@/common/constants/Roles";
 
 const AccountList = () => {
   const [search, setSearch] = useState("");
@@ -73,6 +75,7 @@ const AccountList = () => {
   } | null>(null);
   console.log("Preview data:", previewData);
   const { appRoles, getAppRoles } = useAppRoleStore();
+  const { user } = useAuthStore();
   // Map frontend status to backend expected values (Active/Inactive)
   const statusColor: Record<AppUser["status"], string> = {
     Active:
@@ -330,11 +333,15 @@ const AccountList = () => {
     if (roleFilter && roleFilter !== "all") params.set("role", roleFilter);
     if (statusFilter && statusFilter !== "all")
       params.set("status", statusFilter);
+    // manager: restrict to current user's school
+    if (user && typeof user.schoolId !== "undefined" && user.schoolId > 0) {
+      params.set("schoolId", String(user.schoolId));
+    }
     if (debouncedSearch) params.set("search", debouncedSearch);
     params.set("page", String(page));
     params.set("limit", "6");
     return params.toString();
-  }, [roleFilter, statusFilter, debouncedSearch, page]);
+  }, [roleFilter, statusFilter, debouncedSearch, page, user]);
 
   useEffect(() => {
     // Fetch when query changes
@@ -394,11 +401,15 @@ const AccountList = () => {
           <SelectContent>
             <SelectGroup>
               <SelectItem value="all">Tất cả vai trò</SelectItem>
-              {appRoles.map((role) => (
-                <SelectItem key={role.id} value={String(role.id)}>
-                  {role.name}
-                </SelectItem>
-              ))}
+              {(appRoles || [])
+                .filter(
+                  (role) => String(role.name) !== String(ROLES.EXTERNAL_STUDENT)
+                )
+                .map((role) => (
+                  <SelectItem key={role.id} value={String(role.id)}>
+                    {role.name}
+                  </SelectItem>
+                ))}
             </SelectGroup>
           </SelectContent>
         </Select>

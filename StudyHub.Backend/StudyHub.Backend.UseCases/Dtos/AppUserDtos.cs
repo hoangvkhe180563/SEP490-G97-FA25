@@ -13,6 +13,7 @@ namespace StudyHub.Backend.UseCases.Dtos
         public string? Username { get; set; }
         public string? Fullname { get; set; }
         public string? Avatar { get; set; }
+        public string? SchoolName { get; set; }
         public string Status { get; set; } = null!; // Active/Inactive
         public string CreatedAt { get; set; } = null!; // yyyy/MM/dd
         public List<string> Roles { get; set; } = new();

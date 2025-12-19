@@ -52,6 +52,7 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<EmbeddingService>();
             services.AddScoped<ElasticCourseVectorSearchService>();
             services.AddScoped<ElasticDocumentVectorSearchService>();
+            services.AddScoped<ElasticQuestionVectorSearchService>();
             services.AddScoped<LLMService>();
             services.AddScoped<LlmHistoryService>();
             services.AddScoped<ProfileService>();

@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectContent,
   SelectItem,
-  SelectValue,
 } from "@/common/components/ui/select";
 import { CloudUpload } from "lucide-react";
 import {
@@ -36,6 +35,7 @@ import { useLocationStore } from "@/user/stores/useLocationStore";
 import toast from "react-hot-toast";
 import { isValidVietnamPhone } from "@/user/utils/phoneUtils";
 import useDobStore from "@/user/stores/useDobStore";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const schema = z
   .object({
@@ -82,14 +82,8 @@ const CreateAccount: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const rolesRef = useRef<HTMLDivElement | null>(null);
   const { getAppRoles, appRoles } = useAppRoleStore();
-  const {
-    fetchCities,
-    fetchCommunes,
-    fetchSchools,
-    cities,
-    communes,
-    schools,
-  } = useLocationStore();
+  const { fetchCities, fetchCommunes, fetchSchools } = useLocationStore();
+  const { user } = useAuthStore();
   const { getSubjects, subjects } = useDocumentStore();
 
   const form = useForm<FormValues>({
@@ -316,7 +310,38 @@ const CreateAccount: React.FC = () => {
     getAppRoles();
     fetchCities();
     getSubjects();
-  }, [fetchCities, getAppRoles]);
+
+    // If current authenticated user has location ids, populate hidden form fields
+    if (user) {
+      if (typeof user.cityId !== "undefined" && user.cityId !== null) {
+        try {
+          setValue("cityId", String(user.cityId));
+        } catch (e) {
+          /* ignore */
+        }
+      }
+      if (
+        typeof (user as any).communeId !== "undefined" &&
+        (user as any).communeId !== null
+      ) {
+        try {
+          setValue("communeId", String((user as any).communeId));
+        } catch (e) {
+          /* ignore */
+        }
+      }
+      if (
+        typeof (user as any).schoolId !== "undefined" &&
+        (user as any).schoolId !== null
+      ) {
+        try {
+          setValue("schoolId", String((user as any).schoolId));
+        } catch (e) {
+          /* ignore */
+        }
+      }
+    }
+  }, [fetchCities, getAppRoles, getSubjects, user, setValue]);
 
   const onCityChange = async (value?: string) => {
     const id = Number(value || 0);
@@ -782,32 +807,25 @@ const CreateAccount: React.FC = () => {
               <FormField
                 control={control}
                 name="cityId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tỉnh / Thành phố</FormLabel>
-                    <FormControl>
-                      <Select
-                        onValueChange={(v) => {
-                          field.onChange(v);
-                          onCityChange(v);
-                        }}
-                        value={field.value ? String(field.value) : undefined}
-                      >
-                        <SelectTrigger className="w-full mt-1">
-                          <SelectValue placeholder="Chọn tỉnh / thành" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {cities.map((c: any) => (
-                            <SelectItem key={c.id} value={String(c.id)}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const cityName = user?.cityName;
+                  return (
+                    <FormItem>
+                      <FormLabel>Tỉnh / Thành phố</FormLabel>
+                      <FormControl>
+                        <div>
+                          <input type="hidden" {...field} />
+                          <Input
+                            value={cityName ?? ""}
+                            readOnly
+                            placeholder="Tỉnh / Thành phố"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
             </div>
 
@@ -815,33 +833,25 @@ const CreateAccount: React.FC = () => {
               <FormField
                 control={control}
                 name="communeId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phường / Xã</FormLabel>
-                    <FormControl>
-                      <Select
-                        key={`commune-${watch("cityId") || "empty"}`}
-                        onValueChange={(v) => {
-                          onCommuneChange(v);
-                          field.onChange(v);
-                        }}
-                        value={field.value ? String(field.value) : undefined}
-                      >
-                        <SelectTrigger className="w-full mt-1">
-                          <SelectValue placeholder="Chọn phường / xã" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {communes.map((c: any) => (
-                            <SelectItem key={c.id} value={String(c.id)}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const communeName = user?.communeName;
+                  return (
+                    <FormItem>
+                      <FormLabel>Phường / Xã</FormLabel>
+                      <FormControl>
+                        <div>
+                          <input type="hidden" {...field} />
+                          <Input
+                            value={communeName ?? ""}
+                            readOnly
+                            placeholder="Phường / Xã"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
             </div>
 
@@ -849,33 +859,25 @@ const CreateAccount: React.FC = () => {
               <FormField
                 control={control}
                 name="schoolId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Trường</FormLabel>
-                    <FormControl>
-                      <Select
-                        key={`school-${watch("communeId") || "empty"}`}
-                        onValueChange={(v) => {
-                          onSchoolChange(v);
-                          field.onChange(v);
-                        }}
-                        value={field.value ? String(field.value) : undefined}
-                      >
-                        <SelectTrigger className="w-full mt-1">
-                          <SelectValue placeholder="Chọn truờng (tuỳ chọn)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {schools.map((s: any) => (
-                            <SelectItem key={s.id} value={String(s.id)}>
-                              {s.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const schoolName = user?.schoolName;
+                  return (
+                    <FormItem>
+                      <FormLabel>Trường</FormLabel>
+                      <FormControl>
+                        <div>
+                          <input type="hidden" {...field} />
+                          <Input
+                            value={schoolName ?? ""}
+                            readOnly
+                            placeholder="Trường (tuỳ chọn)"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
             </div>
           </div>

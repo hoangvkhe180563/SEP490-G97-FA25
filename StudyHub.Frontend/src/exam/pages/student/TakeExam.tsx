@@ -210,7 +210,6 @@ const TakeExam = () => {
   };
 
   const handleBackupExamResult = async (isSubmission: boolean) => {
-    if (isSubmitted) return;
     const currentStudentAnswers = studentAnswersRef.current;
     const currentCheatTimes = cheatTimesRef.current;
     const currentExamResult = examResultRef.current;
@@ -218,7 +217,6 @@ const TakeExam = () => {
 
     const answeredQuestions = currentQuestions.map((q, index) => {
       const studentAns = currentStudentAnswers[index + 1];
-      console.log(studentAns);
 
       return {
         questionId: q.questionObjectId ?? '',
@@ -247,7 +245,6 @@ const TakeExam = () => {
         navigate(`/exam/results/${newResult.id}`);
       } else {
         toast.error("Nộp bài thất bại. Vui lòng thử lại.");
-        setIsSubmitted(false);
       }
       setLoading(false);
     }

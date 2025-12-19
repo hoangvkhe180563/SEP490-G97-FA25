@@ -53,6 +53,18 @@ const useLocationStore = create<LocationState>()(
           set({ isLoading: false });
         }
       },
+      fetchAllSchools: async () => {
+        set({ isLoading: true });
+        try {
+          const response = await axiosInstance.get(`/Location/schools`);
+          const { data } = response;
+          set({ schools: data });
+        } catch (error) {
+          console.log(error);
+        } finally {
+          set({ isLoading: false });
+        }
+      },
       selectedCity: null,
       selectedCommune: null,
       selectedSchool: null,

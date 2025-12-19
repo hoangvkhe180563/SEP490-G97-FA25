@@ -54,7 +54,7 @@ const ViewExamDetail = () => {
       try {
         setLoading(true);
         const [fetchedExam, results] = await Promise.all([
-          examService.getExamById(Number(id)),
+          examService.getExamById(Number(id), true),
           examService.getResultsByStudentAndExamId(user.id, Number(id)),
         ]);
         setExam(fetchedExam);
