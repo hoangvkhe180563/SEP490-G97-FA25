@@ -1,22 +1,18 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using OfficeOpenXml;
-using OfficeOpenXml;
-//using StudyHub.Backend.Api.BackgroundServices;
-using StudyHub.Backend.Api.Filters;
 using StudyHub.Backend.Api.Filters;
 using StudyHub.Backend.Api.Hubs;
-using StudyHub.Backend.Api.Hubs;
-using StudyHub.Backend.Api.Middlewares;
 using StudyHub.Backend.Api.Middlewares;
 using StudyHub.Backend.Infrastructure;
 using StudyHub.Backend.Infrastructure.MongoDb;
-using StudyHub.Backend.Infrastructure.Repositories;
 using StudyHub.Backend.UseCases;
-using StudyHub.Backend.UseCases.Services;
-using StudyHub.Backend.UseCases.Services;
 using StudyHub.Backend.UseCases.Utils;
+using Microsoft.OpenApi.Models;
+using StudyHub.Backend.UseCases.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// --- 1. CONFIG SERVICES ---
 
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", options =>
@@ -29,25 +25,15 @@ builder.Services.AddAuthentication("Bearer")
         options.CallbackPath = builder.Configuration.GetValue<string>("Google:CallbackPath") ?? "/auth/google/callback";
     });
 
-
-// Tắt tính năng tự động trả về 400 khi model state không hợp lệ
-// Ghi chú rằng ModalStateInvalidFilter là ActionFilter chạy sau khi ModelBinding vì thế muốn custom được phải tắt cái này trên toàn bộ API
-// Vì C# không hỗ trợ suppress per action/controller nên ta sẽ tắt toàn bộ và tạo filter riêng để thêm lại
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
     options.SuppressModelStateInvalidFilter = true;
 });
 
-
-
-// Tạo ra filter giống với modal state nhưng tuỳ chỉnh thêm vài cái để có thể custome response về như ý mình
-// Thứ tự diễn ra các filter là AuthorizeFilter => ResourceFilter => ModelBinding => ActionFilter
-// Filter dưới là ActionFilter chạy sau khi ModelBinding
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ConditionalModelValidationFilter>();
 });
-
 
 builder.Services.AddUseCasesDependency()
                 .AddInfrastructureDependency(builder.Configuration)
@@ -63,16 +49,41 @@ builder.Services.AddCors(options =>
               .AllowCredentials();
     });
 });
+
 builder.Services.AddSwaggerGen(c =>
 {
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "StudyHub API", Version = "v1" });
     c.SupportNonNullableReferenceTypes();
 
-    c.MapType<IFormFile>(() => new Microsoft.OpenApi.Models.OpenApiSchema
+    // Cấu hình để upload file trên Swagger
+    c.MapType<IFormFile>(() => new OpenApiSchema
     {
         Type = "string",
         Format = "binary"
     });
+
+    // Thêm nút "Authorize" (khóa) để dán JWT Token vào Swagger cho Production/Dev
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            new string[] { }
+        }
+    });
 });
+
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
@@ -81,45 +92,42 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
 });
+
 builder.Services.AddSignalR();
 builder.Services.AddHostedService(provider =>
     provider.GetRequiredService<ImageModerationBackgroundService>());
+
 ExcelPackage.License.SetNonCommercialPersonal("StudyHub");
 builder.Services.AddScoped<ISignalRNotifier, SignalRNotifierMiddleware>();
 
 var app = builder.Build();
+
+// --- 2. CONFIG MIDDLEWARE PIPELINE ---
+
 app.UseCors();
 
-//For custom JWT middleware for handle token in cookie
-//app.UseWhen(
-//    ctx => ctx.Request.Path.StartsWithSegments("/api") &&
-//           !ctx.Request.Path.StartsWithSegments("/api/auth") &&
-//           !ctx.Request.Path.StartsWithSegments("/swagger"),
-//    branch =>
-//    {
-//        branch.UseMiddleware<JwtMiddleware>(); // chính middleware của bạn
-//    }
-//);
-
-//Use custom middleware to extract JWT from cookie and set in Authorization header
-//JWTBearerHandler automatically validates the token from Authorization header
-app.UseMiddleware<JwtCookieMiddleware>();
-
-if (app.Environment.IsDevelopment())
+// Bật Swagger cho TẤT CẢ các môi trường (bao gồm cả Production)
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "StudyHub API v1");
+    // Nếu bạn muốn truy cập thẳng root (/) là ra Swagger luôn thì bỏ comment dòng dưới:
+    // c.RoutePrefix = string.Empty; 
+});
 
 app.UseHttpsRedirection();
 
+// Middleware xử lý Token từ Cookie (nếu có)
+app.UseMiddleware<JwtCookieMiddleware>();
+
 app.UseAuthentication();
-// Check that authenticated users are still active. If not, return a consistent AccountInactive payload.
 app.UseMiddleware<AccountActiveMiddleware>();
 app.UseAuthorization();
 app.UseSession();
+
 app.MapControllers();
 
+// SignalR Hubs
 app.MapHub<ClassNotificationHub>("/hubs/class-notification");
 app.MapHub<QAChatHub>("/hubs/qa-chat");
 app.MapHub<UserPresenseHub>("/hubs/user-presense");
@@ -127,4 +135,5 @@ app.MapHub<ForumHub>("/hubs/forum");
 app.MapHub<PaymentHub>("/hubs/payment");
 app.MapHub<QAReadHub>("/hubs/qa-read");
 app.MapHub<NotificationHub>("/hubs/notification");
+
 app.Run();
