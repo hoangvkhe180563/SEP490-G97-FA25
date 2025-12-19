@@ -6,12 +6,11 @@
   "engines": {
     "node": "22.21.1"
   },
- "scripts": {
-    "start": "vite",
+  "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "npx serve -s dist"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
