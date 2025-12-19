@@ -778,22 +778,39 @@ public IActionResult GetSchoolTeachersDocuments(
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
-        public class AskQuestionRequest
+        [HttpDelete("clear-all-rag-content")]
+        public async Task<IActionResult> ClearAllRAGContent()
         {
-            public string Question { get; set; } = string.Empty;
-        }
+            try
+            {
+                var elasticContentService = HttpContext.RequestServices
+                    .GetRequiredService<ElasticDocumentContentService>();
 
-        public class ChatWithDocumentRequest
-        {
-            public string Question { get; set; } = string.Empty;
-            public List<ConversationHistoryDto>? ConversationHistory { get; set; }
-        }
+                var countBefore = await elasticContentService.GetTotalDocumentCountAsync();
+                var result = await elasticContentService.ClearAllDocumentContentsAsync();
 
-        public class ConversationHistoryDto
-        {
-            public string Question { get; set; } = string.Empty;
-            public string Answer { get; set; } = string.Empty;
-            public DateTime Timestamp { get; set; }
+                if (result)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        message = $"Cleared {countBefore} document chunks from RAG index",
+                        deletedCount = countBefore
+                    });
+                }
+                else
+                {
+                    return StatusCode(500, new
+                    {
+                        success = false,
+                        message = "Failed to clear RAG content"
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
         }
     }
 }

@@ -97,7 +97,28 @@ export default function DocumentViewer() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [interactionMode, setInteractionMode] =
     useState<InteractionMode>("pointer");
-
+  const [hasRAGIndex, setHasRAGIndex] = useState(false);
+  const [isCheckingRAG, setIsCheckingRAG] = useState(true);
+  const [aiQuestion, setAiQuestion] = useState("");
+  const [aiAnswer, setAiAnswer] = useState<{
+    question: string;
+    answer: string;
+    confidence: number;
+    sources: Array<{
+      pageNumber: number;
+      content: string;
+      score: number;
+    }>;
+  } | null>(null);
+  const [isAskingAI, setIsAskingAI] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState<
+    Array<{
+      question: string;
+      answer: string;
+      timestamp: string;
+    }>
+  >([]);
+  const [activeAITab, setActiveAITab] = useState<"search" | "chat">("search");
   const { document, isLoading, getDocumentById, downloadDocument } =
     useDocumentStore();
   const pdfDocRef = useRef<PdfDocument | null>(null);
@@ -224,6 +245,33 @@ export default function DocumentViewer() {
       );
     };
   }, []);
+  useEffect(() => {
+    const checkRAGIndex = async () => {
+      if (id && document?.id) {
+        setIsCheckingRAG(true);
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_API_URL}/Document/${id}/rag-stats`,
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          );
+          if (response.ok) {
+            const result = await response.json();
+            setHasRAGIndex(result.data?.totalChunks > 0);
+          }
+        } catch (error) {
+          console.error("Error checking RAG index:", error);
+        } finally {
+          setIsCheckingRAG(false);
+        }
+      }
+    };
+
+    checkRAGIndex();
+  }, [id, document?.id]);
 
   useEffect(() => {
     if (id) {
@@ -491,7 +539,66 @@ export default function DocumentViewer() {
       }
     }
   };
+  const handleAskAI = async (isChat = false) => {
+    if (!aiQuestion.trim() || !id) return;
 
+    setIsAskingAI(true);
+    try {
+      const endpoint = isChat ? `/Document/${id}/chat` : `/Document/${id}/ask`;
+      const body = isChat
+        ? {
+            question: aiQuestion,
+            conversationHistory: conversationHistory.map((h) => ({
+              question: h.question,
+              answer: h.answer,
+              timestamp: h.timestamp,
+            })),
+          }
+        : { question: aiQuestion };
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}${endpoint}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify(body),
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        setAiAnswer(result.data);
+
+        if (isChat) {
+          setConversationHistory([
+            ...conversationHistory,
+            {
+              question: aiQuestion,
+              answer: result.data.answer,
+              timestamp: new Date().toISOString(),
+            },
+          ]);
+        }
+
+        setAiQuestion("");
+      }
+    } catch (error) {
+      console.error("Error asking AI:", error);
+    } finally {
+      setIsAskingAI(false);
+    }
+  };
+
+  const handleSourceClick = (pageNumber: number) => {
+    handlePageChange(pageNumber);
+
+    if (viewMode === "flipbook") {
+      setActiveAITab("search");
+    }
+  };
   const toggleViewMode = () => {
     setViewMode((prev) => (prev === "normal" ? "flipbook" : "normal"));
     setRotation(0);
@@ -945,6 +1052,11 @@ export default function DocumentViewer() {
                   <TabsTrigger value="info" className="text-xs">
                     Thông tin
                   </TabsTrigger>
+                  {hasRAGIndex && !isCheckingRAG && (
+                    <TabsTrigger value="ai" className="text-xs">
+                      AI Search
+                    </TabsTrigger>
+                  )}
                 </TabsList>
 
                 <div className="flex-1 overflow-y-auto">
@@ -1102,6 +1214,190 @@ export default function DocumentViewer() {
                         </div>
                       </div>
                     </div>
+                  </TabsContent>
+                  <TabsContent
+                    value="ai"
+                    className="p-3 mt-0 h-full flex flex-col"
+                  >
+                    <Tabs
+                      value={activeAITab}
+                      onValueChange={(v) =>
+                        setActiveAITab(v as "search" | "chat")
+                      }
+                      className="flex-1 flex flex-col"
+                    >
+                      <TabsList className="grid w-full grid-cols-2 mb-3">
+                        <TabsTrigger value="search" className="text-xs">
+                          Tìm kiếm
+                        </TabsTrigger>
+                        <TabsTrigger value="chat" className="text-xs">
+                          Trò chuyện
+                        </TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent
+                        value="search"
+                        className="flex-1 flex flex-col mt-0"
+                      >
+                        <div className="space-y-3 flex-1 flex flex-col">
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Hỏi về tài liệu..."
+                              value={aiQuestion}
+                              onChange={(e) => setAiQuestion(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleAskAI(false);
+                                }
+                              }}
+                              className="text-xs flex-1"
+                              disabled={isAskingAI}
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => handleAskAI(false)}
+                              disabled={isAskingAI || !aiQuestion.trim()}
+                              className="text-xs"
+                            >
+                              {isAskingAI ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                "Hỏi"
+                              )}
+                            </Button>
+                          </div>
+
+                          {aiAnswer && (
+                            <div className="flex-1 overflow-y-auto space-y-3">
+                              <div className="bg-blue-50 p-3 rounded-lg">
+                                <div className="text-xs font-medium text-blue-900 mb-1">
+                                  Câu hỏi
+                                </div>
+                                <div className="text-xs text-blue-800">
+                                  {aiAnswer.question}
+                                </div>
+                              </div>
+
+                              <div className="bg-green-50 p-3 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="text-xs font-medium text-green-900">
+                                    Trả lời
+                                  </div>
+                                  <div className="text-xs text-green-700">
+                                    Độ tin cậy:{" "}
+                                    {(aiAnswer.confidence * 100).toFixed(0)}%
+                                  </div>
+                                </div>
+                                <div className="text-xs text-green-800 whitespace-pre-wrap">
+                                  {aiAnswer.answer}
+                                </div>
+                              </div>
+
+                              {aiAnswer.sources &&
+                                aiAnswer.sources.length > 0 && (
+                                  <div>
+                                    <div className="text-xs font-medium mb-2 text-gray-700">
+                                      Nguồn tham khảo
+                                    </div>
+                                    <div className="space-y-2">
+                                      {aiAnswer.sources.map((source, idx) => (
+                                        <button
+                                          key={idx}
+                                          onClick={() =>
+                                            handleSourceClick(source.pageNumber)
+                                          }
+                                          className="w-full text-left p-2 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition-colors"
+                                        >
+                                          <div className="flex items-center justify-between mb-1">
+                                            <div className="text-xs font-medium text-gray-900">
+                                              Trang {source.pageNumber}
+                                            </div>
+                                            <div className="text-xs text-gray-600">
+                                              Score:{" "}
+                                              {(source.score * 100).toFixed(0)}%
+                                            </div>
+                                          </div>
+                                          <div className="text-xs text-gray-600 line-clamp-2">
+                                            {source.content}
+                                          </div>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                            </div>
+                          )}
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent
+                        value="chat"
+                        className="flex-1 flex flex-col mt-0"
+                      >
+                        <div className="flex-1 flex flex-col">
+                          <div className="flex-1 overflow-y-auto space-y-3 mb-3">
+                            {conversationHistory.map((turn, idx) => (
+                              <div key={idx} className="space-y-2">
+                                <div className="bg-blue-50 p-2 rounded-lg">
+                                  <div className="text-xs text-blue-800">
+                                    {turn.question}
+                                  </div>
+                                </div>
+                                <div className="bg-gray-50 p-2 rounded-lg">
+                                  <div className="text-xs text-gray-800 whitespace-pre-wrap">
+                                    {turn.answer}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+
+                            {aiAnswer && activeAITab === "chat" && (
+                              <div className="space-y-2">
+                                <div className="bg-blue-50 p-2 rounded-lg">
+                                  <div className="text-xs text-blue-800">
+                                    {aiAnswer.question}
+                                  </div>
+                                </div>
+                                <div className="bg-gray-50 p-2 rounded-lg">
+                                  <div className="text-xs text-gray-800 whitespace-pre-wrap">
+                                    {aiAnswer.answer}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Tiếp tục trò chuyện..."
+                              value={aiQuestion}
+                              onChange={(e) => setAiQuestion(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleAskAI(true);
+                                }
+                              }}
+                              className="text-xs flex-1"
+                              disabled={isAskingAI}
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => handleAskAI(true)}
+                              disabled={isAskingAI || !aiQuestion.trim()}
+                              className="text-xs"
+                            >
+                              {isAskingAI ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                "Gửi"
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
                   </TabsContent>
                 </div>
               </Tabs>

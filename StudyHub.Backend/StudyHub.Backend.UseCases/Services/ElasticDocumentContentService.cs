@@ -8,7 +8,7 @@ using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.UseCases.Services
 {
-    public class ElasticDocumentContentService 
+    public class ElasticDocumentContentService
     {
         private readonly ElasticClient _client;
         private readonly IConfiguration _configuration;
@@ -17,7 +17,7 @@ namespace StudyHub.Backend.UseCases.Services
         public ElasticDocumentContentService(IConfiguration configuration)
         {
             _configuration = configuration;
-            var settings = new ConnectionSettings(new Uri(_configuration["Elasticsearch:ElasticsearchURL"] ?? "http://localhost:9200"))
+            var settings = new ConnectionSettings(new Uri(_configuration["Elasticsearch:Uri"] ?? "http://localhost:9200"))
                             .DefaultIndex(INDEX_NAME);
             _client = new ElasticClient(settings);
         }
@@ -28,8 +28,7 @@ namespace StudyHub.Backend.UseCases.Services
 
             if (indexExists.Exists)
             {
-                Console.WriteLine($"[Elastic] Index '{INDEX_NAME}' already exists, skipping creation.");
-                return true; 
+                return true;
             }
 
             var createIndexResponse = await _client.Indices.CreateAsync(INDEX_NAME, c => c
@@ -40,6 +39,7 @@ namespace StudyHub.Backend.UseCases.Services
                         .Number(n => n.Name(f => f.PageNumber).Type(NumberType.Integer))
                         .Number(n => n.Name(f => f.ChunkIndex).Type(NumberType.Integer))
                         .Text(t => t.Name(f => f.Content).Analyzer("standard"))
+                        .Keyword(k => k.Name(f => f.Keywords))
                         .DenseVector(d => d
                             .Name(f => f.ContentVector)
                             .Dimensions(1024)
@@ -50,15 +50,6 @@ namespace StudyHub.Backend.UseCases.Services
                     )
                 )
             );
-
-            if (createIndexResponse.IsValid)
-            {
-                Console.WriteLine($"[Elastic] Index '{INDEX_NAME}' created successfully.");
-            }
-            else
-            {
-                Console.WriteLine($"[Elastic] Failed to create index: {createIndexResponse.DebugInformation}");
-            }
 
             return createIndexResponse.IsValid;
         }
@@ -75,13 +66,12 @@ namespace StudyHub.Backend.UseCases.Services
                     PageNumber = c.PageNumber,
                     ChunkIndex = c.ChunkIndex,
                     Content = c.Content,
+                    Keywords = c.Keywords,
                     ContentVector = c.ContentVector,
                     CharacterStart = c.CharacterStart,
                     CharacterEnd = c.CharacterEnd,
                     Metadata = c.Metadata
                 }).ToList();
-
-                Console.WriteLine($"[Elastic] Attempting to index {elasticChunks.Count} chunks...");
 
                 var bulkResponse = await _client.BulkAsync(b => b
                     .Index(INDEX_NAME)
@@ -91,7 +81,7 @@ namespace StudyHub.Backend.UseCases.Services
                     )
                 );
 
-                bool hasErrors = bulkResponse.Errors; 
+                bool hasErrors = bulkResponse.Errors;
 
                 if (hasErrors)
                 {
@@ -100,22 +90,15 @@ namespace StudyHub.Backend.UseCases.Services
 
                     if (actualErrors.Any())
                     {
-                        foreach (var item in actualErrors)
-                        {
-                            Console.WriteLine($"[Elastic] ERROR - ID: {item.Id}, Status: {item.Status}, Error: {item.Error?.Reason}");
-                        }
                         return false;
                     }
                 }
 
-                Console.WriteLine($"[Elastic] Successfully indexed {elasticChunks.Count} chunks");
                 await _client.Indices.RefreshAsync(INDEX_NAME);
-                return true; 
+                return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"[Elastic] Exception: {ex.Message}");
-                Console.WriteLine($"[Elastic] Stack: {ex.StackTrace}");
                 return false;
             }
         }
@@ -141,6 +124,11 @@ namespace StudyHub.Backend.UseCases.Services
                                         .Field("content")
                                         .Query(query)
                                         .Boost(1.0)
+                                    ),
+                                    sh => sh.Terms(t => t
+                                        .Field("keywords")
+                                        .Terms(query.Split(' ').Where(w => w.Length > 2))
+                                        .Boost(1.5)
                                     )
                                 )
                                 .MinimumShouldMatch(0)
@@ -168,20 +156,14 @@ namespace StudyHub.Backend.UseCases.Services
                 .Sort(st => st.Descending("_score"))
             );
 
-            Console.WriteLine($"[Elastic Search] Total hits: {searchResponse.Total}, IsValid: {searchResponse.IsValid}");
-
-            foreach (var hit in searchResponse.Hits.Take(3))
-            {
-                Console.WriteLine($"[Elastic] Hit ID: {hit.Id}, Score: {hit.Score}");
-            }
-
             return searchResponse;
         }
 
         public async Task<bool> DeleteDocumentChunksByDocumentIdAsync(int documentId)
         {
             var response = await _client.DeleteByQueryAsync<ElasticDocumentChunk>(d => d
-.Index(INDEX_NAME).Query(q => q
+                .Index(INDEX_NAME)
+                .Query(q => q
                     .Term(t => t.Field(f => f.DocumentId).Value(documentId))
                 )
             );
@@ -222,6 +204,49 @@ namespace StudyHub.Backend.UseCases.Services
                 LastIndexed = DateTime.Now
             };
         }
+        public async Task<bool> ClearAllDocumentContentsAsync()
+        {
+            try
+            {
+                var deleteResponse = await _client.DeleteByQueryAsync<ElasticDocumentChunk>(d => d
+                    .Index(INDEX_NAME)
+                    .Query(q => q.MatchAll())
+                );
+
+                if (deleteResponse.IsValid)
+                {
+                    await _client.Indices.RefreshAsync(INDEX_NAME);
+                }
+
+                return deleteResponse.IsValid;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> RecreateIndexAsync()
+        {
+            var indexExists = await _client.Indices.ExistsAsync(INDEX_NAME);
+
+            if (indexExists.Exists)
+            {
+                await _client.Indices.DeleteAsync(INDEX_NAME);
+            }
+
+            return await CreateIndexAsync();
+        }
+
+        public async Task<long> GetTotalDocumentCountAsync()
+        {
+            var countResponse = await _client.CountAsync<ElasticDocumentChunk>(c => c
+                .Index(INDEX_NAME)
+                .Query(q => q.MatchAll())
+            );
+
+            return countResponse.IsValid ? countResponse.Count : 0;
+        }
     }
 
     public class ElasticDocumentChunk
@@ -232,6 +257,7 @@ namespace StudyHub.Backend.UseCases.Services
         public int PageNumber { get; set; }
         public int ChunkIndex { get; set; }
         public string Content { get; set; } = string.Empty;
+        public List<string> Keywords { get; set; } = new List<string>();
         public float[] ContentVector { get; set; } = Array.Empty<float>();
         public int CharacterStart { get; set; }
         public int CharacterEnd { get; set; }
