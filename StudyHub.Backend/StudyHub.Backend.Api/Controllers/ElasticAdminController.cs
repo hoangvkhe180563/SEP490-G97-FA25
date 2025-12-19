@@ -11,11 +11,13 @@ namespace StudyHub.Backend.Api.Controllers
     {
         private readonly ElasticCourseVectorSearchService _elasticCourseVectorSearchService;
         private readonly ElasticDocumentVectorSearchService _elasticDocumentVectorSearchService;
+        private readonly ElasticQuestionVectorSearchService _elasticQuestionVectorSearchService;
 
-        public ElasticAdminController(ElasticCourseVectorSearchService elasticCourseVectorSearchService, ElasticDocumentVectorSearchService elasticDocumentVectorSearchService)
+        public ElasticAdminController(ElasticCourseVectorSearchService elasticCourseVectorSearchService, ElasticDocumentVectorSearchService elasticDocumentVectorSearchService, ElasticQuestionVectorSearchService elasticQuestionVectorSearchService)
         {
             _elasticCourseVectorSearchService = elasticCourseVectorSearchService;
             _elasticDocumentVectorSearchService = elasticDocumentVectorSearchService;
+            _elasticQuestionVectorSearchService = elasticQuestionVectorSearchService;
         }
 
         [HttpPost("setup-course-index")]
@@ -38,6 +40,20 @@ namespace StudyHub.Backend.Api.Controllers
             try
             {
                 var result = await _elasticDocumentVectorSearchService.CreateDocumentIndexAsync();
+                return Ok(new { success = result, message = "Index created successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("setup-question-index")]
+        public async Task<IActionResult> SetupQuestionIndex()
+        {
+            try
+            {
+                var result = await _elasticQuestionVectorSearchService.CreateQuestionIndexAsync();
                 return Ok(new { success = result, message = "Index created successfully" });
             }
             catch (Exception ex)
@@ -74,6 +90,20 @@ namespace StudyHub.Backend.Api.Controllers
             }
         }
 
+        [HttpPost("index-question")]
+        public async Task<IActionResult> AddQuestion([FromBody] UpsertElasticQuestionRequest question)
+        {
+            try
+            {
+                var result = await _elasticQuestionVectorSearchService.IndexQuestionAsync(question);
+                return Ok(new { success = result, message = "Question added successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
         [HttpPost("index-all-course-db")]
         public async Task<IActionResult> IndexAllCourseFromDb()
         {
@@ -94,6 +124,20 @@ namespace StudyHub.Backend.Api.Controllers
             {
                 var result = await _elasticDocumentVectorSearchService.IndexAllDocumentsFromDbAsync();
                 return Ok(new { success = result, message = result ? "All documents indexed successfully" : "Failed to index documents" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("index-all-question-db")]
+        public async Task<IActionResult> IndexAllQuestionFromDb()
+        {
+            try
+            {
+                var result = await _elasticQuestionVectorSearchService.IndexAllQuestionsFromDbAsync();
+                return Ok(new { success = result, message = result ? "All questions indexed successfully" : "Failed to index questions" });
             }
             catch (Exception ex)
             {
@@ -122,6 +166,20 @@ namespace StudyHub.Backend.Api.Controllers
             {
                 var result = await _elasticDocumentVectorSearchService.DeleteDocumentByIdAsync(id);
                 return Ok(new { success = result, message = result ? "Document deleted successfully" : "Failed to delete document" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpDelete("index-question/{id}")]
+        public async Task<IActionResult> DeleteQuestionIndexById(string id)
+        {
+            try
+            {
+                var result = await _elasticQuestionVectorSearchService.DeleteQuestionByIdAsync(id);
+                return Ok(new { success = result, message = result ? "Question deleted successfully" : "Failed to delete question" });
             }
             catch (Exception ex)
             {

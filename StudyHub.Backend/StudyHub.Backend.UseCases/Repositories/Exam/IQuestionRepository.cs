@@ -15,5 +15,6 @@ namespace StudyHub.Backend.UseCases.Repositories.Exam
         int GetTotalQuestions(int subjectId, int grade, int type, string questionText);
         List<Question> GenerateRandomQuestions(sbyte noRandomQuestions, short subjectId, sbyte grade);
         List<Question> GetCommonQuestionsBySubjects(List<int> subjectIds);
+        List<Question> GetAllQuestions();
     }
 }

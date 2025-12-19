@@ -2,6 +2,9 @@
 using StudyHub.Backend.Api.Dtos.RecommendDTOS;
 using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Services;
+using System.Linq;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -11,18 +14,22 @@ namespace StudyHub.Backend.Api.Controllers
     {
         private readonly ElasticCourseVectorSearchService _elasticCourseVectorSearchService;
         private readonly ElasticDocumentVectorSearchService _elasticDocumentVectorSearchService;
+        private readonly ElasticQuestionVectorSearchService _elasticQuestionVectorSearchService;
         private readonly LLMService _llmService;
         private readonly EmbeddingService _embeddingService;
         private readonly AuthService _authService;
+        private readonly SubjectService _subjectService;
         private readonly ProfileService _profileService;
 
-        public RecommendationController(ElasticCourseVectorSearchService elasticCourseVectorSearchService, ElasticDocumentVectorSearchService elasticDocumentVectorSearchService, LLMService llmService, EmbeddingService embeddingService, AuthService authService, ProfileService profileService)
+        public RecommendationController(ElasticCourseVectorSearchService elasticCourseVectorSearchService, ElasticDocumentVectorSearchService elasticDocumentVectorSearchService, ElasticQuestionVectorSearchService elasticQuestionVectorSearchService, LLMService llmService, EmbeddingService embeddingService, AuthService authService, SubjectService subjectService, ProfileService profileService)
         {
             _elasticCourseVectorSearchService = elasticCourseVectorSearchService;
             _elasticDocumentVectorSearchService = elasticDocumentVectorSearchService;
+            _elasticQuestionVectorSearchService = elasticQuestionVectorSearchService;
             _llmService = llmService;
             _embeddingService = embeddingService;
             _authService = authService;
+            _subjectService = subjectService;
             _profileService = profileService;
         }
 
@@ -191,6 +198,74 @@ namespace StudyHub.Backend.Api.Controllers
             catch (Exception ex)
             {
                 return BadRequest(new { error = ex.Message, stack = ex.StackTrace });
+            }
+        }
+
+        [HttpPost("generate-quiz")]
+        public async Task<IActionResult> GenerateQuiz([FromBody] CreateQuizRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.UserMessage))
+                    return BadRequest(new { error = "UserMessage is required" });
+
+                var (spec, promptTokens, completionTokens) = await _llmService.ExtractQuizSpecAsync(request.UserMessage);
+
+                // Override subject and grade from request if provided.
+                if (request.SubjectId.HasValue)
+                {
+                    try
+                    {
+                        var subjects = _subjectService.GetSubjects();
+                        var match = subjects.FirstOrDefault(s => s.Id == request.SubjectId.Value);
+                        if (match != null && !string.IsNullOrWhiteSpace(match.Name))
+                        {
+                            spec.Subject = new List<string> { match.Name! };
+                        }
+                    }
+                    catch
+                    {
+                        return BadRequest(new { error = "Mã môn không hợp lệ" });
+                    }
+                }
+
+                if (request.Grade.HasValue)
+                {
+                    spec.Grade = request.Grade.Value;
+                }
+
+                if (spec.NumQuestions > 10)
+                    return BadRequest(new { error = "Số lượng câu hỏi được tạo tối đa là 10" });
+
+                //var keywords = (spec.Keywords != null && spec.Keywords.Count > 0) ? spec.Keywords : new List<string> { request.UserMessage };
+
+                //int? grade = spec.Grade;
+                //int? subjectId = null;
+                //if (!string.IsNullOrWhiteSpace(spec.Subject))
+                //{
+                //    var subjects = _subjectService.GetSubjects();
+                //    var match = subjects.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.Name) && s.Name.Contains(spec.Subject, System.StringComparison.OrdinalIgnoreCase));
+                //    if (match != null) subjectId = match.Id;
+                //}
+
+                //var examples = await _elasticQuestionVectorSearchService.SearchSimilarQuestionsAsync(keywords, 5, subjectId, grade);
+
+
+                var specDto = StudyHub.Backend.UseCases.Dtos.QuizSpecDto.From(spec);
+                var (questions, generated, genPromptTokens, genCompletionTokens) = await _llmService.GenerateQuizAsync(specDto);
+
+                var resp = new CreateQuizResponse
+                {
+                    Spec = spec,
+                    //Examples = examples,
+                    GeneratedQuestions = questions
+                };
+
+                return Ok(resp);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
             }
         }
     }
