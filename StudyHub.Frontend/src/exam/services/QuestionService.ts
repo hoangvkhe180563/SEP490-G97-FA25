@@ -5,6 +5,8 @@ import type { Subject } from "../interfaces/models/Subject";
 import type { ExcelQuestionResponse } from "../interfaces/responses/ExcelQuestionResponse";
 import type { QuestionOverviewResponse } from "../interfaces/responses/QuestionOverviewResponse";
 import type { QuestionDetailOverviewResponse } from "../interfaces/responses/QuestionDetailOverviewResponse";
+import type { AIQuestionResponse } from "../interfaces/responses/AIQuestionResponse";
+import { EXAM_TYPE } from "../constants/Constants";
 
 export class QuestionService {
   getCommonQuestions = async (subjectId: number, grade: number, type: number, page: number, questionText: string): Promise<CommonQuestionResponse | null> => {
@@ -246,6 +248,65 @@ export class QuestionService {
       }
     } catch (error) {
       console.error("Error getQuestionStatistics: ", error);
+    }
+    return [];
+  }
+
+  generateAIQuestions = async (subjectId: number, grade: number, prompt: string): Promise<Question[]> => {
+    const payload = {
+      userMessage: prompt,
+      subjectId,
+      grade
+    }
+    try {
+      const res = await axiosInstance.post('/Recommendation/generate-quiz', payload, {
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      if (res.status === 200) {
+        const generatedQuestions = res.data.generatedQuestions as AIQuestionResponse[];
+        const questions: Question[] = generatedQuestions.map((generated, index) => {
+          let correctAnswer;
+          switch (generated.questionType) {
+            case EXAM_TYPE.SINGLE_CHOICE: {
+              correctAnswer = generated.correctAnswerIndex
+              break;
+            }
+            case EXAM_TYPE.MULTI_CHOICE: {
+              correctAnswer = generated.correctAnswerIndexes
+              break;
+            }
+            case EXAM_TYPE.TEXT_INPUT: {
+              correctAnswer = generated.correctAnswerText
+              break;
+            }
+            case EXAM_TYPE.FILL_IN_BLANK: {
+              correctAnswer = generated.correctAnswers
+              break;
+            }
+            case EXAM_TYPE.MATCHING: {
+              correctAnswer = generated.correctAnswerMap
+              break;
+            }
+          }
+          return {
+            id: Date.now() + index,
+            questionText: generated.questionText,
+            type: generated.questionType,
+            options: generated.options ?? [],
+            correctAnswer: correctAnswer,
+            terms: generated.terms ?? [],
+            definitions: generated.definitions ?? []
+          }
+        })
+
+        return questions
+      } else {
+        throw new Error(`Status: ${res.status}`);
+      }
+    } catch (error) {
+      console.error("Error generateAIQuestions: ", error);
     }
     return [];
   }
