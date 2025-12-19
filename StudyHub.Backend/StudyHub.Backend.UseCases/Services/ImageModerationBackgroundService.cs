@@ -31,25 +31,17 @@ namespace StudyHub.Backend.UseCases.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            Console.WriteLine("[ImageModerationBackgroundService] Starting...");
-            _logger.LogInformation("[ImageModerationBackgroundService] Starting...");
-
+    
             await Task.Delay(5000, stoppingToken);
-
-            Console.WriteLine("[ImageModerationBackgroundService] Started");
-            _logger.LogInformation("[ImageModerationBackgroundService] Started");
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
-                    Console.WriteLine("[ImageModerationBackgroundService] Checking for pending images...");
                     await ProcessPendingImages(stoppingToken);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ImageModerationBackgroundService] ERROR: {ex.Message}");
-                    Console.WriteLine($"[ImageModerationBackgroundService] StackTrace: {ex.StackTrace}");
                     _logger.LogError(ex, "[ImageModerationBackgroundService] Error processing pending images");
                 }
 
@@ -66,18 +58,14 @@ namespace StudyHub.Backend.UseCases.Services
 
             if (!pendingAttachments.Any())
             {
-                Console.WriteLine("[ProcessPendingImages] No pending attachments found");
                 return;
             }
 
-            Console.WriteLine($"[ProcessPendingImages] Found {pendingAttachments.Count} pending attachments");
 
             var groupedByPost = pendingAttachments
                 .Where(a => a.PostId.HasValue)
                 .GroupBy(a => a.PostId.Value)
                 .ToList();
-
-            Console.WriteLine($"[ProcessPendingImages] Grouped into {groupedByPost.Count} posts");
 
             foreach (var postGroup in groupedByPost)
             {
@@ -86,12 +74,10 @@ namespace StudyHub.Backend.UseCases.Services
                 await ProcessSinglePost(postGroup.Key, postGroup.ToList(), stoppingToken);
             }
 
-            Console.WriteLine($"[ProcessPendingImages] Finished batch of {pendingAttachments.Count} attachments");
         }
 
         private async Task ProcessSinglePost(int postId, List<ForumAttachment> attachments, CancellationToken stoppingToken)
         {
-            Console.WriteLine($"Processing {attachments.Count} images for post {postId}");
 
             using var postScope = _serviceProvider.CreateScope();
             var configRepo = postScope.ServiceProvider.GetRequiredService<IForumConfigRepository>();
@@ -125,18 +111,15 @@ namespace StudyHub.Backend.UseCases.Services
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Failed to read attachment {attachment.Id}: {ex.Message}");
                         await configRepo.UpdateAttachmentModerationStatusAsync(attachment.Id, true, false);
                     }
                 }
 
                 if (imageBytes.Count == 0)
                 {
-                    Console.WriteLine($"No valid images for post {postId}");
                     return;
                 }
 
-                Console.WriteLine($"Moderating {imageBytes.Count} images for post {postId}");
 
                 var batchResults = new List<ImageModerationResult>();
 
@@ -149,11 +132,9 @@ namespace StudyHub.Backend.UseCases.Services
                     {
                         var results = await moderationService.ModerateBatchFromStreamsAsync(streams);
                         batchResults.AddRange(results);
-                        Console.WriteLine($"Moderated batch {i / MAX_IMAGES_PER_BATCH + 1} for post {postId}");
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Failed batch moderation: {ex.Message}");
                         batchResults.AddRange(Enumerable.Repeat(new ImageModerationResult
                         {
                             IsViolation = false,
@@ -168,11 +149,8 @@ namespace StudyHub.Backend.UseCases.Services
 
                 bool hasAnyViolation = batchResults.Any(r => r.IsViolation);
 
-                Console.WriteLine($"Results for post {postId}: {batchResults.Count(r => r.IsViolation)} violations found");
-
                 if (hasAnyViolation)
                 {
-                    Console.WriteLine($"Post {postId} has violations, rejecting ALL attachments...");
 
                     var allAttachmentsInPost = await configRepo.GetAttachmentsByPostIdAsync(postId);
 
@@ -181,7 +159,6 @@ namespace StudyHub.Backend.UseCases.Services
                         try
                         {
                             await configRepo.UpdateAttachmentModerationStatusAsync(att.Id, true, true);
-                            Console.WriteLine($"Rejected attachment {att.Id}");
                         }
                         catch (Exception ex)
                         {
@@ -192,12 +169,10 @@ namespace StudyHub.Backend.UseCases.Services
                     var post = await postRepo.GetPostByIdAsync(postId);
                     if (post == null)
                     {
-                        Console.WriteLine($"Post {postId} not found!");
                         return;
                     }
 
                     var isProtectedFlair = post.Flair?.IsProtected ?? false;
-                    Console.WriteLine($"Post {postId}: Status={post.Status}, IsHidden={post.IsHidden}, Protected={isProtectedFlair}");
 
                     post.TotalViolationScore += 10;
 

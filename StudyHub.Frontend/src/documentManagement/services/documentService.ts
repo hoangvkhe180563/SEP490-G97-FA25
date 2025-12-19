@@ -1,5 +1,5 @@
 // src/documentManagement/services/documentService.ts
-import axios from "axios";
+import { axiosInstance } from "@/lib/axios";
 import type {
   ApiResponse,
   PagedDocumentResponse,
@@ -10,7 +10,6 @@ import type {
   DocumentDetailDto,
 } from "@/documentManagement/interfaces/documentApi";
 import type { ClassListDto } from "@/classManagement/interfaces/class";
-const BASE_URL = "http://localhost:6789/api";
 
 export const documentService = {
   getPublicDocuments: async (
@@ -31,10 +30,9 @@ export const documentService = {
     params.append("pageNumber", pageNumber.toString());
     params.append("pageSize", pageSize.toString());
 
-    const response = await axios.get<ApiResponse<PagedDocumentResponse>>(
-      `${BASE_URL}/Document/public?${params.toString()}`,
-      { withCredentials: true }
-    );
+    const response = await axiosInstance.get<
+      ApiResponse<PagedDocumentResponse>
+    >(`/Document/public?${params.toString()}`, { withCredentials: true });
     return response.data;
   },
 
@@ -57,10 +55,11 @@ export const documentService = {
     params.append("pageNumber", pageNumber.toString());
     params.append("pageSize", pageSize.toString());
 
-    const response = await axios.get<ApiResponse<PagedDocumentResponse>>(
-      `${BASE_URL}/Document/school/${schoolId}?${params.toString()}`,
-      { withCredentials: true }
-    );
+    const response = await axiosInstance.get<
+      ApiResponse<PagedDocumentResponse>
+    >(`/Document/school/${schoolId}?${params.toString()}`, {
+      withCredentials: true,
+    });
     return response.data;
   },
 
@@ -83,22 +82,25 @@ export const documentService = {
     params.append("pageNumber", pageNumber.toString());
     params.append("pageSize", pageSize.toString());
 
-    const response = await axios.get<ApiResponse<PagedDocumentResponse>>(
-      `${BASE_URL}/Document/owned/${creatorId}?${params.toString()}`,
-      { withCredentials: true }
-    );
+    const response = await axiosInstance.get<
+      ApiResponse<PagedDocumentResponse>
+    >(`/Document/owned/${creatorId}?${params.toString()}`, {
+      withCredentials: true,
+    });
     return response.data;
   },
+
   submitForApproval: async (
     documentId: number
   ): Promise<ApiResponse<DocumentDetailDto>> => {
-    const response = await axios.post<ApiResponse<DocumentDetailDto>>(
-      `${BASE_URL}/Document/submit-for-approval`,
+    const response = await axiosInstance.post<ApiResponse<DocumentDetailDto>>(
+      `/Document/submit-for-approval`,
       { documentId },
       { withCredentials: true }
     );
     return response.data;
   },
+
   getManagerPublicDocuments: async (
     query?: string,
     categoryId?: number,
@@ -122,10 +124,11 @@ export const documentService = {
     params.append("pageNumber", pageNumber.toString());
     params.append("pageSize", pageSize.toString());
 
-    const response = await axios.get<ApiResponse<PagedDocumentResponse>>(
-      `${BASE_URL}/Document/manager/public?${params.toString()}`,
-      { withCredentials: true }
-    );
+    const response = await axiosInstance.get<
+      ApiResponse<PagedDocumentResponse>
+    >(`/Document/manager/public?${params.toString()}`, {
+      withCredentials: true,
+    });
     return response.data;
   },
 
@@ -153,18 +156,19 @@ export const documentService = {
     params.append("pageNumber", pageNumber.toString());
     params.append("pageSize", pageSize.toString());
 
-    const response = await axios.get<ApiResponse<PagedDocumentResponse>>(
-      `${BASE_URL}/Document/manager/school/${schoolId}?${params.toString()}`,
-      { withCredentials: true }
-    );
+    const response = await axiosInstance.get<
+      ApiResponse<PagedDocumentResponse>
+    >(`/Document/manager/school/${schoolId}?${params.toString()}`, {
+      withCredentials: true,
+    });
     return response.data;
   },
 
   approveDocument: async (
     documentId: number
   ): Promise<ApiResponse<DocumentDetailDto>> => {
-    const response = await axios.post<ApiResponse<DocumentDetailDto>>(
-      `${BASE_URL}/Document/approve`,
+    const response = await axiosInstance.post<ApiResponse<DocumentDetailDto>>(
+      `/Document/approve`,
       { documentId },
       { withCredentials: true }
     );
@@ -174,8 +178,8 @@ export const documentService = {
   rejectDocument: async (
     documentId: number
   ): Promise<ApiResponse<DocumentDetailDto>> => {
-    const response = await axios.post<ApiResponse<DocumentDetailDto>>(
-      `${BASE_URL}/Document/reject`,
+    const response = await axiosInstance.post<ApiResponse<DocumentDetailDto>>(
+      `/Document/reject`,
       { documentId },
       { withCredentials: true }
     );
@@ -185,8 +189,8 @@ export const documentService = {
   revokeApproval: async (
     documentId: number
   ): Promise<ApiResponse<DocumentDetailDto>> => {
-    const response = await axios.post<ApiResponse<DocumentDetailDto>>(
-      `${BASE_URL}/Document/revoke`,
+    const response = await axiosInstance.post<ApiResponse<DocumentDetailDto>>(
+      `/Document/revoke`,
       { documentId },
       { withCredentials: true }
     );
@@ -196,8 +200,8 @@ export const documentService = {
   softDeleteDocument: async (
     documentId: number
   ): Promise<ApiResponse<DocumentDetailDto>> => {
-    const response = await axios.patch<ApiResponse<DocumentDetailDto>>(
-      `${BASE_URL}/Document/soft-delete/${documentId}`,
+    const response = await axiosInstance.patch<ApiResponse<DocumentDetailDto>>(
+      `/Document/soft-delete/${documentId}`,
       null,
       { withCredentials: true }
     );
@@ -205,33 +209,31 @@ export const documentService = {
   },
 
   getDocumentCategories: async (): Promise<DocumentCategoryDto[]> => {
-    const response = await axios.get<
+    const response = await axiosInstance.get<
       DocumentCategoryDto[] | ApiResponse<DocumentCategoryDto[]>
-    >(`${BASE_URL}/DocumentCategory`, { withCredentials: true });
+    >(`/DocumentCategory`, { withCredentials: true });
     return Array.isArray(response.data) ? response.data : response.data.data;
   },
 
   getSubjects: async (): Promise<SubjectDto[]> => {
-    const response = await axios.get<SubjectDto[] | ApiResponse<SubjectDto[]>>(
-      `${BASE_URL}/Subject/allsubject`,
-      { withCredentials: true }
-    );
+    const response = await axiosInstance.get<
+      SubjectDto[] | ApiResponse<SubjectDto[]>
+    >(`/Subject/allsubject`, { withCredentials: true });
     return Array.isArray(response.data) ? response.data : response.data.data;
   },
 
   getUserClasses: async (userId: string): Promise<ClassListDto[]> => {
-    const response = await axios.get(
-      `${BASE_URL}/Document/my-class/${userId}`,
-      { withCredentials: true }
-    );
+    const response = await axiosInstance.get(`/Document/my-class/${userId}`, {
+      withCredentials: true,
+    });
     return response.data;
   },
 
   createDocument: async (
     formData: FormData
   ): Promise<ApiResponse<DocumentDetailDto>> => {
-    const response = await axios.post<ApiResponse<DocumentDetailDto>>(
-      `${BASE_URL}/Document/create`,
+    const response = await axiosInstance.post<ApiResponse<DocumentDetailDto>>(
+      `/Document/create`,
       formData,
       {
         headers: {

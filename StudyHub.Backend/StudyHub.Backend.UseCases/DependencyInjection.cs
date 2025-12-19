@@ -61,6 +61,8 @@ namespace StudyHub.Backend.UseCases
             services.AddScoped<NotificationService>();
             services.AddScoped<ISignalRNotifier, NoOpSignalRNotifier>();
             services.AddHostedService<ImageModerationBackgroundService>();
+            services.AddScoped<DocumentContentRAGService>();
+            services.AddScoped<ElasticDocumentContentService>();
 
             return services;
         }
