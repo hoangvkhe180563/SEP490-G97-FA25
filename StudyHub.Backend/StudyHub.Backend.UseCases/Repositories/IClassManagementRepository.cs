@@ -93,5 +93,14 @@ namespace StudyHub.Backend.UseCases.Repositories
 
         // Additional helper used above
         int GetUserCountBySchoolId(int schoolId); // added
+
+        // NEW: number of comments for a notification (used for "interaction" metric)
+        int GetCommentsCountByNotificationId(int notificationId); // added
+
+        // NEW: list of notification ids for a given type
+        List<int> GetNotificationIdsByType(string type); // added
+
+        // NEW: average score per class (AvgScore, Count of scored submissions)
+        List<(int ClassId, double AvgScore, int Count)> GetAverageScorePerClass(); // added
     }
 }

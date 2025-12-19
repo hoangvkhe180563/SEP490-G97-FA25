@@ -239,7 +239,30 @@ namespace StudyHub.Backend.Api.Controllers
             }).ToList();
             return Ok(dto);
         }
+        [HttpGet("avg-score-per-class")]
+        public IActionResult AvgScorePerClass()
+        {
+            var resolved = ResolveSchoolIdFromCurrentUser();
+            if (!resolved.Success) return resolved.ErrorResult!;
 
+            try
+            {
+                var data = _service.GetAverageScorePerClassPrimitives(resolved.SchoolId);
+                var dto = data.Select(x => new
+                {
+                    classId = x.ClassId,
+                    className = x.ClassName,
+                    avgScore = x.AvgScore,
+                    submissions = x.Count
+                }).ToList();
+
+                return Ok(new { success = true, data = dto });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Lỗi server khi lấy avg score per class.", error = ex.Message });
+            }
+        }
         [HttpGet("most-interactive-assignments")]
         public IActionResult MostInteractiveAssignments([FromQuery] int top = 10)
         {
