@@ -16,7 +16,7 @@ public class DocumentServiceTests
     {
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, Name = "Test Doc" };
         mockRepo.Setup(x => x.GetDocumentById(1)).Returns(document);
@@ -34,7 +34,7 @@ public class DocumentServiceTests
     {
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetDocumentById(999)).Returns((Document?)null);
 
@@ -54,7 +54,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document>
         {
@@ -77,7 +77,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetPublicDocuments(null, null, null, null, null, null, null, 1, 10))
             .Returns((new List<Document>(), 0));
@@ -94,7 +94,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1, Name = "Test Doc" } };
         mockRepo.Setup(x => x.GetPublicDocuments("test", null, null, null, null, null, null, 1, 10))
@@ -112,7 +112,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1, DocumentCategoryId = 5 } };
         mockRepo.Setup(x => x.GetPublicDocuments(null, 5, null, null, null, null, null, 1, 10))
@@ -130,7 +130,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1, Grade = 10 } };
         mockRepo.Setup(x => x.GetPublicDocuments(null, null, 10, null, null, null, null, 1, 10))
@@ -148,7 +148,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1, Subject = new Subject { Name = "Math" } } };
         mockRepo.Setup(x => x.GetPublicDocuments(null, null, null, "Math", null, null, null, 1, 10))
@@ -165,7 +165,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1, DocumentLengthType = "Short" } };
         mockRepo.Setup(x => x.GetPublicDocuments(null, null, null, null, null, "Short", null, 1, 10))
@@ -183,7 +183,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1, DocumentLevel = "Easy" } };
         mockRepo.Setup(x => x.GetPublicDocuments(null, null, null, null, null, null, "Easy", 1, 10))
@@ -201,7 +201,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 11 }, new Document { Id = 12 } };
         mockRepo.Setup(x => x.GetPublicDocuments(null, null, null, null, null, null, null, 2, 10))
@@ -223,7 +223,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1, SchoolId = 5 } };
         mockRepo.Setup(x => x.GetSchoolDocuments(5, null, null, null, null, null, null, null, 1, 10))
@@ -241,7 +241,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetSchoolDocuments(999, null, null, null, null, null, null, null, 1, 10))
             .Returns((new List<Document>(), 0));
@@ -257,7 +257,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1, Name = "School Doc" } };
         mockRepo.Setup(x => x.GetSchoolDocuments(5, "test", null, null, null, null, null, null, 1, 10))
@@ -278,7 +278,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var userId = Guid.NewGuid();
         var documents = new List<Document> { new Document { Id = 1, CreatedBy = userId } };
@@ -297,7 +297,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var userId = Guid.NewGuid();
         mockRepo.Setup(x => x.GetOwnedDocuments(userId, null, null, null, null, null, null, null, 1, 10))
@@ -318,7 +318,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1 } };
         mockRepo.Setup(x => x.GetManagerPublicDocuments(null, null, null, null, null, null, null, null, null, null, null, null, 1, 10))
@@ -335,7 +335,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1, IsApproved = true } };
         mockRepo.Setup(x => x.GetManagerPublicDocuments(null, null, null, null, null, true, null, null, null, null, null, null, 1, 10))
@@ -352,7 +352,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1, Status = true } };
         mockRepo.Setup(x => x.GetManagerPublicDocuments(null, null, null, null, null, null, true, null, null, null, null, null, 1, 10))
@@ -369,7 +369,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var from = DateTime.Now.AddDays(-7);
         var to = DateTime.Now;
@@ -392,7 +392,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1, SchoolId = 5 } };
         mockRepo.Setup(x => x.GetManagerSchoolDocuments(5, null, null, null, null, null, null, null, null, null, null, null, null, 1, 10))
@@ -413,7 +413,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var userId = Guid.NewGuid();
         var documents = new List<Document> { new Document { Id = 1, SchoolId = 5 } };
@@ -435,7 +435,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var userId = Guid.NewGuid();
         var document = new Document { Id = 1, CreatedBy = userId, IsApproved = true, IsInClass = false };
@@ -456,7 +456,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetDocumentById(999)).Returns((Document?)null);
 
@@ -469,7 +469,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, CreatedBy = Guid.NewGuid(), IsApproved = true };
         mockRepo.Setup(x => x.GetDocumentById(1)).Returns(document);
@@ -483,7 +483,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var userId = Guid.NewGuid();
         var document = new Document { Id = 1, CreatedBy = userId, IsInClass = true, IsApproved = true };
@@ -498,7 +498,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var userId = Guid.NewGuid();
         var document = new Document { Id = 1, CreatedBy = userId, IsInClass = false, IsApproved = false };
@@ -517,7 +517,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, DocumentUrl = "test.pdf" };
         mockRepo.Setup(x => x.GetDocumentById(1)).Returns(document);
@@ -535,7 +535,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetDocumentById(999)).Returns((Document?)null);
 
@@ -554,7 +554,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, Status = true };
         mockRepo.Setup(x => x.GetDocumentById(1)).Returns(document);
@@ -572,7 +572,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetDocumentById(999)).Returns((Document?)null);
 
@@ -591,7 +591,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, IsInClass = false, IsApproved = null };
         var approvedDoc = new Document { Id = 1, IsInClass = false, IsApproved = true };
@@ -611,7 +611,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetDocumentById(999)).Returns((Document?)null);
 
@@ -624,7 +624,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, IsInClass = true };
         mockRepo.Setup(x => x.GetDocumentById(1)).Returns(document);
@@ -642,7 +642,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, IsInClass = false, IsApproved = null };
         var rejectedDoc = new Document { Id = 1, IsInClass = false, IsApproved = false };
@@ -662,7 +662,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetDocumentById(999)).Returns((Document?)null);
 
@@ -675,7 +675,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, IsInClass = true };
         mockRepo.Setup(x => x.GetDocumentById(1)).Returns(document);
@@ -693,7 +693,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, IsInClass = false, IsApproved = true };
         var revokedDoc = new Document { Id = 1, IsInClass = false, IsApproved = null };
@@ -713,7 +713,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetDocumentById(999)).Returns((Document?)null);
 
@@ -726,7 +726,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, IsInClass = true };
         mockRepo.Setup(x => x.GetDocumentById(1)).Returns(document);
@@ -740,7 +740,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, IsInClass = false, IsApproved = false };
         mockRepo.Setup(x => x.GetDocumentById(1)).Returns(document);
@@ -758,7 +758,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, IsFeatured = false };
         var toggledDoc = new Document { Id = 1, IsFeatured = true };
@@ -778,7 +778,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetDocumentById(999)).Returns((Document?)null);
 
@@ -795,7 +795,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, IsRequested = true };
         var approvedDoc = new Document { Id = 1, IsRequested = null, IsApproved = false };
@@ -816,7 +816,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetDocumentById(999)).Returns((Document?)null);
 
@@ -829,7 +829,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, IsRequested = false };
         mockRepo.Setup(x => x.GetDocumentById(1)).Returns(document);
@@ -847,7 +847,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, IsRequested = true };
         var rejectedDoc = new Document { Id = 1, IsRequested = false };
@@ -867,7 +867,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetDocumentById(999)).Returns((Document?)null);
 
@@ -880,7 +880,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, IsRequested = false };
         mockRepo.Setup(x => x.GetDocumentById(1)).Returns(document);
@@ -898,7 +898,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1, IsRequested = true } };
         mockRepo.Setup(x => x.GetEditRequestDocuments(true, 1, 10)).Returns((documents, 1));
@@ -915,7 +915,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetEditRequestDocuments(true, 1, 10)).Returns((new List<Document>(), 0));
 
@@ -934,7 +934,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1, SubjectId = 5 } };
         mockRepo.Setup(x => x.GetDocumentsBySubject(5)).Returns(documents);
@@ -951,7 +951,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetDocumentsBySubject(999)).Returns(new List<Document>());
 
@@ -970,7 +970,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1, SubjectId = 5, SchoolId = null } };
         mockRepo.Setup(x => x.GetDocumentsBySubjectForPublic(5)).Returns(documents);
@@ -991,7 +991,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1, SubjectId = 5, SchoolId = 10 } };
         mockRepo.Setup(x => x.GetDocumentsBySubjectForSchool(5, 10)).Returns(documents);
@@ -1012,7 +1012,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var documents = new List<Document> { new Document { Id = 1 } };
         mockRepo.Setup(x => x.GetDocumentsByClass(5)).Returns(documents);
@@ -1028,7 +1028,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetDocumentsByClass(999)).Returns(new List<Document>());
 
@@ -1047,7 +1047,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var classes = new List<Class> { new Class { Id = 1, Name = "Class A" } };
         mockRepo.Setup(x => x.GetClassesByDocument(1)).Returns(classes);
@@ -1064,7 +1064,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetClassesByDocument(999)).Returns(new List<Class>());
 
@@ -1083,7 +1083,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var userId = Guid.NewGuid();
         var document = new Document { Id = 1, CreatedBy = userId, IsApproved = false, IsInClass = false };
@@ -1104,7 +1104,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetDocumentById(999)).Returns((Document?)null);
 
@@ -1117,7 +1117,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, CreatedBy = Guid.NewGuid(), IsApproved = false };
         mockRepo.Setup(x => x.GetDocumentById(1)).Returns(document);
@@ -1131,7 +1131,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var userId = Guid.NewGuid();
         var document = new Document { Id = 1, CreatedBy = userId, IsInClass = true, IsApproved = false };
@@ -1146,7 +1146,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var userId = Guid.NewGuid();
         var document = new Document { Id = 1, CreatedBy = userId, IsInClass = false, IsApproved = true };
@@ -1165,7 +1165,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var userId = Guid.NewGuid();
         var document = new Document { Id = 1, CreatedBy = userId, IsRequested = true };
@@ -1187,7 +1187,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         mockRepo.Setup(x => x.GetDocumentById(999)).Returns((Document?)null);
 
@@ -1200,7 +1200,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var document = new Document { Id = 1, CreatedBy = Guid.NewGuid(), IsRequested = true };
         mockRepo.Setup(x => x.GetDocumentById(1)).Returns(document);
@@ -1214,7 +1214,7 @@ public class DocumentServiceTests
         var mockRepo = new Mock<IDocumentRepository>();
         var mockFileStorage = new Mock<ICloudinaryRepository>();
         
-        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!);
+        var service = new DocumentService(mockRepo.Object, mockFileStorage.Object, null!, null!);
 
         var userId = Guid.NewGuid();
         var document = new Document { Id = 1, CreatedBy = userId, IsRequested = false };

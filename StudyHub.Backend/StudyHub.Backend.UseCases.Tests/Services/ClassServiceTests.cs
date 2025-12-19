@@ -60,6 +60,8 @@ public class ClassServiceTests
         var mockEmailService = CreateMockEmailService();
         var mockHttpContextAccessor = new Mock<IHttpContextAccessor>();
         var mockConfig = CreateMockConfiguration();
+        var mockLocationRepo = new Mock<StudyHub.Backend.UseCases.Repositories.ILocationRepository>();
+        var locationService = new StudyHub.Backend.UseCases.Services.LocationService(mockLocationRepo.Object);
 
         return new AuthService(
             mockUserRepo.Object,
@@ -67,7 +69,8 @@ public class ClassServiceTests
             mockLoginHistoryRepo.Object,
             mockEmailService,
             mockHttpContextAccessor.Object,
-            mockConfig.Object
+            mockConfig.Object,
+            locationService
         );
     }
 
