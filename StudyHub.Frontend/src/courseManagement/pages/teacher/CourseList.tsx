@@ -10,12 +10,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/common/components/ui/table";
-import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination";
 import CourseFilterTeacher from "@/courseManagement/components/CourseFilterTeacher";
 
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import type { CourseListDto } from "@/courseManagement/types/api";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { Paging } from "@/common/components/Paging";
 
 const CourseList: React.FC = () => {
   const courses = useCourseStore((s) => s.courses);
@@ -154,15 +154,10 @@ const CourseList: React.FC = () => {
             : "Không tìm thấy kết quả nào"}
         </span>
 
-        <DocumentPagination
-          pagination={{
-            currentPage: page || 1,
-            totalPages,
-            totalCount: totalCourses || 0,
-            pageSize: pageSize || 10,
-          }}
-          onPageChange={(p: number) => goToPage(p)}
-        />
+        <Paging
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={goToPage} />
       </div>
     </div>
   );

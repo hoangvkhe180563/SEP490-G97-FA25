@@ -3,6 +3,10 @@ import type { ILandingPageService } from "../interfaces/ILandingPageService";
 import type { IDocumentItem } from "../interfaces/IDocumentItem";
 import type { ICourseItem } from "../interfaces/ICourseItem";
 import type { ILandingPageUpdateService } from "../interfaces/ILandingPageUpdateService";
+import type { School } from "../interfaces/School";
+import type { City } from "@/auth/interfaces/city";
+import type { Commune } from "../interfaces/Address";
+import type { ISchoolData, ISchoolFormData } from "../interfaces/ISchoolData";
 
 export class UiManagementService {
   async getLandingPageGeneral(): Promise<ILandingPageService> {
@@ -36,18 +40,17 @@ export class UiManagementService {
   }
 
   async getAllDocuments(schoolId: number): Promise<IDocumentItem[]> {
-    const response = await axiosInstance.get("/Document/school/" + schoolId);
-    const { data } = response;
-
-    return data.data.items.map((document: any) => {
-      return {
-        id: document.id,
-        name: document.name,
-        subject: document.subjectName,
-        grade: document.grade,
-        isFeatured: document.isFeatured
+    try {
+      const res = await axiosInstance.get("/LandingPage/documents/" + schoolId);
+      if (res.status === 200) {
+        return res.data;
+      } else {
+        throw new Error("Status: " + res.status);
       }
-    })
+    } catch (error) {
+      console.error("Error getAllDocuments: ", error);
+    }
+    return [];
   }
 
   async getAllCourses(schoolId: number): Promise<ICourseItem[]> {
@@ -113,5 +116,164 @@ export class UiManagementService {
       console.error("Error getSchoolAddress: ", error);
     }
     return '';
+  }
+
+  async getSchools(): Promise<School[]> {
+    try {
+      const res = await axiosInstance.get(`/LandingPage/schools`);
+      if (res.status === 200) {
+        return res.data.map((item: any) => {
+          return {
+            id: item.schoolId,
+            name: item.schoolName,
+            description: item.description,
+            banner: item.bannerUrl,
+            logo: item.logoUrl,
+            address: item.address
+          }
+        });
+      } else {
+        throw new Error("Status: " + res.status);
+      }
+    } catch (error) {
+      console.error("Error getSchools: ", error);
+    }
+    return [];
+  }
+
+  async getCities(): Promise<City[]> {
+    try {
+      const res = await axiosInstance.get(`/Location/cities`);
+      if (res.status === 200) {
+        return res.data.map((item: any) => {
+          return {
+            id: item.id,
+            name: item.name
+          }
+        });
+      } else {
+        throw new Error("Status: " + res.status);
+      }
+    } catch (error) {
+      console.error("Error getCities: ", error);
+    }
+    return [];
+  }
+
+  async getCommunesByCity(cityId: number): Promise<Commune[]> {
+    try {
+      const res = await axiosInstance.get(`/Location/cities/${cityId}/communes`);
+      if (res.status === 200) {
+        return res.data.map((item: any) => {
+          return {
+            id: item.id,
+            name: item.name,
+            cityId: item.cityId
+          }
+        });
+      } else {
+        throw new Error("Status: " + res.status);
+      }
+    } catch (error) {
+      console.error("Error getCommunesByCity: ", error);
+    }
+    return [];
+  }
+
+  async addSchool(schoolData: ISchoolData): Promise<boolean> {
+    if (!schoolData.banner || !schoolData.logo) {
+      return false;
+    }
+    try {
+      const formData = new FormData();
+      formData.append("SchoolName", schoolData.schoolName);
+      formData.append("CommuneId", schoolData.communeId.toString());
+      formData.append("Banner", schoolData.banner);
+      formData.append("Logo", schoolData.logo);
+      formData.append("Description", schoolData.description);
+      formData.append("Address", schoolData.address);
+      for (const file of schoolData.newLandingPageImages) {
+        formData.append("NewLandingPageImages", file);
+      }
+      formData.append("AccountName", schoolData.accountName);
+      formData.append("AccountNumber", schoolData.accountNumber);
+      formData.append("AccountBank", schoolData.accountName);
+      formData.append("ExchangeRate", schoolData.exchangeRate.toString());
+
+      const res = await axiosInstance.post("/LandingPage/schools/add", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
+      });
+      if (res.status === 200) {
+        return true;
+      } else {
+        throw new Error("Status: " + res.status);
+      }
+    } catch (error) {
+      console.error("Error addSchool: ", error);
+    }
+    return false;
+  }
+
+  async getSchoolById(schoolId: number): Promise<ISchoolFormData | null> {
+    try {
+      const res = await axiosInstance.get(`/LandingPage/schools/${schoolId}`);
+      if (res.status === 200) {
+        return res.data;
+      } else {
+        throw new Error("Status: " + res.status);
+      }
+    } catch (error) {
+      console.error("Error getSchoolById: ", error);
+    }
+    return null;
+  }
+
+  async updateSchool(schoolData: ISchoolData): Promise<boolean> {
+    try {
+      const formData = new FormData();
+      formData.append("Id", schoolData.id?.toString() ?? "");
+      formData.append("SchoolName", schoolData.schoolName);
+      formData.append("CommuneId", schoolData.communeId.toString());
+      if (schoolData.banner) {
+        formData.append("Banner", schoolData.banner);
+      }
+      if (schoolData.logo) {
+        formData.append("Logo", schoolData.logo);
+      }
+      formData.append("Description", schoolData.description);
+      formData.append("Address", schoolData.address);
+      for (const img of schoolData.currentLandingPageImages) {
+        formData.append("CurrentLandingPageImages", img);
+      }
+      for (const file of schoolData.newLandingPageImages) {
+        formData.append("NewLandingPageImages", file);
+      }
+      for (const id of schoolData.featuredDocumentIds || []) {
+        formData.append("FeaturedDocumentIds", id.toString());
+      }
+      for (const id of schoolData.featuredCourseIds || []) {
+        formData.append("FeaturedCourseIds", id.toString());
+      }
+      formData.append("AccountName", schoolData.accountName);
+      formData.append("AccountNumber", schoolData.accountNumber);
+      formData.append("AccountBank", schoolData.accountBank);
+      formData.append("ExchangeRate", schoolData.exchangeRate.toString());
+
+      const res = await axiosInstance.put("/LandingPage/schools/update", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
+      });
+      if (res.status === 200) {
+        return true;
+      } else {
+        throw new Error("Status: " + res.status);
+      }
+    } catch (error) {
+      console.error("Error updateSchool: ", error);
+    }
+    return false;
   }
 }

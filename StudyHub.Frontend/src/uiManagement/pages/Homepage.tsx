@@ -7,6 +7,7 @@ import FeaturedDocuments from "../components/FeaturedDocuments";
 import FeaturedCourses from "../components/FeaturedCourses";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { useNavigate } from "react-router-dom";
+import { ROLES } from "@/common/constants/Roles";
 
 const Homepage = () => {
   const [data, setData] = useState<ILandingPageService>();
@@ -15,7 +16,7 @@ const Homepage = () => {
   const uiManagementService = new UiManagementService();
 
   useEffect(() => {
-    if (user && user.schoolId !== null) {
+    if (user && user.schoolId !== null && user.roles.some(r => r === ROLES.SCHOOL_STUDENT)) {
       navigate(`/ui/school-landing`);
       return;
     }

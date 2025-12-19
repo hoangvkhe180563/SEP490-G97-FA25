@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Card, CardContent } from "@/common/components/ui/card";
 import { Input } from "@/common/components/ui/input";
 import { Textarea } from "@/common/components/ui/textarea";
@@ -12,7 +12,22 @@ import {
 } from "@/common/components/ui/select";
 import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
-import { ArrowLeft, Loader2, Upload, X, HelpCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  Upload,
+  X,
+  HelpCircle,
+  Calendar,
+} from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/common/components/ui/breadcrumb";
 import {
   Popover,
   PopoverTrigger,
@@ -23,6 +38,9 @@ import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { useQuill } from "react-quilljs";
 import "quill/dist/quill.snow.css";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
+import { format, parse } from "date-fns";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import type { Exam, Question } from "@/courseManagement/interfaces/types";
 import { EXAM_TYPE } from "@/courseManagement/constants/ExamType";
@@ -62,6 +80,8 @@ const AddLecture: React.FC = () => {
   const [readingContent, setReadingContent] = useState("");
   const [duration, setDuration] = useState("");
   const [postDate, setPostDate] = useState("");
+  const [postOpen, setPostOpen] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<Date | undefined>(undefined);
   // Interactive questions metadata (local only until saved to backend)
   const [interactiveQuestions, setInteractiveQuestions] = useState<
     Array<{
@@ -77,6 +97,7 @@ const AddLecture: React.FC = () => {
   >([]);
   const [isPreview, setIsPreview] = useState(false);
   const [resourceFile, setResourceFile] = useState<File | null>(null);
+  const [resourceFileName, setResourceFileName] = useState<string | null>(null);
   const [resourceUploading, setResourceUploading] = useState(false);
   const [resourceUrl, setResourceUrl] = useState<string | null>(null);
   const [resourceId, setResourceId] = useState<number | null>(null);
@@ -159,6 +180,11 @@ const AddLecture: React.FC = () => {
             // try to read postDate and lessons in a few common shapes
             const post = (ch as any).postDate || (ch as any).createdAt || null;
             setChapterPostDate(post ? String(post) : null);
+            // sync selectedPost if chapter provides a post/start date
+            if (post) {
+              const d = new Date(post as any);
+              if (!isNaN(d.getTime())) setSelectedPost(d);
+            }
             // lessons may be called lessons, lectures or items depending on API
             const lessons =
               (ch as any).lessons ||
@@ -256,7 +282,10 @@ const AddLecture: React.FC = () => {
         );
       } else if (selectedTab === "bank-questions" && !Number(randomQuestions)) {
         aggErrors.push("Vui lòng điền số câu hỏi cần tạo!");
-      } else if (selectedTab === "bank-questions" && Number(randomQuestions) <= 0) {
+      } else if (
+        selectedTab === "bank-questions" &&
+        Number(randomQuestions) <= 0
+      ) {
         aggErrors.push("Số câu hỏi phải > 0!");
       }
 
@@ -356,15 +385,39 @@ const AddLecture: React.FC = () => {
     }
 
     // Post date validity
-    if (postDate && isNaN(new Date(postDate).getTime())) {
-      fieldErrors.postDate = "Ngày đăng không hợp lệ.";
+    if (postDate) {
+      try {
+        const lec = parse(postDate, "dd/MM/yyyy", new Date());
+        if (isNaN(lec.getTime())) {
+          const alt = new Date(postDate);
+          if (isNaN(alt.getTime()))
+            fieldErrors.postDate = "Ngày đăng không hợp lệ.";
+        }
+      } catch (e) {
+        fieldErrors.postDate = "Ngày đăng không hợp lệ.";
+      }
     }
 
     // If chapter has a postDate, the lecture postDate (if provided) cannot be earlier
     if (postDate && chapterPostDate) {
-      const lec = new Date(postDate);
-      const chd = new Date(chapterPostDate);
-      if (!isNaN(lec.getTime()) && !isNaN(chd.getTime())) {
+      let lec: Date | null = null;
+      try {
+        const tmp = parse(postDate, "dd/MM/yyyy", new Date());
+        lec = !isNaN(tmp.getTime()) ? tmp : new Date(postDate);
+      } catch (e) {
+        lec = new Date(postDate);
+      }
+      let chd: Date | null = null;
+      try {
+        chd = new Date(chapterPostDate);
+        if (isNaN(chd.getTime())) {
+          const tmp2 = parse(String(chapterPostDate), "dd/MM/yyyy", new Date());
+          chd = !isNaN(tmp2.getTime()) ? tmp2 : null;
+        }
+      } catch (e) {
+        chd = null;
+      }
+      if (lec && chd && !isNaN(lec.getTime()) && !isNaN(chd.getTime())) {
         if (lec.getTime() < chd.getTime()) {
           fieldErrors.postDate =
             "Ngày đăng bài giảng không thể nhỏ hơn ngày bắt đầu của chương.";
@@ -374,9 +427,24 @@ const AddLecture: React.FC = () => {
 
     // If course end date is known, lecture postDate must not be after course end
     if (postDate && courseEndDate) {
-      const lec = new Date(postDate);
-      const ced = new Date(courseEndDate);
-      if (!isNaN(lec.getTime()) && !isNaN(ced.getTime())) {
+      let lec: Date | null = null;
+      try {
+        const tmp = parse(postDate, "dd/MM/yyyy", new Date());
+        lec = !isNaN(tmp.getTime()) ? tmp : new Date(postDate);
+      } catch (e) {
+        lec = new Date(postDate);
+      }
+      let ced: Date | null = null;
+      try {
+        ced = new Date(courseEndDate as any);
+        if (isNaN(ced.getTime())) {
+          const tmp2 = parse(String(courseEndDate), "dd/MM/yyyy", new Date());
+          ced = !isNaN(tmp2.getTime()) ? tmp2 : null;
+        }
+      } catch (e) {
+        ced = null;
+      }
+      if (lec && ced && !isNaN(lec.getTime()) && !isNaN(ced.getTime())) {
         if (lec.getTime() > ced.getTime()) {
           fieldErrors.postDate =
             "Ngày đăng bài giảng phải nhỏ hơn hoặc bằng ngày kết thúc khóa học.";
@@ -497,6 +565,19 @@ const AddLecture: React.FC = () => {
     }
     if (/^\d+(\.\d+)?$/.test(t)) return Number(t);
     return NaN;
+  };
+
+  // helper: extract filename from a URL (remove query string and decode)
+  const getFileNameFromUrl = (url?: string | null) => {
+    if (!url) return "";
+    try {
+      const path = String(url).split("?")[0];
+      const parts = path.split("/");
+      const raw = parts[parts.length - 1] || path;
+      return decodeURIComponent(raw);
+    } catch {
+      return String(url);
+    }
   };
 
   // Small inline editor component to create an interactive question
@@ -727,6 +808,11 @@ const AddLecture: React.FC = () => {
       const created = await courseApi.createLessonResource({ url });
       setResourceUrl(created?.url ?? url);
       setResourceId(created?.id ?? null);
+      // preserve the selected filename if available, otherwise extract from URL
+      setResourceFileName(
+        (prev) =>
+          prev ?? (resourceFile ? resourceFile.name : getFileNameFromUrl(url))
+      );
       setDialog({
         open: true,
         title: "Thành công",
@@ -776,7 +862,9 @@ const AddLecture: React.FC = () => {
         readingContent: type !== "video" ? readingContent : null,
         duration: duration || null,
         description: description || null,
-        postDate: postDate ? new Date(postDate) : new Date(),
+        postDate: postDate
+          ? parse(postDate, "dd/MM/yyyy", new Date())
+          : new Date(),
         isPreview,
         ResourceId: resourceId ?? null,
         // send interactive questions as part of the lesson payload
@@ -821,9 +909,9 @@ const AddLecture: React.FC = () => {
         showAnswers: true,
         showCorrectAnswers: true,
         lessonId: created.id,
-        openTime: postDate ? new Date(postDate) : new Date(),
+        openTime: postDate ? parse(postDate, "dd/MM/yyyy", new Date()) : new Date(),
         subjectId: selectedSubjectId,
-        grade: selectedGrade
+        grade: selectedGrade,
       };
 
       if (selectedTab === "bank-questions") {
@@ -861,9 +949,29 @@ const AddLecture: React.FC = () => {
 
   return (
     <div className="w-full px-8 h-full flex flex-col">
-      <div className="text-sm text-[#525252] my-3">
-        Bài giảng / Thêm bài giảng
-      </div>
+      <Breadcrumb>
+        <BreadcrumbList className="text-[#525252] my-3">
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/course/teacher/courses">Khóa học</Link>
+            </BreadcrumbLink>
+            <BreadcrumbSeparator />
+          </BreadcrumbItem>
+
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to={`/course/teacher/edit-course/${selectedCourseId}`}>
+                Chỉnh sửa khóa học
+              </Link>
+            </BreadcrumbLink>
+            <BreadcrumbSeparator />
+          </BreadcrumbItem>
+
+          <BreadcrumbItem>
+            <BreadcrumbPage>Thêm bài giảng</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
@@ -1046,24 +1154,58 @@ const AddLecture: React.FC = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Ngày đăng</Label>
-                  <Input
-                    type="date"
-                    value={postDate}
-                    onChange={(e) => {
-                      setPostDate(e.target.value);
-                      setErrors((prev) => {
-                        if (!prev || !prev.postDate) return prev;
-                        const c = { ...prev };
-                        delete c.postDate;
-                        return c;
-                      });
-                    }}
-                    className={
-                      errors.postDate
-                        ? "border-red-500 ring-1 ring-red-500"
-                        : ""
-                    }
-                  />
+                  <div className="relative">
+                    <Input
+                      placeholder="dd/MM/yyyy"
+                      value={postDate}
+                      readOnly
+                      onClick={() => {
+                        setPostOpen((s) => !s);
+                        setErrors((prev) => {
+                          if (!prev || !prev.postDate) return prev;
+                          const c = { ...prev };
+                          delete c.postDate;
+                          return c;
+                        });
+                      }}
+                      className={
+                        errors.postDate
+                          ? "border-red-500 ring-1 ring-red-500"
+                          : ""
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPostOpen((s) => !s)}
+                      className="absolute right-2 top-2 p-1"
+                      aria-label="Open calendar"
+                    >
+                      <Calendar size={16} />
+                    </button>
+
+                    {postOpen && (
+                      <div className="absolute z-50 mt-2 bg-white rounded-md shadow p-2">
+                        <DayPicker
+                          mode="single"
+                          selected={selectedPost}
+                          onSelect={(d) => {
+                            if (d) {
+                              setSelectedPost(d);
+                              const s = format(d, "dd/MM/yyyy");
+                              setPostDate(s);
+                              setErrors((prev) => {
+                                if (!prev || !prev.postDate) return prev;
+                                const c = { ...prev };
+                                delete c.postDate;
+                                return c;
+                              });
+                            }
+                            setPostOpen(false);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
                   {errors.postDate && (
                     <div className="text-sm text-rose-600 mt-1">
                       {errors.postDate}
@@ -1212,6 +1354,7 @@ const AddLecture: React.FC = () => {
                             const f = e.target.files && e.target.files[0];
                             if (f) {
                               setResourceFile(f);
+                              setResourceFileName(f.name);
                               setErrors((prev) => {
                                 if (!prev || !prev.resourceFile) return prev;
                                 const c = { ...prev };
@@ -1254,7 +1397,8 @@ const AddLecture: React.FC = () => {
                               rel="noreferrer"
                               className="text-blue-600 hover:underline break-all"
                             >
-                              {resourceUrl}
+                              {resourceFileName ||
+                                getFileNameFromUrl(resourceUrl)}
                             </a>
                           </p>
                         </div>
@@ -1266,6 +1410,7 @@ const AddLecture: React.FC = () => {
                             setResourceUrl(null);
                             setResourceId(null);
                             setResourceFile(null);
+                            setResourceFileName(null);
                           }}
                           className="flex items-center gap-1 text-rose-600 hover:text-rose-700"
                         >

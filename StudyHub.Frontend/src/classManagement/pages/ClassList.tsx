@@ -1,4 +1,3 @@
-// Modifications in ClassList component: only ClassList adjusted so non-homeroom users won't see edit/create
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import ClassCard from "@/classManagement/components/ui/classcard";
@@ -22,6 +21,7 @@ import {
   SelectItem,
 } from "@/common/components/ui/select";
 import { Card } from "@/common/components/ui/card";
+import { Paging } from "@/common/components/Paging";
 
 type ClassItem = ClassListDto & {
   title: string;
@@ -42,7 +42,6 @@ const ClassList: React.FC = () => {
     addClass,
     meta,
     getAllSubjects,
-    subjects,
     // useClassStore.getUnreadCount just-in-time below
   } = useClassStore();
 
@@ -53,8 +52,7 @@ const ClassList: React.FC = () => {
 
   // UI state
   const [query, setQuery] = useState("");
-  const [subject, setSubject] = useState("all");
-  // NEW: filter by grade (null = all)
+  const [subject] = useState("all");
   const [gradeFilter, setGradeFilter] = useState<number | null>(null);
 
   const [showCreate, setShowCreate] = useState(false);
@@ -79,12 +77,7 @@ const ClassList: React.FC = () => {
   // We normalize role strings and check common variants to be robust across backends.
   const isHomeroomTeacher = useMemo(() => {
     if (!user?.roles || !Array.isArray(user.roles)) return false;
-    return user.roles.some((r: any) => {
-      if (!r) return false;
-      const s = String(r).toLowerCase().replace(/[\s-_]/g, "");
-      // check common possibilities: "homeroomteacher", "homeroom", "homeroom_teacher", "homeroom teacher"
-      return s === "homeroomteacher" || s === "homeroom" || s === "homeroomteacherrole" || s.includes("homeroom");
-    });
+    return user.roles.some(r => r.includes("Teacher"));
   }, [user?.roles]);
 
   // We keep the internal userRole (used for navigation) unchanged,
@@ -325,25 +318,10 @@ const ClassList: React.FC = () => {
         )}
 
         {/* Pagination */}
-        <div className="mt-6 flex items-center justify-center gap-3">
-          <Button variant="outline" onClick={() => gotoPage(currentPage - 1)} disabled={currentPage === 1}>
-            Trước
-          </Button>
-
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <Button
-              key={p}
-              variant={p === currentPage ? "default" : "ghost"}
-              onClick={() => gotoPage(p)}
-            >
-              {p}
-            </Button>
-          ))}
-
-          <Button variant="outline" onClick={() => gotoPage(currentPage + 1)} disabled={currentPage === totalPages}>
-            Sau
-          </Button>
-        </div>
+        <Paging
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={gotoPage} />
       </Card>
 
       <CreateClassModal open={showCreate} onClose={closeCreate} onCreate={handleCreate} />

@@ -9,7 +9,7 @@ import { paymentService } from "@/paymentManagement/services/paymentService";
 import type { DialogProps } from "@/courseManagement/components/AppDialog";
 import { AppDialog } from "@/courseManagement/components/AppDialog";
 import { motion, AnimatePresence } from "framer-motion";
-import { Copy, Image as ImageIcon, ArrowLeft, CreditCard } from "lucide-react";
+import { Copy, Image as ImageIcon, CreditCard, Zap } from "lucide-react";
 
 // Hàm chuyển số sang chữ tiếng Việt cơ bản
 const numberToWords = (num: number): string => {
@@ -232,7 +232,7 @@ const WalletTopUp: React.FC = () => {
     <>
       <AppDialog dialog={dialog as any} setDialog={(d: any) => setDialog(d)} />
 
-      <div className="h-full bg-gradient-to-br from-sky-100 via-blue-50 to-white overflow-y-auto">
+      <div className="h-screen bg-gradient-to-br from-sky-100 via-blue-50 to-white overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
@@ -321,14 +321,8 @@ const WalletTopUp: React.FC = () => {
                   onClick={generateQr}
                   className="bg-sky-600 text-white text-lg px-6 py-3 rounded-xl shadow hover:shadow-lg transition"
                 >
-                  ⚡ Tạo mã QR
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate(-1)}
-                  className="text-lg"
-                >
-                  <ArrowLeft className="mr-2 w-5 h-5" /> Quay lại
+                  <Zap size={20} className="text-yellow-500" />
+                  Tạo mã QR
                 </Button>
               </div>
 

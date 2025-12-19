@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { Button } from "@/common/components/ui/button";
 import {
   Select,
@@ -11,6 +11,14 @@ import {
 import CourseNavSidebar from "@/courseManagement/components/CourseDetailFiltersStudent";
 import { useCourseStore } from "@/courseManagement/stores/useCourseStore";
 import { Calendar, ChevronDown, Check } from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/common/components/ui/breadcrumb";
 import CourseContentItem from "@/courseManagement/components/CourseContentItem";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
@@ -35,6 +43,7 @@ const CourseDetail: React.FC = () => {
   const chapters = useLectureStore((s) => s.chapters);
   const fetchChapters = useLectureStore((s) => s.fetchChapters);
   const fetchLessons = useLectureStore((s) => s.fetchLessons);
+  const fetchLesson = useLectureStore((s) => s.fetchLesson);
   // allow multiple chapters to be expanded at once
   const [expandedChapters, setExpandedChapters] = useState<Set<number>>(
     new Set()
@@ -329,9 +338,22 @@ const CourseDetail: React.FC = () => {
   return (
     <div className="w-full bg-gray-50 min-h-screen py-8 h-full overflow-y-auto scrollbar-hide">
       <div className="max-w-screen-xl mx-auto px-4">
-        <div className="text-sm text-gray-500 mb-4">
-          Khóa học của tôi / Khóa học
-        </div>
+        <Breadcrumb>
+          <BreadcrumbList className="text-sm text-gray-500 mb-4">
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to="/course/student/courses">Khóa học</Link>
+              </BreadcrumbLink>
+              <BreadcrumbSeparator />
+            </BreadcrumbItem>
+
+            <BreadcrumbItem>
+              <BreadcrumbPage>
+                {selectedCourse?.name ?? "Chi tiết khóa học"}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
 
         <div className="flex items-center gap-4 mb-4">
           <button
@@ -744,9 +766,11 @@ const CourseDetail: React.FC = () => {
                                           onClick={() => {
                                             if (!isPreview && !enrollment)
                                               return;
-                                            navigate(
-                                              `/course/student/courses/${courseId}/lecture/${ls.id}`
-                                            );
+                                            fetchLesson(ls.id).then(() => {
+                                              navigate(
+                                                `/course/student/courses/${courseId}/lecture/${ls.id}`
+                                              );
+                                            })
                                           }}
                                         />
                                       );
@@ -770,9 +794,11 @@ const CourseDetail: React.FC = () => {
                                           onClick={() => {
                                             if (!isPreview && !enrollment)
                                               return;
-                                            navigate(
-                                              `/course/student/courses/${courseId}/lecture/${ls.id}`
-                                            );
+                                            fetchLesson(ls.id).then(() => {
+                                              navigate(
+                                                `/course/student/courses/${courseId}/lecture/${ls.id}`
+                                              );
+                                            })
                                           }}
                                         />
                                       );

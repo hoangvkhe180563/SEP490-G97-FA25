@@ -1,4 +1,5 @@
 ﻿using StudyHub.Backend.Domain.Entities;
+using StudyHub.Backend.UseCases.Dtos;
 
 namespace StudyHub.Backend.UseCases.Repositories
 {
@@ -14,5 +15,12 @@ namespace StudyHub.Backend.UseCases.Repositories
         public bool UpdateFeaturedDocuments(int schoolId, List<int> documentIds);
         public bool UpdateFeaturedCourses(int schoolId, List<int> courseIds);
         public string GetSchoolAddress(int schoolId);
+        List<SchoolListItemDto> GetSchoolList();
+        int AddSchool(School school);
+        int AddLandingPage(LandingPage landingPage);
+        bool UpdateSchool(School school);
+        bool AddLandingPageImages(int schoolId, List<string> images);
+        School? GetSchoolById(int schoolId);
+        List<Document> GetAllDocumentsBySchool(int schoolId);
     }
 }

@@ -20,10 +20,10 @@ import {
 } from "@/common/components/ui/select";
 import { Search, ChevronDown, FileText } from "lucide-react";
 import { useSchoolTeachersDocuments } from "@/documentManagement/hooks/useSchoolTeachersDocuments";
-import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination";
 import type { FilterSidebarProps } from "@/documentManagement/interfaces/document";
+import { Paging } from "@/common/components/Paging";
 
-const ITEMS_PER_PAGE = 15;
+const ITEMS_PER_PAGE = 10;
 
 function FilterBar({
   availableFilters,
@@ -379,7 +379,7 @@ export default function SchoolTeachersDocuments() {
   }
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden flex-col">
+    <div className="flex h-full bg-white overflow-hidden flex-col">
       <div className="bg-white border-b border-slate-200 px-4 py-3 flex-shrink-0">
         <div className="flex items-center justify-between gap-4">
           <div className="relative flex-1 max-w-xl">
@@ -413,69 +413,74 @@ export default function SchoolTeachersDocuments() {
         onClearFilters={clearFilters}
       />
 
-      <ScrollArea className="flex-1">
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-slate-500">Đang tải...</p>
-          </div>
-        ) : documents.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-slate-500">Không tìm thấy tài liệu nào</p>
-          </div>
-        ) : (
-          <div className="py-2">
-            <div className="px-4 py-2 flex items-center gap-3 text-xs font-medium text-slate-500 border-b border-slate-200 sticky top-0 bg-white">
-              <div className="w-8"></div>
-              <div className="flex-1">Tên</div>
-              <div className="w-24">Khối</div>
-              <div className="w-32">Môn học</div>
-              <div className="w-32">Loại</div>
-              <div className="w-32">Người tạo</div>
-              <div className="w-24 text-right">Ngày tạo</div>
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <ScrollArea className="flex-1">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-slate-500">Đang tải...</p>
             </div>
-            {documents.map((doc) => (
-              <div
-                key={doc.id}
-                onClick={() => navigate(`/document/details/${doc.id}`)}
-                className="px-4 py-3 flex items-center gap-3 border-b border-slate-200 hover:bg-slate-50 cursor-pointer"
-              >
-                <div className="w-8 flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-slate-400" />
-                </div>
-                <div className="flex-1 font-medium text-sm text-slate-900 truncate">
-                  {doc.name}
-                </div>
-                <div className="w-24 text-sm text-slate-600">
-                  Lớp {doc.grade}
-                </div>
-                <div className="w-32 text-sm text-slate-600 truncate">
-                  {doc.subjectName}
-                </div>
-                <div className="w-32 text-sm text-slate-600 truncate">
-                  {doc.categoryName}
-                </div>
-                <div className="w-32 text-sm text-slate-600 truncate">
-                  {doc.uploaderName || "Không rõ"}
-                </div>
-                <div className="w-24 text-sm text-slate-600 text-right">
-                  {new Date(doc.createdAt).toLocaleDateString("vi-VN")}
-                </div>
+          ) : documents.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-slate-500">Không tìm thấy tài liệu nào</p>
+            </div>
+          ) : (
+            <div className="py-2">
+              <div className="px-4 py-2 flex items-center gap-3 text-xs font-medium text-slate-500 border-b border-slate-200 sticky top-0 bg-white">
+                <div className="w-24">Ảnh</div>
+                <div className="flex-1">Tên</div>
+                <div className="w-24">Khối</div>
+                <div className="w-32">Môn học</div>
+                <div className="w-32">Loại</div>
+                <div className="w-50">Người tạo</div>
+                <div className="w-30">Ngày tạo</div>
               </div>
-            ))}
-          </div>
-        )}
-      </ScrollArea>
+              {documents.map((doc) => (
+                <div
+                  key={doc.id}
+                  onClick={() => navigate(`/document/details/${doc.id}`)}
+                  className="px-4 py-3 flex items-center gap-3 border-b border-slate-200 hover:bg-slate-50 cursor-pointer"
+                >
+                  <div className="w-24 font-large  text-sm text-slate-900 truncate">
+                    {doc.thumbnail ? (
+                      <img
+                        src={doc.thumbnail}
+                        alt={doc.name}
+                        className="w-10 h-10 object-cover rounded"
+                      />
+                    ) : (
+                      <FileText className="w-10 h-10 text-slate-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 font-medium text-sm text-slate-900 truncate">
+                    {doc.name}
+                  </div>
+                  <div className="w-24 text-sm text-slate-600">
+                    Lớp {doc.grade}
+                  </div>
+                  <div className="w-32 text-sm text-slate-600 truncate">
+                    {doc.subjectName}
+                  </div>
+                  <div className="w-32 text-sm text-slate-600 truncate">
+                    {doc.categoryName}
+                  </div>
+                  <div className="w-50 text-sm text-slate-600 truncate">
+                    {doc.uploaderName || "Không rõ"}
+                  </div>
+                  <div className="w-30 text-sm text-slate-600 truncate">
+                    {new Date(doc.createdAt).toLocaleDateString("vi-VN")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
 
       <div className="bg-white border-t border-slate-200 px-4 flex-shrink-0">
-        <DocumentPagination
-          pagination={{
-            currentPage,
-            totalPages,
-            totalCount,
-            pageSize: ITEMS_PER_PAGE,
-          }}
-          onPageChange={setCurrentPage}
-        />
+        <Paging
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage} />
       </div>
     </div>
   );

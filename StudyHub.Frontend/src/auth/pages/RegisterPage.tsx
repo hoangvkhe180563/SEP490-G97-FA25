@@ -86,7 +86,7 @@ export default function RegisterPage() {
     if (!cities || cities.length === 0) await fetchCities();
   };
 
-  const [cityId, setCityId] = React.useState<number | null>(null);
+  const [cityId] = React.useState<number | null>(null);
 
   const onCityChange = async (val: string) => {
     const id = Number(val);

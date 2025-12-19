@@ -320,7 +320,7 @@ namespace StudyHub.Backend.UseCases.Services
             decimal score = ((decimal)corrects / questions.Count) * 10;
 
             //4. update answer to exam paper (MongoDB)
-            bool isAnswerUpdated = _answerRepo.UpdateManyAnswers(resultId, answers);
+            bool isAnswerUpdated = _answerRepo.UpdateManyAnswers(resultId, answers, true);
             if (!isAnswerUpdated)
             {
                 new UseCaseException("ExamService", "SubmitExamResult error: Correct answers are not updated!").LogError();
@@ -350,7 +350,7 @@ namespace StudyHub.Backend.UseCases.Services
                 new UseCaseException("ExamService", "SubmitExamResult error: Cannot found exam!").LogError();
                 return false;
             }
-            if (exam.LessonId != 0)
+            if (exam.LessonId != 0 && score >= 5)
             {
                 int enrollmentId = _examResultRepo.GetEnrollmentId(resultId, exam.LessonId);
                 if (enrollmentId == 0)

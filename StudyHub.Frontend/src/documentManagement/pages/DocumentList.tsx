@@ -4,10 +4,10 @@ import { useNavigate, useLocation } from "react-router-dom";
 import DocumentSearchHeader from "@/documentManagement/components/documents/DocumentSearchBar";
 import DocumentFilterSidebar from "@/documentManagement/components/documents/DocumentFilterSidebar";
 import DocumentGrid from "@/documentManagement/components/documents/DocumentGrid";
-import DocumentPagination from "@/documentManagement/components/documents/DocumentPagination";
 import DocumentListLayout from "@/documentManagement/components/documents/DocumentListLayout";
 import { useDocumentFilters } from "@/documentManagement/hooks/useDocumentFilters";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
+import { Paging } from "@/common/components/Paging";
 
 const DocumentList = () => {
   const navigate = useNavigate();
@@ -19,8 +19,6 @@ const DocumentList = () => {
     loading,
     currentPage,
     totalPages,
-    totalCount,
-    pageSize,
     searchQuery,
     sortBy,
     filters,
@@ -149,10 +147,10 @@ const DocumentList = () => {
             onDocumentClick={handleDocumentClick}
           />
           {documents.length > 0 && !loading && (
-            <DocumentPagination
-              pagination={{ currentPage, totalPages, totalCount, pageSize }}
-              onPageChange={setCurrentPage}
-            />
+            <Paging
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage} />
           )}
         </>
       }

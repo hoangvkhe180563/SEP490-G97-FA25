@@ -69,11 +69,10 @@ export const externalStudentSidebarItems: ISidebarItem[] = [
       },
     ],
   },
-   {
+  {
     icon: <Bell size={20} />,
     text: "Thông báo",
     link: "/notification/notifications",
-    
   },
 ];
 
@@ -135,11 +134,11 @@ export const schoolStudentSidebarItems: ISidebarItem[] = [
     text: "Forum",
     link: "/forum/forums",
   },
-   {
+  {
     icon: <Bell size={20} />,
     text: "Thông báo",
     link: "/notification/notifications",
-    
+
   },
 ];
 
@@ -181,11 +180,10 @@ export const teacherSidebarItems: ISidebarItem[] = [
     text: "Forum",
     link: "/forum/forums",
   },
-   {
+  {
     icon: <Bell size={20} />,
     text: "Thông báo",
     link: "/notification/notifications",
-    
   },
 ];
 
@@ -194,13 +192,7 @@ export const headOfDepartmentTeacherSidebarItems: ISidebarItem[] = [
     icon: <NotebookPen size={20} />,
     text: "Thống kê khoá học",
     link: "/course/teacher/approved-courses",
-  },
-   {
-    icon: <Bell size={20} />,
-    text: "Thông báo",
-    link: "/notification/notifications",
-    
-  },
+  }
 ];
 
 export const qAndATeacherSidebarItems: ISidebarItem[] = [
@@ -208,13 +200,7 @@ export const qAndATeacherSidebarItems: ISidebarItem[] = [
     icon: <MessageCircleQuestionMark size={20} />,
     text: "Các câu hỏi từ học sinh",
     link: "/qa/teacher/conversations",
-  },
-   {
-    icon: <Bell size={20} />,
-    text: "Thông báo",
-    link: "/notification/notifications",
-    
-  },
+  }
 ];
 
 export const documentManagerSidebarItems: ISidebarItem[] = [
@@ -235,11 +221,11 @@ export const documentManagerSidebarItems: ISidebarItem[] = [
       },
     ],
   },
-   {
+  {
     icon: <Bell size={20} />,
     text: "Thông báo",
     link: "/notification/notifications",
-    
+
   },
 ];
 
@@ -254,11 +240,11 @@ export const questionManagerSidebarItems: ISidebarItem[] = [
     text: "Quản lý câu hỏi",
     link: "/exam/manager/questions",
   },
-   {
+  {
     icon: <Bell size={20} />,
     text: "Thông báo",
     link: "/notification/notifications",
-    
+
   },
 ];
 
@@ -280,11 +266,11 @@ export const financialManagerSidebarItems: ISidebarItem[] = [
       },
     ],
   },
-   {
+  {
     icon: <Bell size={20} />,
     text: "Thông báo",
     link: "/notification/notifications",
-    
+
   },
 ];
 
@@ -306,11 +292,11 @@ export const uiManagerSidebarItems: ISidebarItem[] = [
       },
     ],
   },
-   {
+  {
     icon: <Bell size={20} />,
     text: "Thông báo",
     link: "/notification/notifications",
-    
+
   },
 ];
 
@@ -361,7 +347,7 @@ export const moderatorSidebarItems: ISidebarItem[] = [
     icon: <Bell size={20} />,
     text: "Thông báo",
     link: "/notification/notifications",
-    
+
   },
 ];
 
@@ -484,6 +470,6 @@ export const schoolAdminSidebarItems: ISidebarItem[] = [
     icon: <Bell size={20} />,
     text: "Thông báo",
     link: "/notification/notifications",
-    
+
   },
 ];

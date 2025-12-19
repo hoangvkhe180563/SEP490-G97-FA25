@@ -14,18 +14,18 @@ export default function VerifyEmailPage() {
     verifyEmailError: error,
   } = useAuthStore();
   const [done, setDone] = React.useState(false);
+  const verifyCalledRef = React.useRef(false); // Thêm ref để track
 
   React.useEffect(() => {
-    let mounted = true;
     const run = async () => {
-      if (!token) return;
+      // Kiểm tra đã gọi chưa
+      if (!token || verifyCalledRef.current) return;
+
+      verifyCalledRef.current = true; // Đánh dấu đã gọi
       await verifyEmail(token);
-      if (mounted) setDone(true);
+      setDone(true);
     };
     run();
-    return () => {
-      mounted = false;
-    };
   }, [token, verifyEmail]);
 
   return (

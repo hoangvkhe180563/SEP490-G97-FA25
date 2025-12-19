@@ -6,5 +6,6 @@ namespace StudyHub.Backend.UseCases.Repositories
     {
         PaymentInfo? GetBySchoolId(int schoolId);
         bool UpdatePaymentInfo(PaymentInfo info);
+        bool AddPaymentInfo(PaymentInfo info);
     }
 }
