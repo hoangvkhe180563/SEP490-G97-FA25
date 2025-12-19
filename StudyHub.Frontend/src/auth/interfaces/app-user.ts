@@ -14,9 +14,9 @@ interface AppUser {
   wallet: number;
   // Resolved location names provided by backend to avoid extra lookups
   schoolName?: string;
-  communeId: number;
+  communeId?: number;
   communeName?: string;
-  cityId: number;
+  cityId?: number;
   cityName?: string;
 }
 

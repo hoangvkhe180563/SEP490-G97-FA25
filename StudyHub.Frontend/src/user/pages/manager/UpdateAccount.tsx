@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectContent,
   SelectItem,
-  SelectValue,
 } from "@/common/components/ui/select";
 import {
   Form,
@@ -97,14 +96,7 @@ const UpdateAccount: React.FC = () => {
   const { getAppUserById, updateAccount, updateUserStatus, isLoading } =
     useAppUserStore();
   const { getAppRoles, appRoles } = useAppRoleStore();
-  const {
-    fetchCities,
-    fetchCommunes,
-    fetchSchools,
-    cities,
-    communes,
-    schools,
-  } = useLocationStore();
+  const { fetchCities, cities, communes, schools } = useLocationStore();
   const { getSubjects, subjects } = useDocumentStore();
 
   const [currentRoles, setCurrentRoles] = useState<string[]>([]);
@@ -365,31 +357,31 @@ const UpdateAccount: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const onCityChange = async (value?: string) => {
-    const cityId = Number(value || 0);
-    setValue("cityId", cityId ? String(cityId) : undefined);
-    setValue("communeId", undefined);
-    setValue("schoolId", undefined);
-    if (cityId) {
-      await fetchCommunes(cityId);
-      await fetchSchools(0);
-    } else {
-      await fetchCommunes(0);
-      await fetchSchools(0);
-    }
-  };
+  // const onCityChange = async (value?: string) => {
+  //   const cityId = Number(value || 0);
+  //   setValue("cityId", cityId ? String(cityId) : undefined);
+  //   setValue("communeId", undefined);
+  //   setValue("schoolId", undefined);
+  //   if (cityId) {
+  //     await fetchCommunes(cityId);
+  //     await fetchSchools(0);
+  //   } else {
+  //     await fetchCommunes(0);
+  //     await fetchSchools(0);
+  //   }
+  // };
 
-  const onCommuneChange = async (value?: string) => {
-    const commId = Number(value || 0);
-    setValue("communeId", commId ? String(commId) : undefined);
-    if (commId) await fetchSchools(commId);
-    else await fetchSchools(0);
-  };
+  // const onCommuneChange = async (value?: string) => {
+  //   const commId = Number(value || 0);
+  //   setValue("communeId", commId ? String(commId) : undefined);
+  //   if (commId) await fetchSchools(commId);
+  //   else await fetchSchools(0);
+  // };
 
-  const onSchoolChange = async (value?: string) => {
-    const s = Number(value || 0);
-    setValue("schoolId", s ? String(s) : undefined);
-  };
+  // const onSchoolChange = async (value?: string) => {
+  //   const s = Number(value || 0);
+  //   setValue("schoolId", s ? String(s) : undefined);
+  // };
 
   function removeRole(idRole: string) {
     const prev = getValues("roleIds") || [];

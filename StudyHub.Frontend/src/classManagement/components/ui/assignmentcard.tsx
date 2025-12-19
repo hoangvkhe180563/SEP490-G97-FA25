@@ -1,6 +1,6 @@
 import React from "react";
 import { Card } from "@/common/components/ui/card";
-import { User, Calendar, AlertCircle } from "lucide-react";
+import { Calendar, AlertCircle } from "lucide-react";
 
 export type Assignment = {
   id: number | string;
@@ -25,7 +25,9 @@ const AssignmentCard: React.FC<{ a: Assignment }> = ({ a }) => {
         <div className="flex-1 min-w-0">
           <div className="font-medium text-slate-900 truncate">{a.title}</div>
           <div className="text-sm text-slate-500 mt-1">Due: {a.due}</div>
-          <div className="text-xs text-slate-400 mt-2">Students submitted: {a.submitted}</div>
+          <div className="text-xs text-slate-400 mt-2">
+            Students submitted: {a.submitted}
+          </div>
         </div>
       </div>
     </Card>

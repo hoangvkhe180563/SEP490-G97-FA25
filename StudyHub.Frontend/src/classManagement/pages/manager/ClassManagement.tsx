@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { Input } from "@/common/components/ui/input";
 import {
   Select,
@@ -18,13 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/common/components/ui/table";
-import {
-  Loader2,
-  Inbox,
-  AlertCircle,
-  Trash2,
-  Edit2,
-} from "lucide-react";
+import { Loader2, Inbox, AlertCircle, Trash2, Edit2 } from "lucide-react";
 // use the new store (corrected path)
 import useAllClassManagementStore from "@/classManagement/stores/useAllClassManagementStore";
 // use class store for create/update actions (modal callbacks) and getClassInfo
@@ -77,7 +70,7 @@ const ClassListManagement: React.FC = () => {
     deleteClass,
   } = useAllClassManagementStore();
 
-  const { addClass, updateClass, getClassInfo } = useClassStore();
+  const { addClass, getClassInfo } = useClassStore();
 
   // get current user id for createdBy/updatedBy
   const { user } = useAuthStore();
@@ -107,7 +100,11 @@ const ClassListManagement: React.FC = () => {
         if (raw === null) name = null;
         else if (typeof raw === "string") name = raw;
         else if (typeof raw === "object") {
-          name = (raw.schoolName ?? raw.SchoolName ?? raw.name ?? raw.Name ?? null) as string | null;
+          name = (raw.schoolName ??
+            raw.SchoolName ??
+            raw.name ??
+            raw.Name ??
+            null) as string | null;
           if (!name) {
             const keys = Object.keys(raw || {});
             if (keys.length === 1) {
@@ -211,7 +208,12 @@ const ClassListManagement: React.FC = () => {
       rawCandidate?.created_by ??
       null;
 
-    let instructorName = c.instructorName ?? c.instructor?.fullname ?? rawCandidate?.instructorName ?? rawCandidate?.instructor?.fullname ?? null;
+    let instructorName =
+      c.instructorName ??
+      c.instructor?.fullname ??
+      rawCandidate?.instructorName ??
+      rawCandidate?.instructor?.fullname ??
+      null;
 
     // If we don't have a reliable createdBy/instructor id or name, fetch class detail
     try {
@@ -222,7 +224,9 @@ const ClassListManagement: React.FC = () => {
       if (!detail || !detail.data || (!instructorId && !instructorName)) {
         // fallback to direct endpoint to inspect raw response
         try {
-          const res = await axiosInstance.get(`/Class/${encodeURIComponent(c.id)}/detail`);
+          const res = await axiosInstance.get(
+            `/Class/${encodeURIComponent(c.id)}/detail`
+          );
           const raw = res?.data ?? null;
           const d = raw?.data ?? raw;
           // common places for createdBy/instructor id
@@ -301,8 +305,10 @@ const ClassListManagement: React.FC = () => {
   }) => {
     try {
       // prefer createdBy passed from modal select (if any), otherwise fallback to current user id (only if available)
-      const createdByFromModal = payload.createdBy ?? payload.createBy ?? undefined;
-      const createdByToSend = createdByFromModal ?? (currentUserId || undefined);
+      const createdByFromModal =
+        payload.createdBy ?? payload.createBy ?? undefined;
+      const createdByToSend =
+        createdByFromModal ?? (currentUserId || undefined);
 
       // prefer useClassStore.addClass if available and expects createdBy
       if (typeof addClass === "function") {
@@ -325,36 +331,36 @@ const ClassListManagement: React.FC = () => {
   };
 
   // Edit modal callback
-  const handleEdit = async (payload: {
-    id: number;
-    title: string;
-    description?: string;
-    grade: number;
-    createdBy?: string;
-  }) => {
-    try {
-      const updatedBy = currentUserId || undefined;
+  // const handleEdit = async (payload: {
+  //   id: number;
+  //   title: string;
+  //   description?: string;
+  //   grade: number;
+  //   createdBy?: string;
+  // }) => {
+  //   try {
+  //     const updatedBy = currentUserId || undefined;
 
-      if (typeof updateClass === "function") {
-        await updateClass({
-          id: payload.id,
-          title: payload.title,
-          description: payload.description,
-          grade: payload.grade,
-          updatedBy: updatedBy,
-          // pass through createdBy if provided (for SchoolAdmin teacher selection)
-          createdBy: payload.createdBy ?? undefined,
-        } as any);
-      }
-      setShowEdit(false);
-      setEditing(null);
-      await fetchAllClasses(paramsString);
-      toast.success("Cập nhật lớp thành công");
-    } catch (err) {
-      console.error("Edit class error", err);
-      toast.error("Cập nhật lớp thất bại");
-    }
-  };
+  //     if (typeof updateClass === "function") {
+  //       await updateClass({
+  //         id: payload.id,
+  //         title: payload.title,
+  //         description: payload.description,
+  //         grade: payload.grade,
+  //         updatedBy: updatedBy,
+  //         // pass through createdBy if provided (for SchoolAdmin teacher selection)
+  //         createdBy: payload.createdBy ?? undefined,
+  //       } as any);
+  //     }
+  //     setShowEdit(false);
+  //     setEditing(null);
+  //     await fetchAllClasses(paramsString);
+  //     toast.success("Cập nhật lớp thành công");
+  //   } catch (err) {
+  //     console.error("Edit class error", err);
+  //     toast.error("Cập nhật lớp thất bại");
+  //   }
+  // };
 
   // helper to format date strings to dd/MM/yyyy HH:mm
   const fmt = (s?: string | null) => {
@@ -376,7 +382,7 @@ const ClassListManagement: React.FC = () => {
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold">Quản lý Lớp học</h1>
-        <div className="text-sm text-slate-600">{schoolName ?? "—"}</div>
+          <div className="text-sm text-slate-600">{schoolName ?? "—"}</div>
         </div>
 
         <div className="flex items-center gap-4">
@@ -559,7 +565,8 @@ const ClassListManagement: React.FC = () => {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Bạn có chắc chắn muốn xóa lớp này? Hành động sẽ ẩn lớp (soft delete) và không thể hoàn tác.
+                              Bạn có chắc chắn muốn xóa lớp này? Hành động sẽ ẩn
+                              lớp (soft delete) và không thể hoàn tác.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
