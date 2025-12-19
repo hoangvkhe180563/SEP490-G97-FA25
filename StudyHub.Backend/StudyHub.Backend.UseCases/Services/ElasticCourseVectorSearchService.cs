@@ -102,6 +102,7 @@ namespace StudyHub.Backend.UseCases.Services
             // Bước 2: Convert user profile to text và tạo vector
             var userText = _embeddingService.ConvertUserProfileToCourseText(profile, preferences);
             var userVector = await _embeddingService.GetEmbeddingAsync(userText);
+            //var userVector = new float[] { };
 
             var filters = new List<Func<QueryContainerDescriptor<ElasticCourse>, QueryContainer>>();
 

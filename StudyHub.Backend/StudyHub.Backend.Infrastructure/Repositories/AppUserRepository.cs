@@ -143,7 +143,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 var teacherRoleNames = new[] { "Subject Teacher", "Head of Department Teacher", "Q&A Teacher", "Homeroom Teacher" };
                 var users = _context.AppUsers
                             .Include(u => u.Roles)
-                            .Where(u => u.Roles.Any(r =>teacherRoleNames.Any(tr =>(r.Name ?? "").ToLower() == tr.ToLower())))
+                            .Where(u => u.Roles.Any(r => teacherRoleNames.Any(tr => (r.Name ?? "").ToLower() == tr.ToLower())))
                             .ToList();
 
                 return users.Select(u => ToDomain(u)).ToList();
@@ -155,7 +155,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
         }
 
-        public (List<Domain.Entities.AppUser>, int, int, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page, int limit, Guid myUserId)
+        public (List<Domain.Entities.AppUser>, int, int, int, int) GetAppUsersBySearchAndFilter(string? status, string? roleId, string? search, int page, int limit, Guid myUserId, int? schoolId = null)
         {
             try
             {
@@ -183,6 +183,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 {
                     var q = search.ToLower();
                     users = users.Where(u => (u.Email ?? "").ToLower().Contains(q) || (u.Username ?? "").ToLower().Contains(q) || (u.Fullname ?? "").ToLower().Contains(q));
+                }
+
+                if (schoolId.HasValue && schoolId.Value > 0)
+                {
+                    users = users.Where(u => u.SchoolId == schoolId.Value);
                 }
 
                 // ensure subjects navigation is loaded for list queries so callers can access user.Subjects

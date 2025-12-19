@@ -302,5 +302,19 @@ namespace StudyHub.Backend.Infrastructure.MongoDb.Data.Repositories
             }
             return [];
         }
+
+        public List<Domain.Entities.Exam.Question> GetAllQuestions()
+        {
+            try
+            {
+                var questions = _questionCollection.Find(q => q.Status == true).ToList();
+                return questions.Select(q => q.ToQuestionEntity()).ToList();
+            }
+            catch (Exception ex)
+            {
+                new MongoDbException("QuestionRepository", "GetAllQuestions failed. Inner error: " + ex.Message).LogError();
+            }
+            return new List<Domain.Entities.Exam.Question>();
+        }
     }
 }

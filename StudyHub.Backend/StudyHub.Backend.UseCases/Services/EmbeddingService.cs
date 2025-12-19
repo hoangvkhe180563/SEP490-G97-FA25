@@ -205,6 +205,23 @@ namespace StudyHub.Backend.UseCases.Services
                    $"Description: {doc.Description}";
         }
 
+        // Chuyển Question thành text cho embedding
+        public string ConvertQuestionToText(StudyHub.Backend.Domain.Entities.Exam.Question question)
+        {
+            // Basic conversion for question -> text
+            return $"Question: {question.QuestionText}";
+        }
+
+        // Chuyển Question + answer thành text dùng để tạo embedding
+        public string ConvertEmbeddingQuestionToText(string questionText, string answer)
+        {
+            if (string.IsNullOrWhiteSpace(answer))
+                return questionText;
+
+            // Example: "1 + 1 = ? 2"
+            return $"{questionText} ? {answer}".Trim();
+        }
+
         // Helper: Build query text cho embedding (chỉ goal + topic)
         public string BuildQueryTextForEmbedding(UserPreferenceProfile profile)
         {

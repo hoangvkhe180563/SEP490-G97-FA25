@@ -104,11 +104,11 @@ namespace StudyHub.Backend.Api.Controllers
 
         //[Authorize(Roles = "School Manager")]
         [HttpGet]
-        public IActionResult Get([FromQuery] string? status, [FromQuery] string? role, [FromQuery] string? search, [FromQuery] int page, [FromQuery] int limit)
+        public IActionResult Get([FromQuery] string? status, [FromQuery] string? role, [FromQuery] string? search, [FromQuery] int page, [FromQuery] int limit, [FromQuery] int? schoolId)
         {
             try
             {
-                var result = _userService.GetAppUsers(status, role, search, page, limit);
+                var result = _userService.GetAppUsers(status, role, search, page, limit, schoolId);
                 if (result == null)
                 {
                     return NotFound(new { Success = false, Message = "Không tìm thấy người dùng" });
@@ -166,7 +166,7 @@ namespace StudyHub.Backend.Api.Controllers
                 var commune = _locationService.GetCommuneById(user.CommuneId);
                 var city = _locationService.GetCityByCommuneId(user.CommuneId);
 
-                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id);
+                var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id, school?.Name, commune?.Name, city?.Name);
                 return Ok(new { Success = true, Data = dto });
             }
             catch (Exception ex)
@@ -445,7 +445,7 @@ namespace StudyHub.Backend.Api.Controllers
                 var school = _locationService.GetSchoolById(user.SchoolId);
                 var commune = _locationService.GetCommuneById(user.CommuneId);
                 var city = _locationService.GetCityByCommuneId(user.CommuneId);
-                var dto = AppUserMapper.ToProfile(user, roles, school?.Id, commune?.Id, city?.Id);
+                var dto = AppUserMapper.ToProfile(user, roles, school?.Id, commune?.Id, city?.Id, school?.Name, commune?.Name, city?.Name);
                 return Ok(new { Success = true, Data = dto });
             }
             catch (Exception ex)

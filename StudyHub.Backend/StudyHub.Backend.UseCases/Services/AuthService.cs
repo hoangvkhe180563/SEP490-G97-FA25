@@ -20,18 +20,18 @@ namespace StudyHub.Backend.UseCases.Services
 {
     public class AuthService
     {
-
         public IAppUserRepository _userRepository;
         public IAppRoleRepository _roleRepository;
         public IAppUserLoginHistoryRepository _loginHistoryRepository;
         public SmtpEmailService _emailService;
         public IHttpContextAccessor _httpContextAccessor;
         private readonly IConfiguration _configuration;
+        private readonly LocationService _locationService;
         private const int SALT_ROUNDS = 12; // BCrypt salt rounds for hashing
         private const int DEFAULT_EXPIRES_MINUTES = 60; // default 60 minutes
         private const int DEFAULT_REFRESH_EXPIRES_MINUTES = 60 * 24 * 7; // default 7 days
 
-        public AuthService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, IAppUserLoginHistoryRepository loginHistoryRepository, SmtpEmailService emailService, IHttpContextAccessor httpContextAccessor, IConfiguration configuration)
+        public AuthService(IAppUserRepository userRepository, IAppRoleRepository roleRepository, IAppUserLoginHistoryRepository loginHistoryRepository, SmtpEmailService emailService, IHttpContextAccessor httpContextAccessor, IConfiguration configuration, LocationService locationService)
         {
             _userRepository = userRepository;
             _roleRepository = roleRepository;
@@ -39,6 +39,7 @@ namespace StudyHub.Backend.UseCases.Services
             _emailService = emailService;
             _httpContextAccessor = httpContextAccessor;
             _configuration = configuration;
+            _locationService = locationService;
         }
 
 
@@ -132,7 +133,13 @@ namespace StudyHub.Backend.UseCases.Services
                 Roles = roleNames,
                 Permissions = permissions,
                 SubjectIds = subjectIds,
-                ClassIds = classIds
+                ClassIds = classIds,
+                SchoolId = user.SchoolId,
+                SchoolName = _locationService.GetSchoolById(user.SchoolId)?.Name,
+                CommuneId = user.CommuneId,
+                CommuneName = _locationService.GetCommuneById(user.CommuneId)?.Name,
+                CityId = _locationService.GetCityByCommuneId(user.CommuneId)?.Id,
+                CityName = _locationService.GetCityByCommuneId(user.CommuneId)?.Name
             };
 
             // create login session record
@@ -327,7 +334,13 @@ namespace StudyHub.Backend.UseCases.Services
                 Roles = roles?.Where(r => !string.IsNullOrEmpty(r.Name)).Select(r => r.Name!).ToList() ?? new List<string>(),
                 Permissions = roles != null ? roles.SelectMany(r => r.AppPolicies ?? new List<AppPolicy>()).Select(p => (p.Resource?.Name ?? p.ResourceId.ToString()) + ":" + (p.ActionType)).Distinct().ToList() : new List<string>(),
                 SubjectIds = _userRepository.GetUserSubjectIds(user.Id) ?? new List<short>(),
-                ClassIds = userClaims != null ? userClaims.Where(c => c.ClassId > 0).Select(c => c.ClassId).Distinct().ToList() : new List<int>()
+                ClassIds = userClaims != null ? userClaims.Where(c => c.ClassId > 0).Select(c => c.ClassId).Distinct().ToList() : new List<int>(),
+                SchoolId = user.SchoolId,
+                SchoolName = _locationService.GetSchoolById(user.SchoolId)?.Name,
+                CommuneId = user.CommuneId,
+                CommuneName = _locationService.GetCommuneById(user.CommuneId)?.Name,
+                CityId = _locationService.GetCityByCommuneId(user.CommuneId)?.Id,
+                CityName = _locationService.GetCityByCommuneId(user.CommuneId)?.Name
             };
         }
 
@@ -448,7 +461,13 @@ namespace StudyHub.Backend.UseCases.Services
                     Roles = roleNames,
                     Permissions = permissions,
                     SubjectIds = subjectIds,
-                    ClassIds = classIds
+                    ClassIds = classIds,
+                    SchoolId = user.SchoolId,
+                    SchoolName = _locationService.GetSchoolById(user.SchoolId)?.Name,
+                    CommuneId = user.CommuneId,
+                    CommuneName = _locationService.GetCommuneById(user.CommuneId)?.Name,
+                    CityId = _locationService.GetCityByCommuneId(user.CommuneId)?.Id,
+                    CityName = _locationService.GetCityByCommuneId(user.CommuneId)?.Name
                 };
 
                 // create session record (google login)
@@ -665,7 +684,13 @@ namespace StudyHub.Backend.UseCases.Services
                 Permissions = permissions,
                 SubjectIds = subjectIds,
                 ClassIds = classIds,
-                Tokens = new TokenPair() // not used here
+                Tokens = new TokenPair(),
+                SchoolId = user.SchoolId,
+                SchoolName = _locationService.GetSchoolById(user.SchoolId)?.Name,
+                CommuneId = user.CommuneId,
+                CommuneName = _locationService.GetCommuneById(user.CommuneId)?.Name,
+                CityId = _locationService.GetCityByCommuneId(user.CommuneId)?.Id,
+                CityName = _locationService.GetCityByCommuneId(user.CommuneId)?.Name
             };
         }
         public Guid? ValidateAccessToken(string accessToken)
