@@ -71,8 +71,12 @@ const DetailedClassTeacher: React.FC = () => {
   const [notifications, setNotifications] = useState<ClassNotification[]>([]);
   const [classMemberCount, setClassMemberCount] = useState<number | null>(null);
 
-  const [submissionCounts, setSubmissionCounts] = useState<Record<number, number | null>>({});
-  const [memberCounts, setMemberCounts] = useState<Record<number, number | null>>({});
+  const [submissionCounts, setSubmissionCounts] = useState<
+    Record<number, number | null>
+  >({});
+  const [memberCounts, setMemberCounts] = useState<
+    Record<number, number | null>
+  >({});
 
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") ?? "notifications";
@@ -132,9 +136,13 @@ const DetailedClassTeacher: React.FC = () => {
     };
   }, [id, getDocumentsByClassId]);
 
-  const DocumentPreviewCard: React.FC<{ doc: DocumentDto; role: string }> = ({ doc }) => {
+  const DocumentPreviewCard: React.FC<{ doc: DocumentDto; role: string }> = ({
+    doc,
+  }) => {
     const navigateLocal = useNavigate();
-    const isImage = !!(doc.fileType && /jpg|jpeg|png|gif|bmp|webp/i.test(String(doc.fileType)));
+    const isImage = !!(
+      doc.fileType && /jpg|jpeg|png|gif|bmp|webp/i.test(String(doc.fileType))
+    );
     const isPdf = !!(doc.fileType && /pdf/i.test(String(doc.fileType)));
     const detailPath = `/document/student/details/${doc.id}`;
 
@@ -153,7 +161,11 @@ const DetailedClassTeacher: React.FC = () => {
           <div className="w-full h-36 flex flex-col items-center justify-start gap-3">
             <div className="w-full h-24 bg-gray-100 flex items-center justify-center overflow-hidden rounded-lg">
               {isImage ? (
-                <img src={doc.documentUrl} alt={doc.name} className="w-full h-full object-cover rounded" />
+                <img
+                  src={doc.documentUrl}
+                  alt={doc.name}
+                  className="w-full h-full object-cover rounded"
+                />
               ) : isPdf ? (
                 <div className="text-sm text-slate-600 text-center px-2">
                   <div className="text-sm font-medium">PDF</div>
@@ -165,8 +177,12 @@ const DetailedClassTeacher: React.FC = () => {
                 </div>
               )}
             </div>
-            <div className="text-sm text-slate-700 text-center line-clamp-2 px-1 font-medium">{doc.name}</div>
-            <div className="text-xs text-slate-400">{doc.uploaderName ?? ""}</div>
+            <div className="text-sm text-slate-700 text-center line-clamp-2 px-1 font-medium">
+              {doc.name}
+            </div>
+            <div className="text-xs text-slate-400">
+              {doc.uploaderName ?? ""}
+            </div>
           </div>
         </Card>
       </a>
@@ -192,7 +208,8 @@ const DetailedClassTeacher: React.FC = () => {
 
     // if we've already completed loading for this id, sync and return
     if (consolidatedFetchedRef.current === id) {
-      if (currentClass?.data?.notifications) setNotifications(currentClass.data.notifications);
+      if (currentClass?.data?.notifications)
+        setNotifications(currentClass.data.notifications);
       const cached = documentsByClass?.[Number(id)];
       if (Array.isArray(cached)) setDocuments(cached);
       return;
@@ -210,11 +227,15 @@ const DetailedClassTeacher: React.FC = () => {
               const maybeNotifications =
                 (classInfoResult as any)?.data?.notifications ??
                 (classInfoResult as any)?.notifications;
-              if (Array.isArray(maybeNotifications)) setNotifications(maybeNotifications);
-              else if (currentClass?.data?.notifications) setNotifications(currentClass.data.notifications);
+              if (Array.isArray(maybeNotifications))
+                setNotifications(maybeNotifications);
+              else if (currentClass?.data?.notifications)
+                setNotifications(currentClass.data.notifications);
             }
           } else {
-            console.debug("[DetailedClassTeacher] getClassInfo is not a function");
+            console.debug(
+              "[DetailedClassTeacher] getClassInfo is not a function"
+            );
           }
         } catch (err) {
           console.warn("getClassInfo failed", err);
@@ -239,7 +260,9 @@ const DetailedClassTeacher: React.FC = () => {
               }
             }
           } else {
-            console.debug("[DetailedClassTeacher] getDocumentsByClassId is not a function; using cache only");
+            console.debug(
+              "[DetailedClassTeacher] getDocumentsByClassId is not a function; using cache only"
+            );
           }
         } catch (err) {
           console.warn("getDocumentsByClassId failed", err);
@@ -266,20 +289,27 @@ const DetailedClassTeacher: React.FC = () => {
             console.debug("getMemberCount raw:", raw2);
             count = coerceToNumberOrNull(raw2);
           } else {
-            console.debug("[DetailedClassTeacher] no member count functions available in store");
+            console.debug(
+              "[DetailedClassTeacher] no member count functions available in store"
+            );
           }
 
           // final fallback: students length in store
           if (count === null) {
-            const fallback = (currentClass?.data?.students ?? []).length ?? null;
-            count = typeof fallback === "number" && Number.isFinite(fallback) ? fallback : null;
+            const fallback =
+              (currentClass?.data?.students ?? []).length ?? null;
+            count =
+              typeof fallback === "number" && Number.isFinite(fallback)
+                ? fallback
+                : null;
           }
 
           if (mounted) setClassMemberCount(count);
         } catch (err) {
           console.warn("getMemberClassCount / getMemberCount failed", err);
           if (mounted) {
-            const fallback = (currentClass?.data?.students ?? []).length ?? null;
+            const fallback =
+              (currentClass?.data?.students ?? []).length ?? null;
             setClassMemberCount(typeof fallback === "number" ? fallback : null);
           }
         }
@@ -306,25 +336,46 @@ const DetailedClassTeacher: React.FC = () => {
     (async () => {
       try {
         console.debug("[DetailedClassTeacher DEBUG] classId:", id);
-        console.debug("[DetailedClassTeacher DEBUG] getDocumentsByClassId typeof:", typeof getDocumentsByClassId);
-        console.debug("[DetailedClassTeacher DEBUG] getMemberClassCount typeof:", typeof getMemberClassCount);
-        console.debug("[DetailedClassTeacher DEBUG] documentsByClass cache:", documentsByClass?.[Number(id)]);
+        console.debug(
+          "[DetailedClassTeacher DEBUG] getDocumentsByClassId typeof:",
+          typeof getDocumentsByClassId
+        );
+        console.debug(
+          "[DetailedClassTeacher DEBUG] getMemberClassCount typeof:",
+          typeof getMemberClassCount
+        );
+        console.debug(
+          "[DetailedClassTeacher DEBUG] documentsByClass cache:",
+          documentsByClass?.[Number(id)]
+        );
 
         if (typeof getDocumentsByClassId === "function") {
           try {
             const docs = await getDocumentsByClassId(Number(id));
-            console.debug("[DetailedClassTeacher DEBUG] getDocumentsByClassId result:", docs);
+            console.debug(
+              "[DetailedClassTeacher DEBUG] getDocumentsByClassId result:",
+              docs
+            );
           } catch (err) {
-            console.error("[DetailedClassTeacher DEBUG] getDocumentsByClassId threw:", err);
+            console.error(
+              "[DetailedClassTeacher DEBUG] getDocumentsByClassId threw:",
+              err
+            );
           }
         }
 
         if (typeof getMemberClassCount === "function") {
           try {
             const raw = await getMemberClassCount(Number(id));
-            console.debug("[DetailedClassTeacher DEBUG] getMemberClassCount raw:", raw);
+            console.debug(
+              "[DetailedClassTeacher DEBUG] getMemberClassCount raw:",
+              raw
+            );
           } catch (err) {
-            console.error("[DetailedClassTeacher DEBUG] getMemberClassCount threw:", err);
+            console.error(
+              "[DetailedClassTeacher DEBUG] getMemberClassCount threw:",
+              err
+            );
           }
         }
       } catch (e) {
@@ -343,19 +394,15 @@ const DetailedClassTeacher: React.FC = () => {
     if (!hasTeacher && !hasStudents && !hasParents) {
       getClassMembers(Number(id));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    activeTab,
-    id,
-    getClassMembers,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, id, getClassMembers]);
 
   // Exercise tab: fetch works once (guarded)
   useEffect(() => {
     if (!id || activeTab !== "exercise") return;
     const hasWorks = (currentClass?.data?.works ?? []).length > 0;
     if (!hasWorks) getClassWorks(Number(id));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, id, getClassWorks]);
 
   // fetchCountsForWork: fetch submission count and try to fetch accurate member count for a work (best-effort)
@@ -368,7 +415,9 @@ const DetailedClassTeacher: React.FC = () => {
         } else {
           const subs = await getClassworkSubmissions(wid);
           const unique = new Set<string>();
-          subs?.forEach((s) => unique.add(String((s as any).appUserId ?? (s as any).userId ?? "")));
+          subs?.forEach((s) =>
+            unique.add(String((s as any).appUserId ?? (s as any).userId ?? ""))
+          );
           setSubmissionCounts((prev) => ({ ...prev, [wid]: unique.size }));
         }
 
@@ -381,13 +430,24 @@ const DetailedClassTeacher: React.FC = () => {
         } catch {
           // ignore
         }
-        if (accurateCount === null) accurateCount = (currentClass?.data?.students ?? []).length ?? classMemberCount ?? null;
+        if (accurateCount === null)
+          accurateCount =
+            (currentClass?.data?.students ?? []).length ??
+            classMemberCount ??
+            null;
         setMemberCounts((prev) => ({ ...prev, [wid]: accurateCount }));
       } catch (e) {
         console.error("fetchCountsForWork failed for", wid, e);
       }
     },
-    [getSubmissionCount, getClassworkSubmissions, getMemberCount, id, currentClass?.data?.students, classMemberCount]
+    [
+      getSubmissionCount,
+      getClassworkSubmissions,
+      getMemberCount,
+      id,
+      currentClass?.data?.students,
+      classMemberCount,
+    ]
   );
 
   // when entering exercise tab: set quick defaults and prefetch per-work counts in background
@@ -428,17 +488,35 @@ const DetailedClassTeacher: React.FC = () => {
         console.warn("Prefetch per-work counts failed", err);
       }
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, id, fetchCountsForWork, getMemberCount, classMemberCount]);
 
   // handlers (notifications / others)
-  const handlePost = async (content: string, files?: File[] | undefined, links?: any[] | undefined, titleFromComposer?: string) => {
+  const handlePost = async (
+    content: string,
+    files?: File[] | undefined,
+    links?: any[] | undefined,
+    titleFromComposer?: string
+  ) => {
     if (!id) return;
-    const fallbackTitle = content && content.length > 40 ? `${content.slice(0, 40)}...` : "Thông báo mới";
-    const titleToSend = titleFromComposer && titleFromComposer.trim().length > 0 ? titleFromComposer.trim() : fallbackTitle;
+    const fallbackTitle =
+      content && content.length > 40
+        ? `${content.slice(0, 40)}...`
+        : "Thông báo mới";
+    const titleToSend =
+      titleFromComposer && titleFromComposer.trim().length > 0
+        ? titleFromComposer.trim()
+        : fallbackTitle;
     const createdBy = user?.id ?? "";
     try {
-      const payload = { classId: Number(id), title: titleToSend, description: content, files, links, createdBy };
+      const payload = {
+        classId: Number(id),
+        title: titleToSend,
+        description: content,
+        files,
+        links,
+        createdBy,
+      };
       const created = await createNotification(payload);
       if (created) {
         // update local notifications state so new notifications are shown immediately
@@ -451,13 +529,27 @@ const DetailedClassTeacher: React.FC = () => {
   };
 
   const handleMail = (person: ClassMemberDto) => {
-    window.location.href = `mailto:${person.fullname.replace(/\s+/g, ".").toLowerCase()}@example.com`;
+    window.location.href = `mailto:${person.fullname
+      .replace(/\s+/g, ".")
+      .toLowerCase()}@example.com`;
   };
 
-  const handleSelect = (p: ClassMemberDto) => {}; // placeholder
+  const handleSelect = (placehold: ClassMemberDto) => {
+    console.log("handleSelect", placehold);
+  }; // placeholder
 
-  if (isLoading) return <div className="p-8 text-center text-slate-500">Đang tải thông tin lớp học...</div>;
-  if (!currentClass?.success) return <div className="p-8 text-center text-red-500">Không thể tải thông tin lớp học.</div>;
+  if (isLoading)
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Đang tải thông tin lớp học...
+      </div>
+    );
+  if (!currentClass?.success)
+    return (
+      <div className="p-8 text-center text-red-500">
+        Không thể tải thông tin lớp học.
+      </div>
+    );
 
   const classInfo: ClassInfo | null = currentClass?.data?.classInfo ?? null;
   const teacher: ClassMemberDto[] = currentClass?.data?.teachers ?? [];
@@ -470,31 +562,62 @@ const DetailedClassTeacher: React.FC = () => {
       <Breadcrumb>
         <BreadcrumbList className="flex items-center gap-2 whitespace-nowrap">
           <BreadcrumbItem>
-            <BreadcrumbLink href={`/class/${role}`} className="inline-flex items-center text-sm text-slate-600 hover:underline">Lớp học</BreadcrumbLink>
+            <BreadcrumbLink
+              href={`/class/${role}`}
+              className="inline-flex items-center text-sm text-slate-600 hover:underline"
+            >
+              Lớp học
+            </BreadcrumbLink>
           </BreadcrumbItem>
-          <BreadcrumbSeparator className="text-slate-400"><ChevronRight className="w-4 h-4" /></BreadcrumbSeparator>
+          <BreadcrumbSeparator className="text-slate-400">
+            <ChevronRight className="w-4 h-4" />
+          </BreadcrumbSeparator>
           <BreadcrumbItem>
-            <BreadcrumbPage className="inline-block text-sm font-medium text-slate-900 truncate max-w-[48ch]" aria-current="page">{classInfo?.name ?? "Chi tiết lớp học"}</BreadcrumbPage>
+            <BreadcrumbPage
+              className="inline-block text-sm font-medium text-slate-900 truncate max-w-[48ch]"
+              aria-current="page"
+            >
+              {classInfo?.name ?? "Chi tiết lớp học"}
+            </BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
 
       <div className="mt-6 mb-6 flex items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold">{classInfo?.name ?? "Chi tiết lớp học"}</h1>
-          <div className="text-base text-slate-500 mt-1">{classInfo?.description ?? ""}</div>
+          <h1 className="text-3xl font-bold">
+            {classInfo?.name ?? "Chi tiết lớp học"}
+          </h1>
+          <div className="text-base text-slate-500 mt-1">
+            {classInfo?.description ?? ""}
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 lg:col-span-8">
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(String(v))} className="w-full mt-4">
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(String(v))}
+            className="w-full mt-4"
+          >
             <div className="mb-4">
               <TabsList>
-                <TabsTrigger value="notifications" className="px-4 py-2 text-lg">Thông báo</TabsTrigger>
-                <TabsTrigger value="exercise" className="px-4 py-2 text-lg">Bài tập</TabsTrigger>
-                <TabsTrigger value="everyone" className="px-4 py-2 text-lg">Mọi người</TabsTrigger>
-                <TabsTrigger value="exam" className="px-4 py-2 text-lg">Bài kiểm tra</TabsTrigger>
+                <TabsTrigger
+                  value="notifications"
+                  className="px-4 py-2 text-lg"
+                >
+                  Thông báo
+                </TabsTrigger>
+                <TabsTrigger value="exercise" className="px-4 py-2 text-lg">
+                  Bài tập
+                </TabsTrigger>
+                <TabsTrigger value="everyone" className="px-4 py-2 text-lg">
+                  Mọi người
+                </TabsTrigger>
+                <TabsTrigger value="exam" className="px-4 py-2 text-lg">
+                  Bài kiểm tra
+                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -512,26 +635,33 @@ const DetailedClassTeacher: React.FC = () => {
               />
             </TabsContent>
 
-             <TabsContent value="exercise">
+            <TabsContent value="exercise">
               <ExerciseTab
                 works={worksFromStore}
                 role={role as "teacher" | "student"}
                 onOpenWork={(workId) => {
-                  if (role === "student") navigate(`/class/${role}/${id}/classwork/${workId}/detail`);
-                  else navigate(`/class/${role}/${id}/classwork/${workId}/submissions`);
+                  if (role === "student")
+                    navigate(`/class/${role}/${id}/classwork/${workId}/detail`);
+                  else
+                    navigate(
+                      `/class/${role}/${id}/classwork/${workId}/submissions`
+                    );
                 }}
                 onAddWork={() => navigate(`/class/${role}/${id}/classwork/add`)}
                 fetchCountsForWork={fetchCountsForWork}
                 submissionCounts={submissionCounts}
                 memberCounts={memberCounts}
-                classDefaultCount={classMemberCount ?? (students?.length ?? null)}
-                navigateToEdit={(wid) => navigate(`/class/${role}/${id}/classwork/${wid}/edit`)}
+                classDefaultCount={classMemberCount ?? students?.length ?? null}
+                navigateToEdit={(wid) =>
+                  navigate(`/class/${role}/${id}/classwork/${wid}/edit`)
+                }
                 onRemoveWork={async (workId: number) => {
                   try {
+                    console.log(`Removing work: ${workId}`);
                     if (typeof getClassWorks === "function") {
                       await getClassWorks(Number(id));
-                      if (typeof getClassInfo === "function") await getClassInfo(Number(id));
-                      
+                      if (typeof getClassInfo === "function")
+                        await getClassInfo(Number(id));
                     } else {
                       // fallback: force a re-render by toggling consolidatedFetchedRef to null
                     }
@@ -543,11 +673,26 @@ const DetailedClassTeacher: React.FC = () => {
             </TabsContent>
 
             <TabsContent value="everyone">
-              <EveryoneTab teachers={teacher} students={students} parents={parents} onMail={handleMail} onSelect={handleSelect} onAddMember={() => { if (typeof getClassMembers === "function") void getClassMembers(Number(id)); }} classId={currentClass?.data?.classInfo?.id ?? 0} />
+              <EveryoneTab
+                teachers={teacher}
+                students={students}
+                parents={parents}
+                onMail={handleMail}
+                onSelect={handleSelect}
+                onAddMember={() => {
+                  if (typeof getClassMembers === "function")
+                    void getClassMembers(Number(id));
+                }}
+                classId={currentClass?.data?.classInfo?.id ?? 0}
+              />
             </TabsContent>
 
             <TabsContent value="exam">
-              <ClassExams classId={id} isTeacher={role === "teacher"} userId={user?.id ?? ''} />
+              <ClassExams
+                classId={id}
+                isTeacher={role === "teacher"}
+                userId={user?.id ?? ""}
+              />
             </TabsContent>
           </Tabs>
         </div>
@@ -557,16 +702,24 @@ const DetailedClassTeacher: React.FC = () => {
             <Card className="mb-4">
               <div className="p-6 flex items-start justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-slate-600 mb-3">THÔNG TIN LỚP HỌC</div>
+                  <div className="text-sm font-semibold text-slate-600 mb-3">
+                    THÔNG TIN LỚP HỌC
+                  </div>
                   <div className="text-slate-800">
-                    <div className="font-extrabold text-2xl mb-1">{classInfo?.name ?? "Tên lớp"}</div>
-                    <div className="text-md text-slate-500 mb-4">{classInfo?.description ?? ""}</div>
+                    <div className="font-extrabold text-2xl mb-1">
+                      {classInfo?.name ?? "Tên lớp"}
+                    </div>
+                    <div className="text-md text-slate-500 mb-4">
+                      {classInfo?.description ?? ""}
+                    </div>
                   </div>
                 </div>
               </div>
               <div className="px-6 pb-6 flex items-center justify-between">
                 <div className="text-xs text-slate-400">Số thành viên</div>
-                <Badge className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg font-semibold text-lg">{classMemberCount ?? "—"}</Badge>
+                <Badge className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg font-semibold text-lg">
+                  {classMemberCount ?? "—"}
+                </Badge>
               </div>
             </Card>
 
@@ -574,10 +727,22 @@ const DetailedClassTeacher: React.FC = () => {
               <div className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="font-semibold text-lg">Tài liệu lớp</div>
-                  <div className="text-sm text-slate-500">{docsLoading ? "Đang tải..." : `${documents.length} tài liệu`}</div>
+                  <div className="text-sm text-slate-500">
+                    {docsLoading
+                      ? "Đang tải..."
+                      : `${documents.length} tài liệu`}
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  {documents && documents.length > 0 ? documents.map((d) => <DocumentPreviewCard key={d.id} doc={d} role={role} />) : <div className="col-span-2 text-sm text-slate-500">Chưa có tài liệu.</div>}
+                  {documents && documents.length > 0 ? (
+                    documents.map((d) => (
+                      <DocumentPreviewCard key={d.id} doc={d} role={role} />
+                    ))
+                  ) : (
+                    <div className="col-span-2 text-sm text-slate-500">
+                      Chưa có tài liệu.
+                    </div>
+                  )}
                 </div>
               </div>
             </Card>

@@ -1,4 +1,4 @@
-import { formatISO, parseISO } from "date-fns";
+import { formatISO } from "date-fns";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type {
@@ -142,19 +142,19 @@ export const useClassStore = create<ClassState>()(
             created && created.data
               ? created.data
               : created && created.success !== undefined
-                ? created.data ?? null
-                : created;
+              ? created.data ?? null
+              : created;
 
           const mapped: ClassListDto | null = createdObj
             ? {
-              id: createdObj.id ?? 0,
-              name: createdObj.name ?? payload.title,
-              instructorName:
-                createdObj.instructorName ?? createdObj.instructor ?? "",
-              description:
-                createdObj.description ?? payload.description ?? "",
-              grade: createdObj.grade ?? payload.grade,
-            }
+                id: createdObj.id ?? 0,
+                name: createdObj.name ?? payload.title,
+                instructorName:
+                  createdObj.instructorName ?? createdObj.instructor ?? "",
+                description:
+                  createdObj.description ?? payload.description ?? "",
+                grade: createdObj.grade ?? payload.grade,
+              }
             : null;
 
           if (mapped) {
@@ -252,8 +252,8 @@ export const useClassStore = create<ClassState>()(
             raw && raw.data
               ? raw.data
               : raw && raw.success !== undefined
-                ? raw.data ?? null
-                : raw;
+              ? raw.data ?? null
+              : raw;
 
           if (!updatedObj) {
             set({ success: false, message: "Update returned empty response" });
@@ -708,16 +708,16 @@ export const useClassStore = create<ClassState>()(
               const filesRaw = (w as any).files ?? [];
 
               const files = Array.isArray(filesRaw)
-                ? filesRaw.map((f: any, idx: number) => ({
-                  id: f.id,
-                  fileName: f.fileName,
-                  fileUrl: f.fileUrl,
-                  thumbnail: f.thumbnail,
-                  fileType: (f.fileType ?? f.contentType ?? "")
-                    .toString()
-                    .toLowerCase(),
-                  raw: f,
-                }))
+                ? filesRaw.map((f: any) => ({
+                    id: f.id,
+                    fileName: f.fileName,
+                    fileUrl: f.fileUrl,
+                    thumbnail: f.thumbnail,
+                    fileType: (f.fileType ?? f.contentType ?? "")
+                      .toString()
+                      .toLowerCase(),
+                    raw: f,
+                  }))
                 : [];
 
               return {
@@ -969,13 +969,13 @@ export const useClassStore = create<ClassState>()(
                   : null,
                 classes: Array.isArray(d.classes)
                   ? d.classes.map((c: any) => ({
-                    id: c.id,
-                    name: c.name ?? null,
-                    subjectName: c.subjectName ?? null,
-                    instructorName: c.instructorName ?? null,
-                    description: c.description ?? null,
-                    subjectId: c.subjectId ?? null,
-                  }))
+                      id: c.id,
+                      name: c.name ?? null,
+                      subjectName: c.subjectName ?? null,
+                      instructorName: c.instructorName ?? null,
+                      description: c.description ?? null,
+                      subjectId: c.subjectId ?? null,
+                    }))
                   : undefined,
                 raw: d,
               } as DocumentDto;
@@ -1177,8 +1177,8 @@ export const useClassStore = create<ClassState>()(
           const keptIds = Array.isArray(payload.keptExistingFileIds)
             ? payload.keptExistingFileIds
             : Array.isArray(payload.keptFileIds)
-              ? payload.keptFileIds
-              : null;
+            ? payload.keptFileIds
+            : null;
           if (Array.isArray(keptIds) && keptIds.length > 0) {
             for (const fid of keptIds) {
               form.append("KeptFileIds", String(fid));
@@ -1308,8 +1308,8 @@ export const useClassStore = create<ClassState>()(
         try {
           const keptIdsToUse = Array.isArray(payload.keptExistingFileIds)
             ? payload.keptExistingFileIds
-              .map((x) => Number(x))
-              .filter((x) => Number.isFinite(x))
+                .map((x) => Number(x))
+                .filter((x) => Number.isFinite(x))
             : [];
 
           const form = new FormData();
@@ -1358,7 +1358,7 @@ export const useClassStore = create<ClassState>()(
             try {
               form.append("LinksJson", JSON.stringify(payload.links));
               // eslint-disable-next-line no-empty
-            } catch { }
+            } catch {}
           }
           if (Array.isArray(payload.files) && payload.files.length > 0) {
             for (const f of payload.files) {
@@ -1583,14 +1583,14 @@ export const useClassStore = create<ClassState>()(
           const filesRaw = raw.files;
 
           const files = Array.isArray(filesRaw)
-            ? filesRaw.map((f: any, idx: number) => ({
-              id: f.id,
-              fileName: f.fileName,
-              fileUrl: f.fileUrl,
-              thumbnail: f.thumbnail,
-              isExternal: !!(f.isExternal ?? (f.url && !f.fileName)),
-              raw: f,
-            }))
+            ? filesRaw.map((f: any) => ({
+                id: f.id,
+                fileName: f.fileName,
+                fileUrl: f.fileUrl,
+                thumbnail: f.thumbnail,
+                isExternal: !!(f.isExternal ?? (f.url && !f.fileName)),
+                raw: f,
+              }))
             : [];
 
           const result = {
@@ -1791,10 +1791,11 @@ export const useClassStore = create<ClassState>()(
 
           if (!res) {
             try {
-              const abs = `${window.location.origin
-                }/ClassNotification/${encodeURIComponent(
-                  notificationId
-                )}/submissions/${encodeURIComponent(submissionId)}/grade`;
+              const abs = `${
+                window.location.origin
+              }/ClassNotification/${encodeURIComponent(
+                notificationId
+              )}/submissions/${encodeURIComponent(submissionId)}/grade`;
               console.debug(
                 "[gradeSubmission] try absolute URL:",
                 abs,
@@ -2303,7 +2304,9 @@ export const useClassStore = create<ClassState>()(
       },
       getStudentClassExams: async (studentId: string): Promise<Exam[]> => {
         try {
-          const res = await axiosInstance.get("/exam/class/by-student/" + studentId);
+          const res = await axiosInstance.get(
+            "/exam/class/by-student/" + studentId
+          );
           if (res.status === 200) {
             return res.data.map((item: any) => {
               return {
@@ -2317,8 +2320,8 @@ export const useClassStore = create<ClassState>()(
                 showAnswers: item.showAnswers,
                 showCorrectAnswers: item.showCorrectAnswers,
                 isMultipleAttempts: item.isMultipleAttempts,
-                totalQuestions: item.totalQuestions
-              }
+                totalQuestions: item.totalQuestions,
+              };
             });
           } else {
             throw new Error(`Status: ${res.status}`);

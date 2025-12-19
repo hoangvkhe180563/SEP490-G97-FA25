@@ -1,21 +1,32 @@
 import React from "react";
 import PostComposer from "@/classManagement/components/ui/postcomposer";
-import PostCard, { type Post } from "@/classManagement/components/ui/postcard";
+import PostCard from "@/classManagement/components/ui/postcard";
 import type { ClassNotification } from "@/classManagement/interfaces/class";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 type Props = {
   classId: number | string;
   notifications: ClassNotification[];
-  onPost: (content: string, files?: File[], links?: any[], titleFromComposer?: string) => Promise<void>;
+  onPost: (
+    content: string,
+    files?: File[],
+    links?: any[],
+    titleFromComposer?: string
+  ) => Promise<void>;
   isTeacher?: boolean;
   // allow parent to update notifications list when a PostCard is edited
   onNotificationsChange?: (next: ClassNotification[]) => void;
 };
 
-const NotificationsTab: React.FC<Props> = ({ classId, notifications, onPost, isTeacher = false, onNotificationsChange }) => {
+const NotificationsTab: React.FC<Props> = ({
+  classId,
+  notifications,
+  onPost,
+  isTeacher = false,
+  onNotificationsChange,
+}) => {
   const { user } = useAuthStore();
-
+  console.log(isTeacher);
   // Try common avatar field names used across the app/backend
   const resolveAvatarUrl = (u?: any): string | undefined => {
     if (!u) return undefined;
@@ -24,32 +35,32 @@ const NotificationsTab: React.FC<Props> = ({ classId, notifications, onPost, isT
 
   const avatarUrl = resolveAvatarUrl(user) ?? undefined; // fallback to undefined so PostComposer can use its own default
 
-  const handlePostUpdate = (updated: Post) => {
-    // Map updated Post back into ClassNotification shape used by this tab
-    const mapped: ClassNotification = {
-      id: updated.id as any,
-      classId: updated.classId ?? classId,
-      title: updated.title ?? "",
-      description: updated.description ?? "",
-      createdAt: updated.createdAt ?? undefined,
-      avatarImage: updated.avatarImage,
-      authorName: updated.authorName,
-      createdBy: updated.createdBy,
-      files: updated.files ?? [],
-      comments: updated.comments ?? [],
-    };
+  // const handlePostUpdate = (updated: Post) => {
+  //   // Map updated Post back into ClassNotification shape used by this tab
+  //   const mapped: ClassNotification = {
+  //     id: updated.id as any,
+  //     classId: updated.classId ?? classId,
+  //     title: updated.title ?? "",
+  //     description: updated.description ?? "",
+  //     createdAt: updated.createdAt ?? undefined,
+  //     avatarImage: updated.avatarImage,
+  //     authorName: updated.authorName,
+  //     createdBy: updated.createdBy,
+  //     files: updated.files ?? [],
+  //     comments: updated.comments ?? [],
+  //   };
 
-    // Update local notifications array and notify parent if provided
-    const next = (notifications ?? []).map((n) => (String(n.id) === String(mapped.id) ? mapped : n));
-    if (!next.some((n) => String(n.id) === String(mapped.id))) {
-      // If not found, prepend (defensive)
-      next.unshift(mapped);
-    }
-    if (typeof onNotificationsChange === "function") {
-      onNotificationsChange(next);
-    }
-    // If this component maintains its own state elsewhere (e.g. parent), it's recommended the parent passes onNotificationsChange.
-  };
+  //   // Update local notifications array and notify parent if provided
+  //   const next = (notifications ?? []).map((n) => (String(n.id) === String(mapped.id) ? mapped : n));
+  //   if (!next.some((n) => String(n.id) === String(mapped.id))) {
+  //     // If not found, prepend (defensive)
+  //     next.unshift(mapped);
+  //   }
+  //   if (typeof onNotificationsChange === "function") {
+  //     onNotificationsChange(next);
+  //   }
+  //   // If this component maintains its own state elsewhere (e.g. parent), it's recommended the parent passes onNotificationsChange.
+  // };
 
   return (
     <div>
@@ -92,7 +103,9 @@ const NotificationsTab: React.FC<Props> = ({ classId, notifications, onPost, isT
                   const next = (notifications ?? []).map((item) =>
                     String(item.id) === String(mapped.id) ? mapped : item
                   );
-                  if (!next.some((item) => String(item.id) === String(mapped.id))) {
+                  if (
+                    !next.some((item) => String(item.id) === String(mapped.id))
+                  ) {
                     next.unshift(mapped);
                   }
                   // If parent passed a change handler, call it so parent/store can sync

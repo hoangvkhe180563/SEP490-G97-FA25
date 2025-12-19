@@ -18,7 +18,11 @@ import { ScrollArea } from "@/common/components/ui/scroll-area";
 import { Separator } from "@/common/components/ui/separator";
 import { Card } from "@/common/components/ui/card";
 import { Label } from "@/common/components/ui/label";
-import { Alert, AlertTitle, AlertDescription } from "@/common/components/ui/alert";
+import {
+  Alert,
+  AlertTitle,
+  AlertDescription,
+} from "@/common/components/ui/alert";
 
 const ClassworkSubmissionsPage: React.FC = () => {
   const params = useParams<{
@@ -85,7 +89,11 @@ const ClassworkSubmissionsPage: React.FC = () => {
     description: string;
   } | null>(null);
   const alertTimerRef = useRef<number | null>(null);
-  const showAlert = (type: "success" | "error" | "info" | "warning", description: string, title?: string) => {
+  const showAlert = (
+    type: "success" | "error" | "info" | "warning",
+    description: string,
+    title?: string
+  ) => {
     setPageAlert({ type, title, description });
     if (alertTimerRef.current) window.clearTimeout(alertTimerRef.current);
     alertTimerRef.current = window.setTimeout(() => setPageAlert(null), 5000);
@@ -222,20 +230,14 @@ const ClassworkSubmissionsPage: React.FC = () => {
 
     if (!submissions || submissions.length === 0) return 100;
     for (const s of submissions) {
-      const candidates = [
-        (s as any).maxScore
-        
-      ];
+      const candidates = [(s as any).maxScore];
       for (const c of candidates) {
         const n = Number(c);
         if (Number.isFinite(n) && n > 0) return n;
       }
     }
     if (selectedSubmission) {
-      const candidates = [
-        (selectedSubmission as any).maxScore,
-       
-      ];
+      const candidates = [(selectedSubmission as any).maxScore];
       for (const c of candidates) {
         const n = Number(c);
         if (Number.isFinite(n) && n > 0) return n;
@@ -248,10 +250,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
   const detailMaxScore = (() => {
     try {
       if (!cwDetail) return null;
-      const candList = [
-        cwDetail.maxScore
-       
-      ];
+      const candList = [cwDetail.maxScore];
       for (const c of candList) {
         const n = Number(c);
         if (Number.isFinite(n) && n > 0) return n;
@@ -267,10 +266,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
       const works = currentClass?.data?.works ?? [];
       const w = works.find((x: any) => Number(x.id) === Number(workId));
       if (!w) return null;
-      const candidates = [
-        w.maxScore
-       
-      ];
+      const candidates = [w.maxScore];
       for (const c of candidates) {
         const n = Number(c);
         if (Number.isFinite(n) && n > 0) return n;
@@ -359,8 +355,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
           setGradeValue(Number.isFinite(n) ? n : (String(scoreVal) as any));
         }
 
-        const fb =
-          s.feedback ?? "";
+        const fb = s.feedback ?? "";
         setGradeFeedback(typeof fb === "string" ? fb : String(fb ?? ""));
       } else {
         const fallback = submissionMap.get(userId) ?? null;
@@ -377,8 +372,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
             setGradeValue(Number.isFinite(n) ? n : (String(scoreVal) as any));
           }
 
-          const fb =
-            (fallback as any).feedback ?? "";
+          const fb = (fallback as any).feedback ?? "";
           setGradeFeedback(typeof fb === "string" ? fb : String(fb ?? ""));
         }
       }
@@ -411,7 +405,11 @@ const ClassworkSubmissionsPage: React.FC = () => {
 
     const maxAllowed = maxAllowedForThisWork;
     if (Number.isFinite(maxAllowed) && numeric > maxAllowed) {
-      showAlert("error", `Điểm không hợp lệ: không được vượt quá ${maxAllowed}.`, "Lỗi");
+      showAlert(
+        "error",
+        `Điểm không hợp lệ: không được vượt quá ${maxAllowed}.`,
+        "Lỗi"
+      );
       return;
     }
     const minAllowed = 0;
@@ -432,11 +430,19 @@ const ClassworkSubmissionsPage: React.FC = () => {
     const grader = user?.id ?? localStorage.getItem("currentUserId") ?? "";
 
     if (!notificationId || notificationId <= 0) {
-      showAlert("error", `Không thể chấm: notificationId không hợp lệ (${notificationId}).`, "Lỗi");
+      showAlert(
+        "error",
+        `Không thể chấm: notificationId không hợp lệ (${notificationId}).`,
+        "Lỗi"
+      );
       return;
     }
     if (!submissionId && !selectedMember) {
-      showAlert("error", `Không thể chấm: submissionId không hợp lệ (${submissionId}).`, "Lỗi");
+      showAlert(
+        "error",
+        `Không thể chấm: submissionId không hợp lệ (${submissionId}).`,
+        "Lỗi"
+      );
       return;
     }
 
@@ -448,7 +454,9 @@ const ClassworkSubmissionsPage: React.FC = () => {
       appUserId: selectedSubmission?.appUserId ?? selectedMember?.userId ?? "",
       score: numeric,
       files:
-        selectedSubmission?.files ?? (selectedSubmission as any)?.submissionFiles ?? [],
+        selectedSubmission?.files ??
+        (selectedSubmission as any)?.submissionFiles ??
+        [],
       classworkId: notificationId,
     };
 
@@ -496,7 +504,11 @@ const ClassworkSubmissionsPage: React.FC = () => {
       if (!res) {
         const reloaded = await getClassworkSubmissions(notificationId);
         setSubmissions(reloaded ?? prevSubmissions);
-        showAlert("error", "Lưu điểm thất bại: không có phản hồi từ server.", "Lỗi");
+        showAlert(
+          "error",
+          "Lưu điểm thất bại: không có phản hồi từ server.",
+          "Lỗi"
+        );
         return;
       }
       if (!res.success) {
@@ -520,8 +532,7 @@ const ClassworkSubmissionsPage: React.FC = () => {
         finalSubmission = { ...optimisticSubmission, ...serverSubmission };
       }
 
-      const serverFb =
-        (finalSubmission as any).feedback ?? null;
+      const serverFb = (finalSubmission as any).feedback ?? null;
       setGradeFeedback(
         typeof serverFb === "string" ? serverFb : String(serverFb ?? "")
       );
@@ -570,10 +581,11 @@ const ClassworkSubmissionsPage: React.FC = () => {
             String(refreshedScore).trim() !== ""
           ) {
             const n = Number(refreshedScore);
-            setGradeValue(Number.isFinite(n) ? n : (String(refreshedScore) as any));
+            setGradeValue(
+              Number.isFinite(n) ? n : (String(refreshedScore) as any)
+            );
           }
-          const refreshedFb =
-            (refreshed as any).feedback ?? "";
+          const refreshedFb = (refreshed as any).feedback ?? "";
           setGradeFeedback(
             typeof refreshedFb === "string"
               ? refreshedFb
@@ -611,7 +623,11 @@ const ClassworkSubmissionsPage: React.FC = () => {
       } catch (_) {
         setSubmissions(prevSubmissions);
       }
-      showAlert("error", "Lỗi khi lưu điểm. Xem console/network để biết chi tiết.", "Lỗi");
+      showAlert(
+        "error",
+        "Lỗi khi lưu điểm. Xem console/network để biết chi tiết.",
+        "Lỗi"
+      );
     }
   };
 
@@ -620,7 +636,6 @@ const ClassworkSubmissionsPage: React.FC = () => {
     submission?: ClassworkSubmission | null;
   }> = ({ member, submission }) => {
     const submitted = hasSubmissionContent(submission);
-    const graded = isGraded(submission);
     const isSelected =
       selectedMember &&
       normalizeUserId(selectedMember.userId) === normalizeUserId(member.userId);
@@ -646,7 +661,11 @@ const ClassworkSubmissionsPage: React.FC = () => {
           console.debug("MemberRow click", member);
           pickMember(member);
         }}
-        className={`relative flex  justify-between cursor-pointer w-full h-full overflow-y-auto px-4 py-3 transition-colors text-left rounded-md border border-transparent ${isSelected ? "bg-slate-100 shadow-sm border-slate-200" : "hover:bg-slate-50"}`}
+        className={`relative flex  justify-between cursor-pointer w-full h-full overflow-y-auto px-4 py-3 transition-colors text-left rounded-md border border-transparent ${
+          isSelected
+            ? "bg-slate-100 shadow-sm border-slate-200"
+            : "hover:bg-slate-50"
+        }`}
       >
         <div className="flex items-center gap-4 min-w-0">
           <div className="flex-shrink-0">
@@ -694,7 +713,9 @@ const ClassworkSubmissionsPage: React.FC = () => {
       <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-40">
         {pageAlert && (
           <div className="max-w-xl">
-            <Alert variant={pageAlert.type === "error" ? "destructive" : "default"}>
+            <Alert
+              variant={pageAlert.type === "error" ? "destructive" : "default"}
+            >
               {pageAlert.title && <AlertTitle>{pageAlert.title}</AlertTitle>}
               <AlertDescription>{pageAlert.description}</AlertDescription>
             </Alert>

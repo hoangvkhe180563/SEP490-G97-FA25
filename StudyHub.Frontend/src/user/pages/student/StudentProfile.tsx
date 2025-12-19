@@ -68,6 +68,7 @@ const defaultUser: AppUser = {
   schoolId: 0,
   isLoginWithGoogle: false,
   transferId: 0,
+  wallet: 0,
 };
 
 export default function StudentProfile() {

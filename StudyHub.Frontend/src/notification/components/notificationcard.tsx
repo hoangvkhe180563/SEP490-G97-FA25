@@ -1,7 +1,12 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/common/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/common/components/ui/card";
 import { Button } from "@/common/components/ui/button";
-import { Badge } from "@/common/components/ui/badge";
 import type { NotificationItem } from "../interfaces/notification";
 
 interface Props {
@@ -13,18 +18,21 @@ interface Props {
   style?: React.CSSProperties;
 }
 
-const priorityColor: Record<string, "destructive" | "default" | "secondary" | "outline"> = {
-  high: "destructive",
-  normal: "default",
-  low: "secondary",
-};
-
-export const NotificationCard: React.FC<Props> = ({ item, onMarkRead, className, onClick, role, style }) => {
+export const NotificationCard: React.FC<Props> = ({
+  item,
+  onMarkRead,
+  className,
+  onClick,
+  role,
+  style,
+}) => {
   const isRead = item.read?.isRead === true;
-  const variant = priorityColor[item.priority?.toLowerCase?.() ?? ""] ?? "outline";
   const createdAt = item.createdAt ? new Date(item.createdAt) : null;
 
-  const link = item.linkUrl ?? (item.metadata && (item.metadata.linkUrl ?? item.metadata.LinkUrl)) ?? null;
+  const link =
+    item.linkUrl ??
+    (item.metadata && (item.metadata.linkUrl ?? item.metadata.LinkUrl)) ??
+    null;
 
   // Internal handler: mark read (if needed) then navigate/open link
   const handleOpenLink = async (e?: React.MouseEvent) => {
@@ -61,7 +69,7 @@ export const NotificationCard: React.FC<Props> = ({ item, onMarkRead, className,
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       if (onClick) {
-        await Promise.resolve(onClick((e as unknown) as React.MouseEvent));
+        await Promise.resolve(onClick(e as unknown as React.MouseEvent));
       } else {
         await handleOpenLink();
       }
@@ -76,7 +84,9 @@ export const NotificationCard: React.FC<Props> = ({ item, onMarkRead, className,
   const readClasses = "bg-white border border-gray-200 text-muted-foreground";
 
   // Combine incoming className with internal styles
-  const combinedClassName = `${className ?? ""} group ${isRead ? readClasses : unreadClasses} cursor-pointer p-3 rounded-md`.trim();
+  const combinedClassName = `${className ?? ""} group ${
+    isRead ? readClasses : unreadClasses
+  } cursor-pointer p-3 rounded-md`.trim();
 
   // Card click: if parent passed onClick, call it; otherwise do internal open logic
   const handleCardClick = async (e: React.MouseEvent) => {
@@ -108,7 +118,13 @@ export const NotificationCard: React.FC<Props> = ({ item, onMarkRead, className,
     >
       <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-2">
         <div className="space-y-1">
-          <CardTitle className={`text-base ${isRead ? "font-medium text-foreground" : "font-semibold text-slate-900"}`}>
+          <CardTitle
+            className={`text-base ${
+              isRead
+                ? "font-medium text-foreground"
+                : "font-semibold text-slate-900"
+            }`}
+          >
             {item.title}
           </CardTitle>
           <CardDescription className="text-sm text-muted-foreground">
@@ -117,7 +133,6 @@ export const NotificationCard: React.FC<Props> = ({ item, onMarkRead, className,
         </div>
 
         <div className="flex items-start gap-2">
-          
           {!isRead && (
             <span className="ml-1 inline-flex items-center rounded-full bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white">
               MỚI
@@ -126,7 +141,13 @@ export const NotificationCard: React.FC<Props> = ({ item, onMarkRead, className,
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className={`text-sm ${isRead ? "text-muted-foreground" : "text-foreground"}`}>{item.body}</p>
+        <p
+          className={`text-sm ${
+            isRead ? "text-muted-foreground" : "text-foreground"
+          }`}
+        >
+          {item.body}
+        </p>
 
         {!isRead && onMarkRead && (
           <Button

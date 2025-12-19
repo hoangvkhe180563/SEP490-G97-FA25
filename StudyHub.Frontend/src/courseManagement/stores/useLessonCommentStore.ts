@@ -14,7 +14,7 @@ type LessonCommentState = {
   deleteComment: (id: number) => Promise<any>;
 };
 
-export const useLessonCommentStore = create<LessonCommentState>((set, get) => ({
+export const useLessonCommentStore = create<LessonCommentState>((set) => ({
   commentsByLesson: {},
   loading: false,
   fetchComments: async (lessonId: number) => {

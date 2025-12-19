@@ -7,7 +7,11 @@ import type { ClassNotificationFile } from "@/classManagement/interfaces/class";
 
 /* shadcn components */
 import { Card } from "@/common/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/common/components/ui/avatar";
 import { Button } from "@/common/components/ui/button";
 import {
   DropdownMenu,
@@ -45,7 +49,7 @@ export type Post = {
   description?: string; // may contain HTML (bold/italic)
   createdBy: string;
   createdAt: string;
-  files: ClassNotificationFile[]|undefined;
+  files: ClassNotificationFile[] | undefined;
   comments?: PostComment[];
   avatarImage?: string | null | undefined;
   authorName?: string | null | undefined;
@@ -101,15 +105,22 @@ const makeCloudinaryFlAttachment = (u: string) => {
   }
 };
 
-const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = ({ post, onUpdate }) => {
+const PostCard: React.FC<{
+  post: Post;
+  onUpdate?: (updated: Post) => void;
+}> = ({ post, onUpdate }) => {
   // local copy of the post so we can update UI immediately after edit
   const [localPost, setLocalPost] = useState<Post>(post);
 
   // keep local comments separate (optimistic comments)
-  const [localComments, setLocalComments] = useState<PostComment[]>(post.comments ?? []);
+  const [localComments, setLocalComments] = useState<PostComment[]>(
+    post.comments ?? []
+  );
   const [showComments, setShowComments] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  console.log("Open", menuOpen);
 
   // downloading state per file id
   const [downloading, setDownloading] = useState<Record<string, boolean>>({});
@@ -120,9 +131,9 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
   const editDescRef = useRef<HTMLDivElement | null>(null);
   const [newFiles, setNewFiles] = useState<File[]>([]);
   // kept existing file ids (init from incoming post, will reset when opening modal)
-  const [keptExistingFileIds, setKeptExistingFileIds] = useState<Array<number | string>>(
-    () => (post.files ?? []).map((f) => f.id)
-  );
+  const [keptExistingFileIds, setKeptExistingFileIds] = useState<
+    Array<number | string>
+  >(() => (post.files ?? []).map((f) => f.id));
   const [editing, setEditing] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -149,15 +160,19 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
       setKeptExistingFileIds((localPost.files ?? []).map((f) => f.id));
       setNewFiles([]);
       setTimeout(() => {
-        if (editTitleRef.current) editTitleRef.current.innerHTML = localPost.title ?? "";
-        if (editDescRef.current) editDescRef.current.innerHTML = localPost.description ?? "";
+        if (editTitleRef.current)
+          editTitleRef.current.innerHTML = localPost.title ?? "";
+        if (editDescRef.current)
+          editDescRef.current.innerHTML = localPost.description ?? "";
       }, 0);
     }
   }, [editOpen, localPost.title, localPost.description, localPost.files]);
 
   const toggleKeepFile = (fid: number | string) => {
     setKeptExistingFileIds((prev) =>
-      prev.some((x) => String(x) === String(fid)) ? prev.filter((x) => String(x) !== String(fid)) : [...prev, fid]
+      prev.some((x) => String(x) === String(fid))
+        ? prev.filter((x) => String(x) !== String(fid))
+        : [...prev, fid]
     );
   };
 
@@ -170,30 +185,45 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
   const currentUserId = user?.id ?? "unknown-user";
   const currentUserFullname = user?.fullname ?? "Bạn";
   const currentUserAvatar =
-    (user as any)?.avatarUrl ?? (user as any)?.avatar ?? (user as any)?.imageUrl ?? undefined;
+    (user as any)?.avatarUrl ??
+    (user as any)?.avatar ??
+    (user as any)?.imageUrl ??
+    undefined;
 
   // Resolve avatar for the post author with fallbacks:
   const authorAvatar =
     localPost.avatarImage ??
-    (String(localPost.createdBy) === String(currentUserId) ? currentUserAvatar : undefined);
+    (String(localPost.createdBy) === String(currentUserId)
+      ? currentUserAvatar
+      : undefined);
 
   const avatarFallbackText = () => {
-    const name = (localPost as any).authorName ?? (localPost as any).createdByName ?? localPost.title ?? "";
+    const name =
+      (localPost as any).authorName ??
+      (localPost as any).createdByName ??
+      localPost.title ??
+      "";
     if (!name) return "U";
     const parts = String(name).trim().split(/\s+/);
     if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    return (
+      parts[0].charAt(0) + parts[parts.length - 1].charAt(0)
+    ).toUpperCase();
   };
 
   // helper to scroll comments container
   const scrollCommentsToBottom = () => {
     try {
-      const el = document.querySelector(`#post-${localPost.id} .comments-list`) as HTMLElement | null;
+      const el = document.querySelector(
+        `#post-${localPost.id} .comments-list`
+      ) as HTMLElement | null;
       if (el) {
         el.scrollTop = el.scrollHeight;
       }
       // focus input if visible
-      const input = document.querySelector(`#post-${localPost.id} input`) as HTMLInputElement | null;
+      const input = document.querySelector(
+        `#post-${localPost.id} input`
+      ) as HTMLInputElement | null;
       if (input) input.focus();
     } catch {
       // ignore
@@ -211,7 +241,8 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
     const tempId = `temp-${Date.now()}`;
     const optimistic: PostComment = {
       id: tempId,
-      notificationId: typeof localPost.id === "number" ? localPost.id : Number(localPost.id),
+      notificationId:
+        typeof localPost.id === "number" ? localPost.id : Number(localPost.id),
       userId: currentUserId,
       userFullname: currentUserFullname,
       content: htmlContent,
@@ -244,13 +275,17 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
       } else {
         setLocalComments((prev) =>
           prev.map((c) =>
-            String(c.id) === String(tempId) ? { ...c, id: `pending-${Date.now()}` } : c
+            String(c.id) === String(tempId)
+              ? { ...c, id: `pending-${Date.now()}` }
+              : c
           )
         );
       }
     } catch (err) {
       console.error("Failed to send comment", err);
-      setLocalComments((prev) => prev.filter((c) => String(c.id) !== String(tempId)));
+      setLocalComments((prev) =>
+        prev.filter((c) => String(c.id) !== String(tempId))
+      );
     }
   };
 
@@ -311,7 +346,11 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
 
       if (!res.ok) {
         if (isCloudinaryUrl(String(file.fileUrl))) {
-          window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
+          window.open(
+            makeCloudinaryFlAttachment(String(file.fileUrl)),
+            "_blank",
+            "noopener"
+          );
         } else {
           window.open(String(file.fileUrl), "_blank", "noopener");
         }
@@ -320,7 +359,11 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
 
       if ((res as any).type === "opaque") {
         if (isCloudinaryUrl(String(file.fileUrl))) {
-          window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
+          window.open(
+            makeCloudinaryFlAttachment(String(file.fileUrl)),
+            "_blank",
+            "noopener"
+          );
         } else {
           window.open(String(file.fileUrl), "_blank", "noopener");
         }
@@ -332,7 +375,11 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
 
       if (contentType.includes("text/html")) {
         if (isCloudinaryUrl(String(file.fileUrl))) {
-          window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
+          window.open(
+            makeCloudinaryFlAttachment(String(file.fileUrl)),
+            "_blank",
+            "noopener"
+          );
         } else {
           window.open(String(file.fileUrl), "_blank", "noopener");
         }
@@ -346,7 +393,9 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
         contentDisposition.match(/filename="?([^";]+)"?/i);
       if (fileNameMatch && fileNameMatch[1]) {
         try {
-          filename = decodeURIComponent(fileNameMatch[1].replace(/(^['"]|['"]$)/g, ""));
+          filename = decodeURIComponent(
+            fileNameMatch[1].replace(/(^['"]|['"]$)/g, "")
+          );
         } catch {
           filename = fileNameMatch[1].replace(/(^['"]|['"]$)/g, "");
         }
@@ -370,9 +419,16 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (err) {
-      console.warn("Programmatic download failed, falling back to opening in new tab", err);
+      console.warn(
+        "Programmatic download failed, falling back to opening in new tab",
+        err
+      );
       if (isCloudinaryUrl(String(file.fileUrl))) {
-        window.open(makeCloudinaryFlAttachment(String(file.fileUrl)), "_blank", "noopener");
+        window.open(
+          makeCloudinaryFlAttachment(String(file.fileUrl)),
+          "_blank",
+          "noopener"
+        );
       } else {
         window.open(String(file.fileUrl), "_blank", "noopener");
       }
@@ -409,7 +465,10 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
         title: titleHtml,
         description: descHtml,
         files: newFiles.length ? newFiles : null,
-        keptExistingFileIds: Array.isArray(keptExistingFileIds) && keptExistingFileIds.length ? keptExistingFileIds : null,
+        keptExistingFileIds:
+          Array.isArray(keptExistingFileIds) && keptExistingFileIds.length
+            ? keptExistingFileIds
+            : null,
       };
 
       const res = await editClasswork(payload);
@@ -436,7 +495,9 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
       } else {
         // if server did not return files, derive from keptExistingFileIds + newFiles
         const existingKept = (localPost.files ?? []).filter((f) =>
-          Array.isArray(keptExistingFileIds) ? keptExistingFileIds.some((k) => String(k) === String(f.id)) : true
+          Array.isArray(keptExistingFileIds)
+            ? keptExistingFileIds.some((k) => String(k) === String(f.id))
+            : true
         );
         const newFilePlaceholders = newFiles.map((f, i) => ({
           id: -(Date.now() + i), // negative id as placeholder
@@ -478,16 +539,24 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
     <Card className="p-4">
       <div id={`post-${localPost.id}`} className="flex items-start gap-4">
         <Avatar>
-          {authorAvatar ? <AvatarImage src={authorAvatar} alt="avatar" /> : <AvatarFallback>{avatarFallbackText()}</AvatarFallback>}
+          {authorAvatar ? (
+            <AvatarImage src={authorAvatar} alt="avatar" />
+          ) : (
+            <AvatarFallback>{avatarFallbackText()}</AvatarFallback>
+          )}
         </Avatar>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <div>
               <div className="font-medium text-gray-800">
-                {(localPost as any).authorName ?? (localPost as any).createdByName ?? ""}
+                {(localPost as any).authorName ??
+                  (localPost as any).createdByName ??
+                  ""}
               </div>
-              <div className="text-xs text-gray-400">{formatTimestamp(localPost.createdAt)}</div>
+              <div className="text-xs text-gray-400">
+                {formatTimestamp(localPost.createdAt)}
+              </div>
             </div>
 
             <div>
@@ -508,7 +577,10 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
                     <Edit className="w-4 h-4" /> Chỉnh sửa
                   </DropdownMenuItem>
 
-                  <DropdownMenuItem onSelect={handleDelete} className="flex items-center gap-2">
+                  <DropdownMenuItem
+                    onSelect={handleDelete}
+                    className="flex items-center gap-2"
+                  >
                     <Trash2 className="w-4 h-4" /> Xoá
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -516,16 +588,28 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
             </div>
           </div>
 
-          {localPost.title && <div className="mt-3 text-gray-800 font-semibold">{localPost.title}</div>}
+          {localPost.title && (
+            <div className="mt-3 text-gray-800 font-semibold">
+              {localPost.title}
+            </div>
+          )}
 
-          <div className="mt-1 text-gray-600" dangerouslySetInnerHTML={{ __html: safeHtml(localPost.description) }} />
+          <div
+            className="mt-1 text-gray-600"
+            dangerouslySetInnerHTML={{
+              __html: safeHtml(localPost.description),
+            }}
+          />
 
           {localPost.files && localPost.files.length > 0 && (
             <div className="mt-3 bg-gray-50 border rounded p-3 space-y-2">
               {localPost.files.map((file) => {
                 const key = String(file.id ?? file.fileUrl ?? file.fileName);
                 return (
-                  <div key={key} className="flex items-center justify-between bg-white rounded p-2 border">
+                  <div
+                    key={key}
+                    className="flex items-center justify-between bg-white rounded p-2 border"
+                  >
                     <div className="flex-1 min-w-0 pr-3">
                       <a
                         href={file.fileUrl}
@@ -539,7 +623,12 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <a href={file.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center px-3 py-1 text-sm rounded bg-slate-100 hover:bg-slate-200">
+                      <a
+                        href={file.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center px-3 py-1 text-sm rounded bg-slate-100 hover:bg-slate-200"
+                      >
                         Xem
                       </a>
 
@@ -575,7 +664,11 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
               className="flex items-center gap-2"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="currentColor" strokeWidth="1.5" />
+                <path
+                  d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
               </svg>
               {localComments.length} bình luận
             </Button>
@@ -584,21 +677,43 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
           {showComments && (
             <>
               <div className="mt-4">
-                <CommentComposer onSend={(text) => handleSendComment(text)} avatarUrl={currentUserAvatar} />
+                <CommentComposer
+                  onSend={(text) => handleSendComment(text)}
+                  avatarUrl={currentUserAvatar}
+                />
               </div>
 
               {localComments.length > 0 && (
-                <div className="mt-3 space-y-3 comments-list" style={{ maxHeight: 320, overflow: "auto" }}>
+                <div
+                  className="mt-3 space-y-3 comments-list"
+                  style={{ maxHeight: 320, overflow: "auto" }}
+                >
                   {localComments.map((c) => (
                     <div key={c.id} className="flex gap-3 items-start">
                       <Avatar>
-                        {c.avatarUrl ? <AvatarImage src={c.avatarUrl} alt="avatar" /> : <AvatarFallback>{((c.userFullname || "U").charAt(0) || "U").toUpperCase()}</AvatarFallback>}
+                        {c.avatarUrl ? (
+                          <AvatarImage src={c.avatarUrl} alt="avatar" />
+                        ) : (
+                          <AvatarFallback>
+                            {(
+                              (c.userFullname || "U").charAt(0) || "U"
+                            ).toUpperCase()}
+                          </AvatarFallback>
+                        )}
                       </Avatar>
                       <div className="text-sm">
                         <div className="font-medium">
-                          {c.userFullname} <span className="text-gray-400 text-xs ml-2">{formatTimestamp(c.createdAt)}</span>
+                          {c.userFullname}{" "}
+                          <span className="text-gray-400 text-xs ml-2">
+                            {formatTimestamp(c.createdAt)}
+                          </span>
                         </div>
-                        <div className="text-gray-700 mt-1" dangerouslySetInnerHTML={{ __html: safeHtml(c.content) }} />
+                        <div
+                          className="text-gray-700 mt-1"
+                          dangerouslySetInnerHTML={{
+                            __html: safeHtml(c.content),
+                          }}
+                        />
                       </div>
                     </div>
                   ))}
@@ -610,16 +725,23 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
       </div>
 
       {/* Edit Dialog */}
-      <Dialog open={editOpen} onOpenChange={(val) => !val && setEditOpen(false)}>
+      <Dialog
+        open={editOpen}
+        onOpenChange={(val) => !val && setEditOpen(false)}
+      >
         <DialogContent className="sm:max-w-2xl w-full">
           <DialogHeader>
             <DialogTitle>Chỉnh sửa thông báo</DialogTitle>
-            <DialogDescription>Chỉnh sửa tiêu đề, nội dung và file đính kèm.</DialogDescription>
+            <DialogDescription>
+              Chỉnh sửa tiêu đề, nội dung và file đính kèm.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="p-3 space-y-3">
             <div>
-              <div className="text-xs text-gray-600 mb-1">Tiêu đề  <span className="text-red-600 ml-1">*</span></div>
+              <div className="text-xs text-gray-600 mb-1">
+                Tiêu đề <span className="text-red-600 ml-1">*</span>
+              </div>
               <div
                 ref={editTitleRef}
                 contentEditable
@@ -630,7 +752,9 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
             </div>
 
             <div>
-              <div className="text-xs text-gray-600 mb-1">Nội dung  <span className="text-red-600 ml-1">*</span></div>
+              <div className="text-xs text-gray-600 mb-1">
+                Nội dung <span className="text-red-600 ml-1">*</span>
+              </div>
               <div
                 ref={editDescRef}
                 contentEditable
@@ -642,21 +766,34 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
 
             <div>
               <div className="text-xs text-gray-600 mb-2">File hiện có</div>
-              {(localPost.files ?? []).length === 0 && <div className="text-sm text-gray-500">Không có file nào.</div>}
+              {(localPost.files ?? []).length === 0 && (
+                <div className="text-sm text-gray-500">Không có file nào.</div>
+              )}
               <div className="space-y-2">
                 {(localPost.files ?? []).map((f) => {
-                  const kept = keptExistingFileIds.some((x) => String(x) === String(f.id));
+                  const kept = keptExistingFileIds.some(
+                    (x) => String(x) === String(f.id)
+                  );
                   return (
-                    <div key={String(f.id)} className="flex items-center justify-between bg-white rounded p-2 border">
+                    <div
+                      key={String(f.id)}
+                      className="flex items-center justify-between bg-white rounded p-2 border"
+                    >
                       <div className="flex items-center gap-3">
-                        <div className="text-sm text-sky-600 truncate max-w-xs">{f.fileName}</div>
-                        <div className="text-xs text-gray-400">{kept ? "Giữ" : "Đã xóa"}</div>
+                        <div className="text-sm text-sky-600 truncate max-w-xs">
+                          {f.fileName}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {kept ? "Giữ" : "Đã xóa"}
+                        </div>
                       </div>
                       <div>
                         <button
                           type="button"
                           onClick={() => toggleKeepFile(f.id)}
-                          className={`text-sm px-3 py-1 rounded ${kept ? "bg-yellow-50" : "bg-gray-50"} border`}
+                          className={`text-sm px-3 py-1 rounded ${
+                            kept ? "bg-yellow-50" : "bg-gray-50"
+                          } border`}
                         >
                           {kept ? "Bỏ chọn" : "Giữ lại"}
                         </button>
@@ -681,12 +818,19 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
               {newFiles.length > 0 && (
                 <div className="mt-2 space-y-2">
                   {newFiles.map((f, i) => (
-                    <div key={`${f.name}-${i}`} className="flex items-center justify-between bg-white rounded p-2 border">
+                    <div
+                      key={`${f.name}-${i}`}
+                      className="flex items-center justify-between bg-white rounded p-2 border"
+                    >
                       <div className="text-sm truncate max-w-xs">{f.name}</div>
                       <div>
                         <button
                           type="button"
-                          onClick={() => setNewFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                          onClick={() =>
+                            setNewFiles((prev) =>
+                              prev.filter((_, idx) => idx !== i)
+                            )
+                          }
                           className="text-sm px-3 py-1 rounded bg-gray-50 border"
                         >
                           Xóa
@@ -698,12 +842,18 @@ const PostCard: React.FC<{ post: Post; onUpdate?: (updated: Post) => void }> = (
               )}
             </div>
 
-            {editError && <div className="text-sm text-red-600">{editError}</div>}
+            {editError && (
+              <div className="text-sm text-red-600">{editError}</div>
+            )}
           </div>
 
           <DialogFooter>
             <div className="flex items-center justify-end gap-2 w-full">
-              <Button variant="ghost" onClick={() => setEditOpen(false)} disabled={editing}>
+              <Button
+                variant="ghost"
+                onClick={() => setEditOpen(false)}
+                disabled={editing}
+              >
                 Hủy
               </Button>
               <Button onClick={handleEditSubmit} disabled={editing}>
