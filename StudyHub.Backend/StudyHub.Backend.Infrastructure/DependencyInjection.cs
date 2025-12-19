@@ -55,6 +55,7 @@ namespace StudyHub.Backend.Infrastructure
             services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
             services.AddScoped<IElasticSearchDocument, ElasticSearchDocumentRepository>();
             services.AddScoped<IElasticSearchCourse, ElasticSearchCourseRepository>();
+            services.AddScoped<IElasticSearchQuestion, ElasticSearchQuestionRepository>();
             services.AddScoped<INotificationRepository, NotificationRepository>();
             services.AddScoped<INotificationOfClassRepository, NotificationOfClassRepository>();
 

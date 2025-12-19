@@ -165,18 +165,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                                 .MinimumShouldMatch(1)
                             )
                         )
-                        .Script(sc => sc
-                            .Source($@"
-                                double sim = (cosineSimilarity(params.queryVector, 'courseVector') + 1.0) / 2.0;
-                                return (sim * params.embeddingWeight)
-                                     + (_score * params.preferenceWeight);
-                            ")
-                            .Params(p => p
-                                .Add("queryVector", userVector)
-                                .Add("embeddingWeight", 0.3)
-                                .Add("preferenceWeight", 0.7)
-                            )
+                    .Script(sc => sc
+                        .Source($@"
+                            double sim = (cosineSimilarity(params.queryVector, 'courseVector') + 1.0) / 2.0;
+                            return (sim * params.embeddingWeight)
+                                 + (_score * params.preferenceWeight);
+                        ")
+                        .Params(p => p
+                            .Add("queryVector", userVector)
+                            .Add("embeddingWeight", 0.3)
+                            .Add("preferenceWeight", 0.7)
                         )
+                    )
                     )
                 )
             );
