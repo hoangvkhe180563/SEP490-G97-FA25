@@ -5,12 +5,9 @@ services:
       dockerfile: StudyHub.Backend.Api/Dockerfile
     container_name: studyhub-api
     restart: always
-    ports:
-      - "6789:6789"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:6789
-
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -23,9 +20,9 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=false
-      - ELASTIC_PASSWORD=123456 
+      - ELASTIC_PASSWORD=123456
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    mem_limit: 1g
+    mem_limit: 2g
     ulimits:
       memlock:
         soft: -1
@@ -33,15 +30,14 @@ services:
       nofile:
         soft: 65535
         hard: 65535
-    ports:
-      - "9200:9200"
-    volumes:
-      - elastic_data:/usr/share/elasticsearch/data
     healthcheck:
       test: ["CMD-SHELL", "curl -u elastic:123456 -s http://localhost:9200/_cluster/health | grep -vq '\"status\":\"red\"'"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 15s      # Kiểm tra mỗi 15 giây
+      timeout: 10s       # Chờ phản hồi trong 10 giây
+      retries: 10        # Thử lại 10 lần (tổng cộng chờ khoảng 150s)
+      start_period: 60s  # QUAN TRỌNG: Cho phép ES có 60 giây để khởi động mà không bị tính là lỗi
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
 
 volumes:
   elastic_data:
