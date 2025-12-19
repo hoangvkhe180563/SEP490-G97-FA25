@@ -1,10 +1,13 @@
-using System;
-using System.Linq;
-using System.Collections.Generic;
-using Microsoft.AspNetCore.Mvc;
-using StudyHub.Backend.UseCases.Services;
-using StudyHub.Backend.Api.Mappers;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using StudyHub.Backend.Api.Dtos.CourseDTOS;
+using StudyHub.Backend.Api.Hubs;
+using StudyHub.Backend.Api.Mappers;
+using StudyHub.Backend.Domain.Entities;
+using StudyHub.Backend.UseCases.Services;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace StudyHub.Backend.Api.Controllers;
 
@@ -16,13 +19,18 @@ public class EnrollmentController : ControllerBase
     private readonly ProgressService _progressService;
     private readonly PaymentService _paymentService;
     private readonly CourseService _courseService;
-
-    public EnrollmentController(EnrollmentService enrollService, ProgressService progressService, PaymentService paymentService, CourseService courseService)
+    private readonly AuthService _authService;
+    private readonly NotificationService _notificationService;
+    private readonly IHubContext<NotificationHub> _notificationHub;
+    public EnrollmentController(EnrollmentService enrollService, ProgressService progressService, PaymentService paymentService, CourseService courseService, AuthService authService,NotificationService notificationService, IHubContext<NotificationHub> hubContext)
     {
         _enrollService = enrollService;
         _progressService = progressService;
         _paymentService = paymentService;
         _courseService = courseService;
+        _notificationService = notificationService;
+        _authService = authService;
+        _notificationHub = hubContext;
     }
 
     /// <summary>
@@ -132,9 +140,73 @@ public class EnrollmentController : ControllerBase
         // free course or price == 0
         var entityNoCharge = dto.ToEntity();
         var createdNoCharge = _enrollService.CreateEnrollment(entityNoCharge);
+        // send notification to the enrolling user (non-blocking)
+        try
+        {
+             NotifyEnrollmentCreatedAsync(createdNoCharge, course, dto.AppUserId, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"NotifyEnrollmentCreatedAsync failed: {ex.Message}");
+        }
         return CreatedAtAction(nameof(GetEnrollment), new { id = createdNoCharge.Id }, createdNoCharge.ToListDto());
     }
+    private async Task NotifyEnrollmentCreatedAsync(Enrollment createdEnrollment, Course course, Guid userId, CancellationToken ct)
+    {
+        if (createdEnrollment == null || course == null || userId == Guid.Empty) return;
 
+        var title = $"Đăng ký khóa học thành công: {course.Name}";
+        var body = $"Bạn đã đăng ký khóa học '{course.Name}'. Mã đăng ký: {createdEnrollment.Id}";
+        var link = $"/course/courses/{course.Id}";
+
+        try
+        {
+            var saved = await _notificationService.CreateAndSendNotificationToRecipientsAsync(
+                title: title,
+                body: body,
+                targetType: "User",
+                targetGroupId: null,
+                targetUserId: userId,
+                recipientUserIds: new[] { userId },
+                createdBy: userId,
+                linkUrl: link,
+                priority: "Normal",
+                ct: ct
+            );
+
+            if (saved != null)
+            {
+                try
+                {
+                    var payload = new
+                    {
+                        id = saved.Id,
+                        title = saved.Title,
+                        body = saved.Body,
+                        linkUrl = link,
+                        priority = saved.Priority,
+                        targetType = saved.TargetType,
+                        targetUserId = saved.TargetUserId,
+                        createdAt = saved.CreatedAt,
+                        createdBy = saved.CreatedBy,
+                        isRead = false
+                    };
+
+                    // Broadcast to the user's SignalR group (convention: "user_{userId}")
+                    await _notificationHub.Clients.Group($"user_{userId}").SendAsync("NotificationCreated", payload, ct);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Broadcast personal enrollment notification failed: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Do not let notification failures break the enrollment flow; just log
+            Console.WriteLine($"Create personal enrollment notification failed: {ex.Message}");
+        }
+    }
     [HttpGet("user/{userId}")]
     public IActionResult GetByUser(Guid userId)
     {

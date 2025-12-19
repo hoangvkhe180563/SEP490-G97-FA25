@@ -17,5 +17,14 @@ namespace StudyHub.Backend.UseCases.Repositories.Notifications
         /// Đảm bảo group members cho lớp, đồng bộ thành viên lớp.
         /// </summary>
         Task<int> EnsureMemberGroupAsync(int classId, IEnumerable<Guid> userIds, Guid createdBy, CancellationToken ct = default);
+        Task<int> EnsureCompositeGroupAsync(
+            int? schoolId,
+            IEnumerable<string>? roleNames,
+            int? classId,
+            int? grade,
+            IEnumerable<Guid>? userIds,
+            string? customName,
+            Guid createdBy,
+            CancellationToken ct = default);
     }
 }

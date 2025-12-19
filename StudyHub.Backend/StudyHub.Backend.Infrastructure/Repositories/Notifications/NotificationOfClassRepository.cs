@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
@@ -34,12 +35,52 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
             return await EnsureGroupAsync(name, desc, userIds, createdBy, ct);
         }
 
+        
+        public async Task<int> EnsureCompositeGroupAsync(
+            int? schoolId,
+            IEnumerable<string>? roleNames,
+            int? classId,
+            int? grade,
+            IEnumerable<Guid>? userIds,
+            string? customName,
+            Guid createdBy,
+            CancellationToken ct = default)
+        {
+            // Build normalized name parts (skip empty pieces). If customName provided, use it as base.
+            string baseName;
+            if (!string.IsNullOrWhiteSpace(customName))
+            {
+                baseName = customName.Trim();
+            }
+            else
+            {
+                var parts = new List<string>();
+                if (schoolId.HasValue) parts.Add($"school-{schoolId.Value}");
+                if (roleNames != null && roleNames.Any())
+                {
+                    // sanitize role names: replace spaces with underscore, remove special chars optionally
+                    var r = string.Join("+", roleNames.Select(x => (x ?? "").Trim().Replace(' ', '_')));
+                    parts.Add($"roles-{r}");
+                }
+                if (classId.HasValue) parts.Add($"class-{classId.Value}");
+                if (grade.HasValue) parts.Add($"grade-{grade.Value}");
+                if (!parts.Any()) parts.Add("misc-group");
+                baseName = string.Join("-", parts);
+            }
+
+            var normalizedName = baseName.Trim().ToLowerInvariant();
+            var description = $"Auto-generated group: {baseName}";
+
+            // Reuse existing private EnsureGroupAsync which already ensures idempotency by name.
+            return await EnsureGroupAsync(normalizedName, description, userIds ?? Array.Empty<Guid>(), createdBy, ct);
+        }
+
         private async Task<int> EnsureGroupAsync(
-    string name,
-    string description,
-    IEnumerable<Guid> userIds,
-    Guid createdBy,
-    CancellationToken ct)
+            string name,
+            string description,
+            IEnumerable<Guid> userIds,
+            Guid createdBy,
+            CancellationToken ct)
         {
             var normalizedName = name.Trim().ToLowerInvariant();
 

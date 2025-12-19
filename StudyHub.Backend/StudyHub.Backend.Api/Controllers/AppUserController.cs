@@ -1,16 +1,18 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using StudyHub.Backend.Api.Dtos;
 using StudyHub.Backend.Api.Dtos.AppUserDTOS;
 using StudyHub.Backend.Api.Dtos.AuthDTOS;
-using Microsoft.AspNetCore.Http;
-using StudyHub.Backend.Domain.Entities;
+using StudyHub.Backend.Api.Filters;
+using StudyHub.Backend.Api.Hubs;
 using StudyHub.Backend.Api.Mappers;
+using StudyHub.Backend.Domain.Entities;
+using StudyHub.Backend.UseCases.Exceptions;
 using StudyHub.Backend.UseCases.Services;
 using StudyHub.Backend.UseCases.Utils;
-using Microsoft.AspNetCore.Authorization;
-using StudyHub.Backend.UseCases.Exceptions;
-using StudyHub.Backend.Api.Filters;
+using System;
 
 namespace StudyHub.Backend.Api.Controllers
 {
@@ -22,13 +24,16 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly AuthService _authService;
         private readonly AppRoleService _roleService;
         private readonly LocationService _locationService;
-
-        public AppUserController(AppUserService userService, AuthService authService, AppRoleService roleService, LocationService locationService)
+        private readonly IHubContext<NotificationHub> _notificationHub;
+        private readonly NotificationService _notificationService;
+        public AppUserController(AppUserService userService, AuthService authService, AppRoleService roleService, LocationService locationService,NotificationService notificationService, IHubContext<NotificationHub> notificationHub)
         {
             _userService = userService;
             _authService = authService;
             _roleService = roleService;
             _locationService = locationService;
+            _notificationHub = notificationHub;
+            _notificationService= notificationService;
         }
 
         // Export accounts to Excel
@@ -187,7 +192,59 @@ namespace StudyHub.Backend.Api.Controllers
                 var city = _locationService.GetCityByCommuneId(user.CommuneId);
 
                 var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id);
+                try
+                {
+                    var title = "Tạo Tài Khoản";
+                    var body = $"Bạn vừa tạo tài khoản {req.Username}.";
+                    var link = "/user/accounts";
+                    var currentUser = _authService.GetCurrentUser();
 
+                    // send notification TO the currently logged-in user (fallback to new user if currentUser is null)
+                    var recipientId = currentUser?.Id ?? user.Id;
+
+                    var savedNotif = await _notificationService.CreateAndSendNotificationToRecipientsAsync(
+                        title: title,
+                        body: body,
+                        targetType: "User",
+                        targetGroupId: null,
+                        targetUserId: recipientId,
+                        recipientUserIds: new[] { recipientId },
+                        createdBy: currentUser?.Id ?? user.Id,
+                        linkUrl: link,
+                        priority: "Normal",
+                        ct: HttpContext.RequestAborted
+                    );
+
+                    // send real-time via SignalR (non-fatal)
+                    try
+                    {
+                        var payload = new
+                        {
+                            id = savedNotif.Id,
+                            title = savedNotif.Title,
+                            body = savedNotif.Body,
+                            linkUrl = link,
+                            priority = savedNotif.Priority,
+                            targetType = savedNotif.TargetType,
+                            targetUserId = savedNotif.TargetUserId,
+                            createdAt = savedNotif.CreatedAt,
+                            createdBy = savedNotif.CreatedBy,
+                            isRead = false
+                        };
+
+                        await _notificationHub.Clients.Group($"user_{recipientId}").SendAsync("NotificationCreated", payload, HttpContext.RequestAborted);
+                    }
+                    catch (Exception ex)
+                    {
+                        // non-fatal: log and continue
+                        Console.WriteLine($"Broadcast create-account notification failed: {ex.Message}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // non-fatal: do not fail account creation because notification creation failed
+                    Console.WriteLine($"Create/send create-account notification failed: {ex.Message}");
+                }
                 return Ok(new { Success = true, Data = dto });
             }
             catch (InvalidFieldException ex)
@@ -224,7 +281,59 @@ namespace StudyHub.Backend.Api.Controllers
                 var city = _locationService.GetCityByCommuneId(user.CommuneId);
 
                 var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id);
+                try
+                {
+                    var title = "Chỉnh Sửa Tài Khoản";
+                    var body = $"Bạn vừa sửa thông tin tài khoản {req.Username}.";
+                    var link = "/user/accounts";
+                    var currentUser = _authService.GetCurrentUser();
 
+                    // send notification TO the currently logged-in user (fallback to new user if currentUser is null)
+                    var recipientId = currentUser?.Id ?? user.Id;
+
+                    var savedNotif = await _notificationService.CreateAndSendNotificationToRecipientsAsync(
+                        title: title,
+                        body: body,
+                        targetType: "User",
+                        targetGroupId: null,
+                        targetUserId: recipientId,
+                        recipientUserIds: new[] { recipientId },
+                        createdBy: currentUser?.Id ?? user.Id,
+                        linkUrl: link,
+                        priority: "Normal",
+                        ct: HttpContext.RequestAborted
+                    );
+
+                    // send real-time via SignalR (non-fatal)
+                    try
+                    {
+                        var payload = new
+                        {
+                            id = savedNotif.Id,
+                            title = savedNotif.Title,
+                            body = savedNotif.Body,
+                            linkUrl = link,
+                            priority = savedNotif.Priority,
+                            targetType = savedNotif.TargetType,
+                            targetUserId = savedNotif.TargetUserId,
+                            createdAt = savedNotif.CreatedAt,
+                            createdBy = savedNotif.CreatedBy,
+                            isRead = false
+                        };
+
+                        await _notificationHub.Clients.Group($"user_{recipientId}").SendAsync("NotificationCreated", payload, HttpContext.RequestAborted);
+                    }
+                    catch (Exception ex)
+                    {
+                        // non-fatal: log and continue
+                        Console.WriteLine($"Broadcast create-account notification failed: {ex.Message}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // non-fatal: do not fail account creation because notification creation failed
+                    Console.WriteLine($"Create/send create-account notification failed: {ex.Message}");
+                }
                 return Ok(new { Success = true, Data = dto });
             }
             catch (InvalidFieldException ex)
@@ -258,7 +367,55 @@ namespace StudyHub.Backend.Api.Controllers
                 var city = _locationService.GetCityByCommuneId(user.CommuneId);
 
                 var dto = AppUserMapper.ToAppUserDetail(user, roles, school?.Id, commune?.Id, city?.Id);
+                try
+                {
+                    var title = "Cập nhật hồ sơ";
+                    var body = "Thông tin cá nhân của bạn đã được cập nhật thành công.";
+                    var link = "/user/profile"; // adjust if your app uses a different profile route
 
+                    var savedNotif = await _notificationService.CreateAndSendNotificationToRecipientsAsync(
+                        title: title,
+                        body: body,
+                        targetType: "User",
+                        targetGroupId: null,
+                        targetUserId: user.Id,
+                        recipientUserIds: new[] { currentUser.Id },
+                        createdBy: currentUser?.Id ?? user.Id,
+                        linkUrl: link,
+                        priority: "Normal",
+                        ct: HttpContext.RequestAborted
+                    );
+
+                    // send real-time via SignalR (non-fatal)
+                    try
+                    {
+                        var payload = new
+                        {
+                            id = savedNotif.Id,
+                            title = savedNotif.Title,
+                            body = savedNotif.Body,
+                            linkUrl = link,
+                            priority = savedNotif.Priority,
+                            targetType = savedNotif.TargetType,
+                            targetUserId = savedNotif.TargetUserId,
+                            createdAt = savedNotif.CreatedAt,
+                            createdBy = savedNotif.CreatedBy,
+                            isRead = false
+                        };
+
+                        await _notificationHub.Clients.Group($"user_{user.Id}").SendAsync("NotificationCreated", payload, HttpContext.RequestAborted);
+                    }
+                    catch (Exception ex)
+                    {
+                        // non-fatal: log and continue
+                        Console.WriteLine($"Broadcast personal profile-update notification failed: {ex.Message}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // non-fatal: do not fail profile update because notification creation failed
+                    Console.WriteLine($"Create/send personal profile-update notification failed: {ex.Message}");
+                }
                 return Ok(new { Success = true, Data = dto });
             }
             catch (InvalidFieldException ex)

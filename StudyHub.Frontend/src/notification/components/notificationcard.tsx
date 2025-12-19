@@ -6,7 +6,11 @@ import type { NotificationItem } from "../interfaces/notification";
 
 interface Props {
   item: NotificationItem;
-  onMarkRead?: (id: string) => void;
+  onMarkRead?: (id: string) => void | Promise<void>;
+  className?: string;
+  onClick?: (e: React.MouseEvent) => void | Promise<void>;
+  role?: string;
+  style?: React.CSSProperties;
 }
 
 const priorityColor: Record<string, "destructive" | "default" | "secondary" | "outline"> = {
@@ -15,81 +19,131 @@ const priorityColor: Record<string, "destructive" | "default" | "secondary" | "o
   low: "secondary",
 };
 
-export const NotificationCard: React.FC<Props> = ({ item, onMarkRead }) => {
+export const NotificationCard: React.FC<Props> = ({ item, onMarkRead, className, onClick, role, style }) => {
   const isRead = item.read?.isRead === true;
   const variant = priorityColor[item.priority?.toLowerCase?.() ?? ""] ?? "outline";
   const createdAt = item.createdAt ? new Date(item.createdAt) : null;
 
   const link = item.linkUrl ?? (item.metadata && (item.metadata.linkUrl ?? item.metadata.LinkUrl)) ?? null;
 
-  const handleOpenLink = (e?: React.MouseEvent) => {
-    // nếu gọi từ button/link con, cho phép mặc định xử lý
+  // Internal handler: mark read (if needed) then navigate/open link
+  const handleOpenLink = async (e?: React.MouseEvent) => {
+    // mark read if unread
     try {
       if (!isRead && onMarkRead) {
-        onMarkRead(item.id);
+        // await in case onMarkRead returns a Promise
+        await Promise.resolve(onMarkRead(item.id));
       }
     } catch {
-      // ignore
+      // ignore marking errors
     }
 
     if (!link) return;
 
-    // nếu là đường dẫn nội bộ (bắt đầu bằng '/'), chuyển trong cùng tab
-    if (String(link).startsWith("/")) {
-      window.location.assign(String(link));
+    // internal navigation behavior
+    const str = String(link);
+    if (str.startsWith("/")) {
+      // internal path: same tab
+      window.location.assign(str);
     } else {
-      // mở ở tab mới cho url đầy đủ
+      // external: open new tab
       try {
-        window.open(String(link), "_blank", "noopener,noreferrer");
+        window.open(str, "_blank", "noopener,noreferrer");
       } catch {
-        // fallback
-        window.location.assign(String(link));
+        window.location.assign(str);
       }
     }
-    // ngăn hành vi mặc định nếu cần
+
     e?.preventDefault();
   };
 
-  const handleKey = (e: React.KeyboardEvent) => {
+  const handleKey = async (e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      handleOpenLink();
+      if (onClick) {
+        await Promise.resolve(onClick((e as unknown) as React.MouseEvent));
+      } else {
+        await handleOpenLink();
+      }
+    }
+  };
+
+  // Stronger visual distinction between unread and read:
+  // - Unread: colored left accent, subtle background tint, stronger shadow, bold title, "MỚI" badge
+  // - Read: muted/low-contrast background and text
+  const unreadClasses =
+    "bg-indigo-50 border-l-4 border-indigo-600 shadow-sm scale-100 transform-gpu hover:scale-[1.002] transition-all duration-150";
+  const readClasses = "bg-white border border-gray-200 text-muted-foreground";
+
+  // Combine incoming className with internal styles
+  const combinedClassName = `${className ?? ""} group ${isRead ? readClasses : unreadClasses} cursor-pointer p-3 rounded-md`.trim();
+
+  // Card click: if parent passed onClick, call it; otherwise do internal open logic
+  const handleCardClick = async (e: React.MouseEvent) => {
+    // If event target is interactive element, let it handle (buttons/anchors/inputs)
+    const target = e.target as HTMLElement;
+    const interactiveTags = ["BUTTON", "A", "INPUT", "TEXTAREA", "SELECT"];
+    if (interactiveTags.includes(target.tagName)) return;
+
+    if (onClick) {
+      try {
+        await Promise.resolve(onClick(e));
+      } catch (err) {
+        // swallow to avoid breaking UI
+        console.error("NotificationCard onClick handler failed:", err);
+      }
+    } else {
+      await handleOpenLink(e);
     }
   };
 
   return (
     <Card
-      className={`group ${isRead ? "bg-muted/40" : "hover:shadow-md"} cursor-pointer`}
-      role={link ? "button" : undefined}
-      tabIndex={link ? 0 : undefined}
-      onClick={() => handleOpenLink()}
+      className={combinedClassName}
+      role={role ?? (link ? "button" : undefined)}
+      tabIndex={link || onClick ? 0 : undefined}
+      onClick={handleCardClick}
       onKeyDown={handleKey}
+      style={style}
     >
       <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-2">
         <div className="space-y-1">
-          <CardTitle className="text-base font-semibold">{item.title}</CardTitle>
+          <CardTitle className={`text-base ${isRead ? "font-medium text-foreground" : "font-semibold text-slate-900"}`}>
+            {item.title}
+          </CardTitle>
           <CardDescription className="text-sm text-muted-foreground">
             {createdAt ? createdAt.toLocaleString() : "—"}
           </CardDescription>
         </div>
-        <Badge variant={variant} className="capitalize">
-          {item.priority ?? "Normal"}
-        </Badge>
+
+        <div className="flex items-start gap-2">
+          
+          {!isRead && (
+            <span className="ml-1 inline-flex items-center rounded-full bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white">
+              MỚI
+            </span>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-foreground">{item.body}</p>
-
-        {/* Nếu vẫn muốn nút/anchor riêng cho link (vừa để click vừa để copy target),
-            giữ onClick trên toàn thẻ nhưng anchor vẫn có thể dừng propagation nếu cần */}
-        
+        <p className={`text-sm ${isRead ? "text-muted-foreground" : "text-foreground"}`}>{item.body}</p>
 
         {!isRead && onMarkRead && (
           <Button
             variant="outline"
             size="sm"
             onClick={(e) => {
+              // prevent parent click (navigation)
               e.stopPropagation();
-              onMarkRead(item.id);
+              try {
+                const res = onMarkRead(item.id);
+                // If returns promise, ignore but avoid unhandled rejection
+                if (res && typeof (res as any).then === "function") {
+                  (res as Promise<void>).catch(() => {});
+                }
+              } catch {
+                // ignore
+              }
             }}
           >
             Đánh dấu đã đọc

@@ -60,12 +60,11 @@ namespace StudyHub.Backend.UseCases.Services
         public bool DeleteNotificationFile(int classNotificationId) => _repo.DeleteNotificationFile(classNotificationId);
 
         // Submissions lifecycle: submit files for an assignment notification
-        public async Task<(int SubmissionId, List<SubmissionFile> Files, bool IsResubmit)?> SubmitNotificationWithFilesAsync(int notificationId, string? appUserId, List<IFormFile>? files)
+        public async Task<(int SubmissionId, List<SubmissionFile> Files, bool IsResubmit)?> SubmitNotificationWithFilesAsync(int notificationId, Guid appUserId, List<IFormFile>? files)
         {
-            if (string.IsNullOrWhiteSpace(appUserId)) throw new ArgumentException("Thiếu thông tin user");
-            if (!Guid.TryParse(appUserId, out var userId)) throw new ArgumentException("AppUserId không hợp lệ");
+            
 
-            var existing = _repo.GetSubmissionByUserAndNotification(notificationId, userId);
+            var existing = _repo.GetSubmissionByUserAndNotification(notificationId, appUserId);
 
             NotificationSubmission submission;
             bool isResubmit = false;
@@ -75,7 +74,7 @@ namespace StudyHub.Backend.UseCases.Services
                 submission = new NotificationSubmission
                 {
                     NotificationId = notificationId,
-                    AppUserId = userId,
+                    AppUserId = appUserId,
                     FirstSubmissionTime = DateTime.Now,
                     LatestSubmissionTime = DateTime.Now,
                     SubmissionStatus = "submitted"

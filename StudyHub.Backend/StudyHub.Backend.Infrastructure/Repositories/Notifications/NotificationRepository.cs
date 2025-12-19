@@ -2,6 +2,7 @@
 using StudyHub.Backend.Infrastructure.Data;
 using StudyHub.Backend.Infrastructure.Exceptions;
 using StudyHub.Backend.UseCases.Repositories.Notifications;
+using StudyHub.Backend.UseCases.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -355,42 +356,87 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
 
             return groupIds.ToHashSet();
         }
+        public Domain.Entities.AppUser? GetById(Guid id)
+        {
+            var d = _context.AppUsers
+                .Include(u => u.Subjects)
+                .FirstOrDefault(u => u.Id == id);
+            return d == null ? null : ToDomain(d);
+        }
+        private static Domain.Entities.AppUser ToDomain(Data.AppUser d)
+        {
+            return new Domain.Entities.AppUser
+            {
+                Id = d.Id,
+                Email = d.Email,
+                Dob = d.Dob,
+                Gender = d.Gender,
+                PasswordHash = d.PasswordHash,
+                Username = d.Username,
+                Fullname = d.Fullname,
+                IsVerified = d.IsVerified,
+                SchoolId = d.SchoolId,
+                TransferId = d.TransferId,
+                Status = d.Status,
+                CreatedAt = d.CreatedAt,
+                UpdatedAt = d.UpdatedAt,
+                RefreshToken = d.RefreshToken,
+                RefreshTokenExpire = d.RefreshTokenExpire,
+                EmailVerificationToken = d.EmailVerificationToken,
+                EmailVerificationExpire = d.EmailVerificationExpire,
+                ResetPasswordToken = d.ResetPasswordToken,
+                ResetPasswordExpire = d.ResetPasswordExpire,
+                IsLoginWithGoogle = d.IsLoginWithGoogle,
+                Address = d.Address,
+                CommuneId = d.CommuneId,
+                Avatar = d.Avatar,
+                PhoneNumber = d.PhoneNumber,
+                Wallet = d.Wallet,
+                Subjects = d.Subjects != null ? d.Subjects.Select(s => new Domain.Entities.Subject { Id = s.Id, Name = s.Name }).ToList() : new List<Domain.Entities.Subject>()
+            };
+        }
         public async Task SeedUnreadForUsersAsync(Guid notificationId, IEnumerable<Guid> userIds,string? linkurl, CancellationToken ct = default)
         {
             var ids = userIds?.Distinct().ToList() ?? new List<Guid>();
             if (!ids.Any()) return;
+           
+               
+                // Lấy các bản ghi đã tồn tại để tránh trùng
+                var existing = await _context.NotificationReads
+                    .Where(r => r.NotificationId == notificationId && ids.Contains(r.UserId))
+                    .Select(r => r.UserId)
+                    .ToListAsync(ct);
 
-            // Lấy các bản ghi đã tồn tại để tránh trùng
-            var existing = await _context.NotificationReads
-                .Where(r => r.NotificationId == notificationId && ids.Contains(r.UserId))
-                .Select(r => r.UserId)
-                .ToListAsync(ct);
+                var now = DateTime.Now;
+                var toAdd = ids
+                    .Where(id => !existing.Contains(id))
+                    .Select(id => new NotificationRead
+                    {
+                        NotificationId = notificationId,
+                        UserId = id,
+                        LinkUrl = linkurl,
+                        IsRead = false,
+                        DeliveredAt = now
+                    })
+                    .ToList();
 
-            var now = DateTime.Now;
-            var toAdd = ids
-                .Where(id => !existing.Contains(id))
-                .Select(id => new NotificationRead
+                if (toAdd.Any())
                 {
-                    NotificationId = notificationId,
-                    UserId = id,
-                    LinkUrl=linkurl,
-                    IsRead = false,
-                    DeliveredAt = now
-                })
-                .ToList();
-
-            if (toAdd.Any())
-            {
-                await _context.NotificationReads.AddRangeAsync(toAdd, ct);
-                await _context.SaveChangesAsync(ct);
-            }
+                    await _context.NotificationReads.AddRangeAsync(toAdd, ct);
+                    await _context.SaveChangesAsync(ct);
+                }
+            
+           
         }
         public List<Domain.Entities.AppUser> GetUsersByRoleAndSchool(string roleName, int? schoolId)
         {
-            if (!schoolId.HasValue) return new List<Domain.Entities.AppUser>();
+            
 
             var norm = roleName?.Trim().ToLower() ?? "";
-
+            if (schoolId==null) return _context.AppUsers
+                .Include(u => u.Roles)
+                .Where(u => u.Roles.Any(r => r.Name.ToLower() == norm))
+                .AsNoTracking().Select(MapUserDataToDomain).ToList();
             var users = _context.AppUsers
                 .Include(u => u.Roles)
                 .Where(u => u.SchoolId == schoolId &&
@@ -400,7 +446,36 @@ namespace StudyHub.Backend.Infrastructure.Repositories.Notifications
 
             return users.Select(MapUserDataToDomain).ToList();
         }
+        public List<Domain.Entities.AppUser> GetUsersByRoleAndClass(string roleName, int? classID)
+        {
 
+
+            var norm = roleName?.Trim().ToLower() ?? "";
+            return _context.AppUserClasses
+                .Include(u => u.User)
+                .Where(u => u.User.Roles.Any(r => r.Name.ToLower() == norm)&& u.ClassId==classID)
+                .AsNoTracking().Select(d=>new Domain.Entities.AppUser
+                {
+                    Id = d.UserId,
+                    Username = d.User.Username,
+                    Email = d.User.Email,
+                    Fullname = d.User.Fullname,
+                    PhoneNumber = d.User.PhoneNumber,
+                    SchoolId = d.User.SchoolId,
+                    CommuneId = d.User.CommuneId,
+                    IsVerified = d.User.IsVerified,
+                    CreatedAt = d.User.CreatedAt,
+                    UpdatedAt = d.User.UpdatedAt,
+                    // Map roles nếu cần
+                    Roles = d.User.Roles.Select(r => new Domain.Entities.AppRole
+                    {
+                        Id = r.Id,
+                        Name = r.Name,
+                        // các field khác
+                    }).ToList()
+                }).ToList();
+           
+        }
         private Domain.Entities.AppUser MapUserDataToDomain(Data.AppUser d)
         {
             if (d == null) return null!;
