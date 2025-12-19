@@ -17,7 +17,7 @@ namespace StudyHub.Backend.UseCases.Services
         public ElasticDocumentContentService(IConfiguration configuration)
         {
             _configuration = configuration;
-            var settings = new ConnectionSettings(new Uri(_configuration["Elasticsearch:ElasticsearchURL"] ?? "http://localhost:9200"))
+            var settings = new ConnectionSettings(new Uri(_configuration["ElasticSearch:Uri"] ?? "http://localhost:9200"))
                             .DefaultIndex(INDEX_NAME);
             _client = new ElasticClient(settings);
         }
