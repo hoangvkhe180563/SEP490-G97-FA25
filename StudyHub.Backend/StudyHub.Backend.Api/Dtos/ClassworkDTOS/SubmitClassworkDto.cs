@@ -4,7 +4,7 @@ namespace StudyHub.Backend.Api.Dtos.ClassworkDTOS
 {
     public class SubmitClassworkDto
     {
-        public string AppUserId { get; set; } = ""; 
+        public Guid AppUserId { get; set; } 
         public List<IFormFile> Files { get; set; } = new();
     }
 }

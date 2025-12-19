@@ -96,55 +96,7 @@ namespace StudyHub.Backend.UseCases.Services
         }
 
   
-        public async Task<(int GroupId, List<Guid> MaintainerIds, Notification GroupNotif, Notification? ActorNotif)?> PrepareNotificationsAsync(
-            Class cls, Guid actorUserId, bool isCreate, CancellationToken ct = default)
-        {
-            var actor = _userRepository.GetById(actorUserId);
-            if (actor == null || !actor.SchoolId.HasValue) return null;
-
-            var schoolId = actor.SchoolId.Value;
-            var admins = GetSchoolAdmins(schoolId);
-            var homerooms = GetHomeroomTeachers(schoolId);
-            var maintainers = admins.Concat(homerooms).DistinctBy(u => u.Id).ToList();
-            var maintainerIds = maintainers.Select(u => u.Id).ToList();
-            var actorInGroup = maintainerIds.Contains(actorUserId);
-
-            var groupId = await _notificationOfClassRepository.EnsureMaintainerGroupAsync(schoolId, maintainerIds, actorUserId, ct);
-
-            var notifGroup = new Notification
-            {
-                Title = isCreate ? "Lớp mới được tạo" : "Lớp được cập nhật",
-                Body = $"{actor.Fullname ?? "Người dùng"} đã {(isCreate ? "tạo" : "cập nhật")} lớp {cls.Name}",
-                TargetType = "Group",
-                TargetGroupId = groupId,
-                Priority = "High",
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = actorUserId
-            };
-            var savedGroup = await _notificationService.SendNotificationAsync(notifGroup, ct);
-            await _notificationService.SeedUnreadAsync(savedGroup.Id, maintainerIds, ct);
-
-            Notification? savedActor = null;
-            if (!actorInGroup)
-            {
-                var notifActor = new Notification
-                {
-                    Title = isCreate ? "Tạo lớp thành công" : "Cập nhật lớp thành công",
-                    Body = $"Lớp: {cls.Name}",
-                    TargetType = "User",
-                    TargetUserId = actorUserId,
-                    Priority = "Normal",
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedBy = actorUserId
-                };
-                savedActor = await _notificationService.SendNotificationAsync(notifActor, ct);
-                await _notificationService.SeedUnreadAsync(savedActor.Id, new[] { actorUserId }, ct);
-            }
-
-            return (groupId, maintainerIds, savedGroup, savedActor);
-        }
+       
 
         public Class CreateClass(Class dto)
         {

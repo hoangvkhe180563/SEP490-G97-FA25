@@ -28,8 +28,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 UserId = m.UserId,
                 ClassId = m.ClassId,
                 JoinDate = m.JoinDate,
+                
                 Status = m.Status,
-                User = m.User != null ? new Domain.Entities.AppUser { Id = m.User.Id, Email = m.User.Email, Fullname = m.User.Fullname, Username = m.User.Username } : null,
+                User = m.User != null ? new Domain.Entities.AppUser { Id = m.User.Id, Email = m.User.Email, Fullname = m.User.Fullname,PhoneNumber=m.User.PhoneNumber, Username = m.User.Username } : null,
                 Class = m.Class != null ? new Domain.Entities.Class { Id = m.Class.Id, Name = m.Class.Name, Description = m.Class.Description } : null
             }).ToList();
         }

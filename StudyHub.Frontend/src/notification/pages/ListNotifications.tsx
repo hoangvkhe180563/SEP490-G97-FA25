@@ -100,9 +100,18 @@ const ListNotifications: React.FC = () => {
       {isLoading && <div className="text-sm text-muted-foreground">Đang tải...</div>}
 
       <div className="flex flex-col gap-3">
-        {items.map((n) => (
-          <NotificationCard key={n.id} item={n} onMarkRead={markRead} />
-        ))}
+        {items.map((n) => {
+          // fallback: dùng n.linkUrl nếu có, nếu không thì kiểm tra metadata.linkUrl
+          const link =
+            (n as any).linkUrl ?? (n as any).LinkUrl ?? (n as any).metadata?.linkUrl ?? null;
+
+          return (
+            <div key={n.id} className="flex flex-col gap-1">
+              <NotificationCard item={n} onMarkRead={markRead} />
+              
+            </div>
+          );
+        })}
       </div>
 
       {hasMore && (
@@ -110,9 +119,7 @@ const ListNotifications: React.FC = () => {
           {isLoadingMore ? "Đang tải..." : "Tải thêm"}
         </Button>
       )}
-      {!hasMore && !isLoading && (
-        <div className="text-sm text-muted-foreground">Hết dữ liệu</div>
-      )}
+      
     </div>
   );
 };

@@ -133,8 +133,6 @@ public class ClassNotificationServiceTests
 
     #endregion
 
-    #region CreateNotification Tests
-
     [Fact]
     public void CreateNotification_ShouldReturnCreatedNotification_WhenValidDataProvided()
     {
@@ -155,40 +153,63 @@ public class ClassNotificationServiceTests
             mockNotificationClassRepo.Object
         );
 
-        var notification = new ClassNotification
+        var creatorId = Guid.NewGuid();
+        var deadline = DateTime.Now.AddDays(7);
+
+        var input = new ClassNotification
         {
             ClassId = 1,
+            Type = "Classwork",
             Title = "New Announcement",
             Description = "Important announcement",
-            Type = "Announcement",
-            CreatedBy = Guid.NewGuid()
+            Deadline = deadline,
+            MaxScore = 10,
+            GradeType = "Score",
+            AllowSubmission = true,
+            InstructionsHtml = "<p>Do homework</p>",
+            CreatedBy = creatorId
         };
 
-        var createdNotification = new ClassNotification
+        var created = new ClassNotification
         {
             Id = 1,
-            ClassId = 1,
-            Title = "New Announcement",
-            Description = "Important announcement",
-            Type = "Announcement",
-            CreatedBy = notification.CreatedBy,
+            ClassId = input.ClassId,
+            Type = input.Type,
+            Title = input.Title,
+            Description = input.Description,
+            Deadline = input.Deadline,
+            MaxScore = input.MaxScore,
+            GradeType = input.GradeType,
+            AllowSubmission = input.AllowSubmission,
+            InstructionsHtml = input.InstructionsHtml,
+            CreatedBy = input.CreatedBy,
             CreatedAt = DateTime.Now
         };
 
         mockRepo.Setup(x => x.CreateNotification(It.IsAny<ClassNotification>()))
-            .Returns(createdNotification);
+            .Returns(created);
 
         // Act
-        var result = service.CreateNotification(notification);
+        var result = service.CreateNotification(input);
 
         // Assert
         Assert.NotNull(result);
         Assert.Equal(1, result.Id);
-        Assert.Equal("New Announcement", result.Title);
+        Assert.Equal(input.ClassId, result.ClassId);
+        Assert.Equal(input.Type, result.Type);
+        Assert.Equal(input.Title, result.Title);
+        Assert.Equal(input.Description, result.Description);
+        Assert.Equal(input.Deadline, result.Deadline);
+        Assert.Equal(input.MaxScore, result.MaxScore);
+        Assert.Equal(input.GradeType, result.GradeType);
+        Assert.Equal(input.AllowSubmission, result.AllowSubmission);
+        Assert.Equal(input.InstructionsHtml, result.InstructionsHtml);
+        Assert.Equal(input.CreatedBy, result.CreatedBy);
+        Assert.NotEqual(default, result.CreatedAt);
+
         mockRepo.Verify(x => x.CreateNotification(It.IsAny<ClassNotification>()), Times.Once);
     }
 
-    #endregion
 
     #region GetNotification Tests
 
@@ -266,8 +287,6 @@ public class ClassNotificationServiceTests
 
     #endregion
 
-    #region EditNotification Tests
-
     [Fact]
     public void EditNotification_ShouldReturnUpdatedNotification_WhenNotificationExists()
     {
@@ -288,29 +307,47 @@ public class ClassNotificationServiceTests
             mockNotificationClassRepo.Object
         );
 
-        var notification = new ClassNotification
+        var updaterId = Guid.NewGuid();
+        var deadline = DateTime.Now.AddDays(5);
+
+        var updated = new ClassNotification
         {
             Id = 1,
             ClassId = 1,
+            Type = "Classwork",
             Title = "Updated Title",
             Description = "Updated Description",
-            Type = "Announcement"
+            Deadline = deadline,
+            MaxScore = 20,
+            GradeType = "Score",
+            AllowSubmission = true,
+            InstructionsHtml = "<p>Updated instructions</p>",
+            UpdatedBy = updaterId,
+            UpdatedAt = DateTime.Now
         };
 
         mockRepo.Setup(x => x.EditNotification(It.IsAny<ClassNotification>()))
-            .Returns(notification);
+            .Returns(updated);
 
         // Act
-        var result = service.EditNotification(notification);
+        var result = service.EditNotification(updated);
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("Updated Title", result.Title);
-        Assert.Equal("Updated Description", result.Description);
+        Assert.Equal(updated.Id, result.Id);
+        Assert.Equal(updated.Title, result.Title);
+        Assert.Equal(updated.Description, result.Description);
+        Assert.Equal(updated.Deadline, result.Deadline);
+        Assert.Equal(updated.MaxScore, result.MaxScore);
+        Assert.Equal(updated.GradeType, result.GradeType);
+        Assert.Equal(updated.AllowSubmission, result.AllowSubmission);
+        Assert.Equal(updated.InstructionsHtml, result.InstructionsHtml);
+        Assert.Equal(updated.UpdatedBy, result.UpdatedBy);
+        Assert.NotNull(result.UpdatedAt);
+
         mockRepo.Verify(x => x.EditNotification(It.IsAny<ClassNotification>()), Times.Once);
     }
 
-    #endregion
 
     #region DeleteNotification Tests
 

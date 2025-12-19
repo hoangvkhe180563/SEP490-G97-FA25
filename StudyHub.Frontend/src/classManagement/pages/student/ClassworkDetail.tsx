@@ -19,8 +19,6 @@ import { Badge } from "@/common/components/ui/badge";
 import { formatISO } from "date-fns";
 import { Book } from "lucide-react";
 
-
-
 const AvatarIcon: React.FC = () => (
   <div className="w-16 h-16 rounded-full flex items-center justify-center shadow">
     <Book className="w-5 h-5 text-amber-950" />
@@ -131,7 +129,21 @@ const ClassworkDetail: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const id = params.id;
+  // Resolve classId robustly from params or pathname
+  const classIdResolved =
+    params.id ??
+    params.classId ??
+    (() => {
+      const segs = location.pathname.split("/").filter(Boolean);
+      const idx = segs.findIndex((s) => s.toLowerCase() === "class");
+      if (idx !== -1) {
+        // pattern: ["class", "<role>", "<classId>", ...]
+        if (segs.length > idx + 2 && !isNaN(Number(segs[idx + 2]))) return segs[idx + 2];
+        // or pattern: ["class", "<classId>", ...]
+        if (segs.length > idx + 1 && !isNaN(Number(segs[idx + 1]))) return segs[idx + 1];
+      }
+      return undefined;
+    })();
 
   const classworkIdResolved =
     params.classworkId ??
@@ -182,11 +194,9 @@ const ClassworkDetail: React.FC = () => {
   const fetchedUserSubmissionRef = useRef<string | null>(null);
 
   // ----- stable derived values -----
-  // Use primitive deps (length) to avoid deep object identity changes causing effects to retrigger
   const worksLength = (currentClass && currentClass.data && Array.isArray(currentClass.data.works)) ? currentClass.data.works.length : 0;
   const teachersLength = (currentClass && currentClass.data && Array.isArray(currentClass.data.teachers)) ? currentClass.data.teachers.length : 0;
 
-  // teacherForClasswork: stable useMemo called unconditionally
   const teacherForClasswork = useMemo(() => {
     const teachers = (currentClass && currentClass.data && Array.isArray(currentClass.data.teachers)) ? currentClass.data.teachers : [];
     const createdBy = (classwork as any)?.createdBy ?? null;
@@ -202,25 +212,29 @@ const ClassworkDetail: React.FC = () => {
 
   // initial fetch: getClassInfo + getClassWorks (only once per class id)
   useEffect(() => {
-    if (!id) return;
-    if (initialFetchedRef.current === id) return;
-    initialFetchedRef.current = id;
+    if (!classIdResolved) {
+      console.debug("ClassworkDetail: no classIdResolved, skipping initial fetch");
+      return;
+    }
+    if (initialFetchedRef.current === classIdResolved) return;
+    initialFetchedRef.current = classIdResolved;
 
     (async () => {
       try {
-        if (typeof getClassInfo === "function") await getClassInfo(Number(id));
+        console.debug("ClassworkDetail: fetching class info/works for classId", classIdResolved);
+        if (typeof getClassInfo === "function") await getClassInfo(Number(classIdResolved));
       } catch (err) {
         console.error("getClassInfo failed", err);
       }
       try {
-        if (typeof getClassWorks === "function") await getClassWorks(Number(id));
+        if (typeof getClassWorks === "function") await getClassWorks(Number(classIdResolved));
       } catch (err) {
         console.error("getClassWorks failed", err);
       }
     })();
-    // only depend on id
+    // only depend on classIdResolved
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [classIdResolved]);
 
   // keep local classwork in sync with store snapshot — depend only on primitive length and the resolved id
   useEffect(() => {
@@ -232,11 +246,10 @@ const ClassworkDetail: React.FC = () => {
     const found = works.find((w: any) => String(w.id) === String(classworkIdResolved));
     if (found) setClasswork(found as ClassWork);
     else {
-      // If works array is present but not found -> not found
       if (works.length > 0) setClasswork(null);
       else setClasswork(undefined);
     }
-  }, [classworkIdResolved]);
+  }, [classworkIdResolved, worksLength, currentClass]);
 
   // when classwork is set, fetch detail/submissions/userSubmission (guarded per classwork)
   useEffect(() => {
@@ -456,9 +469,9 @@ const ClassworkDetail: React.FC = () => {
           if (exists) return prev;
           return [mapped, ...prev];
         });
-        if (typeof getClassInfo === "function") void getClassInfo(Number(id));
+        if (typeof getClassInfo === "function" && classIdResolved) void getClassInfo(Number(classIdResolved));
       } else {
-        if (typeof getClassInfo === "function") await getClassInfo(Number(id));
+        if (typeof getClassInfo === "function" && classIdResolved) await getClassInfo(Number(classIdResolved));
       }
 
       setCommentText("");
@@ -515,7 +528,7 @@ const ClassworkDetail: React.FC = () => {
     <div className="p-8 w-full h-full overflow-y-auto">
       <div className="flex items-start justify-between mb-8">
         <div className="flex items-start gap-5">
-          <Button variant="ghost" onClick={() => navigate(`/class/${role}/${id}?tab=exercise`)} className="p-2">←</Button>
+          <Button variant="ghost" onClick={() => navigate(`/class/${role}/${classIdResolved}?tab=exercise`)} className="p-2">←</Button>
           <AvatarIcon />
           <div>
             <h1 className="text-3xl font-bold">{classwork.title}</h1>

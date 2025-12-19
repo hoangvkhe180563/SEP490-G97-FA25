@@ -60,12 +60,11 @@ namespace StudyHub.Backend.UseCases.Services
         public bool DeleteNotificationFile(int classNotificationId) => _repo.DeleteNotificationFile(classNotificationId);
 
         // Submissions lifecycle: submit files for an assignment notification
-        public async Task<(int SubmissionId, List<SubmissionFile> Files, bool IsResubmit)?> SubmitNotificationWithFilesAsync(int notificationId, string? appUserId, List<IFormFile>? files)
+        public async Task<(int SubmissionId, List<SubmissionFile> Files, bool IsResubmit)?> SubmitNotificationWithFilesAsync(int notificationId, Guid appUserId, List<IFormFile>? files)
         {
-            if (string.IsNullOrWhiteSpace(appUserId)) throw new ArgumentException("Thiếu thông tin user");
-            if (!Guid.TryParse(appUserId, out var userId)) throw new ArgumentException("AppUserId không hợp lệ");
+            
 
-            var existing = _repo.GetSubmissionByUserAndNotification(notificationId, userId);
+            var existing = _repo.GetSubmissionByUserAndNotification(notificationId, appUserId);
 
             NotificationSubmission submission;
             bool isResubmit = false;
@@ -75,7 +74,7 @@ namespace StudyHub.Backend.UseCases.Services
                 submission = new NotificationSubmission
                 {
                     NotificationId = notificationId,
-                    AppUserId = userId,
+                    AppUserId = appUserId,
                     FirstSubmissionTime = DateTime.Now,
                     LatestSubmissionTime = DateTime.Now,
                     SubmissionStatus = "submitted"
@@ -143,41 +142,6 @@ namespace StudyHub.Backend.UseCases.Services
 
         public int GetTotalUnreadNotifications(int classID, Guid userID, string type) => _repo.GetTotalUnreadNotifications(classID, userID, type);
 
-        // NEW: Tạo notification hệ thống cho lớp và seed unread, trả về groupId + notification đã lưu
-        public async Task<(int GroupId, Notification Saved, IEnumerable<Guid> MemberIds)?> CreateSystemNotificationForClassAsync(
-            int classId,
-            string title,
-            string body,
-            Guid actorId,
-            CancellationToken ct = default)
-        {
-            var memberIds = GetMemberIdsByClass(classId) ?? new List<Guid>();
-            if (actorId != Guid.Empty && !memberIds.Contains(actorId))
-            {
-                memberIds.Add(actorId);
-            }
-
-            var groupId = await _notificationClassRepo.EnsureMemberGroupAsync(classId, memberIds, actorId, ct);
-
-            var sysNotif = new Notification
-            {
-                Title = title,
-                Body = body,
-                TargetType = "Group",
-                TargetGroupId = groupId,
-                Priority = "Normal",
-                IsActive = true,
-                CreatedAt = DateTime.Now,
-                CreatedBy = actorId
-            };
-            var saved = await _notificationService.SendNotificationAsync(sysNotif, ct);
-
-            if (memberIds.Any())
-            {
-                await _notificationService.SeedUnreadAsync(saved.Id, memberIds, ct);
-            }
-
-            return (groupId, saved, memberIds);
-        }
+        
     }
 }

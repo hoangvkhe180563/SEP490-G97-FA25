@@ -1,4 +1,4 @@
-export interface NotificationItem {
+export interface  NotificationItem {
   id: string;
   title: string;
   body: string;
@@ -31,14 +31,14 @@ export interface NotificationState {
   limit: number;
   offset: number;
   isNotificationConnected: boolean;
-
+  hasFetchedUnread: boolean,
   reset: () => void;
   startNotification: () => Promise<void>;
   stopNotification: () => Promise<void>;
   joinGroup: (groupId: number) => Promise<void>;
   leaveGroup: (groupId: number) => Promise<void>;
   fetchNotifications: (opts?: NotificationFetchOptions) => Promise<void>;
-  fetchUnreadCount: () => Promise<void>;
+  fetchUnreadCount: (force?: boolean) => Promise<number | void>;
   markRead: (id: string) => Promise<void>;
   markReadBulk: (ids: string[]) => Promise<void>;
   loadMore: () => Promise<void>;

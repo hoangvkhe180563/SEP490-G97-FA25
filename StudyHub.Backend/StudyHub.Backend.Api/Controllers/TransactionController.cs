@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using System.Linq;
 using StudyHub.Backend.UseCases.Services;
 using Microsoft.AspNetCore.SignalR;
@@ -20,13 +20,16 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly PaymentService _paymentService;
         private readonly CloudFileStorageService _fileStorage;
         private readonly IHubContext<PaymentHub> _hubContext;
-
-        public TransactionController(TransactionService txService, PaymentService paymentService, CloudFileStorageService fileStorage, IHubContext<PaymentHub> hubContext)
+        private readonly NotificationService _notificationService;
+        private readonly IHubContext<NotificationHub> _notificationHub;
+        public TransactionController(TransactionService txService, PaymentService paymentService, CloudFileStorageService fileStorage, IHubContext<PaymentHub> hubContext, NotificationService notification, IHubContext<NotificationHub> hub)
         {
             _txService = txService;
             _paymentService = paymentService;
             _fileStorage = fileStorage;
             _hubContext = hubContext;
+            _notificationService = notification;
+            _notificationHub = hub;
         }
 
         private IActionResult PagedResult<T>(List<T> items, int total, int page, int limit)
@@ -435,7 +438,11 @@ namespace StudyHub.Backend.Api.Controllers
             tx.Status = "Success";
             tx.ProcessedAt = System.DateTime.UtcNow;
             _txService.UpdateTransaction(tx);
-
+            if (string.Equals(tx.Type, "Withdraw", System.StringComparison.OrdinalIgnoreCase))
+            {
+                // Gửi thông báo rút tiền thành công
+                await NotifyWithdrawSuccessAsync(tx.UserId, tx.Amount, tx.AccountNumber, tx.ProcessedAt.Value);
+            }
             // notify user via SignalR
             try
             {
@@ -452,7 +459,51 @@ namespace StudyHub.Backend.Api.Controllers
 
             return Ok(new { message = "approved" });
         }
+        private async Task NotifyWithdrawSuccessAsync(Guid userId, decimal amount, string? accountNumber, DateTime processedAt)
+        {
+            try
+            {
+                var displayTitle = "Rút tiền thành công";
+                var displayBody = $"Số tiền {amount:N0} đã được rút về tài khoản {accountNumber ?? "(không rõ)"} lúc {processedAt:dd/MM/yyyy HH:mm:ss}.";
 
+                // Lưu notification vào database, targetType là "User"
+                var savedNotif = await _notificationService.CreateAndSendNotificationToRecipientsAsync(
+                    title: displayTitle,
+                    body: displayBody,
+                    targetType: "User",
+                    targetGroupId: null,
+                    targetUserId: userId,
+                    recipientUserIds: new[] { userId },
+                    createdBy: userId,
+                    linkUrl: "/payment/transactions",
+                    priority: "Normal",
+                    ct: HttpContext.RequestAborted);
+
+                // Push notification qua SignalR
+                if (savedNotif != null)
+                {
+                    var payload = new
+                    {
+                        id = savedNotif.Id,
+                        title = savedNotif.Title,
+                        body = savedNotif.Body,
+                        linkUrl = "/payment/transactions",
+                        priority = savedNotif.Priority,
+                        targetType = savedNotif.TargetType,
+                        targetUserId = savedNotif.TargetUserId,
+                        createdAt = savedNotif.CreatedAt,
+                        createdBy = savedNotif.CreatedBy,
+                        isRead = false
+                    };
+                    await _notificationHub.Clients.Group($"user_{userId}")
+                        .SendAsync("NotificationCreated", payload, HttpContext.RequestAborted);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine( "Gửi thông báo rút tiền thất bại cho user {userId}", userId);
+            }
+        }
         [HttpPost("{id}/reject")]
         public async Task<IActionResult> Reject([FromRoute] int id, [FromBody] TransactionDto body)
         {

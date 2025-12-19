@@ -5,6 +5,7 @@ import { toast } from "react-hot-toast";
 import { createNotificationConnection } from "@/lib/signalR"; // hub thông báo user
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import type { NotificationState, NotificationItem, NotificationFetchOptions } from "@/notification/interfaces/notification";
+import resolveNotificationLinkString from "@/notification/utils/routeBuilder"; // <- new resolver
 
 export interface NotificationPayload {
   id?: string;
@@ -29,6 +30,10 @@ export interface NotificationPayload {
   metadata?: any;
   priority?: string;
   Priority?: string;
+  base?: string; 
+  action?: string; 
+  params?: any; 
+  perRoleLinks?: Record<string, string>;
   [key: string]: any;
 }
 
@@ -39,14 +44,17 @@ type UserNotificationState = NotificationState & {
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  hasFetchedUnread: boolean;
 };
 
-export const useNotificationStore = create<UserNotificationState>()((set, get) => {
+// IMPORTANT: pass the StateCreator directly (no extra "()") to avoid TS mismatch
+export const useNotificationStore = create<UserNotificationState>((set, get) => {
   const listeners: Set<(payload: NotificationPayload) => void> = new Set();
   const recentIds: Set<string> = new Set();
 
+  // local helper to count unread from items if needed
   const recalcUnread = (items: NotificationItem[]) =>
-    items.filter((n) => !(n.read?.isRead ?? false)).length;
+    items.reduce((acc, n) => acc + ((n.read?.isRead ?? false) ? 0 : 1), 0);
 
   const normalizeApiItem = (n: any): NotificationItem => ({
     ...n,
@@ -56,6 +64,114 @@ export const useNotificationStore = create<UserNotificationState>()((set, get) =
       readAt: n.readAt ?? n.read?.readAt,
     },
   });
+
+  const getRoleStrings = (): string[] => {
+    const authUser = useAuthStore.getState().user;
+    if (!authUser) return [];
+
+    const rawRoles = Array.isArray(authUser.roles) ? authUser.roles : [];
+    const flattened = rawRoles
+      .filter(Boolean)
+      .map((r) => String(r).trim().toLowerCase());
+
+    const seen = new Set<string>();
+    const unique: string[] = [];
+    for (const r of flattened) {
+      if (!seen.has(r)) {
+        seen.add(r);
+        unique.push(r);
+      }
+    }
+
+    return unique;
+  };
+
+  const resolveLinkForPayload = (payload: NotificationPayload, roleStrings: string[]): string | null => {
+    if (!payload) return null;
+
+    const hasSchoolAdmin = roleStrings.some((r) => r.includes("school") && r.includes("admin"));
+    const hasAdmin = roleStrings.some((r) => r.includes("admin"));
+    const hasManager = roleStrings.some((r) => r.includes("manager"));
+    const hasTeacher = roleStrings.some((r) => r.includes("teacher"));
+    const hasStudent = roleStrings.some((r) => r.includes("student"));
+
+    const isManager = hasSchoolAdmin || hasAdmin || hasManager;
+
+    const perRoleLinks = payload.perRoleLinks ?? payload.metadata?.perRoleLinks;
+    if (perRoleLinks && typeof perRoleLinks === "object") {
+      if (isManager) {
+        const v = perRoleLinks["manager"] ?? perRoleLinks["Manager"] ?? perRoleLinks["MANAGER"];
+        if (typeof v === "string" && v.length) return v;
+      }
+      if (hasTeacher) {
+        const v = perRoleLinks["teacher"] ?? perRoleLinks["Teacher"] ?? perRoleLinks["TEACHER"];
+        if (typeof v === "string" && v.length) return v;
+      }
+      if (hasStudent) {
+        const v = perRoleLinks["student"] ?? perRoleLinks["Student"] ?? perRoleLinks["STUDENT"];
+        if (typeof v === "string" && v.length) return v;
+      }
+      for (const k of Object.keys(perRoleLinks)) {
+        const v = perRoleLinks[k];
+        if (!v) continue;
+        if (roleStrings.some((r) => r === k.toLowerCase() || r.includes(k.toLowerCase()))) return v;
+      }
+    }
+
+    const rawLink =
+      payload.linkUrl ??
+      payload.LinkUrl ??
+      payload.metadata?.linkUrl ??
+      (payload.metadata && (payload.metadata.linkUrl ?? payload.metadata.LinkUrl)) ??
+      null;
+
+    if (rawLink && typeof rawLink === "string") {
+      try {
+        const resolved = resolveNotificationLinkString(String(rawLink), roleStrings);
+        if (resolved) return resolved;
+        return String(rawLink).trim() || null;
+      } catch (e) {
+        console.warn("resolveNotificationLinkString failed", e);
+        return String(rawLink).trim() || null;
+      }
+    }
+
+    return null;
+  };
+
+  // Helper: authoritative unread count from server (robust parsing)
+  const fetchUnreadFromServer = async (): Promise<number> => {
+    try {
+      const res = await axiosInstance.get("/notification/me/unread-count");
+      const data = res.data ?? {};
+      const candidates = [
+        data.unread,
+        data.Unread,
+        data.unreadCount,
+        data.UnreadCount,
+        data.count,
+        data.total,
+        data.TotalUnread,
+      ];
+      for (const c of candidates) {
+        if (typeof c === "number" && !Number.isNaN(c)) return Number(c);
+        if (typeof c === "string" && !Number.isNaN(Number(c))) return Number(c);
+      }
+      if (typeof data === "number" && !Number.isNaN(data)) return Number(data);
+      if (typeof data === "string" && !Number.isNaN(Number(data))) return Number(data);
+      return 0;
+    } catch (err) {
+      console.warn("fetchUnreadFromServer failed", err);
+      return get().unreadCount ?? 0;
+    }
+  };
+
+  // Helper: update unreadCount in store by fetching authoritative value
+  const updateUnreadFromServer = async () => {
+    const unread = await fetchUnreadFromServer();
+    set({ unreadCount: unread, hasFetchedUnread: true });
+    return unread;
+  };
 
   return {
     items: [] as NotificationItem[],
@@ -67,6 +183,7 @@ export const useNotificationStore = create<UserNotificationState>()((set, get) =
     limit: 20,
     offset: 0,
     isNotificationConnected: false,
+    hasFetchedUnread: false,
 
     reset: () =>
       set({
@@ -77,6 +194,7 @@ export const useNotificationStore = create<UserNotificationState>()((set, get) =
         error: null,
         hasMore: true,
         offset: 0,
+        hasFetchedUnread: false,
       }),
 
     startNotification: async () => {
@@ -106,19 +224,45 @@ export const useNotificationStore = create<UserNotificationState>()((set, get) =
         const res = await axiosInstance.get<NotificationItem[]>("/notification/me", {
           params: { includeRead, limit, offset },
         });
-        const fetched = (res.data ?? []).map(normalizeApiItem);
+        const rawFetched = res.data ?? [];
+        const normalized = rawFetched.map(normalizeApiItem);
+
+        const roleStrings = getRoleStrings();
+        console.debug("Notifications.fetch - resolving links, roles:", roleStrings);
+        const itemsWithLinks = normalized.map((it: any) => {
+          const payloadGuess: NotificationPayload = {
+            ...it,
+            metadata: it.metadata ?? {},
+            id: it.id,
+            linkUrl: it.linkUrl,
+            targetGroupId: it.targetGroupId,
+            targetUserId: it.targetUserId,
+            base: it.base,
+            action: it.action,
+            params: it.params,
+            perRoleLinks: it.perRoleLinks ?? it.metadata?.perRoleLinks,
+          };
+          const resolved = resolveLinkForPayload(payloadGuess, roleStrings);
+          it.linkUrl = resolved ?? it.linkUrl;
+          console.debug("Resolved link for notification", it.id, "->", it.linkUrl);
+          return it;
+        });
+
         set((state) => {
-          const merged = reset ? fetched : [...state.items, ...fetched];
+          const merged = reset ? itemsWithLinks : [...state.items, ...itemsWithLinks];
           return {
             items: merged,
-            offset: reset ? fetched.length : state.offset + fetched.length,
-            hasMore: fetched.length === limit,
+            offset: reset ? itemsWithLinks.length : state.offset + itemsWithLinks.length,
+            hasMore: itemsWithLinks.length === limit,
             isLoading: false,
             isLoadingMore: false,
-            unreadCount: recalcUnread(merged),
+            // do NOT overwrite authoritative unreadCount here to avoid shrinking when lazy-loading partial pages
             error: null,
           };
         });
+
+        // After fetching a page, refresh authoritative unread count from server
+        await updateUnreadFromServer();
       } catch (err: any) {
         set({
           isLoading: false,
@@ -128,13 +272,10 @@ export const useNotificationStore = create<UserNotificationState>()((set, get) =
       }
     },
 
-    fetchUnreadCount: async () => {
-      try {
-        const res = await axiosInstance.get<{ Unread: number }>("/notification/me/unread-count");
-        set({ unreadCount: Number(res.data?.Unread ?? 0) });
-      } catch (err) {
-        console.warn("fetchUnreadCount failed", err);
-      }
+    // match updated NotificationState: optional force, return authoritative number
+    fetchUnreadCount: async (force = false) => {
+      if (!force && get().hasFetchedUnread) return;
+      return updateUnreadFromServer();
     },
 
     markRead: async (id: string) => {
@@ -146,6 +287,8 @@ export const useNotificationStore = create<UserNotificationState>()((set, get) =
           );
           return { items: next, unreadCount: recalcUnread(next) };
         });
+        // ensure authoritative
+        await updateUnreadFromServer();
       } catch (err) {
         console.warn("markRead failed", err);
       }
@@ -162,6 +305,8 @@ export const useNotificationStore = create<UserNotificationState>()((set, get) =
           );
           return { items: next, unreadCount: recalcUnread(next) };
         });
+        // ensure authoritative
+        await updateUnreadFromServer();
       } catch (err) {
         console.warn("markReadBulk failed", err);
       }
@@ -222,6 +367,14 @@ export const useNotificationStore = create<UserNotificationState>()((set, get) =
             }
           }
 
+          const roleStrings = getRoleStrings();
+          const resolved = resolveLinkForPayload(payload, roleStrings);
+          const finalLink = resolved ?? (typeof payload.linkUrl === "string" ? payload.linkUrl : undefined);
+
+          console.debug("[NotificationCreated] payload:", payload, "roles:", roleStrings, "resolvedLink:", finalLink);
+
+          const incomingIsRead = payload.isRead ?? false;
+
           const item: NotificationItem = {
             id: id || crypto.randomUUID(),
             title: payload.title ?? payload.Title ?? "Thông báo mới",
@@ -233,10 +386,14 @@ export const useNotificationStore = create<UserNotificationState>()((set, get) =
             isActive: true,
             createdAt: payload.createdAt ?? payload.CreatedAt ?? new Date().toISOString(),
             createdBy: payload.createdBy ?? payload.appUserId ?? payload.AppUserId,
-            metadata: payload.metadata,
-            read: { isRead: payload.isRead ?? false, readAt: payload.readAt },
+            metadata: {
+              ...(payload.metadata ?? {}),
+            },
+            linkUrl: finalLink ?? undefined,
+            read: { isRead: incomingIsRead, readAt: payload.readAt },
           };
 
+          // notify listeners (external subscribers)
           listeners.forEach((fn) => {
             try {
               fn(payload);
@@ -245,11 +402,33 @@ export const useNotificationStore = create<UserNotificationState>()((set, get) =
             }
           });
 
+          // Merge / dedupe logic to avoid overwriting unreadCount when items are empty
           set((state) => {
-            const nextItems = [item, ...state.items];
+            const existingIndex = state.items.findIndex((it) => it.id === item.id);
+            let nextItems: NotificationItem[];
+            if (existingIndex >= 0) {
+              // replace existing item
+              nextItems = state.items.slice();
+              nextItems[existingIndex] = { ...nextItems[existingIndex], ...item };
+            } else {
+              nextItems = [item, ...state.items];
+            }
+
+            // If we don't have items loaded but we previously fetched unread count,
+            // avoid recalculating from items (which would be 1) — instead increment the known unreadCount.
+            if (state.items.length === 0 && typeof state.unreadCount === "number" && state.unreadCount > 0) {
+              const nextUnread = state.unreadCount + (incomingIsRead ? 0 : 1);
+              return {
+                items: nextItems,
+                unreadCount: nextUnread,
+              };
+            }
+
+            // otherwise compute deterministically from items we have
+            const nextUnread = recalcUnread(nextItems);
             return {
               items: nextItems,
-              unreadCount: recalcUnread(nextItems),
+              unreadCount: nextUnread,
             };
           });
 

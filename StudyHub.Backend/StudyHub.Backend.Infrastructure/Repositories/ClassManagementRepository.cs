@@ -18,10 +18,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             _context = context;
         }
+
         public List<Domain.Entities.Class> GetAllClasses()
         {
-           
-                return _context.Classes.Include(c => c.AppUserClasses).Where(c => c.DeletedAt == null).Select(c => new Domain.Entities.Class
+            return _context.Classes
+                .Include(c => c.AppUserClasses)
+                .Where(c => c.DeletedAt == null)
+                .Select(c => new Domain.Entities.Class
                 {
                     Id = c.Id,
                     Name = c.Name,
@@ -32,12 +35,17 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     UpdatedAt = c.UpdatedAt,
                     UpdatedBy = c.UpdatedBy,
                     DeletedAt = c.DeletedAt
-                }).OrderByDescending(c => c.CreatedAt).ToList();
-            
-
+                })
+                .OrderByDescending(c => c.CreatedAt)
+                .ToList();
         }
+
         public int GetTotalUsers() =>
-            _context.AppUserClasses.AsNoTracking().Where(a => a.Status.Equals("joined")).GroupBy(a => a.UserId).Count();
+            _context.AppUserClasses
+                .AsNoTracking()
+                .Where(a => a.Status.Equals("joined"))
+                .GroupBy(a => a.UserId)
+                .Count();
 
         public int GetTotalClasses() =>
             _context.Classes.AsNoTracking().Count();
@@ -64,7 +72,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             var classEntity = _context.AppUserClasses
                .Include(c => c.User)
-               .Where(c => c.ClassId == classId && c.User.Roles.Any(r => r.Name.Contains("Student") && c.Status.Equals("joined")))
+               .Where(c => c.ClassId == classId && c.User.Roles.Any(r => r.Name.Contains("Student")) && c.Status.Equals("joined"))
                .GroupBy(a => a.UserId)
                .ToList();
 
@@ -128,7 +136,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         }
 
         public int GetGenderCount(bool gender) =>
-           _context.AppUsers.AsNoTracking().Count(u => u.Gender == gender);
+            _context.AppUsers.AsNoTracking().Count(u => u.Gender == gender);
 
         public int GetGenderCountBySchool(bool gender, int schoolId) =>
             _context.AppUsers.AsNoTracking().Count(u => u.Gender == gender && u.SchoolId == schoolId);
@@ -148,6 +156,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public int GetAnnouncementCountByTypeByClass(string type, int classId) =>
             _context.ClassNotifications.AsNoTracking().Count(n => n.Type == type && n.ClassId == classId);
 
+        // NOTE: NotificationReads assumed to store per-recipient records (if your schema differs, adjust accordingly)
         public int GetTotalNotificationReadEntries() =>
             _context.NotificationReads.AsNoTracking().Count();
 
@@ -155,23 +164,27 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             _context.NotificationReads.AsNoTracking().Count(r => r.IsRead == true);
 
         public int GetNotificationTotalByType(string type) =>
-            (from rs in _context.NotificationReads.AsNoTracking()
-             
+            (from rs in _context.ClassNotificationComments.AsNoTracking()
+             join n in _context.ClassNotifications.AsNoTracking() on rs.NotificationId equals n.Id
+             where n.Type == type
              select rs).Count();
 
         public int GetNotificationReadByType(string type) =>
-            (from rs in _context.NotificationReads.AsNoTracking()
-             
+            (from rs in _context.ClassNotificationComments.AsNoTracking()
+             join n in _context.ClassNotifications.AsNoTracking() on rs.NotificationId equals n.Id
+             where n.Type == type 
              select rs).Count();
 
         public int GetNotificationTotalByTypeForClass(string type, int classId) =>
-            (from rs in _context.NotificationReads.AsNoTracking()
-             
+            (from rs in _context.ClassNotificationComments.AsNoTracking()
+             join n in _context.ClassNotifications.AsNoTracking() on rs.NotificationId equals n.Id
+             where n.Type == type && n.ClassId == classId
              select rs).Count();
 
         public int GetNotificationReadByTypeForClass(string type, int classId) =>
-            (from rs in _context.NotificationReads.AsNoTracking()
-             
+            (from rs in _context.ClassNotificationComments.AsNoTracking()
+             join n in _context.ClassNotifications.AsNoTracking() on rs.NotificationId equals n.Id
+             where n.Type == type && n.ClassId == classId
              select rs).Count();
 
         public int GetNotificationsCountByClassId(int classId) =>
@@ -342,16 +355,18 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public int GetTotalNotificationReadEntriesForClassId(int classId)
         {
-            return (from rs in _context.NotificationReads.AsNoTracking()
-                    
-                    select rs).Count();
+            return (from nr in _context.ClassNotificationComments.AsNoTracking()
+                    join n in _context.ClassNotifications.AsNoTracking() on nr.NotificationId equals n.Id
+                    where n.ClassId == classId
+                    select nr).Count();
         }
 
         public int GetReadCountForClassId(int classId)
         {
-            return (from rs in _context.NotificationReads.AsNoTracking()
-                    
-                    select rs).Count();
+            return (from nr in _context.ClassNotificationComments.AsNoTracking()
+                    join n in _context.ClassNotifications.AsNoTracking() on nr.NotificationId equals n.Id
+                    where n.ClassId == classId 
+                    select nr).Count();
         }
 
         // NOTIFICATION-LEVEL helpers
@@ -377,14 +392,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public int GetReadCountForNotification(int notificationId)
         {
-            return _context.NotificationReads.AsNoTracking()
-                .Count();
+            return _context.ClassNotificationComments.AsNoTracking()
+                .Count(r => r.NotificationId == notificationId );
         }
 
         public int GetTotalRecipientsForNotification(int notificationId)
         {
-            return _context.NotificationReads.AsNoTracking()
-                .Count();
+            return _context.ClassNotificationComments.AsNoTracking()
+                .Count(r => r.NotificationId == notificationId);
         }
 
         // additional helper
@@ -392,9 +407,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         {
             return _context.AppUsers.AsNoTracking().Count(u => u.SchoolId == schoolId);
         }
+
         public int GetAnnouncementCountForClass(int classId)
         {
-            // "Announcement" ở code trước tương ứng với ClassNotification.Type == "notification"
+            // "Announcement" in previous code corresponds to ClassNotification.Type == "notification"
             return _context.ClassNotifications
                            .AsNoTracking()
                            .Count(n => n.Type == "notification" && n.ClassId == classId);
@@ -418,6 +434,39 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 .FirstOrDefault();
 
             return name ?? string.Empty;
+        }
+
+        // NEW: return number of comments for a notification (ClassNotificationComments)
+        public int GetCommentsCountByNotificationId(int notificationId)
+        {
+            return _context.ClassNotificationComments.AsNoTracking()
+                .Count(c => c.NotificationId == notificationId);
+        }
+
+        // NEW: return list of notification ids for a given type
+        public List<int> GetNotificationIdsByType(string type)
+        {
+            return _context.ClassNotifications.AsNoTracking()
+                .Where(n => n.Type == type)
+                .Select(n => n.Id)
+                .ToList();
+        }
+        public List<(int ClassId, double AvgScore, int Count)> GetAverageScorePerClass()
+        {
+            var query = from s in _context.NotificationSubmissions.AsNoTracking()
+                        where s.Score != null
+                        join n in _context.ClassNotifications.AsNoTracking() on s.NotificationId equals n.Id
+                        group s by n.ClassId into g
+                        select new
+                        {
+                            ClassId = g.Key,
+                            Avg = g.Average(x => (double?)x.Score) ?? 0.0,
+                            Cnt = g.Count()
+                        };
+
+            var list = query.ToList();
+
+            return list.Select(x => (x.ClassId, Math.Round(x.Avg, 2), x.Cnt)).ToList();
         }
     }
 }

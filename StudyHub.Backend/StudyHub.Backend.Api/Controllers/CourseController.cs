@@ -1,9 +1,12 @@
+﻿using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using StudyHub.Backend.UseCases.Services;
-using StudyHub.Backend.Api.Mappers;
+using Microsoft.AspNetCore.SignalR;
 using StudyHub.Backend.Api.Dtos.CourseDTOS;
+using StudyHub.Backend.Api.Hubs;
+using StudyHub.Backend.Api.Mappers;
+using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Dtos;
-using Microsoft.AspNetCore.Http.HttpResults;
+using StudyHub.Backend.UseCases.Services;
 
 namespace StudyHub.Backend.Api.Controllers;
 
@@ -14,12 +17,17 @@ public class CourseController : ControllerBase
     private readonly CourseService _service;
     private readonly CloudFileStorageService _fileStorage;
     private readonly ElasticCourseVectorSearchService _elasticsearchService;
+    private readonly AuthService _authService;
+    private readonly NotificationService _notificationService;
+    private readonly IHubContext<NotificationHub> _notificationHub;
 
-    public CourseController(CourseService service, CloudFileStorageService fileStorage, ElasticCourseVectorSearchService elasticsearchService)
+    public CourseController(CourseService service, CloudFileStorageService fileStorage, ElasticCourseVectorSearchService elasticsearchService, NotificationService notification, IHubContext<NotificationHub> hub)
     {
         _service = service;
         _fileStorage = fileStorage;
         _elasticsearchService = elasticsearchService;
+        _notificationService = notification;
+        _notificationHub = hub;
     }
 
     // ===================== GET ALL =====================
@@ -94,7 +102,16 @@ public class CourseController : ControllerBase
 
         var entity = dto.ToEntity();
         var created = await _service.CreateCourse(entity);
-
+        try
+        {
+            // Extracted notification logic into a separate method
+            await SendCourseCreatedNotificationsAsync(created, HttpContext.RequestAborted);
+        }
+        catch (Exception ex)
+        {
+            // non-fatal: do not fail creation if notifications fail
+            Console.WriteLine($"Create-course notification error: {ex.Message}");
+        }
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created.ToListDto());
     }
 
@@ -180,5 +197,132 @@ public class CourseController : ControllerBase
             return StatusCode(500, ex.Message);
         }
     }
+    private async Task SendCourseCreatedNotificationsAsync(Course created, CancellationToken ct)
+    {
+        if (created == null) return;
 
+        var currentUser = _authService.GetCurrentUser();
+        var title = $"Khóa học mới: {created?.Name}";
+        var body = $"Khóa học '{created?.Name}' vừa được tạo.";
+        var link = $"/course/{created?.Id}";
+
+        // 1) Personal notification to the creator (if available)
+        if (currentUser != null && currentUser.Id != Guid.Empty)
+        {
+            try
+            {
+                var savedPersonal = await _notificationService.CreateAndSendNotificationToRecipientsAsync(
+                    title: title,
+                    body: body,
+                    targetType: "User",
+                    targetGroupId: null,
+                    targetUserId: currentUser.Id,
+                    recipientUserIds: new[] { currentUser.Id },
+                    createdBy: currentUser.Id,
+                    linkUrl: link,
+                    priority: "Normal",
+                    ct: ct
+                );
+
+                if (savedPersonal != null)
+                {
+                    try
+                    {
+                        var payload = new
+                        {
+                            id = savedPersonal.Id,
+                            title = savedPersonal.Title,
+                            body = savedPersonal.Body,
+                            linkUrl = link,
+                            priority = savedPersonal.Priority,
+                            targetType = savedPersonal.TargetType,
+                            targetUserId = savedPersonal.TargetUserId,
+                            createdAt = savedPersonal.CreatedAt,
+                            createdBy = savedPersonal.CreatedBy,
+                            isRead = false
+                        };
+                        await _notificationHub.Clients.Group($"user_{currentUser.Id}").SendAsync("NotificationCreated", payload, ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Broadcast personal create-course notification failed: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Create personal create-course notification failed: {ex.Message}");
+            }
+        }
+
+        // 2) Notify students in the same school (if schoolId available)
+        int? schoolId = created?.SchoolId;
+        if (schoolId.HasValue)
+        {
+            try
+            {
+                var (studentGroupId, studentIds) = await _notificationService.EnsureCompositeGroupAsync(
+                    schoolId: schoolId,
+                    roleNames: new[] { "Student" },
+                    classId: null,
+                    grade: null,
+                    explicitUserIds: null,
+                    customName: $"Students-{schoolId}",
+                    createdBy: currentUser?.Id ?? Guid.Empty,
+                    ct: ct
+                );
+
+                if (studentIds != null && studentIds.Any())
+                {
+                    var savedStudents = await _notificationService.CreateAndSendNotificationToRecipientsAsync(
+                        title: title,
+                        body: body,
+                        targetType: "Group",
+                        targetGroupId: studentGroupId,
+                        targetUserId: null,
+                        recipientUserIds: studentIds,
+                        createdBy: currentUser?.Id ?? Guid.Empty,
+                        linkUrl: link,
+                        priority: "Normal",
+                        ct: ct
+                    );
+
+                    if (savedStudents != null)
+                    {
+                        try
+                        {
+                            var targets = studentIds.Select(id => $"user_{id}").ToArray();
+                            var payload = new
+                            {
+                                id = savedStudents.Id,
+                                title = savedStudents.Title,
+                                body = savedStudents.Body,
+                                linkUrl = link,
+                                priority = savedStudents.Priority,
+                                targetType = savedStudents.TargetType,
+                                targetGroupId = savedStudents.TargetGroupId,
+                                createdAt = savedStudents.CreatedAt,
+                                createdBy = savedStudents.CreatedBy,
+                                isRead = false
+                            };
+                            await _notificationHub.Clients.Groups(targets).SendAsync("NotificationCreated", payload, ct);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Broadcast to students failed: {ex.Message}");
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"No students found for school {schoolId} to notify.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Create/send students notification failed: {ex.Message}");
+            }
+        }
+
+    }
 }
