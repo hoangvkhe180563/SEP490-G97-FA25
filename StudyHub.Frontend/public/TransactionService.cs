@@ -1,4 +1,4 @@
-﻿using StudyHub.Backend.UseCases.Repositories;
+using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Dtos;
 

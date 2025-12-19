@@ -8,13 +8,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
   DialogClose,
 } from "@/common/components/ui/dialog";
 import { Button } from "@/common/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/common/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/common/components/ui/avatar";
 import { Badge } from "@/common/components/ui/badge";
-import { Separator } from "@/common/components/ui/separator";
 
 type Props = {
   open: boolean;
@@ -22,10 +24,15 @@ type Props = {
   onClose: () => void;
 };
 
-const InfoRow: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, value }) => (
+const InfoRow: React.FC<{ label: string; value?: React.ReactNode }> = ({
+  label,
+  value,
+}) => (
   <div className="flex items-start gap-4 py-2 border-b last:border-b-0">
     <div className="w-44 text-xs text-slate-500">{label}</div>
-    <div className="flex-1 text-sm text-slate-700 break-words">{value ?? "-"}</div>
+    <div className="flex-1 text-sm text-slate-700 break-words">
+      {value ?? "-"}
+    </div>
   </div>
 );
 
@@ -34,7 +41,8 @@ const normalizeGender = (g: any): string | null => {
   if (typeof g === "boolean") return g ? "Nam" : "Nữ";
   const s = String(g).toLowerCase();
   if (s === "true" || s === "1" || s === "nam" || s === "male") return "Nam";
-  if (s === "false" || s === "0" || s === "nữ" || s === "nu" || s === "female") return "Nữ";
+  if (s === "false" || s === "0" || s === "nữ" || s === "nu" || s === "female")
+    return "Nữ";
   return null;
 };
 
@@ -47,9 +55,18 @@ const toLocaleDateTime = (v?: string) => {
   }
 };
 
-const safeString = (v: any) => (v === undefined || v === null ? "-" : String(v));
+const safeString = (v: any) =>
+  v === undefined || v === null ? "-" : String(v);
 
-function openGmailCompose({ to, subject, body }: { to?: string; subject?: string; body?: string }) {
+function openGmailCompose({
+  to,
+  subject,
+  body,
+}: {
+  to?: string;
+  subject?: string;
+  body?: string;
+}) {
   const base = "https://mail.google.com/mail/";
   const params = new URLSearchParams();
   params.set("view", "cm");
@@ -71,11 +88,11 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
       ? [String(member.role)]
       : [];
 
-  const userId = member.userId ?? "";
+  // const userId = member.userId ?? "";
   const fullname = member.fullname ?? "";
   const joinDate = member.joinDate ?? "";
   const gender = normalizeGender(member.gender);
-  const schoolId = member.schoolId ?? null;
+  // const schoolId = member.schoolId ?? null;
   const schoolName = member.schoolName ?? null;
   const communes = member.communes ?? null;
   const address = member.address ?? null;
@@ -96,7 +113,10 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
       : "U";
 
   const emailGuess =
-    email ?? (fullname ? `${fullname.replace(/\s+/g, ".").toLowerCase()}@example.com` : "");
+    email ??
+    (fullname
+      ? `${fullname.replace(/\s+/g, ".").toLowerCase()}@example.com`
+      : "");
 
   const handleOpenGmail = () => {
     if (!emailGuess) return;
@@ -106,12 +126,19 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(val) => { if (!val) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(val) => {
+        if (!val) onClose();
+      }}
+    >
       <DialogContent className="sm:max-w-3xl w-full">
         {/* Close button in top-right */}
         <DialogClose asChild>
           {/* keep empty so shadcn renders close icon in default spot if desired */}
-          <button aria-label="Close" className="sr-only">Close</button>
+          <button aria-label="Close" className="sr-only">
+            Close
+          </button>
         </DialogClose>
 
         <DialogHeader className="pt-6 pb-2">
@@ -153,7 +180,9 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
                         </Badge>
                       ))
                     ) : (
-                      <div className="text-sm text-slate-500">Không có vai trò</div>
+                      <div className="text-sm text-slate-500">
+                        Không có vai trò
+                      </div>
                     )}
                   </div>
 
@@ -165,9 +194,15 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
 
               <div className="mt-6 bg-slate-50 rounded-md p-4">
                 <InfoRow label="Họ và tên" value={fullname || "-"} />
-                <InfoRow label="Ngày tham gia" value={toLocaleDateTime(joinDate)} />
+                <InfoRow
+                  label="Ngày tham gia"
+                  value={toLocaleDateTime(joinDate)}
+                />
                 <InfoRow label="Giới tính" value={gender ?? "-"} />
-                <InfoRow label="Số điện thoại" value={safeString(phoneNumber)} />
+                <InfoRow
+                  label="Số điện thoại"
+                  value={safeString(phoneNumber)}
+                />
                 <InfoRow
                   label="Email"
                   value={
@@ -190,7 +225,10 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
                   }
                 />
                 <InfoRow label="Địa chỉ" value={safeString(address)} />
-                <InfoRow label="Phường/Xã (commune)" value={communes ?? communeId ?? "-"} />
+                <InfoRow
+                  label="Phường/Xã (commune)"
+                  value={communes ?? communeId ?? "-"}
+                />
                 <InfoRow label="Tên trường" value={schoolName ?? "-"} />
               </div>
 
@@ -215,7 +253,6 @@ const MemberDetailModal: React.FC<Props> = ({ open, member, onClose }) => {
             </div>
           </div>
         </div>
-
       </DialogContent>
     </Dialog>
   );

@@ -35,12 +35,10 @@ public class AppUserServiceTests
         var mockLoginHistory = new Mock<StudyHub.Backend.UseCases.Repositories.IAppUserLoginHistoryRepository>();
         var mockHttpContextAccessor = new Mock<IHttpContextAccessor>();
         var smtpService = new StudyHub.Backend.Api.Services.SmtpEmailService(_mockConfig.Object);
-
-        _authService = new AuthService(_mockUserRepo.Object, _mockRoleRepo.Object, mockLoginHistory.Object, smtpService, mockHttpContextAccessor.Object, _mockConfig.Object);
-
         var mockLocationRepo = new Mock<StudyHub.Backend.UseCases.Repositories.ILocationRepository>();
         var locationService = new StudyHub.Backend.UseCases.Services.LocationService(mockLocationRepo.Object);
 
+        _authService = new AuthService(_mockUserRepo.Object, _mockRoleRepo.Object, mockLoginHistory.Object, smtpService, mockHttpContextAccessor.Object, _mockConfig.Object, locationService);
         _service = new AppUserService(_mockUserRepo.Object, _mockRoleRepo.Object, _mockConfig.Object, _mockCloudinary.Object, _authService, locationService);
     }
 

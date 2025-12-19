@@ -10,19 +10,18 @@ import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
 import { Separator } from "@/common/components/ui/separator";
 import { Label } from "@/common/components/ui/label";
 
-type ApiResponse = {
-  success: boolean;
-  message?: string;
-  data?: any;
-};
-
 const ConfirmInvite: React.FC = () => {
   const { id: classIdParam } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const { getClassInfo, currentClass, getClassMembers, confirmMember, declineMember } =
-    useClassStore();
+  const {
+    getClassInfo,
+    currentClass,
+    getClassMembers,
+    confirmMember,
+    declineMember,
+  } = useClassStore();
   const { user: authUser } = useAuthStore();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -30,9 +29,9 @@ const ConfirmInvite: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const classId = classIdParam ? Number(classIdParam) : NaN;
   const queryUserId = searchParams.get("userId") ?? undefined;
-  const storedUserIdFallback = localStorage.getItem("currentUserId") ?? undefined;
+  const storedUserIdFallback =
+    localStorage.getItem("currentUserId") ?? undefined;
 
   const appUserId =
     (authUser && authUser.id) ?? queryUserId ?? storedUserIdFallback ?? "";
@@ -55,7 +54,9 @@ const ConfirmInvite: React.FC = () => {
     setActionLoading(true);
 
     if (!appUserId) {
-      setError("Bạn chưa đăng nhập. Vui lòng đăng nhập hoặc đăng ký để chấp nhận lời mời.");
+      setError(
+        "Bạn chưa đăng nhập. Vui lòng đăng nhập hoặc đăng ký để chấp nhận lời mời."
+      );
       setActionLoading(false);
       return;
     }
@@ -67,7 +68,10 @@ const ConfirmInvite: React.FC = () => {
     }
 
     try {
-      const result = await confirmMember(Number(classIdParam), String(appUserId));
+      const result = await confirmMember(
+        Number(classIdParam),
+        String(appUserId)
+      );
 
       if (result === true) {
         setSuccessMessage("Bạn đã tham gia lớp thành công.");
@@ -97,7 +101,9 @@ const ConfirmInvite: React.FC = () => {
     setActionLoading(true);
 
     if (!appUserId) {
-      setError("Bạn chưa đăng nhập. Vui lòng đăng nhập hoặc đăng ký để từ chối lời mời.");
+      setError(
+        "Bạn chưa đăng nhập. Vui lòng đăng nhập hoặc đăng ký để từ chối lời mời."
+      );
       setActionLoading(false);
       return;
     }
@@ -109,7 +115,10 @@ const ConfirmInvite: React.FC = () => {
     }
 
     try {
-      const result = await declineMember(Number(classIdParam), String(appUserId));
+      const result = await declineMember(
+        Number(classIdParam),
+        String(appUserId)
+      );
 
       if (result === true) {
         setSuccessMessage("Bạn đã từ chối lời mời.");
@@ -141,9 +150,15 @@ const ConfirmInvite: React.FC = () => {
           </Avatar>
 
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold">Xác nhận lời mời tham gia lớp</h2>
+            <h2 className="text-lg font-semibold">
+              Xác nhận lời mời tham gia lớp
+            </h2>
             <p className="text-sm text-slate-500 mt-1">
-              {isLoading ? "Đang tải thông tin lớp..." : classInfo ? `Lớp: ${classInfo.name}` : "Không tìm thấy thông tin lớp."}
+              {isLoading
+                ? "Đang tải thông tin lớp..."
+                : classInfo
+                ? `Lớp: ${classInfo.name}`
+                : "Không tìm thấy thông tin lớp."}
             </p>
           </div>
         </div>
@@ -151,7 +166,9 @@ const ConfirmInvite: React.FC = () => {
         <Separator className="my-6" />
 
         <div className="bg-slate-50 rounded-md border p-4">
-          <div className="text-sm text-slate-700 mb-3 font-medium">Chi tiết lời mời</div>
+          <div className="text-sm text-slate-700 mb-3 font-medium">
+            Chi tiết lời mời
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -161,12 +178,16 @@ const ConfirmInvite: React.FC = () => {
 
             <div>
               <Label className="text-xs">Người mời</Label>
-              <div className="mt-1 font-medium">{teacher?.at(1)?.fullname ?? "Giáo viên"}</div>
+              <div className="mt-1 font-medium">
+                {teacher?.at(1)?.fullname ?? "Giáo viên"}
+              </div>
             </div>
 
             <div className="sm:col-span-2">
               <Label className="text-xs">Mô tả</Label>
-              <div className="mt-1 text-sm text-slate-700">{classInfo?.description ?? "-"}</div>
+              <div className="mt-1 text-sm text-slate-700">
+                {classInfo?.description ?? "-"}
+              </div>
             </div>
 
             <div>
@@ -176,30 +197,28 @@ const ConfirmInvite: React.FC = () => {
           </div>
         </div>
 
-        {error && (
-          <div className="mt-4 text-sm text-red-600">
-            {error}
-          </div>
-        )}
+        {error && <div className="mt-4 text-sm text-red-600">{error}</div>}
 
         {successMessage && (
-          <div className="mt-4 text-sm text-emerald-700">
-            {successMessage}
-          </div>
+          <div className="mt-4 text-sm text-emerald-700">{successMessage}</div>
         )}
 
         <div className="mt-6 flex items-center gap-3">
-          <Button onClick={handleAccept} disabled={actionLoading} className="bg-blue-600">
+          <Button
+            onClick={handleAccept}
+            disabled={actionLoading}
+            className="bg-blue-600"
+          >
             {actionLoading ? "Đang xử lý..." : "Chấp nhận lời mời"}
           </Button>
 
-          <Button variant="outline" onClick={handleDecline} disabled={actionLoading}>
+          <Button
+            variant="outline"
+            onClick={handleDecline}
+            disabled={actionLoading}
+          >
             {actionLoading ? "Đang xử lý..." : "Từ chối"}
           </Button>
-
-          <div className="ml-auto text-xs text-slate-400">
-            {appUserId ? `Bạn đang xác nhận cho: ${appUserId}` : "Bạn chưa đăng nhập"}
-          </div>
         </div>
 
         {!appUserId && (

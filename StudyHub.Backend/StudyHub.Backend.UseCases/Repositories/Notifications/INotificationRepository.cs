@@ -32,8 +32,9 @@ namespace StudyHub.Backend.UseCases.Repositories.Notifications
         Task AddUserToGroupAsync(int groupId, Guid userId, CancellationToken ct = default);
         Task RemoveUserFromGroupAsync(int groupId, Guid userId, CancellationToken ct = default);
         List<AppUser>? GetUsersByRoleAndSchool(string roleName, int? schoolId);
+        List<Domain.Entities.AppUser> GetUsersByRoleAndClass(string roleName, int? classID);
         Task<HashSet<Guid>> GetUserRoleIdsAsync(Guid userId, CancellationToken ct = default);
         Task<HashSet<int>> GetUserGroupIdsAsync(Guid userId, CancellationToken ct = default);
-        Task SeedUnreadForUsersAsync(Guid notificationId, IEnumerable<Guid> userIds, CancellationToken ct = default);
+        Task SeedUnreadForUsersAsync(Guid notificationId, IEnumerable<Guid> userIds, string? linkurl, CancellationToken ct = default);
     }
 }

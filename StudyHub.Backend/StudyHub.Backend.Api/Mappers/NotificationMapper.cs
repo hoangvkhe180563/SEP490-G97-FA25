@@ -24,6 +24,7 @@ namespace StudyHub.Backend.Api.Mappers
                 ExpiresAt = n.ExpiresAt,
                 CreatedAt = n.CreatedAt,
                 CreatedBy = n.CreatedBy,
+                LinkUrl = read?.LinkUrl,
                 IsRead = read?.IsRead ?? false,
                 ReadAt = read?.ReadAt
             };

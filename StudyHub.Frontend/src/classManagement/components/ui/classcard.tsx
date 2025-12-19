@@ -29,8 +29,6 @@ export const ClassCard: React.FC<ClassCardProps> = ({
   id,
   title,
   teacher,
-  subject,
-  grade,
   userRole,
   unread = 0,
   onView,
@@ -54,7 +52,10 @@ export const ClassCard: React.FC<ClassCardProps> = ({
       </div>
 
       <div className="mt-4 flex items-center justify-between">
-        <Button onClick={() => onView(id, userRole)} className="px-6 py-2 rounded-md text-sm">
+        <Button
+          onClick={() => onView(id, userRole)}
+          className="px-6 py-2 rounded-md text-sm"
+        >
           Xem chi tiết
         </Button>
 

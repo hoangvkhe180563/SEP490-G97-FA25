@@ -33,7 +33,12 @@ const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/i;
  * - Keeps inline/legacy success UI as well.
  */
 
-const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) => {
+const AddMemberModal: React.FC<Props> = ({
+  open,
+  classId,
+  onClose,
+  onInvited,
+}) => {
   const importMembers = useClassStore((s) => s.importMembers);
   const getClassMembers = useClassStore((s) => s.getClassMembers);
 
@@ -45,8 +50,12 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
-  const [importErrors, setImportErrors] = useState<Record<number, string[]>>({});
-  const [importCellErrors, setImportCellErrors] = useState<Record<number, Record<number, string[]>>>({});
+  const [importErrors, setImportErrors] = useState<Record<number, string[]>>(
+    {}
+  );
+  const [importCellErrors, setImportCellErrors] = useState<
+    Record<number, Record<number, string[]>>
+  >({});
   const [showImportErrors, setShowImportErrors] = useState(false);
 
   // success state + explicit toast visibility
@@ -62,7 +71,6 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
 
   useEffect(() => {
     if (!open) resetAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
@@ -126,10 +134,27 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
 
       const firstRow = (aoa[0] || []).map((c: any) => String(c ?? "").trim());
       const lower = firstRow.map((s: string) => s.toLowerCase());
-      const emailKeys = ["email", "e-mail", "email address", "địa chỉ email", "mail"];
-      const nameKeys = ["họ và tên", "họ tên", "full name", "fullname", "name", "tên"];
-      const hasEmailHeader = lower.some((h: string) => emailKeys.some((k) => h.includes(k)));
-      const hasNameHeader = lower.some((h: string) => nameKeys.some((k) => h.includes(k)));
+      const emailKeys = [
+        "email",
+        "e-mail",
+        "email address",
+        "địa chỉ email",
+        "mail",
+      ];
+      const nameKeys = [
+        "họ và tên",
+        "họ tên",
+        "full name",
+        "fullname",
+        "name",
+        "tên",
+      ];
+      const hasEmailHeader = lower.some((h: string) =>
+        emailKeys.some((k) => h.includes(k))
+      );
+      const hasNameHeader = lower.some((h: string) =>
+        nameKeys.some((k) => h.includes(k))
+      );
 
       const headers: string[] = [];
       const rows: string[][] = [];
@@ -143,11 +168,16 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
           rows.push(rowLine);
         }
       } else {
-        const maxCols = aoa.reduce((m, rr) => Math.max(m, (rr || []).length), 0);
+        const maxCols = aoa.reduce(
+          (m, rr) => Math.max(m, (rr || []).length),
+          0
+        );
         for (let i = 0; i < maxCols; i++) headers.push(`Column ${i + 1}`);
         for (let r = 0; r < aoa.length; r++) {
           const rowArr = aoa[r] || [];
-          const rowLine = Array.from({ length: maxCols }).map((_, i) => (rowArr[i] ?? "").toString());
+          const rowLine = Array.from({ length: maxCols }).map((_, i) =>
+            (rowArr[i] ?? "").toString()
+          );
           if (rowLine.every((c) => c === "")) continue;
           rows.push(rowLine);
         }
@@ -169,6 +199,8 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
     const cellErrors: Record<number, string[]> = {};
     const email = (row[0] ?? "").toString().trim();
     const name = (row[1] ?? "").toString().trim();
+
+    console.log("validating row", rowIndexOneBased);
 
     if (!email) {
       rowErrors.push("Thiếu email");
@@ -223,7 +255,9 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
     setPreviewData((prev) => {
       if (!prev) return prev;
       const rows = prev.rows.slice();
-      const row = rows[rowIdx] ? rows[rowIdx].slice() : Array.from({ length: prev.headers.length }).map(() => "");
+      const row = rows[rowIdx]
+        ? rows[rowIdx].slice()
+        : Array.from({ length: prev.headers.length }).map(() => "");
       if (colIdx >= row.length) {
         for (let i = row.length; i <= colIdx; i++) row[i] = "";
       }
@@ -244,14 +278,22 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
         else delete copy[rowIdx + 1];
         return copy;
       });
-      setShowImportErrors(Boolean(Object.keys(importErrors).length || Object.keys(importCellErrors).length || rowErrors.length > 0));
+      setShowImportErrors(
+        Boolean(
+          Object.keys(importErrors).length ||
+            Object.keys(importCellErrors).length ||
+            rowErrors.length > 0
+        )
+      );
       return newPreview;
     });
   };
 
   const addRow = (afterIdx?: number) => {
     if (!previewData) return;
-    const newRow = Array.from({ length: previewData.headers.length }).map(() => "");
+    const newRow = Array.from({ length: previewData.headers.length }).map(
+      () => ""
+    );
     const rows = [...previewData.rows];
     if (afterIdx === undefined) rows.push(newRow);
     else rows.splice(afterIdx + 1, 0, newRow);
@@ -270,8 +312,12 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
 
   const addColumn = (name?: string) => {
     if (!previewData) return;
-    let headerName = name ?? prompt("Tên cột mới:", `Column ${previewData.headers.length + 1}`) ?? "";
-    headerName = headerName.trim() || `Column ${previewData.headers.length + 1}`;
+    let headerName =
+      name ??
+      prompt("Tên cột mới:", `Column ${previewData.headers.length + 1}`) ??
+      "";
+    headerName =
+      headerName.trim() || `Column ${previewData.headers.length + 1}`;
     const headers = [...previewData.headers, headerName];
     const rows = previewData.rows.map((r) => [...r, ""]);
     const newPreview = { headers, rows };
@@ -281,7 +327,12 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
 
   const removeColumn = (colIdx: number) => {
     if (!previewData) return;
-    if (!confirm(`Xóa cột "${previewData.headers[colIdx]}"? Hành động này sẽ xóa dữ liệu cột đó.`)) return;
+    if (
+      !confirm(
+        `Xóa cột "${previewData.headers[colIdx]}"? Hành động này sẽ xóa dữ liệu cột đó.`
+      )
+    )
+      return;
     const headers = previewData.headers.filter((_, i) => i !== colIdx);
     const rows = previewData.rows.map((r) => r.filter((_, i) => i !== colIdx));
     const newCellErrors: Record<number, Record<number, string[]>> = {};
@@ -310,7 +361,9 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Members");
     const arrayBuf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    return new Blob([arrayBuf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    return new Blob([arrayBuf], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
   };
 
   const downloadCorrectedXlsx = async (pdata: PreviewData) => {
@@ -333,7 +386,9 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
   // send xlsx to API via store.importMembers
   const doImportFromPreview = async (pdata: PreviewData) => {
     if (!importMembers || typeof importMembers !== "function") {
-      throw new Error("importMembers không được cấu hình trong store. Vui lòng kiểm tra store.");
+      throw new Error(
+        "importMembers không được cấu hình trong store. Vui lòng kiểm tra store."
+      );
     }
     setIsProcessing(true);
     try {
@@ -362,7 +417,10 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
     try {
       const { res, payload } = await doImportFromPreview(previewData);
       console.log("bulk invite response:", res, payload);
-      const errorsObj = (payload && (payload as any).errors) ?? (res && (res as any).errors) ?? null;
+      const errorsObj =
+        (payload && (payload as any).errors) ??
+        (res && (res as any).errors) ??
+        null;
       if (errorsObj) {
         const rowMap: Record<number, string[]> = {};
         const cellMap: Record<number, Record<number, string[]>> = {};
@@ -381,13 +439,20 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
                 }
               }
               if (row === undefined) row = 0;
-              const fieldMatch = k.match(/Row\s*\d+\s*[-:]?\s*(.+)$/i) || k.match(/(.+)[_\-.]\d+$/i);
+              const fieldMatch =
+                k.match(/Row\s*\d+\s*[-:]?\s*(.+)$/i) ||
+                k.match(/(.+)[_\-.]\d+$/i);
               let fieldName = fieldMatch ? fieldMatch[1].trim() : null;
               if (!fieldName && !/\d+/.test(k)) fieldName = k.trim();
               const clean = (m: string, fn?: string) => {
                 let tt = String(m ?? "");
                 if (fn) {
-                  const prefix = new RegExp("^\\s*" + fn.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*[:\\-\\s]+", "i");
+                  const prefix = new RegExp(
+                    "^\\s*" +
+                      fn.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") +
+                      "\\s*[:\\-\\s]+",
+                    "i"
+                  );
                   if (prefix.test(tt)) tt = tt.replace(prefix, "").trim();
                 }
                 return tt;
@@ -395,7 +460,11 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
               t = clean(t, fieldName || undefined);
               if (fieldName && previewData) {
                 const fnNorm = String(fieldName ?? "").toLowerCase();
-                const idx = previewData.headers.findIndex((h) => (h || "").toString().toLowerCase().includes(fnNorm) || fnNorm.includes((h || "").toString().toLowerCase()));
+                const idx = previewData.headers.findIndex(
+                  (h) =>
+                    (h || "").toString().toLowerCase().includes(fnNorm) ||
+                    fnNorm.includes((h || "").toString().toLowerCase())
+                );
                 if (idx >= 0) {
                   if (!cellMap[row]) cellMap[row] = {};
                   if (!cellMap[row][idx]) cellMap[row][idx] = [];
@@ -430,16 +499,24 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
           let invitedCount: number | undefined = undefined;
           if (payload && payload.data) {
             if (Array.isArray(payload.data)) invitedCount = payload.data.length;
-            else if (typeof payload.data.invitedCount === "number") invitedCount = payload.data.invitedCount;
-            else if (Array.isArray((payload as any).data?.invited)) invitedCount = (payload as any).data.invited.length;
+            else if (typeof payload.data.invitedCount === "number")
+              invitedCount = payload.data.invitedCount;
+            else if (Array.isArray((payload as any).data?.invited))
+              invitedCount = (payload as any).data.invited.length;
           }
           const title = "Đã gửi lời mời";
-          const description = invitedCount !== undefined ? `Đã gửi lời mời tới ${invitedCount} người.` : "Lời mời đã được gửi.";
+          const description =
+            invitedCount !== undefined
+              ? `Đã gửi lời mời tới ${invitedCount} người.`
+              : "Lời mời đã được gửi.";
           setError(null);
           setSuccessMsg(`${title}\n\n${description}`);
           // show visible toast (uses notify util)
           try {
-            showNotification(`${title}\n\n${description}`, { type: "success", duration: 2500 });
+            showNotification(`${title}\n\n${description}`, {
+              type: "success",
+              duration: 2500,
+            });
           } catch {
             /* ignore */
           }
@@ -447,20 +524,31 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
           setError(null);
           setSuccessMsg("Đã gửi lời mời.");
           try {
-            showNotification("Đã gửi lời mời.", { type: "success", duration: 2500 });
-          } catch { /* ignore */ }
+            showNotification("Đã gửi lời mời.", {
+              type: "success",
+              duration: 2500,
+            });
+          } catch {
+            /* ignore */
+          }
         }
 
         onInvited?.(payload);
         // don't clear successMsg here; auto-close effect will hide it
         resetAll();
       } else {
-        const msg = (payload && (payload as any).message) ?? (res as any)?.message ?? "Import thất bại";
+        const msg =
+          (payload && (payload as any).message) ??
+          (res as any)?.message ??
+          "Import thất bại";
         setError(String(msg));
       }
     } catch (err: any) {
       console.error("handleConfirmUpload error:", err);
-      const msg = err?.response?.data?.message ?? err?.message ?? "Lỗi khi gửi file lên server.";
+      const msg =
+        err?.response?.data?.message ??
+        err?.message ??
+        "Lỗi khi gửi file lên server.";
       setError(String(msg));
     }
   };
@@ -480,12 +568,18 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
 
       const fixedRows = parsed.rows.map((r) => {
         const email = (r[0] ?? "").toString().trim().toLowerCase();
-        const name = ((r[1] ?? "") as string).toString().trim().replace(/\s+/g, " ");
+        const name = ((r[1] ?? "") as string)
+          .toString()
+          .trim()
+          .replace(/\s+/g, " ");
         const rest = r.slice(2).map((c) => (c ?? "").toString());
         return [email, name, ...rest];
       });
 
-      const fixedPreview: PreviewData = { headers: parsed.headers, rows: fixedRows };
+      const fixedPreview: PreviewData = {
+        headers: parsed.headers,
+        rows: fixedRows,
+      };
       setPreviewData(fixedPreview);
       validateAllRows(fixedPreview);
       setShowPreview(true);
@@ -559,7 +653,8 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
       // If parent closes the modal immediately via onInvited, notification is still shown (notify appends to body)
     } catch (err: any) {
       console.error("sendSingleInvite error:", err, err?.response?.data);
-      const msg = err?.response?.data?.message ?? err?.message ?? "Lỗi khi gửi lời mời.";
+      const msg =
+        err?.response?.data?.message ?? err?.message ?? "Lỗi khi gửi lời mời.";
       setError(String(msg));
     } finally {
       setSingleInviteProcessing(false);
@@ -585,7 +680,9 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
       fileRef.current?.click();
     };
 
-    const handleCorrectedChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleCorrectedChange = async (
+      e: React.ChangeEvent<HTMLInputElement>
+    ) => {
       e.stopPropagation();
       const f = e.target.files?.[0] ?? null;
       e.currentTarget.value = "";
@@ -595,12 +692,16 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
       const t = setTimeout(() => {
-        contentRef.current?.querySelector<HTMLElement>("button, input, [tabindex]")?.focus();
+        contentRef.current
+          ?.querySelector<HTMLElement>("button, input, [tabindex]")
+          ?.focus();
       }, 40);
       return () => clearTimeout(t);
     }, []);
 
-    const hasClientErrors = Object.keys(importErrors).length > 0 || Object.keys(importCellErrors).length > 0;
+    const hasClientErrors =
+      Object.keys(importErrors).length > 0 ||
+      Object.keys(importCellErrors).length > 0;
 
     return ReactDOM.createPortal(
       <div
@@ -644,68 +745,247 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
             <div>
               <h3 style={{ margin: 0 }}>Preview Import</h3>
               <div style={{ fontSize: 13, color: "#6b7280", marginTop: 6 }}>
-                Bạn có thể thêm / sửa / xóa hàng và cột. Cột 1 = Email, Cột 2 = Họ & tên (validate).
+                Bạn có thể thêm / sửa / xóa hàng và cột. Cột 1 = Email, Cột 2 =
+                Họ & tên (validate).
               </div>
             </div>
 
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <button type="button" onClick={(e) => { e.stopPropagation(); setShowPreview(false); }} style={{ padding: "6px 10px" }}>Đóng</button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPreview(false);
+                }}
+                style={{ padding: "6px 10px" }}
+              >
+                Đóng
+              </button>
 
-              <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={handleCorrectedChange} />
-              <button type="button" onClick={handleChooseCorrected} style={{ padding: "6px 10px" }}>Upload corrected file</button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                style={{ display: "none" }}
+                onChange={handleCorrectedChange}
+              />
+              <button
+                type="button"
+                onClick={handleChooseCorrected}
+                style={{ padding: "6px 10px" }}
+              >
+                Upload corrected file
+              </button>
 
               <button
                 type="button"
-                onClick={async (e) => { e.stopPropagation(); if (previewData) await downloadCorrectedXlsx(previewData); }}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (previewData) await downloadCorrectedXlsx(previewData);
+                }}
                 disabled={!previewData}
-                style={{ padding: "6px 10px", background: !previewData ? "#94a3b8" : "#2563eb", color: "#fff", borderRadius: 6, border: "none" }}
+                style={{
+                  padding: "6px 10px",
+                  background: !previewData ? "#94a3b8" : "#2563eb",
+                  color: "#fff",
+                  borderRadius: 6,
+                  border: "none",
+                }}
               >
                 Tải .xlsx đã chỉnh
               </button>
 
               <button
                 type="button"
-                onClick={async (e) => { e.stopPropagation(); await handleConfirmUpload(e); }}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  await handleConfirmUpload(e);
+                }}
                 disabled={isProcessing || hasClientErrors || !previewData}
-                style={{ padding: "6px 10px", background: isProcessing || hasClientErrors || !previewData ? "#94a3b8" : "#0ea5a8", color: "#fff", borderRadius: 6, border: "none" }}
+                style={{
+                  padding: "6px 10px",
+                  background:
+                    isProcessing || hasClientErrors || !previewData
+                      ? "#94a3b8"
+                      : "#0ea5a8",
+                  color: "#fff",
+                  borderRadius: 6,
+                  border: "none",
+                }}
               >
-                {isProcessing ? "Đang gửi..." : (hasClientErrors ? `Fix errors first (${Object.keys(importErrors).length + Object.keys(importCellErrors).length})` : "Confirm & Import")}
+                {isProcessing
+                  ? "Đang gửi..."
+                  : hasClientErrors
+                  ? `Fix errors first (${
+                      Object.keys(importErrors).length +
+                      Object.keys(importCellErrors).length
+                    })`
+                  : "Confirm & Import"}
               </button>
             </div>
           </div>
 
-          <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <div
+            style={{
+              marginTop: 12,
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
             <div style={{ display: "flex", gap: 8 }}>
-              <button type="button" onClick={(e) => { e.stopPropagation(); addRow(); }} style={{ padding: "6px 10px" }}>Thêm hàng</button>
-              <button type="button" onClick={(e) => { e.stopPropagation(); if (!previewData) return; addRow(previewData.rows.length - 1); }} style={{ padding: "6px 10px" }}>Chèn hàng cuối</button>
-              <button type="button" onClick={(e) => { e.stopPropagation(); addColumn(); }} style={{ padding: "6px 10px" }}>Thêm cột</button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addRow();
+                }}
+                style={{ padding: "6px 10px" }}
+              >
+                Thêm hàng
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!previewData) return;
+                  addRow(previewData.rows.length - 1);
+                }}
+                style={{ padding: "6px 10px" }}
+              >
+                Chèn hàng cuối
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addColumn();
+                }}
+                style={{ padding: "6px 10px" }}
+              >
+                Thêm cột
+              </button>
             </div>
 
-            <div style={{ marginLeft: "auto", color: hasClientErrors ? "#b91c1c" : "#065f46", fontWeight: 600 }}>
-              {hasClientErrors ? `Có ${Object.keys(importErrors).length + Object.keys(importCellErrors).length} lỗi` : `Không lỗi định dạng`}
+            <div
+              style={{
+                marginLeft: "auto",
+                color: hasClientErrors ? "#b91c1c" : "#065f46",
+                fontWeight: 600,
+              }}
+            >
+              {hasClientErrors
+                ? `Có ${
+                    Object.keys(importErrors).length +
+                    Object.keys(importCellErrors).length
+                  } lỗi`
+                : `Không lỗi định dạng`}
             </div>
           </div>
 
           <div style={{ marginTop: 12 }}>
             <ScrollArea className="max-h-[70vh] rounded border p-3">
-              <table key={previewVersion} style={{ width: "100%", borderCollapse: "collapse", minWidth: 700 }}>
+              <table
+                key={previewVersion}
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  minWidth: 700,
+                }}
+              >
                 <thead>
                   <tr>
-                    <th style={{ padding: 8, borderBottom: "1px solid #eee", textAlign: "left", width: 60 }}>#</th>
+                    <th
+                      style={{
+                        padding: 8,
+                        borderBottom: "1px solid #eee",
+                        textAlign: "left",
+                        width: 60,
+                      }}
+                    >
+                      #
+                    </th>
                     {previewData?.headers.map((h, ci) => (
-                      <th key={ci} style={{ padding: 8, borderBottom: "1px solid #eee", textAlign: "left", position: "relative" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <th
+                        key={ci}
+                        style={{
+                          padding: 8,
+                          borderBottom: "1px solid #eee",
+                          textAlign: "left",
+                          position: "relative",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
                           <span>{h}</span>
-                          <button type="button" onClick={(e) => { e.stopPropagation(); const newName = prompt("Tên cột:", h); if (!newName) return; if (!previewData) return; const headers = [...previewData.headers]; headers[ci] = newName; setPreviewData({ headers, rows: previewData.rows }); validateAllRows({ headers, rows: previewData.rows }); }} title="Đổi tên cột" style={{ padding: "2px 6px", fontSize: 12 }}>✏️</button>
-                          <button type="button" onClick={(e) => { e.stopPropagation(); removeColumn(ci); }} title="Xóa cột" style={{ padding: "2px 6px", fontSize: 12, color: "#b91c1c" }}>🗑</button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const newName = prompt("Tên cột:", h);
+                              if (!newName) return;
+                              if (!previewData) return;
+                              const headers = [...previewData.headers];
+                              headers[ci] = newName;
+                              setPreviewData({
+                                headers,
+                                rows: previewData.rows,
+                              });
+                              validateAllRows({
+                                headers,
+                                rows: previewData.rows,
+                              });
+                            }}
+                            title="Đổi tên cột"
+                            style={{ padding: "2px 6px", fontSize: 12 }}
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeColumn(ci);
+                            }}
+                            title="Xóa cột"
+                            style={{
+                              padding: "2px 6px",
+                              fontSize: 12,
+                              color: "#b91c1c",
+                            }}
+                          >
+                            🗑
+                          </button>
                         </div>
                       </th>
                     ))}
-                    <th style={{ padding: 8, borderBottom: "1px solid #eee", textAlign: "left", width: 120 }}>Hành động</th>
+                    <th
+                      style={{
+                        padding: 8,
+                        borderBottom: "1px solid #eee",
+                        textAlign: "left",
+                        width: 120,
+                      }}
+                    >
+                      Hành động
+                    </th>
                   </tr>
                 </thead>
 
@@ -715,36 +995,93 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
                     const rowCellErrors = importCellErrors[rowNum] || {};
                     return (
                       <tr key={ri}>
-                        <td style={{ padding: 8, verticalAlign: "top" }}>{rowNum}</td>
+                        <td style={{ padding: 8, verticalAlign: "top" }}>
+                          {rowNum}
+                        </td>
                         {r.map((c, ci) => {
                           const cellErrs = rowCellErrors[ci] || [];
                           const inputId = `preview-cell-${ri}-${ci}`;
                           const inputName = `preview[${ri}][${ci}]`;
-                          const ariaLabel = `${previewData?.headers[ci] ?? `Column ${ci + 1}`} row ${rowNum}`;
+                          const ariaLabel = `${
+                            previewData?.headers[ci] ?? `Column ${ci + 1}`
+                          } row ${rowNum}`;
 
                           return (
-                            <td key={ci} style={{ padding: 8, verticalAlign: "top", borderLeft: "1px solid #f3f4f6" }}>
+                            <td
+                              key={ci}
+                              style={{
+                                padding: 8,
+                                verticalAlign: "top",
+                                borderLeft: "1px solid #f3f4f6",
+                              }}
+                            >
                               <div>
                                 <input
                                   id={inputId}
                                   name={inputName}
                                   aria-label={ariaLabel}
                                   defaultValue={c}
-                                  onBlur={(e) => commitCellChange(ri, ci, e.currentTarget.value)}
-                                  onKeyDown={(e) => { if (e.key === "Enter") { (e.target as HTMLInputElement).blur(); } }}
+                                  onBlur={(e) =>
+                                    commitCellChange(
+                                      ri,
+                                      ci,
+                                      e.currentTarget.value
+                                    )
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      (e.target as HTMLInputElement).blur();
+                                    }
+                                  }}
                                   onClick={(e) => e.stopPropagation()}
                                   onFocus={(e) => e.stopPropagation()}
-                                  style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: `1px solid ${cellErrs.length ? "#fca5a5" : "#e5e7eb"}` }}
+                                  style={{
+                                    width: "100%",
+                                    padding: "8px 10px",
+                                    borderRadius: 6,
+                                    border: `1px solid ${
+                                      cellErrs.length ? "#fca5a5" : "#e5e7eb"
+                                    }`,
+                                  }}
                                 />
-                                {cellErrs.map((m, mi) => <div key={mi} style={{ color: "#b91c1c", fontSize: 12, marginTop: 6 }}>{m}</div>)}
+                                {cellErrs.map((m, mi) => (
+                                  <div
+                                    key={mi}
+                                    style={{
+                                      color: "#b91c1c",
+                                      fontSize: 12,
+                                      marginTop: 6,
+                                    }}
+                                  >
+                                    {m}
+                                  </div>
+                                ))}
                               </div>
                             </td>
                           );
                         })}
                         <td style={{ padding: 8, verticalAlign: "top" }}>
                           <div style={{ display: "flex", gap: 8 }}>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); addRow(ri); }} style={{ padding: "6px 10px" }}>Chèn dưới</button>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); removeRow(ri); }} style={{ padding: "6px 10px", color: "#b91c1c" }}>Xóa</button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                addRow(ri);
+                              }}
+                              style={{ padding: "6px 10px" }}
+                            >
+                              Chèn dưới
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeRow(ri);
+                              }}
+                              style={{ padding: "6px 10px", color: "#b91c1c" }}
+                            >
+                              Xóa
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -756,18 +1093,46 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
           </div>
 
           {showImportErrors && Object.keys(importErrors).length > 0 && (
-            <div style={{ marginTop: 12, padding: 10, background: "#fee2e2", color: "#b91c1c", borderRadius: 6 }}>
+            <div
+              style={{
+                marginTop: 12,
+                padding: 10,
+                background: "#fee2e2",
+                color: "#b91c1c",
+                borderRadius: 6,
+              }}
+            >
               <div style={{ fontWeight: 600 }}>Lỗi khi import</div>
               <div style={{ marginTop: 8, maxHeight: 160, overflow: "auto" }}>
-                {Array.from(new Set([...Object.keys(importErrors).map(Number), ...Object.keys(importCellErrors).map(Number)])).sort((a, b) => a - b).map((r) => (
-                  <div key={r} style={{ marginBottom: 8 }}>
-                    <div style={{ fontWeight: 600 }}>Hàng {r}</div>
-                    <ul style={{ marginLeft: 16 }}>
-                      {(importErrors[Number(r)] || []).map((m, i) => <li key={`r-${i}`}>{m}</li>)}
-                      {Object.keys(importCellErrors[Number(r)] || {}).map(ci => Number(ci)).sort((a, b) => a - b).flatMap(ci => (importCellErrors[Number(r)][ci] || []).map((m, i) => <li key={`${ci}-${i}`}>Col {ci + 1}: {m}</li>))}
-                    </ul>
-                  </div>
-                ))}
+                {Array.from(
+                  new Set([
+                    ...Object.keys(importErrors).map(Number),
+                    ...Object.keys(importCellErrors).map(Number),
+                  ])
+                )
+                  .sort((a, b) => a - b)
+                  .map((r) => (
+                    <div key={r} style={{ marginBottom: 8 }}>
+                      <div style={{ fontWeight: 600 }}>Hàng {r}</div>
+                      <ul style={{ marginLeft: 16 }}>
+                        {(importErrors[Number(r)] || []).map((m, i) => (
+                          <li key={`r-${i}`}>{m}</li>
+                        ))}
+                        {Object.keys(importCellErrors[Number(r)] || {})
+                          .map((ci) => Number(ci))
+                          .sort((a, b) => a - b)
+                          .flatMap((ci) =>
+                            (importCellErrors[Number(r)][ci] || []).map(
+                              (m, i) => (
+                                <li key={`${ci}-${i}`}>
+                                  Col {ci + 1}: {m}
+                                </li>
+                              )
+                            )
+                          )}
+                      </ul>
+                    </div>
+                  ))}
               </div>
             </div>
           )}
@@ -784,7 +1149,12 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
   const SuccessDialog: React.FC = () => {
     const openSuccess = !!successMsg;
     return (
-      <Dialog open={openSuccess} onOpenChange={(v) => { if (!v) setSuccessMsg(null); }}>
+      <Dialog
+        open={openSuccess}
+        onOpenChange={(v) => {
+          if (!v) setSuccessMsg(null);
+        }}
+      >
         <DialogContent className="sm:max-w-md w-full">
           <DialogHeader>
             <div className="flex items-start justify-between gap-4">
@@ -795,7 +1165,9 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
                 </DialogDescription>
               </div>
               <DialogClose asChild>
-                <button aria-label="Close" className="text-sm text-slate-500">✖</button>
+                <button aria-label="Close" className="text-sm text-slate-500">
+                  ✖
+                </button>
               </DialogClose>
             </div>
           </DialogHeader>
@@ -813,14 +1185,18 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
   return (
     <>
       <div style={dialogWrapperStyle}>
-        <Dialog open={open && !showPreview} onOpenChange={handleDialogOpenChange}>
+        <Dialog
+          open={open && !showPreview}
+          onOpenChange={handleDialogOpenChange}
+        >
           <DialogContent className="sm:max-w-2xl w-full">
             <DialogHeader>
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <DialogTitle>Import & Mời thành viên</DialogTitle>
                   <DialogDescription className="text-sm text-slate-500">
-                    Upload file Excel (.xlsx) chứa danh sách Email và Họ & tên. Hoặc mời từng người bằng form bên dưới.
+                    Upload file Excel (.xlsx) chứa danh sách Email và Họ & tên.
+                    Hoặc mời từng người bằng form bên dưới.
                   </DialogDescription>
                 </div>
                 <DialogClose asChild />
@@ -847,7 +1223,9 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
               </div>
 
               {/* File upload / template area */}
-              <label className="text-sm text-slate-600 block mb-2">Chọn file Excel (.xlsx/.xls/.csv)</label>
+              <label className="text-sm text-slate-600 block mb-2">
+                Chọn file Excel (.xlsx/.xls/.csv)
+              </label>
               <div className="flex items-center gap-3">
                 <input
                   ref={inputRef}
@@ -856,78 +1234,146 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
                   accept=".xlsx,.xls,.csv"
                   onChange={async (e) => {
                     const f = e.target.files?.[0] ?? null;
-                    if (!f) { e.currentTarget.value = ""; return; }
+                    if (!f) {
+                      e.currentTarget.value = "";
+                      return;
+                    }
                     await handleFileSelected(f);
                   }}
                   disabled={isProcessing}
                   className="hidden"
                 />
                 <label htmlFor="class-import-file">
-                  <Button onClick={(e) => { e?.stopPropagation(); inputRef.current?.click(); }} disabled={isProcessing}>Chọn file</Button>
+                  <Button
+                    onClick={(e) => {
+                      e?.stopPropagation();
+                      inputRef.current?.click();
+                    }}
+                    disabled={isProcessing}
+                  >
+                    Chọn file
+                  </Button>
                 </label>
 
-                <Button variant="ghost" onClick={(e) => { e?.stopPropagation();
-                  (async () => {
-                    try {
-                      const XLSX = await import("xlsx");
-                      const headers = ["Email", "Họ và tên"];
-                      const examples = [
-                        ["hoangvk@example.com", "Vũ Khánh Hoàng"],
-                        ["hainv@example.com", "Nguyễn Văn Hải"],
-                      ];
-                      const aoa = [headers, ...examples];
-                      const ws = XLSX.utils.aoa_to_sheet(aoa);
-                      ws["!cols"] = [{ wch: 30 }, { wch: 24 }];
-                      const wb = XLSX.utils.book_new();
-                      XLSX.utils.book_append_sheet(wb, ws, "Danh sách");
-                      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-                      const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = "members-template.xlsx";
-                      document.body.appendChild(a);
-                      a.click();
-                      a.remove();
-                      setTimeout(() => URL.revokeObjectURL(url), 5000);
-                    } catch {
-                      const lines = ["Email,Họ và tên", `"hoangvk@example.com","Vũ Khánh Hoàng"`, `"hainv@example.com","Nguyễn Văn Hải"`];
-                      const csv = "\uFEFF" + lines.join("\r\n");
-                      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = "members-template.csv";
-                      document.body.appendChild(a);
-                      a.click();
-                      a.remove();
-                      setTimeout(() => URL.revokeObjectURL(url), 5000);
-                    }
-                  })();
-                }} className="ml-2">Tải mẫu (.xlsx)</Button>
+                <Button
+                  variant="ghost"
+                  onClick={(e) => {
+                    e?.stopPropagation();
+                    (async () => {
+                      try {
+                        const XLSX = await import("xlsx");
+                        const headers = ["Email", "Họ và tên"];
+                        const examples = [
+                          ["hoangvk@example.com", "Vũ Khánh Hoàng"],
+                          ["hainv@example.com", "Nguyễn Văn Hải"],
+                        ];
+                        const aoa = [headers, ...examples];
+                        const ws = XLSX.utils.aoa_to_sheet(aoa);
+                        ws["!cols"] = [{ wch: 30 }, { wch: 24 }];
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, "Danh sách");
+                        const wbout = XLSX.write(wb, {
+                          bookType: "xlsx",
+                          type: "array",
+                        });
+                        const blob = new Blob([wbout], {
+                          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = "members-template.xlsx";
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        setTimeout(() => URL.revokeObjectURL(url), 5000);
+                      } catch {
+                        const lines = [
+                          "Email,Họ và tên",
+                          `"hoangvk@example.com","Vũ Khánh Hoàng"`,
+                          `"hainv@example.com","Nguyễn Văn Hải"`,
+                        ];
+                        const csv = "\uFEFF" + lines.join("\r\n");
+                        const blob = new Blob([csv], {
+                          type: "text/csv;charset=utf-8;",
+                        });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = "members-template.csv";
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        setTimeout(() => URL.revokeObjectURL(url), 5000);
+                      }
+                    })();
+                  }}
+                  className="ml-2"
+                >
+                  Tải mẫu (.xlsx)
+                </Button>
 
-                <div className="text-sm text-slate-500">Hoặc tải CSV nếu thuận tiện</div>
+                <div className="text-sm text-slate-500">
+                  Hoặc tải CSV nếu thuận tiện
+                </div>
               </div>
 
               {file ? (
                 <div className="mt-4 border-2 border-dashed border-sky-300 bg-sky-50 rounded-lg p-4 flex items-center justify-between gap-4 shadow-sm">
                   <div className="flex items-center gap-4 min-w-0">
                     <div className="w-12 h-12 flex items-center justify-center rounded-md bg-white border">
-                      <svg className="w-6 h-6 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M7 7h6l4 4v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7z" />
+                      <svg
+                        className="w-6 h-6 text-sky-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M7 7h6l4 4v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7z"
+                        />
                       </svg>
                     </div>
 
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-slate-900 truncate">{file.name}</div>
-                      <div className="text-xs text-slate-500 mt-1">{humanFileSize(file.size)}</div>
-                      <div className="text-xs text-slate-400 mt-1">Sẵn sàng để preview</div>
+                      <div className="text-sm font-medium text-slate-900 truncate">
+                        {file.name}
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        {humanFileSize(file.size)}
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1">
+                        Sẵn sàng để preview
+                      </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }} disabled={isProcessing} className="text-xs px-3 py-1 rounded bg-white border hover:bg-slate-100">Thay đổi</button>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setFile(null); if (inputRef.current) inputRef.current.value = ""; }} disabled={isProcessing} className="text-xs px-3 py-1 rounded bg-red-50 text-red-700 border border-red-100 hover:bg-red-100">Xóa</button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        inputRef.current?.click();
+                      }}
+                      disabled={isProcessing}
+                      className="text-xs px-3 py-1 rounded bg-white border hover:bg-slate-100"
+                    >
+                      Thay đổi
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFile(null);
+                        if (inputRef.current) inputRef.current.value = "";
+                      }}
+                      disabled={isProcessing}
+                      className="text-xs px-3 py-1 rounded bg-red-50 text-red-700 border border-red-100 hover:bg-red-100"
+                    >
+                      Xóa
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -940,18 +1386,53 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
                 <div className="text-sm text-slate-600 mb-2">Lưu ý</div>
                 <ScrollArea className="max-h-36 rounded border p-3 bg-slate-50">
                   <ul className="text-sm list-disc pl-5 space-y-1 text-slate-700">
-                    <li>File nên có cột "Email" và "Họ và tên". Nếu không có header, hệ thống sẽ đọc cột 1 = Email và cột 2 = Họ và tên.</li>
-                    <li>Sau khi chọn file, bạn có thể sửa trực tiếp trong preview trước khi gửi lời mời.</li>
-                    <li>Nút "Upload corrected file" trong preview sẽ cố gắng tự sửa (chỉ cập nhật preview), Confirm mới thực hiện import.</li>
+                    <li>
+                      File nên có cột "Email" và "Họ và tên". Nếu không có
+                      header, hệ thống sẽ đọc cột 1 = Email và cột 2 = Họ và
+                      tên.
+                    </li>
+                    <li>
+                      Sau khi chọn file, bạn có thể sửa trực tiếp trong preview
+                      trước khi gửi lời mời.
+                    </li>
+                    <li>
+                      Nút "Upload corrected file" trong preview sẽ cố gắng tự
+                      sửa (chỉ cập nhật preview), Confirm mới thực hiện import.
+                    </li>
                   </ul>
                 </ScrollArea>
               </div>
 
-              {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
+              {error && (
+                <div className="mt-3 text-sm text-red-600">{error}</div>
+              )}
 
               <div className="mt-6 flex justify-end gap-3">
-                <Button variant="ghost" onClick={(e) => { e.stopPropagation(); onClose(); }} disabled={isProcessing}>Hủy</Button>
-                <Button onClick={(e) => { e.stopPropagation(); if (!previewData) { setError("Vui lòng chọn file và chờ preview hiển thị trước khi xem."); return; } setShowPreview(true); }} disabled={isProcessing || !previewData}>{isProcessing ? "Đang xử lý..." : "Xem & Sửa trước khi gửi"}</Button>
+                <Button
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                  }}
+                  disabled={isProcessing}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!previewData) {
+                      setError(
+                        "Vui lòng chọn file và chờ preview hiển thị trước khi xem."
+                      );
+                      return;
+                    }
+                    setShowPreview(true);
+                  }}
+                  disabled={isProcessing || !previewData}
+                >
+                  {isProcessing ? "Đang xử lý..." : "Xem & Sửa trước khi gửi"}
+                </Button>
               </div>
             </div>
 
@@ -992,7 +1473,9 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
       {showImportErrors && Object.keys(importErrors).length > 0 && (
         <div className="mb-4 p-4 border border-rose-200 rounded-md bg-rose-50">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-rose-800">Lỗi khi import</h3>
+            <h3 className="text-sm font-semibold text-rose-800">
+              Lỗi khi import
+            </h3>
             <div className="flex items-center gap-2">
               <button
                 className="text-sm text-rose-700 underline"
@@ -1000,7 +1483,9 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
                   const lines: string[] = [];
                   const rows = new Set<number>();
                   Object.keys(importErrors).forEach((k) => rows.add(Number(k)));
-                  Object.keys(importCellErrors).forEach((k) => rows.add(Number(k)));
+                  Object.keys(importCellErrors).forEach((k) =>
+                    rows.add(Number(k))
+                  );
                   Array.from(rows)
                     .sort((a, b) => a - b)
                     .forEach((r) => {
@@ -1011,15 +1496,25 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
                         .map((ci) => Number(ci))
                         .sort((a, b) => a - b)
                         .forEach((ci) => {
-                          (cellMsgs[ci] || []).forEach((m) => lines.push(`Hàng ${r}: ${m}`));
+                          (cellMsgs[ci] || []).forEach((m) =>
+                            lines.push(`Hàng ${r}: ${m}`)
+                          );
                         });
                     });
-                  navigator.clipboard.writeText(lines.join("\n")).then(() => {}).catch(() => {});
+                  navigator.clipboard
+                    .writeText(lines.join("\n"))
+                    .then(() => {})
+                    .catch(() => {});
                 }}
               >
                 Copy
               </button>
-              <button className="text-sm text-rose-700" onClick={() => setShowImportErrors(false)}>Đóng</button>
+              <button
+                className="text-sm text-rose-700"
+                onClick={() => setShowImportErrors(false)}
+              >
+                Đóng
+              </button>
             </div>
           </div>
 
@@ -1034,12 +1529,21 @@ const AddMemberModal: React.FC<Props> = ({ open, classId, onClose, onInvited }) 
                   <div key={r} className="text-sm">
                     <div className="font-medium text-rose-800">Hàng {r}</div>
                     <ul className="list-disc list-inside text-rose-700">
-                      {(importErrors[Number(r)] || []).map((m, i) => <li key={`r-${i}`}>{m}</li>)}
+                      {(importErrors[Number(r)] || []).map((m, i) => (
+                        <li key={`r-${i}`}>{m}</li>
+                      ))}
                       {Object.keys(importCellErrors[Number(r)] || {})
                         .map((ci) => Number(ci))
                         .sort((a, b) => a - b)
-                        .flatMap((ci) => (importCellErrors[Number(r)][ci] || []).map((m, i) => <li key={`c-${ci}-${i}`}>Col {ci + 1}: {m}</li>))
-                      }
+                        .flatMap((ci) =>
+                          (importCellErrors[Number(r)][ci] || []).map(
+                            (m, i) => (
+                              <li key={`c-${ci}-${i}`}>
+                                Col {ci + 1}: {m}
+                              </li>
+                            )
+                          )
+                        )}
                     </ul>
                   </div>
                 ));

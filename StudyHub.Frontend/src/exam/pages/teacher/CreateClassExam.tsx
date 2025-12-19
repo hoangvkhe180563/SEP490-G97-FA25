@@ -5,6 +5,7 @@ import { Label } from '@/common/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/common/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/common/components/ui/tabs';
 import { useLoading } from '@/common/hooks/useLoading';
+import AIQuestionTemplate from '@/exam/components/AIQuestionTemplate';
 import QuestionTemplate from '@/exam/components/QuestionTemplate';
 import RandomQuestionTemplate from '@/exam/components/RandomQuestionTemplate';
 import { BLANK_PLACEHOLDER, EXAM_TYPE } from '@/exam/constants/Constants';
@@ -71,7 +72,6 @@ const CreateExam = () => {
   }, [user])
 
   const handleSubmit = async () => {
-    console.log(selectedSubjectId);
     if (!user) {
       toast.error("Chưa đăng nhập vui lòng thử lại!");
       return;
@@ -109,7 +109,7 @@ const CreateExam = () => {
     }
 
     // Basic validation for questions
-    if (selectedTab === 'new-questions') {
+    if (selectedTab !== 'bank-questions') {
       if (questions.length === 0) {
         toast.error("Vui lòng điền ít nhất một câu hỏi!");
         setLoading(false);
@@ -195,7 +195,7 @@ const CreateExam = () => {
       description: examDescription,
       duration: parseInt(examDuration),
       createdBy: user.id,
-      questions: selectedTab === 'new-questions'
+      questions: selectedTab !== 'bank-questions'
         ? questions.map(({ id, ...rest }, index) => {
           return {
             id: index + 1, ...rest
@@ -358,12 +358,16 @@ const CreateExam = () => {
         <TabsList className='mx-auto bg-stone-300'>
           <TabsTrigger value='new-questions' className='p-2'>Câu hỏi tự nhập</TabsTrigger>
           <TabsTrigger value='bank-questions' className='p-2'>Câu hỏi từ ngân hàng</TabsTrigger>
+          <TabsTrigger value='ai-questions' className='p-2'>Câu hỏi AI</TabsTrigger>
         </TabsList>
         <TabsContent value='new-questions'>
           <QuestionTemplate questions={questions} setQuestions={setQuestions} />
         </TabsContent>
         <TabsContent value='bank-questions'>
           <RandomQuestionTemplate selectedSubjectId={selectedSubjectId} selectedGrade={selectedGrade} selectedRandomQuestions={randomQuestions} setSelectedRandomQuestions={setRandomQuestions} />
+        </TabsContent>
+        <TabsContent value='ai-questions'>
+          {(selectedSubjectId !== 0 && selectedGrade !== 0) ? <AIQuestionTemplate selectedSubjectId={selectedSubjectId} selectedGrade={selectedGrade} questions={questions} setQuestions={setQuestions} /> : <div className='text-center'>Vui lòng nhập môn học!</div>}
         </TabsContent>
       </Tabs>
 

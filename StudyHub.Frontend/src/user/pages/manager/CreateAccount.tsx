@@ -82,7 +82,7 @@ const CreateAccount: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const rolesRef = useRef<HTMLDivElement | null>(null);
   const { getAppRoles, appRoles } = useAppRoleStore();
-  const { fetchCities, fetchCommunes, fetchSchools } = useLocationStore();
+  const { fetchCities } = useLocationStore();
   const { user } = useAuthStore();
   const { getSubjects, subjects } = useDocumentStore();
 
@@ -343,34 +343,34 @@ const CreateAccount: React.FC = () => {
     }
   }, [fetchCities, getAppRoles, getSubjects, user, setValue]);
 
-  const onCityChange = async (value?: string) => {
-    const id = Number(value || 0);
-    // reset downstream values (use undefined to clear controlled Select values)
-    setValue("cityId", id ? String(id) : undefined);
-    setValue("communeId", undefined);
-    setValue("schoolId", undefined);
-    if (id) {
-      await fetchCommunes(id);
-      await fetchSchools(0);
-      setValue("communeId", undefined);
-      setValue("schoolId", undefined);
-    } else {
-      await fetchCommunes(0);
-      await fetchSchools(0);
-    }
-  };
+  // const onCityChange = async (value?: string) => {
+  //   const id = Number(value || 0);
+  //   // reset downstream values (use undefined to clear controlled Select values)
+  //   setValue("cityId", id ? String(id) : undefined);
+  //   setValue("communeId", undefined);
+  //   setValue("schoolId", undefined);
+  //   if (id) {
+  //     await fetchCommunes(id);
+  //     await fetchSchools(0);
+  //     setValue("communeId", undefined);
+  //     setValue("schoolId", undefined);
+  //   } else {
+  //     await fetchCommunes(0);
+  //     await fetchSchools(0);
+  //   }
+  // };
 
-  const onCommuneChange = async (value?: string) => {
-    const id = Number(value || 0);
-    setValue("communeId", id ? String(id) : undefined);
-    if (id) await fetchSchools(id);
-    else await fetchSchools(0);
-  };
+  // const onCommuneChange = async (value?: string) => {
+  //   const id = Number(value || 0);
+  //   setValue("communeId", id ? String(id) : undefined);
+  //   if (id) await fetchSchools(id);
+  //   else await fetchSchools(0);
+  // };
 
-  const onSchoolChange = async (value?: string) => {
-    const id = Number(value || 0);
-    setValue("schoolId", id ? String(id) : undefined);
-  };
+  // const onSchoolChange = async (value?: string) => {
+  //   const id = Number(value || 0);
+  //   setValue("schoolId", id ? String(id) : undefined);
+  // };
 
   // helper to remove a role id
   function removeRole(id: string) {

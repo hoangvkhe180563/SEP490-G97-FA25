@@ -6,7 +6,11 @@ import { Badge } from "@/common/components/ui/badge";
 import { Switch } from "@/common/components/ui/switch";
 import { Label } from "@/common/components/ui/label";
 import { Separator } from "@/common/components/ui/separator";
-import { Alert, AlertDescription, AlertTitle } from "@/common/components/ui/alert";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/common/components/ui/alert";
 
 const ListNotifications: React.FC = () => {
   const {
@@ -82,7 +86,12 @@ const ListNotifications: React.FC = () => {
               Hiện cả đã đọc
             </Label>
           </div>
-          <Button variant="outline" size="sm" onClick={handleMarkAll} disabled={!unreadIds.length}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleMarkAll}
+            disabled={!unreadIds.length}
+          >
             Đánh dấu tất cả đã đọc
           </Button>
         </div>
@@ -97,21 +106,31 @@ const ListNotifications: React.FC = () => {
         </Alert>
       )}
 
-      {isLoading && <div className="text-sm text-muted-foreground">Đang tải...</div>}
+      {isLoading && (
+        <div className="text-sm text-muted-foreground">Đang tải...</div>
+      )}
 
       <div className="flex flex-col gap-3">
-        {items.map((n) => (
-          <NotificationCard key={n.id} item={n} onMarkRead={markRead} />
-        ))}
+        {items.map((n) => {
+          // fallback: dùng n.linkUrl nếu có, nếu không thì kiểm tra metadata.linkUrl
+
+          return (
+            <div key={n.id} className="flex flex-col gap-1">
+              <NotificationCard item={n} onMarkRead={markRead} />
+            </div>
+          );
+        })}
       </div>
 
       {hasMore && (
-        <Button onClick={loadMore} disabled={isLoadingMore} variant="outline" className="self-start">
+        <Button
+          onClick={loadMore}
+          disabled={isLoadingMore}
+          variant="outline"
+          className="self-start"
+        >
           {isLoadingMore ? "Đang tải..." : "Tải thêm"}
         </Button>
-      )}
-      {!hasMore && !isLoading && (
-        <div className="text-sm text-muted-foreground">Hết dữ liệu</div>
       )}
     </div>
   );

@@ -18,7 +18,15 @@ type Props = {
   classId?: number | string;
 };
 
-function openGmailCompose({ to, subject, body }: { to?: string; subject?: string; body?: string }) {
+function openGmailCompose({
+  to,
+  subject,
+  body,
+}: {
+  to?: string;
+  subject?: string;
+  body?: string;
+}) {
   const base = "https://mail.google.com/mail/";
   const params = new URLSearchParams();
   params.set("view", "cm");
@@ -33,13 +41,12 @@ function openGmailCompose({ to, subject, body }: { to?: string; subject?: string
 const EveryoneTab: React.FC<Props> = ({
   teachers = [],
   students,
-  parents,
   onMail,
   onSelect,
-  onAddMember,
   classId,
 }) => {
-  const [selectedMemberLocal, setSelectedMemberLocal] = useState<ClassMemberDto | null>(null);
+  const [selectedMemberLocal, setSelectedMemberLocal] =
+    useState<ClassMemberDto | null>(null);
   const [openAddLocal, setOpenAddLocal] = useState(false);
 
   const { user } = useAuthStore();
@@ -51,7 +58,6 @@ const EveryoneTab: React.FC<Props> = ({
     // 1) open modal first (so modal mounts)
     setOpenAddLocal(true);
     // 2) call parent callback deferred (avoid sync parent side-effects causing modal mount to be lost)
-   
   };
 
   const handleSelect = (p: ClassMemberDto) => {
@@ -82,7 +88,8 @@ const EveryoneTab: React.FC<Props> = ({
   const onRowClickCapture = (e: React.MouseEvent, member: ClassMemberDto) => {
     try {
       const target = e.target as HTMLElement;
-      const anchor = target.closest && (target.closest("a") as HTMLAnchorElement | null);
+      const anchor =
+        target.closest && (target.closest("a") as HTMLAnchorElement | null);
       if (!anchor) return;
       const href = anchor.getAttribute("href") || "";
       const isMailLink =
@@ -103,7 +110,8 @@ const EveryoneTab: React.FC<Props> = ({
   const handleRowKeyDown = (e: React.KeyboardEvent, member: ClassMemberDto) => {
     if (e.key === "Enter" || e.key === " ") {
       const target = e.target as HTMLElement;
-      const anchor = target.closest && (target.closest("a") as HTMLAnchorElement | null);
+      const anchor =
+        target.closest && (target.closest("a") as HTMLAnchorElement | null);
       if (anchor) {
         const href = anchor.getAttribute("href") || "";
         if (href.startsWith("mailto:")) {
@@ -147,12 +155,18 @@ const EveryoneTab: React.FC<Props> = ({
       <Card>
         <div className="p-4">
           <div className="mb-3">
-            <div className="font-semibold text-lg">Giáo viên ({teachers.length})</div>
+            <div className="font-semibold text-lg">
+              Giáo viên ({teachers.length})
+            </div>
           </div>
           {teachers.length === 0 ? (
-            <div className="text-sm text-slate-500">Chưa có giáo viên được gán cho lớp này.</div>
+            <div className="text-sm text-slate-500">
+              Chưa có giáo viên được gán cho lớp này.
+            </div>
           ) : (
-            <div className="space-y-2">{teachers.map((t) => renderMemberRow(t, "Giáo viên"))}</div>
+            <div className="space-y-2">
+              {teachers.map((t) => renderMemberRow(t, "Giáo viên"))}
+            </div>
           )}
         </div>
       </Card>
@@ -160,12 +174,16 @@ const EveryoneTab: React.FC<Props> = ({
       <Card>
         <div className="p-4">
           <div className="mb-3">
-            <div className="font-semibold text-lg">Học sinh ({students.length})</div>
+            <div className="font-semibold text-lg">
+              Học sinh ({students.length})
+            </div>
           </div>
           {students.length === 0 ? (
             <div className="text-sm text-slate-500">Chưa có học sinh.</div>
           ) : (
-            <div className="space-y-2">{students.map((s) => renderMemberRow(s, "Học sinh"))}</div>
+            <div className="space-y-2">
+              {students.map((s) => renderMemberRow(s, "Học sinh"))}
+            </div>
           )}
         </div>
       </Card>

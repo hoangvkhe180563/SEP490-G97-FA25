@@ -331,12 +331,13 @@ namespace StudyHub.Backend.UseCases.Services
                 top_p = 0.95,
                 //return_full_text = false
             });
-
             var response = await _client.ExecuteAsync(request);
 
             if (!response.IsSuccessful)
             {
-                throw new Exception($"LLM API error: {response.Content}");
+                // Log thêm StatusCode và ErrorMessage (lỗi kết nối)
+                var errorDetail = $"Status: {response.StatusCode}, Error: {response.ErrorMessage}, Content: {response.Content}";
+                throw new Exception($"LLM API error: {errorDetail}");
             }
 
             var resultJson = response.Content;

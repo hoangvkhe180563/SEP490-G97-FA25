@@ -1,6 +1,5 @@
 import { axiosInstance } from "@/lib/axios";
 import { create } from "zustand";
-import * as signalR from "@microsoft/signalr";
 import type { HubConnection } from "@microsoft/signalr";
 import { toast } from "react-hot-toast";
 import { createClassConnection } from "@/lib/signalR";
@@ -23,8 +22,12 @@ export interface NotificationState {
   connection: HubConnection | null;
   unreadCount: Record<string, number>; // classId -> số thông báo chưa đọc
 
-  addNewNotificationListener: (fn: (payload: NotificationPayload) => void) => void;
-  removeNewNotificationListener: (fn: (payload: NotificationPayload) => void) => void;
+  addNewNotificationListener: (
+    fn: (payload: NotificationPayload) => void
+  ) => void;
+  removeNewNotificationListener: (
+    fn: (payload: NotificationPayload) => void
+  ) => void;
 
   connect: () => Promise<void>;
   joinClass: (classId: string) => Promise<void>;
@@ -56,7 +59,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => {
       const connection = createClassConnection();
 
       // Compact event: only bump unread/snackbar NOT shown here to avoid duplicates
-      connection.on("NewNotification", (classId: string, title: string) => {
+      connection.on("NewNotification", (classId: string) => {
         try {
           set((state) => ({
             unreadCount: {
@@ -172,8 +175,12 @@ export const useNotificationStore = create<NotificationState>((set, get) => {
       connection.on("NotificationCountUpdated", (payload: any) => {
         try {
           const classId = String(payload?.classId ?? payload?.ClassId ?? "");
-          const unread = Number(payload?.unreadCount ?? payload?.UnreadCount ?? 0);
-          set((state) => ({ unreadCount: { ...state.unreadCount, [classId]: unread } }));
+          const unread = Number(
+            payload?.unreadCount ?? payload?.UnreadCount ?? 0
+          );
+          set((state) => ({
+            unreadCount: { ...state.unreadCount, [classId]: unread },
+          }));
         } catch (err) {
           console.error("NotificationCountUpdated handler error", err);
         }
@@ -232,7 +239,9 @@ export const useNotificationStore = create<NotificationState>((set, get) => {
       } catch (err) {
         console.warn("markAllAsRead API failed", err);
       }
-      set((state) => ({ unreadCount: { ...state.unreadCount, [String(classId)]: 0 } }));
+      set((state) => ({
+        unreadCount: { ...state.unreadCount, [String(classId)]: 0 },
+      }));
     },
   };
 });
