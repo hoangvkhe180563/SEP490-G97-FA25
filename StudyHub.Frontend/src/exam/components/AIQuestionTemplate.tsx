@@ -1,62 +1,50 @@
-import { useState } from "react";
-import toast from "react-hot-toast";
+import { LoaderIcon, X } from "lucide-react";
 import { BLANK_PLACEHOLDER, EXAM_TYPE } from "../constants/Constants";
 import type { Question } from "../interfaces/models/Question";
-import { Plus, X } from "lucide-react";
-import { useLoading } from "@/common/hooks/useLoading";
 import { QuestionService } from "../services/QuestionService";
+import { useEffect, useState } from "react";
+import { Textarea } from "@/common/components/ui/textarea";
+import { Button } from "@/common/components/ui/button";
+import toast from "react-hot-toast";
 
-const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Dispatch<React.SetStateAction<Question[]>> }) => {
-  const [excelFileError, setExcelFileError] = useState<string>('');
-  const { setLoading } = useLoading();
+const AIQuestionTemplate = (props: { selectedSubjectId: number, selectedGrade: number, questions: Question[], setQuestions: React.Dispatch<React.SetStateAction<Question[]>> }) => {
+  const [subjectName, setSubjectName] = useState<string>('Không có');
+  const [prompt, setPrompt] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
   const questionService = new QuestionService();
 
-  const handleExcelFileUpload: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
-    if (!e.target.files) {
-      setExcelFileError("Vui lòng chọn một file Excel.");
+  const handleGenerateQuestions = async () => {
+    if (prompt.trim().length === 0) {
+      toast.error("Vui lòng nhập nội dung tạo câu hỏi!");
+      return;
+    } else if (prompt.trim().length <= 10) {
+      toast.error("Nội dung câu hỏi phải ít nhất 10 ký tự!");
       return;
     }
-    const file = e.target.files[0];
-    setExcelFileError('');
-    setLoading(true);
 
-    const res = await questionService.importExcel(file);
-    if (res.errorMessages.length) {
-      setExcelFileError(`Có lỗi khi đọc file Excel:<br/>${res.errorMessages.slice(0, 10).join('<br/>')} ${res.errorMessages.length > 10 ? '<br/>(Quá nhiều lỗi, vui lòng nhập đúng cấu trúc trong file mẫu!)' : ''}`);
-      toast.error("Có lỗi khi đọc file Excel!");
+    setLoading(true);
+    const generatedQuestions = await questionService.generateAIQuestions(props.selectedSubjectId, props.selectedGrade, prompt);
+    if (generatedQuestions.length === 0) {
+      toast.error("Có lỗi xảy ra, vui lòng thử lại!");
     } else {
-      props.setQuestions(prevQuestions => [...prevQuestions, ...res.questions]);
-      toast.success("Nhập file excel thành công!");
+      toast.success("Tạo câu hỏi thành công!");
+      props.setQuestions(generatedQuestions);
     }
     setLoading(false);
-    e.target.value = '';
   }
 
-  const addQuestion = (type: number) => {
-    const newQuestion: Question = {
-      id: Date.now(),
-      type: type,
-      questionText: '',
-      options: [],
-      correctAnswer: ''
-    };
-
-    if (type === EXAM_TYPE.SINGLE_CHOICE) {
-      newQuestion.options = [''];
-      newQuestion.correctAnswer = '';
-    } else if (type === EXAM_TYPE.MULTI_CHOICE) {
-      newQuestion.options = [''];
-      newQuestion.correctAnswer = [];
-    } else if (type === EXAM_TYPE.FILL_IN_BLANK) {
-      newQuestion.questionText = `Câu hỏi có ${BLANK_PLACEHOLDER} thứ nhất và ${BLANK_PLACEHOLDER} thứ hai.`;
-      newQuestion.correctAnswer = ['', ''];
-    } else if (type === EXAM_TYPE.MATCHING) {
-      newQuestion.terms = [''];
-      newQuestion.definitions = [''];
-      newQuestion.correctAnswer = { 0: 0 }; // Term index -> Definition index
+  useEffect(() => {
+    const fetchData = async () => {
+      const fetchedSubjects = await questionService.getAllSubjects();
+      const selectedSubject = fetchedSubjects.find(s => s.id === props.selectedSubjectId);
+      if (selectedSubject) {
+        setSubjectName(selectedSubject.name);
+      }
     }
-    props.setQuestions([...props.questions, newQuestion]);
-  };
+
+    fetchData().catch(console.error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const updateQuestion = (id: number, field: string, value: any, optionIndex: number | null = null) => {
     props.setQuestions(props.questions.map(q => {
@@ -166,28 +154,26 @@ const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Di
     props.setQuestions(props.questions.filter(q => q.id !== id));
   };
 
+  const handlePromptChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setPrompt(event.target.value);
+  }
+
   return (
     <div>
-      <div className="mb-8 p-6 bg-blue-50 rounded-lg border border-blue-200">
-        <h3 className="text-xl font-semibold mb-3 text-blue-800">Nhập câu hỏi từ File Excel</h3>
-        <p className="text-gray-700 mb-4">
-          Bạn có thể tải lên file Excel (.xlsx) để tự động thêm câu hỏi.
-          Đảm bảo file của bạn có các cột (theo thứ tự): <code className="font-mono bg-gray-200 px-1 rounded">Loại câu hỏi</code>,
-          <code className="font-mono bg-gray-200 px-1 rounded">Nội dung câu hỏi</code>,
-          <code className="font-mono bg-gray-200 px-1 rounded">Câu trả lời đúng</code>,
-          và <code className="font-mono bg-gray-200 px-1 rounded">Các câu trả lời khác</code> (nếu là trắc nghiệm).
-          Với câu hỏi điền khuyết, dùng ký hiệu <code className="font-mono bg-gray-200 px-1 rounded">[BLANK]</code> trong cột "Nội dung câu hỏi" và liệt kê các đáp án đúng trong cột "Câu trả lời đúng" ngăn cách bởi dấu phẩy.
-          Xem <a href="/example.xlsx" download className="text-blue-600 hover:underline">file mẫu</a> để biết định dạng.
-        </p>
-        <input
-          type="file"
-          accept=".xlsx, .xls"
-          onChange={handleExcelFileUpload}
-          className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-500 file:text-white hover:file:bg-blue-600"
-        />
-        {excelFileError && <p className="mt-2 text-red-500 text-sm" dangerouslySetInnerHTML={{ __html: excelFileError }}></p>}
+      <div className="flex flex-col space-y-4 items-center">
+        <p className="text-center font-bold text-lg">Tạo câu hỏi bằng AI cho môn {subjectName} lớp {props.selectedGrade}</p>
+        <Textarea placeholder="Nhập nội dung cần tạo..." className="h-30" value={prompt} onChange={handlePromptChange} />
+        <Button className="mx-auto" onClick={handleGenerateQuestions} disabled={loading}>
+          {loading ? (
+            <div className="flex items-center gap-3">
+              <LoaderIcon className="stroke-white animate-spin" />
+              Đang tạo...
+            </div>
+          ) : (
+            <span>Tạo câu hỏi</span>
+          )}
+        </Button>
       </div>
-
       <div className="space-y-8">
         {props.questions.map((q, qIndex) => (
           <div key={q.id} className="bg-gray-50 p-6 rounded-lg shadow-sm border border-gray-200 relative">
@@ -395,46 +381,8 @@ const QuestionTemplate = (props: { questions: Question[], setQuestions: React.Di
           </div>
         ))}
       </div>
-
-      <div className="mt-8 grid grid-cols-5 gap-2">
-        <button
-          type="button"
-          onClick={() => addQuestion(EXAM_TYPE.SINGLE_CHOICE)}
-          className="px-5 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex justify-center items-center"
-        >
-          <Plus size={16} className='mr-3' /> Trắc nghệm 1 đ.án
-        </button>
-        <button
-          type="button"
-          onClick={() => addQuestion(EXAM_TYPE.MULTI_CHOICE)}
-          className="px-5 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex justify-center items-center"
-        >
-          <Plus size={16} className='mr-3' /> Trắc nghệm nhiều đ.án
-        </button>
-        <button
-          type="button"
-          onClick={() => addQuestion(EXAM_TYPE.TEXT_INPUT)}
-          className="px-5 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex justify-center items-center"
-        >
-          <Plus size={16} className='mr-3' /> Điền từ/trả lời ngắn
-        </button>
-        <button
-          type="button"
-          onClick={() => addQuestion(EXAM_TYPE.FILL_IN_BLANK)}
-          className="px-5 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 flex justify-center items-center"
-        >
-          <Plus size={16} className='mr-3' /> Điền khuyết
-        </button>
-        <button
-          type="button"
-          onClick={() => addQuestion(EXAM_TYPE.MATCHING)}
-          className="px-5 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 flex justify-center items-center"
-        >
-          <Plus size={16} className='mr-3' /> Ghép đôi
-        </button>
-      </div>
     </div>
   )
 }
 
-export default QuestionTemplate
+export default AIQuestionTemplate
