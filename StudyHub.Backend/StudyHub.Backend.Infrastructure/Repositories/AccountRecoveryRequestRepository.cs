@@ -68,11 +68,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             _context.SaveChanges();
         }
 
-        public PagedResult<Domain.Entities.AccountRecoveryRequest> GetBySearchAndFilter(string? search, string? status, int page, int limit)
+        public PagedResult<Domain.Entities.AccountRecoveryRequest> GetBySearchAndFilter(string? search, string? status, int page, int limit, int? schoolId = null)
         {
             try
             {
                 var q = _context.AccountRecoveryRequests.Include(r => r.User).AsQueryable();
+                if (schoolId.HasValue)
+                    q = q.Where(r => r.User != null && r.User.SchoolId == schoolId.Value);
 
                 if (!string.IsNullOrEmpty(status))
                 {

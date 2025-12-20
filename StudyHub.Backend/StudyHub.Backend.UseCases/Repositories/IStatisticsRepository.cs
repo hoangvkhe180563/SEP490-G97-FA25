@@ -4,14 +4,14 @@ namespace StudyHub.Backend.UseCases.Repositories
 {
     public interface IStatisticsRepository
     {
-        AccountsOverviewDto GetAccountsOverview(string period = "day", int range = 30);
-        AccountRecoveryStatsDto GetAccountRecoveryStats();
+        AccountsOverviewDto GetAccountsOverview(string period = "day", int range = 30, int? schoolId = null);
+        AccountRecoveryStatsDto GetAccountRecoveryStats(int? schoolId = null);
         // retention: percentage of users in cohort [cohortStart..cohortEnd] who returned after 'returnAfterDays' days
-        RetentionDto GetRetention(DateTime cohortStart, DateTime cohortEnd, int returnAfterDays);
-        AverageLoginFrequencyDto GetAverageLoginFrequency(DateTime start, DateTime end);
-        List<HourCountDto> GetPeakHours(DateTime? start, DateTime? end, int top = 5);
-        PagedResultDto<DateCountDto> GetDAU(DateTime start, DateTime end, int page = 1, int pageSize = 100);
-        PagedResultDto<DateCountDto> GetMAU(DateTime start, DateTime end, int page = 1, int pageSize = 100);
+        RetentionDto GetRetention(DateTime cohortStart, DateTime cohortEnd, int returnAfterDays, int? schoolId = null);
+        AverageLoginFrequencyDto GetAverageLoginFrequency(DateTime start, DateTime end, int? schoolId = null);
+        List<HourCountDto> GetPeakHours(DateTime? start, DateTime? end, int top = 5, int? schoolId = null);
+        PagedResultDto<DateCountDto> GetDAU(DateTime start, DateTime end, int page = 1, int pageSize = 100, int? schoolId = null);
+        PagedResultDto<DateCountDto> GetMAU(DateTime start, DateTime end, int page = 1, int pageSize = 100, int? schoolId = null);
 
         // LLM history based statistics
         List<StudentQuestionStatsDto> GetLlmQuestionsByStudent(DateTime? start, DateTime? end, int top = 100);

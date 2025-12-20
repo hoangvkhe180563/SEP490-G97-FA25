@@ -34,7 +34,6 @@ import {
   TooltipProvider,
 } from "@/common/components/ui/tooltip";
 import ConfirmActionModal from "@/user/components/ConfirmActionModal";
-import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const AccountRecoveryList: React.FC = () => {
   const [search, setSearch] = useState("");
@@ -44,12 +43,6 @@ const AccountRecoveryList: React.FC = () => {
 
   const { items, total, totalPages, isLoading, error, fetch, updateStatus } =
     useAccountRecoveryStore();
-
-  const { user: currentUser } = useAuthStore();
-  const schoolId =
-    currentUser && typeof currentUser.schoolId !== "undefined"
-      ? Number(currentUser.schoolId)
-      : undefined;
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
@@ -61,10 +54,8 @@ const AccountRecoveryList: React.FC = () => {
       debouncedSearch || null,
       statusFilter === "all" ? null : statusFilter,
       page,
-      6,
-      schoolId
+      6
     ).catch((e) => console.error(e));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, statusFilter, page, fetch]);
 
   // actions are handled via confirmation modal (openConfirm -> handleConfirm)
@@ -124,10 +115,7 @@ const AccountRecoveryList: React.FC = () => {
           </SelectContent>
         </Select>
 
-        <Button
-          className="ml-auto"
-          onClick={() => fetch(null, null, 1, 6, schoolId)}
-        >
+        <Button className="ml-auto" onClick={() => fetch(null, null, 1, 6)}>
           Làm mới
         </Button>
       </div>

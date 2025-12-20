@@ -46,11 +46,11 @@ namespace StudyHub.Backend.Api.Controllers
         }
 
         [HttpGet]
-        public IActionResult Search([FromQuery] string? search, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int limit = 10)
+        public IActionResult Search([FromQuery] string? search, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int limit = 10, [FromQuery] int? schoolId = null)
         {
             try
             {
-                var res = _service.SearchRequests(search, status, page, limit);
+                var res = _service.SearchRequests(search, status, page, limit, schoolId);
                 // map to DTO
                 var items = res.Items.Select(i => new AccountRecoveryListItemDto
                 {

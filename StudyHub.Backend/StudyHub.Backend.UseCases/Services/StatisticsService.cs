@@ -12,39 +12,39 @@ namespace StudyHub.Backend.UseCases.Services
             _repo = repo;
         }
 
-        public AccountsOverviewDto GetAccountsOverview(string period = "day", int range = 30)
+        public AccountsOverviewDto GetAccountsOverview(string period = "day", int range = 30, int? schoolId = null)
         {
-            return _repo.GetAccountsOverview(period, range);
+            return _repo.GetAccountsOverview(period, range, schoolId);
         }
 
-        public AccountRecoveryStatsDto GetAccountRecoveryStats()
+        public AccountRecoveryStatsDto GetAccountRecoveryStats(int? schoolId = null)
         {
-            return _repo.GetAccountRecoveryStats();
+            return _repo.GetAccountRecoveryStats(schoolId);
         }
 
-        public RetentionDto GetRetention(DateTime cohortStart, DateTime cohortEnd, int returnAfterDays)
+        public RetentionDto GetRetention(DateTime cohortStart, DateTime cohortEnd, int returnAfterDays, int? schoolId = null)
         {
-            return _repo.GetRetention(cohortStart, cohortEnd, returnAfterDays);
+            return _repo.GetRetention(cohortStart, cohortEnd, returnAfterDays, schoolId);
         }
 
-        public AverageLoginFrequencyDto GetAverageLoginFrequency(DateTime start, DateTime end)
+        public AverageLoginFrequencyDto GetAverageLoginFrequency(DateTime start, DateTime end, int? schoolId = null)
         {
-            return _repo.GetAverageLoginFrequency(start, end);
+            return _repo.GetAverageLoginFrequency(start, end, schoolId);
         }
 
-        public List<HourCountDto> GetPeakHours(DateTime? start, DateTime? end, int top = 5)
+        public List<HourCountDto> GetPeakHours(DateTime? start, DateTime? end, int top = 5, int? schoolId = null)
         {
-            return _repo.GetPeakHours(start, end, top);
+            return _repo.GetPeakHours(start, end, top, schoolId);
         }
 
-        public PagedResultDto<DateCountDto> GetDAU(DateTime start, DateTime end, int page = 1, int pageSize = 100)
+        public PagedResultDto<DateCountDto> GetDAU(DateTime start, DateTime end, int page = 1, int pageSize = 100, int? schoolId = null)
         {
-            return _repo.GetDAU(start, end, page, pageSize);
+            return _repo.GetDAU(start, end, page, pageSize, schoolId);
         }
 
-        public PagedResultDto<DateCountDto> GetMAU(DateTime start, DateTime end, int page = 1, int pageSize = 100)
+        public PagedResultDto<DateCountDto> GetMAU(DateTime start, DateTime end, int page = 1, int pageSize = 100, int? schoolId = null)
         {
-            return _repo.GetMAU(start, end, page, pageSize);
+            return _repo.GetMAU(start, end, page, pageSize, schoolId);
         }
 
         // LLM statistics wrappers

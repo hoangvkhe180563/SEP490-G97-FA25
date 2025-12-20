@@ -35,9 +35,9 @@ namespace StudyHub.Backend.UseCases.Services
             _repo.Create(req);
         }
 
-        public PagedResult<AccountRecoveryRequest> SearchRequests(string? search, string? status, int page, int limit)
+        public PagedResult<AccountRecoveryRequest> SearchRequests(string? search, string? status, int page, int limit, int? schoolId = null)
         {
-            return _repo.GetBySearchAndFilter(search, status, page, limit);
+            return _repo.GetBySearchAndFilter(search, status, page, limit, schoolId);
         }
 
         public AccountRecoveryRequest? GetById(Guid id) => _repo.GetById(id);

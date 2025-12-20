@@ -8,13 +8,13 @@ import {
   CardDescription,
 } from "@/common/components/ui/card";
 
-const RecoveryCard: React.FC = () => {
+const RecoveryCard: React.FC<{ schoolId?: number }> = ({ schoolId }) => {
   const recovery = useAccountDashboardStore((s) => s.recovery);
   const isLoading = useAccountDashboardStore((s) => s.isLoading);
   const fetchRecovery = useAccountDashboardStore((s) => s.fetchRecoveryStats);
 
   useEffect(() => {
-    fetchRecovery().catch(() => {});
+    fetchRecovery(schoolId).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

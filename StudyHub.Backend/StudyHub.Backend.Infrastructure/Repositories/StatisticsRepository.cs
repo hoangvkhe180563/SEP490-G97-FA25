@@ -18,11 +18,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             _context = context;
         }
 
-        public AccountsOverviewDto GetAccountsOverview(string period = "day", int range = 30)
+        public AccountsOverviewDto GetAccountsOverview(string period = "day", int range = 30, int? schoolId = null)
         {
             var dto = new AccountsOverviewDto();
 
             var users = _context.AppUsers.AsQueryable();
+            if (schoolId.HasValue)
+                users = users.Where(u => u.SchoolId == schoolId.Value);
 
             dto.TotalUsers = users.Count();
 
@@ -43,7 +45,9 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
             // New accounts by period for last 'range' days/months/weeks
             var since = DateTime.Now.AddDays(-range);
-            var recent = _context.AppUsers.Where(u => u.CreatedAt >= since).ToList();
+            var recentQuery = _context.AppUsers.Where(u => u.CreatedAt >= since);
+            if (schoolId.HasValue) recentQuery = recentQuery.Where(u => u.SchoolId == schoolId.Value);
+            var recent = recentQuery.ToList();
 
             var list = new List<DateCountDto>();
             if (period == "day")
@@ -79,10 +83,11 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return dto;
         }
 
-        public AccountRecoveryStatsDto GetAccountRecoveryStats()
+        public AccountRecoveryStatsDto GetAccountRecoveryStats(int? schoolId = null)
         {
             var dto = new AccountRecoveryStatsDto();
-            var q = _context.AccountRecoveryRequests.AsQueryable();
+            var q = _context.AccountRecoveryRequests.Include(r => r.User).AsQueryable();
+            if (schoolId.HasValue) q = q.Where(r => r.User != null && r.User.SchoolId == schoolId.Value);
             dto.TotalRequests = q.Count();
             dto.ApprovedCount = q.Count(r => r.Status != null && (r.Status == "Approved" || r.Status == "Đã phê duyệt"));
             dto.RejectedCount = q.Count(r => r.Status != null && (r.Status == "Rejected" || r.Status == "Đã từ chối"));
@@ -104,7 +109,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return dto;
         }
 
-        public RetentionDto GetRetention(DateTime cohortStart, DateTime cohortEnd, int returnAfterDays)
+        public RetentionDto GetRetention(DateTime cohortStart, DateTime cohortEnd, int returnAfterDays, int? schoolId = null)
         {
             var dto = new RetentionDto();
             dto.CohortStart = cohortStart;
@@ -114,6 +119,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             // users created within cohort
             // Use a set-based query: join users in cohort with successful login histories that fall on (CreatedAt.Date + returnAfterDays)
             var cohortQuery = _context.AppUsers.Where(u => u.CreatedAt >= cohortStart && u.CreatedAt <= cohortEnd);
+            if (schoolId.HasValue) cohortQuery = cohortQuery.Where(u => u.SchoolId == schoolId.Value);
             dto.CohortCount = cohortQuery.Count();
             if (dto.CohortCount == 0)
             {
@@ -123,11 +129,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             }
 
             // Join users with login histories and filter by login falling into the target day window per user.
+            var loginHist = _context.AppUserLoginHistories.Where(h => h.IsSuccess == null || h.IsSuccess == true).AsQueryable();
+            if (schoolId.HasValue) loginHist = loginHist.Where(h => h.User != null && h.User.SchoolId == schoolId.Value);
             var retainedQuery = cohortQuery
-                .Join(_context.AppUserLoginHistories.Where(h => h.IsSuccess == null || h.IsSuccess == true),
-                      u => u.Id,
-                      h => h.UserId,
-                      (u, h) => new { u.Id, u.CreatedAt, h.LoginAt })
+                .Join(loginHist,
+                    u => u.Id,
+                    h => h.UserId,
+                    (u, h) => new { u.Id, u.CreatedAt, h.LoginAt })
                 .Where(x => x.LoginAt >= x.CreatedAt.Date.AddDays(returnAfterDays) && x.LoginAt < x.CreatedAt.Date.AddDays(returnAfterDays + 1))
                 .Select(x => x.Id)
                 .Distinct();
@@ -138,25 +146,27 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return dto;
         }
 
-        public AverageLoginFrequencyDto GetAverageLoginFrequency(DateTime start, DateTime end)
+        public AverageLoginFrequencyDto GetAverageLoginFrequency(DateTime start, DateTime end, int? schoolId = null)
         {
             var dto = new AverageLoginFrequencyDto();
             dto.PeriodStart = start;
             dto.PeriodEnd = end;
 
             var q = _context.AppUserLoginHistories.Where(h => h.LoginAt >= start && h.LoginAt <= end && (h.IsSuccess == null || h.IsSuccess == true));
+            if (schoolId.HasValue) q = q.Where(h => h.User != null && h.User.SchoolId == schoolId.Value);
             dto.TotalLogins = q.Count();
             dto.DistinctUsers = q.Select(h => h.UserId).Distinct().Count();
             dto.AveragePerUser = dto.DistinctUsers == 0 ? 0 : (double)dto.TotalLogins / dto.DistinctUsers;
             return dto;
         }
 
-        public List<HourCountDto> GetPeakHours(DateTime? start, DateTime? end, int top = 5)
+        public List<HourCountDto> GetPeakHours(DateTime? start, DateTime? end, int top = 5, int? schoolId = null)
         {
             var q = _context.AppUserLoginHistories.AsQueryable();
             if (start.HasValue) q = q.Where(h => h.LoginAt >= start.Value);
             if (end.HasValue) q = q.Where(h => h.LoginAt <= end.Value);
             q = q.Where(h => h.IsSuccess == null || h.IsSuccess == true);
+            if (schoolId.HasValue) q = q.Where(h => h.User != null && h.User.SchoolId == schoolId.Value);
 
             var groups = q.ToList().GroupBy(h => h.LoginAt.Hour)
                 .Select(g => new HourCountDto { Hour = g.Key, Count = g.Count() })
@@ -166,9 +176,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             return groups;
         }
 
-        public PagedResultDto<DateCountDto> GetDAU(DateTime start, DateTime end, int page = 1, int pageSize = 100)
+        public PagedResultDto<DateCountDto> GetDAU(DateTime start, DateTime end, int page = 1, int pageSize = 100, int? schoolId = null)
         {
             var q = _context.AppUserLoginHistories.Where(h => h.LoginAt >= start && h.LoginAt <= end && (h.IsSuccess == null || h.IsSuccess == true));
+            if (schoolId.HasValue) q = q.Where(h => h.User != null && h.User.SchoolId == schoolId.Value);
 
             var groupedQuery = q.GroupBy(h => new { h.LoginAt.Year, h.LoginAt.Month, h.LoginAt.Day })
                 .Select(g => new { Key = g.Key, Count = g.Select(h => h.UserId).Distinct().Count() });
@@ -192,9 +203,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
             };
         }
 
-        public PagedResultDto<DateCountDto> GetMAU(DateTime start, DateTime end, int page = 1, int pageSize = 100)
+        public PagedResultDto<DateCountDto> GetMAU(DateTime start, DateTime end, int page = 1, int pageSize = 100, int? schoolId = null)
         {
             var q = _context.AppUserLoginHistories.Where(h => h.LoginAt >= start && h.LoginAt <= end && (h.IsSuccess == null || h.IsSuccess == true));
+            if (schoolId.HasValue) q = q.Where(h => h.User != null && h.User.SchoolId == schoolId.Value);
 
             var groupedQuery = q.GroupBy(h => new { h.LoginAt.Year, h.LoginAt.Month })
                 .Select(g => new { Key = g.Key, Count = g.Select(h => h.UserId).Distinct().Count() });

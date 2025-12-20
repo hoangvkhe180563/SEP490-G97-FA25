@@ -28,19 +28,20 @@ namespace StudyHub.Backend.Api.Controllers
             [FromQuery] DateTime? retentionEnd = null,
             [FromQuery] int retentionReturnAfterDays = 1,
             [FromQuery] DateTime? avgLoginStart = null,
-            [FromQuery] DateTime? avgLoginEnd = null)
+            [FromQuery] DateTime? avgLoginEnd = null,
+            [FromQuery] int? schoolId = null)
         {
             try
             {
-                var accounts = _service.GetAccountsOverview(period, range);
+                var accounts = _service.GetAccountsOverview(period, range, schoolId);
 
                 var rStart = retentionStart ?? DateTime.Now.AddDays(-30);
                 var rEnd = retentionEnd ?? DateTime.Now;
-                var retention = _service.GetRetention(rStart, rEnd, retentionReturnAfterDays);
+                var retention = _service.GetRetention(rStart, rEnd, retentionReturnAfterDays, schoolId);
 
                 var aStart = avgLoginStart ?? DateTime.Now.AddDays(-30);
                 var aEnd = avgLoginEnd ?? DateTime.Now;
-                var avgLogin = _service.GetAverageLoginFrequency(aStart, aEnd);
+                var avgLogin = _service.GetAverageLoginFrequency(aStart, aEnd, schoolId);
 
                 return Ok(new { Success = true, Data = new { Accounts = accounts, Retention = retention, AverageLogin = avgLogin } });
             }
@@ -54,15 +55,15 @@ namespace StudyHub.Backend.Api.Controllers
 
         // Group 2 - Access behavior: peak hours, DAU, MAU
         [HttpGet("AccessBehavior")]
-        public IActionResult AccessBehavior([FromQuery] DateTime? start, [FromQuery] DateTime? end, [FromQuery] int top = 5, [FromQuery] int page = 1, [FromQuery] int pageSize = 100)
+        public IActionResult AccessBehavior([FromQuery] DateTime? start, [FromQuery] DateTime? end, [FromQuery] int top = 5, [FromQuery] int page = 1, [FromQuery] int pageSize = 100, [FromQuery] int? schoolId = null)
         {
             try
             {
                 var s = start;
                 var e = end;
-                var peak = _service.GetPeakHours(s, e, top);
-                var dau = _service.GetDAU(s ?? DateTime.Now.AddDays(-7), e ?? DateTime.Now, page, pageSize);
-                var mau = _service.GetMAU(s ?? DateTime.Now.AddMonths(-6), e ?? DateTime.Now, page, pageSize);
+                var peak = _service.GetPeakHours(s, e, top, schoolId);
+                var dau = _service.GetDAU(s ?? DateTime.Now.AddDays(-7), e ?? DateTime.Now, page, pageSize, schoolId);
+                var mau = _service.GetMAU(s ?? DateTime.Now.AddMonths(-6), e ?? DateTime.Now, page, pageSize, schoolId);
                 return Ok(new { Success = true, Data = new { PeakHours = peak, DAU = dau, MAU = mau } });
             }
             catch (Exception ex)
@@ -73,11 +74,11 @@ namespace StudyHub.Backend.Api.Controllers
 
         // Group 3 - Account recovery stats
         [HttpGet("AccountRecovery")]
-        public IActionResult AccountRecovery()
+        public IActionResult AccountRecovery([FromQuery] int? schoolId = null)
         {
             try
             {
-                var res = _service.GetAccountRecoveryStats();
+                var res = _service.GetAccountRecoveryStats(schoolId);
                 return Ok(new { Success = true, Data = res });
             }
             catch (Exception ex)

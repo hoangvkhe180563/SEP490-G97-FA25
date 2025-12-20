@@ -17,7 +17,6 @@ import {
   School,
   ScrollText,
   Settings,
-  User,
   UserCog,
   Users,
 } from "lucide-react";
@@ -483,21 +482,38 @@ export const adminSidebarItems: ISidebarItem[] = [
   {
     icon: <Home size={20} />,
     text: "Trang chủ",
-    link: "/ui/landing"
+    link: "/ui/landing",
   },
   {
-    icon: <User size={20} />,
+    icon: <UserCog size={20} />,
     text: "Quản lý người dùng",
-    link: "/user/admin/accounts"
+    link: "",
+    children: [
+      {
+        icon: <LayoutDashboard size={20} />,
+        text: "Thống kê người dùng",
+        link: "/user/admin",
+      },
+      {
+        icon: <Users size={20} />,
+        text: "Quản lý người dùng",
+        link: "/user/admin/accounts",
+      },
+      {
+        icon: <Contact size={20} />,
+        text: "Quản lý khôi phục tài khoản",
+        link: "/user/admin/account-recoveries",
+      },
+    ],
   },
   {
     icon: <School size={20} />,
     text: "Quản lý trường",
-    link: "/ui/schools"
+    link: "/ui/schools",
   },
   {
     icon: <Bell size={20} />,
     text: "Thông báo",
     link: "/notification/notifications",
   },
-]
+];

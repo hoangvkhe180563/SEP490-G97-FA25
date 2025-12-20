@@ -134,9 +134,10 @@ interface AccountRecoveryState {
     search?: string | null,
     status?: string | null,
     page?: number,
-    limit?: number
+    limit?: number,
+    schoolId?: number
   ) => Promise<void>;
-  updateStatus: (id: string, status: string) => Promise<void>;
+  updateStatus: (id: string, status: string, schoolId?: number) => Promise<void>;
   createRequest: (payload: CreateAccountRecoveryRequest) => Promise<void>;
 }
 
