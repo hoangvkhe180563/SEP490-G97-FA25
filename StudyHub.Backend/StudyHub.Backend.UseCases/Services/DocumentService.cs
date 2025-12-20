@@ -138,7 +138,7 @@ namespace StudyHub.Backend.UseCases.Services
                     try
                     {
                         Console.WriteLine($"[RAG] Starting background indexing for document {created.Id}");
-                        var ragResult = await _ragService.IndexDocumentForRAGAsync(created.Id, created.DocumentUrl, created.Name);
+                        var ragResult = await _ragService.IndexDocumentForRAGAsync(created.Id, created.DocumentUrl, created.Name, created.SubjectId);
 
                         if (ragResult.Success)
                         {
@@ -290,7 +290,7 @@ namespace StudyHub.Backend.UseCases.Services
                     {
                         Console.WriteLine($"[RAG] Re-indexing document {updated.Id} after update");
                         await _ragService.DeleteDocumentIndexAsync(updated.Id);
-                        var ragResult = await _ragService.IndexDocumentForRAGAsync(updated.Id, updated.DocumentUrl, updated.Name);
+                        var ragResult = await _ragService.IndexDocumentForRAGAsync(updated.Id, updated.DocumentUrl, updated.Name, updated.SubjectId);
 
                         if (ragResult.Success)
                         {
@@ -620,7 +620,7 @@ int pageSize = 10)
 
             await _ragService.DeleteDocumentIndexAsync(documentId);
 
-            return await _ragService.IndexDocumentForRAGAsync(documentId, document.DocumentUrl, document.Name);
+            return await _ragService.IndexDocumentForRAGAsync(documentId, document.DocumentUrl, document.Name, document.SubjectId);
         }
 
         public async Task<DocumentIndexStats> GetDocumentRAGStatsAsync(int documentId)

@@ -36,6 +36,10 @@ export interface Document {
   editRequestedAt?: string;
   documentLengthType: string;
   documentLevel: string;
+  indexRAG: (
+    documentId: number,
+    handlerSuccess?: () => void
+  ) => Promise<boolean>;
 }
 export interface DocumentFilterParams {
   query?: string;
@@ -477,6 +481,10 @@ export interface DocumentState {
   ) => Promise<boolean>;
   setCurrentPage: (page: number) => void;
   submitForApproval: (
+    documentId: number,
+    handlerSuccess?: () => void
+  ) => Promise<boolean>;
+  indexRAG: (
     documentId: number,
     handlerSuccess?: () => void
   ) => Promise<boolean>;

@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/common/components/ui/alert-dialog";
+import { axiosInstance } from "@/lib/axios";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +41,8 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  FileText,
+  Loader2,
 } from "lucide-react";
 import {
   Select,
@@ -140,7 +143,9 @@ const ManagerDocumentApprovalList = () => {
       documentName: "",
     });
   };
-
+  const [ragDialogOpen, setRagDialogOpen] = useState(false);
+  const [ragDocumentId, setRagDocumentId] = useState<number | null>(null);
+  const [isIndexingRAG, setIsIndexingRAG] = useState(false);
   const handleConfirmAction = async () => {
     if (!dialogState.documentId || !dialogState.type) return;
 
@@ -186,7 +191,30 @@ const ManagerDocumentApprovalList = () => {
 
     closeDialog();
   };
+  const handleIndexRAG = async () => {
+    if (!ragDocumentId) return;
 
+    setIsIndexingRAG(true);
+    try {
+      const response = await axiosInstance.post(
+        `/Document/${ragDocumentId}/index-rag`
+      );
+      if (response.data.success) {
+        setSuccessMessage("Đánh chỉ mục RAG thành công");
+        setTimeout(() => setSuccessMessage(""), 3000);
+      } else {
+        setErrorMessage("Đánh chỉ mục RAG thất bại");
+        setTimeout(() => setErrorMessage(""), 3000);
+      }
+    } catch (error) {
+      setErrorMessage("Đánh chỉ mục RAG thất bại");
+      setTimeout(() => setErrorMessage(""), 3000);
+    } finally {
+      setIsIndexingRAG(false);
+      setRagDialogOpen(false);
+      setRagDocumentId(null);
+    }
+  };
   const handleViewDocument = (id: number) => {
     navigate(`/document/details/${id}`);
   };
@@ -276,6 +304,7 @@ const ManagerDocumentApprovalList = () => {
             <Eye className="mr-2 h-4 w-4" />
             <span>Xem chi tiết</span>
           </DropdownMenuItem>
+
           {doc.isRequested === true && (
             <>
               <DropdownMenuItem
@@ -295,6 +324,25 @@ const ManagerDocumentApprovalList = () => {
                 <span className="font-medium text-red-600">
                   Từ chối yêu cầu
                 </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={async () => {
+                  try {
+                    const response = await axiosInstance.get(
+                      `/Document/${doc.id}/rag-stats`
+                    );
+                    if (response.data.data?.totalChunks === 0) {
+                      setRagDocumentId(doc.id);
+                      setRagDialogOpen(true);
+                    }
+                  } catch (error) {
+                    console.error("Error checking RAG:", error);
+                  }
+                }}
+                className="cursor-pointer"
+              >
+                <FileText className="mr-2 h-4 w-4 text-purple-600" />
+                <span>Đánh chỉ mục RAG</span>
               </DropdownMenuItem>
             </>
           )}
@@ -778,6 +826,33 @@ const ManagerDocumentApprovalList = () => {
             <AlertDialogCancel>Hủy</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmAction}>
               {dialogContent.confirmText}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={ragDialogOpen} onOpenChange={setRagDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Đánh chỉ mục RAG</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tài liệu này chưa được đánh chỉ mục cho tính năng AI Search. Bạn
+              có muốn đánh chỉ mục ngay bây giờ không?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isIndexingRAG}>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleIndexRAG}
+              disabled={isIndexingRAG}
+            >
+              {isIndexingRAG ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : (
+                "Đánh chỉ mục"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
