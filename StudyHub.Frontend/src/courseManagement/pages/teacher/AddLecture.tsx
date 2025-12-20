@@ -53,6 +53,7 @@ import {
   TabsTrigger,
 } from "@/common/components/ui/tabs";
 import RandomQuestionTemplate from "@/exam/components/RandomQuestionTemplate";
+import AIQuestionTemplate from "@/exam/components/AIQuestionTemplate";
 
 const AddLecture: React.FC = () => {
   const { user } = useAuthStore();
@@ -276,7 +277,7 @@ const AddLecture: React.FC = () => {
           "Với loại bài giảng kiểm tra thì thời gian là bắt buộc!";
       }
 
-      if (selectedTab === "new-questions" && questions.length === 0) {
+      if (selectedTab !== "bank-questions" && questions.length === 0) {
         aggErrors.push(
           "Vui lòng điền đầy đủ thông tin và thêm ít nhất một câu hỏi."
         );
@@ -1580,6 +1581,9 @@ const AddLecture: React.FC = () => {
                     <TabsTrigger value="bank-questions" className="p-2">
                       Câu hỏi từ ngân hàng
                     </TabsTrigger>
+                    <TabsTrigger value="ai-questions" className="p-2">
+                      Câu hỏi AI
+                    </TabsTrigger>
                   </TabsList>
                   <TabsContent value="new-questions">
                     <QuestionTemplate
@@ -1594,6 +1598,14 @@ const AddLecture: React.FC = () => {
                       selectedGrade={selectedGrade}
                       selectedRandomQuestions={randomQuestions}
                       setSelectedRandomQuestions={setRandomQuestions}
+                    />
+                  </TabsContent>
+                  <TabsContent value="ai-questions">
+                    <AIQuestionTemplate
+                      selectedSubjectId={selectedSubjectId}
+                      selectedGrade={selectedGrade}
+                      questions={questions}
+                      setQuestions={setQuestions}
                     />
                   </TabsContent>
                 </Tabs>

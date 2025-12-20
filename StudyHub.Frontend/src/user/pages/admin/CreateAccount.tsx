@@ -316,6 +316,7 @@ const CreateAccount: React.FC = () => {
     getAppRoles();
     fetchCities();
     getSubjects();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchCities, getAppRoles]);
 
   const onCityChange = async (value?: string) => {

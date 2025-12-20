@@ -69,7 +69,7 @@ namespace StudyHub.Backend.Api.Controllers
                 var sessionCookieOptions = new CookieOptions
                 {
                     HttpOnly = true,
-                    Secure = true,
+                    Secure = false,
                     SameSite = SameSiteMode.Strict,
                     Expires = result.Tokens.RefreshTokenExpire.ToUniversalTime()
                 };
@@ -146,7 +146,7 @@ namespace StudyHub.Backend.Api.Controllers
             var accessCookieOptions = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
+                Secure = false,
                 SameSite = SameSiteMode.Strict,
                 Expires = tokens.AccessTokenExpire.ToUniversalTime()
             };
@@ -155,7 +155,7 @@ namespace StudyHub.Backend.Api.Controllers
             var refreshCookieOptions = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
+                Secure = false,
                 SameSite = SameSiteMode.Strict,
                 Expires = tokens.RefreshTokenExpire.ToUniversalTime()
             };
@@ -245,7 +245,7 @@ namespace StudyHub.Backend.Api.Controllers
                     var sessionCookieOptions = new CookieOptions
                     {
                         HttpOnly = true,
-                        Secure = true,
+                        Secure = false,
                         SameSite = SameSiteMode.Strict,
                         Expires = loginResult.Tokens.RefreshTokenExpire.ToUniversalTime()
                     };

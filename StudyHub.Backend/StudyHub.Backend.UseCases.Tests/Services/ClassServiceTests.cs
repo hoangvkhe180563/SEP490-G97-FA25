@@ -3,14 +3,9 @@ using Microsoft.Extensions.Configuration;
 using Moq;
 using StudyHub.Backend.Api.Services;
 using StudyHub.Backend.Domain.Entities;
-using StudyHub.Backend.Domain.Entities.Notifications;
 using StudyHub.Backend.UseCases.Repositories;
 using StudyHub.Backend.UseCases.Repositories.Notifications;
 using StudyHub.Backend.UseCases.Services;
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace StudyHub.Backend.UseCases.Tests.Services;
 
@@ -19,8 +14,6 @@ public class ClassServiceTests
     private Mock<IConfiguration> CreateMockConfiguration()
     {
         var mockConfig = new Mock<IConfiguration>();
-
-        // ✅ ĐÚNG - Mock SMTP section với indexer
         var mockSmtpSection = new Mock<IConfigurationSection>();
         mockSmtpSection.Setup(x => x["Host"]).Returns("smtp.example.com");
         mockSmtpSection.Setup(x => x["Port"]).Returns("587");
@@ -30,7 +23,6 @@ public class ClassServiceTests
 
         mockConfig.Setup(x => x.GetSection("Smtp")).Returns(mockSmtpSection.Object);
 
-        // ✅ ĐÚNG - Mock JWT section với indexer
         var mockJwtSection = new Mock<IConfigurationSection>();
         mockJwtSection.Setup(x => x["SecretKey"]).Returns("ThisIsAVeryLongSecretKeyForTestingPurposesOnly123456");
         mockJwtSection.Setup(x => x["Issuer"]).Returns("TestIssuer");
@@ -39,8 +31,6 @@ public class ClassServiceTests
         mockJwtSection.Setup(x => x["RefreshExpiresMinutes"]).Returns("10080");
 
         mockConfig.Setup(x => x.GetSection("JwtSettings")).Returns(mockJwtSection.Object);
-
-        // ✅ ĐÚNG - Mock App settings với indexer
         mockConfig.Setup(x => x["App: BaseUrl"]).Returns("http://localhost:5173");
         mockConfig.Setup(x => x["App:Name"]).Returns("StudyHub");
 
@@ -60,6 +50,8 @@ public class ClassServiceTests
         var mockEmailService = CreateMockEmailService();
         var mockHttpContextAccessor = new Mock<IHttpContextAccessor>();
         var mockConfig = CreateMockConfiguration();
+        var mockLocationRepo = new Mock<StudyHub.Backend.UseCases.Repositories.ILocationRepository>();
+        var locationService = new StudyHub.Backend.UseCases.Services.LocationService(mockLocationRepo.Object);
 
         return new AuthService(
             mockUserRepo.Object,
@@ -67,7 +59,8 @@ public class ClassServiceTests
             mockLoginHistoryRepo.Object,
             mockEmailService,
             mockHttpContextAccessor.Object,
-            mockConfig.Object
+            mockConfig.Object,
+            locationService
         );
     }
 

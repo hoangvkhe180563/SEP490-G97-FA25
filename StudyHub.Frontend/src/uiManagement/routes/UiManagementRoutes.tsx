@@ -28,15 +28,27 @@ const uiManagementRoutes: RouteObject[] = [
   },
   {
     path: UiManagementRouteConfig.SCHOOL.LIST,
-    element: <ListSchools />
+    element: (
+      <RequireRole allowedRoles={[ROLES.ADMIN]}>
+        <ListSchools />
+      </RequireRole>
+    )
   },
   {
     path: UiManagementRouteConfig.SCHOOL.ADD,
-    element: <AddSchool />
+    element: (
+      <RequireRole allowedRoles={[ROLES.ADMIN]}>
+        <AddSchool />
+      </RequireRole>
+    )
   },
   {
     path: UiManagementRouteConfig.SCHOOL.EDIT,
-    element: <EditSchool />
+    element: (
+      <RequireRole allowedRoles={[ROLES.ADMIN]}>
+        <EditSchool />
+      </RequireRole>
+    )
   }
 ];
 

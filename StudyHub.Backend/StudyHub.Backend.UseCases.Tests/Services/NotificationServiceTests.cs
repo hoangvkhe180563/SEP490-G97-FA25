@@ -588,16 +588,18 @@ public class NotificationServiceTests
         mockRepo.Setup(x => x.SeedUnreadForUsersAsync(
             notificationId,
             It.IsAny<IEnumerable<Guid>>(),
+            null,
             It.IsAny<CancellationToken>()
         )).Returns(Task.CompletedTask);
 
         // Act
-        await service.SeedUnreadAsync(notificationId, userIds);
+        await service.SeedUnreadAsync(notificationId, userIds, null);
 
         // Assert
         mockRepo.Verify(x => x.SeedUnreadForUsersAsync(
             notificationId,
             It.IsAny<IEnumerable<Guid>>(),
+            null,
             It.IsAny<CancellationToken>()
         ), Times.Once);
     }

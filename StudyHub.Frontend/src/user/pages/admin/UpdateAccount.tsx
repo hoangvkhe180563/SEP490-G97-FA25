@@ -52,6 +52,7 @@ import {
 } from "@/common/components/ui/alert-dialog";
 import { createFallBack } from "@/user/utils/avatarUtils";
 import type { EditAccountDto } from "@/user/interfaces/dtos";
+import { useLoading } from "@/common/hooks/useLoading";
 
 // Vietnam phone validator
 const isValidVietnamPhone = (s?: string | null) => {
@@ -92,6 +93,7 @@ type FormValues = z.infer<typeof schema> & { avatar?: File | null };
 const UpdateAccount: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams();
+  const { setLoading } = useLoading();
   const id = params.id ?? "";
 
   const { getAppUserById, updateAccount, updateUserStatus, isLoading } =
@@ -289,6 +291,7 @@ const UpdateAccount: React.FC = () => {
 
   useEffect(() => {
     const loadData = async () => {
+      setLoading(true);
       await getAppRoles();
       await fetchCities();
       await getSubjects();
@@ -361,7 +364,7 @@ const UpdateAccount: React.FC = () => {
       }
     };
 
-    loadData();
+    loadData().finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 

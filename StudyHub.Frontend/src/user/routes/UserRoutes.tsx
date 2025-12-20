@@ -17,7 +17,7 @@ const adminRoutes = [
   {
     path: UserRouteConfig.ADMIN.ACCOUNT_LIST,
     element: (
-      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN]}>
+      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN, ROLES.ADMIN]}>
         <AccountListAdmin />
       </RequireRole>
     ),
@@ -25,7 +25,7 @@ const adminRoutes = [
   {
     path: UserRouteConfig.ADMIN.ADD_ACCOUNT,
     element: (
-      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN]}>
+      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN, ROLES.ADMIN]}>
         <CreateAccountAdmin />
       </RequireRole>
     ),
@@ -33,7 +33,7 @@ const adminRoutes = [
   {
     path: UserRouteConfig.ADMIN.UPDATE_ACCOUNT,
     element: (
-      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN]}>
+      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN, ROLES.ADMIN]}>
         <UpdateAccountAdmin />
       </RequireRole>
     ),
