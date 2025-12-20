@@ -9,26 +9,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/common/components/ui/card";
-import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const AccountDashboard: React.FC = () => {
-  const { user: currentUser } = useAuthStore();
-  const schoolId =
-    currentUser && typeof currentUser.schoolId !== "undefined"
-      ? Number(currentUser.schoolId)
-      : undefined;
-
   return (
     <div className="p-4 max-h-screen overflow-y-auto">
       <h2 className="text-2xl font-semibold mb-4">Dashboard tài khoản</h2>
 
       <div className="space-y-4 mb-6">
-        <OverviewCard schoolId={schoolId} />
-        <AccessBehaviorCard schoolId={schoolId} />
+        <OverviewCard />
+        <AccessBehaviorCard />
       </div>
 
       <div className="space-y-4 mb-6">
-        <RecoveryCard schoolId={schoolId} />
+        <RecoveryCard />
         <RealtimeCard />
       </div>
 

@@ -97,7 +97,7 @@ const ymdToEndDate = (v?: string) => {
   return d;
 };
 
-const AccessBehaviorCard: React.FC = () => {
+const AccessBehaviorCard: React.FC<{ schoolId?: number }> = ({ schoolId }) => {
   const storePeakHours = useAccountDashboardStore((s) => s.peakHours);
   const storeDau = useAccountDashboardStore((s) => s.dau);
   const storeMau = useAccountDashboardStore((s) => s.mau);
@@ -149,6 +149,7 @@ const AccessBehaviorCard: React.FC = () => {
       page: dauPage,
       pageSize: abPageSize,
       newestFirst: true,
+      schoolId,
     }).catch(() => {});
     fetchMauPage({
       start: s,
@@ -157,6 +158,7 @@ const AccessBehaviorCard: React.FC = () => {
       page: mauPage,
       pageSize: abPageSize,
       newestFirst: true,
+      schoolId,
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -173,6 +175,7 @@ const AccessBehaviorCard: React.FC = () => {
       page: next,
       pageSize: abPageSize,
       newestFirst: true,
+      schoolId,
     }).catch(() => {});
   };
 
@@ -189,6 +192,7 @@ const AccessBehaviorCard: React.FC = () => {
       page: next,
       pageSize: abPageSize,
       newestFirst: true,
+      schoolId,
     }).catch(() => {});
   };
 
@@ -204,6 +208,7 @@ const AccessBehaviorCard: React.FC = () => {
       page: next,
       pageSize: abPageSize,
       newestFirst: true,
+      schoolId,
     }).catch(() => {});
   };
 
@@ -220,6 +225,7 @@ const AccessBehaviorCard: React.FC = () => {
       page: next,
       pageSize: abPageSize,
       newestFirst: true,
+      schoolId,
     }).catch(() => {});
   };
 
@@ -233,6 +239,7 @@ const AccessBehaviorCard: React.FC = () => {
       page: dauPage,
       pageSize: abPageSize,
       newestFirst: true,
+      schoolId,
     });
     await fetchMauPage({
       start: s,
@@ -241,6 +248,7 @@ const AccessBehaviorCard: React.FC = () => {
       page: mauPage,
       pageSize: abPageSize,
       newestFirst: true,
+      schoolId,
     });
   };
 
@@ -267,6 +275,7 @@ const AccessBehaviorCard: React.FC = () => {
       page: init.dauPage ?? 1,
       pageSize: abPageSize,
       newestFirst: true,
+      schoolId,
     }).catch(() => {});
 
     fetchMauPage({
@@ -276,17 +285,20 @@ const AccessBehaviorCard: React.FC = () => {
       page: init.mauPage ?? 1,
       pageSize: abPageSize,
       newestFirst: true,
+      schoolId,
     }).catch(() => {});
 
     // re-fetch peak hours as they were on initial load
-    fetchPeakHours({ start: s, end: e, top: init.top ?? 5 }).catch(() => {});
+    fetchPeakHours({ start: s, end: e, top: init.top ?? 5, schoolId }).catch(
+      () => {}
+    );
   };
 
   const applyTopOnly = async (useTop?: number) => {
     const t = useTop ?? top;
     const s = abStart ? ymdToDate(abStart)?.toISOString() : undefined;
     const e = abEnd ? ymdToEndDate(abEnd)?.toISOString() : undefined;
-    await fetchPeakHours({ start: s, end: e, top: t });
+    await fetchPeakHours({ start: s, end: e, top: t, schoolId });
   };
 
   return (

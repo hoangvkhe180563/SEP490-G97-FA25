@@ -89,7 +89,7 @@ const ymdToDate = (v?: string) => {
   return new Date(y, m - 1, d);
 };
 
-const OverviewCard: React.FC = () => {
+const OverviewCard: React.FC<{ schoolId?: number }> = ({ schoolId }) => {
   const overview = useAccountDashboardStore((s) => s.overview);
   const isLoading = useAccountDashboardStore((s) => s.isLoading);
   const fetchOverview = useAccountDashboardStore((s) => s.fetchOverview);
@@ -129,7 +129,7 @@ const OverviewCard: React.FC = () => {
   useEffect(() => {
     // Set default end datetimes and fetch initial overview, but do not auto-fill
     // the "start" date inputs — users must pick start dates explicitly.
-    fetchOverview(period, range).catch(() => {});
+    fetchOverview(period, range, { schoolId }).catch(() => {});
     // store initial values after mount so reset can restore them
     initialRef.current = {
       retentionStart,
@@ -405,7 +405,7 @@ const OverviewCard: React.FC = () => {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => fetchOverview(period, range)}
+                    onClick={() => fetchOverview(period, range, { schoolId })}
                   >
                     Áp dụng
                   </Button>
@@ -414,7 +414,7 @@ const OverviewCard: React.FC = () => {
                     onClick={() => {
                       setPeriod("day");
                       setRange(30);
-                      fetchOverview("day", 30);
+                      fetchOverview("day", 30, { schoolId });
                     }}
                   >
                     Đặt lại
@@ -612,6 +612,7 @@ const OverviewCard: React.FC = () => {
                             retentionEnd ?? nowLocal
                           ),
                           retentionReturnAfterDays,
+                          schoolId,
                         });
                       }}
                     >
@@ -778,6 +779,7 @@ const OverviewCard: React.FC = () => {
                           avgLoginEnd: ensureDateTimeString(
                             avgLoginEnd ?? nowLocal
                           ),
+                          schoolId,
                         });
                       }}
                     >

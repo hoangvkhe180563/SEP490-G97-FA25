@@ -30,9 +30,10 @@ type State = {
       retentionReturnAfterDays?: number;
       avgLoginStart?: string;
       avgLoginEnd?: string;
+      schoolId?: number;
     }
   ) => Promise<void>;
-  fetchRecoveryStats: () => Promise<void>;
+  fetchRecoveryStats: (schoolId?: number) => Promise<void>;
   fetchAccessBehavior: (opts?: {
     start?: string | undefined;
     end?: string | undefined;
@@ -48,6 +49,7 @@ type State = {
     page?: number;
     pageSize?: number;
     newestFirst?: boolean;
+    schoolId?: number;
   }) => Promise<void>;
   fetchMauPage: (opts?: {
     start?: string | undefined;
@@ -56,13 +58,19 @@ type State = {
     page?: number;
     pageSize?: number;
     newestFirst?: boolean;
+    schoolId?: number;
   }) => Promise<void>;
   fetchPeakHours: (opts?: {
     start?: string;
     end?: string;
     top?: number;
+    schoolId?: number;
   }) => Promise<void>;
-  fetchAll: (period?: string, range?: number) => Promise<void>;
+  fetchAll: (
+    period?: string,
+    range?: number,
+    schoolId?: number
+  ) => Promise<void>;
   fetchRealtime: () => Promise<void>;
 };
 
@@ -86,6 +94,7 @@ export const useAccountDashboardStore = create<State>()(
         retentionReturnAfterDays?: number;
         avgLoginStart?: string;
         avgLoginEnd?: string;
+        schoolId?: number;
       }
     ) => {
       set({ isLoading: true, error: null });
@@ -103,6 +112,8 @@ export const useAccountDashboardStore = create<State>()(
           );
         if (opts?.avgLoginStart) qs.append("avgLoginStart", opts.avgLoginStart);
         if (opts?.avgLoginEnd) qs.append("avgLoginEnd", opts.avgLoginEnd);
+        if (opts?.schoolId !== undefined && opts?.schoolId !== null)
+          qs.append("schoolId", String(opts.schoolId));
 
         const resp = await axiosInstance.get(
           `/Statistics/AccountsOverview?${qs.toString()}`
@@ -185,13 +196,16 @@ export const useAccountDashboardStore = create<State>()(
       }
     },
 
-    fetchRecoveryStats: async () => {
+    fetchRecoveryStats: async (schoolId?: number) => {
       set({ isLoading: true, error: null });
       try {
+        const qs = new URLSearchParams();
+        if (schoolId !== undefined && schoolId !== null)
+          qs.append("schoolId", String(schoolId));
         const resp = await axiosInstance.get<{
           success: boolean;
           data: AccountRecoveryStatsDto;
-        }>(`/Statistics/AccountRecovery`);
+        }>(`/Statistics/AccountRecovery?${qs.toString()}`);
         const data = resp.data?.data ?? null;
         set({ recovery: data ?? null });
       } catch (err) {
@@ -209,7 +223,8 @@ export const useAccountDashboardStore = create<State>()(
       page = 1,
       pageSize = 10,
       newestFirst = true,
-    } = {}) => {
+      schoolId,
+    }: any = {}) => {
       set({ isLoading: true, error: null });
       try {
         const qsBuild = (p: number) => {
@@ -219,6 +234,8 @@ export const useAccountDashboardStore = create<State>()(
           qs.append("top", String(top));
           qs.append("page", String(p));
           qs.append("pageSize", String(pageSize));
+          if (schoolId !== undefined && schoolId !== null)
+            qs.append("schoolId", String(schoolId));
           return qs.toString();
         };
 
@@ -274,7 +291,8 @@ export const useAccountDashboardStore = create<State>()(
       page = 1,
       pageSize = 10,
       newestFirst = true,
-    } = {}) => {
+      schoolId,
+    }: any = {}) => {
       set({ isLoading: true, error: null });
       try {
         const qsBuild = (p: number) => {
@@ -284,6 +302,8 @@ export const useAccountDashboardStore = create<State>()(
           qs.append("top", String(top));
           qs.append("page", String(p));
           qs.append("pageSize", String(pageSize));
+          if (schoolId !== undefined && schoolId !== null)
+            qs.append("schoolId", String(schoolId));
           return qs.toString();
         };
 
@@ -329,7 +349,8 @@ export const useAccountDashboardStore = create<State>()(
       page = 1,
       pageSize = 10,
       newestFirst = true,
-    } = {}) => {
+      schoolId,
+    }: any = {}) => {
       set({ isLoading: true, error: null });
       try {
         const qsBuild = (p: number) => {
@@ -339,6 +360,8 @@ export const useAccountDashboardStore = create<State>()(
           qs.append("top", String(top));
           qs.append("page", String(p));
           qs.append("pageSize", String(pageSize));
+          if (schoolId !== undefined && schoolId !== null)
+            qs.append("schoolId", String(schoolId));
           return qs.toString();
         };
 
@@ -376,13 +399,15 @@ export const useAccountDashboardStore = create<State>()(
       }
     },
 
-    fetchPeakHours: async ({ start, end, top = 5 } = {}) => {
+    fetchPeakHours: async ({ start, end, top = 5, schoolId }: any = {}) => {
       set({ isLoading: true, error: null });
       try {
         const qs = new URLSearchParams();
         if (start) qs.append("start", start);
         if (end) qs.append("end", end);
         qs.append("top", String(top));
+        if (schoolId !== undefined && schoolId !== null)
+          qs.append("schoolId", String(schoolId));
         const resp = await axiosInstance.get<any>(
           `/Statistics/AccessBehavior?${qs.toString()}`
         );
@@ -396,15 +421,23 @@ export const useAccountDashboardStore = create<State>()(
       }
     },
 
-    fetchAll: async (period = "day", range = 30) => {
+    fetchAll: async (period = "day", range = 30, schoolId?: number) => {
       set({ isLoading: true, error: null });
       try {
         // run in parallel
+        const qsOv = new URLSearchParams();
+        qsOv.append("period", period);
+        qsOv.append("range", String(range));
+        if (schoolId !== undefined && schoolId !== null)
+          qsOv.append("schoolId", String(schoolId));
+
+        const qsRc = new URLSearchParams();
+        if (schoolId !== undefined && schoolId !== null)
+          qsRc.append("schoolId", String(schoolId));
+
         const [ovResp, rcResp, rtResp] = await Promise.all([
-          axiosInstance.get(
-            `/Statistics/AccountsOverview?period=${period}&range=${range}`
-          ),
-          axiosInstance.get(`/Statistics/AccountRecovery`),
+          axiosInstance.get(`/Statistics/AccountsOverview?${qsOv.toString()}`),
+          axiosInstance.get(`/Statistics/AccountRecovery?${qsRc.toString()}`),
           axiosInstance.get(`/Statistics/Realtime`),
         ]);
 
