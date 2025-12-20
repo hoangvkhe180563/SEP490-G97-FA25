@@ -138,7 +138,8 @@ namespace StudyHub.Backend.UseCases.Services
                         batchResults.AddRange(Enumerable.Repeat(new ImageModerationResult
                         {
                             IsViolation = false,
-                            Details = "Moderation failed"
+                            Details = "Moderation failed"+ex.Message,
+                            
                         }, batch.Count));
                     }
                     finally

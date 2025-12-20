@@ -501,7 +501,7 @@ namespace StudyHub.Backend.Api.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine( "Gửi thông báo rút tiền thất bại cho user {userId}", userId);
+                Console.WriteLine( "Gửi thông báo rút tiền thất bại cho user {userId}", ex);
             }
         }
         [HttpPost("{id}/reject")]
