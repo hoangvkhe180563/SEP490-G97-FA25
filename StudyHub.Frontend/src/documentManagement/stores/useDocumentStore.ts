@@ -322,6 +322,23 @@ export const useDocumentStore = create<DocumentState>()(
           set({ isLoading: false });
         }
       },
+      indexRAG: async (documentId, handlerSuccess) => {
+        set({ isLoading: true });
+        try {
+          const response = await axiosInstance.post(
+            `/Document/${documentId}/index-rag`
+          );
+          if (response.data.success && handlerSuccess) {
+            handlerSuccess();
+          }
+          return response.data.success;
+        } catch (error: unknown) {
+          console.error(error);
+          return false;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
       previewDocument: async (id, handlerSuccess) => {
         set({
           isLoading: true,
