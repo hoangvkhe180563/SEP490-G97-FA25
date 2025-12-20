@@ -22,12 +22,16 @@ namespace StudyHub.Backend.UseCases.Services
         private readonly LLMService _llmService;
         private readonly IConfiguration _configuration;
         private readonly string _tesseractDataPath;
+        private readonly IDocumentRepository _repo;
+
 
         public DocumentContentRAGService(
      ICloudinaryRepository fileStorage,
      EmbeddingService embeddingService,
      ElasticDocumentContentService elasticContentRepo,
      LLMService llmService,
+          IDocumentRepository repo,
+
      IConfiguration configuration)
         {
             _fileStorage = fileStorage;
@@ -35,7 +39,7 @@ namespace StudyHub.Backend.UseCases.Services
             _elasticContentRepo = elasticContentRepo;
             _llmService = llmService;
             _configuration = configuration;
-
+            _repo = repo;
             _tesseractDataPath = configuration["OCR:TesseractDataPath"] ?? "./tessdata";
         }
 
@@ -268,22 +272,30 @@ namespace StudyHub.Backend.UseCases.Services
                     var body = wordDocument.MainDocumentPart.Document.Body;
                     var paragraphs = body.Elements<DocumentFormat.OpenXml.Wordprocessing.Paragraph>().ToList();
 
+                    Console.WriteLine($"[RAG Indexing DOCX] Total paragraphs: {paragraphs.Count}");
+
                     var currentPage = 1;
                     var pageText = new StringBuilder();
-                    var paragraphsPerPage = Math.Max(1, paragraphs.Count / 10);
+                    int paragraphIndex = 0;
 
-                    for (int i = 0; i < paragraphs.Count; i++)
+                    foreach (var paragraph in paragraphs)
                     {
-                        var para = paragraphs[i].InnerText;
-                        pageText.AppendLine(para);
+                        var paraText = paragraph.InnerText;
 
-                        if ((i + 1) % paragraphsPerPage == 0 || i == paragraphs.Count - 1)
+                        var hasPageBreak = paragraph.Descendants<DocumentFormat.OpenXml.Wordprocessing.Break>()
+                            .Any(b => b.Type != null && b.Type.Value == DocumentFormat.OpenXml.Wordprocessing.BreakValues.Page);
+
+                        pageText.AppendLine(paraText);
+
+                        if (hasPageBreak || paragraphIndex == paragraphs.Count - 1)
                         {
                             var text = pageText.ToString();
                             text = CleanText(text);
 
                             if (!string.IsNullOrWhiteSpace(text))
                             {
+                                Console.WriteLine($"[RAG Indexing DOCX] Page {currentPage}: {text.Length} chars, {text.Split('\n').Length} lines");
+
                                 var keywords = ExtractKeywords(text, subjectId);
                                 var textChunks = SplitIntoSemanticChunks(text, chunkSize, overlapSize);
 
@@ -293,11 +305,14 @@ namespace StudyHub.Backend.UseCases.Services
                                     if (string.IsNullOrWhiteSpace(chunkText) || chunkText.Length < 50)
                                         continue;
 
+                                    var preview = chunkText.Length > 80 ? chunkText.Substring(0, 80) + "..." : chunkText;
+                                    Console.WriteLine($"  [DOCX] Page {currentPage}, Chunk {chunkIndex}: {preview}");
+
                                     chunks.Add(new DocumentChunk
                                     {
                                         DocumentId = documentId,
                                         DocumentName = documentName,
-                                        PageNumber = currentPage,
+                                        PageNumber = currentPage, 
                                         ChunkIndex = chunkIndex,
                                         Content = chunkText,
                                         Keywords = keywords,
@@ -307,17 +322,25 @@ namespace StudyHub.Backend.UseCases.Services
                                 {
                                     { "source", "docx" },
                                     { "page", currentPage.ToString() },
-                                    { "subject_id", subjectId.ToString() }
+                                    { "subject_id", subjectId.ToString() },
+                                    { "paragraph_index", paragraphIndex.ToString() }  
                                 }
                                     });
                                     chunkIndex++;
                                 }
                             }
 
-                            pageText.Clear();
-                            currentPage++;
+                            if (hasPageBreak)
+                            {
+                                pageText.Clear();
+                                currentPage++;
+                            }
                         }
+
+                        paragraphIndex++;
                     }
+
+                    Console.WriteLine($"[RAG Indexing DOCX] Total chunks created: {chunks.Count} across {currentPage} pages");
                 }
             }
 
@@ -600,18 +623,32 @@ namespace StudyHub.Backend.UseCases.Services
         private List<string> ExtractGeneralKeywords(string text)
         {
             var keywords = new HashSet<string>();
-            var words = text.Split(new[] { ' ', '\n', '\t', '.', ',', ';', ':', '!', '?' }, StringSplitOptions.RemoveEmptyEntries);
+
+            var words = text.Split(new[] { ' ', '\n', '\t', '.', ',', ';', ':', '!', '?' },
+                StringSplitOptions.RemoveEmptyEntries);
 
             foreach (var word in words)
             {
                 var cleaned = word.Trim().ToLower();
-                if (cleaned.Length >= 4 && !IsStopWord(cleaned))
+                if (cleaned.Length >= 3 && !IsStopWord(cleaned))
                 {
                     keywords.Add(cleaned);
                 }
             }
 
-            return keywords.Take(30).ToList();
+            for (int i = 0; i < words.Length - 1; i++)
+            {
+                var word1 = words[i].Trim().ToLower();
+                var word2 = words[i + 1].Trim().ToLower();
+
+                if (word1.Length >= 3 && word2.Length >= 3 &&
+                    !IsStopWord(word1) && !IsStopWord(word2))
+                {
+                    keywords.Add($"{word1} {word2}");
+                }
+            }
+
+            return keywords.OrderByDescending(k => k.Length).Take(50).ToList();
         }
 
         private bool IsStopWord(string word)
@@ -754,23 +791,27 @@ namespace StudyHub.Backend.UseCases.Services
                 return result;
             }
         }
-
         public async Task<List<DocumentChunk>> RetrieveRelevantChunksAsync(
             int documentId,
             string query,
             int topK = 5)
         {
-            var queryVector = await _embeddingService.GetEmbeddingAsync(query);
+            var document = _repo.GetDocumentById(documentId);
+            if (document == null)
+                throw new InvalidOperationException("Document not found");
+
+            var keywords = ExtractKeywords(query, document.SubjectId);
+            var enrichedQuery = string.Join(" ", keywords.Concat(new[] { query }));
+            var queryVector = await _embeddingService.GetEmbeddingAsync(enrichedQuery);
 
             var searchResults = await _elasticContentRepo.SearchDocumentContentAsync(
-                documentId, query, queryVector, topK);
+                documentId, enrichedQuery, queryVector, topK * 3);
 
             if (!searchResults.IsValid || !searchResults.Hits.Any())
                 return new List<DocumentChunk>();
 
             var chunks = searchResults.Hits
-                .Where(hit => hit.Score.HasValue && hit.Score.Value > 0.3)
-                .Take(topK)
+                .Where(hit => hit.Score.HasValue && hit.Score.Value > 0.3)  
                 .Select(hit => new DocumentChunk
                 {
                     DocumentId = hit.Source.DocumentId,
@@ -787,9 +828,24 @@ namespace StudyHub.Backend.UseCases.Services
                 })
                 .ToList();
 
+            var queryTerms = query.ToLower().Split(' ').Where(w => w.Length > 2).ToHashSet();
+
+            chunks = chunks.Select(chunk =>
+            {
+                var content = chunk.Content.ToLower();
+                var matchCount = queryTerms.Count(term => content.Contains(term));
+                var matchRatio = (double)matchCount / queryTerms.Count;
+
+                chunk.Score *= (float)(1.0 + (matchRatio * 0.5));
+
+                return chunk;
+            })
+            .OrderByDescending(c => c.Score)
+            .Take(topK)
+            .ToList();
+
             return chunks;
         }
-
         public async Task<RAGAnswer> AskQuestionAsync(int documentId, string question, int maxChunks = 5)
         {
             var result = new RAGAnswer
@@ -871,6 +927,13 @@ NGUYÊN TẮC:
 - Nếu không tìm thấy thông tin, nói rõ ràng
 - Trích dẫn trang cụ thể
 - Trả lời ngắn gọn, đúng trọng tâm, đơn giản hóa câu trả lời, hạn chế lời nói màu mè
+- Trả lời bằng văn xuôi tự nhiên, không dùng ký hiệu đặc biệt
+- KHÔNG sử dụng markdown formatting (**, __, ##, etc.) - chỉ dùng text thuần
+- KHÔNG thêm thông tin bên ngoài ngữ cảnh
+- KHÔNG đoán mò hoặc suy luận trừ khi người dùng yêu cầu
+- Nếu ngữ cảnh không đủ, trả lời rằng không đủ thông tin
+- Luôn trích dẫn trang từ ngữ cảnh trong câu trả lời
+- Nếu có nhiều trang, liệt kê tất cả trang được sử dụng
 
 NGỮ CẢNH (Trang: {sourcePages}):
 {context}
@@ -966,6 +1029,11 @@ TRẢ LỜI:";
             }
 
             return $@"Trả lời câu hỏi dựa trên ngữ cảnh tài liệu và lịch sử hội thoại.
+
+NGUYÊN TẮC:
+- Trả lời ngắn gọn, tự nhiên
+- KHÔNG dùng markdown formatting (**, __, ##)
+- Chỉ dùng text thuần, không ký hiệu đặc biệt
 
 {conversationHistory}
 

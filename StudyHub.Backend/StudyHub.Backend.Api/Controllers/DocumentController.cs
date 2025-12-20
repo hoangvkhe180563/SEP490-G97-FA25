@@ -725,6 +725,7 @@ public IActionResult GetSchoolTeachersDocuments(
         }
 
         [HttpGet("{id:int}/rag-stats")]
+        [Produces("application/json")]
         public async Task<IActionResult> GetRAGStats(int id)
         {
             var document = _documentService.GetDocumentById(id);
@@ -734,6 +735,8 @@ public IActionResult GetSchoolTeachersDocuments(
             try
             {
                 var stats = await _documentService.GetDocumentRAGStatsAsync(id);
+
+                Response.ContentType = "application/json";
 
                 return Ok(new
                 {
@@ -754,6 +757,7 @@ public IActionResult GetSchoolTeachersDocuments(
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
         [HttpPost("init-rag-index")]
         public async Task<IActionResult> InitRAGIndex()
         {

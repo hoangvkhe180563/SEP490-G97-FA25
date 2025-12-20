@@ -28,6 +28,7 @@ import {
 } from "@/common/components/ui/tabs";
 import { Separator } from "@/common/components/ui/separator";
 import { Input } from "@/common/components/ui/input";
+import { axiosInstance } from "@/lib/axios";
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
 import HTMLFlipBook from "react-pageflip";
 
@@ -111,6 +112,7 @@ export default function DocumentViewer() {
     }>;
   } | null>(null);
   const [isAskingAI, setIsAskingAI] = useState(false);
+
   const [conversationHistory, setConversationHistory] = useState<
     Array<{
       question: string;
@@ -126,7 +128,9 @@ export default function DocumentViewer() {
   const flipBookRef = useRef<FlipBookRef | null>(null);
   const pageObserverRef = useRef<IntersectionObserver | null>(null);
   const flipbookContainerRef = useRef<HTMLDivElement>(null);
-
+  const [sidebarWidth, setSidebarWidth] = useState(320);
+  const [isResizing, setIsResizing] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
   const isPdf = document?.fileType?.toLowerCase().includes("pdf");
   const isOfficeFile =
     document?.fileType &&
@@ -212,7 +216,45 @@ export default function DocumentViewer() {
     }
     setIsContentLoading(false);
   }, [id, getDocumentById, loadPdfDocument]);
+  // Dòng 212-229 - Sửa conflict với prop document
+  const startResizing = useCallback(() => {
+    setIsResizing(true);
+    const body = window.document.body;
+    body.style.cursor = "col-resize";
+    body.style.userSelect = "none";
+  }, []);
 
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+    const body = window.document.body;
+    body.style.cursor = "";
+    body.style.userSelect = "";
+  }, []);
+
+  const resize = useCallback(
+    (e: MouseEvent) => {
+      if (isResizing && sidebarRef.current) {
+        const newWidth = window.innerWidth - e.clientX;
+        if (newWidth >= 280 && newWidth <= 800) {
+          requestAnimationFrame(() => {
+            setSidebarWidth(newWidth);
+          });
+        }
+      }
+    },
+    [isResizing]
+  );
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener("mousemove", resize);
+      window.addEventListener("mouseup", stopResizing);
+      return () => {
+        window.removeEventListener("mousemove", resize);
+        window.removeEventListener("mouseup", stopResizing);
+      };
+    }
+  }, [isResizing, resize, stopResizing]);
   useEffect(() => {
     const script = window.document.createElement("script");
     script.src =
@@ -245,25 +287,18 @@ export default function DocumentViewer() {
       );
     };
   }, []);
+
   useEffect(() => {
     const checkRAGIndex = async () => {
       if (id && document?.id) {
         setIsCheckingRAG(true);
         try {
-          const response = await fetch(
-            `${import.meta.env.VITE_API_URL}/Document/${id}/rag-stats`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-            }
-          );
-          if (response.ok) {
-            const result = await response.json();
-            setHasRAGIndex(result.data?.totalChunks > 0);
-          }
+          const response = await axiosInstance.get(`/Document/${id}/rag-stats`);
+          console.log("RAG stats result:", response.data);
+          setHasRAGIndex(response.data.data?.totalChunks > 0);
         } catch (error) {
           console.error("Error checking RAG index:", error);
+          setHasRAGIndex(false);
         } finally {
           setIsCheckingRAG(false);
         }
@@ -556,31 +591,20 @@ export default function DocumentViewer() {
           }
         : { question: aiQuestion };
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}${endpoint}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify(body),
-        }
-      );
+      const response = await axiosInstance.post(endpoint, body);
 
-      if (response.ok) {
-        const result = await response.json();
-        setAiAnswer(result.data);
-
+      if (response.data.success) {
         if (isChat) {
           setConversationHistory([
             ...conversationHistory,
             {
               question: aiQuestion,
-              answer: result.data.answer,
+              answer: response.data.data.answer,
               timestamp: new Date().toISOString(),
             },
           ]);
+        } else {
+          setAiAnswer(response.data.data);
         }
 
         setAiQuestion("");
@@ -916,7 +940,7 @@ export default function DocumentViewer() {
                           : "grab"
                         : "default",
                     width: "100%",
-                    maxWidth: "100%", // ADD THIS
+                    maxWidth: "100%",
                   }}
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
@@ -1036,13 +1060,33 @@ export default function DocumentViewer() {
             )}
           </div>
           <div
-            className={`bg-white border-l border-gray-200 flex flex-col transition-all duration-300 ${
-              isSidebarOpen ? "w-64" : "w-0"
-            }`}
+            ref={sidebarRef}
+            className={`bg-white border-l border-gray-200 flex flex-col ${
+              isSidebarOpen ? "" : "w-0"
+            } ${isResizing ? "" : "transition-all duration-300"} relative`}
+            style={{
+              width: isSidebarOpen ? `${sidebarWidth}px` : 0,
+              pointerEvents: isResizing ? "none" : "auto",
+            }}
           >
+            {isSidebarOpen && (
+              <div
+                className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 transition-colors ${
+                  isResizing ? "bg-blue-500" : ""
+                }`}
+                style={{ zIndex: 9999 }}
+                onMouseDown={startResizing}
+              />
+            )}
             {isPdf && (
               <Tabs defaultValue="info" className="flex flex-col h-full">
-                <TabsList className="w-full grid grid-cols-3 rounded-none border-b">
+                <TabsList
+                  className={`w-full grid ${
+                    hasRAGIndex && !isCheckingRAG
+                      ? "grid-cols-4"
+                      : "grid-cols-3"
+                  } rounded-none border-b`}
+                >
                   <TabsTrigger value="toc" className="text-xs">
                     Mục lục
                   </TabsTrigger>
@@ -1221,9 +1265,14 @@ export default function DocumentViewer() {
                   >
                     <Tabs
                       value={activeAITab}
-                      onValueChange={(v) =>
-                        setActiveAITab(v as "search" | "chat")
-                      }
+                      onValueChange={(v) => {
+                        const newTab = v as "search" | "chat";
+                        setActiveAITab(newTab);
+
+                        if (newTab === "chat") {
+                          setAiAnswer(null);
+                        }
+                      }}
                       className="flex-1 flex flex-col"
                     >
                       <TabsList className="grid w-full grid-cols-2 mb-3">
@@ -1314,7 +1363,275 @@ export default function DocumentViewer() {
                                               Trang {source.pageNumber}
                                             </div>
                                             <div className="text-xs text-gray-600">
-                                              Score:{" "}
+                                              Đánh giá:{" "}
+                                              {(source.score * 100).toFixed(0)}
+                                            </div>
+                                          </div>
+                                          <div className="text-xs text-gray-600 line-clamp-2">
+                                            {source.content}
+                                          </div>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                            </div>
+                          )}
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent
+                        value="chat"
+                        className="flex-1 flex flex-col mt-0"
+                      >
+                        <div className="flex-1 flex flex-col">
+                          <div className="flex-1 overflow-y-auto space-y-3 mb-3">
+                            {conversationHistory.map((turn, idx) => (
+                              <div key={idx} className="space-y-2">
+                                <div className="bg-blue-50 p-2 rounded-lg">
+                                  <div className="text-xs text-blue-800">
+                                    {turn.question}
+                                  </div>
+                                </div>
+                                <div className="bg-gray-50 p-2 rounded-lg">
+                                  <div className="text-xs text-gray-800 whitespace-pre-wrap">
+                                    {turn.answer}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Tiếp tục trò chuyện..."
+                              value={aiQuestion}
+                              onChange={(e) => setAiQuestion(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleAskAI(true);
+                                }
+                              }}
+                              className="text-xs flex-1"
+                              disabled={isAskingAI}
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => handleAskAI(true)}
+                              disabled={isAskingAI || !aiQuestion.trim()}
+                              className="text-xs"
+                            >
+                              {isAskingAI ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                "Gửi"
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </TabsContent>
+                </div>
+              </Tabs>
+            )}
+            {isOfficeFile && isSidebarOpen && (
+              <Tabs defaultValue="info" className="flex flex-col h-full">
+                <TabsList
+                  className={`w-full grid ${
+                    hasRAGIndex && !isCheckingRAG
+                      ? "grid-cols-2"
+                      : "grid-cols-1"
+                  } rounded-none border-b`}
+                >
+                  <TabsTrigger value="info" className="text-xs">
+                    Thông tin
+                  </TabsTrigger>
+                  {hasRAGIndex && !isCheckingRAG && (
+                    <TabsTrigger value="ai" className="text-xs">
+                      AI Search
+                    </TabsTrigger>
+                  )}
+                </TabsList>
+
+                <div className="flex-1 overflow-y-auto">
+                  <TabsContent value="info" className="p-3 mt-0">
+                    <div className="space-y-4">
+                      <div className="flex flex-col items-center text-center">
+                        <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center mb-2">
+                          <FileText className="w-8 h-8 text-gray-600" />
+                        </div>
+                        <h3 className="font-semibold text-xs">
+                          {document?.name || "Tài liệu"}
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {document?.fileType || "Office"} -{" "}
+                          {document?.categoryName || "Tài liệu"} - Lớp{" "}
+                          {document?.grade || ""}
+                        </p>
+                      </div>
+
+                      <Separator />
+
+                      <div>
+                        <h4 className="font-semibold text-xs mb-2">
+                          Thông tin
+                        </h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-600">Loại tài liệu</span>
+                            <span className="font-medium text-right">
+                              {document?.categoryName || "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-600">Môn học</span>
+                            <span className="font-medium text-right">
+                              {document?.subjectName || "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-600">Khối</span>
+                            <span className="font-medium text-right">
+                              Lớp {document?.grade || "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-600">Ngày tạo</span>
+                            <span className="font-medium text-right">
+                              {document?.createdAt
+                                ? new Date(
+                                    document.createdAt
+                                  ).toLocaleDateString("vi-VN")
+                                : "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-600">Người đăng</span>
+                            <span className="font-medium text-right">
+                              {document?.uploaderName || "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-600">
+                              Quyền truy cập
+                            </span>
+                            <span className="font-medium text-right">
+                              {document?.schoolId ? "Trường học" : "Công khai"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent
+                    value="ai"
+                    className="p-3 mt-0 h-full flex flex-col"
+                  >
+                    <Tabs
+                      value={activeAITab}
+                      onValueChange={(v) =>
+                        setActiveAITab(v as "search" | "chat")
+                      }
+                      className="flex-1 flex flex-col"
+                    >
+                      <TabsList className="grid w-full grid-cols-2 mb-3">
+                        <TabsTrigger value="search" className="text-xs">
+                          Tìm kiếm
+                        </TabsTrigger>
+                        <TabsTrigger value="chat" className="text-xs">
+                          Trò chuyện
+                        </TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent
+                        value="search"
+                        className="flex-1 flex flex-col mt-0"
+                      >
+                        <div className="space-y-3 flex-1 flex flex-col">
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Hỏi về tài liệu..."
+                              value={aiQuestion}
+                              onChange={(e) => setAiQuestion(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleAskAI(false);
+                                }
+                              }}
+                              className="text-xs flex-1"
+                              disabled={isAskingAI}
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => handleAskAI(false)}
+                              disabled={isAskingAI || !aiQuestion.trim()}
+                              className="text-xs"
+                            >
+                              {isAskingAI ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                "Hỏi"
+                              )}
+                            </Button>
+                          </div>
+
+                          {aiAnswer && (
+                            <div className="flex-1 overflow-y-auto space-y-3">
+                              <div className="bg-blue-50 p-3 rounded-lg">
+                                <div className="text-xs font-medium text-blue-900 mb-1">
+                                  Câu hỏi
+                                </div>
+                                <div className="text-xs text-blue-800">
+                                  {aiAnswer.question}
+                                </div>
+                              </div>
+
+                              <div className="bg-green-50 p-3 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="text-xs font-medium text-green-900">
+                                    Trả lời
+                                  </div>
+                                  <div className="text-xs text-green-700">
+                                    Độ tin cậy:{" "}
+                                    {(aiAnswer.confidence * 100).toFixed(0)}%
+                                  </div>
+                                </div>
+                                <div className="text-xs text-green-800 whitespace-pre-wrap">
+                                  {aiAnswer.answer}
+                                </div>
+                              </div>
+
+                              {aiAnswer.sources &&
+                                aiAnswer.sources.length > 0 && (
+                                  <div>
+                                    <div className="text-xs font-medium mb-2 text-gray-700">
+                                      Nguồn tham khảo
+                                    </div>
+                                    <div className="space-y-2">
+                                      {aiAnswer.sources.map((source, idx) => (
+                                        <button
+                                          key={idx}
+                                          onClick={() => {
+                                            if (source.pageNumber > 0) {
+                                              handleSourceClick(
+                                                source.pageNumber
+                                              );
+                                            }
+                                          }}
+                                          className="w-full text-left p-2 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition-colors"
+                                        >
+                                          <div className="flex items-center justify-between mb-1">
+                                            <div className="text-xs font-medium text-gray-900">
+                                              {source.pageNumber > 0
+                                                ? `Trang ${source.pageNumber}`
+                                                : `Đoạn ${idx + 1}`}{" "}
+                                            </div>
+                                            <div className="text-xs text-gray-600">
+                                              Độ chính xác:{" "}
                                               {(source.score * 100).toFixed(0)}%
                                             </div>
                                           </div>
@@ -1401,73 +1718,6 @@ export default function DocumentViewer() {
                   </TabsContent>
                 </div>
               </Tabs>
-            )}
-            {isOfficeFile && isSidebarOpen && (
-              <div className="p-4">
-                <div className="space-y-4">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center mb-2">
-                      <FileText className="w-8 h-8 text-gray-600" />
-                    </div>
-                    <h3 className="font-semibold text-xs">
-                      {document?.name || "Tài liệu"}
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {document?.fileType || "Office"} -{" "}
-                      {document?.categoryName || "Tài liệu"} - Lớp{" "}
-                      {document?.grade || ""}
-                    </p>
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <h4 className="font-semibold text-xs mb-2">Thông tin</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-gray-600">Loại tài liệu</span>
-                        <span className="font-medium text-right">
-                          {document?.categoryName || "N/A"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-gray-600">Môn học</span>
-                        <span className="font-medium text-right">
-                          {document?.subjectName || "N/A"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-gray-600">Khối</span>
-                        <span className="font-medium text-right">
-                          Lớp {document?.grade || "N/A"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-gray-600">Ngày tạo</span>
-                        <span className="font-medium text-right">
-                          {document?.createdAt
-                            ? new Date(document.createdAt).toLocaleDateString(
-                                "vi-VN"
-                              )
-                            : "N/A"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-gray-600">Người đăng</span>
-                        <span className="font-medium text-right">
-                          {document?.uploaderName || "N/A"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-gray-600">Quyền truy cập</span>
-                        <span className="font-medium text-right">
-                          {document?.schoolId ? "Trường học" : "Công khai"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
             )}
           </div>
         </div>

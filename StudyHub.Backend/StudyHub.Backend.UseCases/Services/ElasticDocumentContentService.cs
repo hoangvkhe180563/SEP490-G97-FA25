@@ -104,14 +104,14 @@ namespace StudyHub.Backend.UseCases.Services
         }
 
         public async Task<ISearchResponse<ElasticDocumentChunk>> SearchDocumentContentAsync(
-      int documentId,
-      string query,
-      float[] queryVector,
-      int topK = 10)
+            int documentId,
+            string query,
+            float[] queryVector,
+            int topK = 10)
         {
             var searchResponse = await _client.SearchAsync<ElasticDocumentChunk>(s => s
                 .Index(INDEX_NAME)
-                .Size(topK)
+                .Size(topK * 3)  
                 .Query(q => q
                     .ScriptScore(ss => ss
                         .Query(innerQuery => innerQuery
@@ -123,12 +123,17 @@ namespace StudyHub.Backend.UseCases.Services
                                     sh => sh.Match(m => m
                                         .Field("content")
                                         .Query(query)
-                                        .Boost(1.0)
+                                        .Boost(2.5)  
                                     ),
                                     sh => sh.Terms(t => t
                                         .Field("keywords")
                                         .Terms(query.Split(' ').Where(w => w.Length > 2))
-                                        .Boost(1.5)
+                                        .Boost(5.0)  
+                                    ),
+                                    sh => sh.MatchPhrase(mp => mp
+                                        .Field("content")
+                                        .Query(query)
+                                        .Boost(3.0)  
                                     )
                                 )
                                 .MinimumShouldMatch(0)
@@ -139,16 +144,37 @@ namespace StudyHub.Backend.UseCases.Services
                         if (doc['contentVector'].size() == 0) {
                             return 0.0;
                         }
+                        
+                        // Vector similarity
                         double vectorScore = cosineSimilarity(params.queryVector, 'contentVector');
                         double vectorScoreNorm = Math.max(0.0, (vectorScore + 1.0) / 2.0);
+                        
+                        // BM25 score
                         double bm25 = _score;
-                        double bm25Norm = bm25 > 0 ? Math.log(1 + bm25) / 5.0 : 0.0;
-                        return (params.vectorWeight * vectorScoreNorm) + (params.bm25Weight * bm25Norm);
+                        double bm25Norm = bm25 > 0 ? Math.log(1 + bm25) / 3.0 : 0.0;  // ⬇️ Giảm divisor
+                        
+                        // Boost nếu có keyword match
+                        double keywordBoost = 1.0;
+                        if (bm25 > 5.0) {  // Có match tốt
+                            keywordBoost = 1.5;
+                        }
+                        
+                        // Combined score với dynamic weighting
+                        double vectorWeight = params.vectorWeight;
+                        double bm25Weight = params.bm25Weight;
+                        
+                        // Nếu BM25 score cao, tăng trọng số cho nó
+                        if (bm25Norm > 0.5) {
+                            bm25Weight = 0.5;
+                            vectorWeight = 0.5;
+                        }
+                        
+                        return keywordBoost * ((vectorWeight * vectorScoreNorm) + (bm25Weight * bm25Norm));
                     ")
                             .Params(p => p
                                 .Add("queryVector", queryVector)
-                                .Add("vectorWeight", 0.7)
-                                .Add("bm25Weight", 0.3)
+                                .Add("vectorWeight", 0.5)  
+                                .Add("bm25Weight", 0.5) 
                             )
                         )
                     )
@@ -173,36 +199,58 @@ namespace StudyHub.Backend.UseCases.Services
 
         public async Task<DocumentIndexStats> GetDocumentStatsAsync(int documentId)
         {
-            var searchResponse = await _client.SearchAsync<ElasticDocumentChunk>(s => s
-                .Index(INDEX_NAME)
-                .Size(0)
-                .Query(q => q
-                    .Term(t => t.Field(f => f.DocumentId).Value(documentId))
-                )
-                .Aggregations(a => a
-                    .Max("max_page", m => m.Field(f => f.PageNumber))
-                    .Sum("total_chars", m => m
-                        .Script(sc => sc
-                            .Source("doc['content.keyword'].value.length()")
-                        )
-                    )
-                )
-            );
-
-            if (!searchResponse.IsValid)
-                return new DocumentIndexStats { DocumentId = documentId };
-
-            var maxPage = searchResponse.Aggregations.Max("max_page")?.Value ?? 0;
-            var totalChars = (long)(searchResponse.Aggregations.Sum("total_chars")?.Value ?? 0);
-
-            return new DocumentIndexStats
+            try
             {
-                DocumentId = documentId,
-                TotalChunks = (int)searchResponse.Total,
-                TotalPages = (int)maxPage,
-                TotalCharacters = totalChars,
-                LastIndexed = DateTime.Now
-            };
+                var searchResponse = await _client.SearchAsync<ElasticDocumentChunk>(s => s
+                    .Index(INDEX_NAME)
+                    .Size(0)
+                    .Query(q => q
+                        .Term(t => t.Field(f => f.DocumentId).Value(documentId))
+                    )
+                    .Aggregations(a => a
+                        .Max("max_page", m => m.Field(f => f.PageNumber))
+                    )
+                );
+
+                if (!searchResponse.IsValid)
+                {
+                    Console.WriteLine($"[RAG Stats] Search failed for document {documentId}: {searchResponse.DebugInformation}");
+                    return new DocumentIndexStats
+                    {
+                        DocumentId = documentId,
+                        TotalChunks = 0,
+                        TotalPages = 0,
+                        TotalCharacters = 0,
+                        LastIndexed = null
+                    };
+                }
+
+                var totalChunks = (int)searchResponse.Total;
+                var maxPage = searchResponse.Aggregations.Max("max_page")?.Value ?? 0;
+
+                Console.WriteLine($"[RAG Stats] Document {documentId}: {totalChunks} chunks, {maxPage} pages");
+
+                return new DocumentIndexStats
+                {
+                    DocumentId = documentId,
+                    TotalChunks = totalChunks,
+                    TotalPages = (int)maxPage,
+                    TotalCharacters = 0,
+                    LastIndexed = totalChunks > 0 ? DateTime.Now : (DateTime?)null
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[RAG Stats] Error getting stats for document {documentId}: {ex.Message}");
+                return new DocumentIndexStats
+                {
+                    DocumentId = documentId,
+                    TotalChunks = 0,
+                    TotalPages = 0,
+                    TotalCharacters = 0,
+                    LastIndexed = null
+                };
+            }
         }
         public async Task<bool> ClearAllDocumentContentsAsync()
         {
