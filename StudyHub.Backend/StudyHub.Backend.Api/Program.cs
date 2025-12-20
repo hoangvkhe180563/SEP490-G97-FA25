@@ -20,8 +20,8 @@ builder.Services.AddAuthentication("Bearer")
         options.TokenValidationParameters = JwtUtils.GetTokenValidationParameters(builder.Configuration);
     }).AddGoogle(options =>
     {
-        options.ClientId = builder.Configuration.GetValue<string>("Google:ClientId");
-        options.ClientSecret = builder.Configuration.GetValue<string>("Google:ClientSecret");
+        options.ClientId = builder.Configuration.GetValue<string>("Google:ClientId") ?? "";
+        options.ClientSecret = builder.Configuration.GetValue<string>("Google:ClientSecret") ?? "";
         options.CallbackPath = builder.Configuration.GetValue<string>("Google:CallbackPath") ?? "/auth/google/callback";
     });
 
@@ -55,14 +55,12 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "StudyHub API", Version = "v1" });
     c.SupportNonNullableReferenceTypes();
 
-    // Cấu hình để upload file trên Swagger
     c.MapType<IFormFile>(() => new OpenApiSchema
     {
         Type = "string",
         Format = "binary"
     });
 
-    // Thêm nút "Authorize" (khóa) để dán JWT Token vào Swagger cho Production/Dev
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
@@ -103,31 +101,22 @@ builder.Services.AddScoped<ISignalRNotifier, SignalRNotifierMiddleware>();
 var app = builder.Build();
 
 // --- 2. CONFIG MIDDLEWARE PIPELINE ---
-
 app.UseCors();
-
-// Bật Swagger cho TẤT CẢ các môi trường (bao gồm cả Production)
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "StudyHub API v1");
-    // Nếu bạn muốn truy cập thẳng root (/) là ra Swagger luôn thì bỏ comment dòng dưới:
-    // c.RoutePrefix = string.Empty; 
 });
 
 app.UseHttpsRedirection();
-
-// Middleware xử lý Token từ Cookie (nếu có)
 app.UseMiddleware<JwtCookieMiddleware>();
 
 app.UseAuthentication();
 app.UseMiddleware<AccountActiveMiddleware>();
 app.UseAuthorization();
 app.UseSession();
-
 app.MapControllers();
 
-// SignalR Hubs
 app.MapHub<ClassNotificationHub>("/hubs/class-notification");
 app.MapHub<QAChatHub>("/hubs/qa-chat");
 app.MapHub<UserPresenseHub>("/hubs/user-presense");

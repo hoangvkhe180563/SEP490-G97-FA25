@@ -39,6 +39,7 @@ import type { UpdateProfileDto } from "../interfaces/dtos";
 import { isValidVietnamPhone } from "../utils/phoneUtils";
 import useDobStore from "@/user/stores/useDobStore";
 import { ROLES } from "@/common/constants/Roles";
+import { useLoading } from "@/common/hooks/useLoading";
 
 // Vietnam phone validator
 
@@ -89,6 +90,7 @@ export default function UpdateProfile() {
   const { getProfile, currentUser, updateProfile, isLoading } =
     useAppUserStore();
   const { user } = useAuthStore();
+  const { setLoading } = useLoading(); 
   const {
     fetchCities,
     fetchCommunes,
@@ -152,6 +154,7 @@ export default function UpdateProfile() {
 
   useEffect(() => {
     const load = async () => {
+      setLoading(true);
       await fetchCities();
       await getProfile();
       const user = useAppUserStore.getState().currentUser;
@@ -183,7 +186,7 @@ export default function UpdateProfile() {
       setDisplayedUsername(user.username ?? undefined);
     };
 
-    load();
+    load().finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

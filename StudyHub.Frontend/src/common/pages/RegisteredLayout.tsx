@@ -16,6 +16,7 @@ import {
   questionManagerSidebarItems,
   moderatorSidebarItems,
   schoolAdminSidebarItems,
+  adminSidebarItems,
   uiManagerSidebarItems,
   externalStudentSidebarItems,
 } from "../constants/SidebarItems";
@@ -70,6 +71,9 @@ const RegisteredLayout = (props: IRegisteredLayoutProps) => {
       }
       if (role === ROLES.SCHOOL_ADMIN) {
         allSidebarItems.push(...schoolAdminSidebarItems);
+      }
+      if (role === ROLES.ADMIN) {
+        allSidebarItems.push(...adminSidebarItems);
       }
     });
 

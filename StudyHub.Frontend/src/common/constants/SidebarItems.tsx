@@ -14,8 +14,10 @@ import {
   MessageSquare,
   NotebookPen,
   Receipt,
+  School,
   ScrollText,
   Settings,
+  User,
   UserCog,
   Users,
 } from "lucide-react";
@@ -476,3 +478,26 @@ export const schoolAdminSidebarItems: ISidebarItem[] = [
     link: "/notification/notifications",
   },
 ];
+
+export const adminSidebarItems: ISidebarItem[] = [
+  {
+    icon: <Home size={20} />,
+    text: "Trang chủ",
+    link: "/ui/landing"
+  },
+  {
+    icon: <User size={20} />,
+    text: "Quản lý người dùng",
+    link: "/user/admin/accounts"
+  },
+  {
+    icon: <School size={20} />,
+    text: "Quản lý trường",
+    link: "/ui/schools"
+  },
+  {
+    icon: <Bell size={20} />,
+    text: "Thông báo",
+    link: "/notification/notifications",
+  },
+]

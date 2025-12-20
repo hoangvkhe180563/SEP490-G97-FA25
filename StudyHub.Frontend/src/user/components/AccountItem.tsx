@@ -26,9 +26,11 @@ import { createFallBack } from "../utils/avatarUtils";
 import { formatDate } from "../utils/dateUtils";
 import toast from "react-hot-toast";
 import { ROLES } from "@/common/constants/Roles";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
   const { updateUserStatus, currentUser } = useAppUserStore();
+  const store = useAuthStore();
   const isViewerAdmin = (currentUser?.roles || []).some(
     (r) => r === ROLES.ADMIN
   );
@@ -202,9 +204,8 @@ const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
             }}
           >
             <SelectTrigger
-              className={`w-24 justify-center ${
-                statusColor[user.status] || ""
-              } rounded-full text-xs font-medium py-1 cursor-pointer transition-all focus:ring-2`}
+              className={`w-24 justify-center ${statusColor[user.status] || ""
+                } rounded-full text-xs font-medium py-1 cursor-pointer transition-all focus:ring-2`}
             >
               {user.status === "Active" ? "Hoạt động" : "Không hoạt động"}
             </SelectTrigger>
@@ -221,9 +222,17 @@ const AccountItem: React.FC<Props> = ({ user, idx, setUsers, statusColor }) => {
             title="Edit"
             className="p-1 text-gray-500 hover:text-gray-700"
           >
-            <Link to={`/user/manager/update-account/${user.id}`}>
-              <Edit2 />
-            </Link>
+            {
+              store.user?.roles.some(r => r === ROLES.ADMIN) ? (
+                <Link to={`/user/admin/update-account/${user.id}`}>
+                  <Edit2 />
+                </Link>
+              ) : (
+                <Link to={`/user/manager/update-account/${user.id}`}>
+                  <Edit2 />
+                </Link>
+              )
+            }
           </button>
         </div>
       </TableCell>
