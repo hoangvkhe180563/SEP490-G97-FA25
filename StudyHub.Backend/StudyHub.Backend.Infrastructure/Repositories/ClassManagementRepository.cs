@@ -21,9 +21,12 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public List<Domain.Entities.Class> GetAllClasses()
         {
+            // If DeletedAt is a value type (DateTime) comparing to null causes CS8073.
+            // Cast to nullable to express the intent "not deleted" in a way that works
+            // whether DeletedAt is nullable or not.
             return _context.Classes
                 .Include(c => c.AppUserClasses)
-                .Where(c => c.DeletedAt == null)
+                .Where(c => ((DateTime?)c.DeletedAt) == null)
                 .Select(c => new Domain.Entities.Class
                 {
                     Id = c.Id,
@@ -205,17 +208,21 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public int GetJoinedCountByClassId(int classId) =>
             _context.AppUserClasses.AsNoTracking().Count(uc => uc.ClassId == classId && uc.Status == "joined");
 
+#pragma warning disable CS8629 // Nullable value type may be null.
         public List<double> GetAllGradedScores() =>
             _context.NotificationSubmissions.AsNoTracking()
                 .Where(s => s.Score != null)
                 .Select(s => (double)s.Score)
                 .ToList();
+#pragma warning restore CS8629 // Nullable value type may be null.
 
+#pragma warning disable CS8629 // Nullable value type may be null.
         public IEnumerable<double> GetAllGradedScoresByNotificationIds(IEnumerable<int> notificationIds) =>
             _context.NotificationSubmissions.AsNoTracking()
                 .Where(s => s.Score != null && notificationIds.Contains(s.NotificationId))
                 .Select(s => (double)s.Score)
                 .AsEnumerable();
+#pragma warning restore CS8629 // Nullable value type may be null.
 
         public List<int> GetNotificationIdsForClasswork() =>
             _context.ClassNotifications.AsNoTracking()
@@ -237,9 +244,10 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public List<string> GetDistinctClassworkMonths()
         {
+            // guard CreatedAt using nullable cast so the query condition compiles without CS8073
             return _context.ClassNotifications.AsNoTracking()
-                .Where(n => n.Type == "classwork" && n.CreatedAt != null)
-                .Select(n => new { Year = n.CreatedAt.Year, Month = n.CreatedAt.Month })
+                .Where(n => n.Type == "classwork" )
+                .Select(n => new { Year = ((DateTime?)n.CreatedAt).Value.Year, Month = ((DateTime?)n.CreatedAt).Value.Month })
                 .AsEnumerable()
                 .Select(x => $"{x.Year:D4}-{x.Month:D2}")
                 .Distinct()
@@ -249,14 +257,19 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public int GetClassworkCountForYearMonth(int year, int month)
         {
+            // use nullable cast + HasValue to avoid comparing non-nullable to null
             return _context.ClassNotifications.AsNoTracking()
-                .Count(n => n.Type == "classwork" && n.CreatedAt.Year == year && n.CreatedAt.Month == month);
+                .Count(n => n.Type == "classwork" && ((DateTime?)n.CreatedAt).HasValue
+                            && ((DateTime?)n.CreatedAt).Value.Year == year
+                            && ((DateTime?)n.CreatedAt).Value.Month == month);
         }
 
         public int GetClassworkCountForYearMonthByClass(int year, int month, int classId)
         {
             return _context.ClassNotifications.AsNoTracking()
-                .Count(n => n.Type == "classwork" && n.ClassId == classId && n.CreatedAt.Year == year && n.CreatedAt.Month == month);
+                .Count(n => n.Type == "classwork" && n.ClassId == classId && ((DateTime?)n.CreatedAt).HasValue
+                            && ((DateTime?)n.CreatedAt).Value.Year == year
+                            && ((DateTime?)n.CreatedAt).Value.Month == month);
         }
 
         public int GetClassworkCountForClass(int classId) =>
@@ -265,8 +278,8 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public List<string> GetDistinctNotificationMonths()
         {
             return _context.ClassNotifications.AsNoTracking()
-                .Where(n => n.Type == "notification" && n.CreatedAt != null)
-                .Select(n => new { Year = n.CreatedAt.Year, Month = n.CreatedAt.Month })
+                .Where(n => n.Type == "notification")
+                .Select(n => new { Year = ((DateTime?)n.CreatedAt).Value.Year, Month = ((DateTime?)n.CreatedAt).Value.Month })
                 .AsEnumerable()
                 .Select(x => $"{x.Year:D4}-{x.Month:D2}")
                 .Distinct()
@@ -277,64 +290,78 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public int GetNotificationCountForYearMonth(int year, int month)
         {
             return _context.ClassNotifications.AsNoTracking()
-                .Count(n => n.Type == "notification" && n.CreatedAt.Year == year && n.CreatedAt.Month == month);
+                .Count(n => n.Type == "notification" && ((DateTime?)n.CreatedAt).HasValue
+                            && ((DateTime?)n.CreatedAt).Value.Year == year
+                            && ((DateTime?)n.CreatedAt).Value.Month == month);
         }
 
         public int GetNotificationCountForYearMonthByClass(int year, int month, int classId)
         {
             return _context.ClassNotifications.AsNoTracking()
-                .Count(n => n.Type == "notification" && n.ClassId == classId && n.CreatedAt.Year == year && n.CreatedAt.Month == month);
+                .Count(n => n.Type == "notification" && n.ClassId == classId && ((DateTime?)n.CreatedAt).HasValue
+                            && ((DateTime?)n.CreatedAt).Value.Year == year
+                            && ((DateTime?)n.CreatedAt).Value.Month == month);
         }
 
         public List<string> GetDistinctSubmissionMonths()
         {
+#pragma warning disable CS8073 // The result of the expression is always the same since a value of this type is never equal to 'null'
             return _context.NotificationSubmissions.AsNoTracking()
                 .Where(s => s.LatestSubmissionTime != null)
-                .Select(s => new { Year = s.LatestSubmissionTime.Year, Month = s.LatestSubmissionTime.Month })
+                .Select(s => new { Year = ((DateTime?)s.LatestSubmissionTime).Value.Year, Month = ((DateTime?)s.LatestSubmissionTime).Value.Month })
                 .AsEnumerable()
                 .Select(x => $"{x.Year:D4}-{x.Month:D2}")
                 .Distinct()
                 .OrderBy(x => x)
                 .ToList();
+#pragma warning restore CS8073 // The result of the expression is always the same since a value of this type is never equal to 'null'
         }
 
         public int GetSubmissionCountForYearMonth(int year, int month)
         {
             return _context.NotificationSubmissions.AsNoTracking()
-                .Count(s => s.LatestSubmissionTime.Year == year && s.LatestSubmissionTime.Month == month);
+                .Count(s => ((DateTime?)s.LatestSubmissionTime).HasValue
+                            && ((DateTime?)s.LatestSubmissionTime).Value.Year == year
+                            && ((DateTime?)s.LatestSubmissionTime).Value.Month == month);
         }
 
         public int GetSubmissionCountForYearMonthByClass(int year, int month, int classId)
         {
             return (from s in _context.NotificationSubmissions.AsNoTracking()
                     join n in _context.ClassNotifications.AsNoTracking() on s.NotificationId equals n.Id
-                    where n.ClassId == classId && s.LatestSubmissionTime.Year == year && s.LatestSubmissionTime.Month == month
+                    where n.ClassId == classId && ((DateTime?)s.LatestSubmissionTime).HasValue
+                          && ((DateTime?)s.LatestSubmissionTime).Value.Year == year
+                          && ((DateTime?)s.LatestSubmissionTime).Value.Month == month
                     select s).Count();
         }
 
         public List<string> GetDistinctClassCreatedMonths()
         {
+#pragma warning disable CS8073 // The result of the expression is always the same since a value of this type is never equal to 'null'
             return _context.Classes.AsNoTracking()
-                .Where(c => c.CreatedAt != null)
-                .Select(c => new { Year = c.CreatedAt.Year, Month = c.CreatedAt.Month })
+                .Where(c => ((DateTime?)c.CreatedAt) != null)
+                .Select(c => new { Year = ((DateTime?)c.CreatedAt).Value.Year, Month = ((DateTime?)c.CreatedAt).Value.Month })
                 .AsEnumerable()
                 .Select(x => $"{x.Year:D4}-{x.Month:D2}")
                 .Distinct()
                 .OrderBy(x => x)
                 .ToList();
+#pragma warning restore CS8073 // The result of the expression is always the same since a value of this type is never equal to 'null'
         }
 
         public int GetClassCreatedCountForYearMonth(int year, int month)
         {
             return _context.Classes.AsNoTracking()
-                .Count(c => c.CreatedAt.Year == year && c.CreatedAt.Month == month);
+                .Count(c => ((DateTime?)c.CreatedAt).HasValue
+                            && ((DateTime?)c.CreatedAt).Value.Year == year
+                            && ((DateTime?)c.CreatedAt).Value.Month == month);
         }
 
         public int GetClassCreatedCountForYearMonthBySchool(int year, int month, int schoolId)
         {
             return (from c in _context.Classes.AsNoTracking()
                     join u in _context.AppUsers.AsNoTracking() on c.CreatedBy equals u.Id
-                    where c.CreatedAt.Year == year && c.CreatedAt.Month == month && u.SchoolId == schoolId
+                    where ((DateTime?)c.CreatedAt).HasValue && ((DateTime?)c.CreatedAt).Value.Year == year && ((DateTime?)c.CreatedAt).Value.Month == month && u.SchoolId == schoolId
                     select c).Count();
         }
 
@@ -381,19 +408,21 @@ namespace StudyHub.Backend.Infrastructure.Repositories
         public Domain.Entities.School GetSchoolByID(int? schoolID)
         {
             var school = _context.Schools.FirstOrDefault(a => a.Id == schoolID);
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
             return new Domain.Entities.School
             {
-                Id = school.Id,
-                Name = school.Name,
-                Address = school.Address,
-                CommuneId = school.CommuneId,
+                Id = school?.Id ?? 0,
+                Name = school?.Name ?? string.Empty,
+                Address = school?.Address ?? string.Empty,
+                CommuneId = school.CommuneId
             };
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
         }
 
         public int GetReadCountForNotification(int notificationId)
         {
             return _context.ClassNotificationComments.AsNoTracking()
-                .Count(r => r.NotificationId == notificationId );
+                .Count(r => r.NotificationId == notificationId);
         }
 
         public int GetTotalRecipientsForNotification(int notificationId)

@@ -245,7 +245,7 @@ namespace StudyHub.Backend.Api.Controllers
 
                     // IMPORTANT: align behavior with ClassController.Create
                     // Use placeholder base "/class" for group broadcasts so clients resolve per-role.
-                    var creatorLink = "/class/"+dto.ClassId;
+                    var creatorLink = "/class/" + dto.ClassId;
 
                     // 1) Send to maintainers (if any)
                     List<Guid> maintainerIds = new List<Guid>();
@@ -292,47 +292,7 @@ namespace StudyHub.Backend.Api.Controllers
                         }
                     }
 
-                    // 2) Personal notification to actor only if actor is not in maintainer list
-                    var isActorMaintainer = maintainerIds != null && maintainerIds.Contains(actorId);
-                    if (!isActorMaintainer)
-                    {
-                        // For personal notification we can still use placeholder or a resolved link.
-                        // Keep placeholder to be consistent with ClassController.Create behavior.
-                        var savedActorNotif = await _notificationService.CreateAndSendNotificationToRecipientsAsync(
-                            title: $"Bạn đã {(isClasswork ? "giao bài" : "tạo thông báo")} cho {className}",
-                            body: body,
-                            targetType: "User",
-                            targetGroupId: null,
-                            targetUserId: actorId,
-                            recipientUserIds: new[] { actorId },
-                            createdBy: actorId,
-                            linkUrl: creatorLink,
-                            priority: "Normal",
-                            ct: HttpContext.RequestAborted);
-
-                        try
-                        {
-                            var payloadActor = new
-                            {
-                                id = savedActorNotif.Id,
-                                title = savedActorNotif.Title,
-                                body = savedActorNotif.Body,
-                                linkUrl = creatorLink,
-                                priority = savedActorNotif.Priority,
-                                targetType = savedActorNotif.TargetType,
-                                targetUserId = savedActorNotif.TargetUserId,
-                                createdAt = savedActorNotif.CreatedAt,
-                                isRead = false
-                            };
-                            await _notificationHub.Clients.Group($"user_{actorId}").SendAsync("NotificationCreated", payloadActor, HttpContext.RequestAborted);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Broadcast actor personal notification failed: {ex.Message}");
-                        }
-                    }
-
-                    // 3) Send to class members
+                    // 3) Send to class members (group) -- KEEP group broadcast, remove personal notifications
                     var memberIds = _service.GetMemberIdsByClass(createdNoti.ClassId) ?? new List<Guid>();
                     if (memberIds.Any())
                     {
@@ -503,7 +463,7 @@ namespace StudyHub.Backend.Api.Controllers
 
                     var displayTitle = $"{actorName} đã cập nhật bài tập cho {className}";
                     var body = $"{actorName} - {res.Title}";
-                    var updaterLink = "/class/"+ res.ClassId;
+                    var updaterLink = "/class/" + res.ClassId;
 
                     // maintainers
                     var maintainerIds = actor?.SchoolId != null ? _notificationService.GetMaintainersForSchool(actor.SchoolId.Value) : new List<Guid>();
@@ -545,44 +505,7 @@ namespace StudyHub.Backend.Api.Controllers
                         }
                     }
 
-                    // actor personal (if not maintainer)
-                    if (!maintainerIds.Contains(res.CreatedBy))
-                    {
-                        var savedActorNotif = await _notificationService.CreateAndSendNotificationToRecipientsAsync(
-                            title: $"Bạn đã cập nhật bài tập cho {className}",
-                            body: body,
-                            targetType: "User",
-                            targetGroupId: null,
-                            targetUserId: res.CreatedBy,
-                            recipientUserIds: new[] { res.CreatedBy },
-                            createdBy: res.CreatedBy,
-                            linkUrl: updaterLink,
-                            priority: "Normal",
-                            ct: HttpContext.RequestAborted);
-
-                        try
-                        {
-                            var payloadActor = new
-                            {
-                                id = savedActorNotif.Id,
-                                title = savedActorNotif.Title,
-                                body = savedActorNotif.Body,
-                                linkUrl = updaterLink,
-                                priority = savedActorNotif.Priority,
-                                targetType = savedActorNotif.TargetType,
-                                targetUserId = savedActorNotif.TargetUserId,
-                                createdAt = savedActorNotif.CreatedAt,
-                                isRead = false
-                            };
-                            await _notificationHub.Clients.Group($"user_{res.CreatedBy}").SendAsync("NotificationCreated", payloadActor, HttpContext.RequestAborted);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Broadcast actor personal notification failed: {ex.Message}");
-                        }
-                    }
-
-                    // members
+                    // members (group only)
                     var memberIds = _service.GetMemberIdsByClass(res.ClassId) ?? new List<Guid>();
                     if (memberIds.Any())
                     {
@@ -696,7 +619,7 @@ namespace StudyHub.Backend.Api.Controllers
                 avatarUrl = user?.Avatar ?? ""
             };
 
-            // --- New: create/send notifications related to this comment ---
+            // --- New: create/send notifications related to this comment (GROUP ONLY) ---
             try
             {
                 // Get the original notification so we can determine classId, title, owner...
@@ -716,7 +639,7 @@ namespace StudyHub.Backend.Api.Controllers
                     linkForRecipients = BuildClassLinkForUser(dto.CreatedBy, classId);
                 }
 
-                // 1) Notify class members (group) if class exists
+                // 1) Notify class members (group) if class exists (group only)
                 if (classId > 0)
                 {
                     try
@@ -766,51 +689,6 @@ namespace StudyHub.Backend.Api.Controllers
                     {
                         Console.WriteLine($"Create/send class-members comment notification error: {ex}");
                     }
-                }
-
-                // 2) Notify the original notification owner (if exists and not the commenter)
-                try
-                {
-                    var ownerId = originalNoti?.CreatedBy ?? Guid.Empty;
-                    if (ownerId != Guid.Empty && ownerId != dto.CreatedBy)
-                    {
-                        var savedOwnerNotif = await _notificationService.CreateAndSendNotificationToRecipientsAsync(
-                            title: commentTitle,
-                            body: commentBody,
-                            targetType: "User",
-                            targetGroupId: null,
-                            targetUserId: ownerId,
-                            recipientUserIds: new[] { ownerId },
-                            createdBy: dto.CreatedBy,
-                            linkUrl: linkForRecipients,
-                            priority: "Normal",
-                            ct: HttpContext.RequestAborted);
-
-                        try
-                        {
-                            var payloadOwner = new
-                            {
-                                id = savedOwnerNotif.Id,
-                                title = savedOwnerNotif.Title,
-                                body = savedOwnerNotif.Body,
-                                linkUrl = linkForRecipients,
-                                priority = savedOwnerNotif.Priority,
-                                targetType = savedOwnerNotif.TargetType,
-                                targetUserId = savedOwnerNotif.TargetUserId,
-                                createdAt = savedOwnerNotif.CreatedAt,
-                                isRead = false
-                            };
-                            await _notificationHub.Clients.Group($"user_{ownerId}").SendAsync("NotificationCreated", payloadOwner, HttpContext.RequestAborted);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Broadcast owner personal comment notification failed: {ex.Message}");
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Create/send owner personal comment notification error: {ex}");
                 }
             }
             catch (Exception ex)
@@ -864,97 +742,38 @@ namespace StudyHub.Backend.Api.Controllers
             return Ok(new { success = true, data = noti, submissions = submissions, files = file });
         }
 
-       [HttpPost("/api/Classwork/{id}/submit")]
-[Consumes("multipart/form-data")]
-public async Task<IActionResult> SubmitClasswork(int id, [FromForm] SubmitClassworkDto dto)
-{
-    try
-    {
-        var result = await _service.SubmitNotificationWithFilesAsync(id, dto.AppUserId, dto.Files?.ToList());
-        if (result == null) return BadRequest(new { success = false, message = "Thiếu thông tin hoặc lỗi khi nộp bài" });
-
-        // Prepare response
-        var responseObj = new
+        [HttpPost("/api/Classwork/{id}/submit")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> SubmitClasswork(int id, [FromForm] SubmitClassworkDto dto)
         {
-            success = true,
-            message = result.Value.IsResubmit ? "Đã nộp lại bài" : "Đã nộp bài mới",
-            submissionId = result.Value.SubmissionId,
-            files = result.Value.Files
-        };
-
-        // --- New: create a notification for the submitter (personal notification) ---
-        try
-        {
-            // Get the classwork/notification to obtain classId and title
-            var noti = _service.GetNotification(id);
-            int classId = noti?.ClassId ?? 0;
-            var cls = classId > 0 ? _classService.GetClassById(classId) : null;
-            var className = cls?.Name ?? (classId > 0 ? $"lớp {classId}" : "lớp");
-            var actor = _aUserService.GetUserById(dto.AppUserId);
-            var actorName = actor?.Fullname ?? "Bạn";
-            var displayTitle = result.Value.IsResubmit
-                ? $"{actorName} đã nộp lại bài cho {className}"
-                : $"{actorName} đã nộp bài cho {className}";
-            var body = noti?.Title ?? "";
-
-                    // Build link for submitter (reuse helper to build class link)
-                    var submitterLink = "class/" + classId + "/classwork/" + id + "/detail";
-
-            // Create and persist notification for the submitter (targetType = User)
-            var savedActorNotif = await _notificationService.CreateAndSendNotificationToRecipientsAsync(
-                title: displayTitle,
-                body: body,
-                targetType: "User",
-                targetGroupId: null,
-                targetUserId: dto.AppUserId,
-                recipientUserIds: new[] { dto.AppUserId },
-                createdBy: dto.AppUserId,
-                linkUrl: submitterLink,
-                priority: "Normal",
-                ct: HttpContext.RequestAborted
-            );
-
-            // Send real-time via SignalR to the submitter
             try
             {
-                var payloadActor = new
+                var result = await _service.SubmitNotificationWithFilesAsync(id, dto.AppUserId, dto.Files?.ToList());
+                if (result == null) return BadRequest(new { success = false, message = "Thiếu thông tin hoặc lỗi khi nộp bài" });
+
+                // Prepare response
+                var responseObj = new
                 {
-                    id = savedActorNotif.Id,
-                    title = savedActorNotif.Title,
-                    body = savedActorNotif.Body,
-                    linkUrl = submitterLink,
-                    priority = savedActorNotif.Priority,
-                    targetType = savedActorNotif.TargetType,
-                    targetUserId = savedActorNotif.TargetUserId,
-                    createdAt = savedActorNotif.CreatedAt,
-                    isRead = false
+                    success = true,
+                    message = result.Value.IsResubmit ? "Đã nộp lại bài" : "Đã nộp bài mới",
+                    submissionId = result.Value.SubmissionId,
+                    files = result.Value.Files
                 };
-                await _notificationHub.Clients.Group($"user_{dto.AppUserId}").SendAsync("NotificationCreated", payloadActor, HttpContext.RequestAborted);
+
+                // --- Removed personal notifications: only keep group broadcasts if needed ---
+                // (No per-user notification will be created/sent here)
+
+                return Ok(responseObj);
+            }
+            catch (ArgumentException aex)
+            {
+                return BadRequest(new { success = false, message = aex.Message });
             }
             catch (Exception ex)
             {
-                // non-fatal: log and continue
-                Console.WriteLine($"Broadcast actor personal notification failed: {ex.Message}");
+                return StatusCode(500, new { success = false, message = $"Lỗi khi nộp bài: {ex.Message}", error = ex.ToString() });
             }
         }
-        catch (Exception ex)
-        {
-            // non-fatal: do not fail submission because notification creation failed
-            Console.WriteLine($"Creating personal notification for submitter failed: {ex.Message}");
-        }
-        // --- End new notification logic ---
-
-        return Ok(responseObj);
-    }
-    catch (ArgumentException aex)
-    {
-        return BadRequest(new { success = false, message = aex.Message });
-    }
-    catch (Exception ex)
-    {
-        return StatusCode(500, new { success = false, message = $"Lỗi khi nộp bài: {ex.Message}", error = ex.ToString() });
-    }
-}
 
         [HttpGet("/api/Classwork/submission")]
         public IActionResult GetSubmission([FromQuery] int classworkID, [FromQuery] Guid userid)
@@ -1022,67 +841,7 @@ public async Task<IActionResult> SubmitClasswork(int id, [FromForm] SubmitClassw
                 {
                 }
 
-                // --- New: create a personal notification for the student who was graded ---
-                try
-                {
-                    // Determine submitter user id
-                    var submitterId = updated.AppUserId;
-                    if (submitterId != Guid.Empty)
-                    {
-                        // Get classwork/notification to obtain classId and title
-                        var classworkNoti = _service.GetNotification(updated.NotificationId);
-                        var classId = classworkNoti?.ClassId ?? 0;
-                        var className = classId > 0 ? (_classService.GetClassById(classId)?.Name ?? $"lớp {classId}") : "lớp";
-
-                        var graderName = grader?.Fullname ?? "Người chấm";
-                        var notificationTitle = $"{graderName} đã chấm bài của bạn{(classId > 0 ? $" - {className}" : "")}";
-                        var notificationBody = classworkNoti?.Title ?? $"Bài tập #{updated.NotificationId}";
-
-                        // Build a link to the classwork detail for the submitter (clients may resolve per-role)
-                        var submitterLink = $"/class/{classId}/classwork/{updated.NotificationId}/detail";
-
-                        var savedNotif = await _notificationService.CreateAndSendNotificationToRecipientsAsync(
-                            title: notificationTitle,
-                            body: notificationBody,
-                            targetType: "User",
-                            targetGroupId: null,
-                            targetUserId: submitterId,
-                            recipientUserIds: new[] { submitterId },
-                            createdBy: dto.GradedBy,
-                            linkUrl: submitterLink,
-                            priority: "Normal",
-                            ct: HttpContext.RequestAborted
-                        );
-
-                        // Broadcast the notification to the specific user via SignalR
-                        try
-                        {
-                            var payloadActor = new
-                            {
-                                id = savedNotif?.Id,
-                                title = savedNotif?.Title ?? notificationTitle,
-                                body = savedNotif?.Body ?? notificationBody,
-                                linkUrl = submitterLink,
-                                priority = savedNotif?.Priority,
-                                targetType = savedNotif?.TargetType,
-                                targetUserId = savedNotif?.TargetUserId ?? submitterId,
-                                createdAt = savedNotif?.CreatedAt,
-                                isRead = false
-                            };
-                            await _notificationHub.Clients.Group($"user_{submitterId}").SendAsync("NotificationCreated", payloadActor, HttpContext.RequestAborted);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Broadcast personal graded notification failed: {ex.Message}");
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // Non-fatal: log and continue
-                    Console.WriteLine($"Create/send personal graded notification failed: {ex.Message}");
-                }
-                // --- End personal notification logic ---
+                // --- Removed per-student personal notification: only group/hub broadcast kept ---
 
                 return Ok(new { success = true, message = "Graded", data = submissionDto });
             }

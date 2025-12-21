@@ -6,29 +6,29 @@ using StudyHub.Backend.Domain.Entities;
 using StudyHub.Backend.UseCases.Dtos;
 using StudyHub.Backend.UseCases.Services;
 using System.Linq;
+using System;
+using System.Collections.Generic;
 
 namespace StudyHub.Backend.Api.Mappers
 {
     public static class ClassMapper
-    {   
-       
+    {
         public static ClassListDto ToListClassDto(this Class c, AppUser? t) => new ClassListDto
         {
             Id = c.Id,
-            Name = c.Name,
+            Name = c.Name ?? string.Empty,
             InstructorName = t?.Fullname ?? "Không rõ",
-            Description = c.Description,
+            Description = c.Description ?? string.Empty,
             Grade = c.Grade,
-            CreateAt=c.CreatedAt,
-
+            CreateAt = c.CreatedAt,
         };
 
         public static Class ToEntity(this CreateClassDto dto)
         {
             return new Class
             {
-                Name = dto.Name,
-                Description = dto.Description,
+                Name = dto.Name ?? string.Empty,
+                Description = dto.Description ?? string.Empty,
                 Grade = dto.Grade,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = dto.CreatedBy
@@ -38,8 +38,8 @@ namespace StudyHub.Backend.Api.Mappers
         {
             return new Class
             {
-                Name = dto.Name,
-                Description = dto.Description,
+                Name = dto.Name ?? string.Empty,
+                Description = dto.Description ?? string.Empty,
                 Grade = dto.Grade,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -47,8 +47,8 @@ namespace StudyHub.Backend.Api.Mappers
         public static ClassDetailDto ToDetailDto(this Class c) => new ClassDetailDto
         {
             Id = c.Id,
-            Name = c.Name,
-            Description = c.Description,
+            Name = c.Name ?? string.Empty,
+            Description = c.Description ?? string.Empty,
             Grade = c.Grade,
             CreatedAt = c.CreatedAt,
             CreatedBy = c.CreatedBy,
@@ -59,36 +59,42 @@ namespace StudyHub.Backend.Api.Mappers
 
         public static ClassPostDTO ToFullDetailDto(
            this Class c,
-           List<NotificationDto> notifications)
+           List<NotificationDto>? notifications)
         {
             return new ClassPostDTO
             {
                 Id = c.Id,
-                Name = c.Name,
-                Description = c.Description,
+                Name = c.Name ?? string.Empty,
+                Description = c.Description ?? string.Empty,
                 Grade = c.Grade,
                 CreatedAt = c.CreatedAt,
-                Notifications = notifications
+                Notifications = notifications ?? new List<NotificationDto>()
             };
         }
 
-        public static MemberDto ToMemberDto(this AppUserClass member, AppUser? user, List<AppRole> roles, School school, Commune commune)
+        // Note: accept nullable lists and nullable commune to avoid null assignment warnings
+        public static MemberDto ToMemberDto(this AppUserClass member, AppUser? user, List<AppRole>? roles, School? school, Commune? commune)
         {
+            var safeRoles = roles ?? new List<AppRole>();
+            var roleNames = safeRoles.Select(a => a?.Name ?? string.Empty)
+                                     .Where(n => !string.IsNullOrWhiteSpace(n))
+                                     .ToList();
+
             return new MemberDto
             {
                 UserId = member.UserId,
                 Fullname = user?.Fullname ?? "Không rõ",
                 JoinDate = member.JoinDate,
-                Email = user.Email,
-                Roles = roles.Select(a => a.Name).ToList(),
-                Gender = user.Gender,
-                SchoolId = user.SchoolId,
-                CommuneId = user.CommuneId,
-                Address = user.Address,
-                PhoneNumber = user.PhoneNumber,
-                Wallet = user.Wallet,
-                SchoolName = school != null ? school.Name : "",
-                Communes = commune != null ? commune.Name : ""
+                Email = user?.Email ?? string.Empty,
+                Roles = roleNames,
+                Gender = user?.Gender,
+                SchoolId = user?.SchoolId,
+                CommuneId = user?.CommuneId,
+                Address = user?.Address ?? string.Empty,
+                PhoneNumber = user?.PhoneNumber,
+                Wallet = user?.Wallet ?? 0,
+                SchoolName = school?.Name ?? string.Empty,
+                Communes = commune?.Name ?? string.Empty
             };
         }
 
@@ -99,8 +105,8 @@ namespace StudyHub.Backend.Api.Mappers
             {
                 Id = noti.Id,
                 ClassId = noti.ClassId,
-                Title = noti.Title,
-                Description = noti.Description,
+                Title = noti.Title ?? string.Empty,
+                Description = noti.Description ?? string.Empty,
                 CreatedBy = noti.CreatedBy,
                 AppUserId = noti.CreatedBy,
                 CreatedAt = noti.CreatedAt,
@@ -113,24 +119,27 @@ namespace StudyHub.Backend.Api.Mappers
 
         public static NotificationDto ToNotificationDto(
              this ClassNotification entity,
-              AppUser user,
+              AppUser? user,
              List<FileDto>? files = null,
              List<CommentDto>? comments = null
             )
         {
+            var safeFiles = files ?? new List<FileDto>();
+            var safeComments = comments ?? new List<CommentDto>();
+
             return new NotificationDto
             {
                 Id = entity.Id,
                 ClassId = entity.ClassId,
-                Title = entity.Title,
-                Description = entity.Description,
+                Title = entity.Title ?? string.Empty,
+                Description = entity.Description ?? string.Empty,
                 CreatedBy = entity.CreatedBy,
                 CreatedAt = entity.CreatedAt,
-                Files = files ?? new List<FileDto>(),
-                Comments = comments ?? new List<CommentDto>(),
-                Arthur = user?.Fullname,
-                AppUserId=user.Id,
-                Avatar = user?.Avatar,
+                Files = safeFiles,
+                Comments = safeComments,
+                Arthur = user?.Fullname ?? string.Empty,
+                AppUserId = user?.Id ?? Guid.Empty,
+                Avatar = user?.Avatar ?? string.Empty,
                 Type = entity.Type,
                 Deadline = entity.Deadline,
                 MaxScore = entity.MaxScore,
@@ -143,26 +152,26 @@ namespace StudyHub.Backend.Api.Mappers
             return new FileDto
             {
                 Id = file.Id,
-                FileName = file.FileName,
-                FileUrl = file.FileUrl
+                FileName = file.FileName ?? string.Empty,
+                FileUrl = file.FileUrl ?? string.Empty
             };
         }
 
-        public static CommentDto ToCommentDto(this ClassNotificationComment comment, AppUser user)
+        public static CommentDto ToCommentDto(this ClassNotificationComment comment, AppUser? user)
         {
             return new CommentDto
             {
                 Id = comment.Id,
                 NotificationId = comment.NotificationId,
                 UserId = comment.CreatedBy,
-                Content = comment.Content,
+                Content = comment.Content ?? string.Empty,
                 CreatedAt = comment.CreatedAt,
                 UserFullname = user?.Fullname ?? "Unknown",
-                ImageUrl = user?.Avatar
+                ImageUrl = user?.Avatar ?? string.Empty
             };
         }
 
-        public static SubmissionFileDto ToSubmissionDto(this NotificationSubmission sub, List<SubmissionFile> files, AppUser? user )
+        public static SubmissionFileDto ToSubmissionDto(this NotificationSubmission sub, List<SubmissionFile>? files, AppUser? user)
         {
             return new SubmissionFileDto
             {
@@ -171,12 +180,12 @@ namespace StudyHub.Backend.Api.Mappers
                 AppUserId = sub.AppUserId,
                 FirstSubmissionTime = sub.FirstSubmissionTime,
                 LatestSubmissionTime = sub.LatestSubmissionTime,
-                SubmissionFiles = files,
+                SubmissionFiles = files ?? new List<SubmissionFile>(),
                 Score = sub.Score,
                 GradedAt = sub.GradedAt,
                 GradedBy = sub.GradedBy,
-                GradeByName = user!=null? user.Fullname : "Unknown",
-                Feedback = sub.Feedback,
+                GradeByName = user?.Fullname ?? "Unknown",
+                Feedback = sub.Feedback ?? string.Empty,
                 SubmissionStatus = sub.SubmissionStatus
             };
         }

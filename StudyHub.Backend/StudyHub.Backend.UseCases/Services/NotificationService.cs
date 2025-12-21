@@ -1,17 +1,17 @@
-﻿    using StudyHub.Backend.Domain.Entities.Notifications;
-    using StudyHub.Backend.UseCases.Repositories.Notifications;
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using DomainNotification = StudyHub.Backend.Domain.Entities.Notifications;
-    using System.Text.Json;
-    using StudyHub.Backend.Domain.Entities;
-    using StudyHub.Backend.UseCases.Repositories;
+﻿using StudyHub.Backend.Domain.Entities.Notifications;
+using StudyHub.Backend.UseCases.Repositories.Notifications;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using DomainNotification = StudyHub.Backend.Domain.Entities.Notifications;
+using System.Text.Json;
+using StudyHub.Backend.Domain.Entities;
+using StudyHub.Backend.UseCases.Repositories;
 
-    namespace StudyHub.Backend.UseCases.Services
-    {
+namespace StudyHub.Backend.UseCases.Services
+{
     public class NotificationService
     {
         internal readonly INotificationRepository _repo;
@@ -21,7 +21,7 @@
         // Basic ctor (only persistence/seeding capabilities)
         public NotificationService(INotificationRepository repo)
         {
-            _repo = repo;
+            _repo = repo ?? throw new ArgumentNullException(nameof(repo));
         }
 
         public NotificationService(
@@ -29,14 +29,15 @@
             INotificationOfClassRepository notificationOfClassRepo,
             IAppUserRepository appUserRepository)
         {
-            _repo = repo;
+            _repo = repo ?? throw new ArgumentNullException(nameof(repo));
             _notificationOfClassRepo = notificationOfClassRepo;
             _appUserRepository = appUserRepository;
         }
 
         public class NotificationWithRead
         {
-            public DomainNotification.Notification Notification { get; set; } = null!;
+            // use non-nullable Notification but initialize to avoid CS8601 at assignment sites
+            public DomainNotification.Notification Notification { get; set; } = new DomainNotification.Notification();
             public DomainNotification.NotificationRead? Read { get; set; }
         }
 
@@ -50,7 +51,6 @@
                 _ => 0
             };
         }
-
 
         public async Task<DomainNotification.Notification> SendNotificationAsync(DomainNotification.Notification notification, CancellationToken ct = default)
         {
@@ -66,10 +66,12 @@
         {
             var now = DateTime.Now;
             var window = Math.Clamp(limit + offset + 50, 50, 5000);
-            var candidates = await _repo.GetActiveWindowAsync(window, now, ct);
 
-            var userRoles = await _repo.GetUserRoleIdsAsync(userId, ct);
-            var userGroups = await _repo.GetUserGroupIdsAsync(userId, ct);
+            // protect against repository returning null by coalescing to empty list
+            var candidates = (await _repo.GetActiveWindowAsync(window, now, ct)) ?? new List<DomainNotification.Notification>();
+
+            var userRoles = (await _repo.GetUserRoleIdsAsync(userId, ct)) ?? new HashSet<Guid>();
+            var userGroups = (await _repo.GetUserGroupIdsAsync(userId, ct)) ?? new HashSet<int>();
 
             var filtered = candidates.Where(n =>
                 string.Equals(n.TargetType, "All", StringComparison.OrdinalIgnoreCase)
@@ -79,14 +81,15 @@
             );
 
             var ordered = filtered
-                .OrderByDescending(n => PriorityRank(n.Priority))
-                .ThenByDescending(n => n.CreatedAt)
+                .OrderByDescending(n => n.CreatedAt)
                 .Skip(Math.Max(0, offset))
                 .Take(Math.Clamp(limit, 1, 200))
                 .ToList();
 
             var ids = ordered.Select(o => o.Id).ToList();
-            var reads = await _repo.GetReadsForUserAsync(userId, ids, ct);
+
+            // repository may return null dictionary; coalesce to empty dictionary
+            var reads = (await _repo.GetReadsForUserAsync(userId, ids, ct)) ?? new Dictionary<Guid, DomainNotification.NotificationRead>();
 
             var result = ordered
                 .Select(n =>
@@ -111,10 +114,11 @@
         public async Task<int> GetUnreadCountAsync(Guid userId, CancellationToken ct = default)
         {
             var now = DateTime.Now;
-            var candidates = await _repo.GetActiveWindowAsync(2000, now, ct);
 
-            var userRoles = await _repo.GetUserRoleIdsAsync(userId, ct);
-            var userGroups = await _repo.GetUserGroupIdsAsync(userId, ct);
+            var candidates = (await _repo.GetActiveWindowAsync(2000, now, ct)) ?? new List<DomainNotification.Notification>();
+
+            var userRoles = (await _repo.GetUserRoleIdsAsync(userId, ct)) ?? new HashSet<Guid>();
+            var userGroups = (await _repo.GetUserGroupIdsAsync(userId, ct)) ?? new HashSet<int>();
 
             var filtered = candidates.Where(n =>
                 string.Equals(n.TargetType, "All", StringComparison.OrdinalIgnoreCase)
@@ -124,7 +128,7 @@
             ).ToList();
 
             var ids = filtered.Select(n => n.Id).ToList();
-            var reads = await _repo.GetReadsForUserAsync(userId, ids, ct);
+            var reads = (await _repo.GetReadsForUserAsync(userId, ids, ct)) ?? new Dictionary<Guid, DomainNotification.NotificationRead>();
             return filtered.Count(n => !(reads.TryGetValue(n.Id, out var r) && r.IsRead));
         }
 
@@ -139,6 +143,8 @@
 
         public async Task<NotificationGroup> CreateGroupAsync(NotificationGroup group, CancellationToken ct = default)
         {
+            if (group == null) throw new ArgumentNullException(nameof(group));
+
             var domain = new NotificationGroup
             {
                 Id = group.Id,
@@ -258,6 +264,8 @@
             string? priority = "Normal",
             CancellationToken ct = default)
         {
+            if (recipientUserIds == null) recipientUserIds = Enumerable.Empty<Guid>();
+
             // Build notification object
             var notif = new DomainNotification.Notification
             {
@@ -266,13 +274,11 @@
                 TargetType = targetType,
                 TargetGroupId = targetGroupId,
                 TargetUserId = targetUserId,
-                Priority = priority,
+                Priority = "Normal",
                 IsActive = true,
                 CreatedAt = DateTime.Now,
                 CreatedBy = createdBy
             };
-
-
 
             // Resolve/ensure group id to avoid FK constraint error
             int? resolvedGroupId = await ResolveOrEnsureGroupIdAsync(targetGroupId, recipientUserIds, createdBy, ct);
@@ -324,12 +330,13 @@
             }
             return result;
         }
+
         public List<StudyHub.Backend.Domain.Entities.AppUser> GetUsersByRoleAndClass(string roleName, int? classId)
         {
-            // giả sử _repo là repository bạn có chứa GetUsersByRoleAndClass
-            // nếu repository trả IEnumerable hoặc List thì trả thẳng lại
+            // repository might return null; coalesce to empty list to avoid CS8601
             return _repo.GetUsersByRoleAndClass(roleName, classId) ?? new List<StudyHub.Backend.Domain.Entities.AppUser>();
         }
+
         // StudyHub.Backend.UseCases.Services/NotificationService (partial)
 
         public async Task<(int GroupId, List<Guid> MemberIds)> EnsureCompositeGroupAsync(
@@ -353,7 +360,6 @@
                 {
                     try
                     {
-                        
                         IEnumerable<dynamic>? users = null;
 
                         if (classId.HasValue)
@@ -373,19 +379,22 @@
                                 Guid? userId = null;
                                 try
                                 {
-                                    if (u is Guid) userId = (Guid)u;
-                                    else
+                                    if (u is Guid g) userId = g;
+                                    else if (u != null)
                                     {
                                         // try common property names
                                         var prop = u.GetType().GetProperty("Id");
                                         if (prop != null)
                                         {
                                             var val = prop.GetValue(u);
-                                            if (val is Guid g) userId = g;
+                                            if (val is Guid gg) userId = gg;
                                         }
                                     }
                                 }
-                                catch { /* ignore per-user reflection issues */ }
+                                catch
+                                {
+                                    /* ignore per-user reflection issues */
+                                }
 
                                 if (userId.HasValue && userId.Value != Guid.Empty)
                                     recipients.Add(userId.Value);

@@ -8,6 +8,7 @@ using StudyHub.Backend.UseCases.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace StudyHub.Backend.Api.Controllers;
 
@@ -102,7 +103,7 @@ public class EnrollmentController : ControllerBase
     }
 
     [HttpPost]
-    public IActionResult Enroll([FromBody] EnrollmentDto dto)
+    public async Task<IActionResult> Enroll([FromBody] EnrollmentDto dto)
     {
         if (dto == null) return BadRequest();
 
@@ -143,7 +144,7 @@ public class EnrollmentController : ControllerBase
         // send notification to the enrolling user (non-blocking)
         try
         {
-             NotifyEnrollmentCreatedAsync(createdNoCharge, course, dto.AppUserId, CancellationToken.None);
+           await  NotifyEnrollmentCreatedAsync(createdNoCharge, course, dto.AppUserId, CancellationToken.None);
         }
         catch (Exception ex)
         {

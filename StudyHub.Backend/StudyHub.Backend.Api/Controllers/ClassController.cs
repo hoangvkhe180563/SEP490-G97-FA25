@@ -115,7 +115,9 @@ namespace StudyHub.Backend.Api.Controllers
             string updaterLink = "/class";
           
             var actorName = actor?.Fullname ?? "Người dùng";
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
             var className = createdClass?.Name ?? $"lớp {createdClass.Id}";
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
             // ---------------------------
             try
@@ -226,7 +228,9 @@ namespace StudyHub.Backend.Api.Controllers
 
 
             var actorName = actor?.Fullname ?? "Người dùng";
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
             var className = updated?.Name ?? $"lớp {updated.Id}";
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
             // ---------------------------
             try

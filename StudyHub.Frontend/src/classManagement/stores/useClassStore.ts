@@ -888,21 +888,33 @@ export const useClassStore = create<ClassState>()(
         }
       },
       getMemberClassCount: async (classId: number): Promise<number | null> => {
+        set({ isLoading: true });
         try {
           if (!classId) return null;
+
+          // Call the ClassMember API under /api prefix as requested
           const res = await axiosInstance.get(
-            `/Classwork/classmembercount/${classId}`
+            `/ClassMember?classId=${encodeURIComponent(classId)}`
           );
           const raw = res?.data ?? null;
-          let count: number | null = null;
-          if (raw !== null) {
-            if (typeof raw === "number") count = raw;
-            else if (typeof raw?.data === "number") count = raw.data;
-            else if (typeof raw?.count === "number") count = raw.count;
+
+          if (!raw) {
+            return 0;
           }
+
+          // The backend returns shape like:
+          // { success: true, message: "...", data: [ ...members... ] }
+          // but we defensively check multiple possible locations for the array.
+          let arr: any[] | null = null;
+          if (Array.isArray(raw)) arr = raw;
+          else if (Array.isArray(raw.data)) arr = raw.data;
+          else if (Array.isArray(raw?.data?.data)) arr = raw.data.data;
+          else if (Array.isArray(raw?.members)) arr = raw.members;
+
+          const count: number = Array.isArray(arr) ? arr.length : 0;
           return count;
         } catch (err) {
-          console.error("getMemberCount error:", err);
+          console.error("getMemberClassCount error:", err);
           return null;
         } finally {
           set({ isLoading: false });
@@ -1908,7 +1920,113 @@ export const useClassStore = create<ClassState>()(
           set({ isLoading: false });
         }
       },
+      kickMember: async (
+        classId: number,
+        userId: string
+      ): Promise<boolean | null> => {
+        set({ isLoading: true, success: false, message: "" });
+        try {
+          if (!classId || !userId) {
+            set({
+              isLoading: false,
+              success: false,
+              message: "classId or userId is required",
+            });
+            return null;
+          }
 
+          // preferred POST endpoint (controller uses POST /{userId}/kick?classId=...)
+          const postEndpoints = [
+            `/ClassMember/${encodeURIComponent(
+              userId
+            )}/kick?classId=${encodeURIComponent(classId)}`,
+          ];
+
+          let res: any = null;
+          let lastError: any = null;
+
+          for (const ep of postEndpoints) {
+            try {
+              res = await axiosInstance.post(ep);
+              break;
+            } catch (err: any) {
+              lastError = err;
+              if (err?.response?.status === 404) continue;
+              if (err?.response) break;
+            }
+          }
+
+          // fallback: try DELETE-style endpoint used in some APIs
+          if (!res) {
+            const deleteEndpoints = [
+              `/Class/${encodeURIComponent(
+                classId
+              )}/members/${encodeURIComponent(userId)}`,
+            ];
+            for (const dep of deleteEndpoints) {
+              try {
+                res = await axiosInstance.delete(dep);
+                break;
+              } catch (err: any) {
+                lastError = err;
+                if (err?.response?.status === 404) continue;
+                if (err?.response) break;
+              }
+            }
+          }
+
+          if (!res) {
+            console.error(
+              "kickMember error (no successful endpoint)",
+              lastError
+            );
+            set({
+              isLoading: false,
+              success: false,
+              message:
+                lastError?.response?.data?.message ??
+                lastError?.message ??
+                "Failed to kick member",
+            });
+            return false;
+          }
+
+          const raw = res?.data ?? null;
+
+          if (raw && raw.success === false) {
+            set({
+              isLoading: false,
+              success: false,
+              message: raw?.message ?? "Failed to kick member",
+            });
+            return false;
+          }
+
+          // Refresh members for the class (member removed/kicked)
+          try {
+            await get().getClassMembers(classId);
+          } catch {
+            // ignore refresh errors
+          }
+
+          set({
+            isLoading: false,
+            success: true,
+            message: raw?.message ?? "Thành viên đã bị kick (removed)",
+          });
+          return true;
+        } catch (err) {
+          console.error("kickMember error:", err);
+          set({
+            isLoading: false,
+            success: false,
+            message: "Failed to kick member",
+          });
+          return null;
+        } finally {
+          set({ isLoading: false });
+        }
+      },
       getSubmissionCount: async (
         classworkId: number
       ): Promise<number | null> => {

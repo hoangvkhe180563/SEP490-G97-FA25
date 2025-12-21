@@ -33,10 +33,41 @@ const ListNotifications: React.FC = () => {
 
   const [includeRead, setIncludeRead] = useState(true);
 
+  // IDs of unread notifications
   const unreadIds = useMemo(
     () => items.filter((n) => !(n.read?.isRead ?? false)).map((n) => n.id),
     [items]
   );
+
+  // Sort items: unread first (preserve newest-first within groups).
+  const sortedItems = useMemo(() => {
+    // Copy to avoid mutating store array
+    const copy = (items ?? []).slice();
+
+    // Helper to get epoch ms for createdAt (safe)
+    const ts = (it: any) => {
+      const v = it?.createdAt ?? it?.CreatedAt ?? "";
+      const t = Date.parse(String(v));
+      return Number.isFinite(t) ? t : 0;
+    };
+
+    copy.sort((a, b) => {
+      const aRead = Boolean(a.read?.isRead);
+      const bRead = Boolean(b.read?.isRead);
+
+      if (aRead === bRead) {
+        // same read status -> sort by createdAt desc (newest first)
+        const ta = ts(a);
+        const tb = ts(b);
+        return tb - ta;
+      }
+
+      // unread (isRead === false) should come before read (isRead === true)
+      return aRead ? 1 : -1;
+    });
+
+    return copy;
+  }, [items]);
 
   useEffect(() => {
     // Start SignalR + fetch initial
@@ -52,7 +83,7 @@ const ListNotifications: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Re-fetch khi toggle includeRead
+    // Re-fetch when toggling includeRead
     reset();
     fetchNotifications({ includeRead, reset: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -111,9 +142,7 @@ const ListNotifications: React.FC = () => {
       )}
 
       <div className="flex flex-col gap-3">
-        {items.map((n) => {
-          // fallback: dùng n.linkUrl nếu có, nếu không thì kiểm tra metadata.linkUrl
-
+        {sortedItems.map((n) => {
           return (
             <div key={n.id} className="flex flex-col gap-1">
               <NotificationCard item={n} onMarkRead={markRead} />
