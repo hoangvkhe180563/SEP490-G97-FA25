@@ -25,8 +25,8 @@ import useClassStore from "@/classManagement/stores/useClassStore";
 // auth store to get current user id (createdBy)
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 // modals
-import CreateClassModal from "@/classManagement/components/ui/createclassmodal";
-import EditClassModal from "@/classManagement/components/ui/editclassmodal";
+import CreateClassModal from "@/classManagement/components/ui/CreateClassModal";
+import EditClassModal from "@/classManagement/components/ui/EditClassModal";
 
 // shadcn AlertDialog
 import {
