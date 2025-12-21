@@ -25,8 +25,6 @@ import useClassStore from "@/classManagement/stores/useClassStore";
 // auth store to get current user id (createdBy)
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 // modals
-import CreateClassModal from "@/classManagement/components/ui/CreateClassModal";
-import EditClassModal from "@/classManagement/components/ui/EditClassModal";
 
 // shadcn AlertDialog
 import {
@@ -47,6 +45,8 @@ import toast from "react-hot-toast";
 // axios + date-fns
 import { axiosInstance } from "@/lib/axios";
 import { format, parseISO, isValid } from "date-fns";
+import CreateClassModal from "@/classManagement/components/ui/createclassmodal";
+import EditClassModal from "@/classManagement/components/ui/editclassmodal";
 
 const ClassListManagement: React.FC = () => {
   const [search, setSearch] = useState("");

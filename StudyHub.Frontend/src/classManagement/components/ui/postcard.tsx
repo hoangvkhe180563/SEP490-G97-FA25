@@ -121,7 +121,7 @@ const PostCard: React.FC<{
   const [showComments, setShowComments] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-
+  console.log(menuOpen);
   // downloading state per file id
   const [downloading, setDownloading] = useState<Record<string, boolean>>({});
 
