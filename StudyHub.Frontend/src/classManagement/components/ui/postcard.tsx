@@ -1,3 +1,4 @@
+// PostCard (updated) - supports onDelete so parent can remove immediately
 import React, { useState, useEffect, useRef } from "react";
 import DOMPurify from "dompurify";
 import CommentComposer from "@/classManagement/components/ui/commentcomposer";
@@ -108,7 +109,8 @@ const makeCloudinaryFlAttachment = (u: string) => {
 const PostCard: React.FC<{
   post: Post;
   onUpdate?: (updated: Post) => void;
-}> = ({ post, onUpdate }) => {
+  onDelete?: (id: number | string) => void;
+}> = ({ post, onUpdate, onDelete }) => {
   // local copy of the post so we can update UI immediately after edit
   const [localPost, setLocalPost] = useState<Post>(post);
 
@@ -119,8 +121,6 @@ const PostCard: React.FC<{
   const [showComments, setShowComments] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-
-  console.log("Open", menuOpen);
 
   // downloading state per file id
   const [downloading, setDownloading] = useState<Record<string, boolean>>({});
@@ -293,17 +293,29 @@ const PostCard: React.FC<{
     setMenuOpen(false);
     if (!window.confirm("Bạn có chắc muốn xóa thông báo này?")) return;
 
+    // Optimistically hide the post immediately
     setIsDeleted(true);
+    if (typeof onDelete === "function") {
+      try {
+        onDelete(localPost.id);
+      } catch (e) {
+        console.error("onDelete callback error", e);
+      }
+    }
 
     try {
       const ok = await deleteNotification(localPost.id);
       if (!ok) {
+        // rollback UI if deletion failed
         setIsDeleted(false);
+        window.alert("Xóa thông báo thất bại");
         console.error("Xóa thông báo thất bại");
       }
     } catch (err) {
-      console.error("delete failed", err);
+      // rollback UI and inform user
       setIsDeleted(false);
+      console.error("delete failed", err);
+      window.alert("Lỗi khi xóa thông báo");
     }
   };
 

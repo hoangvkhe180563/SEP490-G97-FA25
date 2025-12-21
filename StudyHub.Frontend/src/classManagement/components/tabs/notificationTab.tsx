@@ -35,33 +35,6 @@ const NotificationsTab: React.FC<Props> = ({
 
   const avatarUrl = resolveAvatarUrl(user) ?? undefined; // fallback to undefined so PostComposer can use its own default
 
-  // const handlePostUpdate = (updated: Post) => {
-  //   // Map updated Post back into ClassNotification shape used by this tab
-  //   const mapped: ClassNotification = {
-  //     id: updated.id as any,
-  //     classId: updated.classId ?? classId,
-  //     title: updated.title ?? "",
-  //     description: updated.description ?? "",
-  //     createdAt: updated.createdAt ?? undefined,
-  //     avatarImage: updated.avatarImage,
-  //     authorName: updated.authorName,
-  //     createdBy: updated.createdBy,
-  //     files: updated.files ?? [],
-  //     comments: updated.comments ?? [],
-  //   };
-
-  //   // Update local notifications array and notify parent if provided
-  //   const next = (notifications ?? []).map((n) => (String(n.id) === String(mapped.id) ? mapped : n));
-  //   if (!next.some((n) => String(n.id) === String(mapped.id))) {
-  //     // If not found, prepend (defensive)
-  //     next.unshift(mapped);
-  //   }
-  //   if (typeof onNotificationsChange === "function") {
-  //     onNotificationsChange(next);
-  //   }
-  //   // If this component maintains its own state elsewhere (e.g. parent), it's recommended the parent passes onNotificationsChange.
-  // };
-
   return (
     <div>
       <div className="mb-4">
@@ -114,6 +87,18 @@ const NotificationsTab: React.FC<Props> = ({
                   }
                 } catch (e) {
                   console.error("onUpdate mapping failed", e);
+                }
+              }}
+              onDelete={(deletedId) => {
+                try {
+                  const next = (notifications ?? []).filter(
+                    (it) => String(it.id) !== String(deletedId)
+                  );
+                  if (typeof onNotificationsChange === "function") {
+                    onNotificationsChange(next);
+                  }
+                } catch (e) {
+                  console.error("onDelete handler failed", e);
                 }
               }}
             />
