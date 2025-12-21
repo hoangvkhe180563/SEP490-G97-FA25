@@ -2,8 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import ClassCard from "@/classManagement/components/ui/classcard";
 import type { UserRole } from "@/classManagement/components/ui/classcard";
-import CreateClassModal from "@/classManagement/components/ui/CreateClassModal";
-import EditClassModal from "@/classManagement/components/ui/EditClassModal";
 
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
@@ -22,6 +20,8 @@ import {
 } from "@/common/components/ui/select";
 import { Card } from "@/common/components/ui/card";
 import { Paging } from "@/common/components/Paging";
+import CreateClassModal from "../components/ui/createclassmodal";
+import EditClassModal from "../components/ui/editclassmodal";
 
 type ClassItem = ClassListDto & {
   title: string;
@@ -62,8 +62,6 @@ const ClassList: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
 
-  
-
   // derive coarse role from stored user roles (if available), otherwise fallback to path heuristic
   const userRoleFromPath: UserRole = useMemo(() => {
     if (location.pathname.includes("/student")) return "student";
@@ -71,13 +69,15 @@ const ClassList: React.FC = () => {
   }, [location.pathname]);
 
   const coarseRole = mapToCoarseRole(user?.roles);
-  const userRole: UserRole = (coarseRole === "student" ? "student" : userRoleFromPath) as UserRole;
+  const userRole: UserRole = (
+    coarseRole === "student" ? "student" : userRoleFromPath
+  ) as UserRole;
 
   // Determine if the current logged-in user is a Homeroom Teacher.
   // We normalize role strings and check common variants to be robust across backends.
   const isHomeroomTeacher = useMemo(() => {
     if (!user?.roles || !Array.isArray(user.roles)) return false;
-    return user.roles.some(r => r.includes("Teacher"));
+    return user.roles.some((r) => r.includes("Teacher"));
   }, [user?.roles]);
 
   // We keep the internal userRole (used for navigation) unchanged,
@@ -102,7 +102,16 @@ const ClassList: React.FC = () => {
     const memberIdToPass = currentUserId ? currentUserId : undefined;
     getClasses(q, memberIdToPass);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, subject, gradeFilter, currentPage, pageSize, getClasses, userRole, currentUserId]);
+  }, [
+    query,
+    subject,
+    gradeFilter,
+    currentPage,
+    pageSize,
+    getClasses,
+    userRole,
+    currentUserId,
+  ]);
 
   // Map API classes for UI
   const classItemsAll: ClassItem[] = useMemo(
@@ -151,7 +160,10 @@ const ClassList: React.FC = () => {
     navigate(`/class/${roleParam}/${id}`);
   };
 
-  const handleMenu = (action: "viewClassworks" | "viewStudents" | "edit", id: number | string) => {
+  const handleMenu = (
+    action: "viewClassworks" | "viewStudents" | "edit",
+    id: number | string
+  ) => {
     if (action === "edit") {
       // Only allow editing if current user is a Homeroom Teacher
       if (!isHomeroomTeacher) {
@@ -173,16 +185,25 @@ const ClassList: React.FC = () => {
     }
   };
 
-  const handleCreate = async (payload: { title: string; description?: string; grade?: number | null }) => {
+  const handleCreate = async (payload: {
+    title: string;
+    description?: string;
+    grade?: number | null;
+  }) => {
     // Only allow creation if current user is Homeroom Teacher
     if (!isHomeroomTeacher) return;
     // pass createdBy from auth store
-    const created = await addClass({ ...payload, createdBy: currentUserId, grade: payload.grade ?? undefined });
+    const created = await addClass({
+      ...payload,
+      createdBy: currentUserId,
+      grade: payload.grade ?? undefined,
+    });
     if (created) {
       setShowCreate(false);
       setCurrentPage(1);
       const q = buildQuery();
-      const memberIdToPass = userRole === "student" && currentUserId ? currentUserId : undefined;
+      const memberIdToPass =
+        userRole === "student" && currentUserId ? currentUserId : undefined;
       getClasses(q, memberIdToPass);
     }
   };
@@ -202,8 +223,6 @@ const ClassList: React.FC = () => {
     getClasses(q, currentUserId);
     setShowEdit(false);
   };
-
-  
 
   return (
     <div className="p-8">
@@ -271,7 +290,8 @@ const ClassList: React.FC = () => {
       <Card className="border rounded-xl p-6 min-h-[300px] bg-slate-50">
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm text-slate-600">
-            Hiển thị {total === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, total)} trên tổng số {total} lớp
+            Hiển thị {total === 0 ? 0 : (currentPage - 1) * pageSize + 1} -{" "}
+            {Math.min(currentPage * pageSize, total)} trên tổng số {total} lớp
           </div>
           <div className="flex items-center gap-3">
             <div className="text-sm text-slate-600">Số lớp / trang</div>
@@ -295,11 +315,16 @@ const ClassList: React.FC = () => {
         </div>
 
         {isLoading ? (
-          <div className="col-span-full text-center py-12 text-blue-600 font-medium">Đang tải danh sách lớp học...</div>
+          <div className="col-span-full text-center py-12 text-blue-600 font-medium">
+            Đang tải danh sách lớp học...
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {classItems.map((c) => (
-              <div key={c.id} className="transform hover:scale-[1.01] transition">
+              <div
+                key={c.id}
+                className="transform hover:scale-[1.01] transition"
+              >
                 <ClassCard
                   id={c.id}
                   title={c.grade ? `${c.title} • Khối ${c.grade}` : c.title}
@@ -313,7 +338,11 @@ const ClassList: React.FC = () => {
               </div>
             ))}
 
-            {classItems.length === 0 && <div className="col-span-full text-center py-12 text-slate-500">Không tìm thấy lớp học nào.</div>}
+            {classItems.length === 0 && (
+              <div className="col-span-full text-center py-12 text-slate-500">
+                Không tìm thấy lớp học nào.
+              </div>
+            )}
           </div>
         )}
 
@@ -321,10 +350,15 @@ const ClassList: React.FC = () => {
         <Paging
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={gotoPage} />
+          onPageChange={gotoPage}
+        />
       </Card>
 
-      <CreateClassModal open={showCreate} onClose={closeCreate} onCreate={handleCreate} />
+      <CreateClassModal
+        open={showCreate}
+        onClose={closeCreate}
+        onCreate={handleCreate}
+      />
       <EditClassModal open={showEdit} classItem={editing} onClose={closeEdit} />
     </div>
   );
