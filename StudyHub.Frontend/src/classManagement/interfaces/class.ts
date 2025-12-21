@@ -191,7 +191,7 @@ export interface ClassState {
   getClassInfo: (id: number) => Promise<ClassDetailResponse | null>;
 
   getClassMembers: (id: number) => Promise<ClassMemberDto[] | null>;
-
+  kickMember:  (classId: number,userId: string)=>Promise<boolean | null>;
   createNotification: (payload: {
     classId: number;
     title: string;

@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import ClassCard from "@/classManagement/components/ui/classcard";
 import type { UserRole } from "@/classManagement/components/ui/classcard";
-import CreateClassModal from "@/classManagement/components/ui/createclassmodal";
-import EditClassModal from "@/classManagement/components/ui/editclassmodal";
+import CreateClassModal from "@/classManagement/components/ui/CreateClassModal";
+import EditClassModal from "@/classManagement/components/ui/EditClassModal";
 
 import { useClassStore } from "@/classManagement/stores/useClassStore";
 import { useAuthStore } from "@/auth/stores/useAuthStore";

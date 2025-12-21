@@ -158,7 +158,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     .Include(d => d.Classes)
                     .Where(d => d.DeletedAt == null
                         && d.SchoolId == null
-                        && (d.IsInClass == false || d.IsInClass == null));
+                        && (d.IsInClass == false));
 
                 return ExecuteManagerQuery(dbQuery, query, categoryId, grade, subject, classId, isApproved, status, hasEditRequest, createdFrom, createdTo, updatedFrom, updatedTo, pageNumber, pageSize);
             }

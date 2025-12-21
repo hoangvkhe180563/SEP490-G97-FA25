@@ -7,6 +7,7 @@ import AddMemberModal from "@/classManagement/components/ui/addmembermodal";
 import { Button } from "@/common/components/ui/button";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { mapToCoarseRole } from "@/classManagement/utils/roleutil";
+import { useClassStore } from "@/classManagement/stores/useClassStore";
 
 type Props = {
   teachers?: ClassMemberDto[];
@@ -52,6 +53,9 @@ const EveryoneTab: React.FC<Props> = ({
   const { user } = useAuthStore();
   const coarseRole = mapToCoarseRole(user?.roles);
   const isTeacher = coarseRole === "teacher";
+
+  // Get store functions for kicking & refreshing members
+  const { kickMember, getClassMembers } = useClassStore();
 
   const openAdd = () => {
     if (!isTeacher) return;
@@ -124,6 +128,41 @@ const EveryoneTab: React.FC<Props> = ({
     }
   };
 
+  const combinedMembers = [...(teachers ?? []), ...(students ?? [])];
+  
+  const currentUserId = user?.id  ?? null;
+  const meInClass = combinedMembers.find(
+    (m) => String(m.userId) === String(currentUserId)
+  );
+  const currentUserRoles = meInClass?.roles ?? user?.roles ?? [];
+
+  const onKickHandler = async (member: ClassMemberDto) => {
+    try {
+      if (!classId) {
+        window.alert("classId không được cung cấp, không thể kick.");
+        return;
+      }
+      // kickMember expects (classId:number, userId:string)
+      const cid = Number(classId);
+      const ok = await kickMember?.(cid, member.userId);
+      if (ok) {
+        // refresh members after successful kick
+        try {
+          await getClassMembers?.(cid);
+        } catch {
+          /* ignore */
+        }
+      } else {
+        // show feedback if server returned false
+        window.alert("Không thể kick thành viên (server trả về lỗi).");
+      }
+    } catch (err: any) {
+      console.error("onKickHandler error:", err);
+      const msg = err?.response?.data?.message ?? err?.message ?? "Lỗi khi kick thành viên.";
+      window.alert(msg);
+    }
+  };
+
   const renderMemberRow = (m: ClassMemberDto, roleLabel?: string) => {
     const key = m.userId ?? `m-${Math.random()}`;
     return (
@@ -136,7 +175,15 @@ const EveryoneTab: React.FC<Props> = ({
         onKeyDown={(e) => handleRowKeyDown(e, m)}
         className="block w-full text-left focus:outline-none"
       >
-        <MemberRowSimple m={m} onSelect={handleSelect} roleLabel={roleLabel} />
+        <MemberRowSimple
+          m={m}
+          onSelect={handleSelect}
+          roleLabel={roleLabel}
+          // pass classId so MemberRowSimple can call API if needed; also provide onKick for controlled behavior
+          classId={classId ? Number(classId) : undefined}
+          currentUserRoles={currentUserRoles}
+          onKick={onKickHandler}
+        />
       </div>
     );
   };
@@ -174,9 +221,7 @@ const EveryoneTab: React.FC<Props> = ({
       <Card>
         <div className="p-4">
           <div className="mb-3">
-            <div className="font-semibold text-lg">
-              Học sinh ({students.length})
-            </div>
+            <div className="font-semibold text-lg">Học sinh ({students.length})</div>
           </div>
           {students.length === 0 ? (
             <div className="text-sm text-slate-500">Chưa có học sinh.</div>

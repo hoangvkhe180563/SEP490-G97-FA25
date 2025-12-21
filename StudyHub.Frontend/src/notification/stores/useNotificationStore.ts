@@ -51,6 +51,7 @@ type UserNotificationState = NotificationState & {
 export const useNotificationStore = create<UserNotificationState>((set, get) => {
   const listeners: Set<(payload: NotificationPayload) => void> = new Set();
   const recentIds: Set<string> = new Set();
+  const toastedIds: Set<string> = new Set(); // avoid duplicate toasts for same id
 
   // local helper to count unread from items if needed
   const recalcUnread = (items: NotificationItem[]) =>
@@ -354,14 +355,26 @@ export const useNotificationStore = create<UserNotificationState>((set, get) => 
 
       const connection = createNotificationConnection();
 
+      // remove any existing handlers for this event to avoid duplicates
+      try {
+        connection.off("NotificationCreated");
+      } catch (e) {
+        // ignore if off not available
+      }
+
       connection.on("NotificationCreated", (payload: NotificationPayload) => {
         try {
           if (!payload) return;
           const id = String(payload.id ?? payload.Id ?? "");
+          // Deduplicate by id quickly
           if (id) {
-            if (recentIds.has(id)) return;
+            if (recentIds.has(id)) {
+              console.debug("[NotificationCreated] duplicate ignored by recentIds", id);
+              return;
+            }
             recentIds.add(id);
-            if (recentIds.size > 200) {
+            if (recentIds.size > 500) {
+              // keep recentIds bounded
               const first = recentIds.values().next().value;
               if (first) recentIds.delete(first);
             }
@@ -377,15 +390,15 @@ export const useNotificationStore = create<UserNotificationState>((set, get) => 
 
           const item: NotificationItem = {
             id: id || crypto.randomUUID(),
-            title: payload.title ?? payload.Title ?? "Thông báo mới",
-            body: payload.body ?? payload.Body ?? "",
-            targetType: payload.targetType ?? payload.TargetType,
-            targetUserId: payload.targetUserId ?? payload.TargetUserId,
-            targetGroupId: payload.targetGroupId ?? payload.TargetGroupId,
+            title: payload.title  ?? "Thông báo mới",
+            body: payload.body ?? "",
+            targetType: payload.targetType ,
+            targetUserId: payload.targetUserId ,
+            targetGroupId: payload.targetGroupId ,
             priority: payload.priority ?? payload.Priority,
             isActive: true,
-            createdAt: payload.createdAt ?? payload.CreatedAt ?? new Date().toISOString(),
-            createdBy: payload.createdBy ?? payload.appUserId ?? payload.AppUserId,
+            createdAt: payload.createdAt,
+            createdBy: payload.createdBy ,
             metadata: {
               ...(payload.metadata ?? {}),
             },
@@ -402,38 +415,67 @@ export const useNotificationStore = create<UserNotificationState>((set, get) => 
             }
           });
 
-          // Merge / dedupe logic to avoid overwriting unreadCount when items are empty
+          // Merge / dedupe logic with improved unreadCount update:
           set((state) => {
             const existingIndex = state.items.findIndex((it) => it.id === item.id);
+            const isNew = existingIndex < 0;
+
             let nextItems: NotificationItem[];
-            if (existingIndex >= 0) {
+            let prevItem: NotificationItem | undefined = undefined;
+            if (!isNew) {
               // replace existing item
               nextItems = state.items.slice();
+              prevItem = nextItems[existingIndex];
               nextItems[existingIndex] = { ...nextItems[existingIndex], ...item };
             } else {
               nextItems = [item, ...state.items];
             }
 
-            // If we don't have items loaded but we previously fetched unread count,
-            // avoid recalculating from items (which would be 1) — instead increment the known unreadCount.
-            if (state.items.length === 0 && typeof state.unreadCount === "number" && state.unreadCount > 0) {
-              const nextUnread = state.unreadCount + (incomingIsRead ? 0 : 1);
-              return {
-                items: nextItems,
-                unreadCount: nextUnread,
-              };
+            const prevUnread = typeof state.unreadCount === "number" ? state.unreadCount : undefined;
+            const localUnread = recalcUnread(nextItems);
+
+            let nextUnread: number;
+
+            if (isNew) {
+              // If we have an authoritative previous count, increment it (if unread).
+              if (typeof prevUnread === "number") {
+                nextUnread = prevUnread + (incomingIsRead ? 0 : 1);
+              } else {
+                // fall back to local calculation
+                nextUnread = localUnread;
+              }
+            } else {
+              // existing item: if previously marked read but now incoming is unread, increment
+              const prevWasRead = !!(prevItem && (prevItem.read?.isRead ?? false));
+              if (prevWasRead && !incomingIsRead) {
+                nextUnread = (typeof prevUnread === "number" ? prevUnread : localUnread) + 1;
+              } else {
+                // otherwise keep previous authoritative if exists, else recalc
+                nextUnread = typeof prevUnread === "number" ? prevUnread : localUnread;
+              }
             }
 
-            // otherwise compute deterministically from items we have
-            const nextUnread = recalcUnread(nextItems);
+            // Ensure non-negative and at least localUnread
+            nextUnread = Math.max(0, Math.max(nextUnread, localUnread));
+
+            console.debug("[NotificationCreated] id:", item.id, "isNew:", isNew, "incomingIsRead:", incomingIsRead, "prevUnread:", prevUnread, "localUnread:", localUnread, "nextUnread:", nextUnread);
+
             return {
               items: nextItems,
               unreadCount: nextUnread,
             };
           });
 
-          const title = item.title ?? "Thông báo mới";
-          toast.success(`📢 ${title}`);
+          // toast once per id (safeguard against duplicate handler or duplicated events)
+          if (item.id && !toastedIds.has(item.id)) {
+            toastedIds.add(item.id);
+            if (toastedIds.size > 500) {
+              const first = toastedIds.values().next().value;
+              if (first) toastedIds.delete(first);
+            }
+            const title = item.title ?? "Thông báo mới";
+            toast.success(`📢 ${title}`);
+          }
         } catch (err) {
           console.error("NotificationCreated handler error", err);
         }
@@ -472,6 +514,10 @@ export const useNotificationStore = create<UserNotificationState>((set, get) => 
       const conn = get().connection;
       if (conn) {
         try {
+          // remove handlers to avoid dupes when reconnecting
+          try {
+            conn.off("NotificationCreated");
+          } catch { /* ignore */ }
           await conn.stop();
         } catch {
           /* ignore */

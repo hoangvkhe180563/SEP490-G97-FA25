@@ -47,8 +47,12 @@ namespace StudyHub.Backend.Api.Controllers
                  {
                      var user = _aUserService.GetUserById(m.UserId);
                      var role = _aRoleService.GetRolesByUser(m.UserId);
+#pragma warning disable CS8629 // Nullable value type may be null.
                      var school = (user?.SchoolId).HasValue ? _locationService.GetSchoolById(user!.SchoolId.Value) : null;
+#pragma warning restore CS8629 // Nullable value type may be null.
+#pragma warning disable CS8629 // Nullable value type may be null.
                      var commune = (user?.CommuneId).HasValue ? _locationService.GetCommuneById(user!.CommuneId.Value) : null;
+#pragma warning restore CS8629 // Nullable value type may be null.
                      return m.ToMemberDto(user, role, school, commune);
                  })
                  .ToList();
@@ -67,7 +71,9 @@ namespace StudyHub.Backend.Api.Controllers
 
             var baseFrontendUrl = _config["App:BaseUrl"]?.TrimEnd('/') ?? $"{Request.Scheme}://{Request.Host}";
 
+#pragma warning disable CS8604 // Possible null reference argument.
             var results = await _service.InviteByEmailsAsync(classId, request.Emails, request.Role, request.Message, baseFrontendUrl);
+#pragma warning restore CS8604 // Possible null reference argument.
             return Ok(new { success = true, message = "Đã gửi lời mời.", data = results });
         }
         [HttpPost("invite-excel")]
@@ -83,7 +89,9 @@ namespace StudyHub.Backend.Api.Controllers
 
             try
             {
+#pragma warning disable CS8604 // Possible null reference argument.
                 var results = await _service.InviteByExcelAsync(classId, file, role ?? "Student", message, baseFrontendUrl);
+#pragma warning restore CS8604 // Possible null reference argument.
                 return Ok(new { success = true, message = "Đã gửi lời mời từ file.", data = results });
             }
             catch (ArgumentException aex)
@@ -234,12 +242,14 @@ namespace StudyHub.Backend.Api.Controllers
             // Fire-and-forget notification (best-effort)
             try
             {
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
                 await NotifyHomeroomTeachersAsync(
                     classId,
                     title: "Thành viên mới đã được xác nhận",
                     body: $"Thành viên {_authService.GetUserInfoById(Guid.Parse(userId)).User.Fullname} đã được xác nhận vào lớp {classId}.",
                     link: $"/class/{classId}"
                 );
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
             }
             catch (Exception ex)
             {
