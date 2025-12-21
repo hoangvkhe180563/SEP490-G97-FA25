@@ -31,7 +31,7 @@ import {
 
 import NotificationsTab from "@/classManagement/components/tabs/notificationTab";
 import ExerciseTab from "@/classManagement/components/tabs/exerciseTab";
-import EveryoneTab from "@/classManagement/components/tabs/EveryoneTab";
+import EveryoneTab from "@/classManagement/components/tabs/everyoneTab";
 import ClassExams from "@/classManagement/components/ClassExams";
 
 const DetailedClassTeacher: React.FC = () => {
