@@ -146,7 +146,7 @@ const ViewExamDetail = () => {
           };
         }),
         cheatTimes: 0,
-        finishTime: calculateFinishTime(),
+        finishTime: calculateFinishTime(exam.duration),
       };
 
       await examService.createResult(examResult);

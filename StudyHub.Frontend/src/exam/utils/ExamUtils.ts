@@ -1,7 +1,7 @@
-export function calculateFinishTime(): Date {
+export function calculateFinishTime(duration: number): Date {
   const now = new Date();
-  const twentyMinutesInMilliseconds = 20 * 60 * 1000;
-  const futureDate = new Date(now.getTime() + twentyMinutesInMilliseconds);
+  const minutesInMilliseconds = duration * 60 * 1000;
+  const futureDate = new Date(now.getTime() + minutesInMilliseconds);
   return futureDate;
 }
 
