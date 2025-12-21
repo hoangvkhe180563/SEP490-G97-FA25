@@ -9,15 +9,25 @@ import UpdateAccountAdmin from "../pages/admin/UpdateAccount";
 import ManagerLayout from "../components/layouts/ManagerLayout";
 import UpdateProfile from "../pages/UpdateProfile";
 import AccountRecoveryList from "../pages/manager/AccountRecoveryList";
+import AccountRecoveryListAdmin from "../pages/admin/AccountRecoveryList";
 import AccountDashboard from "../pages/manager/AccountDashboard";
+import AccountDashboardAdmin from "../pages/admin/AccountDashboard";
 import RequireRole from "@/common/components/RequireRole";
 import { ROLES } from "@/common/constants/Roles";
 
 const adminRoutes = [
   {
+    index: true,
+    element: (
+      <RequireRole allowedRoles={[ROLES.ADMIN]}>
+        <AccountDashboardAdmin />
+      </RequireRole>
+    ),
+  },
+  {
     path: UserRouteConfig.ADMIN.ACCOUNT_LIST,
     element: (
-      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN, ROLES.ADMIN]}>
+      <RequireRole allowedRoles={[ROLES.ADMIN]}>
         <AccountListAdmin />
       </RequireRole>
     ),
@@ -25,7 +35,7 @@ const adminRoutes = [
   {
     path: UserRouteConfig.ADMIN.ADD_ACCOUNT,
     element: (
-      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN, ROLES.ADMIN]}>
+      <RequireRole allowedRoles={[ROLES.ADMIN]}>
         <CreateAccountAdmin />
       </RequireRole>
     ),
@@ -33,8 +43,16 @@ const adminRoutes = [
   {
     path: UserRouteConfig.ADMIN.UPDATE_ACCOUNT,
     element: (
-      <RequireRole allowedRoles={[ROLES.SCHOOL_ADMIN, ROLES.ADMIN]}>
+      <RequireRole allowedRoles={[ROLES.ADMIN]}>
         <UpdateAccountAdmin />
+      </RequireRole>
+    ),
+  },
+  {
+    path: UserRouteConfig.MANAGER.ACCOUNT_RECOVERY_LIST,
+    element: (
+      <RequireRole allowedRoles={[ROLES.ADMIN]}>
+        <AccountRecoveryListAdmin />
       </RequireRole>
     ),
   },

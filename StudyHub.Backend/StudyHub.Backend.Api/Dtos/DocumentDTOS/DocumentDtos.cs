@@ -166,7 +166,23 @@ namespace StudyHub.Backend.Api.Dtos
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
     }
+    public class AskQuestionRequest
+    {
+        public string Question { get; set; } = string.Empty;
+    }
 
+    public class ChatWithDocumentRequest
+    {
+        public string Question { get; set; } = string.Empty;
+        public List<ConversationHistoryDto>? ConversationHistory { get; set; }
+    }
+
+    public class ConversationHistoryDto
+    {
+        public string Question { get; set; } = string.Empty;
+        public string Answer { get; set; } = string.Empty;
+        public DateTime Timestamp { get; set; }
+    }
     public class ApprovalDto
     {
         [Required(ErrorMessage = "DocumentId là bắt buộc")]

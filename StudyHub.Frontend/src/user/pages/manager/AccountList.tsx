@@ -403,7 +403,9 @@ const AccountList = () => {
               <SelectItem value="all">Tất cả vai trò</SelectItem>
               {(appRoles || [])
                 .filter(
-                  (role) => String(role.name) !== String(ROLES.EXTERNAL_STUDENT)
+                  (role) =>
+                    String(role.name) !== String(ROLES.EXTERNAL_STUDENT) &&
+                    String(role.name) !== String(ROLES.ADMIN)
                 )
                 .map((role) => (
                   <SelectItem key={role.id} value={String(role.id)}>

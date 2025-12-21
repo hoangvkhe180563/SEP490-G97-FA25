@@ -22,6 +22,7 @@ const FeaturedDocuments = (props: { data: IFeaturedDocument[] }) => {
         <h1 className="text-2xl py-2 font-bold text-center mb-4">
           TÀI LIỆU NỔI BẬT
         </h1>
+        <p className="text-center italic">Sách giáo khoa, bài tập... được đề xuất nhiều nhất cho học sinh.</p>
         <div className="space-y-6">
           {props.data.length === 0 && (
             <div className="w-full text-center italic">Không có dữ liệu!</div>
