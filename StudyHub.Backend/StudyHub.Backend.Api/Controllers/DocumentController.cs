@@ -21,17 +21,23 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly AppUserService _userService;
         private readonly ClassService _classService;
         private readonly AuthService _authService;
+        private readonly DocumentContentRAGService _ragService;
+        private readonly ElasticDocumentContentService _elasticContentService;
 
         public DocumentController(
             DocumentService documentService,
             AppUserService userService,
             ClassService classService,
-            AuthService authService)
+            AuthService authService,
+            DocumentContentRAGService documentContentRAGService,
+            ElasticDocumentContentService elasticDocumentContentService)
         {
             _documentService = documentService;
             _userService = userService;
             _classService = classService;
             _authService = authService;
+            _ragService = documentContentRAGService;
+            _elasticContentService = elasticDocumentContentService;
         }
 
         private IActionResult PagedResult<T>(List<T> items, int total, int page, int limit)
@@ -781,6 +787,54 @@ public IActionResult GetSchoolTeachersDocuments(
             {
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
+        }
+        [HttpGet("{id}/debug-chunks")]
+        public async Task<IActionResult> DebugChunks(int id, [FromQuery] int? pageNumber = null)
+        {
+            var stats = await _ragService.GetDocumentIndexStatsAsync(id);
+            var debugResult = await _elasticContentService.DebugSearchChunksAsync(id, pageNumber);
+
+            return Ok(new { stats, debugResult });
+        }
+        [HttpPost("{id:int}/debug-search")]
+        public async Task<IActionResult> DebugSearch(int id, [FromBody] AskQuestionRequest request)
+        {
+            var document = _documentService.GetDocumentById(id);
+            if (document == null)
+                return NotFound(new { success = false, message = "Document not found" });
+
+            var elasticService = HttpContext.RequestServices.GetRequiredService<ElasticDocumentContentService>();
+
+            var embeddingService = HttpContext.RequestServices.GetRequiredService<EmbeddingService>();
+            var queryVector = await embeddingService.GetEmbeddingAsync(request.Question);
+
+            var allResults = await elasticService.SearchDocumentContentAsync(
+                id,
+                request.Question,
+                queryVector,
+                50
+            );
+
+            var debugInfo = allResults.Hits.Select(hit => new
+            {
+                chunkId = hit.Source.Id,
+                pageNumber = hit.Source.PageNumber,
+                chunkIndex = hit.Source.ChunkIndex,
+                score = hit.Score,
+                contentPreview = hit.Source.Content.Length > 100
+                    ? hit.Source.Content.Substring(0, 100) + "..."
+                    : hit.Source.Content,
+                keywords = hit.Source.Keywords.Take(5),
+                hasTopic3 = hit.Source.Content.ToLower().Contains("topic 3")
+            }).ToList();
+
+            return Ok(new
+            {
+                success = true,
+                query = request.Question,
+                totalHits = allResults.Total,
+                results = debugInfo
+            });
         }
         [HttpDelete("clear-all-rag-content")]
         public async Task<IActionResult> ClearAllRAGContent()
