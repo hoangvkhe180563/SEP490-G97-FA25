@@ -69,6 +69,7 @@ function DocumentPreview({
   );
 }
 import { axiosInstance } from "@/lib/axios";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 function DocumentHeader({
   document,
   onView,
@@ -448,6 +449,7 @@ function RelatedDocumentsSection({
 
 export default function DocumentDetails() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuthStore();
   const navigate = useNavigate();
 
   const { document, isLoading, getDocumentById, downloadDocument } =
@@ -525,7 +527,7 @@ export default function DocumentDetails() {
   }
 
   return (
-    <div className="w-full h-full overflow-y-auto bg-gray-50">
+    <div className={`w-full h-full overflow-y-auto bg-gray-50 ${user ? '' : 'mt-[65px]'}`}>
       <div className="w-full max-w-7xl mx-auto px-6 py-6">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
           <ArrowLeft className="w-4 h-4 mr-2" />

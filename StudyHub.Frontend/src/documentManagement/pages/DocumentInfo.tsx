@@ -31,6 +31,7 @@ import { Input } from "@/common/components/ui/input";
 import { axiosInstance } from "@/lib/axios";
 import { useDocumentStore } from "@/documentManagement/stores/useDocumentStore";
 import HTMLFlipBook from "react-pageflip";
+import { useAuthStore } from "@/auth/stores/useAuthStore";
 
 interface PdfOutlineItem {
   title: string;
@@ -76,6 +77,7 @@ interface FlipBookRef {
 
 export default function DocumentViewer() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuthStore();
   const navigate = useNavigate();
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
@@ -726,7 +728,7 @@ export default function DocumentViewer() {
         }
       `}</style>
 
-      <div className="flex flex-col h-screen bg-gray-50">
+      <div className={`flex flex-col h-screen bg-gray-50 ${user ? '' : 'mt-[65px]'}`}>
         <div className="bg-white border-b border-gray-200 px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">

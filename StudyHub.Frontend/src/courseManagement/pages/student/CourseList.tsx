@@ -30,6 +30,8 @@ const CourseList: React.FC = () => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [teachers, setTeachers] = useState<any[]>([]);
   const getTeachers = useAppUserStore((s) => s.getTeachers);
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialQ = searchParams.get("q");
   const authUser = useAuthStore((s) => s.user);
 
   const pageSize = useCourseStore((s) => s.pageSize);
@@ -69,8 +71,15 @@ const CourseList: React.FC = () => {
     if (authUser?.schoolId) params.schoolId = authUser.schoolId;
     else params.publicOnly = true;
 
+    if (initialQ) {
+      params.q = initialQ;
+      setQ(initialQ);
+      load(1, { q: initialQ });
+    }
+
     fetchCourses(params);
-  }, [fetchCourses, effectivePageSize, authUser?.schoolId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchCourses, effectivePageSize, authUser?.schoolId, initialQ]);
 
   useEffect(() => {
     (async () => {

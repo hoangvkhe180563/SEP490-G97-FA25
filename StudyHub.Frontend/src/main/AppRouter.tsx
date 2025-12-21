@@ -6,7 +6,6 @@ import uiManagementRoutes from "@/uiManagement/routes/UiManagementRoutes";
 import userRoutes from "@/user/routes/UserRoutes";
 import { Outlet, useRoutes } from "react-router-dom";
 import courseRoutes from "@/courseManagement/routes/CourseRoute";
-import Homepage from "@/uiManagement/pages/Homepage";
 import authRoutes from "@/auth/routes/AuthRoutes";
 import { useAuthStore } from "@/auth/stores/useAuthStore";
 import { useEffect } from "react";
@@ -24,6 +23,7 @@ import recommendationRoutes from "@/recommend/routes/RecommendationRoutes";
 import ProtectedRoute from "@/common/components/ProtectedRoute";
 import notificationRoutes from "@/notification/routes/NotificationRoutes";
 import { useNotificationStore } from "@/notification/stores/useNotificationStore";
+import GuestHomepage from "@/uiManagement/pages/GuestHomepage";
 
 const AppRouter = () => {
   const { user, checkAuth, isAuthenticated, isCheckingAuth } = useAuthStore();
@@ -82,7 +82,7 @@ const AppRouter = () => {
       children: [
         {
           index: true,
-          element: <Homepage />,
+          element: <GuestHomepage />,
         },
       ],
     },

@@ -23,6 +23,7 @@ const FeaturedCourses = (props: { data: IFeaturedCourse[] }) => {
         <h1 className="mt-5 text-2xl py-2 font-bold text-center">
           KHÓA HỌC NỔI BẬT
         </h1>
+        <p className="text-center italic">Các khóa học được đề xuất nhiều nhất cho học sinh</p>
         <div className="space-y-6">
           {props.data.length === 0 && <div className="w-full text-center italic">Không có dữ liệu!</div>}
 

@@ -25,6 +25,12 @@ const Header = () => {
             type="text"
             placeholder="Tìm kiếm khóa học..."
             className="pl-8 w-96 border-2 border-black bg-white text-black"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const query = e.currentTarget.value;
+                location.href = `/course/student/courses?q=${query}`;
+              }
+            }}
           />
         </div>
       </div>
