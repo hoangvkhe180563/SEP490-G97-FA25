@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const axiosInstance = axios.create({
-  baseURL: "http://zgwcow88gc8wgkoc44s0gsgs.72.62.72.213.sslip.io/api", //http://localhost:6789/api
+  baseURL: "https://api.studyhub.io.vn/api", //http://localhost:6789/api
   withCredentials: true, // send cookies to the server
 });
 
