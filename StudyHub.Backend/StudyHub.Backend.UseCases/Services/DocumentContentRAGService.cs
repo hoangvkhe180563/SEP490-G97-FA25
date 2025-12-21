@@ -272,31 +272,25 @@ namespace StudyHub.Backend.UseCases.Services
                     var body = wordDocument.MainDocumentPart.Document.Body;
                     var paragraphs = body.Elements<DocumentFormat.OpenXml.Wordprocessing.Paragraph>().ToList();
 
-                    Console.WriteLine($"[RAG Indexing DOCX] Total paragraphs: {paragraphs.Count}");
+                    var currentSection = 1;
+                    var sectionText = new StringBuilder();
+                    var lastHeadingLevel = 0;
 
-                    var currentPage = 1;
-                    var pageText = new StringBuilder();
-                    int paragraphIndex = 0;
-
-                    foreach (var paragraph in paragraphs)
+                    for (int i = 0; i < paragraphs.Count; i++)
                     {
-                        var paraText = paragraph.InnerText;
+                        var para = paragraphs[i];
+                        var paraText = para.InnerText;
 
-                        var hasPageBreak = paragraph.Descendants<DocumentFormat.OpenXml.Wordprocessing.Break>()
-                            .Any(b => b.Type != null && b.Type.Value == DocumentFormat.OpenXml.Wordprocessing.BreakValues.Page);
+                        var styleId = para.ParagraphProperties?.ParagraphStyleId?.Val?.Value;
+                        var isHeading = styleId != null && styleId.StartsWith("Heading");
 
-                        pageText.AppendLine(paraText);
-
-                        if (hasPageBreak || paragraphIndex == paragraphs.Count - 1)
+                        if (isHeading && sectionText.Length > 100)
                         {
-                            var text = pageText.ToString();
+                            var text = sectionText.ToString();
                             text = CleanText(text);
 
                             if (!string.IsNullOrWhiteSpace(text))
                             {
-                                Console.WriteLine($"[RAG Indexing DOCX] Page {currentPage}: {text.Length} chars, {text.Split('\n').Length} lines");
-
-                                var keywords = ExtractKeywords(text, subjectId);
                                 var textChunks = SplitIntoSemanticChunks(text, chunkSize, overlapSize);
 
                                 int chunkIndex = 0;
@@ -305,14 +299,13 @@ namespace StudyHub.Backend.UseCases.Services
                                     if (string.IsNullOrWhiteSpace(chunkText) || chunkText.Length < 50)
                                         continue;
 
-                                    var preview = chunkText.Length > 80 ? chunkText.Substring(0, 80) + "..." : chunkText;
-                                    Console.WriteLine($"  [DOCX] Page {currentPage}, Chunk {chunkIndex}: {preview}");
+                                    var keywords = ExtractKeywords(chunkText, subjectId);
 
                                     chunks.Add(new DocumentChunk
                                     {
                                         DocumentId = documentId,
                                         DocumentName = documentName,
-                                        PageNumber = currentPage, 
+                                        PageNumber = currentSection,
                                         ChunkIndex = chunkIndex,
                                         Content = chunkText,
                                         Keywords = keywords,
@@ -321,26 +314,61 @@ namespace StudyHub.Backend.UseCases.Services
                                         Metadata = new Dictionary<string, string>
                                 {
                                     { "source", "docx" },
-                                    { "page", currentPage.ToString() },
+                                    { "section", currentSection.ToString() },
                                     { "subject_id", subjectId.ToString() },
-                                    { "paragraph_index", paragraphIndex.ToString() }  
+                                    { "page_type", "section" }
                                 }
                                     });
                                     chunkIndex++;
                                 }
                             }
 
-                            if (hasPageBreak)
-                            {
-                                pageText.Clear();
-                                currentPage++;
-                            }
+                            sectionText.Clear();
+                            currentSection++;
                         }
 
-                        paragraphIndex++;
+                        sectionText.AppendLine(paraText);
                     }
 
-                    Console.WriteLine($"[RAG Indexing DOCX] Total chunks created: {chunks.Count} across {currentPage} pages");
+                    if (sectionText.Length > 0)
+                    {
+                        var text = sectionText.ToString();
+                        text = CleanText(text);
+
+                        if (!string.IsNullOrWhiteSpace(text))
+                        {
+                            var textChunks = SplitIntoSemanticChunks(text, chunkSize, overlapSize);
+
+                            int chunkIndex = 0;
+                            foreach (var chunkText in textChunks)
+                            {
+                                if (string.IsNullOrWhiteSpace(chunkText) || chunkText.Length < 50)
+                                    continue;
+
+                                var keywords = ExtractKeywords(chunkText, subjectId);
+
+                                chunks.Add(new DocumentChunk
+                                {
+                                    DocumentId = documentId,
+                                    DocumentName = documentName,
+                                    PageNumber = currentSection,
+                                    ChunkIndex = chunkIndex,
+                                    Content = chunkText,
+                                    Keywords = keywords,
+                                    CharacterStart = chunkIndex * (chunkSize - overlapSize),
+                                    CharacterEnd = chunkIndex * (chunkSize - overlapSize) + chunkText.Length,
+                                    Metadata = new Dictionary<string, string>
+                            {
+                                { "source", "docx" },
+                                { "section", currentSection.ToString() },
+                                { "subject_id", subjectId.ToString() },
+                                { "page_type", "section" }
+                            }
+                                });
+                                chunkIndex++;
+                            }
+                        }
+                    }
                 }
             }
 
@@ -407,8 +435,67 @@ namespace StudyHub.Backend.UseCases.Services
                     break;
             }
 
-            return keywords.Take(20).ToList();
+            var universalKeywords = ExtractUniversalPatterns(text);
+            foreach (var kw in universalKeywords) keywords.Add(kw);
+
+            return keywords
+                .Where(k => !string.IsNullOrWhiteSpace(k))
+                .OrderByDescending(k => k.Length)
+                .Take(30)
+                .ToList();
         }
+        private List<string> ExtractUniversalPatterns(string text)
+        {
+            var keywords = new HashSet<string>();
+
+            var patterns = new[]
+            {
+        @"\b(topic|chủ đề|bài|phần|mục|chapter|section|unit|lesson)\s+(\d+)\b",
+        @"\b(câu|question|problem|exercise|bài tập)\s+(\d+)\b",
+        @"\b(trang|page|tr)\s*\.?\s*(\d+)\b",
+        @"\b(năm|year)\s+(\d{4})\b",
+        @"\b(thế kỷ|century)\s+(\d{1,2})\b"
+    };
+
+            foreach (var pattern in patterns)
+            {
+                var matches = Regex.Matches(text, pattern, RegexOptions.IgnoreCase);
+                foreach (Match match in matches)
+                {
+                    keywords.Add(match.Value.ToLower());
+                    if (match.Groups.Count > 2)
+                    {
+                        keywords.Add(match.Groups[2].Value);
+                    }
+                }
+            }
+
+            var numbers = Regex.Matches(text, @"\b(\d{1,2})\b");
+            foreach (Match match in numbers)
+            {
+                if (int.TryParse(match.Value, out int n) && n >= 1 && n <= 100)
+                {
+                    keywords.Add(match.Value);
+                }
+            }
+
+            var capitalizedPhrases = Regex.Matches(
+                text,
+                @"\b[A-ZÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ][a-zàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]+(?:\s+[A-ZÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ][a-zàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]+){0,2}\b"
+            );
+
+            foreach (Match match in capitalizedPhrases)
+            {
+                var phrase = match.Value.ToLower();
+                if (phrase.Length >= 3 && !IsStopWord(phrase.Split(' ')[0]))
+                {
+                    keywords.Add(phrase);
+                }
+            }
+
+            return keywords.ToList();
+        }
+
         private List<string> ExtractBiologyKeywords(string text)
         {
             var keywords = new HashSet<string>();
@@ -630,7 +717,11 @@ namespace StudyHub.Backend.UseCases.Services
             foreach (var word in words)
             {
                 var cleaned = word.Trim().ToLower();
-                if (cleaned.Length >= 3 && !IsStopWord(cleaned))
+
+                bool isNumber = Regex.IsMatch(cleaned, @"^\d+$");
+                bool isValidWord = cleaned.Length >= 3 && !IsStopWord(cleaned);
+
+                if (isValidWord || isNumber)
                 {
                     keywords.Add(cleaned);
                 }
@@ -641,8 +732,14 @@ namespace StudyHub.Backend.UseCases.Services
                 var word1 = words[i].Trim().ToLower();
                 var word2 = words[i + 1].Trim().ToLower();
 
-                if (word1.Length >= 3 && word2.Length >= 3 &&
-                    !IsStopWord(word1) && !IsStopWord(word2))
+                bool isWord1Valid = word1.Length >= 3 && !IsStopWord(word1);
+                bool isWord2Valid = word2.Length >= 3 && !IsStopWord(word2);
+                bool isNumber1 = Regex.IsMatch(word1, @"^\d+$");
+                bool isNumber2 = Regex.IsMatch(word2, @"^\d+$");
+
+                if ((isWord1Valid && isWord2Valid) ||
+                    (isWord1Valid && isNumber2) ||
+                    (isNumber1 && isWord2Valid))
                 {
                     keywords.Add($"{word1} {word2}");
                 }
@@ -791,6 +888,35 @@ namespace StudyHub.Backend.UseCases.Services
                 return result;
             }
         }
+        private List<string> ExtractSearchTerms(string query)
+        {
+            var queryLower = query.ToLower().Trim();
+
+            var stopPhrases = new[]
+            {
+        "tìm cho tôi", "tìm kiếm", "cho tôi biết", "hãy tìm", "tìm giúp tôi",
+        "dữ liệu", "dữ kiện", "thông tin", "nội dung",
+        "trong tài liệu", "ở tài liệu", "của tài liệu", "trong", "của", "ở",
+        "có trong", "xuất hiện trong", "cho tôi", "giúp tôi"
+    };
+
+            foreach (var phrase in stopPhrases)
+            {
+                queryLower = Regex.Replace(queryLower, $@"\b{Regex.Escape(phrase)}\b", " ", RegexOptions.IgnoreCase);
+            }
+
+            queryLower = Regex.Replace(queryLower, @"\s+", " ").Trim();
+
+            var terms = Regex.Matches(queryLower, @"[\w\d]+")
+                .Cast<Match>()
+                .Select(m => m.Value)
+                .Where(w => !string.IsNullOrWhiteSpace(w) && w.Length > 1 && !IsStopWord(w))
+                .Distinct()
+                .ToList();
+
+            return terms;
+        }
+
         public async Task<List<DocumentChunk>> RetrieveRelevantChunksAsync(
             int documentId,
             string query,
@@ -800,18 +926,35 @@ namespace StudyHub.Backend.UseCases.Services
             if (document == null)
                 throw new InvalidOperationException("Document not found");
 
-            var keywords = ExtractKeywords(query, document.SubjectId);
-            var enrichedQuery = string.Join(" ", keywords.Concat(new[] { query }));
+            var queryLower = query.ToLower().Trim();
+
+            var searchTerms = ExtractSearchTerms(query);
+
+            if (searchTerms.Count == 0)
+            {
+                searchTerms = Regex.Matches(queryLower, @"[\w\d]+")
+                    .Cast<Match>()
+                    .Select(m => m.Value)
+                    .Where(w => !string.IsNullOrWhiteSpace(w) && w.Length > 1)
+                    .Take(5)
+                    .ToList();
+            }
+
+            var searchQuery = string.Join(" ", searchTerms);
+
+            var keywords = ExtractKeywords(searchQuery, document.SubjectId);
+            var allTerms = searchTerms.Concat(keywords).Distinct().ToList();
+            var enrichedQuery = string.Join(" ", allTerms);
+
             var queryVector = await _embeddingService.GetEmbeddingAsync(enrichedQuery);
 
             var searchResults = await _elasticContentRepo.SearchDocumentContentAsync(
-                documentId, enrichedQuery, queryVector, topK * 3);
+                documentId, searchQuery, queryVector, Math.Max(topK * 50, 150));
 
             if (!searchResults.IsValid || !searchResults.Hits.Any())
                 return new List<DocumentChunk>();
 
             var chunks = searchResults.Hits
-                .Where(hit => hit.Score.HasValue && hit.Score.Value > 0.3)  
                 .Select(hit => new DocumentChunk
                 {
                     DocumentId = hit.Source.DocumentId,
@@ -823,21 +966,136 @@ namespace StudyHub.Backend.UseCases.Services
                     ContentVector = hit.Source.ContentVector,
                     CharacterStart = hit.Source.CharacterStart,
                     CharacterEnd = hit.Source.CharacterEnd,
-                    Score = (float)hit.Score.Value,
+                    Score = (float)(hit.Score ?? 0),
                     Metadata = hit.Source.Metadata
                 })
                 .ToList();
 
-            var queryTerms = query.ToLower().Split(' ').Where(w => w.Length > 2).ToHashSet();
+            var normalizedSearchQuery = Regex.Replace(searchQuery, @"\s+", " ").Trim();
 
             chunks = chunks.Select(chunk =>
             {
-                var content = chunk.Content.ToLower();
-                var matchCount = queryTerms.Count(term => content.Contains(term));
-                var matchRatio = (double)matchCount / queryTerms.Count;
+                var contentOriginal = chunk.Content;
+                var content = Regex.Replace(contentOriginal.ToLower(), @"\s+", " ").Trim();
+                float baseScore = chunk.Score;
+                float finalScore = 0;
 
-                chunk.Score *= (float)(1.0 + (matchRatio * 0.5));
+                var exactPhrasePattern = $@"\b{Regex.Escape(normalizedSearchQuery)}\b";
+                var exactPhraseMatches = Regex.Matches(content, exactPhrasePattern, RegexOptions.IgnoreCase);
 
+                if (exactPhraseMatches.Count > 0)
+                {
+                    finalScore += exactPhraseMatches.Count * 10000.0f;
+
+                    foreach (Match match in exactPhraseMatches)
+                    {
+                        if (match.Index < 200)
+                        {
+                            finalScore += 5000.0f;
+                        }
+                        if (match.Index < 50)
+                        {
+                            finalScore += 3000.0f;
+                        }
+                    }
+                }
+
+                var relaxedPhrasePattern = searchTerms.Count > 1
+                    ? string.Join(@"\s+\w*\s*", searchTerms.Select(Regex.Escape))
+                    : Regex.Escape(normalizedSearchQuery);
+
+                var relaxedMatches = Regex.Matches(content, relaxedPhrasePattern, RegexOptions.IgnoreCase);
+                if (relaxedMatches.Count > 0)
+                {
+                    finalScore += relaxedMatches.Count * 3000.0f;
+                }
+
+                float termMatchBonus = 0;
+                int termsMatched = 0;
+                var termPositions = new List<int>();
+
+                foreach (var term in searchTerms)
+                {
+                    var termPattern = $@"\b{Regex.Escape(term)}\b";
+                    var matches = Regex.Matches(content, termPattern, RegexOptions.IgnoreCase);
+
+                    if (matches.Count > 0)
+                    {
+                        termsMatched++;
+                        termMatchBonus += matches.Count * 200.0f;
+
+                        foreach (Match match in matches)
+                        {
+                            termPositions.Add(match.Index);
+                        }
+                    }
+                    else if (content.Contains(term))
+                    {
+                        termsMatched++;
+                        termMatchBonus += 50.0f;
+                    }
+                }
+
+                if (termPositions.Count > 1)
+                {
+                    termPositions.Sort();
+                    for (int i = 1; i < termPositions.Count; i++)
+                    {
+                        int distance = termPositions[i] - termPositions[i - 1];
+                        if (distance < 30)
+                        {
+                            termMatchBonus += 1500.0f;
+                        }
+                        else if (distance < 100)
+                        {
+                            termMatchBonus += 500.0f;
+                        }
+                    }
+                }
+
+                float keywordMatchBonus = 0;
+                if (chunk.Keywords != null && chunk.Keywords.Any())
+                {
+                    var chunkKeywordsLower = chunk.Keywords.Select(k => k.ToLower()).ToList();
+
+                    if (chunkKeywordsLower.Any(k => k == normalizedSearchQuery))
+                    {
+                        keywordMatchBonus += 5000.0f;
+                    }
+
+                    if (chunkKeywordsLower.Any(k => k.Contains(normalizedSearchQuery)))
+                    {
+                        keywordMatchBonus += 2000.0f;
+                    }
+
+                    foreach (var term in searchTerms)
+                    {
+                        if (chunkKeywordsLower.Contains(term))
+                        {
+                            keywordMatchBonus += 300.0f;
+                        }
+                        else if (chunkKeywordsLower.Any(k => k.Contains(term)))
+                        {
+                            keywordMatchBonus += 100.0f;
+                        }
+                    }
+                }
+
+                finalScore += termMatchBonus + keywordMatchBonus;
+
+                finalScore += baseScore * 2.0f;
+
+                float coverageRatio = searchTerms.Count > 0 ? (float)termsMatched / searchTerms.Count : 0;
+                if (coverageRatio >= 1.0f)
+                {
+                    finalScore *= 3.0f;
+                }
+                else if (coverageRatio >= 0.8f)
+                {
+                    finalScore *= 1.8f;
+                }
+
+                chunk.Score = finalScore;
                 return chunk;
             })
             .OrderByDescending(c => c.Score)
@@ -856,7 +1114,7 @@ namespace StudyHub.Backend.UseCases.Services
 
             try
             {
-                var relevantChunks = await RetrieveRelevantChunksAsync(documentId, question, maxChunks);
+                var relevantChunks = await RetrieveRelevantChunksAsync(documentId, question, maxChunks * 2);
 
                 if (relevantChunks.Count == 0)
                 {
@@ -865,14 +1123,14 @@ namespace StudyHub.Backend.UseCases.Services
                     return result;
                 }
 
-                result.SourceChunks = relevantChunks;
+                result.SourceChunks = relevantChunks.Take(maxChunks).ToList();
 
-                var context = BuildContextFromChunks(relevantChunks);
-                var prompt = BuildRAGPrompt(question, context, relevantChunks);
+                var context = BuildContextFromChunks(result.SourceChunks);
+                var prompt = BuildRAGPrompt(question, context, result.SourceChunks);
                 var (answer, promptTokens, completionTokens) = await _llmService.GenerateResponseAsync(prompt);
 
                 result.Answer = answer;
-                result.Confidence = CalculateConfidence(relevantChunks);
+                result.Confidence = CalculateConfidence(result.SourceChunks);
                 result.PromptTokens = promptTokens;
                 result.CompletionTokens = completionTokens;
 

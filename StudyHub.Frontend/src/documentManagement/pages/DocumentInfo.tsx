@@ -1351,26 +1351,39 @@ export default function DocumentViewer() {
                                     </div>
                                     <div className="space-y-2">
                                       {aiAnswer.sources.map((source, idx) => (
-                                        <button
+                                        <div
                                           key={idx}
-                                          onClick={() =>
-                                            handleSourceClick(source.pageNumber)
-                                          }
-                                          className="w-full text-left p-2 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition-colors"
+                                          className="w-full text-left p-2 bg-gray-50 rounded border border-gray-200"
                                         >
                                           <div className="flex items-center justify-between mb-1">
                                             <div className="text-xs font-medium text-gray-900">
-                                              Trang {source.pageNumber}
+                                              {isPdf
+                                                ? `Trang ${source.pageNumber}`
+                                                : `Đoạn ${idx + 1}`}
                                             </div>
                                             <div className="text-xs text-gray-600">
-                                              Đánh giá:{" "}
-                                              {(source.score * 100).toFixed(0)}
+                                              Độ chính xác:{" "}
+                                              {(source.score * 100).toFixed(0)}%
                                             </div>
                                           </div>
-                                          <div className="text-xs text-gray-600 line-clamp-2">
+                                          <div className="text-xs text-gray-600">
                                             {source.content}
                                           </div>
-                                        </button>
+                                          {isPdf && (
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="mt-2 text-xs h-6"
+                                              onClick={() =>
+                                                handleSourceClick(
+                                                  source.pageNumber
+                                                )
+                                              }
+                                            >
+                                              Chuyển đến trang này
+                                            </Button>
+                                          )}
+                                        </div>
                                       ))}
                                     </div>
                                   </div>
@@ -1595,10 +1608,6 @@ export default function DocumentViewer() {
                                   <div className="text-xs font-medium text-green-900">
                                     Trả lời
                                   </div>
-                                  <div className="text-xs text-green-700">
-                                    Độ tin cậy:{" "}
-                                    {(aiAnswer.confidence * 100).toFixed(0)}%
-                                  </div>
                                 </div>
                                 <div className="text-xs text-green-800 whitespace-pre-wrap">
                                   {aiAnswer.answer}
@@ -1629,10 +1638,6 @@ export default function DocumentViewer() {
                                               {source.pageNumber > 0
                                                 ? `Trang ${source.pageNumber}`
                                                 : `Đoạn ${idx + 1}`}{" "}
-                                            </div>
-                                            <div className="text-xs text-gray-600">
-                                              Độ chính xác:{" "}
-                                              {(source.score * 100).toFixed(0)}%
                                             </div>
                                           </div>
                                           <div className="text-xs text-gray-600 line-clamp-2">
