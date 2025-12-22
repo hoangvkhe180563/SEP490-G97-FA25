@@ -19,6 +19,7 @@ import {
   adminSidebarItems,
   uiManagerSidebarItems,
   externalStudentSidebarItems,
+  notificationSidebarItem,
 } from "../constants/SidebarItems";
 import { ROLES } from "../constants/Roles";
 import type { ISidebarItem } from "../interfaces/IMainLayoutProps";
@@ -76,7 +77,7 @@ const RegisteredLayout = (props: IRegisteredLayoutProps) => {
         allSidebarItems.push(...adminSidebarItems);
       }
     });
-
+      allSidebarItems.push(...notificationSidebarItem);
     setSidebarItems(allSidebarItems);
   }, [props.user]);
 
