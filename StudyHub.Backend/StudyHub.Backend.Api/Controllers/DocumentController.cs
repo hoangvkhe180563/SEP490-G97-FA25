@@ -205,163 +205,213 @@ public IActionResult GetSchoolTeachersDocuments(
 
         [HttpPost("create")]
         [Consumes("multipart/form-data")]
+        [RequestSizeLimit(15_000_000)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 15_000_000)]
         public async Task<IActionResult> CreateDocument([FromForm] CreateDocumentDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(new { success = false, errors = ModelState });
-
-            var currentUser = _authService.GetCurrentUser();
-            if (currentUser == null)
-                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-
-            var document = dto.ToEntity();
-            document.CreatedBy = currentUser.Id;
-
-            if (dto.IsInClass == true)
+            try
             {
-                if (currentUser.SchoolId == null)
-                    return BadRequest(new { success = false, message = "Bạn không thuộc trường học nào" });
-                document.SchoolId = currentUser.SchoolId;
-            }
-            else
-            {
-                document.SchoolId = dto.SchoolId;
-            }
+                Console.WriteLine($"[CREATE] Starting document creation: {dto.Name}");
 
-            var classesValues = Request.Form["classes"];
-            if (classesValues.Count == 0)
-                classesValues = Request.Form["classesJson"];
-
-            if (classesValues.Count > 0)
-            {
-                var classList = new List<ClassListDto>();
-                foreach (var jsonString in classesValues)
+                if (!ModelState.IsValid)
                 {
-                    try
+                    Console.WriteLine("[CREATE] Model validation failed");
+                    return BadRequest(new { success = false, errors = ModelState });
+                }
+
+                var currentUser = _authService.GetCurrentUser();
+                if (currentUser == null)
+                {
+                    Console.WriteLine("[CREATE] User not authenticated");
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+                }
+
+                Console.WriteLine($"[CREATE] User: {currentUser.Username}, File: {dto.DocumentFile?.FileName}");
+
+                var document = dto.ToEntity();
+                document.CreatedBy = currentUser.Id;
+
+                if (dto.IsInClass == true)
+                {
+                    if (currentUser.SchoolId == null)
+                        return BadRequest(new { success = false, message = "Bạn không thuộc trường học nào" });
+                    document.SchoolId = currentUser.SchoolId;
+                }
+                else
+                {
+                    document.SchoolId = dto.SchoolId;
+                }
+
+                var classesValues = Request.Form["classes"];
+                if (classesValues.Count == 0)
+                    classesValues = Request.Form["classesJson"];
+
+                if (classesValues.Count > 0)
+                {
+                    var classList = new List<ClassListDto>();
+                    foreach (var jsonString in classesValues)
                     {
-                        if (!string.IsNullOrEmpty(jsonString))
+                        try
                         {
-                            var classItem = JsonSerializer.Deserialize<ClassListDto>(jsonString,
-                                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                            if (classItem != null)
-                                classList.Add(classItem);
+                            if (!string.IsNullOrEmpty(jsonString))
+                            {
+                                var classItem = JsonSerializer.Deserialize<ClassListDto>(jsonString,
+                                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                if (classItem != null)
+                                    classList.Add(classItem);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[CREATE] Error parsing class JSON: {ex.Message}");
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error parsing class JSON: {ex.Message}");
-                    }
+                    document.Classes = classList.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList();
                 }
-                document.Classes = classList.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList();
+                else
+                {
+                    document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList()
+                                       ?? new List<Domain.Entities.Class>();
+                }
+
+                Console.WriteLine("[CREATE] Calling service CreateDocumentAsync");
+                var createdDocument = await _documentService.CreateDocumentAsync(
+                    document, dto.DocumentFile, dto.ThumbnailFile);
+
+                Console.WriteLine($"[CREATE] Document created successfully: ID {createdDocument.Id}");
+
+                return CreatedAtAction(nameof(GetDocumentById), new { id = createdDocument.Id },
+                    new { success = true, data = createdDocument.ToDetailDto() });
             }
-            else
+            catch (Exception ex)
             {
-                document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList()
-                                   ?? new List<Domain.Entities.Class>();
+                Console.WriteLine($"[CREATE] Error: {ex.Message}");
+                Console.WriteLine($"[CREATE] StackTrace: {ex.StackTrace}");
+                return StatusCode(500, new { success = false, message = $"Lỗi tạo tài liệu: {ex.Message}" });
             }
-
-            var createdDocument = await _documentService.CreateDocumentAsync(
-                document, dto.DocumentFile, dto.ThumbnailFile);
-
-            return CreatedAtAction(nameof(GetDocumentById), new { id = createdDocument.Id },
-                new { success = true, data = createdDocument.ToDetailDto() });
         }
 
         [HttpPut("update/{id:int}")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateDocument(int id, [FromForm] UpdateDocumentDto dto)
         {
-            if (id != dto.Id)
-                return BadRequest(new { success = false, message = "ID không khớp" });
-
-            if (!ModelState.IsValid)
-                return BadRequest(new { success = false, errors = ModelState });
-
-            var currentUser = _authService.GetCurrentUser();
-            if (currentUser == null)
-                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
-
-            var existingDoc = _documentService.GetDocumentById(id);
-            if (existingDoc == null)
-                return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
-
-            if (existingDoc.CreatedBy != currentUser.Id)
-                return Forbid();
-
-            var document = dto.ToEntity();
-            document.UpdatedBy = currentUser.Id;
-
-            var classesValues = Request.Form["classes"];
-            if (classesValues.Count == 0)
-                classesValues = Request.Form["classesJson"];
-
-            if (classesValues.Count > 0)
+            try
             {
-                var classList = new List<ClassListDto>();
-                foreach (var jsonString in classesValues)
+                if (id != dto.Id)
+                    return BadRequest(new { success = false, message = "ID không khớp" });
+
+                if (!ModelState.IsValid)
+                    return BadRequest(new { success = false, errors = ModelState });
+
+                var currentUser = _authService.GetCurrentUser();
+                if (currentUser == null)
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+                var existingDoc = _documentService.GetDocumentById(id);
+                if (existingDoc == null)
+                    return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
+
+                if (existingDoc.CreatedBy != currentUser.Id)
+                    return Forbid();
+
+                var document = dto.ToEntity();
+                document.UpdatedBy = currentUser.Id;
+
+                var classesValues = Request.Form["classes"];
+                if (classesValues.Count == 0)
+                    classesValues = Request.Form["classesJson"];
+
+                if (classesValues.Count > 0)
                 {
-                    try
+                    var classList = new List<ClassListDto>();
+                    foreach (var jsonString in classesValues)
                     {
-                        if (!string.IsNullOrEmpty(jsonString))
+                        try
                         {
-                            var classItem = JsonSerializer.Deserialize<ClassListDto>(jsonString,
-                                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                            if (classItem != null)
-                                classList.Add(classItem);
+                            if (!string.IsNullOrEmpty(jsonString))
+                            {
+                                var classItem = JsonSerializer.Deserialize<ClassListDto>(jsonString,
+                                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                if (classItem != null)
+                                    classList.Add(classItem);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error parsing class JSON: {ex.Message}");
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error parsing class JSON: {ex.Message}");
-                    }
+                    document.Classes = classList.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList();
                 }
-                document.Classes = classList.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList();
+                else
+                {
+                    document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList()
+                                       ?? new List<Domain.Entities.Class>();
+                }
+
+                var updatedDocument = await _documentService.UpdateDocumentAsync(
+                    document, dto.DocumentFile, dto.ThumbnailFile);
+
+                return Ok(new { success = true, data = updatedDocument.ToDetailDto() });
             }
-            else
+            catch (Exception ex)
             {
-                document.Classes = dto.classes?.Select(c => new Domain.Entities.Class { Id = c.Id }).ToList()
-                                   ?? new List<Domain.Entities.Class>();
+                return StatusCode(500, new { success = false, message = ex.Message });
             }
-
-            var updatedDocument = await _documentService.UpdateDocumentAsync(
-                document, dto.DocumentFile, dto.ThumbnailFile);
-
-            return Ok(new { success = true, data = updatedDocument.ToDetailDto() });
         }
 
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeleteDocument(int id)
         {
-            var currentUser = _authService.GetCurrentUser();
-            if (currentUser == null)
-                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+            try
+            {
+                var currentUser = _authService.GetCurrentUser();
+                if (currentUser == null)
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var existingDoc = _documentService.GetDocumentById(id);
-            if (existingDoc == null)
-                return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
+                var existingDoc = _documentService.GetDocumentById(id);
+                if (existingDoc == null)
+                    return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
 
-            if (existingDoc.CreatedBy != currentUser.Id)
-                return Forbid();
+                if (existingDoc.CreatedBy != currentUser.Id)
+                    return StatusCode(403, new { success = false, message = "Bạn không có quyền xóa tài liệu này" });
 
-            var result = await _documentService.DeleteDocument(id);
-            if (!result)
-                return NotFound(new { success = false, message = "Xóa thất bại" });
+                var result = await _documentService.DeleteDocument(id);
+                if (!result)
+                    return StatusCode(500, new { success = false, message = "Xóa thất bại" });
 
-            return Ok(new { success = true, message = "Xóa thành công" });
+                return Ok(new { success = true, message = "Xóa thành công" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Delete error: {ex.Message}");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
         }
 
         [HttpPatch("soft-delete/{id:int}")]
         public async Task<IActionResult> SoftDeleteDocument(int id)
         {
-            var currentUser = _authService.GetCurrentUser();
-            if (currentUser == null)
-                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+            try
+            {
+                var currentUser = _authService.GetCurrentUser();
+                if (currentUser == null)
+                    return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
 
-            var result = await _documentService.SoftDeleteDocument(id, currentUser.Id);
-            if (!result)
-                return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
+                var existingDoc = _documentService.GetDocumentById(id);
+                if (existingDoc == null)
+                    return NotFound(new { success = false, message = "Không tìm thấy tài liệu" });
 
-            return Ok(new { success = true, message = "Xóa mềm thành công" });
+                var result = await _documentService.SoftDeleteDocument(id, currentUser.Id);
+                if (!result)
+                    return StatusCode(500, new { success = false, message = "Ẩn tài liệu thất bại" });
+
+                return Ok(new { success = true, message = "Ẩn tài liệu thành công" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
         }
 
         [HttpPost("approve")]
