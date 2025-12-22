@@ -100,35 +100,43 @@ namespace StudyHub.Backend.UseCases.Services
             document.Status = true;
 
             var created = _repo.CreateDocument(document);
-            var elasticDoc = new UpsertElasticDocumentRequest
+
+            try
             {
-                Id = created.Id,
-                Name = created.Name,
-                Description = created.Description,
-                DocumentUrl = created.DocumentUrl,
-                Thumbnail = created.Thumbnail,
-                SchoolId = created.SchoolId,
-                Subject = new Subject
+                var elasticDoc = new UpsertElasticDocumentRequest
                 {
-                    Name = created.Subject?.Name ?? String.Empty,
-                },
-                DocumentLengthType = created.DocumentLengthType,
-                DocumentLevel = created.DocumentLevel,
-                DocumentCategory = new DocumentCategory
+                    Id = created.Id,
+                    Name = created.Name,
+                    Description = created.Description,
+                    DocumentUrl = created.DocumentUrl,
+                    Thumbnail = created.Thumbnail,
+                    SchoolId = created.SchoolId,
+                    Subject = new Subject
+                    {
+                        Name = created.Subject?.Name ?? String.Empty,
+                    },
+                    DocumentLengthType = created.DocumentLengthType,
+                    DocumentLevel = created.DocumentLevel,
+                    DocumentCategory = new DocumentCategory
+                    {
+                        Name = created.DocumentCategory?.Name ?? String.Empty,
+                        Description = created.DocumentCategory?.Description ?? String.Empty
+                    },
+                    Grade = created.Grade,
+                    IsInClass = created.IsInClass,
+                    Status = created.Status,
+                    CreatedAt = created.CreatedAt,
+                    UpdatedAt = created.UpdatedAt
+                };
+                var isValid = await elasticDocumentVectorSearchService.IndexDocumentAsync(elasticDoc);
+                if (!isValid)
                 {
-                    Name = created.DocumentCategory?.Name ?? String.Empty,
-                    Description = created.DocumentCategory?.Description ?? String.Empty
-                },
-                Grade = created.Grade,
-                IsInClass = created.IsInClass,
-                Status = created.Status,
-                CreatedAt = created.CreatedAt,
-                UpdatedAt = created.UpdatedAt
-            };
-            var isValid = await elasticDocumentVectorSearchService.IndexDocumentAsync(elasticDoc);
-            if (!isValid)
+                    Console.WriteLine($"[WARNING] Failed to index document {created.Id} in ElasticSearch");
+                }
+            }
+            catch (Exception ex)
             {
-                throw new InvalidOperationException("Failed to index document in search index.");
+                Console.WriteLine($"[ERROR] ElasticSearch indexing failed: {ex.Message}");
             }
 
             if (!imageExtensions.Contains(extension))
@@ -175,11 +183,19 @@ namespace StudyHub.Backend.UseCases.Services
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = userId;
 
-            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
-            if (!isValid)
+            try
             {
-                throw new InvalidOperationException("Failed to update document updated at in search index.");
+                var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+                if (!isValid)
+                {
+                    Console.WriteLine($"[WARNING] Failed to update document {id} timestamp in ElasticSearch");
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] ElasticSearch update failed: {ex.Message}");
+            }
+
             return _repo.UpdateDocument(document);
         }
         public async Task<Document> UpdateDocumentAsync(Document document, IFormFile? documentFile = null, IFormFile? thumbnailFile = null)
@@ -250,36 +266,43 @@ namespace StudyHub.Backend.UseCases.Services
 
             var updated = _repo.UpdateDocument(document);
 
-            var elasticDoc = new UpsertElasticDocumentRequest
+            try
             {
-                Id = updated.Id,
-                Name = updated.Name,
-                Description = updated.Description,
-                DocumentUrl = updated.DocumentUrl,
-                Thumbnail = updated.Thumbnail,
-                SchoolId = updated.SchoolId,
-                Subject = new Subject
+                var elasticDoc = new UpsertElasticDocumentRequest
                 {
-                    Name = updated.Subject?.Name ?? String.Empty,
-                },
-                DocumentLengthType = updated.DocumentLengthType,
-                DocumentLevel = updated.DocumentLevel,
-                DocumentCategory = new DocumentCategory
-                {
-                    Name = updated.DocumentCategory?.Name ?? String.Empty,
-                    Description = updated.DocumentCategory?.Description ?? String.Empty
-                },
-                Grade = updated.Grade,
-                IsInClass = updated.IsInClass,
-                Status = updated.Status,
-                CreatedAt = updated.CreatedAt,
-                UpdatedAt = updated.UpdatedAt
-            };
+                    Id = updated.Id,
+                    Name = updated.Name,
+                    Description = updated.Description,
+                    DocumentUrl = updated.DocumentUrl,
+                    Thumbnail = updated.Thumbnail,
+                    SchoolId = updated.SchoolId,
+                    Subject = new Subject
+                    {
+                        Name = updated.Subject?.Name ?? String.Empty,
+                    },
+                    DocumentLengthType = updated.DocumentLengthType,
+                    DocumentLevel = updated.DocumentLevel,
+                    DocumentCategory = new DocumentCategory
+                    {
+                        Name = updated.DocumentCategory?.Name ?? String.Empty,
+                        Description = updated.DocumentCategory?.Description ?? String.Empty
+                    },
+                    Grade = updated.Grade,
+                    IsInClass = updated.IsInClass,
+                    Status = updated.Status,
+                    CreatedAt = updated.CreatedAt,
+                    UpdatedAt = updated.UpdatedAt
+                };
 
-            var isValid = await elasticDocumentVectorSearchService.IndexDocumentAsync(elasticDoc);
-            if (!isValid)
+                var isValid = await elasticDocumentVectorSearchService.IndexDocumentAsync(elasticDoc);
+                if (!isValid)
+                {
+                    Console.WriteLine($"[WARNING] Failed to update document {updated.Id} in ElasticSearch index");
+                }
+            }
+            catch (Exception ex)
             {
-                throw new InvalidOperationException("Failed to update document in search index.");
+                Console.WriteLine($"[ERROR] ElasticSearch indexing failed for document {updated.Id}: {ex.Message}");
             }
 
             if (documentFileChanged)
@@ -354,11 +377,19 @@ int pageSize = 10)
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = userId;
 
-            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
-            if (!isValid)
+            try
             {
-                throw new InvalidOperationException("Failed to update document updated at in search index.");
+                var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+                if (!isValid)
+                {
+                    Console.WriteLine($"[WARNING] Failed to update document {id} timestamp in ElasticSearch");
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] ElasticSearch update failed: {ex.Message}");
+            }
+
             return _repo.UpdateDocument(document);
         }
 
@@ -385,11 +416,19 @@ int pageSize = 10)
             document.UpdatedBy = deletedBy;
             document.Status = false;
 
-            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentStatusAsync(id, false);
-            if (!isValid)
+            try
             {
-                throw new InvalidOperationException("Failed to update document status in search index.");
+                var isValid = await elasticDocumentVectorSearchService.UpdateDocumentStatusAsync(id, false);
+                if (!isValid)
+                {
+                    Console.WriteLine($"[WARNING] Failed to update document {id} status in ElasticSearch");
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] ElasticSearch status update failed: {ex.Message}");
+            }
+
             _repo.UpdateDocument(document);
             return true;
         }
@@ -402,11 +441,20 @@ int pageSize = 10)
             document.IsApproved = true;
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = approvedBy;
-            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
-            if (!isValid)
+
+            try
             {
-                throw new InvalidOperationException("Failed to update document updated at in search index.");
+                var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+                if (!isValid)
+                {
+                    Console.WriteLine($"[WARNING] Failed to update document {id} timestamp in ElasticSearch");
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] ElasticSearch update failed: {ex.Message}");
+            }
+
             return _repo.UpdateDocument(document);
         }
 
@@ -418,11 +466,20 @@ int pageSize = 10)
             document.IsApproved = false;
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = rejectedBy;
-            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
-            if (!isValid)
+
+            try
             {
-                throw new InvalidOperationException("Failed to update document updated at in search index.");
+                var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+                if (!isValid)
+                {
+                    Console.WriteLine($"[WARNING] Failed to update document {id} timestamp in ElasticSearch");
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] ElasticSearch update failed: {ex.Message}");
+            }
+
             return _repo.UpdateDocument(document);
         }
 
@@ -437,16 +494,25 @@ int pageSize = 10)
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = updatedBy;
 
-            var isStatusValid = await elasticDocumentVectorSearchService.UpdateDocumentStatusAsync(id, true);
-            if (!isStatusValid)
+            try
             {
-                throw new InvalidOperationException("Failed to update document status in search index.");
+                var isStatusValid = await elasticDocumentVectorSearchService.UpdateDocumentStatusAsync(id, true);
+                if (!isStatusValid)
+                {
+                    Console.WriteLine($"[WARNING] Failed to update document {id} status in ElasticSearch");
+                }
+
+                var isUpdatedAtValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+                if (!isUpdatedAtValid)
+                {
+                    Console.WriteLine($"[WARNING] Failed to update document {id} timestamp in ElasticSearch");
+                }
             }
-            var isUpdatedAtValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
-            if (!isUpdatedAtValid)
+            catch (Exception ex)
             {
-                throw new InvalidOperationException("Failed to update document updated at in search index.");
+                Console.WriteLine($"[ERROR] ElasticSearch update failed: {ex.Message}");
             }
+
             return _repo.UpdateDocument(document);
         }
 
@@ -458,11 +524,19 @@ int pageSize = 10)
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = updatedBy;
 
-            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
-            if (!isValid)
+            try
             {
-                throw new InvalidOperationException("Failed to update document updated at in search index.");
+                var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+                if (!isValid)
+                {
+                    Console.WriteLine($"[WARNING] Failed to update document {id} timestamp in ElasticSearch");
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] ElasticSearch update failed: {ex.Message}");
+            }
+
             return _repo.UpdateDocument(document);
         }
 
@@ -566,11 +640,19 @@ int pageSize = 10)
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = approvedBy;
 
-            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
-            if (!isValid)
+            try
             {
-                throw new InvalidOperationException("Failed to update document updated at in search index.");
+                var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+                if (!isValid)
+                {
+                    Console.WriteLine($"[WARNING] Failed to update document {id} timestamp in ElasticSearch");
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] ElasticSearch update failed: {ex.Message}");
+            }
+
             return _repo.UpdateDocument(document);
         }
 
@@ -586,11 +668,19 @@ int pageSize = 10)
             document.UpdatedAt = DateTime.Now;
             document.UpdatedBy = rejectedBy;
 
-            var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
-            if (!isValid)
+            try
             {
-                throw new InvalidOperationException("Failed to update document updated at in search index.");
+                var isValid = await elasticDocumentVectorSearchService.UpdateDocumentUpdatedAtAsync(id, DateTime.Now);
+                if (!isValid)
+                {
+                    Console.WriteLine($"[WARNING] Failed to update document {id} timestamp in ElasticSearch");
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] ElasticSearch update failed: {ex.Message}");
+            }
+
             return _repo.UpdateDocument(document);
         }
 

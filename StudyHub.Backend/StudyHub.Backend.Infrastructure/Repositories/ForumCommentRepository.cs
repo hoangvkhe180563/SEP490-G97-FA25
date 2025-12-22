@@ -249,6 +249,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     Content = comment.Content,
                     TotalViolationScore = comment.TotalViolationScore,
                     Status = comment.Status,
+                    IsHidden = comment.IsHidden,
                     CreatedAt = comment.CreatedAt,
                     CreatedBy = comment.CreatedBy,
                 };
