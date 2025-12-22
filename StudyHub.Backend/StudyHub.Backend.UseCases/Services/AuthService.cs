@@ -16,6 +16,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using StudyHub.Backend.UseCases.Exceptions;
 
+
 namespace StudyHub.Backend.UseCases.Services
 {
     public class AuthService
@@ -521,7 +522,7 @@ namespace StudyHub.Backend.UseCases.Services
             {
                 callbackPath = callbackPath.Replace("/api/", "/");
             }
-            var redirectUri = new Uri(new Uri(_configuration["App:BaseUrl"] ?? "http://localhost:5173"), callbackPath).ToString();
+            var redirectUri = new Uri(new Uri(_configuration["App:BaseUrl:Production"] ?? "http://localhost:5173"), callbackPath).ToString();
             var scope = "openid email profile";
             var state = Guid.NewGuid().ToString("N");
             var authUrl = $"https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id={Uri.EscapeDataString(clientId)}&redirect_uri={Uri.EscapeDataString(redirectUri)}&scope={Uri.EscapeDataString(scope)}&state={state}&prompt=select_account";
@@ -541,7 +542,7 @@ namespace StudyHub.Backend.UseCases.Services
             if (Uri.IsWellFormedUriString(returnUrl, UriKind.Relative)) return returnUrl;
 
             // allow absolute urls only if they start with App:BaseUrl
-            var appBase = _configuration["App:BaseUrl"];
+            var appBase = _configuration["App:BaseUrl:Production"];
             if (string.IsNullOrEmpty(appBase)) return null;
 
             if (!Uri.IsWellFormedUriString(returnUrl, UriKind.Absolute)) return null;
@@ -575,7 +576,7 @@ namespace StudyHub.Backend.UseCases.Services
             var clientSecret = google.GetValue<string>("ClientSecret");
             if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret)) return null;
             var callbackPath = google.GetValue<string>("CallbackPath") ?? "/auth/google/callback";
-            var redirectUri = new Uri(new Uri(_configuration["App:BaseUrl"] ?? "http://localhost:5173"), callbackPath).ToString();
+            var redirectUri = new Uri(new Uri(_configuration["App:BaseUrl:Production"] ?? "http://localhost:5173"), callbackPath).ToString();
 
             try
             {

@@ -22,7 +22,9 @@ namespace StudyHub.Backend.Api.Controllers
         private readonly IConfiguration _config;
         private readonly IHubContext<NotificationHub> _notificationHub;
         private readonly NotificationService _notificationService;
-        public ClassMemberController(ClassMemberService service,AuthService auth, AppUserService aUserService, AppRoleService aRoleService, LocationService locationService, SmtpEmailService emailService, IConfiguration config, ClassService classService, IHubContext<NotificationHub> hubContext, NotificationService notification)
+        private readonly IWebHostEnvironment _env;
+
+        public ClassMemberController(ClassMemberService service, AuthService auth, AppUserService aUserService, AppRoleService aRoleService, LocationService locationService, SmtpEmailService emailService, IConfiguration config, ClassService classService, IHubContext<NotificationHub> hubContext, NotificationService notification, IWebHostEnvironment env)
         {
             _service = service;
             _aUserService = aUserService;
@@ -32,8 +34,9 @@ namespace StudyHub.Backend.Api.Controllers
             _config = config;
             _classService = classService;
             _notificationService = notification;
-            _notificationHub= hubContext;
+            _notificationHub = hubContext;
             _authService = auth;
+            _env = env;
         }
         [HttpGet]
         public IActionResult GetMembers(int classId)
@@ -69,7 +72,7 @@ namespace StudyHub.Backend.Api.Controllers
             var cls = _classService.GetClassById(classId);
             if (cls == null) return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
 
-            var baseFrontendUrl = _config["App:BaseUrl"]?.TrimEnd('/') ?? $"{Request.Scheme}://{Request.Host}";
+            var baseFrontendUrl = _config[$"App:BaseUrl:{_env.EnvironmentName}"]?.TrimEnd('/') ?? $"{Request.Scheme}://{Request.Host}";
 
 #pragma warning disable CS8604 // Possible null reference argument.
             var results = await _service.InviteByEmailsAsync(classId, request.Emails, request.Role, request.Message, baseFrontendUrl);
@@ -85,7 +88,7 @@ namespace StudyHub.Backend.Api.Controllers
             var cls = _classService.GetClassById(classId);
             if (cls == null) return NotFound(new { success = false, message = "Không tìm thấy lớp học." });
 
-            var baseFrontendUrl = _config["App:BaseUrl"]?.TrimEnd('/') ?? $"{Request.Scheme}://{Request.Host}";
+            var baseFrontendUrl = _config[$"App:BaseUrl:{_env.EnvironmentName}"]?.TrimEnd('/') ?? $"{Request.Scheme}://{Request.Host}";
 
             try
             {
@@ -163,7 +166,7 @@ namespace StudyHub.Backend.Api.Controllers
                     targetType: "Group",
                     targetGroupId: groupId == 0 ? (int?)null : groupId,
                     targetUserId: null,
-                    recipientUserIds: groupMembers, 
+                    recipientUserIds: groupMembers,
                     createdBy: currentUser.Id,
                     linkUrl: "/class/" + classId,
                     priority: "Normal",
@@ -187,7 +190,7 @@ namespace StudyHub.Backend.Api.Controllers
                             id = saved.Id,
                             title = saved.Title,
                             body = saved.Body,
-                            linkUrl = "/class/"+classId,
+                            linkUrl = "/class/" + classId,
                             priority = saved.Priority,
                             targetType = saved.TargetType,
                             targetGroupId = saved.TargetGroupId,
