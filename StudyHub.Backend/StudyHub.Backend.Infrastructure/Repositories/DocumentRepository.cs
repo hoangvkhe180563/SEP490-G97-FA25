@@ -481,7 +481,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     foreach (var classItem in doc.Classes)
                     {
                         _context.Database.ExecuteSqlRaw(
-                            "INSERT INTO Document_Classes (DocumentId, ClassId) VALUES ({0}, {1})",
+                            "INSERT INTO document_classes (DocumentId, ClassId) VALUES ({0}, {1})",
                             entity.Id, classItem.Id);
                     }
                 }
@@ -549,13 +549,13 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.UpdatedBy = doc.UpdatedBy;
                 entity.DeletedAt = doc.DeletedAt;
 
-                _context.Database.ExecuteSqlRaw("DELETE FROM Document_Classes WHERE DocumentId = {0}", doc.Id);
+                _context.Database.ExecuteSqlRaw("DELETE FROM document_classes WHERE DocumentId = {0}", doc.Id);
                 if (doc.Classes != null && doc.Classes.Any())
                 {
                     foreach (var classItem in doc.Classes)
                     {
                         _context.Database.ExecuteSqlRaw(
-                            "INSERT INTO Document_Classes (DocumentId, ClassId) VALUES ({0}, {1})",
+                            "INSERT INTO document_classes (DocumentId, ClassId) VALUES ({0}, {1})",
                             doc.Id, classItem.Id);
                     }
                 }
@@ -608,7 +608,7 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                     return false;
                 }
 
-                _context.Database.ExecuteSqlRaw("DELETE FROM Document_Classes WHERE DocumentId = {0}", id);
+                _context.Database.ExecuteSqlRaw("DELETE FROM document_classes WHERE DocumentId = {0}", id);
                 _context.Documents.Remove(entity);
                 _context.SaveChanges();
                 transaction.Commit();
