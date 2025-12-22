@@ -26,7 +26,7 @@ public class ClassMemberServiceTests
         mockSmtpSection.Setup(x => x["From"]).Returns("no-reply@test. com");
 
         mockConfig.Setup(x => x.GetSection("Smtp")).Returns(mockSmtpSection.Object);
-        mockConfig.Setup(x => x["App:BaseUrl"]).Returns("http://localhost:5173");
+        mockConfig.Setup(x => x["App:BaseUrl:Production"]).Returns("http://localhost:5173");
         mockConfig.Setup(x => x["App:Name"]).Returns("StudyHub");
 
         return new SmtpEmailService(mockConfig.Object);

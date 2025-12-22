@@ -23,7 +23,7 @@ namespace StudyHub.Backend.Api.Services
             var pass = smtp.GetValue<string>("Password");
             var from = smtp.GetValue<string>("From") ?? "no-reply@example.com";
 
-            var baseUrl = _configuration["App:BaseUrl"] ?? "http://localhost:5173";
+            var baseUrl = _configuration["App:BaseUrl:Production"] ?? "http://localhost:5173";
             var appName = _configuration["App:Name"] ?? "StudyHub";
             var resetLink = $"{baseUrl.TrimEnd('/')}/auth/reset-password?token={resetToken}";
 
@@ -79,7 +79,7 @@ namespace StudyHub.Backend.Api.Services
             var pass = smtp.GetValue<string>("Password");
             var from = smtp.GetValue<string>("From") ?? "no-reply@example.com";
 
-            var baseUrl = _configuration["App:BaseUrl"] ?? "http://localhost:5173";
+            var baseUrl = _configuration["App:BaseUrl:Production"] ?? "http://localhost:5173";
             var appName = _configuration["App:Name"] ?? "StudyHub";
             var verifyLink = $"{baseUrl.TrimEnd('/')}/auth/verify-email?token={Uri.EscapeDataString(verificationToken)}";
 
@@ -198,7 +198,7 @@ namespace StudyHub.Backend.Api.Services
             var pass = smtp.GetValue<string>("Password");
             var from = smtp.GetValue<string>("From") ?? "no-reply@example.com";
 
-            var baseUrl = _configuration["App:BaseUrl"] ?? "http://localhost:5173";
+            var baseUrl = _configuration["App:BaseUrl:Production"] ?? "http://localhost:5173";
             var appName = _configuration["App:Name"] ?? "StudyHub";
 
             string subject;
