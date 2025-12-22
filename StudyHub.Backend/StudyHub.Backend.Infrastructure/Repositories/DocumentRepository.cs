@@ -521,10 +521,14 @@ namespace StudyHub.Backend.Infrastructure.Repositories
 
         public Document UpdateDocument(Document doc)
         {
+            using var transaction = _context.Database.BeginTransaction();
             try
             {
                 var entity = _context.Documents.Find(doc.Id);
-                if (entity == null) return doc;
+                if (entity == null)
+                {
+                    throw new InvalidOperationException($"Document with ID {doc.Id} not found");
+                }
 
                 entity.Name = doc.Name;
                 entity.SubjectId = doc.SubjectId;
@@ -546,7 +550,6 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 entity.DeletedAt = doc.DeletedAt;
 
                 _context.Database.ExecuteSqlRaw("DELETE FROM Document_Classes WHERE DocumentId = {0}", doc.Id);
-
                 if (doc.Classes != null && doc.Classes.Any())
                 {
                     foreach (var classItem in doc.Classes)
@@ -558,51 +561,65 @@ namespace StudyHub.Backend.Infrastructure.Repositories
                 }
 
                 _context.SaveChanges();
+                transaction.Commit();
 
-                var subject = _context.Subjects.Where(s => s.Id == entity.SubjectId).FirstOrDefault();
-                var documentCategory = _context.DocumentCategories.Where(dc => dc.Id == entity.DocumentCategoryId).FirstOrDefault();
+                var updatedDoc = _context.Documents
+                    .Include(d => d.Subject)
+                    .Include(d => d.DocumentCategory)
+                    .Include(d => d.School)
+                    .Include(d => d.Classes)
+                    .FirstOrDefault(d => d.Id == doc.Id);
 
-                if (subject == null || documentCategory == null)
+                if (updatedDoc == null)
                 {
-                    return doc;
+                    throw new InvalidOperationException("Failed to retrieve updated document");
                 }
 
-                doc.Subject = new Subject
+                var result = MapToEntity(updatedDoc);
+                var user = _context.AppUsers.FirstOrDefault(u => u.Id == updatedDoc.CreatedBy);
+                if (user != null)
                 {
-                    Id = subject.Id,
-                    Name = subject.Name
-                };
-                doc.DocumentCategory = new DocumentCategory
-                {
-                    Id = documentCategory.Id,
-                    Name = documentCategory.Name,
-                    Description = documentCategory.Description
-                };
-                return doc;
+                    result.Username = new AppUser
+                    {
+                        Id = user.Id,
+                        Username = user.Username,
+                        Fullname = user.Fullname
+                    };
+                }
+
+                return result;
             }
             catch (Exception ex)
             {
+                transaction.Rollback();
                 new InfrastructureException("DocumentRepository", "UpdateDocument failed: " + ex.Message).LogError();
-                return new Document();
+                throw;
             }
         }
 
         public bool DeleteDocument(int id)
         {
+            using var transaction = _context.Database.BeginTransaction();
             try
             {
                 var entity = _context.Documents.Find(id);
-                if (entity == null) return false;
+                if (entity == null)
+                {
+                    return false;
+                }
 
                 _context.Database.ExecuteSqlRaw("DELETE FROM Document_Classes WHERE DocumentId = {0}", id);
                 _context.Documents.Remove(entity);
                 _context.SaveChanges();
+                transaction.Commit();
+
                 return true;
             }
             catch (Exception ex)
             {
+                transaction.Rollback();
                 new InfrastructureException("DocumentRepository", "DeleteDocument failed: " + ex.Message).LogError();
-                return false;
+                throw;
             }
         }
         public List<Document> GetDocumentsBySubjectForPublic(int subjectId)
