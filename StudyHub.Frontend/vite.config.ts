@@ -11,18 +11,14 @@ export default defineConfig({
     },
   },
   build: {
-    // 1. Tắt Sourcemap (Cực kỳ quan trọng, giảm 50% tải RAM/CPU)
     sourcemap: false,
-
-    // 2. Tắt báo cáo kích thước file (giảm tính toán)
     reportCompressedSize: false,
-
-    // 3. Sử dụng esbuild thay vì terser (esbuild nhanh hơn gấp nhiều lần)
     minify: "esbuild",
-
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
     rollupOptions: {
       output: {
-        // 3. Tối ưu chia nhỏ chunk
         manualChunks(id) {
           if (id.includes("node_modules")) {
             if (id.includes("xlsx")) return "vendor-xlsx";
@@ -32,8 +28,10 @@ export default defineConfig({
           }
         },
       },
-      // 4. Tăng tốc độ bằng cách bỏ qua một số kiểm tra không cần thiết
       treeshake: true,
     },
   },
+  optimizeDeps: {
+    include: ['quill'],
+  }
 });

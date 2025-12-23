@@ -88,8 +88,8 @@ const TakeExam = () => {
         const fetchedQuestions = await examService.getExamQuestionsByResultId(fetchedResult.id);
         setExam(fetchedExam);
         setTimeLeft(fetchedExam.duration * 60);
-        const timeLeftInMilliseconds = new Date(fetchedResult.finishTime).getTime() - new Date().getTime();
-        setTimeLeft(Math.round(timeLeftInMilliseconds / 1000));
+        // const timeLeftInMilliseconds = new Date(fetchedResult.finishTime).getTime() - new Date().getTime();
+        // setTimeLeft(Math.round(timeLeftInMilliseconds / 1000));
         setQuestions(fetchedQuestions);
 
         setStudentAnswers(_ => {

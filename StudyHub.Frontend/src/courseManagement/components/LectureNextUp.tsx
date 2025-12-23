@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 import { useLectureStore } from "@/courseManagement/stores/useLectureStore";
 import { useEnrollmentStore } from "@/courseManagement/stores/useEnrollmentStore";
 import {
@@ -10,7 +10,7 @@ import {
 } from "@/common/components/ui/card";
 
 const LectureNextUp: React.FC = () => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const chapters = useLectureStore((s) => s.chapters);
   const selected = useLectureStore((s) => s.selectedLesson);
   const fetchLesson = useLectureStore((s) => s.fetchLesson);
@@ -60,9 +60,7 @@ const LectureNextUp: React.FC = () => {
                   } catch (err) {
                     console.debug("fetchLesson failed", err);
                   }
-                  navigate(
-                    `/course/student/courses/${next.courseId}/lecture/${next.id}`
-                  );
+                  location.href = `/course/student/courses/${next.courseId}/lecture/${next.id}`
                 }}
                 disabled={selected ? !getLessonCompleted(selected.id) : false}
                 title={

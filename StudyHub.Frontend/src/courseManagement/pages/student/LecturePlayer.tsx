@@ -461,6 +461,7 @@ const LecturePlayer: React.FC = () => {
               modestbranding: 1,
               rel: 0,
               origin: window.location.origin,
+              enablejsapi: 1
             },
             events: {
               onReady: (e: any) => {
@@ -480,23 +481,25 @@ const LecturePlayer: React.FC = () => {
                     }
                   }
                 } catch {
-                  // ignore
+                  console.log("onReady failed.");
+                  console.log(e.target);
                 }
               },
               onStateChange: async (ev: any) => {
                 const state = ev.data;
+                const player = ev.target;
                 if (state === 1) {
                   isPlaying = true;
                   try {
-                    lastTick = ytPlayerRef.current.getCurrentTime() || 0;
+                    lastTick = player.getCurrentTime() || 0;
                   } catch {
                     // ignore
                   }
                   if (!pollId) {
                     pollId = window.setInterval(async () => {
                       try {
-                        let now = ytPlayerRef.current.getCurrentTime() || 0;
-                        const duration = ytPlayerRef.current.getDuration() || 0;
+                        let now = player.getCurrentTime() || 0;
+                        const duration = player.getDuration() || 0;
 
                         // prevent seeking forward
                         if (Math.abs(now - lastTick) > 2) {
@@ -548,7 +551,9 @@ const LecturePlayer: React.FC = () => {
                     }, 500) as unknown as number;
                   }
                 } else if (state === 2 || state === 0) {
-                  const now = ytPlayerRef.current.getCurrentTime() || 0;
+                  const now = (player && typeof player.getCurrentTime === 'function')
+                    ? player.getCurrentTime()
+                    : lastTick;
                   if (isPlaying) {
                     watchedIntervals.push([
                       Math.min(lastTick, now),
@@ -558,7 +563,7 @@ const LecturePlayer: React.FC = () => {
                   isPlaying = false;
 
                   try {
-                    const duration = ytPlayerRef.current.getDuration() || 0;
+                    const duration = player.getDuration() || 0;
                     const pct = Math.round((now / (duration || 1)) * 100);
                     setLocalProgress(pct);
                     await saveProgress(pct);
@@ -580,7 +585,9 @@ const LecturePlayer: React.FC = () => {
                       }
                     }
                   } catch {
-                    // ignore
+                    console.error("Lỗi youtube không phát được. Chi tiết:");
+                    console.log("Youtube player ref: ", ytPlayerRef);
+                    console.log("Player: ", player);
                   }
 
                   if (pollId) {
@@ -836,9 +843,6 @@ const LecturePlayer: React.FC = () => {
     const now = Date.now();
     if (now - _progressLogLastRef.current >= 1000) {
       _progressLogLastRef.current = now;
-      console.log(
-        `LecturePlayer progress: lessonId=${lessonId} progress=${_localProgress}% time=${_currentTime}s`
-      );
     }
   }, [_localProgress, _currentTime, lessonId]);
 
@@ -909,7 +913,7 @@ const LecturePlayer: React.FC = () => {
             };
           }),
           cheatTimes: 0,
-          finishTime: calculateFinishTime(),
+          finishTime: calculateFinishTime(exam.duration),
         };
 
         await examService.createResult(examResult);

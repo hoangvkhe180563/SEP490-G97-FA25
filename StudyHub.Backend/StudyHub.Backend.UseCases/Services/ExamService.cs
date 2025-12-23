@@ -350,7 +350,7 @@ namespace StudyHub.Backend.UseCases.Services
                 new UseCaseException("ExamService", "SubmitExamResult error: Cannot found exam!").LogError();
                 return false;
             }
-            if (exam.LessonId != 0 && score >= 5)
+            if (exam.LessonId != 0 && score >= 8)
             {
                 int enrollmentId = _examResultRepo.GetEnrollmentId(resultId, exam.LessonId);
                 if (enrollmentId == 0)

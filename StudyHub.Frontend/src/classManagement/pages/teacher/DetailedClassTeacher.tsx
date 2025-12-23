@@ -538,7 +538,11 @@ const DetailedClassTeacher: React.FC = () => {
     console.log("handleSelect", placehold);
   }; // placeholder
 
-  if (isLoading)
+  // Only show the full-page loader when we are still loading AND we don't have class data yet.
+  // This prevents blinking when child/tab requests toggle a shared isLoading flag.
+  const showFullPageLoader = isLoading && !currentClass?.data?.classInfo;
+
+  if (showFullPageLoader)
     return (
       <div className="p-8 text-center text-slate-500">
         Đang tải thông tin lớp học...
