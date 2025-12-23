@@ -212,6 +212,7 @@ namespace StudyHub.Backend.UseCases.Services
                     NGUYÊN TẮC:
                     - Phân tích kỹ từng chi tiết trong câu hỏi
                     - Suy luận thông tin ngầm định (ví dụ: ""thi vào 10"" → grade = 9)
+                    - Nếu không suy ra được thì để grade = -1
                     - Nếu thiếu thông tin, dùng giá trị mặc định hợp lý
                     - Trả về ĐÚNG format JSON, không giải thích thêm
 
@@ -233,7 +234,7 @@ namespace StudyHub.Backend.UseCases.Services
                     - documentLevel: ""easy"" | ""medium"" | ""hard""
                     - goal: Mục tiêu học tập - VD: ""thi vào 10"", ""củng cố kiến thức"", ""luyện đề""
                     - preferredLength: ""short"" | ""medium"" | ""long""
-                    - grade: Lớp học (6-12)
+                    - grade: Lớp học (1-12) - VD: 9; nếu không xác định được thì để -1
                     - topicKeywords: Các chủ đề cụ thể (array) - VD: [""phương trình"", ""hình học""]
 
                     CÂU HỎI CỦA USER:
@@ -264,6 +265,7 @@ namespace StudyHub.Backend.UseCases.Services
                     - Tập trung vào điểm mạnh của từng khóa
                     - Tạo động lực học tập
                     - Sử dụng tone thân thiện, tích cực
+                    - Chỉ tạo lời giải thích dựa trên từng khóa học được liệt kê ở dưới
 
                     HỒ SƠ NHU CẦU CỦA HỌC SINH:
                     {profileJson}
@@ -296,6 +298,7 @@ namespace StudyHub.Backend.UseCases.Services
                     - Tập trung vào điểm mạnh của từng tài liệu
                     - Tạo động lực học tập
                     - Sử dụng tone thân thiện, tích cực
+                    - Chỉ tạo lời giải thích dựa trên từng tài liệu được liệt kê ở dưới
 
                     HỒ SƠ NHU CẦU CỦA HỌC SINH:
                     {profileJson}
@@ -421,16 +424,16 @@ namespace StudyHub.Backend.UseCases.Services
 
         public async Task<(StudyHub.Backend.UseCases.Dtos.QuizSpec spec, int promptTokens, int completionTokens)> ExtractQuizSpecAsync(string userMessage)
         {
-                var extracted = QuizSpecExtractor.Extract(userMessage ?? string.Empty);
+            var extracted = QuizSpecExtractor.Extract(userMessage ?? string.Empty);
 
-                var hasUseful = (extracted.NumQuestions > 0)
-                                && (!string.IsNullOrEmpty(extracted.QuestionType) || !string.IsNullOrWhiteSpace(extracted.QuestionType))
-                                && (extracted.Keywords != null && extracted.Keywords.Count > 0);
+            var hasUseful = (extracted.NumQuestions > 0)
+                            && (!string.IsNullOrEmpty(extracted.QuestionType) || !string.IsNullOrWhiteSpace(extracted.QuestionType))
+                            && (extracted.Keywords != null && extracted.Keywords.Count > 0);
 
-                if (hasUseful)
-                {
-                    return (extracted, 0, 0);
-                }
+            if (hasUseful)
+            {
+                return (extracted, 0, 0);
+            }
 
             // Fallback: use LLM prompt-based extraction
             var model = (configuration["HuggingFace:LLMModel:Path"] ?? "") + ":" + (configuration["HuggingFace:LLMModel:InferenceProviderPath"] ?? "");

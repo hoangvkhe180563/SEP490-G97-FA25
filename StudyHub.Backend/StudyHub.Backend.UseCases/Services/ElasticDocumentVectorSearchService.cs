@@ -259,7 +259,10 @@ namespace StudyHub.Backend.UseCases.Services
 
             filters.Add(f => f.Term(t => t.Field(fd => fd.IsInClass).Value(false)));
 
-            filters.Add(f => f.Terms(t => t.Field(fd => fd.Grade).Terms(profile.Grade)));
+            if(profile.Grade > 0)
+            {
+             filters.Add(f => f.Terms(t => t.Field(fd => fd.Grade).Terms(profile.Grade)));
+            }
 
             if (schoolId < 1)
             {

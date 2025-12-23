@@ -728,7 +728,11 @@ export default function DocumentViewer() {
         }
       `}</style>
 
-      <div className={`flex flex-col h-screen bg-gray-50 ${user ? '' : 'mt-[65px]'}`}>
+      <div
+        className={`flex flex-col h-screen bg-gray-50 ${
+          user ? "" : "mt-[65px]"
+        }`}
+      >
         <div className="bg-white border-b border-gray-200 px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1335,10 +1339,6 @@ export default function DocumentViewer() {
                                   <div className="text-xs font-medium text-green-900">
                                     Trả lời
                                   </div>
-                                  <div className="text-xs text-green-700">
-                                    Độ tin cậy:{" "}
-                                    {(aiAnswer.confidence * 100).toFixed(0)}%
-                                  </div>
                                 </div>
                                 <div className="text-xs text-green-800 whitespace-pre-wrap">
                                   {aiAnswer.answer}
@@ -1362,10 +1362,6 @@ export default function DocumentViewer() {
                                               {isPdf
                                                 ? `Trang ${source.pageNumber}`
                                                 : `Đoạn ${idx + 1}`}
-                                            </div>
-                                            <div className="text-xs text-gray-600">
-                                              Độ chính xác:{" "}
-                                              {(source.score * 100).toFixed(0)}%
                                             </div>
                                           </div>
                                           <div className="text-xs text-gray-600">
