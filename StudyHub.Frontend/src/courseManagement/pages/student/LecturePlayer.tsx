@@ -307,7 +307,7 @@ const LecturePlayer: React.FC = () => {
     const fetchExamStatus = async () => {
       const status = await courseApi.checkExamStatus(lid, String(authUser?.id));
       if (status === null) {
-        toast.error("Không thể lấy trạng thái bài kiểm tra!");
+        // toast.error("Không thể lấy trạng thái bài kiểm tra!");
         return;
       }
       setExamStatus(status);
