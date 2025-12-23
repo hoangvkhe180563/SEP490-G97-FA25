@@ -461,6 +461,7 @@ const LecturePlayer: React.FC = () => {
               modestbranding: 1,
               rel: 0,
               origin: window.location.origin,
+              enablejsapi: 1
             },
             events: {
               onReady: (e: any) => {
@@ -480,7 +481,8 @@ const LecturePlayer: React.FC = () => {
                     }
                   }
                 } catch {
-                  // ignore
+                  console.log("onReady failed.");
+                  console.log(e.target);
                 }
               },
               onStateChange: async (ev: any) => {
@@ -561,7 +563,7 @@ const LecturePlayer: React.FC = () => {
                   isPlaying = false;
 
                   try {
-                    const duration = ytPlayerRef.current.getDuration() || 0;
+                    const duration = player.getDuration() || 0;
                     const pct = Math.round((now / (duration || 1)) * 100);
                     setLocalProgress(pct);
                     await saveProgress(pct);
@@ -583,7 +585,9 @@ const LecturePlayer: React.FC = () => {
                       }
                     }
                   } catch {
-                    // ignore
+                    console.error("Lỗi youtube không phát được. Chi tiết:");
+                    console.log("Youtube player ref: ", ytPlayerRef);
+                    console.log("Player: ", player);
                   }
 
                   if (pollId) {
