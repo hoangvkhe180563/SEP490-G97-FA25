@@ -49,13 +49,13 @@ const LLMInputForm: React.FC = () => {
       // navigate to dedicated LLM result page using path param
       nav(`/recommend/student/llm/${historyId}`);
 
-      // If user opted out, skip calling the AI and updating history
-      if (!generateExplanation) return;
-
       // call recommend LLM and after it completes update history response
       const store = useRecommendStore.getState();
       // fetchRecommendLLM now returns the result to avoid a read-after-write race
-      const result = await store.fetchRecommendLLM(message);
+      const result = await store.fetchRecommendLLM(
+        message,
+        generateExplanation
+      );
       if (result) {
         // persist the LLM response as JSON string (so backend stores full payload)
         const responseText = JSON.stringify(result);

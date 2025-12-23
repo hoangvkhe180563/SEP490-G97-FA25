@@ -22,9 +22,9 @@ type RecommendState = {
   fetchRecommend: (topK?: number) => Promise<void>;
   fetchRecommendLLM: (
     userMessage?: string,
+    isGenerateExplanation?: boolean,
     profile?: LLMProfile,
-    topK?: number,
-    isGenerateExplanation?: boolean
+    topK?: number
   ) => Promise<LLMRecommendationResponse | null>;
   createLlmHistory: (inputText?: string) => Promise<any>;
   updateLlmHistoryResponse: (
@@ -139,9 +139,9 @@ export const useRecommendStore = create<RecommendState>((set: any) => ({
 
   fetchRecommendLLM: async (
     userMessage?: string,
+    isGenerateExplanation = false,
     profile?: LLMProfile,
-    topK = 30,
-    isGenerateExplanation = false
+    topK = 30
   ) => {
     set({ llmLoading: true, error: null });
     try {
