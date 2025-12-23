@@ -1,8 +1,7 @@
 import axios from "axios";
 
 export const axiosInstance = axios.create({
-  // baseURL: "https://api.studyhub.io.vn/api", 
-  baseURL: "http://localhost:6789/api", 
+  baseURL: "https://api.studyhub.io.vn/api",
   withCredentials: true, // send cookies to the server
 });
 
