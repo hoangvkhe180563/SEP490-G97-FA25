@@ -22,14 +22,17 @@ export default defineConfig({
 
     rollupOptions: {
       output: {
-        // 4. Gom nhóm các thư viện lại để Rollup không phải xử lý quá nhiều file nhỏ
-        manualChunks: (id) => {
+        // 3. Tối ưu chia nhỏ chunk
+        manualChunks(id) {
           if (id.includes("node_modules")) {
+            if (id.includes("xlsx")) return "vendor-xlsx";
+            if (id.includes("@microsoft/signalr")) return "vendor-signalr";
+            if (id.includes("lucide-react")) return "vendor-icons";
             return "vendor";
           }
         },
       },
-      // 5. Tăng tốc độ bằng cách bỏ qua một số kiểm tra không cần thiết
+      // 4. Tăng tốc độ bằng cách bỏ qua một số kiểm tra không cần thiết
       treeshake: true,
     },
   },
