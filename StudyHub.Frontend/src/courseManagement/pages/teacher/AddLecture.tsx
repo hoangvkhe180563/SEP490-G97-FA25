@@ -69,7 +69,6 @@ const AddLecture: React.FC = () => {
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(
     chapterIdFromQuery ?? null
   );
-  // chapterInfo not required directly; we keep postDate and lessons
   const [chapterPostDate, setChapterPostDate] = useState<string | null>(null);
   const [chapterLessons, setChapterLessons] = useState<any[]>([]);
   const [courseEndDate, setCourseEndDate] = useState<string | null>(null);
@@ -910,7 +909,9 @@ const AddLecture: React.FC = () => {
         showAnswers: true,
         showCorrectAnswers: true,
         lessonId: created.id,
-        openTime: postDate ? parse(postDate, "dd/MM/yyyy", new Date()) : new Date(),
+        openTime: postDate
+          ? parse(postDate, "dd/MM/yyyy", new Date())
+          : new Date(),
         subjectId: selectedSubjectId,
         grade: selectedGrade,
       };
